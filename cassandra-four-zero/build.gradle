@@ -1,0 +1,87 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+project(':cassandra-four-zero') {
+    apply(plugin: 'java-library')
+    apply(plugin: 'com.github.johnrengelman.shadow')
+
+    dependencies {
+        compileOnly(project(':cassandra-bridge'))
+
+        compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+        compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+
+        implementation(group: 'org.apache.cassandra', name: 'cassandra-all', version: '4.0.2') {
+            // Exclude JNA libraries from the cassandra-all dependency tree because Spark has its own version
+            // and trying to load two different versions causes issues with the native libraries
+            exclude(group: 'net.java.dev.jna')
+            exclude(group: 'org.xerial.snappy', module: 'snappy-java')
+
+            // zstd causes dependency/classpath issues running in Spark if e.g. a user is using zstd to write compressed output file
+            // Spark already pulls in zstd so we can exclude here
+            exclude(group: 'com.github.luben', module: 'zstd-jni')
+        }
+
+        testImplementation(project(':cassandra-bridge'))
+
+        testImplementation(group: 'junit', name: 'junit', version: "${project.rootProject.junitVersion}")
+        testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
+        testImplementation("org.mockito:mockito-core:${project.rootProject.mockitoVersion}")
+        testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+        testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+        testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
+
+        testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
+        testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
+    }
+
+    jar {
+        enabled = false
+    }
+
+    shadowJar {
+        archiveFileName = 'four-zero.jar'  // Must match label in CassandraVersion (without extension)
+        zip64 = true
+
+        exclude('META-INF/maven/org/apache/logging/**')
+        exclude('META-INF/maven/org.apache.logging.log4j/**')
+        exclude('META-INF/maven/org.slf4j/**')
+        exclude('com/fasterxml/jackson/**')
+        exclude('net/openhft/chronicle/wire/**')
+        exclude('org/jboss/byteman/**')
+        exclude('org/junit/**')
+        exclude('org/quicktheories/**')
+        exclude('org/slf4j/**')
+        exclude('org/apache/commons/lang3/**')
+
+        // Exclude Google Guava's implementation of the Range<BigInteger> and related classes from the JAr,
+        // this way all implementations of Cassandra Bridge will fall back to using the exact same version.
+        exclude('com/google/common/collect/Range*')
+    }
+
+    task javadocJar(type: Jar, dependsOn: javadoc) {
+      classifier = 'javadoc'
+      from javadoc.destinationDir
+    }
+
+    artifacts {
+        javadocJar
+        shadowJar
+    }
+}

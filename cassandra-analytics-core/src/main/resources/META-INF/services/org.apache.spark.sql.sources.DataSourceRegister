@@ -1,0 +1,2 @@
+org.apache.cassandra.spark.sparksql.CassandraDataSource
+org.apache.cassandra.spark.sparksql.CassandraDataSink

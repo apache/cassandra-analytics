@@ -1,0 +1,241 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.cassandra.spark.data.complex;
+
+import java.nio.ByteBuffer;
+import java.util.Set;
+
+import org.apache.commons.lang.builder.EqualsBuilder;
+import org.apache.commons.lang.builder.HashCodeBuilder;
+
+import com.esotericsoftware.kryo.io.Output;
+import org.apache.cassandra.bridge.BigNumberConfig;
+import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
+import org.apache.cassandra.db.marshal.AbstractType;
+import org.apache.cassandra.serializers.TypeSerializer;
+import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.CqlType;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.types.DataType;
+
+public class CqlFrozen extends CqlType implements CqlField.CqlFrozen
+{
+    private final CqlField.CqlType inner;
+    private final int hashCode;
+
+    public CqlFrozen(CqlField.CqlType inner)
+    {
+        this.inner = inner;
+        this.hashCode = new HashCodeBuilder()
+                .append(internalType().ordinal())
+                .append(inner)
+                .toHashCode();
+    }
+
+    public static CqlFrozen build(CqlField.CqlType inner)
+    {
+        return new CqlFrozen(inner);
+    }
+
+    @Override
+    public boolean isSupported()
+    {
+        return true;
+    }
+
+    @Override
+    public AbstractType<?> dataType()
+    {
+        return ((CqlType) inner()).dataType(false);  // If frozen collection then isMultiCell is false
+    }
+
+    @Override
+    public AbstractType<?> dataType(boolean isMultiCell)
+    {
+        return dataType();
+    }
+
+    @Override
+    public Object toSparkSqlType(Object value)
+    {
+        return inner().toSparkSqlType(value, true);
+    }
+
+    @Override
+    public Object toSparkSqlType(Object value, boolean isFrozen)
+    {
+        return toSparkSqlType(value);
+    }
+
+    @Override
+    public <T> TypeSerializer<T> serializer()
+    {
+        return ((CqlType) inner()).serializer();
+    }
+
+    @Override
+    public Object deserialize(ByteBuffer buffer)
+    {
+        return inner().deserialize(buffer, true);
+    }
+
+    @Override
+    public Object deserialize(ByteBuffer buffer, boolean isFrozen)
+    {
+        return deserialize(buffer);
+    }
+
+    @Override
+    public ByteBuffer serialize(Object value)
+    {
+        return inner().serialize(value);
+    }
+
+    @Override
+    public boolean equals(Object first, Object second)
+    {
+        return inner().equals(first, second);
+    }
+
+    public InternalType internalType()
+    {
+        return InternalType.Frozen;
+    }
+
+    @Override
+    public String name()
+    {
+        return "frozen";
+    }
+
+    public CqlField.CqlType inner()
+    {
+        return inner;
+    }
+
+    public String cqlName()
+    {
+        return String.format("frozen<%s>", inner.cqlName());
+    }
+
+    @Override
+    public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
+    {
+        return inner.sparkSqlType(bigNumberConfig);
+    }
+
+    @Override
+    public Set<CqlField.CqlUdt> udts()
+    {
+        return inner.udts();
+    }
+
+    @Override
+    public Object sparkSqlRowValue(GenericInternalRow row, int position)
+    {
+        return inner.sparkSqlRowValue(row, position);
+    }
+
+    @Override
+    public Object sparkSqlRowValue(Row row, int position)
+    {
+        return inner.sparkSqlRowValue(row, position);
+    }
+
+    @Override
+    public Object toTestRowType(Object value)
+    {
+        return inner.toTestRowType(value);
+    }
+
+    @Override
+    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    {
+        ((CqlType) inner()).setInnerValue(udtValue, position, value);
+    }
+
+    @Override
+    public Object randomValue(int minCollectionSize)
+    {
+        return inner.randomValue(minCollectionSize);
+    }
+
+    @Override
+    public org.apache.cassandra.cql3.functions.types.DataType driverDataType(boolean isFrozen)
+    {
+        return ((CqlType) inner()).driverDataType(true);
+    }
+
+    @Override
+    public Object convertForCqlWriter(Object value, CassandraVersion version)
+    {
+        return inner.convertForCqlWriter(value, version);
+    }
+
+    @Override
+    public void write(Output output)
+    {
+        CqlField.CqlType.write(this, output);
+        inner.write(output);
+    }
+
+    @Override
+    public String toString()
+    {
+        return cqlName();
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return hashCode;
+    }
+
+    @Override
+    public int compare(Object first, Object second)
+    {
+        return inner.compare(first, second);
+    }
+
+    @Override
+    public boolean equals(Object other)
+    {
+        if (other == null)
+        {
+            return false;
+        }
+        if (this == other)
+        {
+            return true;
+        }
+        if (this.getClass() != other.getClass())
+        {
+            return false;
+        }
+
+        CqlFrozen that = (CqlFrozen) other;
+        return new EqualsBuilder()
+               .append(this.internalType(), that.internalType())
+               .append(this.inner, that.inner)
+               .isEquals();
+    }
+}

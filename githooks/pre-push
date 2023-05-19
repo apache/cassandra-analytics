@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -e
+
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+checkstyle() {
+  SCALA_VERSION=$1
+  SPARK_VERSION=$2
+
+  export SCALA_VERSION=$SCALA_VERSION
+  export SPARK_VERSION=$SPARK_VERSION
+
+  $PROJECT_ROOT/gradlew checkstyleMain checkstyleTest
+}
+
+echo "Running pre-push hook..."
+
+# scala 2.11 && spark 2
+checkstyle 2.11 2
+
+# scala 2.12 && spark 2
+checkstyle 2.12 2
+
+# scala 2.12 && spark 3
+checkstyle 2.12 3
+
+# scala 2.12 && spark 3
+checkstyle 2.13 3
