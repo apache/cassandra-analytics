@@ -33,7 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.clients.Sidecar;
-import org.apache.cassandra.clients.SslConfig;
+import org.apache.cassandra.secrets.SslConfig;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;

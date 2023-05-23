@@ -37,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import o.a.c.sidecar.client.shaded.io.vertx.core.Vertx;
 import o.a.c.sidecar.client.shaded.io.vertx.core.VertxOptions;
+import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.sidecar.client.HttpClientConfig;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarConfig;
@@ -78,7 +79,7 @@ public final class Sidecar
 
     public static SidecarClient from(SidecarInstancesProvider sidecarInstancesProvider,
                                      ClientConfig config,
-                                     SslConfig sslConfig) throws IOException
+                                     SecretsProvider secretsProvider) throws IOException
     {
         Vertx vertx = Vertx.vertx(new VertxOptions().setUseDaemonThread(true).setWorkerPoolSize(config.maxPoolSize()));
 
@@ -90,16 +91,16 @@ public final class Sidecar
                 .maxChunkSize((int) config.maxBufferSize())
                 .userAgent(BuildInfo.READER_USER_AGENT);
 
-        if (sslConfig != null)
+        if (secretsProvider != null)
         {
             builder = builder
                     .ssl(true)
-                    .keyStoreInputStream(sslConfig.keyStoreInputStream())
-                    .keyStorePassword(sslConfig.keyStorePassword())
-                    .keyStoreType(sslConfig.keyStoreType())
-                    .trustStoreInputStream(sslConfig.trustStoreInputStream())
-                    .trustStorePassword(sslConfig.trustStorePassword())
-                    .trustStoreType(sslConfig.trustStoreType());
+                    .keyStoreInputStream(secretsProvider.keyStoreInputStream())
+                    .keyStorePassword(String.valueOf(secretsProvider.keyStorePassword()))
+                    .keyStoreType(secretsProvider.keyStoreType())
+                    .trustStoreInputStream(secretsProvider.trustStoreInputStream())
+                    .trustStorePassword(String.valueOf(secretsProvider.trustStorePassword()))
+                    .trustStoreType(secretsProvider.trustStoreType());
         }
 
         HttpClientConfig httpClientConfig = builder.build();

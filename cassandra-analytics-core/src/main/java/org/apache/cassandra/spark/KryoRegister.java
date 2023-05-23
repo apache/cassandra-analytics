@@ -35,7 +35,7 @@ import org.apache.cassandra.bridge.BigNumberConfigImpl;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.clients.SidecarInstanceImpl;
-import org.apache.cassandra.clients.SslConfig;
+import org.apache.cassandra.secrets.SslConfig;
 import org.apache.cassandra.spark.data.CassandraDataLayer;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.ReplicationFactor;

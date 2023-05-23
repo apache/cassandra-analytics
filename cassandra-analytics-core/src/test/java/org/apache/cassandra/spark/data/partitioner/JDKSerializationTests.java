@@ -40,7 +40,7 @@ import org.junit.Test;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.clients.SslConfig;
+import org.apache.cassandra.secrets.SslConfig;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.cdc.CommitLog;
 import org.apache.cassandra.spark.cdc.CommitLogProvider;

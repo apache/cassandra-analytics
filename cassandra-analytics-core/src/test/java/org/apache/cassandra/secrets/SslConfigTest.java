@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.cassandra.clients;
+package org.apache.cassandra.secrets;
 
 import java.util.Collections;
 import java.util.Map;
@@ -25,12 +25,12 @@ import java.util.TreeMap;
 
 import org.junit.Test;
 
-import static org.apache.cassandra.clients.SslConfig.KEYSTORE_BASE64_ENCODED;
-import static org.apache.cassandra.clients.SslConfig.KEYSTORE_PASSWORD;
-import static org.apache.cassandra.clients.SslConfig.KEYSTORE_PATH;
-import static org.apache.cassandra.clients.SslConfig.TRUSTSTORE_BASE64_ENCODED;
-import static org.apache.cassandra.clients.SslConfig.TRUSTSTORE_PASSWORD;
-import static org.apache.cassandra.clients.SslConfig.TRUSTSTORE_PATH;
+import static org.apache.cassandra.secrets.SslConfig.KEYSTORE_BASE64_ENCODED;
+import static org.apache.cassandra.secrets.SslConfig.KEYSTORE_PASSWORD;
+import static org.apache.cassandra.secrets.SslConfig.KEYSTORE_PATH;
+import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_BASE64_ENCODED;
+import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_PASSWORD;
+import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_PATH;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
