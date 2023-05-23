@@ -69,7 +69,8 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.clients.ExecutorHolder;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.clients.SidecarInstanceImpl;
-import org.apache.cassandra.clients.SslConfig;
+import org.apache.cassandra.secrets.SslConfig;
+import org.apache.cassandra.secrets.SslConfigSecretsProvider;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
@@ -390,7 +391,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
         {
             sidecar = Sidecar.from(new SimpleSidecarInstancesProvider(new ArrayList<>(clusterConfig)),
                                    sidecarClientConfig,
-                                   sslConfig);
+                                   new SslConfigSecretsProvider(sslConfig));
         }
         catch (IOException ioException)
         {

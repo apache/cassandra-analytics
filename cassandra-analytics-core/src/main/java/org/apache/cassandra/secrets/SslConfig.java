@@ -17,17 +17,12 @@
  * under the License.
  */
 
-package org.apache.cassandra.clients;
+package org.apache.cassandra.secrets;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Base64;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -46,6 +41,7 @@ public class SslConfig implements Serializable
 {
     private static final long serialVersionUID = -3844712192096436932L;
     private static final Logger LOGGER = LoggerFactory.getLogger(SslConfig.class);
+    public static final String SECRETS_PATH = "SECRETS_PATH";
     public static final String KEYSTORE_PATH = "KEYSTORE_PATH";
     public static final String KEYSTORE_BASE64_ENCODED = "KEYSTORE_BASE64_ENCODED";
     public static final String KEYSTORE_PASSWORD = "KEYSTORE_PASSWORD";
@@ -56,6 +52,8 @@ public class SslConfig implements Serializable
     public static final String TRUSTSTORE_PASSWORD = "TRUSTSTORE_PASSWORD";
     public static final String TRUSTSTORE_TYPE = "TRUSTSTORE_TYPE";
     public static final String DEFAULT_TRUSTSTORE_TYPE = "JKS";
+
+    protected String secretsPath;
     protected String keyStorePath;
     protected String base64EncodedKeyStore;
     protected String keyStorePassword;
@@ -67,6 +65,7 @@ public class SslConfig implements Serializable
 
     protected SslConfig(Builder<?> builder)
     {
+        secretsPath = builder.secretsPath;
         keyStorePath = builder.keyStorePath;
         base64EncodedKeyStore = builder.base64EncodedKeyStore;
         keyStorePassword = builder.keyStorePassword;
@@ -78,24 +77,11 @@ public class SslConfig implements Serializable
     }
 
     /**
-     * @return an input stream to the keystore source
-     * @throws IOException when an IO exception occurs
+     * @return the path to the secrets directory
      */
-    public InputStream keyStoreInputStream() throws IOException
+    public String secretsPath()
     {
-        if (keyStorePath != null)
-        {
-            return Files.newInputStream(Paths.get(keyStorePath));
-        }
-        else if (base64EncodedKeyStore != null)
-        {
-            return new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedKeyStore));
-        }
-        else
-        {
-            // It should never reach here
-            throw new RuntimeException("keyStorePath or encodedKeyStore must be provided");
-        }
+        return secretsPath;
     }
 
     /**
@@ -128,23 +114,6 @@ public class SslConfig implements Serializable
     public String keyStoreType()
     {
         return keyStoreType != null ? keyStoreType : DEFAULT_KEYSTORE_TYPE;
-    }
-
-    /**
-     * @return an input stream to the truststore source
-     * @throws IOException when an IO exception occurs
-     */
-    public InputStream trustStoreInputStream() throws IOException
-    {
-        if (trustStorePath != null)
-        {
-            return Files.newInputStream(Paths.get(trustStorePath));
-        }
-        else if (base64EncodedTrustStore != null)
-        {
-            return new ByteArrayInputStream(Base64.getDecoder().decode(base64EncodedTrustStore));
-        }
-        return null;
     }
 
     /**
@@ -184,6 +153,7 @@ public class SslConfig implements Serializable
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
     {
         LOGGER.warn("Falling back to JDK deserialization");
+        this.secretsPath = readNullableString(in);
         this.keyStorePath = readNullableString(in);
         this.base64EncodedKeyStore = readNullableString(in);
         this.keyStorePassword = readNullableString(in);
@@ -197,6 +167,7 @@ public class SslConfig implements Serializable
     private void writeObject(ObjectOutputStream out) throws IOException
     {
         LOGGER.warn("Falling back to JDK serialization");
+        writeNullableString(out, secretsPath);
         writeNullableString(out, keyStorePath);
         writeNullableString(out, base64EncodedKeyStore);
         writeNullableString(out, keyStorePassword);
@@ -232,6 +203,7 @@ public class SslConfig implements Serializable
         public SslConfig read(Kryo kryo, Input in, Class type)
         {
             return new Builder<>()
+                   .secretsPath(in.readString())
                    .keyStorePath(in.readString())
                    .base64EncodedKeyStore(in.readString())
                    .keyStorePassword(in.readString())
@@ -245,6 +217,7 @@ public class SslConfig implements Serializable
 
         public void write(Kryo kryo, Output out, SslConfig config)
         {
+            out.writeString(config.secretsPath);
             out.writeString(config.keyStorePath);
             out.writeString(config.base64EncodedKeyStore);
             out.writeString(config.keyStorePassword);
@@ -259,6 +232,7 @@ public class SslConfig implements Serializable
     @Nullable
     public static SslConfig create(Map<String, String> options)
     {
+        String secretsPath = MapUtils.getOrDefault(options, SECRETS_PATH, null);
         String keyStorePath = MapUtils.getOrDefault(options, KEYSTORE_PATH, null);
         String encodedKeyStore = MapUtils.getOrDefault(options, KEYSTORE_BASE64_ENCODED, null);
         String keyStorePassword = MapUtils.getOrDefault(options, KEYSTORE_PASSWORD, null);
@@ -269,16 +243,18 @@ public class SslConfig implements Serializable
         String trustStoreType = MapUtils.getOrDefault(options, TRUSTSTORE_TYPE, null);
 
         // If any of the values are provided we try to create a valid SecretsConfig object
-        if (keyStorePath != null
-                || encodedKeyStore != null
-                || keyStorePassword != null
-                || keyStoreType != null
-                || trustStorePath != null
-                || encodedTrustStore != null
-                || trustStorePassword != null
-                || trustStoreType != null)
+        if (secretsPath != null
+            || keyStorePath != null
+            || encodedKeyStore != null
+            || keyStorePassword != null
+            || keyStoreType != null
+            || trustStorePath != null
+            || encodedTrustStore != null
+            || trustStorePassword != null
+            || trustStoreType != null)
         {
             Builder<?> validatedConfig = new Builder<>()
+                                         .secretsPath(secretsPath)
                                          .keyStorePath(keyStorePath)
                                          .base64EncodedKeyStore(encodedKeyStore)
                                          .keyStorePassword(keyStorePassword)
@@ -303,6 +279,7 @@ public class SslConfig implements Serializable
      */
     public static class Builder<T extends SslConfig.Builder<T>>
     {
+        protected String secretsPath;
         protected String keyStorePath;
         protected String base64EncodedKeyStore;
         protected String keyStorePassword;
@@ -319,6 +296,18 @@ public class SslConfig implements Serializable
         protected T self()
         {
             return (T) this;
+        }
+
+        /**
+         * Sets the {@code secretsPath} and returns a reference to this Builder enabling method chaining
+         *
+         * @param secretsPath the {@code secretsPath} to set
+         * @return a reference to this Builder
+         */
+        public T secretsPath(String secretsPath)
+        {
+            this.secretsPath = secretsPath;
+            return self();
         }
 
         /**
@@ -470,7 +459,7 @@ public class SslConfig implements Serializable
                 if (trustStorePath == null && base64EncodedTrustStore == null)
                 {
                     throw new IllegalArgumentException(
-                            String.format("One of the '%s' or '%s' options must be provided when the '%s' option is provided",
+                           String.format("One of the '%s' or '%s' options must be provided when the '%s' option is provided",
                                           TRUSTSTORE_PATH, TRUSTSTORE_BASE64_ENCODED, TRUSTSTORE_PASSWORD));
                 }
             }

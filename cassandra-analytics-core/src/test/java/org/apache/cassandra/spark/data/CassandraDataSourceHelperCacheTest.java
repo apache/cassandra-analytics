@@ -35,7 +35,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.cassandra.clients.Sidecar;
-import org.apache.cassandra.clients.SslConfig;
+import org.apache.cassandra.secrets.SslConfig;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
