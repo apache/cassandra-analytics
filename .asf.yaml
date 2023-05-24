@@ -5,4 +5,7 @@ github:
     rebase:  true
 
 notifications:
+  commits: commits@cassandra.apache.org
+  issues: commits@cassandra.apache.org
+  pullrequests: commits@cassandra.apache.org
   jira_options: link worklog
