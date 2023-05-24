@@ -1,0 +1,2 @@
+1.0.0
+ * Add the .asf.yaml file (CASSANDRA-18548)
