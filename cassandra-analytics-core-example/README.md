@@ -49,13 +49,13 @@ In this step, we will clone and configure the Cassandra Sidecar project. Finally
 connecting to our local Cassandra 3-node cluster.
 
 ```shell
-git clone https://github.com/frankgh/cassandra-sidecar/tree/CEP-28-bulk-apis
+git clone https://github.com/apache/cassandra-sidecar
 cd cassandra-sidecar
 ```
 
-Configure the `main/dist/sidecar.yaml` file for your local environment. You will most likely only need to configure
+Configure the `src/main/dist/sidecar.yaml` file for your local environment. You will most likely only need to configure
 the `cassandra_instances` section in your file pointing to your local Cassandra data directories. Here is what my
-configuration looks like for this tutorial:
+`cassandra_instances` configuration section looks like for this tutorial:
 
 ```yaml
 cassandra_instances:
