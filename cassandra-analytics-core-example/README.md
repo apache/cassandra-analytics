@@ -63,7 +63,7 @@ cassandra_instances:
     host: localhost
     port: 9042
     data_dirs: <your_ccm_parent_path>/.ccm/test/node1/data0
-    uploads_staging_dir: <your_ccm_parent_path>/.ccm/test/node1/sstable-staging
+    staging_dir: <your_ccm_parent_path>/.ccm/test/node1/sstable-staging
     jmx_host: 127.0.0.1
     jmx_port: 7100
     jmx_ssl_enabled: false
@@ -71,7 +71,7 @@ cassandra_instances:
     host: localhost2
     port: 9042
     data_dirs: <your_ccm_parent_path>/.ccm/test/node2/data0
-    uploads_staging_dir: <your_ccm_parent_path>/.ccm/test/node2/sstable-staging
+    staging_dir: <your_ccm_parent_path>/.ccm/test/node2/sstable-staging
     jmx_host: 127.0.0.1
     jmx_port: 7200
     jmx_ssl_enabled: false
@@ -79,22 +79,20 @@ cassandra_instances:
     host: localhost3
     port: 9042
     data_dirs: <your_ccm_parent_path>/.ccm/test/node3/data0
-    uploads_staging_dir: <your_ccm_parent_path>/.ccm/test/node3/sstable-staging
+    staging_dir: <your_ccm_parent_path>/.ccm/test/node3/sstable-staging
     jmx_host: 127.0.0.1
     jmx_port: 7300
     jmx_ssl_enabled: false
 ```
 
 I have a 3 node setup, so I configure Sidecar for those 3 nodes. CCM creates the Cassandra cluster under
-`${HOME}/.ccm/test`, so I update my `data_dirs` and `uploads_staging_dir` configuration to use my local path.
+`${HOME}/.ccm/test`, so I update my `data_dirs` and `staging_dir` configuration to use my local path.
 
-Next, create the `uploads_staging_dir` where Sidecar will stage SSTables coming from Cassandra Spark bulk writer.
+Next, create the `staging_dir` where Sidecar will stage SSTables coming from Cassandra Spark bulk writer.
 In my case, I have decided to keep the `sstable-staging` directory inside each of the node's directories.
 
 ```shell
-mkdir -p ${HOME}/.ccm/test/node1/sstable-staging
-mkdir -p ${HOME}/.ccm/test/node2/sstable-staging
-mkdir -p ${HOME}/.ccm/test/node3/sstable-staging
+mkdir -p ${HOME}/.ccm/test/node{1..3}/sstable-staging
 ```
 
 Finally, run Cassandra Sidecar, we skip running integration tests because we need docker for integration tests. You
