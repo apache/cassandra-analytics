@@ -22,13 +22,18 @@ project(':cassandra-analytics-core') {
     apply(plugin: 'jacoco')
     apply(plugin: 'maven-publish')
 
+    java {
+        withJavadocJar()
+        withSourcesJar()
+    }
+
     publishing {
         publications {
             maven(MavenPublication) {
                 from components.java
                 groupId project.group
                 artifactId "${archivesBaseName}"
-                version version
+                version System.getenv("CODE_VERSION") ?: "${version}"
             }
         }
     }
