@@ -210,7 +210,7 @@ Analytics have not yet been published to maven central, we need to build them lo
 
 ```shell
 cd ${SIDECAR_REPOSITORY_HOME}
-./gradlew -Pversion=1.0.0-local :common:publishToMavenLocal :client:publishToMavenLocal :vertx-client:publishToMavenLocal :vertx-client-shaded:publishToMavenLocal
+./gradlew -Pversion=1.0.0-local :vertx-client-shaded:publishToMavenLocal
 ```
 
 We use the suffix `-local` to denote that these artifacts have been built locally.

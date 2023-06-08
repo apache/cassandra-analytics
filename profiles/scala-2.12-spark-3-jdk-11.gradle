@@ -24,5 +24,7 @@ ext {
     sparkGroupId="org.apache.spark"
     sparkMajorVersion="3"
     sparkVersion="3.2.2"
+    sidecarClientGroup="org.apache.cassandra.sidecar"
+    sidecarClientName="vertx-client-all"
     sidecarVersion="1.0.0-local"
 }

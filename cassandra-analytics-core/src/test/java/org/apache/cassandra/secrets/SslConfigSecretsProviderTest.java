@@ -231,7 +231,7 @@ public class SslConfigSecretsProviderTest
             keyStorePassAr = new char[]{};
         }
 
-        try (InputStream ksf = new BufferedInputStream((provider.keyStoreInputStream())))
+        try (InputStream ksf = new BufferedInputStream(provider.keyStoreInputStream()))
         {
             keystore.load(ksf, keyStorePassAr);
             kmf.init(keystore, keyStorePassAr);

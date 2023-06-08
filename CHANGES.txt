@@ -1,2 +1,4 @@
 1.0.0
+ * Add circleci configuration yaml for Cassandra Analytics (CASSANDRA-18578)
+ * Provide a SecretsProvider interface to abstract the secret provisioning (CASSANDRA-18545)
  * Add the .asf.yaml file (CASSANDRA-18548)
