@@ -61,7 +61,7 @@ project(':cassandra-analytics-core') {
 
         // This dependency needs to be installed locally by building the Cassandra Sidecar project using the following command:
         //  ./gradlew -Pversion=1.0.0-local :vertx-client-shaded:publishToMavenLocal
-        implementation(group: 'org.apache.cassandra.sidecar', name: 'vertx-client-all', version: "${sidecarVersion}") {
+        implementation(group: "${sidecarClientGroup}", name: "${sidecarClientName}", version: "${sidecarVersion}") {
             exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-annotations') // use provided annotations from spark
         }
 
