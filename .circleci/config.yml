@@ -18,7 +18,7 @@
 version: 2.1
 
 jobs:
-  cassandra-analytics-core-spark2-2.11-jdk8:
+  cassandra-analytics-core-spark2-2_11-jdk8:
     docker:
       - image: circleci/openjdk:8-jdk-stretch
     steps:
@@ -32,7 +32,7 @@ jobs:
             SCALA_VERSION: "2.11"
             JDK_VERSION: "1.8"
 
-  cassandra-analytics-core-spark2-2.12-jdk8:
+  cassandra-analytics-core-spark2-2_12-jdk8:
     docker:
       - image: circleci/openjdk:8-jdk-stretch
     steps:
@@ -46,7 +46,7 @@ jobs:
             SCALA_VERSION: "2.12"
             JDK_VERSION: "1.8"
 
-  cassandra-analytics-core-spark3-2.12-jdk11:
+  cassandra-analytics-core-spark3-2_12-jdk11:
     docker:
       - image: cimg/openjdk:11
     steps:
@@ -60,7 +60,7 @@ jobs:
             SCALA_VERSION: "2.12"
             JDK_VERSION: "11"
 
-  cassandra-analytics-core-spark3-2.13-jdk11:
+  cassandra-analytics-core-spark3-2_13-jdk11:
     docker:
       - image: cimg/openjdk:11
     steps:
@@ -78,7 +78,7 @@ workflows:
   version: 2
   build-and-test:
     jobs:
-      - cassandra-analytics-core-spark2-2.11-jdk8
-      - cassandra-analytics-core-spark2-2.12-jdk8
-      - cassandra-analytics-core-spark3-2.12-jdk11
-      - cassandra-analytics-core-spark3-2.13-jdk11
+      - cassandra-analytics-core-spark2-2_11-jdk8
+      - cassandra-analytics-core-spark2-2_12-jdk8
+      - cassandra-analytics-core-spark3-2_12-jdk11
+      - cassandra-analytics-core-spark3-2_13-jdk11
