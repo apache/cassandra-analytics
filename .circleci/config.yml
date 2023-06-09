@@ -52,7 +52,7 @@ jobs:
     steps:
       - run: |
           git clone --branch trunk https://github.com/apache/cassandra-sidecar.git
-          ./cassandra-sidecar/gradlew -Pversion=1.0.0-local publishToMavenLocal
+          ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-local publishToMavenLocal
       - checkout
       - run:
           name: Build and test against Spark 3 Scala 2.12 JDK11
