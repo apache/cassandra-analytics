@@ -59,9 +59,8 @@ project(':cassandra-analytics-core') {
         runtimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
         runtimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
 
-        // This dependency needs to be installed locally by building the Cassandra Sidecar project using the following
-        // commands:
-        //  ./gradlew -Pversion=1.0.0-local :common:publishToMavenLocal :client:publishToMavenLocal :vertx-client:publishToMavenLocal :vertx-client-shaded:publishToMavenLocal
+        // This dependency needs to be installed locally by building the Cassandra Sidecar project using the following command:
+        //  ./gradlew -Pversion=1.0.0-local :vertx-client-shaded:publishToMavenLocal
         implementation(group: 'org.apache.cassandra.sidecar', name: 'vertx-client-all', version: "${sidecarVersion}") {
             exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-annotations') // use provided annotations from spark
         }

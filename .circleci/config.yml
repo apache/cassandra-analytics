@@ -26,7 +26,7 @@ jobs:
       - run:
           name: Build and test against Spark 2 Scala 2.11 JDK8
           command: |
-            git clone --branch trunk https://github.com/apache/cassandra-sidecar.git
+            git clone --single-branch --branch trunk https://github.com/apache/cassandra-sidecar.git
             ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-jdk8-local :vertx-client-shaded:publishToMavenLocal
             ./gradlew --stacktrace clean assemble check
           environment:
@@ -42,7 +42,7 @@ jobs:
       - run:
           name: Build and test against Spark 2 Scala 2.12 JDK8
           command: |
-            git clone --branch trunk https://github.com/apache/cassandra-sidecar.git
+            git clone --single-branch --branch trunk https://github.com/apache/cassandra-sidecar.git
             ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-jdk8-local :vertx-client-shaded:publishToMavenLocal
             ./gradlew --stacktrace clean assemble check
           environment:
@@ -58,7 +58,7 @@ jobs:
       - run:
           name: Build and test against Spark 3 Scala 2.12 JDK11
           command: |
-            git clone --branch trunk https://github.com/apache/cassandra-sidecar.git
+            git clone --single-branch --branch trunk https://github.com/apache/cassandra-sidecar.git
             ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-local :vertx-client-shaded:publishToMavenLocal
             ./gradlew --stacktrace clean assemble check
           environment:
@@ -68,13 +68,13 @@ jobs:
 
   cassandra-analytics-core-spark3-2_13-jdk11:
     docker:
-      - image: circleci/openjdk:11-jdk-stretch
+      - image: cimg/openjdk:11.0
     steps:
       - checkout
       - run:
           name: Build and test against Spark 3 Scala 2.13 JDK11
           command: |
-            git clone --branch trunk https://github.com/apache/cassandra-sidecar.git
+            git clone --single-branch --branch trunk https://github.com/apache/cassandra-sidecar.git
             ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-local :vertx-client-shaded:publishToMavenLocal
             ./gradlew --stacktrace clean assemble check
           environment:
