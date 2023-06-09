@@ -20,7 +20,7 @@ version: 2.1
 jobs:
   cassandra-analytics-core-spark2-2_11-jdk8:
     docker:
-      - image: circleci/openjdk:8-jdk-stretch
+      - image: cimg/openjdk:8.0
     steps:
       - checkout
       - run:
@@ -36,7 +36,7 @@ jobs:
 
   cassandra-analytics-core-spark2-2_12-jdk8:
     docker:
-      - image: circleci/openjdk:8-jdk-stretch
+      - image: cimg/openjdk:8.0
     steps:
       - checkout
       - run:
