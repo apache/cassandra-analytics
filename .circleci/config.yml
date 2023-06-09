@@ -26,6 +26,8 @@ jobs:
       - run:
           name: Build and test against Spark 2 Scala 2.11 JDK8
           command: |
+            git clone --branch trunk https://github.com/apache/cassandra-sidecar.git
+            ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-jdk8-local publishToMavenLocal
             ./gradlew --stacktrace clean assemble check
           environment:
             SPARK_VERSION: "2"
@@ -40,6 +42,8 @@ jobs:
       - run:
           name: Build and test against Spark 2 Scala 2.12 JDK8
           command: |
+            git clone --branch trunk https://github.com/apache/cassandra-sidecar.git
+            ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-jdk8-local publishToMavenLocal
             ./gradlew --stacktrace clean assemble check
           environment:
             SPARK_VERSION: "2"
@@ -70,6 +74,8 @@ jobs:
       - run:
           name: Build and test against Spark 3 Scala 2.13 JDK11
           command: |
+            git clone --branch trunk https://github.com/apache/cassandra-sidecar.git
+            ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-local publishToMavenLocal
             ./gradlew --stacktrace clean assemble check
           environment:
             SPARK_VERSION: "3"
