@@ -20,11 +20,11 @@
 package org.apache.cassandra.spark.data.partitioner;
 
 import com.google.common.collect.ImmutableMap;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.data.ReplicationFactor;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class ConsistencyLevelTests
 {

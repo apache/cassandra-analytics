@@ -29,13 +29,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.stats.Stats;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class CompressionInputStreamTests
 {
@@ -80,24 +81,32 @@ public class CompressionInputStreamTests
         }
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test()
     public void testBigLongArrayIllegalSize()
     {
-        new BigLongArray(-1);
+        assertThrows(IndexOutOfBoundsException.class,
+                     () -> new BigLongArray(-1)
+        );
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test()
     public void testBigLongArrayEmpty()
     {
-        BigLongArray array = new BigLongArray(0);
-        array.set(0, 0L);
+        assertThrows(IndexOutOfBoundsException.class,
+                     () -> {
+                         BigLongArray array = new BigLongArray(0);
+                         array.set(0, 0L);
+                     });
     }
 
-    @Test(expected = IndexOutOfBoundsException.class)
+    @Test()
     public void testBigLongArrayOutOfRange()
     {
-        BigLongArray array = new BigLongArray(500);
-        array.set(501, 999L);
+        assertThrows(IndexOutOfBoundsException.class,
+                     () -> {
+                         BigLongArray array = new BigLongArray(500);
+                         array.set(501, 999L);
+                     });
     }
 
     @Test

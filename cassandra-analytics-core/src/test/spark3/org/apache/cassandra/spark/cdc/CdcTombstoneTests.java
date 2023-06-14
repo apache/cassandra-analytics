@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.cdc;
 
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.HashMap;
@@ -33,15 +34,15 @@ import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.RangeTombstone;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.Tester;
@@ -53,40 +54,39 @@ import org.apache.spark.sql.Row;
 import scala.collection.mutable.AbstractSeq;
 
 import static org.apache.cassandra.spark.utils.ScalaConversionUtils.mutableSeqAsJavaList;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
 
-@Ignore
+@Disabled
 public class CdcTombstoneTests extends VersionRunner
 {
-    @ClassRule
-    public static TemporaryFolder DIRECTORY = new TemporaryFolder();  // CHECKSTYLE IGNORE: Constant cannot be made final
+    @TempDir
+    public static Path DIRECTORY;  // CHECKSTYLE IGNORE: Constant cannot be made final
+    private CassandraBridge bridge;
 
-    @Before
-    public void setup()
+    @BeforeEach
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void setup(CassandraBridge bridge)
     {
+        this.bridge = bridge;
         CdcTester.setup(bridge, DIRECTORY);
     }
 
-    @After
+    @AfterEach
     public void tearDown()
     {
         CdcTester.tearDown();
     }
 
-    public CdcTombstoneTests(CassandraVersion version)
-    {
-        super(version);
-    }
-
     private static void assertEqualsWithMessage(Object expected, Object actual)
     {
-        assertTrue(String.format("Expect %s to equal to %s, but not.", expected, actual),
-                   ComparisonUtils.equals(expected, actual));
+        boolean actual1 = ComparisonUtils.equals(expected, actual);
+        assertTrue(actual1, String.format("Expect %s to equal to %s, but not.", expected, actual));
     }
 
     @Test
@@ -121,10 +121,18 @@ public class CdcTombstoneTests extends VersionRunner
                         expected.set(2);  // ... and c2 to be set
                         expected.set(3);  // ... and c3 to be set
                         assertEquals(expected, bs);
-                        assertNotNull("pk should not be null", row.get(0));  // pk should be set
-                        assertNull("c1 should be null", row.get(1));         // null due to unset
-                        assertNull("c2 should be null", row.get(2));         // null due to deletion
-                        assertNull("c3 should be null", row.get(3));         // null due to deletion
+                        // pk should be set
+                        Object actual = row.get(0);
+                        assertNotNull(actual, "pk should not be null");
+                        // null due to unset
+                        Object actual3 = row.get(1);
+                        assertNull(actual3, "c1 should be null");
+                        // null due to deletion
+                        Object actual2 = row.get(2);
+                        assertNull(actual2, "c2 should be null");
+                        // null due to deletion
+                        Object actual1 = row.get(3);
+                        assertNull(actual1, "c3 should be null");
                     }
                 })
                 .run());
@@ -202,13 +210,12 @@ public class CdcTombstoneTests extends VersionRunner
                 // Disable checker on the test row. The check is done in the row checker below.
                 .withChecker((testRows, actualRows) -> { })
                 .withRowChecker(sparkRows -> {
-                    assertEquals("Unexpected number of rows in output", numRows, sparkRows.size());
+                    assertEquals(numRows, (Object) sparkRows.size(), "Unexpected number of rows in output");
                     for (int index = 0; index < sparkRows.size(); index++)
                     {
                         Row row = sparkRows.get(index);
                         long lmtInMillis = row.getTimestamp(numOfColumns).getTime();
-                        assertTrue("Last modification time should have a lower bound of " + minTimestamp,
-                                   lmtInMillis >= minTimestamp);
+                        assertTrue(lmtInMillis >= minTimestamp, "Last modification time should have a lower bound of " + minTimestamp);
                         byte[] updatedFieldsIndicator = (byte[]) row.get(numOfColumns + 1);  // Indicator column
                         BitSet bs = BitSet.valueOf(updatedFieldsIndicator);
                         BitSet expected = new BitSet(numOfColumns);
@@ -219,17 +226,21 @@ public class CdcTombstoneTests extends VersionRunner
                             {
                                 expected.set(1);
                             }
-                            assertEquals("row" + index + " should only have the primary keys to be flagged.",
-                                         expected, bs);
-                            assertNotNull("pk should not be null", row.get(0));  // pk should be set
+                            assertEquals(expected, bs, "row" + index + " should only have the primary keys to be flagged.");
+                            // pk should be set
+                            Object actual1 = row.get(0);
+                            assertNotNull(actual1, "pk should not be null");
                             if (hasClustering)
                             {
-                                assertNotNull("ck should not be null", row.get(1));  // ck should be set
+                                // ck should be set
+                                Object actual = row.get(1);
+                                assertNotNull(actual, "ck should not be null");
                             }
                             for (int colIndex = hasClustering ? 2 : 1; colIndex < numOfColumns; colIndex++)
                             {
                                 // null due to row deletion
-                                assertNull("None primary key columns should be null", row.get(colIndex));
+                                Object actual = row.get(colIndex);
+                                assertNull(actual, "None primary key columns should be null");
                             }
                         }
                         else
@@ -238,10 +249,10 @@ public class CdcTombstoneTests extends VersionRunner
                             for (int colIndex = 0; colIndex < numOfColumns; colIndex++)
                             {
                                 expected.set(colIndex);
-                                assertNotNull("All column values should exist for full row update",
-                                              row.get(colIndex));
+                                Object actual = row.get(colIndex);
+                                assertNotNull(actual, "All column values should exist for full row update");
                             }
-                            assertEquals("row" + index + " should have all columns set", expected, bs);
+                            assertEquals(expected, bs, "row" + index + " should have all columns set");
                         }
                     }
                 })
@@ -341,13 +352,12 @@ public class CdcTombstoneTests extends VersionRunner
                 // Disable checker on the test row. The check is done in the row checker below.
                 .withChecker((testRows, actualRows) -> { })
                 .withRowChecker(sparkRows -> {
-                    assertEquals("Unexpected number of rows in output", numRows, sparkRows.size());
+                    assertEquals(numRows, (Object) sparkRows.size(), "Unexpected number of rows in output");
                     for (int index = 0, pkValidationIdx = 0; index < sparkRows.size(); index++)
                     {
                         Row row = sparkRows.get(index);
                         long lmtInMillis = row.getTimestamp(numOfColumns).getTime();
-                        assertTrue("Last modification time should have a lower bound of " + minTimestamp,
-                                   lmtInMillis >= minTimestamp);
+                        assertTrue(lmtInMillis >= minTimestamp, "Last modification time should have a lower bound of " + minTimestamp);
                         byte[] updatedFieldsIndicator = (byte[]) row.get(numOfColumns + 1);  // Indicator column
                         BitSet bs = BitSet.valueOf(updatedFieldsIndicator);
                         BitSet expected = new BitSet(numOfColumns);
@@ -359,23 +369,26 @@ public class CdcTombstoneTests extends VersionRunner
                             for (int key = 0; key < partitionKeys; key++)
                             {
                                 expected.set(key);
-                                assertNotNull("partition key should not be null", row.get(key));
+                                Object actual = row.get(key);
+                                assertNotNull(actual, "partition key should not be null");
                                 pk.add(row.get(key));
                             }
-                            assertEquals("row" + index + " should only have only the partition keys to be flagged.",
-                                         expected, bs);
+                            assertEquals(expected, bs, "row" + index + " should only have only the partition keys to be flagged.");
                             List<Object> expectedPK = validationPk.get(pkValidationIdx++);
-                            assertTrue("Partition deletion should indicate the correct partition at row" + index + ". "
-                                     + "Expected: " + expectedPK + ", actual: " + pk,
-                                       ComparisonUtils.equals(expectedPK.toArray(), pk.toArray()));
+                            boolean actual1 = ComparisonUtils.equals(expectedPK.toArray(), pk.toArray());
+                            assertTrue(actual1, "Partition deletion should indicate the correct partition at row" + index + ". "
+                                                           + "Expected: " + expectedPK + ", actual: " + pk);
                             if (hasClustering)
                             {
-                                assertNull("ck should be null at row" + index, row.get(partitionKeys));  // ck should be set
+                                // ck should be set
+                                Object actual = row.get(partitionKeys);
+                                assertNull(actual, "ck should be null at row" + index);
                             }
                             for (int colIndex = partitionKeys; colIndex < numOfColumns; colIndex++)
                             {
                                 // null due to partition deletion
-                                assertNull("None partition key columns should be null at row" + 1, row.get(colIndex));
+                                Object actual = row.get(colIndex);
+                                assertNull(actual, "None partition key columns should be null at row" + 1);
                             }
                         }
                         else
@@ -384,10 +397,10 @@ public class CdcTombstoneTests extends VersionRunner
                             for (int colIndex = 0; colIndex < numOfColumns; colIndex++)
                             {
                                 expected.set(colIndex);
-                                assertNotNull("All column values should exist for full row update",
-                                              row.get(colIndex));
+                                Object actual = row.get(colIndex);
+                                assertNotNull(actual, "All column values should exist for full row update");
                             }
-                            assertEquals("row" + index + " should have all columns set", expected, bs);
+                            assertEquals(expected, bs, "row" + index + " should have all columns set");
                         }
                     }
                 })
@@ -474,13 +487,12 @@ public class CdcTombstoneTests extends VersionRunner
                 // Disable checker on the test row. The check is done in the sparkrow checker below.
                 .withChecker((testRows, actualRows) -> { })
                 .withRowChecker(sparkRows -> {
-                    assertEquals("Unexpected number of rows in output", numRows, sparkRows.size());
+                    assertEquals(numRows, (Object) sparkRows.size(), "Unexpected number of rows in output");
                     for (int rowIndex = 0; rowIndex < sparkRows.size(); rowIndex++)
                     {
                         Row row = sparkRows.get(rowIndex);
                         long lmtInMillis = row.getTimestamp(numOfColumns).getTime();
-                        assertTrue("Last modification time should have a lower bound of " + minTimestamp,
-                                   lmtInMillis >= minTimestamp);
+                        assertTrue(lmtInMillis >= minTimestamp, "Last modification time should have a lower bound of " + minTimestamp);
                         byte[] updatedFieldsIndicator = (byte[]) row.get(numOfColumns + 1);  // Indicator column
                         BitSet bs = BitSet.valueOf(updatedFieldsIndicator);
                         BitSet expected = new BitSet(numOfColumns);
@@ -495,16 +507,17 @@ public class CdcTombstoneTests extends VersionRunner
                             assertNotNull(cellTombstonesPerColumn);
                             for (String name : collectionColumnNames)
                             {
-                                assertNull("Collection column should be null after deletion",
-                                           row.get(row.fieldIndex(name)));
+                                Object actual1 = row.get(row.fieldIndex(name));
+                                assertNull(actual1, "Collection column should be null after deletion");
 
-                                assertNotNull(cellTombstonesPerColumn.get(name));
+                                Object actual = cellTombstonesPerColumn.get(name);
+                                assertNotNull(actual);
                                 List<?> deletedCellKeys =
                                         mutableSeqAsJavaList((AbstractSeq<?>) cellTombstonesPerColumn.get(name));
-                                assertEquals(1, deletedCellKeys.size());
+                                assertEquals(1, (Object) deletedCellKeys.size());
                                 byte[] keyBytesRead = (byte[]) deletedCellKeys.get(0);
-                                assertArrayEquals("The key encoded should be the same",
-                                                  elementDeletionIndices.get(rowIndex), keyBytesRead);
+                                assertArrayEquals(elementDeletionIndices.get(rowIndex), keyBytesRead,
+                                                  "The key encoded should be the same");
                             }
                         }
                         else
@@ -512,13 +525,13 @@ public class CdcTombstoneTests extends VersionRunner
                             // Verify update
                             for (int colIndex = 0; colIndex < numOfColumns; colIndex++)
                             {
-                                assertNotNull("All column values should exist for full row update",
-                                              row.get(colIndex));
+                                Object actual = row.get(colIndex);
+                                assertNotNull(actual, "All column values should exist for full row update");
                             }
-                            assertNull("the cell deletion map should be absent",
-                                       row.get(numOfColumns + 3));
+                            Object actual = row.get(numOfColumns + 3);
+                            assertNull(actual, "the cell deletion map should be absent");
                         }
-                        assertEquals("row" + rowIndex + " should have all columns set", expected, bs);
+                        assertEquals(expected, bs, "row" + rowIndex + " should have all columns set");
                     }
                 })
                 .run());
@@ -643,13 +656,12 @@ public class CdcTombstoneTests extends VersionRunner
                 // Disable checker on the test row. The check is done in the sparkrow checker below.
                 .withChecker((testRows, actualRows) -> { })
                 .withSparkRowTestRowsChecker((testRows, sparkRows) -> {
-                    assertEquals("Unexpected number of rows in output", numRows, sparkRows.size());
+                    assertEquals(numRows, (Object) sparkRows.size(), "Unexpected number of rows in output");
                     for (int rowIndex = 0; rowIndex < sparkRows.size(); rowIndex++)
                     {
                         Row row = sparkRows.get(rowIndex);
                         long lmtInMillis = row.getTimestamp(numOfColumns).getTime();
-                        assertTrue("Last modification time should have a lower bound of " + minTimestamp,
-                                   minTimestamp <= lmtInMillis);
+                        assertTrue(minTimestamp <= lmtInMillis, "Last modification time should have a lower bound of " + minTimestamp);
                         byte[] updatedFieldsIndicator = (byte[]) row.get(numOfColumns + 1);  // Indicator column
                         BitSet bs = BitSet.valueOf(updatedFieldsIndicator);
                         BitSet expected = new BitSet(numOfColumns);
@@ -659,29 +671,34 @@ public class CdcTombstoneTests extends VersionRunner
                             {
                                 if (column < numOfPartitionKeys)
                                 {
-                                    assertNotNull("All partition keys should exist for range tombstone",
-                                                  row.get(column));
+                                    Object actual = row.get(column);
+                                    assertNotNull(actual, "All partition keys should exist for range tombstone");
                                     expected.set(column);
                                 }
                                 else
                                 {
-                                    assertNull("Non-partition key columns should be null",
-                                               row.get(column));
+                                    Object actual = row.get(column);
+                                    assertNull(actual, "Non-partition key columns should be null");
                                 }
                                 Object deletionColumn = row.get(numOfColumns + 4);  // Range deletion column
-                                assertNotNull(deletionColumn);
+                                assertNotNull(null, (String) deletionColumn);
                                 List<?> tombstones = mutableSeqAsJavaList((AbstractSeq<?>) deletionColumn);
-                                assertEquals("There should be 1 range tombstone", 1, tombstones.size());
+                                assertEquals(1, (Object) tombstones.size(), "There should be 1 range tombstone");
                                 TestSchema.TestRow sourceRow = rangeTombestones.get(rowIndex);
                                 RangeTombstone expectedTombstone = sourceRow.rangeTombstones().get(0);
                                 Row rangeTombstone = (Row) tombstones.get(0);
-                                assertEquals("Range tombstone should have 4 fields", 4, rangeTombstone.length());
-                                assertEquals(expectedTombstone.open.inclusive, rangeTombstone.getAs("StartInclusive"));
-                                assertEquals(expectedTombstone.close.inclusive, rangeTombstone.getAs("EndInclusive"));
+                                Object actual = rangeTombstone.length();
+                                assertEquals(4, actual, "Range tombstone should have 4 fields");
+                                Object actual4 = rangeTombstone.getAs("StartInclusive");
+                                assertEquals(expectedTombstone.open.inclusive, actual4);
+                                Object actual3 = rangeTombstone.getAs("EndInclusive");
+                                assertEquals(expectedTombstone.close.inclusive, actual3);
                                 Row open = rangeTombstone.getAs("Start");
-                                assertEquals(numOfClusteringKeys, open.length());
+                                Object actual2 = open.length();
+                                assertEquals(numOfClusteringKeys, actual2);
                                 Row close = rangeTombstone.getAs("End");
-                                assertEquals(numOfClusteringKeys, close.length());
+                                Object actual1 = close.length();
+                                assertEquals(numOfClusteringKeys, actual1);
                                 for (int keyIndex = 0; keyIndex < numOfClusteringKeys; keyIndex++)
                                 {
                                     assertEqualsWithMessage(expectedTombstone.open.values[keyIndex],
@@ -695,14 +712,14 @@ public class CdcTombstoneTests extends VersionRunner
                         {
                             for (int columnIndex = 0; columnIndex < numOfColumns; columnIndex++)
                             {
-                                assertNotNull("All column values should exist for full row update",
-                                              row.get(columnIndex));
+                                Object actual = row.get(columnIndex);
+                                assertNotNull(actual, "All column values should exist for full row update");
                                 expected.set(columnIndex);
                             }
-                            assertNull("the cell deletion map should be absent",
-                                       row.get(numOfColumns + 3));
+                            Object actual = row.get(numOfColumns + 3);
+                            assertNull(actual, "the cell deletion map should be absent");
                         }
-                        assertEquals("row" + rowIndex + " should have the expected columns set", expected, bs);
+                        assertEquals(expected, bs, "row" + rowIndex + " should have the expected columns set");
                     }
                 })
                 .run());

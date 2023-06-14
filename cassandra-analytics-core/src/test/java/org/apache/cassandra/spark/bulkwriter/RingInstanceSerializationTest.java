@@ -19,13 +19,13 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.sidecar.common.data.RingEntry;
 
 import static org.apache.cassandra.spark.utils.SerializationUtils.deserialize;
 import static org.apache.cassandra.spark.utils.SerializationUtils.serialize;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class RingInstanceSerializationTest
 {

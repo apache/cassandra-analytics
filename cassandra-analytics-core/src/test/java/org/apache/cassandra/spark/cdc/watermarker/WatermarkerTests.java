@@ -22,18 +22,18 @@ package org.apache.cassandra.spark.cdc.watermarker;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.TestDataLayer;
 import org.apache.cassandra.spark.cdc.CommitLog;
 import org.apache.cassandra.spark.cdc.IPartitionUpdateWrapper;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -48,13 +48,13 @@ public class WatermarkerTests
         return update;
     }
 
-    @BeforeClass
+    @BeforeAll
     public static void setup()
     {
         InMemoryWatermarker.TEST_THREAD_NAME = Thread.currentThread().getName();
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown()
     {
         InMemoryWatermarker.TEST_THREAD_NAME = null;

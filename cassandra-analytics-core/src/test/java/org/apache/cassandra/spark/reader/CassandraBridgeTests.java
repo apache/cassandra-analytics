@@ -19,12 +19,12 @@
 
 package org.apache.cassandra.spark.reader;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.spark.sql.types.DataTypes;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.quicktheories.QuickTheory.qt;
 
 public class CassandraBridgeTests

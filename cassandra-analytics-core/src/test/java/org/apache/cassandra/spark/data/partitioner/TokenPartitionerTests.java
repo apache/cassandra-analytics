@@ -28,13 +28,13 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.google.common.collect.Range;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.utils.RandomUtils;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -76,8 +76,8 @@ public class TokenPartitionerTests
 
         for (Map.Entry<BigInteger, Integer> entry : tokens.entrySet())
         {
-            assertFalse("Token not found in any token partitions: " + entry.getKey(), entry.getValue() < 1);
-            assertFalse("Token exists in more than one token partition: " + entry.getKey(), entry.getValue() > 1);
+            assertFalse(entry.getValue() < 1, "Token not found in any token partitions: " + entry.getKey());
+            assertFalse(entry.getValue() > 1, "Token exists in more than one token partition: " + entry.getKey());
         }
     }
 }

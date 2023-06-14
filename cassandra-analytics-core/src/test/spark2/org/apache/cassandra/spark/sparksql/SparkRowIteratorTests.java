@@ -26,7 +26,8 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
-import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
@@ -35,7 +36,6 @@ import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
-import org.apache.cassandra.spark.data.VersionRunner;
 import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
@@ -43,26 +43,22 @@ import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.ColumnTypes;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyListOf;
+import static org.mockito.ArgumentMatchers.anyListOf;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.quicktheories.QuickTheory.qt;
 
-public class SparkRowIteratorTests extends VersionRunner
+public class SparkRowIteratorTests
 {
     private static final int NUM_ROWS = 50;
 
-    public SparkRowIteratorTests(CassandraVersion version)
-    {
-        super(version);
-    }
-
-    @Test
-    public void testBasicKeyValue()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testBasicKeyValue(CassandraBridge bridge)
     {
         // I.e. "create table keyspace.table (a %s, b %s, primary key(a));"
         qt().forAll(TestUtils.versions(), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
@@ -72,8 +68,9 @@ public class SparkRowIteratorTests extends VersionRunner
                     .build()));
     }
 
-    @Test
-    public void testMultiPartitionKeys()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMultiPartitionKeys(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.versions(), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
             .checkAssert((version, type1, type2, type3) -> runTest(version, TestSchema.builder()
@@ -84,8 +81,9 @@ public class SparkRowIteratorTests extends VersionRunner
                     .build()));
     }
 
-    @Test
-    public void testBasicClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testBasicClusteringKey(CassandraBridge bridge)
     {
         for (CassandraVersion version : TestUtils.testableVersions())
         {
@@ -99,8 +97,9 @@ public class SparkRowIteratorTests extends VersionRunner
         }
     }
 
-    @Test
-    public void testMultiClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMultiClusteringKey(CassandraBridge bridge)
     {
         for (CassandraVersion version : TestUtils.testableVersions())
         {
@@ -116,8 +115,9 @@ public class SparkRowIteratorTests extends VersionRunner
         }
     }
 
-    @Test
-    public void testUdt()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUdt(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
             .checkAssert((type1, type2) -> runTest(CassandraVersion.FOURZERO, TestSchema.builder()
@@ -131,8 +131,9 @@ public class SparkRowIteratorTests extends VersionRunner
                     .build()));
     }
 
-    @Test
-    public void testTuple()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testTuple(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
             .checkAssert((type1, type2) -> runTest(CassandraVersion.FOURZERO, TestSchema.builder()

@@ -26,41 +26,37 @@ import java.util.UUID;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.secrets.SslConfig;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.ReplicationFactor;
-import org.apache.cassandra.spark.data.VersionRunner;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 import static org.quicktheories.generators.SourceDSL.booleans;
 import static org.quicktheories.generators.SourceDSL.integers;
 
-public class KryoSerializationTests extends VersionRunner
+public class KryoSerializationTests
 {
     private static final Kryo KRYO = new Kryo();
 
     static
     {
         new KryoRegister().registerClasses(KRYO);
-    }
-
-    public KryoSerializationTests(CassandraVersion version)
-    {
-        super(version);
     }
 
     private static Output serialize(Object object)
@@ -80,8 +76,9 @@ public class KryoSerializationTests extends VersionRunner
         }
     }
 
-    @Test
-    public void testCqlField()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlField(CassandraBridge bridge)
     {
         qt().withExamples(25)
             .forAll(booleans().all(), booleans().all(), TestUtils.cql3Type(bridge), integers().all())
@@ -103,8 +100,9 @@ public class KryoSerializationTests extends VersionRunner
             });
     }
 
-    @Test
-    public void testCqlFieldSet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlFieldSet(CassandraBridge bridge)
     {
         qt().withExamples(25)
             .forAll(booleans().all(), booleans().all(), TestUtils.cql3Type(bridge), integers().all())
@@ -127,8 +125,9 @@ public class KryoSerializationTests extends VersionRunner
             });
     }
 
-    @Test
-    public void testCqlFieldList()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlFieldList(CassandraBridge bridge)
     {
         qt().withExamples(25)
             .forAll(booleans().all(), booleans().all(), TestUtils.cql3Type(bridge), integers().all())
@@ -151,8 +150,9 @@ public class KryoSerializationTests extends VersionRunner
             });
     }
 
-    @Test
-    public void testCqlFieldMap()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlFieldMap(CassandraBridge bridge)
     {
         qt().withExamples(25)
             .forAll(booleans().all(), booleans().all(), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
@@ -175,8 +175,9 @@ public class KryoSerializationTests extends VersionRunner
             });
     }
 
-    @Test
-    public void testCqlUdt()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlUdt(CassandraBridge bridge)
     {
         qt().withExamples(25)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
@@ -197,8 +198,9 @@ public class KryoSerializationTests extends VersionRunner
             });
     }
 
-    @Test
-    public void testCqlTuple()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlTuple(CassandraBridge bridge)
     {
         qt().withExamples(25)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
@@ -221,8 +223,9 @@ public class KryoSerializationTests extends VersionRunner
             });
     }
 
-    @Test
-    public void testCqlTable()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlTable(CassandraBridge bridge)
     {
         List<CqlField> fields = ImmutableList.of(new CqlField(true, false, false, "a", bridge.bigint(), 0),
                                                  new CqlField(true, false, false, "b", bridge.bigint(), 1),
@@ -244,7 +247,8 @@ public class KryoSerializationTests extends VersionRunner
         assertEquals(table, deserialized);
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testCassandraInstance()
     {
         CassandraInstance instance = new CassandraInstance("-9223372036854775807", "local1-i1", "DC1");
@@ -254,7 +258,8 @@ public class KryoSerializationTests extends VersionRunner
         assertEquals(instance, deserialized);
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testCassandraRing()
     {
         qt().forAll(TestUtils.partitioners())
@@ -268,8 +273,9 @@ public class KryoSerializationTests extends VersionRunner
             });
     }
 
-    @Test
-    public void testLocalDataLayer()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testLocalDataLayer(CassandraBridge bridge)
     {
         String path1 = UUID.randomUUID().toString();
         String path2 = UUID.randomUUID().toString();
@@ -311,8 +317,9 @@ public class KryoSerializationTests extends VersionRunner
             });
     }
 
-    @Test
-    public void testCqlUdtField()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlUdtField(CassandraBridge bridge)
     {
         CqlField.CqlUdt udt = bridge.udt("udt_keyspace", "udt_table")
                                     .withField("c", bridge.text())

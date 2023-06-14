@@ -51,8 +51,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.quicktheories.core.Gen;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -449,8 +449,8 @@ public final class Tester
 
             if (shouldCheckNumSSTables)
             {
-                assertEquals("Number of SSTables written does not match expected",
-                             sstableCount, TestUtils.countSSTables(directory));
+                assertEquals(sstableCount, TestUtils.countSSTables(directory),
+                             "Number of SSTables written does not match expected");
             }
 
             Dataset<Row> dataset = TestUtils.openLocalDataset(partitioner,
@@ -470,8 +470,8 @@ public final class Tester
                 if (requiredColumns != null)
                 {
                     Set<String> actualColumns = new HashSet<>(Arrays.asList(row.schema().fieldNames()));
-                    assertEquals("Actual Columns and Required Columns should be the same",
-                                 actualColumns, requiredColumns);
+                    assertEquals(actualColumns, requiredColumns,
+                                 "Actual Columns and Required Columns should be the same");
                 }
 
                 TestSchema.TestRow actualRow = schema.toTestRow(row, requiredColumns);
@@ -479,9 +479,9 @@ public final class Tester
                 {
                     // If we wrote random data, verify values exist
                     String key = actualRow.getKey();
-                    assertTrue("Unexpected row read in Spark", rows.containsKey(key));
-                    assertEquals("Row read in Spark does not match expected",
-                                 rows.get(key).withColumns(requiredColumns), actualRow);
+                    assertTrue(rows.containsKey(key), "Unexpected row read in Spark");
+                    assertEquals(rows.get(key).withColumns(requiredColumns), actualRow,
+                                 "Row read in Spark does not match expected");
                 }
 
                 for (Consumer<TestSchema.TestRow> readListener : readListeners)
@@ -492,15 +492,15 @@ public final class Tester
             }
             if (expectedRowCount >= 0)
             {
-                assertEquals("Number of rows read does not match expected", expectedRowCount * sstableCount, rowCount);
+                assertEquals(expectedRowCount * sstableCount, rowCount, "Number of rows read does not match expected");
             }
 
             // Verify numerical fields sum to expected value
             for (String sumField : sumFields)
             {
-                assertEquals("Field '" + sumField + "' does not sum to expected amount",
-                             sum.get(sumField).getValue().longValue(),
-                             dataset.groupBy().sum(sumField).first().getLong(0));
+                assertEquals(sum.get(sumField).getValue().longValue(),
+                             dataset.groupBy().sum(sumField).first().getLong(0),
+                             "Field '" + sumField + "' does not sum to expected amount");
             }
 
             // Run SparkSQL checks

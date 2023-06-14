@@ -60,7 +60,7 @@ import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.Nullable;
 import org.quicktheories.core.Gen;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 

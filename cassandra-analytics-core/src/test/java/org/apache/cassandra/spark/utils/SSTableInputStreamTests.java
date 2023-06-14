@@ -34,7 +34,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
@@ -46,10 +46,11 @@ import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.utils.streaming.SSTableInputStream.timeoutLeftNanos;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 /**
  * Test the {@link SSTableInputStream} by mocking the {@link SSTableSource}
@@ -147,8 +148,8 @@ public class SSTableInputStreamTests
         assertEquals(fileSize, is.bytesRead());
     }
 
-    @Test(expected = IOException.class)
-    public void testFailure() throws IOException
+    @Test()
+    public void testFailure()
     {
         int chunksPerRequest = 10;
         int numRequests = 10;
@@ -168,8 +169,9 @@ public class SSTableInputStreamTests
                 writeBuffers(consumer, randomBuffers(chunksPerRequest));
             }
         }, null);
-        readStreamFully(new SSTableInputStream<>(source, STATS));
-        fail("Should have failed with IOException");
+        assertThrows(IOException.class,
+                     () -> readStreamFully(new SSTableInputStream<>(source, STATS))
+        );
     }
 
     @Test
@@ -229,9 +231,9 @@ public class SSTableInputStreamTests
         }
         Duration duration = Duration.ofNanos(System.nanoTime() - startTime);
         Duration maxAcceptable = timeout.plus(Duration.ofMillis(sleepTimeInMillis));
-        assertTrue("Timeout didn't account for activity time. "
-                 + "Took " + duration.toMillis() + "ms should have taken at most " + maxAcceptable.toMillis() + "ms",
-                   duration.minus(maxAcceptable).toMillis() < 100);
+        assertTrue(duration.minus(maxAcceptable).toMillis() < 100,
+                   "Timeout didn't account for activity time. "
+                   + "Took " + duration.toMillis() + "ms should have taken at most " + maxAcceptable.toMillis() + "ms");
     }
 
     @Test

@@ -21,31 +21,30 @@ package org.apache.cassandra.bridge;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Named;
 
 /**
- * Runs parameterized tests for all defined versions of Cassandra
+ * Shared version provider for all defined versions of Cassandra
  */
-@RunWith(Parameterized.class)
-public abstract class VersionRunner
+public final class VersionRunner
 {
-    protected final CassandraVersion version;
-    protected final CassandraBridge bridge;
+    private VersionRunner()
+    {
+        throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
 
-    @Parameterized.Parameters
-    public static Collection<Object[]> versions()
+    public static Collection<CassandraVersion> versions()
     {
         return Arrays.stream(CassandraVersion.implementedVersions())
-                     .map(version -> new Object[]{version})
                      .collect(Collectors.toList());
     }
 
-    public VersionRunner(CassandraVersion version)
+    public static List<Named<CassandraBridge>> bridges()
     {
-        this.version = version;
-        this.bridge = CassandraBridgeFactory.get(version);
+        return versions().stream().map(version -> Named.of(version.toString(), CassandraBridgeFactory.get(version)))
+                                            .collect(Collectors.toList());
     }
 }

@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.cdc;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -35,16 +36,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.ClassRule;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.Tester;
 import org.apache.cassandra.spark.cdc.watermarker.Watermarker;
@@ -57,38 +56,31 @@ import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.Row;
 import org.jetbrains.annotations.Nullable;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.quicktheories.QuickTheory.qt;
 
-@Ignore
+@Disabled
 public class CdcTests extends VersionRunner
 {
-    @ClassRule
-    public static TemporaryFolder DIRECTORY = new TemporaryFolder();  // CHECKSTYLE IGNORE: Constant cannot be made final
+    @TempDir
+    public static Path DIRECTORY;  // CHECKSTYLE IGNORE: Constant cannot be made final
 
-    @Before
-    public void setup()
+    public void setup(CassandraBridge bridge)
     {
         CdcTester.setup(bridge, DIRECTORY);
     }
 
-    @After
+    @AfterEach
     public void tearDown()
     {
         CdcTester.tearDown();
     }
 
-    public CdcTests(CassandraVersion version)
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSinglePartitionKey(CassandraBridge bridge)
     {
-        super(version);
-    }
-
-    @Test
-    public void testSinglePartitionKey()
-    {
+        setup(bridge);
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
                          CdcTester.builder(bridge, DIRECTORY, TestSchema.builder()
@@ -102,15 +94,17 @@ public class CdcTests extends VersionRunner
                                           BitSet actual = BitSet.valueOf(updatedFieldsIndicator);
                                           BitSet expected = new BitSet(3);
                                           expected.set(0, 3);  // Expecting all columns to be set
-                                          assertEquals(expected, actual);
+                                          Assertions.assertEquals(expected, actual);
                                       }
                                   })
                                   .run());
     }
 
-    @Test
-    public void testUpdatedFieldsIndicator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testUpdatedFieldsIndicator(CassandraBridge bridge)
     {
+        setup(bridge);
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
                          CdcTester.builder(bridge, DIRECTORY, TestSchema.builder()
@@ -135,16 +129,19 @@ public class CdcTests extends VersionRunner
                                           BitSet expected = new BitSet(3);
                                           expected.set(0);  // Expecting pk to be set
                                           expected.set(2);  // And c2 to be set
-                                          assertEquals(expected, bs);
-                                          assertNull("c1 should be null", row.get(1));
+                                          Assertions.assertEquals(expected, bs);
+                                          Object actual = row.get(1);
+                                          Assertions.assertNull(actual, "c1 should be null");
                                       }
                                   })
                                   .run());
     }
 
-    @Test
-    public void testMultipleWritesToSameKeyInBatch()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testMultipleWritesToSameKeyInBatch(CassandraBridge bridge)
     {
+        setup(bridge);
         // The test writes different groups of mutations.
         // Each group of mutations write to the same key with a different timestamp.
         // For CDC, it only deduplicates and emits the replicated mutations, i.e. they have the same writetime.
@@ -182,7 +179,7 @@ public class CdcTests extends VersionRunner
                                   .withChecker((testRows, actualRows) -> {
                                       int partitions = testRows.size();
                                       int mutations = actualRows.size();
-                                      assertEquals("Each PK should get 2 mutations", partitions * 2, mutations);
+                                      Assertions.assertEquals(partitions * 2, (Object) mutations, "Each PK should get 2 mutations");
                                   })
                                   .withRowChecker(sparkRows -> {
                                       long timestamp = -1L;
@@ -196,8 +193,7 @@ public class CdcTests extends VersionRunner
                                           {
                                               long lastTimestamp = timestamp;
                                               timestamp = getMicros(row.getTimestamp(3));
-                                              assertTrue("Writetime should be monotonically increasing",
-                                                         lastTimestamp < timestamp);
+                                              Assertions.assertTrue(lastTimestamp < timestamp, "Writetime should be monotonically increasing");
                                           }
                                       }
                                   })
@@ -211,9 +207,11 @@ public class CdcTests extends VersionRunner
         return TimeUnit.MILLISECONDS.toMicros(millis) + TimeUnit.NANOSECONDS.toMicros(nanos);
     }
 
-    @Test
-    public void testCompactOnlyWithEnoughReplicas()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCompactOnlyWithEnoughReplicas(CassandraBridge bridge)
     {
+        setup(bridge);
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
                          CdcTester.builder(bridge, DIRECTORY, TestSchema.builder()
@@ -248,11 +246,11 @@ public class CdcTests extends VersionRunner
                                       int uniqueTsCount = rows.stream().map(r -> r.getTimestamp(3).getTime())
                                                               .collect(Collectors.toSet())
                                                               .size();
-                                      Assert.assertEquals("Output rows should have distinct lastModified timestamps", size, uniqueTsCount);
+                                      Assertions.assertEquals(size, uniqueTsCount, "Output rows should have distinct lastModified timestamps");
                                   })
                                   .withChecker((testRows, actualRows) -> {
-                                      Assert.assertEquals("There should be exact one row less in the output.",
-                                                          actualRows.size() + 1, testRows.size());
+                                      Assertions.assertEquals(actualRows.size() + 1, testRows.size(),
+                                                              "There should be exact one row less in the output.");
                                       boolean allContains = true;
                                       TestSchema.TestRow unexpectedRow = null;
                                       for (TestSchema.TestRow row : actualRows)
@@ -266,15 +264,17 @@ public class CdcTests extends VersionRunner
                                       }
                                       if (!allContains && unexpectedRow != null)
                                       {
-                                          Assert.fail("Found an unexpected row from the output: " + unexpectedRow);
+                                          Assertions.fail("Found an unexpected row from the output: " + unexpectedRow);
                                       }
                                   })
                                   .run());
     }
 
-    @Test
-    public void testCompositePartitionKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCompositePartitionKey(CassandraBridge bridge)
     {
+        setup(bridge);
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
                          CdcTester.builder(bridge, DIRECTORY, TestSchema.builder()
@@ -287,9 +287,11 @@ public class CdcTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testClusteringKey(CassandraBridge bridge)
     {
+        setup(bridge);
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
                          CdcTester.builder(bridge, DIRECTORY, TestSchema.builder()
@@ -301,9 +303,11 @@ public class CdcTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testMultipleClusteringKeys()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testMultipleClusteringKeys(CassandraBridge bridge)
     {
+        setup(bridge);
         qt().withExamples(50)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
             .checkAssert((type1, type2, type3) ->
@@ -318,9 +322,11 @@ public class CdcTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testSet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSet(CassandraBridge bridge)
     {
+        setup(bridge);
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
                          CdcTester.builder(bridge, DIRECTORY, TestSchema.builder()
@@ -330,9 +336,11 @@ public class CdcTests extends VersionRunner
                                   .run());
     }
 
-    @Test
-    public void testList()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testList(CassandraBridge bridge)
     {
+        setup(bridge);
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
                          CdcTester.builder(bridge, DIRECTORY, TestSchema.builder()
@@ -342,9 +350,11 @@ public class CdcTests extends VersionRunner
                                   .run());
     }
 
-    @Test
-    public void testMap()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testMap(CassandraBridge bridge)
     {
+        setup(bridge);
         // TODO
         qt().withExamples(1)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
@@ -356,9 +366,11 @@ public class CdcTests extends VersionRunner
                                   .run());
     }
 
-    @Test
-    public void testUpdateFlag()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testUpdateFlag(CassandraBridge bridge)
     {
+        setup(bridge);
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
@@ -388,7 +400,7 @@ public class CdcTests extends VersionRunner
                                       {
                                           int index = row.getInt(1);
                                           boolean isUpdate = row.getBoolean(4);
-                                          assertEquals(isUpdate, index >= halfway);
+                                          Assertions.assertEquals(isUpdate, index >= halfway);
                                       }
                                   })
                                   .run());
@@ -396,9 +408,11 @@ public class CdcTests extends VersionRunner
 
     // CommitLog Reader
 
-    @Test
-    public void testReaderWatermarking() throws IOException
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testReaderWatermarking(CassandraBridge bridge) throws IOException
     {
+        setup(bridge);
         TestSchema schema = TestSchema.builder()
                                       .withPartitionKey("pk", bridge.bigint())
                                       .withColumn("c1", bridge.bigint())
@@ -424,7 +438,7 @@ public class CdcTests extends VersionRunner
         AtomicReference<CommitLog.Marker> currentMarker = new AtomicReference<>();
         List<CommitLog.Marker> markers = Collections.synchronizedList(new ArrayList<>());
         Watermarker watermarker = createWatermarker(currentMarker, markers);
-        File logFile = Files.list(DIRECTORY.getRoot().toPath().resolve("cdc"))
+        File logFile = Files.list(DIRECTORY.resolve("cdc"))
                             .max((first, second) -> {
                                 try
                                 {
@@ -439,8 +453,8 @@ public class CdcTests extends VersionRunner
                             .toFile();
 
         // Read entire CommitLog and verify correct
-        Set<Long> allRows = readLog(cqlTable, logFile, watermarker, keys);
-        assertEquals(numRows, allRows.size());
+        Set<Long> allRows = readLog(cqlTable, logFile, watermarker, keys, bridge);
+        Assertions.assertEquals(numRows, (Object) allRows.size());
 
         // Re-read CommitLog from each watermark position and verify subset of partitions are read
         int foundRows = allRows.size();
@@ -450,20 +464,21 @@ public class CdcTests extends VersionRunner
         for (CommitLog.Marker marker : allMarkers)
         {
             currentMarker.set(marker);
-            Set<Long> result = readLog(cqlTable, logFile, watermarker, keys);
-            assertTrue(result.size() < foundRows);
+            Set<Long> result = readLog(cqlTable, logFile, watermarker, keys, bridge);
+            Assertions.assertTrue(result.size() < foundRows);
             foundRows = result.size();
             if (prevMarker != null)
             {
-                assertTrue(prevMarker.compareTo(marker) < 0);
-                assertTrue(prevMarker.position() < marker.position());
+                Assertions.assertTrue(prevMarker.compareTo(marker) < 0);
+                boolean actual = prevMarker.position() < marker.position();
+                Assertions.assertTrue(actual);
             }
             prevMarker = marker;
 
             if (marker.equals(allMarkers.get(allMarkers.size() - 1)))
             {
                 // Last marker should return 0 updates and be at the end of the file
-                assertTrue(result.isEmpty());
+                Assertions.assertTrue(result.isEmpty());
             }
             else
             {
@@ -531,12 +546,12 @@ public class CdcTests extends VersionRunner
         };
     }
 
-    private Set<Long> readLog(CqlTable table, File logFile, Watermarker watermarker, Set<Long> keys)
+    private Set<Long> readLog(CqlTable table, File logFile, Watermarker watermarker, Set<Long> keys, CassandraBridge bridge)
     {
         try (LocalCommitLog log = new LocalCommitLog(logFile))
         {
             Set<Long> result = bridge.readLog(table, log, watermarker);
-            result.forEach(key -> assertTrue("Unexpected keys have been read from the commit log", keys.contains(key)));
+            result.forEach(key -> Assertions.assertTrue(keys.contains(key), "Unexpected keys have been read from the commit log"));
             return result;
         }
         catch (Exception exception)

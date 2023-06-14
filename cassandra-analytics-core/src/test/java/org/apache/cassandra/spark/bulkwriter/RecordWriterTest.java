@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
+import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -29,19 +30,21 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import com.google.common.collect.Range;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import scala.Tuple2;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class RecordWriterTest
 {
@@ -49,11 +52,10 @@ public class RecordWriterTest
     public static final int FILES_PER_SSTABLE = 8;
     public static final int UPLOADED_TABLES = 3;
     private static final String[] COLUMN_NAMES = {"id", "date", "course", "marks"};
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
 
-    @Rule
-    public ExpectedException exception = ExpectedException.none();
+    @TempDir
+    public Path folder; // CHECKSTYLE IGNORE: Public mutable field for parameterized testing
+
     private CassandraRing<RingInstance> ring;
     private RecordWriter rw;
     private MockTableWriter tw;
@@ -62,10 +64,10 @@ public class RecordWriterTest
     private MockBulkWriterContext writerContext;
     private TestTaskContext tc;
 
-    @Before
+    @BeforeEach
     public void setUp()
     {
-        tw = new MockTableWriter(folder.getRoot().toPath());
+        tw = new MockTableWriter(folder);
         ring = RingUtils.buildRing(0, "app", "cluster", "DC1", "test", 12);
         writerContext = new MockBulkWriterContext(ring);
         tc = new TestTaskContext();
@@ -126,33 +128,32 @@ public class RecordWriterTest
     @Test
     public void testCorruptSSTable()
     {
-        // TODO: Add better error handling with human-readable exception messages in SSTableReader::new
-        exception.expect(RuntimeException.class);
         rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path) ->  new SSTableWriter(tw.setOutDir(path), path));
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true);
-        rw.write(data);
-        Map<CassandraInstance, List<UploadRequest>> uploads = writerContext.getUploads();
-        assertThat(uploads.keySet().size(), is(REPLICA_COUNT));  // Should upload to 3 replicas
-        assertThat(uploads.values().stream().mapToInt(List::size).sum(), is(REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_TABLES));
+        // TODO: Add better error handling with human-readable exception messages in SSTableReader::new
+        // That way we can assert on the exception thrown here
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
     }
 
     @Test
     public void testWriteWithOutOfRangeTokenFails()
     {
-        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path) -> new SSTableWriter(tw, folder.getRoot().toPath()));
-        exception.expectMessage("Received Token 5765203080415074583 outside of expected range [-9223372036854775808‥0]");
+        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path) -> new SSTableWriter(tw, folder));
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, false);
-        rw.write(data);
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
+        assertThat(ex.getMessage(),
+                   matchesPattern("java.lang.IllegalStateException: Received Token "
+                              + "5765203080415074583 outside of expected range \\[-9223372036854775808(‥|..)0]"));
     }
 
     @Test
     public void testAddRowThrowingFails()
     {
-        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path) -> new SSTableWriter(tw, folder.getRoot().toPath()));
+        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path) -> new SSTableWriter(tw, folder));
         tw.setAddRowThrows(true);
-        exception.expectMessage("java.lang.RuntimeException: Failed to write because addRow throws");
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true);
-        rw.write(data);
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
+        assertEquals(ex.getMessage(), "java.lang.RuntimeException: Failed to write because addRow throws");
     }
 
     @Test
@@ -160,11 +161,11 @@ public class RecordWriterTest
     {
         // Mock context returns a 60-minute allowable time skew, so we use something just outside the limits
         long sixtyOneMinutesInMillis = TimeUnit.MINUTES.toMillis(61);
-        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path) -> new SSTableWriter(tw, folder.getRoot().toPath()));
+        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path) -> new SSTableWriter(tw, folder));
         writerContext.setTimeProvider(() -> System.currentTimeMillis() - sixtyOneMinutesInMillis);
-        exception.expectMessage("Time skew between Spark and Cassandra is too large. Allowable skew is 60 minutes. Spark executor time is ");
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true);
-        rw.write(data);
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
+        assertThat(ex.getMessage(), startsWith("Time skew between Spark and Cassandra is too large. Allowable skew is 60 minutes. Spark executor time is "));
     }
 
     @Test

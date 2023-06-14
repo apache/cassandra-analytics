@@ -28,13 +28,11 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
@@ -42,14 +40,12 @@ import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.jetbrains.annotations.NotNull;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@RunWith(Parameterized.class)
 public class SSTableWriterTest
 {
     private static String previousMbeanState;
 
-    @Parameterized.Parameters(name = "{index}: Testing Cassandra Version {0}")
     public static Iterable<Object[]> data()
     {
         return Arrays.stream(CassandraVersion.supportedVersions())
@@ -57,14 +53,14 @@ public class SSTableWriterTest
                      .collect(Collectors.toList());
     }
 
-    @BeforeClass
+    @BeforeAll
     public static void setProps()
     {
         previousMbeanState = System.getProperty("org.apache.cassandra.disable_mbean_registration");
         System.setProperty("org.apache.cassandra.disable_mbean_registration", "true");
     }
 
-    @AfterClass
+    @AfterAll
     public static void restoreProps()
     {
         if (previousMbeanState != null)
@@ -80,17 +76,16 @@ public class SSTableWriterTest
     @NotNull
     public CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "app", "cluster", "DC1", "test", 12);  // CHECKSTYLE IGNORE: Public mutable field
 
-    @Rule
-    public TemporaryFolder tmpDir = new TemporaryFolder();
+    @TempDir
+    public Path tmpDir; // CHECKSTYLE IGNORE: Public mutable field for testing
 
-    @Parameterized.Parameter(0)
-    public String version;  // CHECKSTYLE IGNORE: Public mutable field for parameterized testing
 
-    @Test
-    public void canCreateWriterForVersion() throws IOException
+    @ParameterizedTest
+    @MethodSource("data")
+    public void canCreateWriterForVersion(String version) throws IOException
     {
         MockBulkWriterContext writerContext = new MockBulkWriterContext(ring, version, ConsistencyLevel.CL.LOCAL_QUORUM);
-        SSTableWriter tw = new SSTableWriter(writerContext, tmpDir.getRoot().toPath());
+        SSTableWriter tw = new SSTableWriter(writerContext, tmpDir);
         tw.addRow(BigInteger.ONE, ImmutableMap.of("id", 1, "date", 1, "course", "foo", "marks", 1));
         tw.close(writerContext, 1);
         try (DirectoryStream<Path> dataFileStream = Files.newDirectoryStream(tw.getOutDir(), "*Data.db"))

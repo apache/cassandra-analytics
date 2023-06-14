@@ -19,11 +19,9 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.util.Arrays;
 import java.util.Collection;
-
-import com.google.common.collect.ImmutableList;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import java.util.stream.Collectors;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
@@ -32,23 +30,22 @@ import org.apache.cassandra.bridge.CassandraVersion;
 /**
  * Run tests Parameterized for multiple versions of Cassandra
  */
-// TODO: Merge org.apache.cassandra.bridge.VersionRunner and org.apache.cassandra.spark.data.VersionRunner
-@RunWith(Parameterized.class)
-public abstract class VersionRunner
+public class VersionRunner
 {
-    protected final CassandraVersion version;
-    protected final CassandraBridge bridge;
-
-    @Parameterized.Parameters
-    public static Collection<Object[]> versions()
+    protected VersionRunner()
     {
-        // TODO: Make use of TestUtils.testableVersions() instead
-        return ImmutableList.of(new Object[]{CassandraVersion.FOURZERO});
     }
 
-    public VersionRunner(CassandraVersion version)
+    public static Collection<CassandraVersion> versions()
     {
-        this.version = version;
-        this.bridge = CassandraBridgeFactory.get(version);
+        return Arrays.stream(CassandraVersion.implementedVersions())
+                     .collect(Collectors.toList());
+    }
+
+    public static Collection<CassandraBridge> bridges()
+    {
+        return versions().stream().map(CassandraBridgeFactory::get)
+                         .collect(Collectors.toList());
     }
 }
+

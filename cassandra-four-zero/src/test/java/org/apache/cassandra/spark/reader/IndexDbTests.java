@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.google.common.base.Preconditions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.bridge.TokenRange;
@@ -51,10 +51,10 @@ import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.NotNull;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.Generate.constant;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
@@ -110,13 +110,13 @@ public class IndexDbTests
                     Collections.sort(tokens);
 
                     TableMetadata metadata = Schema.instance.getTableMetadata(schema.keyspace, schema.table);
-                    assertNotNull("Could not find table metadata", metadata);
+                    assertNotNull(metadata, "Could not find table metadata");
 
                     Path summaryDb = TestSSTable.firstIn(directory.path(), FileType.SUMMARY);
-                    assertNotNull("Could not find summary", summaryDb);
+                    assertNotNull(summaryDb, "Could not find summary");
 
                     SSTable ssTable = TestSSTable.firstIn(directory.path());
-                    assertNotNull("Could not find SSTable", ssTable);
+                    assertNotNull(ssTable, "Could not find SSTable");
 
                     int rowSize = 39;
                     int sample = 4;

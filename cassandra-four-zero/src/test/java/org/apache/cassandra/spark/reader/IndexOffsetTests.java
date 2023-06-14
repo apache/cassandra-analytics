@@ -27,7 +27,7 @@ import java.util.Collection;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,8 +45,8 @@ import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 import static org.quicktheories.generators.SourceDSL.booleans;
@@ -97,13 +97,13 @@ public class IndexOffsetTests
                     assertEquals(1, TestSSTable.countIn(directory.path()));
 
                     TableMetadata metadata = Schema.instance.getTableMetadata(schema.keyspace, schema.table);
-                    assertNotNull("Could not find table metadata", metadata);
+                    assertNotNull(metadata, "Could not find table metadata");
 
                     SSTable ssTable = TestSSTable.firstIn(directory.path());
-                    assertNotNull("Could not find SSTable", ssTable);
+                    assertNotNull(ssTable, "Could not find SSTable");
 
                     Collection<TokenRange> ranges = RANGES.get(partitioner);
-                    assertNotNull("Unknown paritioner", ranges);
+                    assertNotNull(ranges, "Unknown paritioner");
 
                     LOGGER.info("Testing index offsets numKeys={} sparkPartitions={} partitioner={} enableCompression={}",
                                 numKeys, ranges.size(), partitioner.name(), enableCompression);
@@ -173,8 +173,8 @@ public class IndexOffsetTests
                                                 .getToken()),
                                          partitioner.name());
                         }
-                        assertEquals(count > 0 ? "Key " + index + " read " + count + " times"
-                                               : "Key not found: " + index, 1, count);
+                        assertEquals(1, count, count > 0 ? "Key " + index + " read " + count + " times"
+                                                         : "Key not found: " + index);
                         index++;
                     }
 

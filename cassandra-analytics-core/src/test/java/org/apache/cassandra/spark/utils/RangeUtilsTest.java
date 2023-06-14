@@ -28,14 +28,14 @@ import java.util.regex.Pattern;
 
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class RangeUtilsTest
 {
@@ -161,13 +161,14 @@ public class RangeUtilsTest
                 new String[]{"(0,4611686018427387904]"});
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test()
     public void testCalculateTokenRangesRFGreaterThanNodesFails()
     {
-        assertTokenRanges(2, 3,
-                new String[]{"Does Not"},
-                new String[]{"Matter"});
-        fail("Expected failure when RF greater than number of Nodes");
+        assertThrows(IllegalArgumentException.class,
+                     () -> assertTokenRanges(2, 3,
+                                             new String[]{"Does Not"},
+                                             new String[]{"Matter"})
+        );
     }
 
     @Test
@@ -194,8 +195,8 @@ public class RangeUtilsTest
         assertEquals(expectedRanges.length, actual.size());
         for (String expected : expectedRanges)
         {
-            assertTrue(String.format("Expected range %s not found in %s", expected, actual),
-                       actual.contains(range(expected)));
+            assertTrue(actual.contains(range(expected)),
+                       String.format("Expected range %s not found in %s", expected, actual));
         }
     }
 
