@@ -16,18 +16,43 @@
 # under the License.
 
 version: 2.1
+commands:
+  install_common:
+    steps:
+      - run: sudo apt-get update
+        # Somehow, the certs alreeady installed in the java 11 image are installed strangely
+        # in that there's a directory called `cacerts` with a symlink in it named `cacerts`
+        # (/etc/ssl/certs/java/cacerts/cacerts) rather than just a symlink to
+        # `cacerts` in the /etc/ssl/certs/java directory - if this is the case, fix it by
+        # moving it down a directory and then ant should install cleanly
+      - run: |
+          if [ -f /etc/ssl/certs/java/cacerts/cacerts ]; then
+              sudo mv /etc/ssl/certs/java/cacerts/ /etc/ssl/certs/java/cacerts-old
+              sudo mv /etc/ssl/certs/java/cacerts-old/cacerts /etc/ssl/certs/java/
+              sudo rmdir /etc/ssl/certs/java/cacerts-old
+          fi
+        # The image already has java installed, but `apt-get install ant` reinstalls it.
+        # Therefore, we download just the deb package for ant and install it with dpkg.
+      - run: |
+          apt-get download ant ant-optional
+          sudo dpkg --force-all -i ant*.deb
+          rm ant*.deb
+      # We need aliases for localhost2,localhost3, ..., localhost20 in hosts
+      - run: |
+          sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
+          cat /etc/hosts
 
 jobs:
   cassandra-analytics-core-spark2-2_11-jdk8:
     docker:
       - image: cimg/openjdk:8.0
     steps:
+      - install_common
       - checkout
       - run:
           name: Build and test against Spark 2 Scala 2.11 JDK8
           command: |
-            git clone --single-branch --branch trunk https://github.com/apache/cassandra-sidecar.git
-            ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-jdk8-local :vertx-client-shaded:publishToMavenLocal
+            ./scripts/build-dependencies.sh
             ./gradlew --stacktrace clean assemble check
           environment:
             SPARK_VERSION: "2"
@@ -35,19 +60,26 @@ jobs:
             JDK_VERSION: "1.8"
 
       - store_artifacts:
-          path: build/reports
+          path: build/test-reports
           destination: test-reports
+
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+
+      - store_test_results:
+          path: build/test-reports
 
   cassandra-analytics-core-spark2-2_12-jdk8:
     docker:
       - image: cimg/openjdk:8.0
     steps:
+      - install_common
       - checkout
       - run:
           name: Build and test against Spark 2 Scala 2.12 JDK8
           command: |
-            git clone --single-branch --branch trunk https://github.com/apache/cassandra-sidecar.git
-            ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-jdk8-local :vertx-client-shaded:publishToMavenLocal
+            ./scripts/build-dependencies.sh
             ./gradlew --stacktrace clean assemble check
           environment:
             SPARK_VERSION: "2"
@@ -55,19 +87,26 @@ jobs:
             JDK_VERSION: "1.8"
 
       - store_artifacts:
-          path: build/reports
+          path: build/test-reports
           destination: test-reports
+
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+
+      - store_test_results:
+          path: build/test-reports
 
   cassandra-analytics-core-spark3-2_12-jdk11:
     docker:
       - image: cimg/openjdk:11.0
     steps:
+      - install_common
       - checkout
       - run:
           name: Build and test against Spark 3 Scala 2.12 JDK11
           command: |
-            git clone --single-branch --branch trunk https://github.com/apache/cassandra-sidecar.git
-            ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-local :vertx-client-shaded:publishToMavenLocal
+            CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
             ./gradlew --stacktrace clean assemble check
           environment:
             SPARK_VERSION: "3"
@@ -75,19 +114,26 @@ jobs:
             JDK_VERSION: "11"
 
       - store_artifacts:
-          path: build/reports
+          path: build/test-reports
           destination: test-reports
+
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+
+      - store_test_results:
+          path: build/test-reports
 
   cassandra-analytics-core-spark3-2_13-jdk11:
     docker:
       - image: cimg/openjdk:11.0
     steps:
+      - install_common
       - checkout
       - run:
           name: Build and test against Spark 3 Scala 2.13 JDK11
           command: |
-            git clone --single-branch --branch trunk https://github.com/apache/cassandra-sidecar.git
-            ./cassandra-sidecar/gradlew --project-dir=./cassandra-sidecar -Pversion=1.0.0-local :vertx-client-shaded:publishToMavenLocal
+            CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
             ./gradlew --stacktrace clean assemble check
           environment:
             SPARK_VERSION: "3"
@@ -95,8 +141,15 @@ jobs:
             JDK_VERSION: "11"
 
       - store_artifacts:
-          path: build/reports
+          path: build/test-reports
           destination: test-reports
+
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+
+      - store_test_results:
+          path: build/test-reports
 
 workflows:
   version: 2

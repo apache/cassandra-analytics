@@ -24,14 +24,42 @@ Cassandra Analytics supports Spark 2 (Scala 2.11 and 2.12) and Spark 3 (Scala 2.
 
 This project uses Gradle as the dependency management and build framework.
 
+## Dependencies
+This library depends on both the [Cassandra Sidecar](https://github.com/apache/cassandra-sidecar) (test and production)
+and shaded in-jvm dtest jars from [Cassandra](https://github.com/apache/cassandra) (testing only).
+Because these artifacts are not published by the Cassandra project, we have provided a script to build them locally.
+
+NOTE: If you are working on multiple projects that depend on the Cassandra Sidecar and in-jvm dtest dependencies,
+you can share those artifacts by setting the `CASSANDRA_DEP_DIR` environment variable to a shared directory
+and dependencies will build there instead of local to the project.
+
+In order to build the necessary dependencies, please run the following:
+
+```shell
+./scripts/build-dependencies.sh
+```
+
+This will build both the necessary dtest jars and the sidecar libraries/package necessary for build and test.
+You can also skip either the dtest jar build or the sidecar build by setting the following 
+environment variables to `true`:
+
+```shell
+SKIP_DTEST_JAR_BUILD=true SKIP_SIDECAR_BUILD=true ./scripts/build-dependencies.sh
+```
+
+Note that `build-dependencies.sh` attempts to pull the latest from branches specified in the `BRANCHES` environment
+variable for Cassandra dtest jars, and trunk for the sidecar.
+
 ## Building
+
+Once you've built the dependencies, you're ready to build the analytics project.
 
 Cassandra Analytics will build for Spark 2 and Scala 2.11 by default.
 
 Navigate to the top-level directory for this project:
 
 ```shell
-./gradlew clean package
+./gradlew clean assemble
 ```
 
 ### Spark 2 and Scala 2.12
@@ -40,7 +68,7 @@ To build for Scala 2.12, set the profile by exporting `SCALA_VERSION=2.12`:
 
 ```shell
 export SCALA_VERSION=2.12
-./gradlew clean package
+./gradlew clean assemble
 ```
 
 ### Spark 3 and Scala 2.12
@@ -50,7 +78,7 @@ To build for Spark 3 and Scala 2.12, export both `SCALA_VERSION=2.12` and `SPARK
 ```shell
 export SCALA_VERSION=2.12
 export SPARK_VERSION=3
-./gradlew clean package
+./gradlew clean assemble
 ```
 
 ### Git hooks (optional)

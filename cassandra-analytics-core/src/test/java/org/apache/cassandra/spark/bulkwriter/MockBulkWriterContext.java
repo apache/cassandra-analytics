@@ -22,12 +22,12 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -77,11 +77,11 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private Supplier<Long> timeProvider = System::currentTimeMillis;
     private boolean skipClean = false;
     public int refreshClusterInfoCallCount = 0;  // CHECKSTYLE IGNORE: Public mutable field
-    private final Map<CassandraInstance, List<UploadRequest>> uploads = new HashMap<>();
-    private final Map<CassandraInstance, List<String>> commits = new HashMap<>();
+    private final Map<CassandraInstance, List<UploadRequest>> uploads = new ConcurrentHashMap<>();
+    private final Map<CassandraInstance, List<String>> commits = new ConcurrentHashMap<>();
     final Pair<StructType, ImmutableMap<String, CqlField.CqlType>> validPair;
     private final TableSchema schema;
-    private final Set<CassandraInstance> cleanCalledForInstance = new HashSet<>();
+    private final Set<CassandraInstance> cleanCalledForInstance = Collections.synchronizedSet(new HashSet<>());
     private boolean instancesAreAvailable = true;
     private boolean cleanShouldThrow = false;
     private final CassandraRing<RingInstance> ring;
@@ -292,7 +292,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         commits.compute(instance, (ignored, commitList) -> {
             if (commitList == null)
             {
-                commitList = new ArrayList<>();
+                commitList = Collections.synchronizedList(new ArrayList<>());
             }
             commitList.add(migrationId);
             return commitList;

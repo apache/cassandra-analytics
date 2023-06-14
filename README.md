@@ -47,9 +47,7 @@ val df = sparkSession.read.format("org.apache.cassandra.spark.sparksql.Cassandra
 
 The Cassandra Spark Bulk Writer allows for high-speed data ingest to Cassandra clusters running Cassandra 3.0 and 4.0.
 
-If you are a consumer of the Cassandra Spark Bulk Writer, please see our end-user documentation: usage instructions, FAQs, troubleshooting guides, and release notes.
-
-Developers interested in contributing to the SBW, please see the [DEV-README](DEV-README.md).
+Developers interested in contributing to the Analytics library, please see the [DEV-README](DEV-README.md).
 
 ## Getting Started
 

@@ -55,7 +55,7 @@ public class KeyStoreValidation implements StartupValidation
     {
         configured = configuration.hasKeystoreAndKeystorePassword();
         type = configuration.getKeyStoreTypeOrDefault();
-        password = configuration.getKeyStorePassword().toCharArray();
+        password = configuration.getKeyStorePassword() == null ? null : configuration.getKeyStorePassword().toCharArray();
         stream = () -> configuration.getKeyStore();
     }
 
@@ -67,6 +67,11 @@ public class KeyStoreValidation implements StartupValidation
             if (!configured)
             {
                 throw new RuntimeException("KeyStore is not configured");
+            }
+
+            if (password == null)
+            {
+                throw new RuntimeException("Keystore password was not provided.");
             }
 
             KeyStore keyStore = KeyStore.getInstance(type);

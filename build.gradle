@@ -1,3 +1,5 @@
+import org.nosphere.apache.rat.RatTask
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -23,10 +25,10 @@ import java.nio.file.Paths
 plugins {
   id 'java'
   id 'java-library'
-  id 'com.github.johnrengelman.shadow' version '7.1.2'
+  id 'com.github.johnrengelman.shadow' version '8.1.1'
 
   // Release Audit Tool (RAT) plugin for checking project licenses
-  id("org.nosphere.apache.rat") version "0.8.0"
+  id("org.nosphere.apache.rat") version "0.8.1"
 }
 
 repositories {
@@ -42,6 +44,13 @@ println("Spark version: ${ext.sparkLabel}")
 ext.jdkLabel = System.getenv("JDK_VERSION") ?: "${analyticsJDKLevel}"
 println("Java source/target compatibility level: ${ext.jdkLabel}")
 
+ext.dependencyLocation = (System.getenv("CASSANDRA_DEP_DIR") ?: "${rootDir}/dependencies") + "/"
+
+
+def buildDir = layout.buildDirectory.get().asFile.toPath()
+def ratExcludeFilePath = buildDir.resolve(".rat-excludes.txt")
+System.out.println("Rat exclude file:" + ratExcludeFilePath)
+
 def profile = "profiles/scala-${ext.scalaLabel}-spark-${ext.sparkLabel}-jdk-${ext.jdkLabel}.gradle"
 if (!file(profile).exists()) {
   throw new InvalidUserDataException("Profile ${profile} does not exist, which indicates this combination of Scala, Spark, and Java is unsupported.\n" +
@@ -52,6 +61,11 @@ println("Using profile ${profile}")
 apply(from: profile)
 
 apply(plugin: 'idea')
+
+
+// Force checkstyle and rat to run before test tasks for faster feedback
+def codeCheckTasks = task("codeCheckTasks")
+
 
 tasks.register('copyCodeStyle', Copy) {
   from('ide/idea/codeStyleSettings.xml')
@@ -68,10 +82,14 @@ tasks.idea.dependsOn(tasks.copyInspections)
 
 tasks.register('buildIgnoreRatList', Exec) {
   description 'Builds a list of ignored files for the rat task from the unversioned git files'
-  commandLine 'bash', '-c', 'git clean --force -d --dry-run -x | cut -c 14-'
+  commandLine 'bash', '-c', 'git clean --force -d --dry-run -x | grep -v "Would skip" | cut -c 14- '
+//    +
+//          '&& ' +
+//                            'git clean --force -d --dry-run -x | grep "Would skip" | cut -c 23-\n'
   doFirst {
-    Files.createDirectories(file("${buildDir}").toPath())
-    standardOutput new FileOutputStream("${buildDir}/.rat-excludes.txt")
+  // make sure the build directory exists so rat task can run independently
+    Files.createDirectories(buildDir)
+    standardOutput new FileOutputStream(ratExcludeFilePath.toFile())
   }
   // allows task to fail when git/cut commands are unavailable or fail
   ignoreExitValue = true
@@ -80,7 +98,7 @@ tasks.register('buildIgnoreRatList', Exec) {
 rat {
 
   doFirst {
-    def excludeFilePath = Paths.get("${buildDir}/.rat-excludes.txt")
+    def excludeFilePath = ratExcludeFilePath
     def excludeLines = Files.readAllLines(excludeFilePath)
     excludeLines.each { line ->
       if (line.endsWith("/")) {
@@ -109,6 +127,13 @@ rat {
   // resource files for test
   excludes.add("**/test**/resources/**")
 
+  // resources
+  excludes.add("**/resources/sidecar.version")
+  excludes.add("**/dependencies/**")
+
+  // Rat excludes file, one directive per line
+  excludeFile.set(ratExcludeFilePath.toFile())
+
   // XML, TXT and HTML reports directory, defaults to 'build/reports/rat'
   reportDir.set(file("build/reports/rat"))
 }
@@ -123,6 +148,20 @@ subprojects {
 
   sourceCompatibility = "${project.rootProject.ext.jdkLabel}"
   targetCompatibility = "${project.rootProject.ext.jdkLabel}"
+
+  configurations {
+    configureEach {
+      resolutionStrategy {
+        // Force set the jackson version that matches with the one from spark's dependencies.
+        // Do not favor newer jackson version from others, because that jackson module scala has a strict check
+        // on the paired jackson dependency.
+        force("com.fasterxml.jackson.module:jackson-module-scala_${scalaMajorVersion}:${jacksonScalaModuleVersion}")
+        force("com.fasterxml.jackson.core:jackson-core:${jacksonVersion}")
+        force("com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}")
+        force("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
+      }
+    }
+  }
 
   tasks.withType(JavaCompile) {
     if ("${project.rootProject.ext.jdkLabel}" == '1.8') {
@@ -151,8 +190,15 @@ subprojects {
 
   repositories {
     mavenCentral()
+    mavenLocal {
+      url Paths.get(dependencyLocation)
+      content {
+        includeModule("org.apache.cassandra", "cassandra-sidecar")
+        includeGroup("org.apache.cassandra.sidecar")
+      }
+    }
     // uncomment the line below for local development
-    mavenLocal()
+    // mavenLocal()
   }
 
   dependencies {
@@ -196,5 +242,14 @@ subprojects {
       jvmArgs(JDK11_OPTIONS)
       println("JVM arguments for $project.name are $allJvmArgs")
     }
+  }
+
+  codeCheckTasks.dependsOn(tasks.withType(Checkstyle))
+  codeCheckTasks.dependsOn(tasks.withType(RatTask))
+
+  tasks.withType(Test) {
+    shouldRunAfter(codeCheckTasks)
+    shouldRunAfter(tasks.withType(Checkstyle))
+    shouldRunAfter(tasks.withType(RatTask))
   }
 }

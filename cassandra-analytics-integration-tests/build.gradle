@@ -1,0 +1,88 @@
+import java.nio.file.Paths
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+project(':cassandra-analytics-integration-tests') {
+    apply(plugin: 'java-library')
+    configurations {
+        configureEach {
+            resolutionStrategy {
+                force("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
+            }
+        }
+    }
+    dependencies {
+
+        testImplementation(project(':cassandra-analytics-core'))
+        testImplementation(group: 'net.java.dev.jna', name: 'jna', version: '5.9.0')
+
+        testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${sparkVersion}")
+        testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${sparkVersion}")
+
+        // JUnit
+        testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
+        testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
+        testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
+        testImplementation(project(path: ":cassandra-analytics-integration-framework", configuration: "shadow"))
+        testImplementation(project(':cassandra-analytics-core-example'))
+        ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.4.jar" // latest supported Cassandra build is 4.1
+        def dtestJarFullPath = "${dependencyLocation}${ext.dtestJar}"
+        println("Using DTest jar: " + dtestJarFullPath)
+        testImplementation(files("${dtestJarFullPath}"))
+        testImplementation("org.apache.cassandra:dtest-api:0.0.16")
+        // Needed by the Cassandra dtest framework
+        testImplementation("org.junit.vintage:junit-vintage-engine:${junitVersion}")
+        testImplementation('com.datastax.cassandra:cassandra-driver-core:3.9.0')
+
+        testImplementation('org.mockito:mockito-inline:4.10.0')
+    }
+
+
+    test {
+        // Because system properties aren't passed from the command line through to tests, we need to specifically
+        // set them again here.
+        systemProperty "cassandra.test.dtest_jar_path", dependencyLocation
+        systemProperty "cassandra.sidecar.versions_to_test", System.getProperty("cassandra.sidecar.versions_to_test", "4.0,4.1")
+        systemProperty "SKIP_STARTUP_VALIDATIONS", "true"
+        systemProperty "logback.configurationFile", "src/test/resources/logback-test.xml"
+        minHeapSize = '1024m'
+        maxHeapSize = '3072m'
+        // For now, keep maxParallelForks at 1 until we can fix dynamic port allocation across forks
+        maxParallelForks = 1
+        // maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
+        forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+
+        // Make it so unit tests run on a JAr with Cassandra bridge implementations built in
+        dependsOn(tasks.jar)
+        classpath = project.sourceSets.test.output + configurations.testRuntimeClasspath + files(jar.archiveFile)
+        useJUnitPlatform()
+        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "integration").toFile()
+        reports {
+            junitXml {
+                enabled true
+                destination = destDir
+            }
+            html{
+                enabled true
+                destination = destDir
+            }
+        }
+    }
+}

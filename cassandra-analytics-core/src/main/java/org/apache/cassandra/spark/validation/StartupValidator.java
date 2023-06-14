@@ -19,8 +19,8 @@
 
 package org.apache.cassandra.spark.validation;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
@@ -33,10 +33,10 @@ import org.slf4j.LoggerFactory;
 public final class StartupValidator
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(StartupValidator.class);
-    private static final StartupValidator INSTANCE = new StartupValidator();
+    private static final ThreadLocal<StartupValidator> INSTANCE = ThreadLocal.withInitial(StartupValidator::new);
     private static final String DISABLE = "SKIP_STARTUP_VALIDATIONS";
 
-    private final List<StartupValidation> validations = new ArrayList<>();
+    private final List<StartupValidation> validations = new CopyOnWriteArrayList<>();
 
     private StartupValidator()
     {
@@ -44,7 +44,7 @@ public final class StartupValidator
 
     public static StartupValidator instance()
     {
-        return INSTANCE;
+        return INSTANCE.get();
     }
 
     public void register(StartupValidation validation)
@@ -60,15 +60,24 @@ public final class StartupValidator
 
     public void perform()
     {
-        if (enabled())
+        try
         {
-            LOGGER.info("Performing startup validations");
-            validations.forEach(StartupValidation::perform);
-            LOGGER.info("Completed startup validations");
+            if (enabled())
+            {
+                LOGGER.info("Performing startup validations");
+                validations.forEach(StartupValidation::perform);
+                LOGGER.info("Completed startup validations");
+            }
+            else
+            {
+                LOGGER.info("Skipping startup validations");
+            }
         }
-        else
+        finally
         {
-            LOGGER.info("Skipping startup validations");
+            // Regardless of enabled status, we should still remove all of the validations
+            // because otherwise the list just keeps growing.
+            reset();
         }
     }
 

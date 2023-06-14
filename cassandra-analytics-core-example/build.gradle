@@ -29,8 +29,8 @@ repositories {
 dependencies {
     implementation(project(':cassandra-analytics-core'))
     implementation(group: 'net.java.dev.jna', name: 'jna', version: '5.9.0')
-    implementation(group: 'org.apache.spark', name: 'spark-core_2.12', version: '3.2.1')
-    implementation(group: 'org.apache.spark', name: 'spark-sql_2.12', version: '3.2.1')
+    implementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+    implementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
 }
 
 application {

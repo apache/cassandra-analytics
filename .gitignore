@@ -100,3 +100,10 @@ cassandra-analytics-build.properties
 # MacOS
 .DS_Store
 cassandra-analytics-core/dtest-jars
+cassandra-analytics-integration-tests/dtest-jars
+
+# Built by the build - ignore
+.rat-excludes.txt
+dependencies/
+scripts/target/
+scripts/dependency-reduced-pom.xml
