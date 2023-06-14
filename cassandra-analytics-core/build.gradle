@@ -1,3 +1,5 @@
+import java.nio.file.Paths
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -42,11 +44,6 @@ project(':cassandra-analytics-core') {
         fourzero {
             description = 'Bridge to Cassandra 4.0 with all of its dependencies'
         }
-        all {
-            resolutionStrategy {
-                force("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
-            }
-        }
     }
 
     dependencies {
@@ -59,11 +56,8 @@ project(':cassandra-analytics-core') {
         runtimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
         runtimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
 
-        // This dependency needs to be installed locally by building the Cassandra Sidecar project using the following command:
-        //  ./gradlew -Pversion=1.0.0-local :vertx-client-shaded:publishToMavenLocal
-        implementation(group: "${sidecarClientGroup}", name: "${sidecarClientName}", version: "${sidecarVersion}") {
-            exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-annotations') // use provided annotations from spark
-        }
+        // This dependency must be built by running `scripts/build-dependencies.sh`
+        implementation(group: "${sidecarClientGroup}", name: "${sidecarClientName}", version: "${sidecarVersion}")
 
         if ("${scalaMajorVersion}" == "2.11") {
             implementation(group: 'org.scala-lang.modules', name: "scala-java8-compat_2.11", version: '1.0.1', transitive: false)
@@ -134,19 +128,26 @@ project(':cassandra-analytics-core') {
         dependsOn(tasks.jar)
         classpath = project.sourceSets.test.output + configurations.testRuntimeClasspath + files(jar.archiveFile)
         useJUnitPlatform()
+        reports {
+            def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "core").toFile()
+            junitXml {
+                enabled true
+                destination = destDir
+            }
+            html{
+                enabled true
+                destination = destDir
+            }
+        }
     }
 
     /* Start: JaCoCo check */
     jacoco {
         toolVersion = '0.8.4'
     }
-    task jacocoMerge(type: JacocoMerge) {
-        destinationFile = file("$buildDir/jacoco/mergedFile.exec")
-        executionData = files("$buildDir/jacoco/test.exec")
-    }
+
     jacocoTestReport {
-        dependsOn(tasks.jacocoMerge)
-        executionData(tasks.jacocoMerge.executionData)
+        executionData(files("$buildDir/jacoco/test.exec"))
         reports {
             html.required = true
             html.destination(file("$buildDir/reports/jacocoHtml"))
@@ -155,8 +156,7 @@ project(':cassandra-analytics-core') {
         }
     }
     jacocoTestCoverageVerification {
-        dependsOn(tasks.jacocoMerge)
-        executionData(tasks.jacocoMerge.executionData)
+        executionData(tasks.jacocoTestReport.executionData)
         violationRules {
             rule {
                 limit {
@@ -175,7 +175,7 @@ project(':cassandra-analytics-core') {
         testArtifacts
     }
     task testJar(type: Jar) {
-        baseName = "${project.name}-test"
+        archiveBaseName = "${project.name}-test"
         from sourceSets.test.output
     }
     artifacts {

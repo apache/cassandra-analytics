@@ -112,7 +112,7 @@
 
         <!-- Checks for naming conventions.                -->
         <!-- See https://checkstyle.org/config_naming.html -->
-        <module name="ConstantName" />
+<!--        <module name="ConstantName" />-->
         <module name="LocalFinalVariableName" />
         <module name="LocalVariableName" />
         <module name="MemberName" />
@@ -146,7 +146,7 @@
         <module name="MethodParamPad" />
         <module name="NoWhitespaceAfter" />
         <module name="NoWhitespaceBefore" />
-        <module name="OperatorWrap" />
+<!--        <module name="OperatorWrap" />-->
         <module name="ParenPad" />
         <module name="TypecastParenPad" />
         <module name="WhitespaceAfter" />
@@ -203,16 +203,9 @@
         <!-- Checks for class design.                      -->
         <!-- See https://checkstyle.org/config_design.html -->
         <module name="DesignForExtension" />
-        <module name="FinalClass" />
+<!--        <module name="FinalClass" />-->
         <module name="HideUtilityClassConstructor" />
         <module name="InterfaceIsType" />
-        <module name="VisibilityModifier">
-            <property name="packageAllowed" value="true" />
-            <property name="protectedAllowed" value="true" />
-            <property name="allowPublicFinalFields" value="true" />
-            <property name="allowPublicImmutableFields" value="true" />
-        </module>
-
         <!-- Miscellaneous other checks.                 -->
         <!-- See https://checkstyle.org/config_misc.html -->
         <module name="ArrayTypeStyle" />

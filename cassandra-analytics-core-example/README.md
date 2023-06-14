@@ -68,9 +68,11 @@ Verify that your Cassandra cluster is configured and running successfully.
 In this step, we will clone and configure the Cassandra Sidecar project. Finally, we will run Sidecar which will be
 connecting to our local Cassandra 3-node cluster.
 
+Note that when building the main project, you should have run the `./scripts/build-dependencies.sh` script,
+which would have cloned and built the sidecar into `./dependencies/sidecar-build`. Use that build to run the sidecar.
+
 ```shell
-git clone https://github.com/apache/cassandra-sidecar
-cd cassandra-sidecar
+cd ./dependencies/sidecar-build
 ```
 
 Configure the `src/main/dist/sidecar.yaml` file for your local environment. You will most likely only need to configure
@@ -108,8 +110,8 @@ cassandra_instances:
 I have a 3 node setup, so I configure Sidecar for those 3 nodes. CCM creates the Cassandra cluster under
 `${HOME}/.ccm/test`, so I update my `data_dirs` and `staging_dir` configuration to use my local path.
 
-Finally, run Cassandra Sidecar, we skip running integration tests because we need docker for integration tests. You
-can opt to run integration tests if you have docker running in your local environment.
+Finally, run Cassandra Sidecar. We skip running integration tests because the integration tests take quite some time.
+You can, of course, choose to run them (and should when working on the sidecar the project itself).
 
 ```shell
 user:~$ ./gradlew run -x integrationTest
@@ -215,16 +217,6 @@ CREATE TABLE spark_test.test
     marks  BIGINT
 );
 ```
-
-The Cassandra Spark Bulk Analytics project depends on the Sidecar client. Since the Sidecar dependencies for the
-Analytics have not yet been published to maven central, we need to build them locally:
-
-```shell
-cd ${SIDECAR_REPOSITORY_HOME}
-./gradlew -Pversion=1.0.0-local :vertx-client-shaded:publishToMavenLocal
-```
-
-We use the suffix `-local` to denote that these artifacts have been built locally.
 
 Finally, we are ready to run the example spark job:
 

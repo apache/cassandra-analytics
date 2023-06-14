@@ -30,7 +30,6 @@ public enum CassandraVersion
     THREEZERO(30, "3.0", "three-zero"),
     FOURZERO(40, "4.0", "four-zero"),
     FOURONE(41, "4.1", "four-zero");
-
     private final int number;
     private final String name;
     private final String jarBaseName;  // Must match shadowJar.archiveFileName from Gradle configuration (without extension)

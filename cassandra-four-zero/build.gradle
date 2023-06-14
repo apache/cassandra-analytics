@@ -1,3 +1,5 @@
+import java.nio.file.Paths
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -84,12 +86,23 @@ project(':cassandra-four-zero') {
 
     tasks.register('javadocJar', Jar) {
         dependsOn javadoc
-        classifier = 'javadoc'
+        archiveClassifier.set('javadoc')
         from javadoc.destinationDir
     }
 
     test {
         useJUnitPlatform()
+        reports {
+            def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "four-zero").toFile()
+            junitXml {
+                enabled true
+                destination = destDir
+            }
+            html{
+                enabled true
+                destination = destDir
+            }
+        }
     }
 
     artifacts {

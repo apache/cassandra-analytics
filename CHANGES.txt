@@ -1,4 +1,5 @@
 1.0.0
+ * Use in-jvm dtest framework from Sidecar for testing (CASSANDRA-18759)
  * Cassandra Analytics Start-Up Validation (CASSANDRA-18810)
  * Expose per partition on-disk usage through new DataFrame that utilizes the Index.db SSTable file components (CASSANDRA-18683)
  * Fix bulk writes with Buffered RowBufferMode (CASSANDRA-18692)

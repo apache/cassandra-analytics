@@ -18,7 +18,8 @@
  */
 
 ext {
-    jacksonVersion="2.6.7.5"
+    jacksonVersion="2.6.7"
+    jacksonScalaModuleVersion="2.6.7.1"
     scalaMajorVersion="2.11"
     scalaVersion="2.11.12"
     sparkGroupId="org.apache.spark"
@@ -26,5 +27,5 @@ ext {
     sparkVersion="2.4.8"
     sidecarClientGroup="org.apache.cassandra.sidecar"
     sidecarClientName="vertx-client-all"
-    sidecarVersion="1.0.0-jdk8-local"
+    sidecarVersion="1.0.0-jdk8-analytics"
 }
