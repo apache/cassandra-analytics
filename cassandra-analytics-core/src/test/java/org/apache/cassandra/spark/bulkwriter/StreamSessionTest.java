@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -30,10 +31,9 @@ import java.util.stream.Collectors;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
@@ -43,17 +43,18 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.iterableWithSize;
+import static org.hamcrest.Matchers.matchesPattern;
 import static org.hamcrest.Matchers.startsWith;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class StreamSessionTest
 {
     public static final String LOAD_RANGE_ERROR_PREFIX = "Failed to load 1 ranges with LOCAL_QUORUM";
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    @TempDir
+    public Path folder; // CHECKSTYLE IGNORE: Public mutable field for testing
     private static final int FILES_PER_SSTABLE = 8;
     private static final int REPLICATION_FACTOR = 3;
     private StreamSession ss;
@@ -64,13 +65,13 @@ public class StreamSessionTest
     private MockTableWriter tableWriter;
     private Range<BigInteger> range;
 
-    @Before
+    @BeforeEach
     public void setup()
     {
         range = Range.range(BigInteger.valueOf(101L), BoundType.CLOSED, BigInteger.valueOf(199L), BoundType.CLOSED);
         ring = RingUtils.buildRing(0, "app", "cluster", "DC1", "test", 12);
         writerContext = getBulkWriterContext();
-        tableWriter = new MockTableWriter(folder.getRoot().toPath());
+        tableWriter = new MockTableWriter(folder);
         executor = new MockScheduledExecutorService();
         ss = new StreamSession(writerContext, "sessionId", range, executor);
         expectedInstances = Lists.newArrayList("DC1-i1", "DC1-i2", "DC1-i3");
@@ -89,7 +90,7 @@ public class StreamSessionTest
     public void testScheduleStreamSendsCorrectFilesToCorrectInstances(
             ) throws IOException, ExecutionException, InterruptedException
     {
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
         Object[] row = {0, 1, "course", 2};
         tr.addRow(BigInteger.valueOf(102L), row);
         tr.close(writerContext, 1);
@@ -114,20 +115,20 @@ public class StreamSessionTest
                 writerContext,
                 "sessionId",
                 Range.range(BigInteger.valueOf(0L), BoundType.CLOSED, BigInteger.valueOf(0L), BoundType.OPEN)));
-        assertThat(exception.getMessage(), startsWith("Partition range [0‥0) is mapping more than one range {}"));
+        assertThat(exception.getMessage(), matchesPattern("Partition range \\[0(‥|..)0\\) is mapping more than one range \\{}"));
     }
 
     @Test
     public void testMismatchedTokenRangeFails() throws IOException
     {
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
         Object[] row = {0, 1, "course", 2};
         tr.addRow(BigInteger.valueOf(9999L), row);
         tr.close(writerContext, 1);
         IllegalStateException illegalStateException = assertThrows(IllegalStateException.class,
                                                       () -> ss.scheduleStream(tr));
-        assertEquals(illegalStateException.getMessage(),
-                     "SSTable range [9999‥9999] should be enclosed in the partition range [101‥199]");
+        assertThat(illegalStateException.getMessage(), matchesPattern(
+                     "SSTable range \\[9999(‥|..)9999] should be enclosed in the partition range \\[101(‥|..)199]"));
     }
 
     @Test
@@ -189,12 +190,13 @@ public class StreamSessionTest
     {
         writerContext.setInstancesAreAvailable(false);
         ss = new StreamSession(writerContext, "sessionId", range, executor);
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
         Object[] row = {0, 1, "course", 2};
         tr.addRow(BigInteger.valueOf(102L), row);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);
-        assertThrows(LOAD_RANGE_ERROR_PREFIX, RuntimeException.class, () -> ss.close());
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> ss.close());
+        assertThat(ex.getMessage(), startsWith(LOAD_RANGE_ERROR_PREFIX));
     }
 
     @Test
@@ -233,7 +235,7 @@ public class StreamSessionTest
                 return new DataTransferApi.RemoteCommitResult(true, null, uuids, "");
             }
         });
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
         Object[] row = {0, 1, "course", 2};
         tr.addRow(BigInteger.valueOf(102L), row);
         tr.close(writerContext, 1);
@@ -266,7 +268,7 @@ public class StreamSessionTest
                 return new DataTransferApi.RemoteCommitResult(false, uuids, null, "");
             }
         });
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
         Object[] row = {0, 1, "course", 2};
         tr.addRow(BigInteger.valueOf(102L), row);
         tr.close(writerContext, 1);
@@ -288,12 +290,13 @@ public class StreamSessionTest
     private void runFailedUpload() throws IOException, ExecutionException, InterruptedException
     {
         writerContext.setUploadSupplier(instance -> false);
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
         Object[] row = {0, 1, "course", 2};
         tr.addRow(BigInteger.valueOf(102L), row);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);
-        assertThrows(LOAD_RANGE_ERROR_PREFIX, RuntimeException.class, () -> ss.close());
+        RuntimeException ex = assertThrows(RuntimeException.class, () -> ss.close());
+        assertThat(ex.getMessage(), startsWith(LOAD_RANGE_ERROR_PREFIX));
     }
 
     @NotNull

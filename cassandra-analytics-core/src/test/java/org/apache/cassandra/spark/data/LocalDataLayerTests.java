@@ -28,27 +28,26 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.stream.Stream;
 
-import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.SchemaTests;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class LocalDataLayerTests extends VersionRunner
 {
-    public LocalDataLayerTests(CassandraVersion version)
-    {
-        super(version);
-    }
 
-    @Test
-    public void testLocalDataLayer() throws IOException
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testLocalDataLayer(CassandraBridge bridge) throws IOException
     {
         CassandraVersion version = bridge.getVersion();
         Path directory1 = Files.createTempDirectory("d1");
@@ -69,8 +68,9 @@ public class LocalDataLayerTests extends VersionRunner
         assertTrue(ssTables.openAll((ssTable, isRepairPrimary) -> null).isEmpty());
     }
 
-    @Test
-    public void testEquality()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testEquality(CassandraBridge bridge)
     {
         CassandraVersion version = bridge.getVersion();
         LocalDataLayer dataLayer1 = new LocalDataLayer(version, "backup_test", SchemaTests.SCHEMA,

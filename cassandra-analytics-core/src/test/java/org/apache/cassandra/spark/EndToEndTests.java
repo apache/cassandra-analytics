@@ -41,12 +41,15 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.tuple.Pair;
-import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.VersionRunner;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.SSTable;
-import org.apache.cassandra.spark.data.VersionRunner;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.streaming.SSTableSource;
@@ -55,11 +58,11 @@ import org.apache.spark.sql.Row;
 import scala.collection.mutable.AbstractSeq;
 
 import static org.apache.cassandra.spark.utils.ScalaConversionUtils.mutableSeqAsJavaList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.booleans;
 import static org.quicktheories.generators.SourceDSL.characters;
@@ -72,17 +75,14 @@ import static org.quicktheories.generators.SourceDSL.integers;
  * Uses custom SSTableTombstoneWriter to write SSTables with tombstones
  * to verify Spark Bulk Reader correctly purges tombstoned data.
  */
+
 public class EndToEndTests extends VersionRunner
 {
-    public EndToEndTests(CassandraVersion version)
-    {
-        super(version);
-    }
 
     /* Partition Key Tests */
-
-    @Test
-    public void testSinglePartitionKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testSinglePartitionKey(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
@@ -93,8 +93,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testOnlyPartitionKeys()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testOnlyPartitionKeys(CassandraBridge bridge)
     {
         // Special case where schema is only partition keys
         Tester.builder(TestSchema.builder()
@@ -108,8 +109,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testOnlyPartitionClusteringKeys()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testOnlyPartitionClusteringKeys(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("a", bridge.uuid())
@@ -119,8 +121,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testMultiplePartitionKeys()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMultiplePartitionKeys(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("a", bridge.uuid())
@@ -134,8 +137,9 @@ public class EndToEndTests extends VersionRunner
 
     /* Clustering Key Tests */
 
-    @Test
-    public void testBasicSingleClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testBasicSingleClusteringKey(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("a", bridge.bigint())
@@ -146,8 +150,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testSingleClusteringKeyOrderBy()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testSingleClusteringKeyOrderBy(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.sortOrder())
             .checkAssert((clusteringKeyType, sortOrder) ->
@@ -161,8 +166,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testMultipleClusteringKeys()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMultipleClusteringKeys(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("a", bridge.uuid())
@@ -175,8 +181,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testManyClusteringKeys()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testManyClusteringKeys(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("a", bridge.uuid())
@@ -193,8 +200,9 @@ public class EndToEndTests extends VersionRunner
 
     /* Data Type Tests */
 
-    @Test
-    public void testAllDataTypesPartitionKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testAllDataTypesPartitionKey(CassandraBridge bridge)
     {
         // Test partition key can be read for all data types
         qt().forAll(TestUtils.cql3Type(bridge))
@@ -211,8 +219,9 @@ public class EndToEndTests extends VersionRunner
             });
     }
 
-    @Test
-    public void testAllDataTypesValueColumn()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testAllDataTypesValueColumn(CassandraBridge bridge)
     {
         // Test value column can be read for all data types
         qt().forAll(TestUtils.cql3Type(bridge))
@@ -228,8 +237,9 @@ public class EndToEndTests extends VersionRunner
 
     /* Compaction */
 
-    @Test
-    public void testMultipleSSTablesCompaction()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMultipleSSTablesCompaction(CassandraBridge bridge)
     {
         AtomicLong startTotal = new AtomicLong(0);
         AtomicLong newTotal = new AtomicLong(0);
@@ -286,8 +296,9 @@ public class EndToEndTests extends VersionRunner
               });
     }
 
-    @Test
-    public void testCompaction()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCompaction(CassandraBridge bridge)
     {
         int numRowsColumns = 20;
         AtomicInteger total = new AtomicInteger(0);
@@ -339,8 +350,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testSingleClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testSingleClusteringKey(CassandraBridge bridge)
     {
         AtomicLong total = new AtomicLong(0);
         Map<Integer, MutableLong> testSum = new HashMap<>();
@@ -405,8 +417,9 @@ public class EndToEndTests extends VersionRunner
 
     /* Static Columns */
 
-    @Test
-    public void testOnlyStaticColumn()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testOnlyStaticColumn(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("a", bridge.uuid())
@@ -416,9 +429,10 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     @SuppressWarnings("UnstableApiUsage")  // Use of Guava Uninterruptibles
-    public void testStaticColumn()
+    public void testStaticColumn(CassandraBridge bridge)
     {
         int numRows = 100;
         int numColumns = 20;
@@ -468,8 +482,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testNulledStaticColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testNulledStaticColumns(CassandraBridge bridge)
     {
         int numClusteringKeys = 10;
         Tester.builder(TestSchema.builder()
@@ -502,9 +517,11 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testMultipleSSTableCompacted()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#versions")
+    public void testMultipleSSTableCompacted(CassandraVersion version)
     {
+        CassandraBridge bridge = CassandraBridgeFactory.get(version);
         TestSchema.Builder schemaBuilder = TestSchema.builder()
                                                      .withPartitionKey("a", bridge.uuid())
                                                      .withClusteringKey("b", bridge.aInt())
@@ -567,8 +584,9 @@ public class EndToEndTests extends VersionRunner
 
     /* Tombstone Tests */
 
-    @Test
-    public void testPartitionTombstoneInt()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testPartitionTombstoneInt(CassandraBridge bridge)
     {
         int numRows = 100;
         int numColumns = 10;
@@ -614,8 +632,9 @@ public class EndToEndTests extends VersionRunner
             });
     }
 
-    @Test
-    public void testRowTombstoneInt()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testRowTombstoneInt(CassandraBridge bridge)
     {
         int numRows = 100;
         int numColumns = 10;
@@ -658,8 +677,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testRangeTombstoneInt()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testRangeTombstoneInt(CassandraBridge bridge)
     {
         int numRows = 10;
         int numColumns = 128;
@@ -708,8 +728,9 @@ public class EndToEndTests extends VersionRunner
             });
     }
 
-    @Test
-    public void testRangeTombstoneString()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testRangeTombstoneString(CassandraBridge bridge)
     {
         int numRows = 10;
         int numColumns = 128;
@@ -763,8 +784,9 @@ public class EndToEndTests extends VersionRunner
 
     /* Partial Rows: test reading rows with missing columns */
 
-    @Test
-    public void testPartialRow()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testPartialRow(CassandraBridge bridge)
     {
         Map<UUID, UUID> rows = new HashMap<>();
         Tester.builder(TestSchema.builder()
@@ -804,8 +826,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testPartialRowClusteringKeys()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testPartialRowClusteringKeys(CassandraBridge bridge)
     {
         Map<String, String> rows = new HashMap<>();
         Tester.builder(TestSchema.builder()
@@ -857,8 +880,9 @@ public class EndToEndTests extends VersionRunner
 
     /* Collections */
 
-    @Test
-    public void testSet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testSet(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
@@ -870,8 +894,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testList()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testList(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
@@ -883,8 +908,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testMap()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMap(CassandraBridge bridge)
     {
         qt().withExamples(50)  // Limit number of tests otherwise n x n tests takes too long
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
@@ -897,8 +923,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testClusteringKeySet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testClusteringKeySet(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
@@ -910,8 +937,9 @@ public class EndToEndTests extends VersionRunner
 
     /* Frozen Collections */
 
-    @Test
-    public void testFrozenSet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testFrozenSet(CassandraBridge bridge)
     {
         // pk -> a frozen<set<?>>
         qt().forAll(TestUtils.cql3Type(bridge))
@@ -924,8 +952,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testFrozenList()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testFrozenList(CassandraBridge bridge)
     {
         // pk -> a frozen<list<?>>
         qt().forAll(TestUtils.cql3Type(bridge))
@@ -938,8 +967,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testFrozenMap()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testFrozenMap(CassandraBridge bridge)
     {
         // pk -> a frozen<map<?, ?>>
         qt().withExamples(50)  // Limit number of tests otherwise n x n tests takes too long
@@ -953,8 +983,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testNestedMapSet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testNestedMapSet(CassandraBridge bridge)
     {
         // pk -> a map<text, frozen<set<text>>>
         Tester.builder(TestSchema.builder()
@@ -965,8 +996,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testNestedMapList()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testNestedMapList(CassandraBridge bridge)
     {
         // pk -> a map<text, frozen<list<text>>>
         Tester.builder(TestSchema.builder()
@@ -977,8 +1009,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testNestedMapMap()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testNestedMapMap(CassandraBridge bridge)
     {
         // pk -> a map<text, frozen<map<bigint, varchar>>>
         Tester.builder(TestSchema.builder()
@@ -991,8 +1024,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testFrozenNestedMapMap()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testFrozenNestedMapMap(CassandraBridge bridge)
     {
         // pk -> a frozen<map<text, <map<int, timestamp>>>
         Tester.builder(TestSchema.builder()
@@ -1007,8 +1041,9 @@ public class EndToEndTests extends VersionRunner
 
     /* Filters */
 
-    @Test
-    public void testSinglePartitionKeyFilter()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testSinglePartitionKeyFilter(CassandraBridge bridge)
     {
         int numRows = 10;
         Tester.builder(TestSchema.builder()
@@ -1032,8 +1067,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testMultiplePartitionKeyFilter()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMultiplePartitionKeyFilter(CassandraBridge bridge)
     {
         int numRows = 10;
         int numColumns = 5;
@@ -1068,8 +1104,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testFiltersDoNotMatch()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testFiltersDoNotMatch(CassandraBridge bridge)
     {
         int numRows = 10;
         Tester.builder(TestSchema.builder()
@@ -1087,8 +1124,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testFilterWithClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testFilterWithClusteringKey(CassandraBridge bridge)
     {
         int numRows = 10;
         Tester.builder(TestSchema.builder()
@@ -1116,8 +1154,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testUdtNativeTypes()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUdtNativeTypes(CassandraBridge bridge)
     {
         // pk -> a testudt<b text, c type, d int>
         qt().forAll(TestUtils.cql3Type(bridge))
@@ -1133,8 +1172,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testUdtInnerSet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUdtInnerSet(CassandraBridge bridge)
     {
         // pk -> a testudt<b text, c frozen<type>, d int>
         qt().forAll(TestUtils.cql3Type(bridge))
@@ -1150,8 +1190,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testUdtInnerList()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUdtInnerList(CassandraBridge bridge)
     {
         // pk -> a testudt<b bigint, c frozen<list<type>>, d boolean>
         qt().forAll(TestUtils.cql3Type(bridge))
@@ -1167,8 +1208,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testUdtInnerMap()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUdtInnerMap(CassandraBridge bridge)
     {
         // pk -> a testudt<b float, c frozen<set<uuid>>, d frozen<map<type1, type2>>, e boolean>
         qt().withExamples(50)
@@ -1186,8 +1228,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testMultipleUdts()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMultipleUdts(CassandraBridge bridge)
     {
         // pk -> col1 udt1<a float, b frozen<set<uuid>>, c frozen<set<type>>, d boolean>,
         //       col2 udt2<a text, b bigint, g varchar>, col3 udt3<int, type, ascii>
@@ -1215,8 +1258,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testNestedUdt()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testNestedUdt(CassandraBridge bridge)
     {
         // pk -> a test_udt<b float, c frozen<set<uuid>>, d frozen<nested_udt<x int, y type, z int>>, e boolean>
         qt().forAll(TestUtils.cql3Type(bridge))
@@ -1239,8 +1283,9 @@ public class EndToEndTests extends VersionRunner
 
     /* Tuples */
 
-    @Test
-    public void testBasicTuple()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testBasicTuple(CassandraBridge bridge)
     {
         // pk -> a tuple<int, type1, bigint, type2>
         qt().withExamples(10)
@@ -1253,8 +1298,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testTupleWithClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testTupleWithClusteringKey(CassandraBridge bridge)
     {
         // pk -> col1 type1 -> a tuple<int, type2, bigint>
         qt().withExamples(10)
@@ -1268,8 +1314,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testNestedTuples()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testNestedTuples(CassandraBridge bridge)
     {
         // pk -> a tuple<varchar, tuple<int, type1, float, varchar, tuple<bigint, boolean, type2>>, timeuuid>
         // Test tuples nested within tuple
@@ -1291,8 +1338,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testTupleSet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testTupleSet(CassandraBridge bridge)
     {
         // pk -> a tuple<varchar, tuple<int, varchar, float, varchar, set<type>>, timeuuid>
         // Test set nested within tuple
@@ -1312,8 +1360,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testTupleList()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testTupleList(CassandraBridge bridge)
     {
         // pk -> a tuple<varchar, tuple<int, varchar, float, varchar, list<type>>, timeuuid>
         // Test list nested within tuple
@@ -1333,8 +1382,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testTupleMap()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testTupleMap(CassandraBridge bridge)
     {
         // pk -> a tuple<varchar, tuple<int, varchar, float, varchar, map<type1, type2>>, timeuuid>
         // Test map nested within tuple
@@ -1354,8 +1404,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testMapTuple()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMapTuple(CassandraBridge bridge)
     {
         // pk -> a map<timeuuid, frozen<tuple<boolean, type, timestamp>>>
         // Test tuple nested within map
@@ -1372,8 +1423,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testSetTuple()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testSetTuple(CassandraBridge bridge)
     {
         // pk -> a set<frozen<tuple<type, float, text>>>
         // Test tuple nested within set
@@ -1389,8 +1441,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testListTuple()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testListTuple(CassandraBridge bridge)
     {
         // pk -> a list<frozen<tuple<int, inet, decimal, type>>>
         // Test tuple nested within map
@@ -1407,8 +1460,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testTupleUDT()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testTupleUDT(CassandraBridge bridge)
     {
         // pk -> a tuple<varchar, frozen<nested_udt<x int, y type, z int>>, timeuuid>
         // Test tuple with inner UDT
@@ -1428,8 +1482,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testUDTTuple()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUDTTuple(CassandraBridge bridge)
     {
         // pk -> a nested_udt<x text, y tuple<int, float, type, timestamp>, z ascii>
         // Test UDT with inner tuple
@@ -1450,8 +1505,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testTupleClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testTupleClusteringKey(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
@@ -1468,8 +1524,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testUdtClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUdtClusteringKey(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
@@ -1487,8 +1544,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testComplexSchema()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testComplexSchema(CassandraBridge bridge)
     {
         String keyspace = "complex_schema2";
         CqlField.CqlUdt udt1 = bridge.udt(keyspace, "udt1")
@@ -1533,8 +1591,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testNestedFrozenUDT()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testNestedFrozenUDT(CassandraBridge bridge)
     {
         // "(a bigint PRIMARY KEY, b <map<int, frozen<testudt>>>)"
         // testudt(a text, b bigint, c int)
@@ -1550,8 +1609,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testDeepNestedUDT()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testDeepNestedUDT(CassandraBridge bridge)
     {
         String keyspace = "deep_nested_frozen_udt";
         CqlField.CqlUdt udt1 = bridge.udt(keyspace, "udt1")
@@ -1649,8 +1709,9 @@ public class EndToEndTests extends VersionRunner
 
     /* BigDecimal/Integer Tests */
 
-    @Test
-    public void testBigDecimal()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testBigDecimal(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
@@ -1659,8 +1720,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testBigInteger()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testBigInteger(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
@@ -1669,8 +1731,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testUdtFieldOrdering()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUdtFieldOrdering(CassandraBridge bridge)
     {
         String keyspace = "udt_field_ordering";
         CqlField.CqlUdt udt1 = bridge.udt(keyspace, "udt1")
@@ -1685,9 +1748,10 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     @SuppressWarnings("unchecked")
-    public void testUdtTupleInnerNulls()
+    public void testUdtTupleInnerNulls(CassandraBridge bridge)
     {
         CqlField.CqlUdt udtType = bridge.udt("udt_inner_nulls", "udt")
                                         .withField("a", bridge.uuid())
@@ -1764,8 +1828,9 @@ public class EndToEndTests extends VersionRunner
 
     /* Complex Clustering Keys */
 
-    @Test
-    public void testUdtsWithNulls()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUdtsWithNulls(CassandraBridge bridge)
     {
         CqlField.CqlUdt type = bridge.udt("udt_with_nulls", "udt1")
                                      .withField("a", bridge.text())
@@ -1811,8 +1876,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testMapClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMapClusteringKey(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
@@ -1824,8 +1890,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testListClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testListClusteringKey(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
@@ -1836,8 +1903,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testSetClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testSetClusteringKey(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
@@ -1848,8 +1916,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testUdTClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUdTClusteringKey(CassandraBridge bridge)
     {
         Tester.builder(keyspace -> TestSchema.builder()
                                              .withKeyspace(keyspace)
@@ -1898,8 +1967,9 @@ public class EndToEndTests extends VersionRunner
         }
     };
 
-    @Test
-    public void testLargeBlobExclude()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testLargeBlobExclude(CassandraBridge bridge)
     {
         qt().forAll(booleans().all())
             .checkAssert(enableCompression ->
@@ -1940,8 +2010,9 @@ public class EndToEndTests extends VersionRunner
             );
     }
 
-    @Test
-    public void testExcludeColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testExcludeColumns(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
@@ -1976,8 +2047,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testUpsertExcludeColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUpsertExcludeColumns(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
@@ -2013,8 +2085,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testExcludeNoColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testExcludeNoColumns(CassandraBridge bridge)
     {
         // Include all columns
         Tester.builder(TestSchema.builder()
@@ -2031,8 +2104,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testUpsertExcludeNoColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUpsertExcludeNoColumns(CassandraBridge bridge)
     {
         // Include all columns
         Tester.builder(TestSchema.builder()
@@ -2050,8 +2124,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testExcludeAllColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testExcludeAllColumns(CassandraBridge bridge)
     {
         // Exclude all columns except for partition/clustering keys
         Tester.builder(TestSchema.builder()
@@ -2068,8 +2143,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testUpsertExcludeAllColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUpsertExcludeAllColumns(CassandraBridge bridge)
     {
         // Exclude all columns except for partition/clustering keys
         Tester.builder(TestSchema.builder()
@@ -2087,8 +2163,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testExcludePartitionOnly()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testExcludePartitionOnly(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid()))
@@ -2097,8 +2174,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testExcludeKeysOnly()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testExcludeKeysOnly(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
@@ -2109,8 +2187,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testExcludeKeysStaticColumnOnly()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testExcludeKeysStaticColumnOnly(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
@@ -2122,8 +2201,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testExcludeStaticColumn()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testExcludeStaticColumn(CassandraBridge bridge)
     {
         // Exclude static columns
         Tester.builder(TestSchema.builder()
@@ -2138,8 +2218,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testUpsertExcludeStaticColumn()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testUpsertExcludeStaticColumn(CassandraBridge bridge)
     {
         // Exclude static columns
         Tester.builder(TestSchema.builder()
@@ -2155,8 +2236,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testLastModifiedTimestampAddedWithStaticColumn()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testLastModifiedTimestampAddedWithStaticColumn(CassandraBridge bridge)
     {
         int numRows = 5;
         int numColumns = 5;
@@ -2188,14 +2270,15 @@ public class EndToEndTests extends VersionRunner
                       assertTrue(lmt > leastExpectedTimestamp);
                       // Due to the static column so the LMT is the same per partition.
                       // Using the pair of ck and lmt for uniqueness check.
-                      assertTrue("Observed a duplicated LMT", observedLMT.add(Pair.of(row.getInt(1), lmt)));
+                      assertTrue(observedLMT.add(Pair.of(row.getInt(1), lmt)), "Observed a duplicated LMT");
                   }
               })
               .run();
     }
 
-    @Test
-    public void testLastModifiedTimestampWithExcludeColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testLastModifiedTimestampWithExcludeColumns(CassandraBridge bridge)
     {
         Tester.builder(TestSchema.builder().withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.aInt())
@@ -2233,8 +2316,9 @@ public class EndToEndTests extends VersionRunner
               .run();
     }
 
-    @Test
-    public void testLastModifiedTimestampAddedWithSimpleColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testLastModifiedTimestampAddedWithSimpleColumns(CassandraBridge bridge)
     {
         int numRows = 10;
         long leastExpectedTimestamp = Timestamp.from(Instant.now()).getTime();
@@ -2268,14 +2352,15 @@ public class EndToEndTests extends VersionRunner
                       assertEquals(5, row.length());
                       long lmt = row.getTimestamp(4).getTime();
                       assertTrue(lmt > leastExpectedTimestamp + 10);
-                      assertTrue("Observed a duplicated LMT", observedLMT.add(lmt));
+                      assertTrue(observedLMT.add(lmt), "Observed a duplicated LMT");
                   }
               })
               .run();
     }
 
-    @Test
-    public void testLastModifiedTimestampAddedWithComplexColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testLastModifiedTimestampAddedWithComplexColumns(CassandraBridge bridge)
     {
         long leastExpectedTimestamp = Timestamp.from(Instant.now()).getTime();
         Set<Long> observedLMT = new HashSet<>();
@@ -2304,7 +2389,7 @@ public class EndToEndTests extends VersionRunner
                       assertEquals(8, row.length());
                       long lmt = row.getTimestamp(7).getTime();
                       assertTrue(lmt > leastExpectedTimestamp);
-                      assertTrue("Observed a duplicated LMT", observedLMT.add(lmt));
+                      assertTrue(observedLMT.add(lmt), "Observed a duplicated LMT");
                   }
               })
               .run();

@@ -34,10 +34,12 @@ import java.util.function.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
 import org.apache.commons.lang3.RandomUtils;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
@@ -67,11 +69,12 @@ import static org.apache.cassandra.spark.data.partitioner.ConsistencyLevel.LOCAL
 import static org.apache.cassandra.spark.data.partitioner.ConsistencyLevel.ONE;
 import static org.apache.cassandra.spark.data.partitioner.ConsistencyLevel.TWO;
 import static org.apache.cassandra.spark.data.partitioner.Partitioner.Murmur3Partitioner;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.any;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -82,19 +85,15 @@ public class PartitionedDataLayerTests extends VersionRunner
 {
     int partitionId;
 
-    public PartitionedDataLayerTests(CassandraVersion version)
-    {
-        super(version);
-    }
-
-    @Before
+    @BeforeEach
     public void setup()
     {
         partitionId = TaskContext.getPartitionId();
     }
 
-    @Test
-    public void testSplitQuorumAllUp()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSplitQuorumAllUp(CassandraBridge bridge)
     {
         runSplitTests(1, UP);
         runSplitTests(2, UP, UP);
@@ -206,33 +205,43 @@ public class PartitionedDataLayerTests extends VersionRunner
                                                        null);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test()
     public void testReplicationFactorDCRequired()
     {
         // DC required for DC-local consistency level
-        PartitionedDataLayer.validateReplicationFactor(LOCAL_QUORUM,
-                                                       TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 3)),
-                                                       null);
+        assertThrows(IllegalArgumentException.class,
+                     () -> PartitionedDataLayer
+                           .validateReplicationFactor(LOCAL_QUORUM,
+                                                      TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 3)),
+                                                      null)
+        );
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test()
     public void testReplicationFactorUnknownDC()
     {
-        PartitionedDataLayer.validateReplicationFactor(LOCAL_QUORUM,
-                                                       TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 3)),
-                                                       "ST");
-    }
-
-    @Test(expected = IllegalArgumentException.class)
-    public void testReplicationFactorRF0()
-    {
-        PartitionedDataLayer.validateReplicationFactor(LOCAL_QUORUM,
-                                                       TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 0)),
-                                                       "MR");
+        assertThrows(IllegalArgumentException.class,
+                     () -> PartitionedDataLayer
+                           .validateReplicationFactor(LOCAL_QUORUM,
+                                                      TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 3)),
+                                                      "ST")
+        );
     }
 
     @Test
-    public void testSSTableSupplier()
+    public void testReplicationFactorRF0()
+    {
+        assertThrows(IllegalArgumentException.class,
+                     () -> PartitionedDataLayer
+                           .validateReplicationFactor(LOCAL_QUORUM,
+                                                      TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 0)),
+                                                      "MR")
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSSTableSupplier(CassandraBridge bridge)
     {
         CassandraRing ring = TestUtils.createRing(Murmur3Partitioner, 3);
         CqlTable table = TestSchema.basic(bridge).buildTable();
@@ -243,8 +252,9 @@ public class PartitionedDataLayerTests extends VersionRunner
         assertNotNull(ssTableReaders);
     }
 
-    @Test
-    public void testSSTableSupplierWithMatchingFilters()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSSTableSupplierWithMatchingFilters(CassandraBridge bridge)
     {
         CassandraRing ring = TestUtils.createRing(Partitioner.Murmur3Partitioner, 3);
         CqlTable table = TestSchema.basic(bridge).buildTable();
@@ -258,8 +268,9 @@ public class PartitionedDataLayerTests extends VersionRunner
         assertNotNull(ssTableReaders);
     }
 
-    @Test(expected = NotEnoughReplicasException.class)
-    public void testSSTableSupplierWithNonMatchingFilters()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSSTableSupplierWithNonMatchingFilters(CassandraBridge bridge)
     {
         CassandraRing ring = TestUtils.createRing(Partitioner.Murmur3Partitioner, 3);
         CqlTable table = TestSchema.basic(bridge).buildTable();
@@ -267,7 +278,9 @@ public class PartitionedDataLayerTests extends VersionRunner
 
         PartitionKeyFilter filter = PartitionKeyFilter.create(ByteBuffer.wrap(RandomUtils.nextBytes(10)),
                                                               BigInteger.valueOf(6917529027641081853L));
-        SSTablesSupplier supplier = dataLayer.sstables(partitionId, null, Collections.singletonList(filter));
+        assertThrows(NotEnoughReplicasException.class,
+                     () -> dataLayer.sstables(partitionId, null, Collections.singletonList(filter))
+        );
     }
 
     @Test

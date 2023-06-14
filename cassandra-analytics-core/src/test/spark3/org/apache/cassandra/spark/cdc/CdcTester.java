@@ -37,7 +37,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.google.common.util.concurrent.Uninterruptibles;
-import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,9 +54,9 @@ import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.jetbrains.annotations.Nullable;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Helper for writing CommitLogs using the TestSchema
@@ -71,11 +70,11 @@ public class CdcTester
     // TODO: Use generic CommitLog
     public static CassandraBridge.ICommitLog COMMIT_LOG;  // CHECKSTYLE IGNORE: Constant cannot be made final
 
-    public static void setup(CassandraBridge bridge, TemporaryFolder testFolder)
+    public static void setup(CassandraBridge bridge, Path testFolder)
     {
-        bridge.setCommitLogPath(testFolder.getRoot().toPath());
-        bridge.setCDC(testFolder.getRoot().toPath());
-        COMMIT_LOG = bridge.testCommitLog(testFolder.getRoot());
+        bridge.setCommitLogPath(testFolder.getRoot());
+        bridge.setCDC(testFolder.getRoot());
+        COMMIT_LOG = bridge.testCommitLog(testFolder.toFile());
     }
 
     public static void tearDown()
@@ -359,12 +358,13 @@ public class CdcTester
                         String key = actualRow.getKey();
                         TestSchema.TestRow expectedRow = rows.get(key);
                         assertNotNull(expectedRow);
-                        assertEquals("Row read in Spark does not match expected",
-                                     expectedRow.withColumns(requiredColumns).nullifyUnsetColumn(), actualRow);
+                        assertEquals(expectedRow.withColumns(requiredColumns).nullifyUnsetColumn(), actualRow,
+                                     "Row read in Spark does not match expected");
                         actualRowCount++;
                     }
-                    assertEquals(String.format("Expected %d rows, but %d read testId=%s",
-                                               expectedNumRows, actualRowCount, testId), rows.size(), actualRowCount);
+                    assertEquals(rows.size(), actualRowCount,
+                                 String.format("Expected %d rows, but %d read testId=%s",
+                                               expectedNumRows, actualRowCount, testId));
                 }
                 else
                 {
@@ -390,10 +390,6 @@ public class CdcTester
                    .collect(Collectors.toList());
     }
 
-    public static Builder builder(CassandraBridge bridge, TemporaryFolder testDir, TestSchema.Builder schemaBuilder)
-    {
-        return builder(bridge, testDir.getRoot().toPath(), schemaBuilder);
-    }
 
     public static Builder builder(CassandraBridge bridge, Path testDir, TestSchema.Builder schemaBuilder)
     {

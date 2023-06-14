@@ -99,3 +99,4 @@ cassandra-analytics-build.properties
 
 # MacOS
 .DS_Store
+cassandra-analytics-core/dtest-jars

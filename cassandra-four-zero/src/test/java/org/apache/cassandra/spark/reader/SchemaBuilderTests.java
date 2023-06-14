@@ -21,7 +21,7 @@ package org.apache.cassandra.spark.reader;
 
 import java.util.HashMap;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.cql3.CQLFragmentParser;
@@ -36,7 +36,7 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.utils.FBUtilities;
 
 import static org.apache.cassandra.spark.reader.SchemaBuilder.rfToMap;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 public class SchemaBuilderTests
 {

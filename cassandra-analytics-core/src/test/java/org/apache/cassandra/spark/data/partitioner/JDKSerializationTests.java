@@ -35,7 +35,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
 import org.apache.commons.lang.NotImplementedException;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
@@ -55,21 +56,18 @@ import org.apache.cassandra.spark.data.VersionRunner;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.NotNull;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
 public class JDKSerializationTests extends VersionRunner
 {
-    public JDKSerializationTests(CassandraVersion version)
-    {
-        super(version);
-    }
 
-    @Test
-    public void testCassandraRing()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCassandraRing(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.partitioners(), arbitrary().pick(Arrays.asList(1, 3, 6, 12, 128)))
             .checkAssert(((partitioner, numInstances) -> {
@@ -91,8 +89,9 @@ public class JDKSerializationTests extends VersionRunner
             }));
     }
 
-    @Test
-    public void testTokenPartitioner()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testTokenPartitioner(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.partitioners(),
                     arbitrary().pick(Arrays.asList(1, 3, 6, 12, 128)),
@@ -114,8 +113,9 @@ public class JDKSerializationTests extends VersionRunner
             }));
     }
 
-    @Test
-    public void testPartitionedDataLayer()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testPartitionedDataLayer(CassandraBridge bridge)
     {
         CassandraRing ring = TestUtils.createRing(Partitioner.Murmur3Partitioner, 1024);
         TestSchema schema = TestSchema.basic(bridge);
@@ -130,8 +130,9 @@ public class JDKSerializationTests extends VersionRunner
         assertEquals(Partitioner.Murmur3Partitioner, deserialized.partitioner());
     }
 
-    @Test
-    public void testCqlFieldSet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCqlFieldSet(CassandraBridge bridge)
     {
         CqlField.CqlSet setType = bridge.set(bridge.text());
         CqlField field = new CqlField(true, false, false, RandomStringUtils.randomAlphanumeric(5, 20), setType, 10);
@@ -145,8 +146,9 @@ public class JDKSerializationTests extends VersionRunner
         assertEquals(field.isClusteringColumn(), deserialized.isClusteringColumn());
     }
 
-    @Test
-    public void testCqlUdt()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCqlUdt(CassandraBridge bridge)
     {
         CqlField.CqlUdt udt1 = bridge
                                .udt("udt_keyspace", "udt_table")
@@ -284,8 +286,9 @@ public class JDKSerializationTests extends VersionRunner
         }
     }
 
-    @Test
-    public void testSecretsConfig()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSecretsConfig(CassandraBridge bridge)
     {
         SslConfig config = new SslConfig.Builder<>()
                            .keyStorePath("keyStorePath")

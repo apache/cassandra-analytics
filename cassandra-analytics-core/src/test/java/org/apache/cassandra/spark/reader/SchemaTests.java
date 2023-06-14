@@ -27,10 +27,10 @@ import java.util.regex.Matcher;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
@@ -39,13 +39,14 @@ import org.apache.cassandra.spark.data.VersionRunner;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.Nullable;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.quicktheories.QuickTheory.qt;
 
 public class SchemaTests extends VersionRunner
@@ -68,13 +69,10 @@ public class SchemaTests extends VersionRunner
                                       + "    AND memtable_flush_period_in_ms = 0\n"
                                       + "    AND min_index_interval = 128\n;";
 
-    public SchemaTests(CassandraVersion version)
-    {
-        super(version);
-    }
 
-    @Test
-    public void testBuild()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testBuild(CassandraBridge bridge)
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(
                 ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
@@ -95,8 +93,9 @@ public class SchemaTests extends VersionRunner
         assertEquals(2, table.numValueColumns());
     }
 
-    @Test
-    public void testEquality()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testEquality(CassandraBridge bridge)
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(
                 ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
@@ -111,8 +110,9 @@ public class SchemaTests extends VersionRunner
         assertEquals(table1.hashCode(), table2.hashCode());
     }
 
-    @Test
-    public void testSameKeyspace()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSameKeyspace(CassandraBridge bridge)
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(
                 ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
@@ -123,8 +123,9 @@ public class SchemaTests extends VersionRunner
         assertEquals("sbr_test", table1.table());
     }
 
-    @Test
-    public void testHasher()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testHasher(CassandraBridge bridge)
     {
         // Casts to (ByteBuffer) required when compiling with Java 8
         assertEquals(BigInteger.valueOf(6747049197585865300L),
@@ -137,14 +138,16 @@ public class SchemaTests extends VersionRunner
                      bridge.hash(Partitioner.RandomPartitioner, (ByteBuffer) ByteBuffer.allocate(4).putInt(1929239).flip()));
     }
 
-    @Test
-    public void testUUID()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testUUID(CassandraBridge bridge)
     {
         assertEquals(1, bridge.getTimeUUID().version());
     }
 
-    @Test
-    public void testCollections()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCollections(CassandraBridge bridge)
     {
         String createStatement = "CREATE TABLE backup_test.collection_test (account_id uuid PRIMARY KEY, balance bigint, names set<text>);";
         ReplicationFactor replicationFactor = new ReplicationFactor(
@@ -153,8 +156,9 @@ public class SchemaTests extends VersionRunner
         assertEquals(CqlField.CqlType.InternalType.Set, table.getField("names").type().internalType());
     }
 
-    @Test
-    public void testSetClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSetClusteringKey(CassandraBridge bridge)
     {
         String createStatement = "CREATE TABLE backup_test.sbr_test_set_ck (pk uuid, ck frozen<set<text>>, PRIMARY KEY (pk, ck));";
         ReplicationFactor replicationFactor = new ReplicationFactor(
@@ -162,8 +166,9 @@ public class SchemaTests extends VersionRunner
         bridge.buildSchema(createStatement, "backup_test", replicationFactor);
     }
 
-    @Test
-    public void testListClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testListClusteringKey(CassandraBridge bridge)
     {
         String createStatement = "CREATE TABLE backup_test.sbr_test_list_ck (pk uuid, ck frozen<list<bigint>>, PRIMARY KEY (pk, ck));";
         ReplicationFactor replicationFactor = new ReplicationFactor(
@@ -171,8 +176,9 @@ public class SchemaTests extends VersionRunner
         bridge.buildSchema(createStatement, "backup_test", replicationFactor);
     }
 
-    @Test
-    public void testMapClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testMapClusteringKey(CassandraBridge bridge)
     {
         String createStatement = "CREATE TABLE backup_test.sbr_test_map_ck (pk uuid, ck frozen<map<uuid, timestamp>>, PRIMARY KEY (pk, ck));";
         ReplicationFactor replicationFactor = new ReplicationFactor(
@@ -180,56 +186,66 @@ public class SchemaTests extends VersionRunner
         bridge.buildSchema(createStatement, "backup_test", replicationFactor);
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testNativeUnsupportedColumnMetaData()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testNativeUnsupportedColumnMetaData(CassandraBridge bridge)
     {
         String createStatement = "CREATE TABLE backup_test.sbr_test (account_id uuid, transactions counter, PRIMARY KEY(account_id));";
         ReplicationFactor replicationFactor = new ReplicationFactor(
                 ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
-        bridge.buildSchema(createStatement, "backup_test", replicationFactor);
+        assertThrows(UnsupportedOperationException.class,
+                     () -> bridge.buildSchema(createStatement, "backup_test", replicationFactor)
+        );
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testUnsupportedInnerType()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testUnsupportedInnerType(CassandraBridge bridge)
     {
         String createStatement = "CREATE TABLE backup_test.sbr_test (account_id uuid, transactions counter, PRIMARY KEY(account_id));";
         ReplicationFactor replicationFactor = new ReplicationFactor(
                 ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
-        bridge.buildSchema(createStatement, "backup_test", replicationFactor);
+        assertThrows(UnsupportedOperationException.class,
+                     () -> bridge.buildSchema(createStatement, "backup_test", replicationFactor)
+        );
     }
 
-    @Test(expected = UnsupportedOperationException.class)
-    public void testUnsupportedUdt()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testUnsupportedUdt(CassandraBridge bridge)
     {
         String createStatement = "CREATE TABLE backup_test.sbr_test (account_id uuid, transactions frozen<testudt>, PRIMARY KEY (account_id));";
         ReplicationFactor replicationFactor = new ReplicationFactor(
                 ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
-        bridge.buildSchema(createStatement, "backup_test", replicationFactor, Partitioner.Murmur3Partitioner,
-                ImmutableSet.of("CREATE TYPE backup_test.testudt(birthday timestamp, count bigint, length counter);"));
+        assertThrows(UnsupportedOperationException.class,
+                     () -> bridge.buildSchema(createStatement, "backup_test", replicationFactor, Partitioner.Murmur3Partitioner,
+                    ImmutableSet.of("CREATE TYPE backup_test.testudt(birthday timestamp, count bigint, length counter);"))
+        );
     }
 
-    @Test
-    public void testCollectionMatcher()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCollectionMatcher(CassandraBridge bridge)
     {
-        qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> testMatcher("set<%s>", "set", type));
-        qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> testMatcher("list<%s>", "list", type));
+        qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> testMatcher("set<%s>", "set", type, bridge));
+        qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> testMatcher("list<%s>", "list", type, bridge));
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((first, second) -> {
-            testMatcher("map<%s,%s>", "map", first, second);
-            testMatcher("map<%s , %s>", "map", first, second);
+            testMatcher("map<%s,%s>", "map", first, second, bridge);
+            testMatcher("map<%s , %s>", "map", first, second, bridge);
         });
-        qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> testMatcher(type.cqlName(), null, null));
+        qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> testMatcher(type.cqlName(), null, null, bridge));
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((first, second) -> {
-            testMatcher("tuple<%s,%s>", "tuple", first, second);
-            testMatcher("tuple<%s , %s>", "tuple", first, second);
+            testMatcher("tuple<%s,%s>", "tuple", first, second, bridge);
+            testMatcher("tuple<%s , %s>", "tuple", first, second, bridge);
         });
     }
 
-    private void testMatcher(String pattern, String collection, CqlField.NativeType type)
+    private void testMatcher(String pattern, String collection, CqlField.NativeType type, CassandraBridge bridge)
     {
-        testMatcher(pattern, collection, type, null);
+        testMatcher(pattern, collection, type, null, bridge);
     }
 
-    private void testMatcher(String pattern, String collection, CqlField.NativeType first, CqlField.NativeType second)
+    private void testMatcher(String pattern, String collection, CqlField.NativeType first, CqlField.NativeType second, CassandraBridge bridge)
     {
         boolean isMap = second != null;
         String string;
@@ -267,21 +283,23 @@ public class SchemaTests extends VersionRunner
         }
     }
 
-    @Test
-    public void testFrozenMatcher()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testFrozenMatcher(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> testFrozen("frozen<set<%s>>", CqlField.CqlSet.class, type));
+            .checkAssert(type -> testFrozen("frozen<set<%s>>", CqlField.CqlSet.class, type, bridge));
         qt().forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> testFrozen("frozen<list<%s>>", CqlField.CqlList.class, type));
+            .checkAssert(type -> testFrozen("frozen<list<%s>>", CqlField.CqlList.class, type, bridge));
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((first, second) -> {
-            testFrozen("frozen<map<%s,%s>>", CqlField.CqlMap.class, first, second);
-            testFrozen("frozen<map<%s , %s>>", CqlField.CqlMap.class, first, second);
+            testFrozen("frozen<map<%s,%s>>", CqlField.CqlMap.class, first, second, bridge);
+            testFrozen("frozen<map<%s , %s>>", CqlField.CqlMap.class, first, second, bridge);
         });
     }
 
-    @Test
-    public void testNestedFrozenSet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testNestedFrozenSet(CassandraBridge bridge)
     {
         String pattern = "map<text, frozen<set<bigint>>>";
         CqlField.CqlType type = bridge.parseType(pattern);
@@ -297,8 +315,9 @@ public class SchemaTests extends VersionRunner
         assertSame(inner.type(), bridge.bigint());
     }
 
-    @Test
-    public void testNestedFrozenMap()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testNestedFrozenMap(CassandraBridge bridge)
     {
         String pattern = "map<text, frozen<map<bigint, text>>>";
         CqlField.CqlType type = bridge.parseType(pattern);
@@ -317,15 +336,15 @@ public class SchemaTests extends VersionRunner
 
     private void testFrozen(String pattern,
                             Class<? extends CqlField.CqlCollection> collectionType,
-                            CqlField.CqlType innerType)
+                            CqlField.CqlType innerType, CassandraBridge bridge)
     {
-        testFrozen(pattern, collectionType, innerType, null);
+        testFrozen(pattern, collectionType, innerType, null, bridge);
     }
 
     private void testFrozen(String pattern,
                             Class<? extends CqlField.CqlCollection> collectionType,
                             CqlField.CqlType first,
-                            @Nullable CqlField.CqlType second)
+                            @Nullable CqlField.CqlType second, CassandraBridge bridge)
     {
         pattern = second != null ? String.format(pattern, first, second) : String.format(pattern, first);
         CqlField.CqlType type = bridge.parseType(pattern);
@@ -345,8 +364,9 @@ public class SchemaTests extends VersionRunner
 
     /* User-Defined Types */
 
-    @Test
-    public void testUdts()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testUdts(CassandraBridge bridge)
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(
                 ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
@@ -390,8 +410,9 @@ public class SchemaTests extends VersionRunner
         assertEquals(bridge.aInt(), udtField.field(3).type());
     }
 
-    @Test
-    public void testCollectionUdts()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCollectionUdts(CassandraBridge bridge)
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(
                 ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
@@ -425,8 +446,9 @@ public class SchemaTests extends VersionRunner
         assertEquals(bridge.aInt(), udtField.field(3).type());
     }
 
-    @Test
-    public void testParseUdt()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testParseUdt(CassandraBridge bridge)
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(
                 ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
@@ -443,8 +465,9 @@ public class SchemaTests extends VersionRunner
         assertEquals(bridge.text(), fields.get(3).type());
     }
 
-    @Test
-    public void testParseTuple()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testParseTuple(CassandraBridge bridge)
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(
                 ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
@@ -468,8 +491,9 @@ public class SchemaTests extends VersionRunner
         assertEquals(bridge.bool(), tuple.type(3));
     }
 
-    @Test
-    public void testComplexSchema()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testComplexSchema(CassandraBridge bridge)
     {
         String keyspace = "complex_schema1";
         String type1 = "CREATE TYPE " + keyspace + ".field_with_timestamp (\n"
@@ -565,8 +589,9 @@ public class SchemaTests extends VersionRunner
                      ((CqlField.CqlMap) ((CqlField.CqlFrozen) fieldsUDT.field(9).type()).inner()).valueType().internalType());
     }
 
-    @Test
-    public void testNestedUDTs()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testNestedUDTs(CassandraBridge bridge)
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(
                 ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));

@@ -23,30 +23,32 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.spark.utils.RandomUtils;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class CompressionTests extends VersionRunner
 {
-    public CompressionTests(CassandraVersion version)
-    {
-        super(version);
-    }
+    private CassandraBridge bridge;
 
-    @Test
-    public void testCompressRandom() throws IOException
+    @ParameterizedTest()
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#versions")
+    public void testCompressRandom(CassandraVersion version) throws IOException
     {
+        bridge = CassandraBridgeFactory.get(version);
         // Test with random data - not highly compressible
         testCompression(RandomUtils.randomBytes(4096));
     }
 
-    @Test
-    public void testCompressUniform() throws IOException
+    @ParameterizedTest()
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#versions")
+    public void testCompressUniform(CassandraVersion version) throws IOException
     {
+        bridge = CassandraBridgeFactory.get(version);
         // Test with highly compressible data
         byte[] bytes = new byte[4096];
         Arrays.fill(bytes, (byte) 'a');

@@ -19,8 +19,8 @@
 
 package org.apache.cassandra.clients;
 
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
@@ -30,15 +30,15 @@ import static org.apache.cassandra.spark.utils.SerializationUtils.kryoDeserializ
 import static org.apache.cassandra.spark.utils.SerializationUtils.kryoSerialize;
 import static org.apache.cassandra.spark.utils.SerializationUtils.register;
 import static org.apache.cassandra.spark.utils.SerializationUtils.serialize;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Unit tests for the {@link SidecarInstanceImpl} class
  */
 public class SidecarInstanceImplTest extends SidecarInstanceTest
 {
-    @BeforeClass
+    @BeforeAll
     public static void setupKryo()
     {
         register(SidecarInstanceImpl.class, new SidecarInstanceImpl.Serializer());

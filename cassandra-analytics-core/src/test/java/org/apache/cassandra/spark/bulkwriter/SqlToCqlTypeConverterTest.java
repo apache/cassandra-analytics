@@ -22,10 +22,8 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.util.Arrays;
 import java.util.Collection;
 
-import org.junit.Test;
-import org.junit.experimental.runners.Enclosed;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.spark.data.CqlField;
 
@@ -55,90 +53,66 @@ import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockLi
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockMapCqlType;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockSetCqlType;
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
-@RunWith(Enclosed.class)
 public final class SqlToCqlTypeConverterTest
 {
-    private SqlToCqlTypeConverterTest()
+
+    public static Collection<Object[]> dataTypes()
     {
-        throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+        return Arrays.asList(na(mockCqlType(BIGINT), SqlToCqlTypeConverter.LongConverter.class),
+                             na(mockCqlType(BLOB), SqlToCqlTypeConverter.BytesConverter.class),
+                             na(mockListCqlType(INT), SqlToCqlTypeConverter.ListConverter.class),
+                             na(mockCqlType(DECIMAL), SqlToCqlTypeConverter.BigDecimalConverter.class),
+                             na(mockCqlType(TIMESTAMP), SqlToCqlTypeConverter.TimestampConverter.class),
+                             na(mockCqlType(TIME), SqlToCqlTypeConverter.TimeConverter.class),
+                             na(mockCqlType(UUID), SqlToCqlTypeConverter.UUIDConverter.class),
+                             na(mockCqlType(VARINT), SqlToCqlTypeConverter.BigIntegerConverter.class),
+                             na(mockCqlType(TIMEUUID), SqlToCqlTypeConverter.TimeUUIDConverter.class),
+                             na(mockCqlType(INET), SqlToCqlTypeConverter.InetAddressConverter.class),
+                             na(mockCqlType(DATE), SqlToCqlTypeConverter.DateConverter.class),
+                             na(mockMapCqlType(INT, INT), SqlToCqlTypeConverter.MapConverter.class),
+                             na(mockSetCqlType(INET), SqlToCqlTypeConverter.SetConverter.class),
+                             // Special Cassandra 1.2 Timestamp type should use TimestampConverter
+                             na(mockCqlCustom("org.apache.cassandra.db.marshal.DateType"), SqlToCqlTypeConverter.TimestampConverter.class));
     }
 
-    @RunWith(Parameterized.class)
-    public static class ConverterTests
+
+    @ParameterizedTest(name = "{index}: {0} -> {1}")
+    @MethodSource("dataTypes")
+    public void testConverter(CqlField.CqlType dt, Class<?> expectedConverter)
     {
-        public ConverterTests(CqlField.CqlType dt, Class expectedConverter)
-        {
-            this.dt = dt;
-            this.expectedConverter = expectedConverter;
-        }
-
-        @Parameterized.Parameters(name = "{index}: {0} -> {1}")
-        public static Collection<Object[]> dataTypes()
-        {
-            return Arrays.asList(na(mockCqlType(BIGINT), SqlToCqlTypeConverter.LongConverter.class),
-                                 na(mockCqlType(BLOB), SqlToCqlTypeConverter.BytesConverter.class),
-                                 na(mockListCqlType(INT), SqlToCqlTypeConverter.ListConverter.class),
-                                 na(mockCqlType(DECIMAL), SqlToCqlTypeConverter.BigDecimalConverter.class),
-                                 na(mockCqlType(TIMESTAMP), SqlToCqlTypeConverter.TimestampConverter.class),
-                                 na(mockCqlType(TIME), SqlToCqlTypeConverter.TimeConverter.class),
-                                 na(mockCqlType(UUID), SqlToCqlTypeConverter.UUIDConverter.class),
-                                 na(mockCqlType(VARINT), SqlToCqlTypeConverter.BigIntegerConverter.class),
-                                 na(mockCqlType(TIMEUUID), SqlToCqlTypeConverter.TimeUUIDConverter.class),
-                                 na(mockCqlType(INET), SqlToCqlTypeConverter.InetAddressConverter.class),
-                                 na(mockCqlType(DATE), SqlToCqlTypeConverter.DateConverter.class),
-                                 na(mockMapCqlType(INT, INT), SqlToCqlTypeConverter.MapConverter.class),
-                                 na(mockSetCqlType(INET), SqlToCqlTypeConverter.SetConverter.class),
-                                 // Special Cassandra 1.2 Timestamp type should use TimestampConverter
-                                 na(mockCqlCustom("org.apache.cassandra.db.marshal.DateType"), SqlToCqlTypeConverter.TimestampConverter.class));
-        }
-
-        private CqlField.CqlType dt;
-        private Class expectedConverter;
-
-        @Test
-        public void testConverter()
-        {
-            assertConverterType(dt, expectedConverter);
-        }
-
-        private static Object[] na(CqlField.CqlType dataType, Class converter)
-        {
-            return new Object[]{dataType, converter};
-        }
+        assertConverterType(dt, expectedConverter);
     }
 
-    @RunWith(Parameterized.class)
-    public static class TypeConverterNoOpTests
+    private static Object[] na(CqlField.CqlType dataType, Class<?> converter)
     {
-        @Parameterized.Parameters(name = "{index}: {0}")
-        public static Collection<Object[]> dataTypes()
-        {
-            return Arrays.asList(na(mockCqlType(ASCII)),
-                                 na(mockCqlType(BOOLEAN)),
-                                 na(mockCqlType(COUNTER)),
-                                 na(mockCqlType(DOUBLE)),
-                                 na(mockCqlType(FLOAT)),
-                                 na(mockCqlType(TEXT)),
-                                 na(mockCqlType(VARCHAR)),
-                                 na(mockCqlType(SMALLINT)),
-                                 na(mockCqlType(TINYINT)));
-        }
+        return new Object[]{dataType, converter};
+    }
 
-        @Parameterized.Parameter
-        public CqlField.CqlType dataType;  // CHECKSTYLE IGNORE: Public mutable field for parameterized testing
+    public static Collection<Object[]> noOpDataTypes()
+    {
+        return Arrays.asList(na(mockCqlType(ASCII)),
+                             na(mockCqlType(BOOLEAN)),
+                             na(mockCqlType(COUNTER)),
+                             na(mockCqlType(DOUBLE)),
+                             na(mockCqlType(FLOAT)),
+                             na(mockCqlType(TEXT)),
+                             na(mockCqlType(VARCHAR)),
+                             na(mockCqlType(SMALLINT)),
+                             na(mockCqlType(TINYINT)));
+    }
 
-        private static Object[] na(CqlField.CqlType dataType)
-        {
-            return new Object[]{dataType};
-        }
+    private static Object[] na(CqlField.CqlType dataType)
+    {
+        return new Object[]{dataType};
+    }
 
-        @Test
-        public void testNoOpTypes()
-        {
-            assertConverterType(dataType, SqlToCqlTypeConverter.NoOp.class);
-        }
+    @ParameterizedTest(name = "{index}: {0}")
+    @MethodSource("noOpDataTypes")
+    public void testNoOpTypes(CqlField.CqlType dataType)
+    {
+        assertConverterType(dataType, SqlToCqlTypeConverter.NoOp.class);
     }
 
     public static void assertConverterType(CqlField.CqlType dataType, Class expectedType)

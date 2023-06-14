@@ -25,8 +25,8 @@ import java.util.TreeMap;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.utils.BuildInfo;
@@ -36,10 +36,10 @@ import org.jetbrains.annotations.NotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.isEmptyString;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThrows;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class BulkSparkConfTest
 {
@@ -47,7 +47,7 @@ public class BulkSparkConfTest
     private BulkSparkConf bulkSparkConf;
     private Map<String, String> defaultOptions;
 
-    @Before
+    @BeforeEach
     public void before()
     {
         sparkConf = new SparkConf();

@@ -38,29 +38,29 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.commons.io.IOUtils;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 public class SslConfigSecretsProviderTest
 {
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    @TempDir
+    public Path folder; // CHECKSTYLE IGNORE: Public mutable field for testing
 
     String keyStorePassword;
     String trustStorePassword;
 
-    @Before
+    @BeforeEach
     public void setup() throws IOException
     {
-        Path path = folder.newFolder("secrets-config").toPath();
+        Path path = folder.resolve("secrets-config");
+        Files.createDirectories(path);
 
         try (InputStream stream = getClass().getResourceAsStream("/secrets/fakecerts/client-keystore.p12"))
         {
@@ -88,10 +88,10 @@ public class SslConfigSecretsProviderTest
     public void testSuccessWithCertsPaths() throws IOException
     {
         Map<String, String> jobOptions = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        jobOptions.put(SslConfig.KEYSTORE_PATH, folder.getRoot().getAbsolutePath() + "/secrets-config/keystore.p12");
+        jobOptions.put(SslConfig.KEYSTORE_PATH, folder.toAbsolutePath() + "/secrets-config/keystore.p12");
         jobOptions.put(SslConfig.KEYSTORE_PASSWORD, keyStorePassword);
         jobOptions.put(SslConfig.KEYSTORE_TYPE, "PKCS12");
-        jobOptions.put(SslConfig.TRUSTSTORE_PATH, folder.getRoot().getAbsolutePath() + "/secrets-config/truststore.jks");
+        jobOptions.put(SslConfig.TRUSTSTORE_PATH, folder.toAbsolutePath() + "/secrets-config/truststore.jks");
         jobOptions.put(SslConfig.TRUSTSTORE_PASSWORD, trustStorePassword);
         jobOptions.put(SslConfig.TRUSTSTORE_TYPE, "JKS");
 
@@ -125,9 +125,9 @@ public class SslConfigSecretsProviderTest
     public void testSuccessWithEncodedCerts() throws IOException
     {
         Map<String, String> jobOptions = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        String keyStorePath = folder.getRoot().getAbsolutePath() + "/secrets-config/keystore.p12";
+        String keyStorePath = folder.toAbsolutePath() + "/secrets-config/keystore.p12";
         String encodedKeyStore = Base64.getEncoder().encodeToString(Files.readAllBytes(Paths.get(keyStorePath)));
-        String trustStorePath = folder.getRoot().getAbsolutePath() + "/secrets-config/truststore.jks";
+        String trustStorePath = folder.toAbsolutePath() + "/secrets-config/truststore.jks";
         String encodedTrustStore = Base64.getEncoder().encodeToString(Files.readAllBytes(Paths.get(trustStorePath)));
 
         jobOptions.put(SslConfig.KEYSTORE_BASE64_ENCODED, encodedKeyStore);
@@ -167,10 +167,10 @@ public class SslConfigSecretsProviderTest
     public void testInvalidPathToKeyStore()
     {
         Map<String, String> jobOptions = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        jobOptions.put(SslConfig.KEYSTORE_PATH, folder.getRoot().getAbsolutePath() + "/secrets-config/non-existent-keystore.p12");
+        jobOptions.put(SslConfig.KEYSTORE_PATH, folder.toAbsolutePath() + "/secrets-config/non-existent-keystore.p12");
         jobOptions.put(SslConfig.KEYSTORE_PASSWORD, keyStorePassword);
         jobOptions.put(SslConfig.KEYSTORE_TYPE, "PKCS12");
-        jobOptions.put(SslConfig.TRUSTSTORE_PATH, folder.getRoot().getAbsolutePath() + "/secrets-config/truststore.jks");
+        jobOptions.put(SslConfig.TRUSTSTORE_PATH, folder.toAbsolutePath() + "/secrets-config/truststore.jks");
         jobOptions.put(SslConfig.TRUSTSTORE_PASSWORD, trustStorePassword);
         jobOptions.put(SslConfig.TRUSTSTORE_TYPE, "JKS");
 
@@ -194,10 +194,10 @@ public class SslConfigSecretsProviderTest
     public void testInvalidPathToTrustStore()
     {
         Map<String, String> jobOptions = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        jobOptions.put(SslConfig.KEYSTORE_PATH, folder.getRoot().getAbsolutePath() + "/secrets-config/keystore.p12");
+        jobOptions.put(SslConfig.KEYSTORE_PATH, folder.toAbsolutePath() + "/secrets-config/keystore.p12");
         jobOptions.put(SslConfig.KEYSTORE_PASSWORD, keyStorePassword);
         jobOptions.put(SslConfig.KEYSTORE_TYPE, "PKCS12");
-        jobOptions.put(SslConfig.TRUSTSTORE_PATH, folder.getRoot().getAbsolutePath() + "/secrets-config/non-existent-truststore.jks");
+        jobOptions.put(SslConfig.TRUSTSTORE_PATH, folder.toAbsolutePath() + "/secrets-config/non-existent-truststore.jks");
         jobOptions.put(SslConfig.TRUSTSTORE_PASSWORD, trustStorePassword);
         jobOptions.put(SslConfig.TRUSTSTORE_TYPE, "JKS");
 

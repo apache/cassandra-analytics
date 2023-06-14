@@ -22,13 +22,13 @@ package org.apache.cassandra.spark.reader;
 import java.math.BigInteger;
 
 import com.google.common.base.Preconditions;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class OverlapTests
 {

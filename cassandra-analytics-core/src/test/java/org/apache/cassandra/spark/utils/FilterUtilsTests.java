@@ -25,23 +25,26 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.spark.sql.sources.EqualTo;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.sources.In;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class FilterUtilsTests
 {
-    @Test(expected = IllegalArgumentException.class)
+    @Test()
     public void testPartialPartitionKeyFilter()
     {
         Filter[] filters = new Filter[]{new EqualTo("a", "1")};
-        Map<String, List<String>> partitionKeyValues = FilterUtils.extractPartitionKeyValues(filters, new HashSet<>(Arrays.asList("a", "b")));
+        assertThrows(IllegalArgumentException.class,
+                     () -> FilterUtils.extractPartitionKeyValues(filters, new HashSet<>(Arrays.asList("a", "b")))
+        );
     }
 
     @Test
@@ -54,11 +57,13 @@ public class FilterUtilsTests
         assertTrue(partitionKeyValues.containsKey("b"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test()
     public void testCartesianProductOfInValidValues()
     {
         List<List<String>> orderedValues = Arrays.asList(Arrays.asList("1", "2"), Arrays.asList("a", "b", "c"), Collections.emptyList());
-        List<List<String>> product = FilterUtils.cartesianProduct(orderedValues);
+        assertThrows(IllegalArgumentException.class,
+                     () -> FilterUtils.cartesianProduct(orderedValues)
+        );
     }
 
     @Test

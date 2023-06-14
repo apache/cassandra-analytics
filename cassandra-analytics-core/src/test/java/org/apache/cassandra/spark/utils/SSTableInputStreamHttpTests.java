@@ -26,7 +26,6 @@ import java.io.RandomAccessFile;
 import java.net.InetSocketAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.List;
@@ -37,11 +36,10 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.codec.digest.DigestUtils;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,8 +55,8 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -78,8 +76,8 @@ public class SSTableInputStreamHttpTests
                                                                       .build());
     private static final Logger LOGGER = LoggerFactory.getLogger(SSTableInputStreamHttpTests.class);
 
-    @ClassRule
-    public static TemporaryFolder DIRECTORY = new TemporaryFolder();  // CHECKSTYLE IGNORE: Constant cannot be made final
+    @TempDir
+    public static Path DIRECTORY;  // CHECKSTYLE IGNORE: Constant cannot be made final
     private static final String HOST = "localhost";
     private static final int PORT = 8001;
     private static final int HTTP_CLIENT_CHUNK_SIZE = 8192;
@@ -87,7 +85,7 @@ public class SSTableInputStreamHttpTests
     private static HttpServer SERVER;           // CHECKSTYLE IGNORE: Constant cannot be made final
     private static CloseableHttpClient CLIENT;  // CHECKSTYLE IGNORE: Constant cannot be made final
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() throws IOException
     {
         // Create in-test HTTP server to handle range requests and tmp files
@@ -96,8 +94,8 @@ public class SSTableInputStreamHttpTests
         SERVER.createContext("/", exchange -> {
             try
             {
-                String uri = exchange.getRequestURI().getPath();
-                Path path = Paths.get(DIRECTORY.getRoot().getPath(), uri);
+                String uri = exchange.getRequestURI().getPath().replaceFirst("/", "");
+                Path path = DIRECTORY.resolve(uri);
 
                 // Extract Range from header
                 long size = Files.size(path);
@@ -158,7 +156,7 @@ public class SSTableInputStreamHttpTests
         CLIENT = HttpClients.createDefault();
     }
 
-    @AfterClass
+    @AfterAll
     public static void tearDown()
     {
         SERVER.stop(0);
@@ -268,8 +266,7 @@ public class SSTableInputStreamHttpTests
     {
         try
         {
-            // Create tmp file with random data
-            Path path = DIRECTORY.newFile().toPath();
+            Path path = Files.createTempFile(DIRECTORY, null, null);
             MessageDigest digest = DigestUtils.getMd5Digest();
             try (BufferedOutputStream out = new BufferedOutputStream(Files.newOutputStream(path)))
             {

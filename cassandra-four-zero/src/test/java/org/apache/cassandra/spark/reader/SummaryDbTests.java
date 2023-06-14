@@ -29,7 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.stream.LongStream;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.dht.IPartitioner;
@@ -42,9 +42,9 @@ import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -107,13 +107,13 @@ public class SummaryDbTests
                     Collections.sort(tokens);
 
                     TableMetadata metadata = Schema.instance.getTableMetadata(schema.keyspace, schema.table);
-                    assertNotNull("Could not find table metadata", metadata);
+                    assertNotNull(metadata, "Could not find table metadata");
 
                     Path summaryDb = TestSSTable.firstIn(directory.path(), FileType.SUMMARY);
-                    assertNotNull("Could not find summary", summaryDb);
+                    assertNotNull(summaryDb, "Could not find summary");
 
                     SSTable ssTable = TestSSTable.firstIn(directory.path());
-                    assertNotNull("Could not find SSTable", ssTable);
+                    assertNotNull(ssTable, "Could not find SSTable");
 
                     // Binary search Summary.db file in token order and verify offsets are ordered
                     SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(metadata, ssTable);

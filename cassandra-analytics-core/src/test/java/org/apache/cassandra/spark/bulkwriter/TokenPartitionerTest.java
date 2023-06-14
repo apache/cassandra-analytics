@@ -23,20 +23,20 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 
 import com.google.common.collect.ImmutableMap;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.number.OrderingComparison.greaterThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class TokenPartitionerTest
 {
     private TokenPartitioner partitioner;
 
-    @Before
+    @BeforeEach
     public void createConfig()
     {
     }

@@ -23,9 +23,7 @@ import java.util.Arrays;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.Pair;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
@@ -40,7 +38,8 @@ import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCq
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThrows;
+import static org.hamcrest.core.StringStartsWith.startsWith;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TableSchemaTest
 {
@@ -53,9 +52,6 @@ public class TableSchemaTest
         validDataFrameSchema = validPair.getKey();
         validCqlColumns = validPair.getValue();
     }
-
-    @Rule
-    public ExpectedException exception = ExpectedException.none();
 
     private StructType validDataFrameSchema;
 
@@ -136,11 +132,13 @@ public class TableSchemaTest
                 .add("course", DataTypes.StringType)
                 .add("marks", DataTypes.IntegerType);
 
-        exception.expect(IllegalArgumentException.class);
-        exception.expectMessage("Unknown fields");
+        IllegalArgumentException iex = assertThrows(IllegalArgumentException.class,
+                                                    () ->
         getValidSchemaBuilder()
                 .withDataFrameSchema(extraFieldsDataFrameSchema)
-                .build();
+                .build()
+        );
+        assertThat(iex.getMessage(), startsWith("Unknown fields"));
     }
 
     @Test

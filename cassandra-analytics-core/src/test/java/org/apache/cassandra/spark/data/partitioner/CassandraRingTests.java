@@ -29,14 +29,14 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.data.ReplicationFactor;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SuppressWarnings("UnstableApiUsage")
 public class CassandraRingTests
@@ -59,7 +59,7 @@ public class CassandraRingTests
         RangeSet<BigInteger> rangeSet = TreeRangeSet.create();
 
         ranges.forEach(rangeSet::add);
-        validTokens.forEach(token -> assertTrue(token + " should have been a valid token", rangeSet.contains(token)));
+        validTokens.forEach(token -> assertTrue(rangeSet.contains(token), token + " should have been a valid token"));
         invalidTokens.forEach(token -> assertFalse(rangeSet.contains(token)));
     }
 

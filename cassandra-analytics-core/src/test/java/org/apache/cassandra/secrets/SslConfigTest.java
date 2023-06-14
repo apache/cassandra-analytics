@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.cassandra.secrets.SslConfig.KEYSTORE_BASE64_ENCODED;
 import static org.apache.cassandra.secrets.SslConfig.KEYSTORE_PASSWORD;
@@ -31,10 +31,10 @@ import static org.apache.cassandra.secrets.SslConfig.KEYSTORE_PATH;
 import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_BASE64_ENCODED;
 import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_PASSWORD;
 import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_PATH;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Unit tests for the {@link SslConfig} class

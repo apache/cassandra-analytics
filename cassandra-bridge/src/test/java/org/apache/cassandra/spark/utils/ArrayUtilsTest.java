@@ -21,8 +21,8 @@ package org.apache.cassandra.spark.utils;
 
 import java.util.function.Consumer;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import static org.apache.cassandra.spark.utils.ArrayUtils.retain;
 
@@ -32,7 +32,7 @@ public class ArrayUtilsTest
     public void testRetain()
     {
         Object[] source = new Object[]{1, 2, 3, 4, 5};
-        Assert.assertArrayEquals(new Object[]{1, 2, 3}, retain(source, 0, 3));
+        Assertions.assertArrayEquals(new Object[]{1, 2, 3}, retain(source, 0, 3));
     }
 
     @Test
@@ -40,16 +40,16 @@ public class ArrayUtilsTest
     {
         // Not using JUnit rule ExpectedException in order to assert multiple throwables
         expectedThrows(() -> retain(null, 0, 1),
-                       throwable -> Assert.assertSame(IllegalArgumentException.class, throwable.getClass()));
+                       throwable -> Assertions.assertSame(IllegalArgumentException.class, throwable.getClass()));
 
         expectedThrows(() -> retain(new Object[]{1, 2, 3}, -1, 1),
-                       throwable -> Assert.assertSame(IllegalArgumentException.class, throwable.getClass()));
+                       throwable -> Assertions.assertSame(IllegalArgumentException.class, throwable.getClass()));
 
         expectedThrows(() -> retain(new Object[]{1, 2, 3}, 0, -1),
-                       throwable -> Assert.assertSame(IllegalArgumentException.class, throwable.getClass()));
+                       throwable -> Assertions.assertSame(IllegalArgumentException.class, throwable.getClass()));
 
         expectedThrows(() -> retain(new Object[]{1, 2, 3}, 0, 5),
-                       throwable -> Assert.assertSame(IllegalArgumentException.class, throwable.getClass()));
+                       throwable -> Assertions.assertSame(IllegalArgumentException.class, throwable.getClass()));
     }
 
     private void expectedThrows(Runnable test, Consumer<Throwable> throwableVerifier)

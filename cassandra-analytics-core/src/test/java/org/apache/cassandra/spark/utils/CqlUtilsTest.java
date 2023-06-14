@@ -31,21 +31,22 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.FileUtils;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.VersionRunner;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Unit tests for {@link CqlUtils}
@@ -54,26 +55,23 @@ public class CqlUtilsTest extends VersionRunner
 {
     static String fullSchemaSample;
 
-    public CqlUtilsTest(CassandraVersion version)
-    {
-        super(version);
-    }
-
-    @BeforeClass
+    @BeforeAll
     public static void setup() throws URISyntaxException, IOException
     {
         fullSchemaSample = loadFullSchemaSample();
     }
 
-    @Test
-    public void textExtractIndexCount()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void textExtractIndexCount(CassandraBridge bridge)
     {
         int indexCount = CqlUtils.extractIndexCount(fullSchemaSample, "cycling", "rank_by_year_and_name");
         assertEquals(3, indexCount);
     }
 
-    @Test
-    public void testExtractKeyspace()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testExtractKeyspace(CassandraBridge bridge)
     {
         String keyspaceSchema = CqlUtils.extractKeyspaceSchema(fullSchemaSample, "keyspace");
         String tagEntityRelationV4KeyspaceSchema = CqlUtils.extractKeyspaceSchema(fullSchemaSample, "quoted_keyspace");
@@ -94,8 +92,9 @@ public class CqlUtilsTest extends VersionRunner
                    + "WITH REPLICATION = { 'class' : 'org.apache.cassandra.locator.LocalStrategy' } AND DURABLE_WRITES = true;", systemSchemaKeyspaceSchema);
     }
 
-    @Test
-    public void testExtractKeyspaceNames()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testExtractKeyspaceNames(CassandraBridge bridge)
     {
         Set<String> keyspaceNames = CqlUtils.extractKeyspaceNames(fullSchemaSample);
         assertEquals(3, keyspaceNames.size());
@@ -111,8 +110,9 @@ public class CqlUtilsTest extends VersionRunner
         assertEquals(3, rfMap.get("quoted_keyspace").getOptions().get("datacenter2").intValue());
     }
 
-    @Test
-    public void testExtractReplicationFactor()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testExtractReplicationFactor(CassandraBridge bridge)
     {
         ReplicationFactor keyspaceRf = CqlUtils.extractReplicationFactor(fullSchemaSample, "keyspace");
         assertNotNull(keyspaceRf);
@@ -139,8 +139,9 @@ public class CqlUtilsTest extends VersionRunner
         assertEquals(ImmutableMap.of(), systemSchemaRf.getOptions());
     }
 
-    @Test
-    public void testEscapedColumnNames()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testEscapedColumnNames(CassandraBridge bridge)
     {
         String cleaned = CqlUtils.extractTableSchema(fullSchemaSample, "cycling", "rank_by_year_and_name_quoted_columns");
         assertEquals("CREATE TABLE cycling.rank_by_year_and_name_quoted_columns("
@@ -155,8 +156,9 @@ public class CqlUtilsTest extends VersionRunner
                    + " AND cdc = false;", cleaned);
     }
 
-    @Test
-    public void testExtractTableSchemaCase1()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testExtractTableSchemaCase1(CassandraBridge bridge)
     {
         String schemaStr = "CREATE TABLE keyspace.table ("
                          + "key blob, "
@@ -201,8 +203,9 @@ public class CqlUtilsTest extends VersionRunner
         assertEquals(expectedCreateStmt, actualCreateStmt);
     }
 
-    @Test
-    public void testFailsWithUnbalancedParenthesis()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testFailsWithUnbalancedParenthesis(CassandraBridge bridge)
     {
         String schemaStr = "CREATE TABLE keyspace.table (key blob, c0 text, c1 text, PRIMARY KEY (key);";
 
@@ -219,8 +222,9 @@ public class CqlUtilsTest extends VersionRunner
         }
     }
 
-    @Test
-    public void testExtractTableSchemaCase2()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testExtractTableSchemaCase2(CassandraBridge bridge)
     {
         String schemaStr = "CREATE TABLE keyspace.table ("
                          + "key blob, "
@@ -261,8 +265,9 @@ public class CqlUtilsTest extends VersionRunner
         assert expectedCreateStmt.equals(actualCreateStmt);
     }
 
-    @Test
-    public void testEscapedTableName()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testEscapedTableName(CassandraBridge bridge)
     {
         String schemaStr = "CREATE TABLE ks.\\\"tb\\\" (\\n"
                          + "\\\"key\\\" text,\\n"
@@ -317,16 +322,18 @@ public class CqlUtilsTest extends VersionRunner
         assertEquals("id1", table.getField("id1").name());
     }
 
-    @Test
-    public void testCleanTableName()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCleanTableName(CassandraBridge bridge)
     {
         assertEquals("test", CqlUtils.cleanTableName("test"));
         assertEquals("test", CqlUtils.cleanTableName("\"test\""));
         assertEquals("test", CqlUtils.cleanTableName("\"\"test\"\""));
     }
 
-    @Test
-    public void testExtractTableSchemaCase3()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testExtractTableSchemaCase3(CassandraBridge bridge)
     {
         String schemaStr = "CREATE TABLE keyspace.table ("
                          + "key blob, "
@@ -366,8 +373,9 @@ public class CqlUtilsTest extends VersionRunner
         assert expectedCreateStmt.equals(actualCreateStmt);
     }
 
-    @Test
-    public void testBasicExtractUDTs()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testBasicExtractUDTs(CassandraBridge bridge)
     {
         String schemaStr = "CREATE TYPE udt_keyspace.test_idt1 (a text, b bigint, c int, d float);\n"
                          + "CREATE TYPE udt_keyspace.test_idt2 (x boolean, y timestamp, z timeuuid);";
@@ -377,8 +385,9 @@ public class CqlUtilsTest extends VersionRunner
         assertTrue(udts.contains("CREATE TYPE udt_keyspace.test_idt2 (x boolean, y timestamp, z timeuuid);"));
     }
 
-    @Test
-    public void testExtractUDTs()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testExtractUDTs(CassandraBridge bridge)
     {
         String schema = "\"CREATE TYPE some_keyspace.udt123 (\\n\" +\n"
                       + "                              \"    x uuid,\\n\" +\n"
@@ -454,8 +463,9 @@ public class CqlUtilsTest extends VersionRunner
                                + ");"));
     }
 
-    @Test
-    public void testExtractKeyspacesUDTs()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testExtractKeyspacesUDTs(CassandraBridge bridge)
     {
         String schemaTxt = "\"CREATE KEYSPACE keyspace_with_udts WITH REPLICATION = {"
                          + " 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy',"
@@ -497,8 +507,9 @@ public class CqlUtilsTest extends VersionRunner
         assertTrue(udtStr.contains("ks1.field_with_timestamp"));
     }
 
-    @Test
-    public void testExtractTableSchemaCase4()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testExtractTableSchemaCase4(CassandraBridge bridge)
     {
         String schemaStr = "CREATE TABLE keyspace.table (value text PRIMARY KEY);";
         String expectedCreateStmt = "CREATE TABLE keyspace.table (value text PRIMARY KEY);";
@@ -506,8 +517,9 @@ public class CqlUtilsTest extends VersionRunner
         assert expectedCreateStmt.equals(actualCreateStmt);
     }
 
-    @Test
-    public void testParseClusteringKeySchema()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testParseClusteringKeySchema(CassandraBridge bridge)
     {
         String schemaTxt = "CREATE TABLE ks1.tb1 (\n"
                          + "    namespace int,\n"
@@ -543,8 +555,9 @@ public class CqlUtilsTest extends VersionRunner
                            Collections.emptySet(), null, 0);
     }
 
-    @Test
-    public void testExtractClusteringKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testExtractClusteringKey(CassandraBridge bridge)
     {
         assertEquals("CLUSTERING ORDER BY (c ASC)",
                      CqlUtils.extractClustering("CREATE TABLE ks1.tb1 (a int, b text, c int, d timestamp, PRIMARY KEY ((a, b), c)"
@@ -610,8 +623,9 @@ public class CqlUtilsTest extends VersionRunner
                                             + " AND read_repair = 'BLOCKING' AND speculative_retry = 'MIN(99p,15ms)'"));
     }
 
-    @Test
-    public void testClusteringOrderByIsRetained()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testClusteringOrderByIsRetained(CassandraBridge bridge)
     {
         String schemaStr = "CREATE TABLE keyspace.table (id bigint, version bigint PRIMARY KEY (id, version)) "
                          + "WITH CLUSTERING ORDER BY (id DESC, version DESC) AND foo = 1;";
@@ -621,8 +635,9 @@ public class CqlUtilsTest extends VersionRunner
         assertEquals(expectedCreateStmt, actualCreateStmt);
     }
 
-    @Test
-    public void testExtractCdcFlag()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testExtractCdcFlag(CassandraBridge bridge)
     {
         assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int);",
                                                       Collections.singletonList("cdc")).isEmpty());
@@ -644,8 +659,9 @@ public class CqlUtilsTest extends VersionRunner
                                                       Collections.singletonList("cdc")).contains("cdc = false"));
     }
 
-    @Test
-    public void testCdcExtractSchema()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCdcExtractSchema(CassandraBridge bridge)
     {
         String schema = "CREATE KEYSPACE ks1"
                       + " WITH REPLICATION = { 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy',"

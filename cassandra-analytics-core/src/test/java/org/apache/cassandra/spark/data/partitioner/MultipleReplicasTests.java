@@ -29,7 +29,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import com.google.common.collect.Range;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.PartitionedDataLayer;
@@ -37,8 +37,9 @@ import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.reader.SparkSSTableReader;
 import org.apache.cassandra.spark.stats.Stats;
 
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Matchers.eq;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -91,22 +92,29 @@ public class MultipleReplicasTests
         runTest(5, 3, 2, 0);
     }
 
-    @Test(expected = AssertionError.class)
+    @Test()
     public void testRF1NotEnoughReplicas()
     {
-        runTest(1, 1, 1, 0);
+        assertThrows(AssertionError.class,
+                     () -> runTest(1, 1, 1, 0)
+        );
     }
 
-    @Test(expected = AssertionError.class)
+    @Test()
     public void testRF3QuorumNotEnoughReplicas()
     {
-        runTest(3, 2, 1, 1);
+        assertThrows(AssertionError.class,
+                     () -> runTest(3, 2, 1, 1)
+        );
     }
 
-    @Test(expected = AssertionError.class)
+    @Test()
     public void testRFAllNotEnoughReplicas()
     {
-        runTest(3, 3, 1, 0);
+        assertThrows(AssertionError.class,
+                     () ->
+                     runTest(3, 3, 1, 0)
+        );
     }
 
     private static void runTest(int numInstances, int rfFactor, int numDownPrimaryInstances, int numDownBackupInstances)

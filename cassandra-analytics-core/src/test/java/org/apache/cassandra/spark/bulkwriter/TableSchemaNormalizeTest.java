@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.google.common.net.InetAddresses;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
@@ -73,9 +73,9 @@ import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCq
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockListCqlType;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockMapCqlType;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockSetCqlType;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
-import static org.junit.Assert.assertThat;
 
 public class TableSchemaNormalizeTest
 {

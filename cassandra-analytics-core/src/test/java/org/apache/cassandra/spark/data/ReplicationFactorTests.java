@@ -22,11 +22,12 @@ package org.apache.cassandra.spark.data;
 import java.util.ArrayList;
 
 import com.google.common.collect.ImmutableMap;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class ReplicationFactorTests
 {
@@ -76,20 +77,24 @@ public class ReplicationFactorTests
         assertEquals(Integer.valueOf(5), replicationFactor.getOptions().get("replication_factor"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test()
     public void testUnexpectedRFClass()
     {
-        new ReplicationFactor(ImmutableMap.of(
-                "class", "org.apache.cassandra.locator.NotSimpleStrategy",
-                "replication_factor", "5"));
+        assertThrows(IllegalArgumentException.class,
+                     () -> new ReplicationFactor(ImmutableMap.of(
+                     "class", "org.apache.cassandra.locator.NotSimpleStrategy",
+                     "replication_factor", "5"))
+        );
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test()
     public void testUnknownRFClass()
     {
-        new ReplicationFactor(ImmutableMap.of(
-                "class", "NoSuchStrategy",
-                "replication_factor", "5"));
+        assertThrows(IllegalArgumentException.class,
+                     () -> new ReplicationFactor(ImmutableMap.of(
+                     "class", "NoSuchStrategy",
+                     "replication_factor", "5"))
+        );
     }
 
     @Test

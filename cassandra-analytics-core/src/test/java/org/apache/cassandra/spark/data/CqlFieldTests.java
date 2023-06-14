@@ -21,26 +21,23 @@ package org.apache.cassandra.spark.data;
 
 import java.util.ArrayList;
 
-import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
-import org.apache.cassandra.bridge.CassandraVersion;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNotSame;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CqlFieldTests extends VersionRunner
 {
-    public CqlFieldTests(CassandraVersion version)
-    {
-        super(version);
-    }
 
-    @Test
-    public void testEquality()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testEquality(CassandraBridge bridge)
     {
         CqlField field1 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
         CqlField field2 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
@@ -53,8 +50,9 @@ public class CqlFieldTests extends VersionRunner
         assertEquals(field1, field1);
     }
 
-    @Test
-    public void testNotEqualsName()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testNotEqualsName(CassandraBridge bridge)
     {
         CqlField field1 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
         CqlField field2 = new CqlField(true, false, false, "b", bridge.bigint(), 0);
@@ -63,8 +61,9 @@ public class CqlFieldTests extends VersionRunner
         assertNotEquals(field1.hashCode(), field2.hashCode());
     }
 
-    @Test
-    public void testNotEqualsType()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testNotEqualsType(CassandraBridge bridge)
     {
         CqlField field1 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
         CqlField field2 = new CqlField(true, false, false, "a", bridge.timestamp(), 0);
@@ -73,8 +72,9 @@ public class CqlFieldTests extends VersionRunner
         assertNotEquals(field1.hashCode(), field2.hashCode());
     }
 
-    @Test
-    public void testNotEqualsKey()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testNotEqualsKey(CassandraBridge bridge)
     {
         CqlField field1 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
         CqlField field2 = new CqlField(false, true, false, "a", bridge.bigint(), 0);
@@ -83,8 +83,9 @@ public class CqlFieldTests extends VersionRunner
         assertNotEquals(field1.hashCode(), field2.hashCode());
     }
 
-    @Test
-    public void testNotEqualsPos()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testNotEqualsPos(CassandraBridge bridge)
     {
         CqlField field1 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
         CqlField field2 = new CqlField(true, false, false, "a", bridge.bigint(), 1);
@@ -93,25 +94,27 @@ public class CqlFieldTests extends VersionRunner
         assertNotEquals(field1.hashCode(), field2.hashCode());
     }
 
-    @Test
-    public void testCqlTypeParser()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCqlTypeParser(CassandraBridge bridge)
     {
-        testCqlTypeParser("set<text>", bridge.text());
-        testCqlTypeParser("set<float>", bridge.aFloat());
-        testCqlTypeParser("set<time>", bridge.time());
-        testCqlTypeParser("SET<BLOB>", bridge.blob());
-        testCqlTypeParser("list<ascii>", bridge.ascii());
-        testCqlTypeParser("list<int>", bridge.aInt());
-        testCqlTypeParser("LIST<BIGINT>", bridge.bigint());
-        testCqlTypeParser("map<int,text>", bridge.aInt(), bridge.text());
-        testCqlTypeParser("map<boolean , decimal>", bridge.bool(), bridge.decimal());
-        testCqlTypeParser("MAP<TIMEUUID,TIMESTAMP>", bridge.timeuuid(), bridge.timestamp());
-        testCqlTypeParser("MAP<VARCHAR , double>", bridge.varchar(), bridge.aDouble());
-        testCqlTypeParser("tuple<int, text>", bridge.aInt(), bridge.text());
+        testCqlTypeParser("set<text>", bridge.text(), bridge);
+        testCqlTypeParser("set<float>", bridge.aFloat(), bridge);
+        testCqlTypeParser("set<time>", bridge.time(), bridge);
+        testCqlTypeParser("SET<BLOB>", bridge.blob(), bridge);
+        testCqlTypeParser("list<ascii>", bridge.ascii(), bridge);
+        testCqlTypeParser("list<int>", bridge.aInt(), bridge);
+        testCqlTypeParser("LIST<BIGINT>", bridge.bigint(), bridge);
+        testCqlTypeParser("map<int,text>", bridge.aInt(), bridge.text(), bridge);
+        testCqlTypeParser("map<boolean , decimal>", bridge.bool(), bridge.decimal(), bridge);
+        testCqlTypeParser("MAP<TIMEUUID,TIMESTAMP>", bridge.timeuuid(), bridge.timestamp(), bridge);
+        testCqlTypeParser("MAP<VARCHAR , double>", bridge.varchar(), bridge.aDouble(), bridge);
+        testCqlTypeParser("tuple<int, text>", bridge.aInt(), bridge.text(), bridge);
     }
 
-    @Test
-    public void testSplitMapTypes()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSplitMapTypes(CassandraBridge bridge)
     {
         splitMap("", "", null);
         splitMap("text", "text", null);
@@ -133,8 +136,9 @@ public class CqlFieldTests extends VersionRunner
                  "frozen<map<set<int>,blob>>", "frozen<map<text, frozen<map<bigint, double>>>>");
     }
 
-    @Test
-    public void testCqlNames()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testCqlNames(CassandraBridge bridge)
     {
         assertEquals("set<bigint>", bridge.collection("set", bridge.bigint()).cqlName());
         assertEquals("list<timestamp>", bridge.collection("LIST", bridge.timestamp()).cqlName());
@@ -145,8 +149,9 @@ public class CqlFieldTests extends VersionRunner
                      bridge.collection("tuPLe", bridge.aInt(), bridge.blob(), bridge.map(bridge.aInt(), bridge.aFloat())).cqlName());
     }
 
-    @Test
-    public void testTuple()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testTuple(CassandraBridge bridge)
     {
         String[] result = CassandraBridge.splitInnerTypes("a, b, c, d,e, f, g");
         assertEquals("a", result[0]);
@@ -171,8 +176,9 @@ public class CqlFieldTests extends VersionRunner
         }
     }
 
-    @Test
-    public void testNestedSet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testNestedSet(CassandraBridge bridge)
     {
         CqlField.CqlType type = bridge.parseType("set<frozen<map<text, list<double>>>>");
         assertNotNull(type);
@@ -186,8 +192,9 @@ public class CqlFieldTests extends VersionRunner
         assertEquals(list.type(), bridge.aDouble());
     }
 
-    @Test
-    public void testFrozenCqlTypeParser()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testFrozenCqlTypeParser(CassandraBridge bridge)
     {
         CqlField.CqlType type = bridge.parseType("frozen<map<text, float>>");
         assertNotNull(type);
@@ -199,8 +206,9 @@ public class CqlFieldTests extends VersionRunner
         assertEquals(map.valueType(), bridge.aFloat());
     }
 
-    @Test
-    public void testFrozenCqlTypeNested()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testFrozenCqlTypeNested(CassandraBridge bridge)
     {
         CqlField.CqlType type = bridge.parseType("map<frozen<set<text>>, frozen<map<int, list<blob>>>>");
         assertNotNull(type);
@@ -222,12 +230,12 @@ public class CqlFieldTests extends VersionRunner
         assertEquals(((CqlField.CqlList) valueMap.valueType()).type(), bridge.blob());
     }
 
-    private void testCqlTypeParser(String str, CqlField.CqlType expectedType)
+    private void testCqlTypeParser(String str, CqlField.CqlType expectedType, CassandraBridge bridge)
     {
-        testCqlTypeParser(str, expectedType, null);
+        testCqlTypeParser(str, expectedType, null, bridge);
     }
 
-    private void testCqlTypeParser(String str, CqlField.CqlType expectedType, CqlField.CqlType otherType)
+    private void testCqlTypeParser(String str, CqlField.CqlType expectedType, CqlField.CqlType otherType, CassandraBridge bridge)
     {
         CqlField.CqlType type = bridge.parseType(str);
         if (type instanceof CqlField.CqlTuple)

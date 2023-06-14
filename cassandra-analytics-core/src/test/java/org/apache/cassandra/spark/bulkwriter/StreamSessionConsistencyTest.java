@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -34,12 +35,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
@@ -48,10 +46,9 @@ import org.apache.cassandra.spark.common.model.CassandraInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@RunWith(Parameterized.class)
 public class StreamSessionConsistencyTest
 {
     private static final int NUMBER_DCS = 2;
@@ -68,20 +65,13 @@ public class StreamSessionConsistencyTest
                                                                                 "test",
                                                                                 6);
 
-    @Rule
-    public TemporaryFolder folder = new TemporaryFolder();
+    @TempDir
+    public Path folder; // CHECKSTYLE IGNORE: Public mutable field for testing
     private MockTableWriter tableWriter;
     private StreamSession streamSession;
     private MockBulkWriterContext writerContext;
     private final MockScheduledExecutorService executor = new MockScheduledExecutorService();
 
-    @Parameterized.Parameter(0)
-    public ConsistencyLevel.CL consistencyLevel;  // CHECKSTYLE IGNORE: Public mutable field for parameterized testing
-
-    @Parameterized.Parameter(1)
-    public List<Integer> failuresPerDc;           // CHECKSTYLE IGNORE: Public mutable field for parameterized testing
-
-    @Parameterized.Parameters(name = "CL: {0}, numFailures: {1}")
     public static Collection<Object[]> data()
     {
         List<ConsistencyLevel.CL> cls = Arrays.stream(ConsistencyLevel.CL.values()).collect(Collectors.toList());
@@ -91,22 +81,24 @@ public class StreamSessionConsistencyTest
         return clsToFailures.stream().map(List::toArray).collect(Collectors.toList());
     }
 
-    @Before
-    public void setup()
+    private void setup(ConsistencyLevel.CL consistencyLevel, List<Integer> failuresPerDc)
     {
-        tableWriter = new MockTableWriter(folder.getRoot().toPath());
+        tableWriter = new MockTableWriter(folder);
         writerContext = new MockBulkWriterContext(RING, "cassandra-4.0.0", consistencyLevel);
         streamSession = new StreamSession(writerContext, "sessionId", RANGE, executor);
     }
 
-    @Test
-    public void testConsistencyLevelAndFailureInCommit() throws IOException, ExecutionException, InterruptedException
+    @ParameterizedTest(name = "CL: {0}, numFailures: {1}")
+    @MethodSource("data")
+    public void testConsistencyLevelAndFailureInCommit(ConsistencyLevel.CL consistencyLevel,
+                                                       List<Integer> failuresPerDc)
+    throws IOException, ExecutionException, InterruptedException
     {
-        streamSession = new StreamSession(writerContext, "sessionId", RANGE, executor);
+        setup(consistencyLevel, failuresPerDc);
         AtomicInteger dc1Failures = new AtomicInteger(failuresPerDc.get(0));
         AtomicInteger dc2Failures = new AtomicInteger(failuresPerDc.get(1));
         ImmutableMap<String, AtomicInteger> dcFailures = ImmutableMap.of("DC1", dc1Failures, "DC2", dc2Failures);
-        boolean shouldFail = calculateFailure(dc1Failures.get(), dc2Failures.get());
+        boolean shouldFail = calculateFailure(consistencyLevel, dc1Failures.get(), dc2Failures.get());
         // Return successful result for 1st result, failed for the rest
         writerContext.setCommitResultSupplier((uuids, dc) -> {
             if (dcFailures.get(dc).getAndDecrement() > 0)
@@ -118,7 +110,7 @@ public class StreamSessionConsistencyTest
                 return new DataTransferApi.RemoteCommitResult(true, uuids, null, "");
             }
         });
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
         Object[] row = {0, 1, "course", 2};
         tr.addRow(BigInteger.valueOf(102L), row);
         tr.close(writerContext, 1);
@@ -146,17 +138,20 @@ public class StreamSessionConsistencyTest
         assertThat(instances, containsInAnyOrder(EXPECTED_INSTANCES.toArray()));
     }
 
-    @Test
-    public void testConsistencyLevelAndFailureInUpload() throws IOException, ExecutionException, InterruptedException
+    @ParameterizedTest(name = "CL: {0}, numFailures: {1}")
+    @MethodSource("data")
+    public void testConsistencyLevelAndFailureInUpload(ConsistencyLevel.CL consistencyLevel,
+                                                       List<Integer> failuresPerDc)
+    throws IOException, ExecutionException, InterruptedException
     {
-        streamSession = new StreamSession(writerContext, "sessionId", RANGE, executor);
+        setup(consistencyLevel, failuresPerDc);
         AtomicInteger dc1Failures = new AtomicInteger(failuresPerDc.get(0));
         AtomicInteger dc2Failures = new AtomicInteger(failuresPerDc.get(1));
         int numFailures = dc1Failures.get() + dc2Failures.get();
         ImmutableMap<String, AtomicInteger> dcFailures = ImmutableMap.of("DC1", dc1Failures, "DC2", dc2Failures);
-        boolean shouldFail = calculateFailure(dc1Failures.get(), dc2Failures.get());
+        boolean shouldFail = calculateFailure(consistencyLevel, dc1Failures.get(), dc2Failures.get());
         writerContext.setUploadSupplier(instance -> dcFailures.get(instance.getDataCenter()).getAndDecrement() <= 0);
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
         Object[] row = {0, 1, "course", 2};
         tr.addRow(BigInteger.valueOf(102L), row);
         tr.close(writerContext, 1);
@@ -187,7 +182,7 @@ public class StreamSessionConsistencyTest
         assertThat(instances, containsInAnyOrder(EXPECTED_INSTANCES.toArray()));
     }
 
-    private boolean calculateFailure(int dc1Failures, int dc2Failures)
+    private boolean calculateFailure(ConsistencyLevel.CL consistencyLevel, int dc1Failures, int dc2Failures)
     {
         // Assumes LOCAL_DC is DC1, given current CL and Failures, should we fail?
         int localQuorum = REPLICATION_FACTOR / 2 + 1;

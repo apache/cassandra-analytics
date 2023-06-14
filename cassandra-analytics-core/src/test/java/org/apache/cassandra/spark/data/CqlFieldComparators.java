@@ -24,30 +24,28 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.UUID;
 
-import org.junit.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.spark.sql.types.Decimal;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.integers;
 
 public class CqlFieldComparators extends VersionRunner
 {
-    public CqlFieldComparators(CassandraVersion version)
-    {
-        super(version);
-    }
 
     private static CqlField createField(CqlField.CqlType type)
     {
         return new CqlField(false, false, false, "a", type, 0);
     }
 
-    @Test
-    public void testStringComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testStringComparator(CassandraBridge bridge)
     {
         // ASCII
         assertTrue(createField(bridge.ascii()).compare("a", "b") < 0);
@@ -88,8 +86,9 @@ public class CqlFieldComparators extends VersionRunner
         assertEquals(0, createField(bridge.varchar()).compare("abd", "abd"));
     }
 
-    @Test
-    public void testBigDecimalComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testBigDecimalComparator(CassandraBridge bridge)
     {
         BigDecimal value = BigDecimal.valueOf(Long.MAX_VALUE).multiply(BigDecimal.valueOf(2));
         Decimal decimal1 = Decimal.apply(value);
@@ -100,8 +99,9 @@ public class CqlFieldComparators extends VersionRunner
         assertTrue(createField(bridge.decimal()).compare(decimal2, decimal1) > 0);
     }
 
-    @Test
-    public void testVarIntComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testVarIntComparator(CassandraBridge bridge)
     {
         BigDecimal value = BigDecimal.valueOf(Long.MAX_VALUE).multiply(BigDecimal.valueOf(2));
         Decimal decimal1 = Decimal.apply(value);
@@ -112,8 +112,9 @@ public class CqlFieldComparators extends VersionRunner
         assertTrue(createField(bridge.varint()).compare(decimal2, decimal1) > 0);
     }
 
-    @Test
-    public void testIntegerComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testIntegerComparator(CassandraBridge bridge)
     {
         qt().forAll(integers().between(Integer.MIN_VALUE, Integer.MAX_VALUE - 1))
             .checkAssert(integer -> {
@@ -127,8 +128,9 @@ public class CqlFieldComparators extends VersionRunner
         assertTrue(createField(bridge.aInt()).compare(Integer.MAX_VALUE, Integer.MIN_VALUE) > 0);
     }
 
-    @Test
-    public void testLongComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testLongComparator(CassandraBridge bridge)
     {
         assertTrue(createField(bridge.bigint()).compare(0L, 1L) < 0);
         assertEquals(0, createField(bridge.bigint()).compare(1L, 1L));
@@ -139,8 +141,9 @@ public class CqlFieldComparators extends VersionRunner
         assertTrue(createField(bridge.bigint()).compare(Long.MAX_VALUE, Long.MIN_VALUE) > 0);
     }
 
-    @Test
-    public void testTimeComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testTimeComparator(CassandraBridge bridge)
     {
         assertTrue(createField(bridge.time()).compare(0L, 1L) < 0);
         assertEquals(0, createField(bridge.time()).compare(1L, 1L));
@@ -151,8 +154,9 @@ public class CqlFieldComparators extends VersionRunner
         assertTrue(createField(bridge.time()).compare(Long.MAX_VALUE, Long.MIN_VALUE) > 0);
     }
 
-    @Test
-    public void testBooleanComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testBooleanComparator(CassandraBridge bridge)
     {
         assertTrue(createField(bridge.bool()).compare(false, true) < 0);
         assertEquals(0, createField(bridge.bool()).compare(false, false));
@@ -160,24 +164,27 @@ public class CqlFieldComparators extends VersionRunner
         assertTrue(createField(bridge.bool()).compare(true, false) > 0);
     }
 
-    @Test
-    public void testFloatComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testFloatComparator(CassandraBridge bridge)
     {
         assertTrue(createField(bridge.aFloat()).compare(1f, 2f) < 0);
         assertEquals(0, createField(bridge.aFloat()).compare(2f, 2f));
         assertTrue(createField(bridge.aFloat()).compare(2f, 1f) > 0);
     }
 
-    @Test
-    public void testDoubleComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testDoubleComparator(CassandraBridge bridge)
     {
         assertTrue(createField(bridge.aDouble()).compare(1d, 2d) < 0);
         assertEquals(0, createField(bridge.aDouble()).compare(2d, 2d));
         assertTrue(createField(bridge.aDouble()).compare(2d, 1d) > 0);
     }
 
-    @Test
-    public void testTimestampComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testTimestampComparator(CassandraBridge bridge)
     {
         long timestamp1 = 1L;
         long timestamp2 = 2L;
@@ -187,8 +194,9 @@ public class CqlFieldComparators extends VersionRunner
         assertTrue(createField(bridge.timestamp()).compare(timestamp2, timestamp1) > 0);
     }
 
-    @Test
-    public void testDateComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testDateComparator(CassandraBridge bridge)
     {
         int date1 = 1;
         int date2 = 2;
@@ -198,22 +206,25 @@ public class CqlFieldComparators extends VersionRunner
         assertTrue(createField(bridge.date()).compare(date2, date1) > 0);
     }
 
-    @Test
-    public void testVoidComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testVoidComparator(CassandraBridge bridge)
     {
         assertEquals(0, createField(bridge.empty()).compare(null, null));
     }
 
-    @Test
-    public void testShortComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testShortComparator(CassandraBridge bridge)
     {
         assertTrue(createField(bridge.smallint()).compare((short) 1, (short) 2) < 0);
         assertEquals(0, createField(bridge.smallint()).compare((short) 2, (short) 2));
         assertTrue(createField(bridge.smallint()).compare((short) 2, (short) 1) > 0);
     }
 
-    @Test
-    public void testByteArrayComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testByteArrayComparator(CassandraBridge bridge)
     {
         byte[] bytes1 = new byte[]{0, 0, 0, 101};
         byte[] bytes2 = new byte[]{0, 0, 0, 102};
@@ -228,8 +239,9 @@ public class CqlFieldComparators extends VersionRunner
         assertTrue(createField(bridge.blob()).compare(bytes4, bytes3) > 0);
     }
 
-    @Test
-    public void testInetComparator() throws UnknownHostException
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testInetComparator(CassandraBridge bridge) throws UnknownHostException
     {
         byte[] ip1 = InetAddress.getByAddress(CqlFieldComparators.toByteArray(2130706433)).getAddress();  // 127.0.0.1
         byte[] ip2 = InetAddress.getByAddress(CqlFieldComparators.toByteArray(2130706434)).getAddress();  // 127.0.0.2
@@ -247,8 +259,9 @@ public class CqlFieldComparators extends VersionRunner
                           (byte)  value};
     }
 
-    @Test
-    public void testByteComparator()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testByteComparator(CassandraBridge bridge)
     {
         byte byte1 = 101;
         byte byte2 = 102;

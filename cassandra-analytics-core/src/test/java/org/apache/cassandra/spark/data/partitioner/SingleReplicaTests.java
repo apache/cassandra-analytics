@@ -30,7 +30,7 @@ import java.util.stream.Stream;
 
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.IncompleteSSTableException;
@@ -41,10 +41,11 @@ import org.apache.cassandra.spark.reader.SparkSSTableReader;
 import org.apache.cassandra.spark.reader.common.SSTableStreamException;
 import org.jetbrains.annotations.Nullable;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -82,32 +83,39 @@ public class SingleReplicaTests
         runTest(false, FileType.INDEX);
     }
 
-    @Test(expected = IOException.class)
-    public void testMissingDataFile() throws ExecutionException, InterruptedException, IOException
+    @Test()
+    public void testMissingDataFile()
     {
-        runTest(true, FileType.DATA);
+        assertThrows(IOException.class,
+                     () -> runTest(true, FileType.DATA)
+        );
     }
 
-    @Test(expected = IOException.class)
-    public void testMissingStatisticsFile() throws ExecutionException, InterruptedException, IOException
-    {
-        runTest(true, FileType.STATISTICS);
+    @Test()
+    public void testMissingStatisticsFile()
+    {        assertThrows(IOException.class,
+                          () -> runTest(true, FileType.STATISTICS)
+    );
     }
 
-    @Test(expected = IOException.class)
-    public void testMissingSummaryPrimaryIndex() throws ExecutionException, InterruptedException, IOException
+    @Test()
+    public void testMissingSummaryPrimaryIndex()
     {
-        runTest(true, FileType.SUMMARY, FileType.INDEX);
+        assertThrows(IOException.class,
+                     () -> runTest(true, FileType.SUMMARY, FileType.INDEX)
+        );
     }
 
-    @Test(expected = IOException.class)
-    public void testFailOpenReader() throws ExecutionException, InterruptedException, IOException
+    @Test()
+    public void testFailOpenReader()
     {
-        runTest(true,
-                (ssTable, isRepairPrimary) -> {
-                    throw new IOException("Couldn't open Summary.db file");
-                },
-                Range.closed(BigInteger.valueOf(-9223372036854775808L), BigInteger.valueOf(8710962479251732707L)));
+        assertThrows(IOException.class,
+                     () -> runTest(true,
+                                   (ssTable, isRepairPrimary) -> {
+                         throw new IOException("Couldn't open Summary.db file");
+                         },
+                Range.closed(BigInteger.valueOf(-9223372036854775808L), BigInteger.valueOf(8710962479251732707L)))
+        );
     }
 
     @Test
