@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+import com.google.common.collect.ImmutableMap;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -90,7 +91,7 @@ public class SSTableWriterTest
     {
         MockBulkWriterContext writerContext = new MockBulkWriterContext(ring, version, ConsistencyLevel.CL.LOCAL_QUORUM);
         SSTableWriter tw = new SSTableWriter(writerContext, tmpDir.getRoot().toPath());
-        tw.addRow(BigInteger.ONE, new Object[]{1, 1, "foo", 1});
+        tw.addRow(BigInteger.ONE, ImmutableMap.of("id", 1, "date", 1, "course", "foo", "marks", 1));
         tw.close(writerContext, 1);
         try (DirectoryStream<Path> dataFileStream = Files.newDirectoryStream(tw.getOutDir(), "*Data.db"))
         {

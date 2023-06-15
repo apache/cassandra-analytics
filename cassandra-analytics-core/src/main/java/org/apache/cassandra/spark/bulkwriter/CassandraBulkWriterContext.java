@@ -91,7 +91,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         CqlTable cqlTable = bridge.buildSchema(tableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount);
 
         TableInfoProvider tableInfoProvider = new CqlTableInfoProvider(tableSchema, cqlTable);
-        schemaInfo = new CassandraSchemaInfo(new TableSchema(dfSchema, tableInfoProvider, conf.writeMode));
+        schemaInfo = new CassandraSchemaInfo(new TableSchema(dfSchema, tableInfoProvider, conf.writeMode, conf.getTTLOptions(), conf.getTimestampOptions()));
     }
 
     public static BulkWriterContext fromOptions(@NotNull SparkContext sparkContext,

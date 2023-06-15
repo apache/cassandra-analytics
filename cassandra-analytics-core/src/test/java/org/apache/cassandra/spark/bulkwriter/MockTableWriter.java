@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.io.FileUtils;
@@ -64,13 +65,13 @@ public class MockTableWriter implements SSTableWriter
     }
 
     @Override
-    public void addRow(Object... values)
+    public void addRow(Map<String, Object> values) throws IOException
     {
         if (addRowThrows)
         {
             throw new RuntimeException("Failed to write because addRow throws");
         }
-        rows.add(values);
+        rows.add(values.values().toArray());
     }
 
     @Override

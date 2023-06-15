@@ -85,6 +85,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private CommitResultSupplier crSupplier = (uuids, dc) -> new RemoteCommitResult(true, Collections.emptyList(), uuids, null);
 
     private Predicate<CassandraInstance> uploadRequestConsumer = instance -> true;
+    private TTLOption ttlOption = TTLOption.forever();
 
     public MockBulkWriterContext(CassandraRing<RingInstance> ring,
                                  String cassandraVersion,
@@ -111,6 +112,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
                       .withPartitionKeyColumnTypes(partitionKeyColumnTypes)
                       .withWriteMode(WriteMode.INSERT)
                       .withDataFrameSchema(validDataFrameSchema)
+                      .withTTLSetting(ttlOption)
                       .build();
         this.jobId = java.util.UUID.randomUUID();
     }

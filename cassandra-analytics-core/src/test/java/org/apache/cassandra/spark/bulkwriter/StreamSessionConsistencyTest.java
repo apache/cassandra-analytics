@@ -24,6 +24,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -67,6 +68,7 @@ public class StreamSessionConsistencyTest
                                                                                 ImmutableMap.of("DC1", 3, "DC2", 3),
                                                                                 "test",
                                                                                 6);
+    private static final Map<String, Object> COLUMN_BIND_VALUES = ImmutableMap.of("id", 0, "date", 1, "course", "course", "marks", 2);
 
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
@@ -119,8 +121,7 @@ public class StreamSessionConsistencyTest
             }
         });
         SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
-        Object[] row = {0, 1, "course", 2};
-        tr.addRow(BigInteger.valueOf(102L), row);
+        tr.addRow(BigInteger.valueOf(102L), COLUMN_BIND_VALUES);
         tr.close(writerContext, 1);
         streamSession.scheduleStream(tr);
         if (shouldFail)
@@ -157,8 +158,7 @@ public class StreamSessionConsistencyTest
         boolean shouldFail = calculateFailure(dc1Failures.get(), dc2Failures.get());
         writerContext.setUploadSupplier(instance -> dcFailures.get(instance.getDataCenter()).getAndDecrement() <= 0);
         SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
-        Object[] row = {0, 1, "course", 2};
-        tr.addRow(BigInteger.valueOf(102L), row);
+        tr.addRow(BigInteger.valueOf(102L), COLUMN_BIND_VALUES);
         tr.close(writerContext, 1);
         streamSession.scheduleStream(tr);
         if (shouldFail)

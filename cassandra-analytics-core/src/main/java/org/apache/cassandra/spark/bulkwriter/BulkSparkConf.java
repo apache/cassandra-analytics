@@ -119,6 +119,8 @@ public class BulkSparkConf implements Serializable
     protected final String truststorePath;
     protected final String truststoreBase64Encoded;
     protected final String truststoreType;
+    protected final String ttl;
+    protected final String timestamp;
     protected final SparkConf conf;
     public final boolean validateSSTables;
     public final int commitThreadsPerInstance;
@@ -157,6 +159,8 @@ public class BulkSparkConf implements Serializable
         // else fall back to props, and then default if neither specified
         this.useOpenSsl = getBoolean(USE_OPENSSL, true);
         this.ringRetryCount = getInt(RING_RETRY_COUNT, DEFAULT_RING_RETRY_COUNT);
+        this.ttl = MapUtils.getOrDefault(options, WriterOptions.TTL.name(), null);
+        this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
         validateEnvironment();
     }
 
@@ -239,6 +243,16 @@ public class BulkSparkConf implements Serializable
     protected String getTrustStorePath()
     {
         return truststorePath;
+    }
+
+    protected TTLOption getTTLOptions()
+    {
+        return TTLOption.from(ttl);
+    }
+
+    protected TimestampOption getTimestampOptions()
+    {
+        return TimestampOption.from(timestamp);
     }
 
     protected String getTruststoreBase64Encoded()

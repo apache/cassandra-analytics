@@ -19,8 +19,9 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.io.Serializable;
+import java.util.Iterator;
 
+import org.apache.spark.api.java.function.VoidFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -102,7 +103,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                 .map(tableSchema::normalize)
                 .keyBy(tokenizer::getDecoratedKey)
                 .repartitionAndSortWithinPartitions(broadcastContext.getValue().job().getTokenPartitioner());
-        persist(sortedRDD);
+        persist(sortedRDD, data.columns());
     }
 
     private void cancelJob(@NotNull CancelJobEvent cancelJobEvent)
@@ -121,7 +122,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     }
 
     @SuppressWarnings("RedundantCast")
-    private void persist(@NotNull JavaPairRDD<DecoratedKey, Object[]> sortedRDD)
+    private void persist(@NotNull JavaPairRDD<DecoratedKey, Object[]> sortedRDD, String[] columnNames)
     {
         writeValidator.setPhase("Environment Validation");
         writeValidator.validateInitialEnvironment();
@@ -129,7 +130,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
         try
         {
-            sortedRDD.foreachPartition(new WriteIterator(broadcastContext)::call);
+            sortedRDD.foreachPartition(writeRowsInPartition(broadcastContext, columnNames));
             writeValidator.failIfRingChanged();
         }
         catch (Throwable throwable)
@@ -168,18 +169,9 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         }
     }
 
-    private static class WriteIterator implements Serializable
+    private static VoidFunction<Iterator<Tuple2<DecoratedKey, Object[]>>> writeRowsInPartition(Broadcast<BulkWriterContext> broadcastContext,
+                                                                                               String[] columnNames)
     {
-        private final Broadcast<BulkWriterContext> broadcastContext;
-
-        WriteIterator(Broadcast<BulkWriterContext> broadcastContext)
-        {
-            this.broadcastContext = broadcastContext;
-        }
-
-        public void call(java.util.Iterator<Tuple2<DecoratedKey, Object[]>> iterator)
-        {
-            new RecordWriter(broadcastContext.getValue()).write(iterator);
-        }
+        return itr -> new RecordWriter(broadcastContext.getValue(), columnNames).write(itr);
     }
 }

@@ -72,7 +72,44 @@ public class TableSchemaTest
         TableSchema schema = getValidSchemaBuilder()
                 .build();
         assertThat(schema.modificationStatement,
-                   is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (?,?,?,?);")));
+                   is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks);")));
+    }
+
+    @Test
+    public void testInsertStatementWithConstantTTL()
+    {
+        TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("1000")).build();
+        assertThat(schema.modificationStatement, is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL 1000;")));
+    }
+
+    @Test
+    public void testInsertStatementWithTTLColumn()
+    {
+        TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("ttl")).build();
+        assertThat(schema.modificationStatement, is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL :ttl;")));
+    }
+
+    @Test
+    public void testInsertStatementWithConstantTimestamp()
+    {
+        TableSchema schema = getValidSchemaBuilder().withTimeStampSetting(TimestampOption.from("1000")).build();
+        String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP 1000;";
+        assertThat(schema.modificationStatement, is(equalTo(expectedQuery)));
+    }
+
+    @Test
+    public void testInsertStatementWithTimestampColumn()
+    {
+        TableSchema schema = getValidSchemaBuilder().withTimeStampSetting(TimestampOption.from("timestamp")).build();
+        String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP :timestamp;";
+        assertThat(schema.modificationStatement, is(equalTo(expectedQuery)));
+    }
+    @Test
+    public void testInsertStatementWithTTLAndTimestampColumn()
+    {
+        TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("ttl")).withTimeStampSetting(TimestampOption.from("timestamp")).build();
+        String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP :timestamp AND TTL :ttl;";
+        assertThat(schema.modificationStatement, is(equalTo(expectedQuery)));
     }
 
     @Test

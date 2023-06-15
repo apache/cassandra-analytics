@@ -20,6 +20,7 @@
 package org.apache.cassandra.bridge;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.dht.IPartitioner;
@@ -62,7 +63,7 @@ public class SSTableWriterImplementation implements SSTableWriter
     }
 
     @Override
-    public void addRow(Object... values) throws IOException
+    public void addRow(Map<String, Object> values)  throws IOException
     {
         try
         {
