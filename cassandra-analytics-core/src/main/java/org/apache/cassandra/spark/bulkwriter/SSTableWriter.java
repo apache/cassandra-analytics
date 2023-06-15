@@ -91,15 +91,14 @@ public class SSTableWriter
         return CASSANDRA_VERSION_PREFIX + lowestCassandraVersion;
     }
 
-    public void addRow(BigInteger token, Object[] values) throws IOException
+    public void addRow(BigInteger token, Map<String, Object> boundValues) throws IOException
     {
         if (minToken == null)
         {
             minToken = token;
         }
         maxToken = token;
-
-        cqlSSTableWriter.addRow(values);
+        cqlSSTableWriter.addRow(boundValues);
     }
 
     public void close(BulkWriterContext writerContext, int partitionId) throws IOException

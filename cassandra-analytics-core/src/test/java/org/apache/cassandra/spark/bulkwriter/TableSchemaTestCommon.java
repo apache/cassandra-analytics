@@ -32,6 +32,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
@@ -151,6 +152,8 @@ public final class TableSchemaTestCommon
         private ColumnType[] partitionKeyColumnTypes;
         private StructType dataFrameSchema;
         private WriteMode writeMode = null;
+        private TTLOption ttlOption = TTLOption.forever();
+        private TimestampOption timestampOption = TimestampOption.now();
 
         public MockTableSchemaBuilder withCqlColumns(@NotNull Map<String, CqlField.CqlType> cqlColumns)
         {
@@ -207,6 +210,18 @@ public final class TableSchemaTestCommon
             return this;
         }
 
+        public MockTableSchemaBuilder withTTLSetting(TTLOption ttlOption)
+        {
+            this.ttlOption = ttlOption;
+            return this;
+        }
+
+        public MockTableSchemaBuilder withTimeStampSetting(TimestampOption timestampOption)
+        {
+            this.timestampOption = timestampOption;
+            return this;
+        }
+
         public TableSchema build()
         {
             Objects.requireNonNull(cqlColumns,
@@ -228,7 +243,15 @@ public final class TableSchemaTestCommon
                                                                                 partitionKeyColumnTypes,
                                                                                 primaryKeyColumnNames,
                                                                                 cassandraVersion);
-            return new TableSchema(dataFrameSchema, tableInfoProvider, writeMode);
+            if (ttlOption.withTTl() && ttlOption.columnName() != null)
+            {
+                dataFrameSchema = dataFrameSchema.add("ttl", DataTypes.IntegerType);
+            }
+            if (timestampOption.withTimestamp() && timestampOption.columnName() != null)
+            {
+                dataFrameSchema = dataFrameSchema.add("timestamp", DataTypes.IntegerType);
+            }
+            return new TableSchema(dataFrameSchema, tableInfoProvider, writeMode, ttlOption, timestampOption);
         }
     }
 

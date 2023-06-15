@@ -171,6 +171,16 @@ public final class SqlToCqlTypeConverter implements Serializable
         }
     }
 
+    public static Converter<?> getIntegerConverter()
+    {
+        return INTEGER_CONVERTER;
+    }
+
+    public static Converter<?> getLongConverter()
+    {
+        return LONG_CONVERTER;
+    }
+
     private static Converter<?> determineCustomConvert(CqlField.CqlCustom customType)
     {
         Preconditions.checkArgument(customType.name().equalsIgnoreCase(CUSTOM), "Non-custom types are not supported");

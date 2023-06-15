@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
+import org.apache.cassandra.spark.data.CqlField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,10 +47,15 @@ public class TableSchema implements Serializable
     final List<SqlToCqlTypeConverter.Converter<?>> converters;
     private final List<Integer> keyFieldPositions;
     private final WriteMode writeMode;
+    private final TTLOption ttlOption;
+    private final TimestampOption timestampOption;
 
-    public TableSchema(StructType dfSchema, TableInfoProvider tableInfo, WriteMode writeMode)
+    public TableSchema(StructType dfSchema, TableInfoProvider tableInfo, WriteMode writeMode,
+                       TTLOption ttlOption, TimestampOption timestampOption)
     {
         this.writeMode = writeMode;
+        this.ttlOption = ttlOption;
+        this.timestampOption = timestampOption;
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
         validateNoSecondaryIndexes(tableInfo);
@@ -58,7 +64,7 @@ public class TableSchema implements Serializable
         this.modificationStatement = getModificationStatement(dfSchema, tableInfo);
         this.partitionKeyColumns = getPartitionKeyColumnNames(tableInfo);
         this.partitionKeyColumnTypes = getPartitionKeyColumnTypes(tableInfo);
-        this.converters = getConverters(dfSchema, tableInfo);
+        this.converters = getConverters(dfSchema, tableInfo, ttlOption, timestampOption);
         LOGGER.info("Converters: {}", converters);
         this.keyFieldPositions = getKeyFieldPositions(dfSchema, tableInfo.getColumnNames(), getRequiredKeyColumns(tableInfo));
     }
@@ -100,12 +106,24 @@ public class TableSchema implements Serializable
     }
 
     private static List<SqlToCqlTypeConverter.Converter<?>> getConverters(StructType dfSchema,
-                                                                          TableInfoProvider tableInfo)
+                                                                          TableInfoProvider tableInfo,
+                                                                          TTLOption ttlOption,
+                                                                          TimestampOption timestampOption)
     {
         return Arrays.stream(dfSchema.fieldNames())
-                     .map(tableInfo::getColumnType)
-                     .map(SqlToCqlTypeConverter::getConverter)
-                     .collect(Collectors.toList());
+                     .map(fieldName -> {
+                         if (fieldName.equals(ttlOption.columnName()))
+                         {
+                             return SqlToCqlTypeConverter.getIntegerConverter();
+                         }
+                         if (fieldName.equals(timestampOption.columnName()))
+                         {
+                             return SqlToCqlTypeConverter.getLongConverter();
+                         }
+                         CqlField.CqlType cqlType = tableInfo.getColumnType(fieldName);
+                         return SqlToCqlTypeConverter.getConverter(cqlType);
+                     })
+                    .collect(Collectors.toList());
     }
 
     private static List<ColumnType<?>> getPartitionKeyColumnTypes(TableInfoProvider tableInfo)
@@ -130,7 +148,7 @@ public class TableSchema implements Serializable
         switch (writeMode)
         {
             case INSERT:
-                return getInsertStatement(dfSchema, tableInfo);
+                return getInsertStatement(dfSchema, tableInfo, ttlOption, timestampOption);
             case DELETE_PARTITION:
                 return getDeleteStatement(dfSchema, tableInfo);
             default:
@@ -138,15 +156,38 @@ public class TableSchema implements Serializable
         }
     }
 
-    private static String getInsertStatement(StructType dfSchema, TableInfoProvider tableInfo)
+    private static String getInsertStatement(StructType dfSchema, TableInfoProvider tableInfo,
+                                             TTLOption ttlOption, TimestampOption timestampOption)
     {
-        String insertStatement = String.format("INSERT INTO %s.%s (%s) VALUES (%s);",
-                                               tableInfo.getKeyspaceName(),
-                                               tableInfo.getName(),
-                                               String.join(",", dfSchema.fieldNames()),
-                                               Arrays.stream(dfSchema.fieldNames())
-                                                     .map(field -> "?")
-                                                     .collect(Collectors.joining(",")));
+        List<String> columnNames = Arrays.stream(dfSchema.fieldNames())
+                                         .filter(fieldName -> !fieldName.equals(ttlOption.columnName()))
+                                         .filter(fieldName -> !fieldName.equals(timestampOption.columnName()))
+                                         .collect(Collectors.toList());
+        StringBuilder stringBuilder = new StringBuilder("INSERT INTO ")
+                .append(tableInfo.getKeyspaceName())
+                .append(".").append(tableInfo.getName())
+                .append(columnNames.stream().collect(Collectors.joining(",", " (", ") ")))
+                .append("VALUES")
+                .append(columnNames.stream().map(columnName -> ":" + columnName).collect(Collectors.joining(",", " (", ")")));
+        if (ttlOption.withTTl() && timestampOption.withTimestamp())
+        {
+            stringBuilder.append(" USING TIMESTAMP ")
+                         .append(timestampOption)
+                         .append(" AND TTL ")
+                         .append(ttlOption);
+        }
+        else if (timestampOption.withTimestamp())
+        {
+            stringBuilder.append(" USING TIMESTAMP ")
+                         .append(timestampOption);
+        }
+        else if (ttlOption.withTTl())
+        {
+            stringBuilder.append(" USING TTL ")
+                    .append(ttlOption);
+        }
+        stringBuilder.append(";");
+        String insertStatement = stringBuilder.toString();
 
         LOGGER.info("CQL insert statement for the RDD {}", insertStatement);
         return insertStatement;
@@ -174,7 +215,7 @@ public class TableSchema implements Serializable
         switch (writeMode)
         {
             case INSERT:
-                validateDataframeFieldsInTable(tableInfo, dfFields);
+                validateDataframeFieldsInTable(tableInfo, dfFields, ttlOption, timestampOption);
                 return;
             case DELETE_PARTITION:
                 validateOnlyPartitionKeyColumnsInDataframe(tableInfo, dfFields);
@@ -204,12 +245,16 @@ public class TableSchema implements Serializable
                                             .collect(Collectors.joining(",")));
     }
 
-    private static void validateDataframeFieldsInTable(TableInfoProvider tableInfo, Set<String> dfFields)
+    private static void validateDataframeFieldsInTable(TableInfoProvider tableInfo, Set<String> dfFields,
+                                                       TTLOption ttlOption, TimestampOption timestampOption)
     {
         // Make sure all fields in DF schema are part of table
-        String unknownFields = dfFields.stream()
+        List<String> unknownFields = dfFields.stream()
                                        .filter(columnName -> !tableInfo.columnExists(columnName))
-                                       .collect(Collectors.joining(","));
+                                       .filter(columnName -> !columnName.equals(ttlOption.columnName()))
+                                       .filter(columnName -> !columnName.equals(timestampOption.columnName()))
+                                       .collect(Collectors.toList());
+
         Preconditions.checkArgument(unknownFields.isEmpty(), "Unknown fields in data frame => " + unknownFields);
     }
 

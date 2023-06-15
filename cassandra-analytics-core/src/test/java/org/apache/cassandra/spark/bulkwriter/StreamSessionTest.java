@@ -23,11 +23,13 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.BoundType;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import org.junit.Before;
@@ -52,6 +54,7 @@ import static org.junit.Assert.assertTrue;
 public class StreamSessionTest
 {
     public static final String LOAD_RANGE_ERROR_PREFIX = "Failed to load 1 ranges with LOCAL_QUORUM";
+    private static final Map<String, Object> COLUMN_BOUND_VALUES = ImmutableMap.of("id", 0, "date", 1, "course", "course", "marks", 2);
     @Rule
     public TemporaryFolder folder = new TemporaryFolder();
     private static final int FILES_PER_SSTABLE = 8;
@@ -90,8 +93,7 @@ public class StreamSessionTest
             ) throws IOException, ExecutionException, InterruptedException
     {
         SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
-        Object[] row = {0, 1, "course", 2};
-        tr.addRow(BigInteger.valueOf(102L), row);
+        tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);
         ss.close();  // Force "execution" of futures
@@ -121,8 +123,7 @@ public class StreamSessionTest
     public void testMismatchedTokenRangeFails() throws IOException
     {
         SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
-        Object[] row = {0, 1, "course", 2};
-        tr.addRow(BigInteger.valueOf(9999L), row);
+        tr.addRow(BigInteger.valueOf(9999L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         IllegalStateException illegalStateException = assertThrows(IllegalStateException.class,
                                                       () -> ss.scheduleStream(tr));
@@ -170,8 +171,7 @@ public class StreamSessionTest
     {
         assertThrows(RuntimeException.class, () -> {
             SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, tableWriter.getOutDir());
-            Object[] row = {0, 1, "course", 2};
-            tr.addRow(BigInteger.valueOf(102L), row);
+            tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
             tr.close(writerContext, 1);
             tableWriter.removeOutDir();
             ss.scheduleStream(tr);
@@ -190,8 +190,7 @@ public class StreamSessionTest
         writerContext.setInstancesAreAvailable(false);
         ss = new StreamSession(writerContext, "sessionId", range, executor);
         SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
-        Object[] row = {0, 1, "course", 2};
-        tr.addRow(BigInteger.valueOf(102L), row);
+        tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);
         assertThrows(LOAD_RANGE_ERROR_PREFIX, RuntimeException.class, () -> ss.close());
@@ -234,8 +233,7 @@ public class StreamSessionTest
             }
         });
         SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
-        Object[] row = {0, 1, "course", 2};
-        tr.addRow(BigInteger.valueOf(102L), row);
+        tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);
         ss.close();  // Force "execution" of futures
@@ -267,8 +265,7 @@ public class StreamSessionTest
             }
         });
         SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
-        Object[] row = {0, 1, "course", 2};
-        tr.addRow(BigInteger.valueOf(102L), row);
+        tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);
         RuntimeException exception = assertThrows(RuntimeException.class, () -> ss.close());  // Force "execution" of futures
@@ -289,8 +286,7 @@ public class StreamSessionTest
     {
         writerContext.setUploadSupplier(instance -> false);
         SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder.getRoot().toPath());
-        Object[] row = {0, 1, "course", 2};
-        tr.addRow(BigInteger.valueOf(102L), row);
+        tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);
         assertThrows(LOAD_RANGE_ERROR_PREFIX, RuntimeException.class, () -> ss.close());

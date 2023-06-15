@@ -43,5 +43,7 @@ public enum WriterOptions implements WriterOption
     TRUSTSTORE_BASE64_ENCODED,
     SIDECAR_PORT,
     ROW_BUFFER_MODE,
-    SSTABLE_DATA_SIZE_IN_MB
+    SSTABLE_DATA_SIZE_IN_MB,
+    TTL,
+    TIMESTAMP
 }

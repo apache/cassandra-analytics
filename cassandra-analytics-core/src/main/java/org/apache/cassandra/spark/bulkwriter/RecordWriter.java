@@ -27,8 +27,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
@@ -52,23 +54,26 @@ public class RecordWriter implements Serializable
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordWriter.class);
 
     private final BulkWriterContext writerContext;
+    private final String[] columnNames;
     private Supplier<TaskContext> taskContextSupplier;
     private final BiFunction<BulkWriterContext, Path, SSTableWriter> tableWriterSupplier;
     private SSTableWriter sstableWriter = null;
     private int batchNumber = 0;
     private int batchSize = 0;
 
-    public RecordWriter(BulkWriterContext writerContext)
+    public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
     {
-        this(writerContext, TaskContext::get, SSTableWriter::new);
+        this(writerContext, columnNames, TaskContext::get, SSTableWriter::new);
     }
 
     @VisibleForTesting
     RecordWriter(BulkWriterContext writerContext,
+                 String[] columnNames,
                  Supplier<TaskContext> taskContextSupplier,
                  BiFunction<BulkWriterContext, Path, SSTableWriter> tableWriterSupplier)
     {
         this.writerContext = writerContext;
+        this.columnNames = columnNames;
         this.taskContextSupplier = taskContextSupplier;
         this.tableWriterSupplier = tableWriterSupplier;
     }
@@ -99,12 +104,13 @@ public class RecordWriter implements Serializable
                                  Integer.toString(taskContext.stageAttemptNumber()),
                                  Integer.toString(taskContext.attemptNumber()),
                                  Integer.toString(partitionId));
+        Map<String, Object> valueMap = new HashMap<>();
         try
         {
             while (dataIterator.hasNext())
             {
                 maybeCreateTableWriter(partitionId, baseDir);
-                writeRow(dataIterator, partitionId, range);
+                writeRow(valueMap, dataIterator, partitionId, range);
                 checkBatchSize(streamSession, partitionId, job);
             }
 
@@ -138,7 +144,8 @@ public class RecordWriter implements Serializable
         }
     }
 
-    public void writeRow(scala.collection.Iterator<Tuple2<DecoratedKey, Object[]>> dataIterator,
+    public void writeRow(Map<String, Object> valueMap,
+                         scala.collection.Iterator<Tuple2<DecoratedKey, Object[]>> dataIterator,
                          int partitionId,
                          Range<BigInteger> range) throws IOException
     {
@@ -149,7 +156,7 @@ public class RecordWriter implements Serializable
                                  String.format("Received Token %s outside of expected range %s", token, range));
         try
         {
-            sstableWriter.addRow(token, tuple._2());
+            sstableWriter.addRow(token, getBindValuesForColumns(valueMap, columnNames, tuple._2()));
         }
         catch (RuntimeException exception)
         {
@@ -184,6 +191,16 @@ public class RecordWriter implements Serializable
 
             LOGGER.info("[{}][{}] Created new SSTable writer", partitionId, batchNumber);
         }
+    }
+
+    private static Map<String, Object> getBindValuesForColumns(Map<String, Object> map, String[] columnNames, Object[] values)
+    {
+        assert values.length == columnNames.length : "Number of values does not match the number of columns " + values.length + ", " + columnNames.length;
+        for (int i = 0; i < columnNames.length; i++)
+        {
+            map.put(columnNames[i], values[i]);
+        }
+        return map;
     }
 
     private void finalizeSSTable(StreamSession streamSession,

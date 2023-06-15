@@ -21,8 +21,9 @@ package org.apache.cassandra.bridge;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Map;
 
 public interface SSTableWriter extends Closeable
 {
-    void addRow(Object... values) throws IOException;
+    void addRow(Map<String, Object> values) throws IOException;
 }
