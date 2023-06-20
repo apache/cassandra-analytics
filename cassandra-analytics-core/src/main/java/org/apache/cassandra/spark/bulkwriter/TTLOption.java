@@ -84,7 +84,8 @@ public final class TTLOption implements Serializable
 
     /**
      * TTL option for writes with TTL per Row. When different TTL has to be used for different rows in a bulk write
-     * call use this option. The RDD should have additional column with TTL values in seconds for each row.
+     * call use this option. It expects the input RDD to supply the TTL values as an additional column at each row of
+     * the RDD. The TTL value provider column is selected by {@param ttlColumnName}
      *
      * @param ttlColumnName column name which has TTL values for each row
      * @return TTLOption

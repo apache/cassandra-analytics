@@ -169,6 +169,8 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         }
     }
 
+    // Made this function static to avoid capturing reference to CassandraBulkSourceRelation object which cannot be
+    // serialized.
     private static VoidFunction<Iterator<Tuple2<DecoratedKey, Object[]>>> writeRowsInPartition(Broadcast<BulkWriterContext> broadcastContext,
                                                                                                String[] columnNames)
     {

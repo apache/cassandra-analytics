@@ -141,9 +141,10 @@ public final class SampleCassandraJob
           .option("local_dc", "datacenter1")
           .option("bulk_writer_cl", "LOCAL_QUORUM")
           .option("number_splits", "-1")
-//          .option(WriterOptions.TTL.name(), TTLOption.constant(20))
+          // A constant timestamp and TTL can be used by setting the following options.
+          // .option(WriterOptions.TIMESTAMP.name(), TimestampOption.constant(System.currentTimeMillis() * 1000))
+          // .option(WriterOptions.TTL.name(), TTLOption.constant(20))
           .option(WriterOptions.TTL.name(), TTLOption.perRow("ttl"))
-//          .option(WriterOptions.TIMESTAMP.name(), TimestampOption.constant(System.currentTimeMillis() * 1000))
           .option(WriterOptions.TIMESTAMP.name(), TimestampOption.perRow("timestamp"))
           .mode("append")
           .save();

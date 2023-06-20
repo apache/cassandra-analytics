@@ -25,7 +25,7 @@ import java.time.temporal.ChronoUnit;
 
 public final class TimestampOption implements Serializable
 {
-    private static final TimestampOption NOW = new TimestampOption(System.nanoTime() / 1000);
+    private static final TimestampOption NOW = new TimestampOption(System.currentTimeMillis() * 1000);
     private String timestampColumnName;
     private Long timeStampInMicroSeconds;
 
@@ -82,8 +82,8 @@ public final class TimestampOption implements Serializable
 
     /**
      * Timestamp option for writes with timestamp per Row. When different timestamp has to be used for different rows in
-     * a bulk write call use this option. The RDD should have additional column with timestamp values in microseconds
-     * for each row.
+     * a bulk write call use this option. It expects the input RDD to supply the timestamp values as an additional
+     * column at each row of the RDD. The timestamp value provider column is selected by {@param timeStampColumnName}
      *
      * @param timeStampColumnName column name which has timestamp values for each row
      * @return timestamp option
