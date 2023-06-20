@@ -83,7 +83,7 @@ public final class TimestampOption implements Serializable
     /**
      * Timestamp option for writes with timestamp per Row. When different timestamp has to be used for different rows in
      * a bulk write call use this option. It expects the input RDD to supply the timestamp values as an additional
-     * column at each row of the RDD. The timestamp value provider column is selected by {@param timeStampColumnName}
+     * column at each row of the RDD. The timestamp value provider column is selected by {@code  timeStampColumnName}
      *
      * @param timeStampColumnName column name which has timestamp values for each row
      * @return timestamp option
