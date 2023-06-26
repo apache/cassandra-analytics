@@ -23,6 +23,7 @@ import java.io.Closeable;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -64,11 +65,18 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     protected transient GossipInfoResponse gossipInfo;
     protected transient CassandraContext cassandraContext;
     protected transient NodeSettings nodeSettings;
+    protected final transient CompletableFuture<List<NodeSettings>> allNodeSettings;
 
     public CassandraClusterInfo(BulkSparkConf conf)
     {
         this.conf = conf;
         this.cassandraContext = buildCassandraContext();
+        this.allNodeSettings = CompletableFuture.supplyAsync(() -> {
+            LOGGER.info("Getting Cassandra versions from all nodes");
+            return Sidecar.allNodeSettingsBlocking(conf,
+                                                   cassandraContext.getSidecarClient(),
+                                                   cassandraContext.clusterConfig);
+        });
     }
 
     @Override
@@ -338,11 +346,14 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     public String getVersionFromSidecar()
     {
-        LOGGER.info("Getting Cassandra versions from all nodes");
-        List<NodeSettings> allNodeSettings = Sidecar.allNodeSettingsBlocking(conf,
-                                                                             cassandraContext.getSidecarClient(),
-                                                                             cassandraContext.clusterConfig);
-        return getLowestVersion(allNodeSettings);
+        try
+        {
+            return getLowestVersion(allNodeSettings.get());
+        }
+        catch (InterruptedException | ExecutionException exception)
+        {
+            throw new RuntimeException("Failed to get Cassandra versions from all nodes", exception);
+        }
     }
 
     protected RingResponse getRingResponse()
