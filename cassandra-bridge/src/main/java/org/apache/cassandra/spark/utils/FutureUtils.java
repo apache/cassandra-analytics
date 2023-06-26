@@ -21,9 +21,13 @@ package org.apache.cassandra.spark.utils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -161,5 +165,44 @@ public final class FutureUtils
                              }
                          });
         return result;
+    }
+
+    /**
+     * Makes a best-effort attempt to obtain results of a collection of completable futures
+     * within the specified timeout, then combines and returns all received non-null values
+     *
+     * @param futures  list of futures to obtain results from
+     * @param timeout  duration of the timeout to use
+     * @param timeUnit units of the timeout
+     * @return list on non-null values obtained
+     */
+    public static <T> List<T> bestEffortGet(List<CompletableFuture<T>> futures, long timeout, TimeUnit timeUnit)
+    {
+        try
+        {
+            // As a barrier
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                             .get(timeout, timeUnit);
+        }
+        catch (InterruptedException | ExecutionException | TimeoutException exception)
+        {
+            // Do nothing, cancel later
+        }
+        return futures.stream()
+                      .map(future -> {
+                          if (future.isDone())
+                          {
+                              // Convert exception into null and ignore later
+                              return future.exceptionally(t -> null)
+                                      .join();
+                          }
+                          else
+                          {
+                              future.cancel(true);
+                              return null;
+                          }
+                      })
+                      .filter(Objects::nonNull)
+                      .collect(Collectors.toList());
     }
 }

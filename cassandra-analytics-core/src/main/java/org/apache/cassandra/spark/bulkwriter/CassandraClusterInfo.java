@@ -23,6 +23,7 @@ import java.io.Closeable;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -48,6 +49,7 @@ import org.apache.cassandra.spark.common.client.InstanceStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.CqlUtils;
+import org.apache.cassandra.spark.utils.FutureUtils;
 import org.jetbrains.annotations.NotNull;
 
 public class CassandraClusterInfo implements ClusterInfo, Closeable
@@ -64,11 +66,18 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     protected transient GossipInfoResponse gossipInfo;
     protected transient CassandraContext cassandraContext;
     protected transient NodeSettings nodeSettings;
+    protected final transient CompletableFuture<List<NodeSettings>> allNodeSettings;
 
     public CassandraClusterInfo(BulkSparkConf conf)
     {
         this.conf = conf;
         this.cassandraContext = buildCassandraContext();
+        this.allNodeSettings = CompletableFuture.supplyAsync(() -> {
+            LOGGER.info("Getting Cassandra versions from all nodes");
+            return Sidecar.allNodeSettingsBlocking(conf,
+                                                   cassandraContext.getSidecarClient(),
+                                                   cassandraContext.clusterConfig);
+        });
     }
 
     @Override
@@ -339,10 +348,25 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     public String getVersionFromSidecar()
     {
         LOGGER.info("Getting Cassandra versions from all nodes");
-        List<NodeSettings> allNodeSettings = Sidecar.allNodeSettingsBlocking(conf,
-                                                                             cassandraContext.getSidecarClient(),
-                                                                             cassandraContext.clusterConfig);
-        return getLowestVersion(allNodeSettings);
+        List<CompletableFuture<NodeSettings>> futures = Sidecar.allNodeSettings(cassandraContext.getSidecarClient(),
+                                                                                cassandraContext.clusterConfig);
+
+        List<NodeSettings> nodeSettings = FutureUtils.bestEffortGet(futures,
+                                                                    conf.getSidecarRequestMaxRetryDelayInSeconds(),
+                                                                    TimeUnit.SECONDS);
+
+        if (nodeSettings.isEmpty())
+        {
+            throw new RuntimeException(String.format("Unable to determine the node settings. 0/%d instances available.",
+                                                     futures.size()));
+        }
+        else if (nodeSettings.size() < futures.size())
+        {
+            LOGGER.debug("{}/{} instances were used to determine the node settings",
+                         nodeSettings.size(), futures.size());
+        }
+
+        return getLowestVersion(nodeSettings);
     }
 
     protected RingResponse getRingResponse()
