@@ -121,7 +121,6 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         sparkContext.cancelJobGroup(writerContext.job().getId().toString());
     }
 
-    @SuppressWarnings("RedundantCast")
     private void persist(@NotNull JavaPairRDD<DecoratedKey, Object[]> sortedRDD, String[] columnNames)
     {
         writeValidator.setPhase("Environment Validation");
