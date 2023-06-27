@@ -367,20 +367,20 @@ public class SSTableInputStream<T extends SSTable> extends InputStream implement
         }
     }
 
-    // Copied from JDK11 jdk.internal.util.Preconditions.checkFromIndexSize()
-    private static <X extends RuntimeException> void checkFromIndexSize(int fromIndex, int size, int length)
+    public static void ensureOffsetWithinBounds(int offset, int length, int bufferLength)
     {
-        if ((length | fromIndex | size) < 0 || size > length - fromIndex)
+        if (offset < 0 || length < 0 || bufferLength < 0 || (length + offset) > bufferLength)
         {
-            throw new IndexOutOfBoundsException(String.format("Index out of bounds fromIndex=%d, size=%d, length=%d",
-                                                              fromIndex, size, length));
+            throw new IndexOutOfBoundsException(String.format("Out of bounds, offset=%d, length=%d, bufferLength=%d",
+                                                              offset, length, bufferLength));
         }
     }
 
     @Override
     public int read(byte[] buffer, int offset, int length) throws IOException
     {
-        SSTableInputStream.checkFromIndexSize(offset, length, buffer.length);
+        // Objects.checkFromIndexSize is not available in Java 1.8, so we provide our own implementation
+        ensureOffsetWithinBounds(offset, length, buffer.length);
         if (length == 0)
         {
             return 0;

@@ -27,6 +27,13 @@ plugins {
   id 'java'
   id 'java-library'
   id 'com.github.johnrengelman.shadow' version '5.1.0'
+
+  // Release Audit Tool (RAT) plugin for checking project licenses
+  id("org.nosphere.apache.rat") version "0.8.0"
+}
+
+repositories {
+  mavenCentral()
 }
 
 ext.scalaLabel = System.getenv("SCALA_VERSION") ?: "${scala}"
@@ -49,18 +56,64 @@ apply(from: profile)
 
 apply(plugin: 'idea')
 
-task copyCodeStyle(type: Copy) {
+tasks.register('copyCodeStyle', Copy) {
   from('ide/idea/codeStyleSettings.xml')
   into('.idea')
 }
 
 tasks.idea.dependsOn(tasks.copyCodeStyle)
 
-task copyInspections(type: Copy) {
+tasks.register('copyInspections', Copy) {
   from('ide/idea/Project_Default.xml')
   into('.idea/inspectionProfiles')
 }
 tasks.idea.dependsOn(tasks.copyInspections)
+
+tasks.register('buildIgnoreRatList', Exec) {
+  description 'Builds a list of ignored files for the rat task from the unversioned git files'
+  commandLine 'bash', '-c', 'git clean --force -d --dry-run -x | cut -c 14-'
+  doFirst {
+    standardOutput new FileOutputStream("${buildDir}/.rat-excludes.txt")
+  }
+  // allows task to fail when git/cut commands are unavailable or fail
+  ignoreExitValue = true
+}
+
+rat {
+  // List of Gradle exclude directives, defaults to ['**/.gradle/**']
+  excludes.add("**/build/**")
+  excludes.add("**/.out/**")
+  excludes.add("CHANGES.txt")
+  excludes.add("**/org.apache.spark.sql.sources.DataSourceRegister")
+  excludes.add("**/resources/cassandra-analytics-build.properties")
+
+  // Sidecar for build process
+  excludes.add("**/cassandra-sidecar/**")
+
+  // Documentation files
+  excludes.add("**/docs/src/**")
+  // gradle files
+  excludes.add("gradle/**")
+  excludes.add("gradlew")
+  excludes.add("gradlew.bat")
+
+  // idea generated files
+  excludes.add("**/.idea/**")
+
+  // resource files for test
+  excludes.add("**/test**/resources/**")
+
+  // resources
+  excludes.add("**/resources/sidecar.version")
+
+  // Rat excludes file, one directive per line
+  excludeFile.set(layout.projectDirectory.file("build/.rat-excludes.txt"))
+
+  // XML, TXT and HTML reports directory, defaults to 'build/reports/rat'
+  reportDir.set(file("build/reports/rat"))
+}
+
+rat.dependsOn buildIgnoreRatList
 
 subprojects {
   apply(plugin: 'java-library')
