@@ -389,9 +389,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
         instanceMap = clusterConfig.stream().collect(Collectors.toMap(SidecarInstance::hostname, Function.identity()));
         try
         {
+            SslConfigSecretsProvider secretsProvider = sslConfig != null
+                                                       ? new SslConfigSecretsProvider(sslConfig)
+                                                       : null;
             sidecar = Sidecar.from(new SimpleSidecarInstancesProvider(new ArrayList<>(clusterConfig)),
                                    sidecarClientConfig,
-                                   new SslConfigSecretsProvider(sslConfig));
+                                   secretsProvider);
         }
         catch (IOException ioException)
         {

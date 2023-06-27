@@ -59,7 +59,7 @@ import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCq
 public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, JobInfo, SchemaInfo, DataTransferApi
 {
     private static final long serialVersionUID = -2912371629236770646L;
-    private RowBufferMode rowBufferMode = RowBufferMode.UNBUFFERRED;
+    private RowBufferMode rowBufferMode = RowBufferMode.UNBUFFERED;
     private ConsistencyLevel.CL consistencyLevel;
 
     public interface CommitResultSupplier extends BiFunction<List<String>, String, RemoteCommitResult>
