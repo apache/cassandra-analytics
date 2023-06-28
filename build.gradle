@@ -87,6 +87,9 @@ rat {
   excludes.add("**/org.apache.spark.sql.sources.DataSourceRegister")
   excludes.add("**/resources/cassandra-analytics-build.properties")
 
+  // Sidecar for build process
+  excludes.add("**/cassandra-sidecar/**")
+
   // Documentation files
   excludes.add("**/docs/src/**")
   // gradle files
