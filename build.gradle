@@ -32,6 +32,10 @@ plugins {
   id("org.nosphere.apache.rat") version "0.8.0"
 }
 
+repositories {
+  mavenCentral()
+}
+
 ext.scalaLabel = System.getenv("SCALA_VERSION") ?: "${scala}"
 println("Scala version: ${ext.scalaLabel}")
 
