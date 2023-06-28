@@ -34,10 +34,6 @@ jobs:
             SCALA_VERSION: "2.11"
             JDK_VERSION: "1.8"
 
-      - store_artifacts:
-          path: build/reports
-          destination: test-reports
-
   cassandra-analytics-core-spark2-2_12-jdk8:
     docker:
       - image: cimg/openjdk:8.0
@@ -53,10 +49,6 @@ jobs:
             SPARK_VERSION: "2"
             SCALA_VERSION: "2.12"
             JDK_VERSION: "1.8"
-
-      - store_artifacts:
-          path: build/reports
-          destination: test-reports
 
   cassandra-analytics-core-spark3-2_12-jdk11:
     docker:
@@ -74,10 +66,6 @@ jobs:
             SCALA_VERSION: "2.12"
             JDK_VERSION: "11"
 
-      - store_artifacts:
-          path: build/reports
-          destination: test-reports
-
   cassandra-analytics-core-spark3-2_13-jdk11:
     docker:
       - image: cimg/openjdk:11.0
@@ -93,10 +81,6 @@ jobs:
             SPARK_VERSION: "3"
             SCALA_VERSION: "2.13"
             JDK_VERSION: "11"
-
-      - store_artifacts:
-          path: build/reports
-          destination: test-reports
 
 workflows:
   version: 2
