@@ -65,8 +65,7 @@ project(':cassandra-analytics-core') {
             exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-annotations') // use provided annotations from spark
         }
 
-        if ("${scalaMajorVersion}" == "2.11")
-        {
+        if ("${scalaMajorVersion}" == "2.11") {
             implementation(group: 'org.scala-lang.modules', name: "scala-java8-compat_2.11", version: '1.0.1', transitive: false)
         }
 

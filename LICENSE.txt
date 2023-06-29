@@ -200,3 +200,26 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+   APACHE CASSANDRA SIDECAR SUBCOMPONENTS:
+
+   Apache Cassandra Sidecar includes a number of subcomponents with
+   separate copyright notices and license terms. Your use of the source
+   code for these subcomponents is subject to the terms and
+   conditions of the following licenses.
+
+   This product bundles a file (FastByteOperations.java) from Guava,
+   copyright The Guava Authors, which is available under an
+   Apache License version 2.
+
+   This product bundles a file (UUIDs.java) from Apache Cassandra,
+   copyright The Apache Cassandra Authors, which is available under an
+   Apache License version 2.
+
+   This product bundles a file (CommitLogReader.java) from Apache Cassandra,
+   copyright The Apache Cassandra Authors, which is available under an
+   Apache License version 2.
+
+   This product bundles a file (CommitLogSegmentReader.java) from Apache
+   Cassandra, copyright The Apache Cassandra Authors, which is available
+   under an Apache License version 2.
