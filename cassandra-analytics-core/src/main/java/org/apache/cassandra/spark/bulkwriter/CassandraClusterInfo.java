@@ -49,6 +49,7 @@ import org.apache.cassandra.spark.common.client.InstanceStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.CqlUtils;
+import org.apache.cassandra.spark.utils.FutureUtils;
 import org.jetbrains.annotations.NotNull;
 
 public class CassandraClusterInfo implements ClusterInfo, Closeable
@@ -346,14 +347,26 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     public String getVersionFromSidecar()
     {
-        try
+        LOGGER.info("Getting Cassandra versions from all nodes");
+        List<CompletableFuture<NodeSettings>> futures = Sidecar.allNodeSettings(cassandraContext.getSidecarClient(),
+                                                                                cassandraContext.clusterConfig);
+
+        List<NodeSettings> nodeSettings = FutureUtils.bestEffortGet(futures,
+                                                                    conf.getSidecarRequestMaxRetryDelayInSeconds(),
+                                                                    TimeUnit.SECONDS);
+
+        if (nodeSettings.isEmpty())
         {
-            return getLowestVersion(allNodeSettings.get());
+            throw new RuntimeException(String.format("Unable to determine the node settings. 0/%d instances available.",
+                                                     futures.size()));
         }
-        catch (InterruptedException | ExecutionException exception)
+        else if (nodeSettings.size() < futures.size())
         {
-            throw new RuntimeException("Failed to get Cassandra versions from all nodes", exception);
+            LOGGER.debug("{}/{} instances were used to determine the node settings",
+                         nodeSettings.size(), futures.size());
         }
+
+        return getLowestVersion(nodeSettings);
     }
 
     protected RingResponse getRingResponse()

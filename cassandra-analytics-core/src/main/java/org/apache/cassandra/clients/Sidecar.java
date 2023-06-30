@@ -20,17 +20,14 @@
 package org.apache.cassandra.clients;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -155,57 +152,18 @@ public final class Sidecar
         return new SidecarClient(clusterConfig, requestExecutor, sidecarConfig, defaultRetryPolicy);
     }
 
-    public static List<NodeSettings> allNodeSettingsBlocking(BulkSparkConf conf,
-                                                             SidecarClient client,
-                                                             Set<? extends SidecarInstance> instances)
+    public static List<CompletableFuture<NodeSettings>> allNodeSettings(SidecarClient client,
+                                                                        Set<? extends SidecarInstance> instances)
     {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        List<NodeSettings> allNodeSettings = Collections.synchronizedList(new ArrayList<>());
-        for (SidecarInstance instance : instances)
-        {
-            futures.add(client.nodeSettings(instance)
-                              .exceptionally(throwable -> {
-                                  LOGGER.warn(String.format("Failed to execute node settings on instance=%s",
-                                                            instance), throwable);
-                                  return null;
-                              })
-                              .thenAccept(nodeSettings -> {
-                                  if (nodeSettings != null)
-                                  {
-                                      allNodeSettings.add(nodeSettings);
-                                  }
-                              }));
-        }
-        try
-        {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                             .get(conf.getSidecarRequestMaxRetryDelayInSeconds(), TimeUnit.SECONDS);
-        }
-        catch (ExecutionException | InterruptedException exception)
-        {
-            throw new RuntimeException(exception);
-        }
-        catch (TimeoutException exception)
-        {
-            // Any futures that have already completed will have put their results into `allNodeSettings`
-            // at this point. Cancel any remaining futures and move on.
-            for (CompletableFuture<Void> future : futures)
-            {
-                future.cancel(true);
-            }
-        }
-        long successCount = allNodeSettings.size();
-        if (successCount == 0)
-        {
-            throw new RuntimeException(String.format("Unable to determine the node settings. 0/%d instances available.",
-                                                     instances.size()));
-        }
-        else if (successCount < instances.size())
-        {
-            LOGGER.debug("{}/{} instances were used to determine the node settings",
-                         successCount, instances.size());
-        }
-        return allNodeSettings;
+        return instances.stream()
+                        .map(instance -> client
+                                .nodeSettings(instance)
+                                .exceptionally(throwable -> {
+                                    LOGGER.warn(String.format("Failed to execute node settings on instance=%s",
+                                                              instance), throwable);
+                                    return null;
+                                }))
+                        .collect(Collectors.toList());
     }
 
     public static final class ClientConfig
