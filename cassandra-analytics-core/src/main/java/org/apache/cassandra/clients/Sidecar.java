@@ -42,7 +42,6 @@ import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.VertxHttpClient;
 import org.apache.cassandra.sidecar.client.VertxRequestExecutor;
-import org.apache.cassandra.sidecar.client.retry.BasicRetryPolicy;
 import org.apache.cassandra.sidecar.client.retry.ExponentialBackoffRetryPolicy;
 import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 import org.apache.cassandra.sidecar.common.NodeSettings;

@@ -84,22 +84,25 @@ tasks.register('buildIgnoreRatList', Exec) {
 
 rat {
 
-    doFirst {
-        def excludeFilePath = Paths.get("${buildDir}/.rat-excludes.txt")
-        def excludeLines = Files.readAllLines(excludeFilePath)
-        excludeLines.each { line ->
-            if (line.endsWith("/")) {
-                excludes.add("**/" + line + "**")
-            } else {
-                excludes.add(line)
-            }
-        }
+  doFirst {
+    def excludeFilePath = Paths.get("${buildDir}/.rat-excludes.txt")
+    def excludeLines = Files.readAllLines(excludeFilePath)
+    excludeLines.each { line ->
+      if (line.endsWith("/")) {
+        excludes.add("**/" + line + "**")
+      } else {
+        excludes.add(line)
+      }
     }
+  }
 
   // List of Gradle exclude directives, defaults to ['**/.gradle/**']
   excludes.add("**/build/**")
   excludes.add("CHANGES.txt")
   excludes.add("**/org.apache.spark.sql.sources.DataSourceRegister")
+
+  // Sidecar for build process
+  excludes.add("**/cassandra-sidecar/**")
 
   // Documentation files
   excludes.add("**/docs/src/**")
