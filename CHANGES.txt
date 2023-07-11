@@ -1,4 +1,5 @@
 1.0.0
+ * Added caching of Node Settings to improve efficiency (CASSANDRA-18633)
  * Upgrade to JUnit 5 (CASSANDRA-18599)
  * Add support for TTL & Timestamps for bulk writes (CASSANDRA-18605)
  * Add circleci configuration yaml for Cassandra Analytics (CASSANDRA-18578)
