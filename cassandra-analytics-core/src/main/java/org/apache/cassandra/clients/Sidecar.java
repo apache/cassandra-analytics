@@ -81,32 +81,32 @@ public final class Sidecar
         Vertx vertx = Vertx.vertx(new VertxOptions().setUseDaemonThread(true).setWorkerPoolSize(config.maxPoolSize()));
 
         HttpClientConfig.Builder<?> builder = new HttpClientConfig.Builder<>()
-                .ssl(false)
-                .timeoutMillis(TimeUnit.SECONDS.toMillis(config.timeoutSeconds()))
-                .idleTimeoutMillis((int) TimeUnit.SECONDS.toMillis(config.timeoutSeconds()))
-                .receiveBufferSize((int) config.chunkBufferSize())
-                .maxChunkSize((int) config.maxBufferSize())
-                .userAgent(BuildInfo.READER_USER_AGENT);
+                                              .ssl(false)
+                                              .timeoutMillis(TimeUnit.SECONDS.toMillis(config.timeoutSeconds()))
+                                              .idleTimeoutMillis((int) TimeUnit.SECONDS.toMillis(config.timeoutSeconds()))
+                                              .receiveBufferSize((int) config.chunkBufferSize())
+                                              .maxChunkSize((int) config.maxBufferSize())
+                                              .userAgent(BuildInfo.READER_USER_AGENT);
 
         if (secretsProvider != null)
         {
             builder = builder
-                    .ssl(true)
-                    .keyStoreInputStream(secretsProvider.keyStoreInputStream())
-                    .keyStorePassword(String.valueOf(secretsProvider.keyStorePassword()))
-                    .keyStoreType(secretsProvider.keyStoreType())
-                    .trustStoreInputStream(secretsProvider.trustStoreInputStream())
-                    .trustStorePassword(String.valueOf(secretsProvider.trustStorePassword()))
-                    .trustStoreType(secretsProvider.trustStoreType());
+                      .ssl(true)
+                      .keyStoreInputStream(secretsProvider.keyStoreInputStream())
+                      .keyStorePassword(String.valueOf(secretsProvider.keyStorePassword()))
+                      .keyStoreType(secretsProvider.keyStoreType())
+                      .trustStoreInputStream(secretsProvider.trustStoreInputStream())
+                      .trustStorePassword(String.valueOf(secretsProvider.trustStorePassword()))
+                      .trustStoreType(secretsProvider.trustStoreType());
         }
 
         HttpClientConfig httpClientConfig = builder.build();
 
         SidecarConfig sidecarConfig = new SidecarConfig.Builder()
-                .maxRetries(config.maxRetries())
-                .retryDelayMillis(config.millisToSleep())
-                .maxRetryDelayMillis(config.maxMillisToSleep())
-                .build();
+                                      .maxRetries(config.maxRetries())
+                                      .retryDelayMillis(config.millisToSleep())
+                                      .maxRetryDelayMillis(config.maxMillisToSleep())
+                                      .build();
 
         return buildClient(sidecarConfig, vertx, httpClientConfig, sidecarInstancesProvider);
     }
@@ -117,23 +117,23 @@ public final class Sidecar
                                                     .setWorkerPoolSize(conf.getMaxHttpConnections()));
 
         HttpClientConfig httpClientConfig = new HttpClientConfig.Builder<>()
-                .timeoutMillis(conf.getHttpResponseTimeoutMs())
-                .idleTimeoutMillis(conf.getHttpConnectionTimeoutMs())
-                .userAgent(BuildInfo.WRITER_USER_AGENT)
-                .keyStoreInputStream(conf.getKeyStore())
-                .keyStorePassword(conf.getKeyStorePassword())
-                .keyStoreType(conf.getKeyStoreTypeOrDefault())
-                .trustStoreInputStream(conf.getTrustStore())
-                .trustStorePassword(conf.getTrustStorePasswordOrDefault())
-                .trustStoreType(conf.getTrustStoreTypeOrDefault())
-                .ssl(conf.hasKeystoreAndKeystorePassword())
-                .build();
+                                            .timeoutMillis(conf.getHttpResponseTimeoutMs())
+                                            .idleTimeoutMillis(conf.getHttpConnectionTimeoutMs())
+                                            .userAgent(BuildInfo.WRITER_USER_AGENT)
+                                            .keyStoreInputStream(conf.getKeyStore())
+                                            .keyStorePassword(conf.getKeyStorePassword())
+                                            .keyStoreType(conf.getKeyStoreTypeOrDefault())
+                                            .trustStoreInputStream(conf.getTrustStore())
+                                            .trustStorePassword(conf.getTrustStorePasswordOrDefault())
+                                            .trustStoreType(conf.getTrustStoreTypeOrDefault())
+                                            .ssl(conf.hasKeystoreAndKeystorePassword())
+                                            .build();
 
         SidecarConfig sidecarConfig = new SidecarConfig.Builder()
-                .maxRetries(conf.getSidecarRequestRetries())
-                .retryDelayMillis(TimeUnit.SECONDS.toMillis(conf.getSidecarRequestRetryDelayInSeconds()))
-                .maxRetryDelayMillis(TimeUnit.SECONDS.toMillis(conf.getSidecarRequestMaxRetryDelayInSeconds()))
-                .build();
+                                      .maxRetries(5)
+                                      .retryDelayMillis(200)
+                                      .maxRetryDelayMillis(500)
+                                      .build();
 
         return buildClient(sidecarConfig, vertx, httpClientConfig, sidecarInstancesProvider);
     }

@@ -17,6 +17,9 @@
  * under the License.
  */
 
+import java.nio.file.Files
+import java.nio.file.Paths
+
 buildscript {
   dependencies {
     classpath(group: 'com.github.jengelman.gradle.plugins', name: 'shadow', version: '6.1.0')
@@ -80,12 +83,23 @@ tasks.register('buildIgnoreRatList', Exec) {
 }
 
 rat {
+
+  doFirst {
+    def excludeFilePath = Paths.get("${buildDir}/.rat-excludes.txt")
+    def excludeLines = Files.readAllLines(excludeFilePath)
+    excludeLines.each { line ->
+      if (line.endsWith("/")) {
+        excludes.add("**/" + line + "**")
+      } else {
+        excludes.add(line)
+      }
+    }
+  }
+
   // List of Gradle exclude directives, defaults to ['**/.gradle/**']
   excludes.add("**/build/**")
-  excludes.add("**/.out/**")
   excludes.add("CHANGES.txt")
   excludes.add("**/org.apache.spark.sql.sources.DataSourceRegister")
-  excludes.add("**/resources/cassandra-analytics-build.properties")
 
   // Sidecar for build process
   excludes.add("**/cassandra-sidecar/**")
@@ -97,23 +111,16 @@ rat {
   excludes.add("gradlew")
   excludes.add("gradlew.bat")
 
-  // idea generated files
-  excludes.add("**/.idea/**")
-
   // resource files for test
   excludes.add("**/test**/resources/**")
-
-  // resources
-  excludes.add("**/resources/sidecar.version")
-
-  // Rat excludes file, one directive per line
-  excludeFile.set(layout.projectDirectory.file("build/.rat-excludes.txt"))
 
   // XML, TXT and HTML reports directory, defaults to 'build/reports/rat'
   reportDir.set(file("build/reports/rat"))
 }
 
-rat.dependsOn buildIgnoreRatList
+tasks.named('rat').configure {
+  dependsOn(buildIgnoreRatList)
+}
 
 subprojects {
   apply(plugin: 'java-library')

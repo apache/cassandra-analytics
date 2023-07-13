@@ -108,13 +108,6 @@ cassandra_instances:
 I have a 3 node setup, so I configure Sidecar for those 3 nodes. CCM creates the Cassandra cluster under
 `${HOME}/.ccm/test`, so I update my `data_dirs` and `staging_dir` configuration to use my local path.
 
-Next, create the `staging_dir` where Sidecar will stage SSTables coming from Cassandra Spark bulk writer.
-In my case, I have decided to keep the `sstable-staging` directory inside each of the node's directories.
-
-```shell
-mkdir -p ${HOME}/.ccm/test/node{1..3}/sstable-staging
-```
-
 Finally, run Cassandra Sidecar, we skip running integration tests because we need docker for integration tests. You
 can opt to run integration tests if you have docker running in your local environment.
 

@@ -53,7 +53,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     @NotNull
     private final BulkSparkConf conf;
     private final JobInfo jobInfo;
-    private final DataTransferApi dataTransferApi;
+    private transient DataTransferApi dataTransferApi;
     private final CassandraClusterInfo clusterInfo;
     private final SchemaInfo schemaInfo;
 
@@ -70,13 +70,11 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         clusterInfo = new CassandraClusterInfo(conf);
         CassandraRing<RingInstance> ring = clusterInfo.getRing(true);
         jobInfo = new CassandraJobInfo(conf,
-                new TokenPartitioner(ring, conf.numberSplits, sparkContext.defaultParallelism(), conf.getCores()));
+                                       new TokenPartitioner(ring, conf.numberSplits, sparkContext.defaultParallelism(), conf.getCores()));
         Preconditions.checkArgument(!conf.consistencyLevel.isLocal()
-                                 || (conf.localDC != null && ring.getReplicationFactor().getOptions().containsKey(conf.localDC)),
+                                    || (conf.localDC != null && ring.getReplicationFactor().getOptions().containsKey(conf.localDC)),
                                     String.format("Keyspace %s is not replicated on datacenter %s",
                                                   conf.keyspace, conf.localDC));
-
-        dataTransferApi = new SidecarDataTransferApi(clusterInfo.getCassandraContext().getSidecarClient(), jobInfo, conf);
 
         String keyspace = conf.keyspace;
         String table = conf.table;
@@ -133,14 +131,14 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     /**
      * Use the implementation of the KryoSerializable interface as a detection device to make sure the Spark Bulk
      * Writer's KryoRegistrator is properly in place.
-     *
+     * <p>
      * If this class is serialized by Kryo, it means we're <b>not</b> set up correctly, and therefore we log and fail.
      * This failure will occur early in the job and be very clear, so users can quickly fix their code and get up and
      * running again, rather than having a random NullPointerException further down the line.
      */
     public static final String KRYO_REGISTRATION_WARNING =
-            "Spark Bulk Writer Kryo Registrator (SbwKryoRegistrator) was not registered with Spark - "
-          + "please see the README.md file for more details on how to register the Spark Bulk Writer.";
+    "Spark Bulk Writer Kryo Registrator (SbwKryoRegistrator) was not registered with Spark - "
+    + "please see the README.md file for more details on how to register the Spark Bulk Writer.";
 
     @Override
     public void write(Kryo kryo, Output output)
@@ -187,8 +185,12 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
 
     @Override
     @NotNull
-    public DataTransferApi transfer()
+    public synchronized DataTransferApi transfer()
     {
+        if (dataTransferApi == null)
+        {
+            dataTransferApi = new SidecarDataTransferApi(clusterInfo.getCassandraContext().getSidecarClient(), jobInfo, conf);
+        }
         return dataTransferApi;
     }
 }

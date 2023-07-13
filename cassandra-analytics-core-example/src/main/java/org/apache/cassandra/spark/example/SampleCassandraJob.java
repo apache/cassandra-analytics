@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.example;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -28,19 +29,20 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
 
-import org.apache.cassandra.spark.bulkwriter.TTLOption;
-import org.apache.cassandra.spark.bulkwriter.TimestampOption;
-import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.KryoRegister;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
+import org.apache.cassandra.spark.bulkwriter.TTLOption;
+import org.apache.cassandra.spark.bulkwriter.TimestampOption;
+import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function2;
+import org.apache.spark.sql.DataFrameWriter;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -128,26 +130,46 @@ public final class SampleCassandraJob
     {
         JavaSparkContext javaSparkContext = JavaSparkContext.fromSparkContext(sc);
         int parallelism = sc.defaultParallelism();
-        boolean addTTLColumn = true;
-        boolean addTimestampColumn = true;
+        boolean addTTLColumn = false;
+        boolean addTimestampColumn = false;
         JavaRDD<Row> rows = genDataset(javaSparkContext, rowCount, parallelism, addTTLColumn, addTimestampColumn);
         Dataset<Row> df = sql.createDataFrame(rows, getWriteSchema(addTTLColumn, addTimestampColumn));
 
-        df.write()
-          .format("org.apache.cassandra.spark.sparksql.CassandraDataSink")
-          .option("sidecar_instances", "localhost,localhost2,localhost3")
-          .option("keyspace", "spark_test")
-          .option("table", "test")
-          .option("local_dc", "datacenter1")
-          .option("bulk_writer_cl", "LOCAL_QUORUM")
-          .option("number_splits", "-1")
-          // A constant timestamp and TTL can be used by setting the following options.
-          // .option(WriterOptions.TIMESTAMP.name(), TimestampOption.constant(System.currentTimeMillis() * 1000))
-          // .option(WriterOptions.TTL.name(), TTLOption.constant(20))
-          .option(WriterOptions.TTL.name(), TTLOption.perRow("ttl"))
-          .option(WriterOptions.TIMESTAMP.name(), TimestampOption.perRow("timestamp"))
-          .mode("append")
-          .save();
+        DataFrameWriter<Row> dfWriter = df.write()
+                                          .format("org.apache.cassandra.spark.sparksql.CassandraDataSink")
+                                          .option("sidecar_instances", "localhost,localhost2,localhost3")
+                                          .option("keyspace", "spark_test")
+                                          .option("table", "test")
+                                          .option("local_dc", "datacenter1")
+                                          .option("bulk_writer_cl", "LOCAL_QUORUM")
+                                          .option("number_splits", "-1")
+                                          // A constant timestamp and TTL can be used by setting the following options.
+                                          // .option(WriterOptions.TTL.name(), TTLOption.constant(20))
+                                          // .option(WriterOptions.TIMESTAMP.name(), TimestampOption.constant(System.currentTimeMillis() * 1000))
+                                          .mode("append");
+
+        List<String> addedColumns = new ArrayList<>();
+        if (addTTLColumn)
+        {
+            addedColumns.add("ttl");
+            dfWriter = dfWriter
+                       .option(WriterOptions.TTL.name(), TTLOption.perRow("ttl"));
+        }
+
+        if (addTimestampColumn)
+        {
+            addedColumns.add("timestamp");
+            dfWriter = dfWriter
+                       .option(WriterOptions.TIMESTAMP.name(), TimestampOption.perRow("timestamp"));
+        }
+
+        dfWriter.save();
+
+        if (!addedColumns.isEmpty())
+        {
+            df = df.drop(addedColumns.toArray(new String[0]));
+        }
+
         return df;
     }
 
@@ -183,9 +205,9 @@ public final class SampleCassandraJob
     private static StructType getWriteSchema(boolean addTTLColumn, boolean addTimestampColumn)
     {
         StructType schema = new StructType()
-                .add("id", LongType, false)
-                .add("course", BinaryType, false)
-                .add("marks", LongType, false);
+                            .add("id", LongType, false)
+                            .add("course", BinaryType, false)
+                            .add("marks", LongType, false);
         if (addTTLColumn)
         {
             schema = schema.add("ttl", IntegerType, false);
@@ -215,34 +237,34 @@ public final class SampleCassandraJob
         long recordsPerPartition = records / parallelism;
         long remainder = records - (recordsPerPartition * parallelism);
         List<Integer> seq = IntStream.range(0, parallelism).boxed().collect(Collectors.toList());
-        int ttl = 10;
+        int ttl = 120; // data will not be queryable in two minutes
         long timeStamp = System.currentTimeMillis() * 1000;
         JavaRDD<Row> dataset = sc.parallelize(seq, parallelism).mapPartitionsWithIndex(
-                (Function2<Integer, Iterator<Integer>, Iterator<Row>>) (index, integerIterator) -> {
-                    long firstRecordNumber = index * recordsPerPartition;
-                    long recordsToGenerate = index.equals(parallelism) ? remainder : recordsPerPartition;
-                    java.util.Iterator<Row> rows = LongStream.range(0, recordsToGenerate).mapToObj(offset -> {
-                        long recordNumber = firstRecordNumber + offset;
-                        String courseNameString = String.valueOf(recordNumber);
-                        Integer courseNameStringLen = courseNameString.length();
-                        Integer courseNameMultiplier = 1000 / courseNameStringLen;
-                        byte[] courseName = dupStringAsBytes(courseNameString, courseNameMultiplier);
-                        if (addTTLColumn && addTimestampColumn)
-                        {
-                            return RowFactory.create(recordNumber, courseName, recordNumber, ttl, timeStamp);
-                        }
-                        if (addTTLColumn)
-                        {
-                            return RowFactory.create(recordNumber, courseName, recordNumber, ttl);
-                        }
-                        if (addTimestampColumn)
-                        {
-                            return RowFactory.create(recordNumber, courseName, recordNumber, timeStamp);
-                        }
-                        return RowFactory.create(recordNumber, courseName, recordNumber);
-                    }).iterator();
-                    return rows;
-                }, false);
+        (Function2<Integer, Iterator<Integer>, Iterator<Row>>) (index, integerIterator) -> {
+            long firstRecordNumber = index * recordsPerPartition;
+            long recordsToGenerate = index.equals(parallelism) ? remainder : recordsPerPartition;
+            java.util.Iterator<Row> rows = LongStream.range(0, recordsToGenerate).mapToObj(offset -> {
+                long recordNumber = firstRecordNumber + offset;
+                String courseNameString = String.valueOf(recordNumber);
+                Integer courseNameStringLen = courseNameString.length();
+                Integer courseNameMultiplier = 1000 / courseNameStringLen;
+                byte[] courseName = dupStringAsBytes(courseNameString, courseNameMultiplier);
+                if (addTTLColumn && addTimestampColumn)
+                {
+                    return RowFactory.create(recordNumber, courseName, recordNumber, ttl, timeStamp);
+                }
+                if (addTTLColumn)
+                {
+                    return RowFactory.create(recordNumber, courseName, recordNumber, ttl);
+                }
+                if (addTimestampColumn)
+                {
+                    return RowFactory.create(recordNumber, courseName, recordNumber, timeStamp);
+                }
+                return RowFactory.create(recordNumber, courseName, recordNumber);
+            }).iterator();
+            return rows;
+        }, false);
         return dataset;
     }
 
