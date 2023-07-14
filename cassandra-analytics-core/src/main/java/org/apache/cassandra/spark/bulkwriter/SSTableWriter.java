@@ -74,7 +74,7 @@ public class SSTableWriter
         LOGGER.info("Running with version " + packageVersion);
 
         TableSchema tableSchema = writerContext.schema().getTableSchema();
-        boolean sorted = writerContext.job().getRowBufferMode() == RowBufferMode.UNBUFFERRED;
+        boolean sorted = writerContext.job().getRowBufferMode() == RowBufferMode.UNBUFFERED;
         this.cqlSSTableWriter = SSTableWriterFactory.getSSTableWriter(
                 CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(packageVersion),
                 this.outDir.toString(),

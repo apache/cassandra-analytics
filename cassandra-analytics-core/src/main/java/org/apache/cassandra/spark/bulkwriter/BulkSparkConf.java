@@ -80,7 +80,7 @@ public class BulkSparkConf implements Serializable
     public static final long DEFAULT_SIDECAR_REQUEST_MAX_RETRY_DELAY_SECONDS = 60L;
     public static final int DEFAULT_COMMIT_BATCH_SIZE = 10_000;
     public static final int DEFAULT_RING_RETRY_COUNT = 3;
-    public static final RowBufferMode DEFAULT_ROW_BUFFER_MODE = RowBufferMode.UNBUFFERRED;
+    public static final RowBufferMode DEFAULT_ROW_BUFFER_MODE = RowBufferMode.UNBUFFERED;
     public static final int DEFAULT_BATCH_SIZE_IN_ROWS = 1_000_000;
 
     // NOTE: All Cassandra Analytics setting names must start with "spark" in order to not be ignored by Spark,
@@ -141,7 +141,7 @@ public class BulkSparkConf implements Serializable
         this.consistencyLevel = ConsistencyLevel.CL.valueOf(MapUtils.getOrDefault(options, WriterOptions.BULK_WRITER_CL.name(), "EACH_QUORUM"));
         this.localDC = MapUtils.getOrDefault(options, WriterOptions.LOCAL_DC.name(), null);
         this.numberSplits = MapUtils.getInt(options, WriterOptions.NUMBER_SPLITS.name(), DEFAULT_NUM_SPLITS, "number of splits");
-        this.rowBufferMode = MapUtils.getEnumOption(options, WriterOptions.ROW_BUFFER_MODE.name(), DEFAULT_ROW_BUFFER_MODE, "row bufferring mode");
+        this.rowBufferMode = MapUtils.getEnumOption(options, WriterOptions.ROW_BUFFER_MODE.name(), DEFAULT_ROW_BUFFER_MODE, "row buffering mode");
         this.sstableDataSizeInMB = MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name(), 160, "sstable data size in MB");
         this.sstableBatchSize = MapUtils.getInt(options, WriterOptions.BATCH_SIZE.name(), 1_000_000, "sstable batch size");
         this.commitBatchSize = MapUtils.getInt(options, WriterOptions.COMMIT_BATCH_SIZE.name(), DEFAULT_COMMIT_BATCH_SIZE, "commit batch size");
@@ -185,15 +185,18 @@ public class BulkSparkConf implements Serializable
     protected void validateTableWriterSettings()
     {
         boolean batchSizeIsZero = sstableBatchSize == 0;
-        if (rowBufferMode == RowBufferMode.BUFFERRED
-                && (!batchSizeIsZero && sstableBatchSize != DEFAULT_BATCH_SIZE_IN_ROWS))
+
+        if (rowBufferMode == RowBufferMode.UNBUFFERED)
         {
-            LOGGER.warn("BATCH_SIZE is set to a non-zero, non-default value ({}) but ROW_BUFFER_MODE is set to BUFFERRED."
-                      + " Ignoring BATCH_SIZE.", sstableBatchSize);
+            Preconditions.checkArgument(!batchSizeIsZero,
+                                        "If writing in sorted order (ROW_BUFFER_MODE is UNBUFFERED) then BATCH_SIZE "
+                                        + "should be non zero, but it was set to 0 in writer options");
         }
-        Preconditions.checkArgument(rowBufferMode == RowBufferMode.UNBUFFERRED && !batchSizeIsZero,
-                                    "If writing in sorted order (ROW_BUFFER_MODE is UNBUFFERRED) then BATCH_SIZE "
-                                  + "should be non zero, but it was set to 0 in writer options");
+        else if (!batchSizeIsZero && sstableBatchSize != DEFAULT_BATCH_SIZE_IN_ROWS)
+        {
+            LOGGER.warn("BATCH_SIZE is set to a non-zero, non-default value ({}) but ROW_BUFFER_MODE is set to BUFFERED."
+                        + " Ignoring BATCH_SIZE.", sstableBatchSize);
+        }
     }
 
     /*

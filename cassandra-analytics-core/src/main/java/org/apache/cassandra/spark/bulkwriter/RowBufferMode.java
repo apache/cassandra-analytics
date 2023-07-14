@@ -21,6 +21,6 @@ package org.apache.cassandra.spark.bulkwriter;
 
 public enum RowBufferMode
 {
-    BUFFERRED,
-    UNBUFFERRED
+    BUFFERED,
+    UNBUFFERED
 }

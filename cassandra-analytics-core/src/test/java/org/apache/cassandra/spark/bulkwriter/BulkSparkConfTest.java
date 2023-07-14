@@ -34,10 +34,11 @@ import org.apache.spark.SparkConf;
 import org.jetbrains.annotations.NotNull;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.isEmptyString;
+import static org.hamcrest.Matchers.emptyString;
 import static org.hamcrest.core.Is.is;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -122,8 +123,8 @@ public class BulkSparkConfTest
     @Test
     public void ensureSetupSparkConfAddsPerformsNecessaryTasks()
     {
-        assertThat(sparkConf.get("spark.kryo.registrator", ""), isEmptyString());
-        assertThat(sparkConf.get("spark.executor.extraJavaOptions", ""), isEmptyString());
+        assertThat(sparkConf.get("spark.kryo.registrator", ""), is(emptyString()));
+        assertThat(sparkConf.get("spark.executor.extraJavaOptions", ""), is(emptyString()));
         BulkSparkConf.setupSparkConf(sparkConf, true);
         assertEquals("," + SbwKryoRegistrator.class.getName(), sparkConf.get("spark.kryo.registrator", ""));
         if (BuildInfo.isAtLeastJava11(BuildInfo.javaSpecificationVersion()))
@@ -150,8 +151,8 @@ public class BulkSparkConfTest
         NullPointerException npe = assertThrows(NullPointerException.class,
                                                 () -> new BulkSparkConf(sparkConf, options));
         assertEquals("Keystore password was set. But both keystore path and base64 encoded string are not set. "
-                   + "Please either set option " + WriterOptions.KEYSTORE_PATH
-                   + " or option " + WriterOptions.KEYSTORE_BASE64_ENCODED, npe.getMessage());
+                     + "Please either set option " + WriterOptions.KEYSTORE_PATH
+                     + " or option " + WriterOptions.KEYSTORE_BASE64_ENCODED, npe.getMessage());
     }
 
     @Test
@@ -206,7 +207,60 @@ public class BulkSparkConfTest
         NullPointerException npe = assertThrows(NullPointerException.class,
                                                 () -> new BulkSparkConf(sparkConf, options));
         assertEquals("Trust Store Path was provided, but password is missing. "
-                   + "Please provide option " + WriterOptions.TRUSTSTORE_PASSWORD, npe.getMessage());
+                     + "Please provide option " + WriterOptions.TRUSTSTORE_PASSWORD, npe.getMessage());
+    }
+
+    @Test
+    public void testUnbufferedRowBufferMode()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.ROW_BUFFER_MODE.name(), "UNBUFFERED");
+        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
+        assertNotNull(bulkSparkConf);
+        assertEquals(bulkSparkConf.rowBufferMode, RowBufferMode.UNBUFFERED);
+    }
+
+    @Test
+    public void testBufferedRowBufferMode()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.ROW_BUFFER_MODE.name(), "BUFFERED");
+        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
+        assertNotNull(bulkSparkConf);
+        assertEquals(bulkSparkConf.rowBufferMode, RowBufferMode.BUFFERED);
+    }
+
+    @Test
+    public void testInvalidRowBufferMode()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.ROW_BUFFER_MODE.name(), "invalid");
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                                                          () -> new BulkSparkConf(sparkConf, options));
+        assertEquals("Key row buffering mode with value invalid is not a valid Enum of type class org.apache.cassandra.spark.bulkwriter.RowBufferMode.",
+                     exception.getMessage());
+    }
+
+    @Test
+    public void testBufferedRowBufferModeWithZeroBatchSize()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.ROW_BUFFER_MODE.name(), "BUFFERED");
+        options.put(WriterOptions.BATCH_SIZE.name(), "0");
+        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
+        assertNotNull(bulkSparkConf);
+        assertEquals(bulkSparkConf.rowBufferMode, RowBufferMode.BUFFERED);
+    }
+
+    @Test
+    public void testNonZeroBatchSizeIsIgnoredWithBufferedRowBufferMode()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.BATCH_SIZE.name(), "5");
+        options.put(WriterOptions.ROW_BUFFER_MODE.name(), "BUFFERED");
+        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
+        assertNotNull(bulkSparkConf);
+        assertEquals(bulkSparkConf.rowBufferMode, RowBufferMode.BUFFERED);
     }
 
     private Map<String, String> copyDefaultOptions()
