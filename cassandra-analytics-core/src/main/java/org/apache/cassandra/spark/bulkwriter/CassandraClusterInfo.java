@@ -344,14 +344,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         return null;
     }
 
-    public String getVersionFromSidecar()
+    protected List<NodeSettings> getAllNodeSettings()
     {
-        NodeSettings nodeSettings = this.nodeSettings.get();
-        if (nodeSettings != null)
-        {
-            return nodeSettings.releaseVersion();
-        }
-
         List<NodeSettings> allNodeSettings = FutureUtils.bestEffortGet(allNodeSettingFutures,
                                                                        conf.getSidecarRequestMaxRetryDelayInSeconds(),
                                                                        TimeUnit.SECONDS);
@@ -367,7 +361,18 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                         allNodeSettings.size(), allNodeSettingFutures.size());
         }
 
-        return getLowestVersion(allNodeSettings);
+        return allNodeSettings;
+    }
+
+    public String getVersionFromSidecar()
+    {
+        NodeSettings nodeSettings = this.nodeSettings.get();
+        if (nodeSettings != null)
+        {
+            return nodeSettings.releaseVersion();
+        }
+
+        return getLowestVersion(getAllNodeSettings());
     }
 
     protected RingResponse getRingResponse()
