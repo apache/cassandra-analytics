@@ -17,31 +17,23 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.reader;
+package org.apache.cassandra.spark.sparksql;
 
-public class EmptyStreamScanner implements StreamScanner<Rid>
+import org.apache.cassandra.spark.data.DataLayer;
+import org.apache.cassandra.spark.data.LocalDataLayer;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+
+public class LocalPartitionSizeSource extends PartitionSizeTableProvider
 {
-    public static final EmptyStreamScanner INSTANCE = new EmptyStreamScanner();
-
     @Override
-    public Rid rid()
+    public String shortName()
     {
-        return null;
+        return "localpartitionsizesource";
     }
 
     @Override
-    public boolean hasNext()
+    public DataLayer getDataLayer(CaseInsensitiveStringMap options)
     {
-        return false;
-    }
-
-    @Override
-    public void advanceToNextColumn()
-    {
-    }
-
-    @Override
-    public void close()
-    {
+        return LocalDataLayer.from(options);
     }
 }

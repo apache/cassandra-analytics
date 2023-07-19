@@ -59,13 +59,12 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
     private final Stats stats;
     private final CqlTable cqlTable;
     private final Object[] values;
-    private final int numPartitionKeys;
     private final boolean noValueColumns;
     @Nullable
     protected final PruneColumnFilter columnFilter;
     private final long startTimeNanos;
     @NotNull
-    private final StreamScanner scanner;
+    private final StreamScanner<Rid> scanner;
     @NotNull
     private final Rid rid;
 
@@ -88,7 +87,6 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         this.dataLayer = dataLayer;
         stats = dataLayer.stats();
         cqlTable = dataLayer.cqlTable();
-        numPartitionKeys = cqlTable.numPartitionKeys();
         columnFilter = buildColumnFilter(requiredSchema, cqlTable);
         if (columnFilter != null)
         {
@@ -118,9 +116,9 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         stats.openedSparkCellIterator();
     }
 
-    protected StreamScanner openScanner(int partitionId,
-                                        @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                                        @Nullable CdcOffsetFilter cdcOffsetFilter)
+    protected StreamScanner<Rid> openScanner(int partitionId,
+                                             @NotNull List<PartitionKeyFilter> partitionKeyFilters,
+                                             @Nullable CdcOffsetFilter cdcOffsetFilter)
     {
         return dataLayer.openCompactionScanner(partitionId, partitionKeyFilters, columnFilter);
     }
@@ -129,11 +127,11 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
     static PruneColumnFilter buildColumnFilter(@Nullable StructType requiredSchema, @NotNull CqlTable cqlTable)
     {
         return requiredSchema != null
-                ? new PruneColumnFilter(Arrays.stream(requiredSchema.fields())
-                                              .map(StructField::name)
-                                              .filter(cqlTable::has)
-                                              .collect(Collectors.toSet()))
-                : null;
+               ? new PruneColumnFilter(Arrays.stream(requiredSchema.fields())
+                                             .map(StructField::name)
+                                             .filter(cqlTable::has)
+                                             .collect(Collectors.toSet()))
+               : null;
     }
 
     public boolean noValueColumns()
@@ -339,21 +337,28 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         }
 
         // Or new partition, so deserialize partition keys and update 'values' array
-        ByteBuffer partitionKey = rid.getPartitionKey();
-        if (numPartitionKeys == 1)
+        readPartitionKey(rid.getPartitionKey(), cqlTable, this.values, stats);
+    }
+
+    public static void readPartitionKey(ByteBuffer partitionKey,
+                                        CqlTable table,
+                                        Object[] values,
+                                        Stats stats)
+    {
+        if (table.numPartitionKeys() == 1)
         {
             // Not a composite partition key
-            CqlField field = cqlTable.partitionKeys().get(0);
-            values[field.position()] = deserialize(field, partitionKey);
+            CqlField field = table.partitionKeys().get(0);
+            values[field.position()] = deserialize(field, partitionKey, stats);
         }
         else
         {
             // Split composite partition keys
-            ByteBuffer[] partitionKeyBufs = ColumnTypes.split(partitionKey, numPartitionKeys);
+            ByteBuffer[] partitionKeyBufs = ColumnTypes.split(partitionKey, table.numPartitionKeys());
             int index = 0;
-            for (CqlField field : cqlTable.partitionKeys())
+            for (CqlField field : table.partitionKeys())
             {
-                values[field.position()] = deserialize(field, partitionKeyBufs[index++]);
+                values[field.position()] = deserialize(field, partitionKeyBufs[index++], stats);
             }
         }
     }
@@ -404,8 +409,13 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
 
     private Object deserialize(CqlField field, ByteBuffer buffer)
     {
+        return deserialize(field, buffer, stats);
+    }
+
+    private static Object deserialize(CqlField field, ByteBuffer buffer, Stats stats)
+    {
         long now = System.nanoTime();
-        Object value = buffer != null ? field.deserialize(buffer) : null;
+        Object value = buffer == null ? null : field.deserialize(buffer);
         stats.fieldDeserialization(field, System.nanoTime() - now);
         return value;
     }

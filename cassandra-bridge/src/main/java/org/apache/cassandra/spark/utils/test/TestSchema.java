@@ -192,6 +192,8 @@ public final class TestSchema
     public final String keyspace;
     public final String table;
     public final String createStatement;
+    public final ReplicationFactor rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
+                                                              ImmutableMap.of("DC1", 3));
     public final String insertStatement;
     public final String updateStatement;
     public final String deleteStatement;
@@ -428,8 +430,7 @@ public final class TestSchema
         return new CqlTable(keyspace,
                             table,
                             createStatement,
-                            new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
-                                                  ImmutableMap.of("DC1", 3)),
+                            rf,
                             allFields,
                             udts,
                             0);

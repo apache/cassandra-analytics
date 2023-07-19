@@ -35,6 +35,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
+import org.apache.cassandra.spark.utils.IOUtils;
 import org.jetbrains.annotations.Nullable;
 
 public final class TestSSTable extends SSTable
@@ -106,6 +107,11 @@ public final class TestSSTable extends SSTable
         {
             return null;
         }
+    }
+
+    public long length(FileType fileType)
+    {
+        return IOUtils.size(FileType.resolveComponentFile(fileType, dataFile));
     }
 
     public boolean isMissing(FileType fileType)

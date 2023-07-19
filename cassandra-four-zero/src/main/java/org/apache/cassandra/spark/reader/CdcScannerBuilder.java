@@ -239,7 +239,7 @@ public class CdcScannerBuilder
         return null;
     }
 
-    public StreamScanner build()
+    public StreamScanner<Rid> build()
     {
         // Block on futures to read all CommitLog mutations and pass over to SortedStreamScanner
         List<PartitionUpdateWrapper> updates = futures.values().stream()

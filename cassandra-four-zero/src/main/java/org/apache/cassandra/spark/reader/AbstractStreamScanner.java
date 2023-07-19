@@ -54,7 +54,7 @@ import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.jetbrains.annotations.NotNull;
 
-public abstract class AbstractStreamScanner implements StreamScanner, Closeable
+public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Closeable
 {
     // All partitions in the SSTable
     private UnfilteredPartitionIterator allPartitions;

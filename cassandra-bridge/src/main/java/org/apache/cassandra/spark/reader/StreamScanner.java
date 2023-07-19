@@ -28,19 +28,19 @@ import java.io.IOException;
  * they belong to:
  * <p>
  * Cassandra:
- *     r1 | c1, c2, c3
- *     r2 | c4
- *     r3 | c5, c6, c7, c8
+ * r1 | c1, c2, c3
+ * r2 | c4
+ * r3 | c5, c6, c7, c8
  * <p>
  * Pivoted:
- *     r1 | c1
- *     r1 | c2
- *     r1 | c3
- *     r2 | c4
- *     r3 | c5
- *     r3 | c6
- *     r3 | c7
- *     r3 | c8
+ * r1 | c1
+ * r1 | c2
+ * r1 | c3
+ * r2 | c4
+ * r3 | c5
+ * r3 | c6
+ * r3 | c7
+ * r3 | c8
  * <p>
  * During a loading operation we will extract up to a few trillion items out of SSTables, so it is of
  * high importance to reuse objects - the caller to the scanner creates a rid using the
@@ -49,9 +49,10 @@ import java.io.IOException;
  * <p>
  * Upon return from the next() call the current values of the scanner can be obtained by calling
  * the methods in Rid, getPartitionKey(), getColumnName(), getValue().
+ * @param <Type> type of object returned by rid() method.
  */
 @SuppressWarnings("unused")
-public interface StreamScanner extends Closeable
+public interface StreamScanner<Type> extends Closeable
 {
     /**
      * Expose the data/rid to be consumed.
@@ -59,13 +60,13 @@ public interface StreamScanner extends Closeable
      *
      * @return rid
      */
-    Rid rid();
+    Type rid();
 
     /**
      * Indicate if there are more data/rid avaiable
      *
      * @return true when the rid is available to be consumed;
-     *         otherwise, return false to indicate the scanner has exhausted
+     * otherwise, return false to indicate the scanner has exhausted
      * @throws IOException
      */
     boolean hasNext() throws IOException;
