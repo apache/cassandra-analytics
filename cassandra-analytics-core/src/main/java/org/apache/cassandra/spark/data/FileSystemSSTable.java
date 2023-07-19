@@ -31,8 +31,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.spark.utils.IOUtils;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.utils.streaming.SSTableInputStream;
+import org.jetbrains.annotations.Nullable;
 
 class FileSystemSSTable extends SSTable
 {
@@ -75,10 +77,21 @@ class FileSystemSSTable extends SSTable
         }
     }
 
+    public long length(FileType fileType)
+    {
+        return IOUtils.size(resolveComponentFile(fileType));
+    }
+
     @Override
     public boolean isMissing(FileType fileType)
     {
-        return FileType.resolveComponentFile(fileType, dataFilePath) == null;
+        return resolveComponentFile(fileType) == null;
+    }
+
+    @Nullable
+    private Path resolveComponentFile(FileType fileType)
+    {
+        return FileType.resolveComponentFile(fileType, dataFilePath);
     }
 
     @Override

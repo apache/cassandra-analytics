@@ -63,6 +63,8 @@ import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.reader.IndexEntry;
+import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.CdcOffsetFilter;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
@@ -94,32 +96,40 @@ public abstract class CassandraBridge
 
     // CDC Stream Scanner
     // CHECKSTYLE IGNORE: Method with many parameters
-    public abstract StreamScanner getCdcScanner(int partitionId,
-                                                @NotNull CqlTable table,
-                                                @NotNull Partitioner partitioner,
-                                                @NotNull CommitLogProvider commitLogProvider,
-                                                @NotNull TableIdLookup tableIdLookup,
-                                                @NotNull Stats stats,
-                                                @Nullable SparkRangeFilter sparkRangeFilter,
-                                                @Nullable CdcOffsetFilter offset,
-                                                int minimumReplicasPerMutation,
-                                                @NotNull Watermarker watermarker,
-                                                @NotNull String jobId,
-                                                @NotNull ExecutorService executorService,
-                                                @NotNull TimeProvider timeProvider);
+    public abstract StreamScanner<Rid> getCdcScanner(int partitionId,
+                                                     @NotNull CqlTable table,
+                                                     @NotNull Partitioner partitioner,
+                                                     @NotNull CommitLogProvider commitLogProvider,
+                                                     @NotNull TableIdLookup tableIdLookup,
+                                                     @NotNull Stats stats,
+                                                     @Nullable SparkRangeFilter sparkRangeFilter,
+                                                     @Nullable CdcOffsetFilter offset,
+                                                     int minimumReplicasPerMutation,
+                                                     @NotNull Watermarker watermarker,
+                                                     @NotNull String jobId,
+                                                     @NotNull ExecutorService executorService,
+                                                     @NotNull TimeProvider timeProvider);
 
     // Compaction Stream Scanner
     // CHECKSTYLE IGNORE: Method with many parameters
-    public abstract StreamScanner getCompactionScanner(@NotNull CqlTable table,
-                                                       @NotNull Partitioner partitionerType,
-                                                       @NotNull SSTablesSupplier ssTables,
-                                                       @Nullable SparkRangeFilter sparkRangeFilter,
-                                                       @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
-                                                       @Nullable PruneColumnFilter columnFilter,
-                                                       @NotNull TimeProvider timeProvider,
-                                                       boolean readIndexOffset,
-                                                       boolean useIncrementalRepair,
-                                                       @NotNull Stats stats);
+    public abstract StreamScanner<Rid> getCompactionScanner(@NotNull CqlTable table,
+                                                            @NotNull Partitioner partitionerType,
+                                                            @NotNull SSTablesSupplier ssTables,
+                                                            @Nullable SparkRangeFilter sparkRangeFilter,
+                                                            @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
+                                                            @Nullable PruneColumnFilter columnFilter,
+                                                            @NotNull TimeProvider timeProvider,
+                                                            boolean readIndexOffset,
+                                                            boolean useIncrementalRepair,
+                                                            @NotNull Stats stats);
+
+    public abstract StreamScanner<IndexEntry> getPartitionSizeIterator(@NotNull CqlTable table,
+                                                                       @NotNull Partitioner partitioner,
+                                                                       @NotNull SSTablesSupplier ssTables,
+                                                                       @Nullable SparkRangeFilter rangeFilter,
+                                                                       @NotNull TimeProvider timeProvider,
+                                                                       @NotNull Stats stats,
+                                                                       @NotNull ExecutorService executor);
 
     public abstract CassandraVersion getVersion();
 

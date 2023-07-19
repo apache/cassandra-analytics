@@ -31,6 +31,7 @@ import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
@@ -42,6 +43,7 @@ import org.apache.cassandra.spark.cdc.TableIdLookup;
 import org.apache.cassandra.spark.data.BasicSupplier;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
+import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
@@ -123,9 +125,12 @@ public class TestDataLayer extends DataLayer
                                      @Nullable SparkRangeFilter sparkRangeFilter,
                                      @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
-        return new BasicSupplier(dataDbFiles.stream()
-                                            .map(TestSSTable::at)
-                                            .collect(Collectors.toSet()));
+        return new BasicSupplier(listSSTables().collect(Collectors.toSet()));
+    }
+
+    public Stream<SSTable> listSSTables()
+    {
+        return dataDbFiles.stream().map(TestSSTable::at);
     }
 
     @Override

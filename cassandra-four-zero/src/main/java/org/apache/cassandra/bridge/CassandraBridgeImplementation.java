@@ -133,8 +133,12 @@ import org.apache.cassandra.spark.data.types.VarChar;
 import org.apache.cassandra.spark.data.types.VarInt;
 import org.apache.cassandra.spark.reader.CdcScannerBuilder;
 import org.apache.cassandra.spark.reader.CompactionStreamScanner;
+import org.apache.cassandra.spark.reader.IndexEntry;
+import org.apache.cassandra.spark.reader.IndexReader;
+import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.SchemaBuilder;
 import org.apache.cassandra.spark.reader.StreamScanner;
+import org.apache.cassandra.spark.reader.common.IndexIterator;
 import org.apache.cassandra.spark.sparksql.filters.CdcOffsetFilter;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
@@ -257,19 +261,19 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public StreamScanner getCdcScanner(int partitionId,
-                                       @NotNull CqlTable table,
-                                       @NotNull Partitioner partitioner,
-                                       @NotNull CommitLogProvider commitLogProvider,
-                                       @NotNull TableIdLookup tableIdLookup,
-                                       @NotNull Stats stats,
-                                       @Nullable SparkRangeFilter sparkRangeFilter,
-                                       @Nullable CdcOffsetFilter offset,
-                                       int minimumReplicasPerMutation,
-                                       @NotNull Watermarker watermarker,
-                                       @NotNull String jobId,
-                                       @NotNull ExecutorService executorService,
-                                       @NotNull TimeProvider timeProvider)
+    public StreamScanner<Rid> getCdcScanner(int partitionId,
+                                            @NotNull CqlTable table,
+                                            @NotNull Partitioner partitioner,
+                                            @NotNull CommitLogProvider commitLogProvider,
+                                            @NotNull TableIdLookup tableIdLookup,
+                                            @NotNull Stats stats,
+                                            @Nullable SparkRangeFilter sparkRangeFilter,
+                                            @Nullable CdcOffsetFilter offset,
+                                            int minimumReplicasPerMutation,
+                                            @NotNull Watermarker watermarker,
+                                            @NotNull String jobId,
+                                            @NotNull ExecutorService executorService,
+                                            @NotNull TimeProvider timeProvider)
     {
         // NOTE: Need to use SchemaBuilder to init keyspace if not already set in Cassandra schema instance
         UUID tableId = tableIdLookup.lookup(table.keyspace(), table.table());
@@ -300,16 +304,16 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public StreamScanner getCompactionScanner(@NotNull CqlTable table,
-                                              @NotNull Partitioner partitioner,
-                                              @NotNull SSTablesSupplier ssTables,
-                                              @Nullable SparkRangeFilter sparkRangeFilter,
-                                              @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
-                                              @Nullable PruneColumnFilter columnFilter,
-                                              @NotNull TimeProvider timeProvider,
-                                              boolean readIndexOffset,
-                                              boolean useIncrementalRepair,
-                                              @NotNull Stats stats)
+    public StreamScanner<Rid> getCompactionScanner(@NotNull CqlTable table,
+                                                   @NotNull Partitioner partitioner,
+                                                   @NotNull SSTablesSupplier ssTables,
+                                                   @Nullable SparkRangeFilter sparkRangeFilter,
+                                                   @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
+                                                   @Nullable PruneColumnFilter columnFilter,
+                                                   @NotNull TimeProvider timeProvider,
+                                                   boolean readIndexOffset,
+                                                   boolean useIncrementalRepair,
+                                                   @NotNull Stats stats)
     {
         // NOTE: Need to use SchemaBuilder to init keyspace if not already set in Cassandra Schema instance
         SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
@@ -324,6 +328,20 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                                                .useIncrementalRepair(useIncrementalRepair)
                                                                .isRepairPrimary(isRepairPrimary)
                                                                .build()));
+    }
+
+    public StreamScanner<IndexEntry> getPartitionSizeIterator(@NotNull CqlTable table,
+                                                              @NotNull Partitioner partitioner,
+                                                              @NotNull SSTablesSupplier ssTables,
+                                                              @Nullable SparkRangeFilter rangeFilter,
+                                                              @NotNull TimeProvider timeProvider,
+                                                              @NotNull Stats stats,
+                                                              @NotNull ExecutorService executor)
+    {
+        //NOTE: need to use SchemaBuilder to init keyspace if not already set in C* Schema instance
+        SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
+        final TableMetadata metadata = schemaBuilder.tableMetaData();
+        return new IndexIterator<>(ssTables, stats, ((ssTable, isRepairPrimary, consumer) -> new IndexReader(ssTable, metadata, rangeFilter, stats, consumer)));
     }
 
     @Override

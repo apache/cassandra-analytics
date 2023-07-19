@@ -127,6 +127,16 @@ public class SidecarProvisionedSSTable extends SSTable
         return openStream(snapshotFile.fileName, snapshotFile.size, fileType);
     }
 
+    public long length(FileType fileType)
+    {
+        ListSnapshotFilesResponse.FileInfo snapshotFile = components.get(fileType);
+        if (snapshotFile == null)
+        {
+            throw new IncompleteSSTableException(fileType);
+        }
+        return snapshotFile.size;
+    }
+
     @Override
     public boolean isMissing(FileType fileType)
     {

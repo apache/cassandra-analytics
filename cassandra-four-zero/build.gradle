@@ -40,6 +40,7 @@ project(':cassandra-four-zero') {
 
         testImplementation(project(':cassandra-bridge'))
 
+        testImplementation project(path: ':cassandra-analytics-core', configuration: 'testArtifacts')
         testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
         testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
         testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
@@ -55,6 +56,10 @@ project(':cassandra-four-zero') {
 
     jar {
         enabled = false
+    }
+
+    test {
+        useJUnitPlatform()
     }
 
     shadowJar {

@@ -17,31 +17,10 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.reader;
+package org.apache.cassandra.spark.reader.common;
 
-public class EmptyStreamScanner implements StreamScanner<Rid>
+import org.apache.cassandra.spark.reader.SparkSSTableReader;
+
+public interface IIndexReader extends SparkSSTableReader
 {
-    public static final EmptyStreamScanner INSTANCE = new EmptyStreamScanner();
-
-    @Override
-    public Rid rid()
-    {
-        return null;
-    }
-
-    @Override
-    public boolean hasNext()
-    {
-        return false;
-    }
-
-    @Override
-    public void advanceToNextColumn()
-    {
-    }
-
-    @Override
-    public void close()
-    {
-    }
 }

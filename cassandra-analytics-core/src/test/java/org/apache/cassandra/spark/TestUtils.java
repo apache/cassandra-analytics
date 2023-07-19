@@ -21,6 +21,7 @@ package org.apache.cassandra.spark;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -38,6 +39,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
@@ -50,6 +52,7 @@ import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.FilterUtils;
+import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -188,6 +191,29 @@ public final class TestUtils
             // In Spark3 start() can throw a TimeoutException
             throw new RuntimeException(exception);
         }
+    }
+
+    static Dataset<Row> openLocalPartitionSizeSource(final Partitioner partitioner,
+                                                     final Path dir,
+                                                     final String keyspace,
+                                                     final String createStmt,
+                                                     final CassandraVersion version,
+                                                     final Set<CqlField.CqlUdt> udts,
+                                                     @Nullable final String statsClass)
+    {
+        DataFrameReader frameReader = SPARK.read().format("org.apache.cassandra.spark.sparksql.LocalPartitionSizeSource")
+                                           .option("keyspace", keyspace)
+                                           .option("createStmt", createStmt)
+                                           .option("dirs", dir.toAbsolutePath().toString())
+                                           .option("version", version.toString())
+                                           .option("useSSTableInputStream", true) // use in the test system to test the SSTableInputStream
+                                           .option("partitioner", partitioner.name())
+                                           .option("udts", udts.stream().map(f -> f.createStatement(keyspace)).collect(Collectors.joining("\n")));
+        if (statsClass != null)
+        {
+            frameReader = frameReader.option("statsClass", statsClass);
+        }
+        return frameReader.load();
     }
 
     public static Dataset<Row> read(Path path, StructType schema)
@@ -351,5 +377,27 @@ public final class TestUtils
             filterKeys.add(compositeKey);
         });
         return filterKeys;
+    }
+
+    public static String randomLowEntropyString()
+    {
+        return new String(randomLowEntropyData(), StandardCharsets.UTF_8);
+    }
+
+    public static byte[] randomLowEntropyData()
+    {
+        return randomLowEntropyData(RandomUtils.randomPositiveInt(16384 - 512) + 512);
+    }
+
+    public static byte[] randomLowEntropyData(int size)
+    {
+        return randomLowEntropyData("Hello world!", size);
+    }
+
+    public static byte[] randomLowEntropyData(String str, int size)
+    {
+        return StringUtils.repeat(str, size / str.length() + 1)
+                          .substring(0, size)
+                          .getBytes(StandardCharsets.UTF_8);
     }
 }

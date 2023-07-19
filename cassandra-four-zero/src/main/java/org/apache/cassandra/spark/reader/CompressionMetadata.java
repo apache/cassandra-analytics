@@ -34,7 +34,9 @@ import org.apache.cassandra.spark.reader.common.BigLongArray;
 /**
  * Holds metadata about compressed file
  */
-final class CompressionMetadata extends AbstractCompressionMetadata
+// CompressionMetadata is mocked in IndexReaderTests and mockito does not support mocking final classes
+// CHECKSTYLE IGNORE: FinalClass
+class CompressionMetadata extends AbstractCompressionMetadata
 {
 
     private final CompressionParams parameters;

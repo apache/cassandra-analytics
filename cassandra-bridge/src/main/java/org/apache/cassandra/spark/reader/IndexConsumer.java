@@ -19,29 +19,11 @@
 
 package org.apache.cassandra.spark.reader;
 
-public class EmptyStreamScanner implements StreamScanner<Rid>
+import java.util.function.Consumer;
+
+public interface IndexConsumer extends Consumer<IndexEntry>
 {
-    public static final EmptyStreamScanner INSTANCE = new EmptyStreamScanner();
+    void onFailure(Throwable t);
 
-    @Override
-    public Rid rid()
-    {
-        return null;
-    }
-
-    @Override
-    public boolean hasNext()
-    {
-        return false;
-    }
-
-    @Override
-    public void advanceToNextColumn()
-    {
-    }
-
-    @Override
-    public void close()
-    {
-    }
+    void onFinished(long runtimeNanos);
 }
