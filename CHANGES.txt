@@ -1,4 +1,5 @@
 1.0.0
+ * Fix bulk writes with Buffered RowBufferMode (CASSANDRA-18692)
  * Minor Refactoring to Improve Code Reusability (CASSANDRA-18684)
  * Fix cassandra-analytics-core-example (CASSANDRA-18662)
  * Added caching of Node Settings to improve efficiency (CASSANDRA-18633)

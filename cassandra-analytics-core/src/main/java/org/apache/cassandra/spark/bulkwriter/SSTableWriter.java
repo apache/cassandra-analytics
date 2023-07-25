@@ -74,15 +74,14 @@ public class SSTableWriter
         LOGGER.info("Running with version " + packageVersion);
 
         TableSchema tableSchema = writerContext.schema().getTableSchema();
-        boolean sorted = writerContext.job().getRowBufferMode() == RowBufferMode.UNBUFFERED;
         this.cqlSSTableWriter = SSTableWriterFactory.getSSTableWriter(
-                CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(packageVersion),
-                this.outDir.toString(),
-                writerContext.cluster().getPartitioner().toString(),
-                tableSchema.createStatement,
-                tableSchema.modificationStatement,
-                sorted,
-                writerContext.job().getSstableDataSizeInMB());
+        CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(packageVersion),
+        this.outDir.toString(),
+        writerContext.cluster().getPartitioner().toString(),
+        tableSchema.createStatement,
+        tableSchema.modificationStatement,
+        writerContext.job().getRowBufferMode(),
+        writerContext.job().getSstableDataSizeInMB());
     }
 
     @NotNull
@@ -151,9 +150,9 @@ public class SSTableWriter
     {
         Map<Path, MD5Hash> fileHashes = new HashMap<>();
         try (DirectoryStream<Path> filesToHash =
-                Files.newDirectoryStream(dataFile.getParent(), SSTables.getSSTableBaseName(dataFile) + "*"))
+             Files.newDirectoryStream(dataFile.getParent(), SSTables.getSSTableBaseName(dataFile) + "*"))
         {
-            for (Path path: filesToHash)
+            for (Path path : filesToHash)
             {
                 fileHashes.put(path, calculateFileHash(path));
             }

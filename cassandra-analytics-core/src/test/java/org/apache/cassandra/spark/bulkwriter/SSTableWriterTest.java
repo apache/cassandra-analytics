@@ -74,7 +74,7 @@ public class SSTableWriterTest
     }
 
     @NotNull
-    public CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "app", "cluster", "DC1", "test", 12);  // CHECKSTYLE IGNORE: Public mutable field
+    public CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "DC1", "test", 12);  // CHECKSTYLE IGNORE: Public mutable field
 
     @TempDir
     public Path tmpDir; // CHECKSTYLE IGNORE: Public mutable field for testing
@@ -91,8 +91,8 @@ public class SSTableWriterTest
         try (DirectoryStream<Path> dataFileStream = Files.newDirectoryStream(tw.getOutDir(), "*Data.db"))
         {
             dataFileStream.forEach(dataFilePath ->
-                    assertEquals(CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion(),
-                                 SSTables.cassandraVersionFromTable(dataFilePath).getMajorVersion()));
+                                   assertEquals(CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion(),
+                                                SSTables.cassandraVersionFromTable(dataFilePath).getMajorVersion()));
         }
         tw.validateSSTables(writerContext, 1);
     }

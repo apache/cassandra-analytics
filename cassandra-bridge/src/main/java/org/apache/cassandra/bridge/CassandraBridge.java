@@ -385,7 +385,7 @@ public abstract class CassandraBridge
                                                    String partitioner,
                                                    String createStatement,
                                                    String insertStatement,
-                                                   boolean isSorted,
+                                                   RowBufferMode rowBufferMode,
                                                    int bufferSizeMB);
 
     // CDC Configuration

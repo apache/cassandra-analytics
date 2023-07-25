@@ -28,6 +28,7 @@ import com.google.common.collect.Maps;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.spark.SparkConf;
@@ -237,7 +238,7 @@ public class BulkSparkConfTest
         options.put(WriterOptions.ROW_BUFFER_MODE.name(), "invalid");
         IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
                                                           () -> new BulkSparkConf(sparkConf, options));
-        assertEquals("Key row buffering mode with value invalid is not a valid Enum of type class org.apache.cassandra.spark.bulkwriter.RowBufferMode.",
+        assertEquals("Key row buffering mode with value invalid is not a valid Enum of type class org.apache.cassandra.bridge.RowBufferMode.",
                      exception.getMessage());
     }
 

@@ -22,6 +22,8 @@ package org.apache.cassandra.bridge;
 import java.io.IOException;
 import java.util.Map;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
@@ -42,28 +44,25 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        String partitioner,
                                        String createStatement,
                                        String insertStatement,
-                                       boolean isSorted,
+                                       RowBufferMode rowBufferMode,
                                        int bufferSizeMB)
     {
         IPartitioner cassPartitioner = partitioner.toLowerCase().contains("random") ? new RandomPartitioner()
                                                                                     : new Murmur3Partitioner();
-        CQLSSTableWriter.Builder builder = CQLSSTableWriter.builder()
-                                                           .inDirectory(inDirectory)
-                                                           .forTable(createStatement)
-                                                           .withPartitioner(cassPartitioner)
-                                                           .using(insertStatement)
-                                                           .withBufferSizeInMB(bufferSizeMB);
-        if (isSorted)
-        {
-            builder.sorted();
-        }
+
+        CQLSSTableWriter.Builder builder = configureBuilder(inDirectory,
+                                                            createStatement,
+                                                            insertStatement,
+                                                            rowBufferMode,
+                                                            bufferSizeMB,
+                                                            cassPartitioner);
         // TODO: Remove me once CQLSSTableWriter.Builder synchronize on schema (see CASSANDRA-TBD)
         //       build update schema, we need to synchronize
         writer = CassandraSchema.apply(s -> builder.build());
     }
 
     @Override
-    public void addRow(Map<String, Object> values)  throws IOException
+    public void addRow(Map<String, Object> values) throws IOException
     {
         try
         {
@@ -79,5 +78,29 @@ public class SSTableWriterImplementation implements SSTableWriter
     public void close() throws IOException
     {
         writer.close();
+    }
+
+    @VisibleForTesting
+    static CQLSSTableWriter.Builder configureBuilder(String inDirectory,
+                                                     String createStatement,
+                                                     String insertStatement,
+                                                     RowBufferMode rowBufferMode,
+                                                     int bufferSizeMB,
+                                                     IPartitioner cassPartitioner)
+    {
+        CQLSSTableWriter.Builder builder = CQLSSTableWriter.builder()
+                                                           .inDirectory(inDirectory)
+                                                           .forTable(createStatement)
+                                                           .withPartitioner(cassPartitioner)
+                                                           .using(insertStatement);
+        if (rowBufferMode == RowBufferMode.UNBUFFERED)
+        {
+            builder.sorted();
+        }
+        else if (rowBufferMode == RowBufferMode.BUFFERED)
+        {
+            builder.withBufferSizeInMB(bufferSizeMB);
+        }
+        return builder;
     }
 }

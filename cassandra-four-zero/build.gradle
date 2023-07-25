@@ -77,9 +77,14 @@ project(':cassandra-four-zero') {
         exclude('com/google/common/collect/Range*')
     }
 
-    task javadocJar(type: Jar, dependsOn: javadoc) {
-      classifier = 'javadoc'
-      from javadoc.destinationDir
+    tasks.register('javadocJar', Jar) {
+        dependsOn javadoc
+        classifier = 'javadoc'
+        from javadoc.destinationDir
+    }
+
+    test {
+        useJUnitPlatform()
     }
 
     artifacts {

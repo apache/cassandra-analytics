@@ -40,30 +40,24 @@ public final class RingUtils
 
     @NotNull
     static CassandraRing<RingInstance> buildRing(int initialToken,
-                                                 String app,
-                                                 String cluster,
                                                  String dataCenter,
                                                  String keyspace)
     {
-        return buildRing(initialToken, app, cluster, dataCenter, keyspace, 3);
+        return buildRing(initialToken, dataCenter, keyspace, 3);
     }
 
     @NotNull
     public static CassandraRing<RingInstance> buildRing(int initialToken,
-                                                        String app,
-                                                        String cluster,
                                                         String dataCenter,
                                                         String keyspace,
                                                         int instancesPerDC)
     {
         ImmutableMap<String, Integer> rfByDC = ImmutableMap.of(dataCenter, 3);
-        return buildRing(initialToken, app, cluster, rfByDC, keyspace, instancesPerDC);
+        return buildRing(initialToken, rfByDC, keyspace, instancesPerDC);
     }
 
     @NotNull
     static CassandraRing<RingInstance> buildRing(int initialToken,
-                                                 String app,
-                                                 String cluster,
                                                  ImmutableMap<String, Integer> rfByDC,
                                                  String keyspace,
                                                  int instancesPerDC)
@@ -77,7 +71,7 @@ public final class RingUtils
     private static ReplicationFactor getReplicationFactor(Map<String, Integer> rfByDC)
     {
         ImmutableMap.Builder<String, String> optionsBuilder = ImmutableMap.<String, String>builder()
-                .put("class", "org.apache.cassandra.locator.NetworkTopologyStrategy");
+                                                                          .put("class", "org.apache.cassandra.locator.NetworkTopologyStrategy");
         rfByDC.forEach((key, value) -> optionsBuilder.put(key, value.toString()));
         return new ReplicationFactor(optionsBuilder.build());
     }
@@ -93,17 +87,17 @@ public final class RingUtils
             for (int instance = 0; instance < instancesPerDc; instance++)
             {
                 instances.add(new RingInstance(new RingEntry.Builder()
-                        .address("127.0." + dcOffset + "." + instance)
-                        .datacenter(datacenter)
-                        .load("0")
-                        .token(Integer.toString(initialToken + dcOffset + 100_000 * instance))
-                        .fqdn(datacenter + "-i" + instance)
-                        .rack("Rack")
-                        .hostId("")
-                        .status("UP")
-                        .state("NORMAL")
-                        .owns("")
-                        .build()));
+                                               .address("127.0." + dcOffset + "." + instance)
+                                               .datacenter(datacenter)
+                                               .load("0")
+                                               .token(Integer.toString(initialToken + dcOffset + 100_000 * instance))
+                                               .fqdn(datacenter + "-i" + instance)
+                                               .rack("Rack")
+                                               .hostId("")
+                                               .status("UP")
+                                               .state("NORMAL")
+                                               .owns("")
+                                               .build()));
             }
             dcOffset++;
         }

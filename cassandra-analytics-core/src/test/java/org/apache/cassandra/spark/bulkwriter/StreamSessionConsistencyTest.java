@@ -60,8 +60,6 @@ public class StreamSessionConsistencyTest
     private static final Range<BigInteger> RANGE = Range.range(BigInteger.valueOf(101L), BoundType.CLOSED,
                                                                BigInteger.valueOf(199L), BoundType.CLOSED);
     private static final CassandraRing<RingInstance> RING = RingUtils.buildRing(0,
-                                                                                "app",
-                                                                                "cluster",
                                                                                 ImmutableMap.of("DC1", 3, "DC2", 3),
                                                                                 "test",
                                                                                 6);

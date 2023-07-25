@@ -22,7 +22,9 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.io.Serializable;
 import java.util.UUID;
 
+import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
+import org.jetbrains.annotations.NotNull;
 
 public interface JobInfo extends Serializable
 {
@@ -31,6 +33,7 @@ public interface JobInfo extends Serializable
 
     String getLocalDC();
 
+    @NotNull
     RowBufferMode getRowBufferMode();
 
     int getSstableDataSizeInMB();

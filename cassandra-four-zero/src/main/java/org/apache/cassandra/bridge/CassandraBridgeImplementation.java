@@ -623,10 +623,10 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                           String partitioner,
                                           String createStatement,
                                           String insertStatement,
-                                          boolean isSorted,
+                                          RowBufferMode rowBufferMode,
                                           int bufferSizeMB)
     {
-        return new SSTableWriterImplementation(inDirectory, partitioner, createStatement, insertStatement, isSorted, bufferSizeMB);
+        return new SSTableWriterImplementation(inDirectory, partitioner, createStatement, insertStatement, rowBufferMode, bufferSizeMB);
     }
 
     // CDC Configuration

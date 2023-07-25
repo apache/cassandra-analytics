@@ -21,6 +21,8 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.nio.file.Path;
 
+import org.jetbrains.annotations.NotNull;
+
 class NonValidatingTestSSTableWriter extends SSTableWriter
 {
     NonValidatingTestSSTableWriter(MockTableWriter tableWriter, Path path)
@@ -29,7 +31,7 @@ class NonValidatingTestSSTableWriter extends SSTableWriter
     }
 
     @Override
-    public void validateSSTables(BulkWriterContext writerContext, int partitionId)
+    public void validateSSTables(@NotNull BulkWriterContext writerContext, int partitionId)
     {
         // Skip validation for these tests
     }

@@ -44,7 +44,7 @@ public class TokenPartitionerTest
     @Test
     public void testOneSplit()
     {
-        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "app", "cluster", "DC1", "test");
+        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "DC1", "test");
         partitioner = new TokenPartitioner(ring, 1, 2, 1, false);
         assertEquals(4, partitioner.numPartitions());
         assertEquals(0, getPartitionForToken(new BigInteger("-9223372036854775808")));
@@ -58,7 +58,7 @@ public class TokenPartitionerTest
     @Test
     public void testTwoSplits()
     {
-        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "app", "cluster", "DC1", "test");
+        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "DC1", "test");
         partitioner = new TokenPartitioner(ring, 2, 2, 1, false);
         assertEquals(10, partitioner.numPartitions());
         assertEquals(0, getPartitionForToken(new BigInteger("-4611686018427387905")));
@@ -90,7 +90,7 @@ public class TokenPartitionerTest
     @Test
     public void testReplicationFactorInOneDCOnly()
     {
-        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "app", "cluster", ImmutableMap.of("DC1", 3, "DC2", 0), "test", 3);
+        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, ImmutableMap.of("DC1", 3, "DC2", 0), "test", 3);
         partitioner = new TokenPartitioner(ring, 1, 2, 1, false);
         assertEquals(4, partitioner.numPartitions());
         assertEquals(0, getPartitionForToken(new BigInteger("-9223372036854775808")));
@@ -104,7 +104,7 @@ public class TokenPartitionerTest
     @Test
     public void testSplitCalculationsUsingCores()
     {
-        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "app", "cluster", "DC1", "test");
+        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "DC1", "test");
         // When passed "-1" for numberSplits, the token partitioner should calculate it on its own based on
         // the number of cores. This ring has 4 ranges when no splits are used, therefore we expect the number
         // of splits to be 25 for 100 cores and a default parallelism of 50 (as we take the max of the two).
@@ -117,7 +117,7 @@ public class TokenPartitionerTest
     @Test
     public void testSplitCalculationsUsingDefaultParallelism()
     {
-        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "app", "cluster", "DC1", "test");
+        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "DC1", "test");
         // When passed "-1" for numberSplits, the token partitioner should calculate it on its own based on
         // the number of cores. This ring has 4 ranges when no splits are used, therefore we expect the number
         // of splits to be 50 for 100 cores and a default parallelism of 200 (as we take the max of the two).
@@ -136,7 +136,7 @@ public class TokenPartitionerTest
                                                                 .put("DC3", 3)
                                                                 .put("DC4", 3)
                                                                 .build();
-        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, "app", "cluster", dcMap, "test", 20);
+        CassandraRing<RingInstance> ring = RingUtils.buildRing(0, dcMap, "test", 20);
         assertEquals(80, ring.getInstances().size());
         partitioner = new TokenPartitioner(ring, -1, 1, 750, false);
         assertEquals(10, partitioner.numSplits());

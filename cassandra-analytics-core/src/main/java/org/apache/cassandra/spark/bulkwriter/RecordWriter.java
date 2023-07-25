@@ -41,6 +41,7 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.sidecar.common.data.TimeSkewResponse;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.TaskContext;
@@ -93,7 +94,7 @@ public class RecordWriter implements Serializable
         TaskContext taskContext = taskContextSupplier.get();
         LOGGER.info("[{}]: Processing Bulk Writer partition", taskContext.partitionId());
         scala.collection.Iterator<scala.Tuple2<DecoratedKey, Object[]>> dataIterator =
-                new InterruptibleIterator<>(taskContext, asScalaIterator(sourceIterator));
+        new InterruptibleIterator<>(taskContext, asScalaIterator(sourceIterator));
         StreamSession streamSession = createStreamSession(taskContext);
         validateAcceptableTimeSkewOrThrow(streamSession.replicas);
         int partitionId = taskContext.partitionId();
@@ -114,9 +115,9 @@ public class RecordWriter implements Serializable
                 checkBatchSize(streamSession, partitionId, job);
             }
 
-            if (batchSize != 0)
+            if (sstableWriter != null)
             {
-               finalizeSSTable(streamSession, partitionId, sstableWriter, batchNumber, batchSize);
+                finalizeSSTable(streamSession, partitionId, sstableWriter, batchNumber, batchSize);
             }
 
             LOGGER.info("[{}] Done with all writers and waiting for stream to complete", partitionId);
@@ -124,6 +125,11 @@ public class RecordWriter implements Serializable
         }
         catch (Exception exception)
         {
+            LOGGER.error("[{}] Failed to write job={}, taskStageAttemptNumber={}, taskAttemptNumber={}",
+                         partitionId,
+                         job.getId().toString(),
+                         taskContext.stageAttemptNumber(),
+                         taskContext.attemptNumber());
             throw new RuntimeException(exception);
         }
     }
@@ -137,8 +143,8 @@ public class RecordWriter implements Serializable
         if (localNow.isBefore(remoteNow.minus(range)) || localNow.isAfter(remoteNow.plus(range)))
         {
             String message = String.format("Time skew between Spark and Cassandra is too large. "
-                                         + "Allowable skew is %d minutes. "
-                                         + "Spark executor time is %s, Cassandra instance time is %s",
+                                           + "Allowable skew is %d minutes. "
+                                           + "Spark executor time is %s, Cassandra instance time is %s",
                                            timeSkewResponse.allowableSkewInMinutes, localNow, remoteNow);
             throw new UnsupportedOperationException(message);
         }
@@ -167,20 +173,22 @@ public class RecordWriter implements Serializable
         }
     }
 
-    public void checkBatchSize(StreamSession streamSession, int partitionId, JobInfo job) throws IOException
+    void checkBatchSize(StreamSession streamSession, int partitionId, JobInfo job) throws IOException
     {
-        batchSize++;
-        if (batchSize > job.getSstableBatchSize())
+        if (job.getRowBufferMode() == RowBufferMode.UNBUFFERED)
         {
-            finalizeSSTable(streamSession, partitionId, sstableWriter, batchNumber, batchSize);
+            batchSize++;
+            if (batchSize >= job.getSstableBatchSize())
+            {
+                finalizeSSTable(streamSession, partitionId, sstableWriter, batchNumber, batchSize);
 
-            sstableWriter = null;
-            batchSize = 0;
-
+                sstableWriter = null;
+                batchSize = 0;
+            }
         }
     }
 
-    public void maybeCreateTableWriter(int partitionId, Path baseDir) throws IOException
+    void maybeCreateTableWriter(int partitionId, Path baseDir) throws IOException
     {
         if (sstableWriter == null)
         {
