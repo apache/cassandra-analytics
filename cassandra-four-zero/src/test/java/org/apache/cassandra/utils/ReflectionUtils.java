@@ -25,8 +25,13 @@ import java.lang.reflect.Method;
 /**
  * Reflection utilities used for testing
  */
-public class ReflectionUtils
+public final class ReflectionUtils
 {
+    private ReflectionUtils()
+    {
+        throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
+
     public static Field getField(Class<?> clazz, String fieldName) throws NoSuchFieldException
     {
         // below code works before Java 12
