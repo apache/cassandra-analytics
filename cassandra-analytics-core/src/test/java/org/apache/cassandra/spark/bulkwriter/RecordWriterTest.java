@@ -31,9 +31,11 @@ import java.util.stream.Stream;
 
 import com.google.common.collect.Range;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import scala.Tuple2;
@@ -68,7 +70,7 @@ public class RecordWriterTest
     public void setUp()
     {
         tw = new MockTableWriter(folder);
-        ring = RingUtils.buildRing(0, "app", "cluster", "DC1", "test", 12);
+        ring = RingUtils.buildRing(0, "DC1", "test", 12);
         writerContext = new MockBulkWriterContext(ring);
         tc = new TestTaskContext();
         range = writerContext.job().getTokenPartitioner().getTokenRange(tc.partitionId());
@@ -85,7 +87,7 @@ public class RecordWriterTest
     @Test
     public void testWriteWithConstantTTL()
     {
-        MockBulkWriterContext bulkWriterContext =  new MockBulkWriterContext(ring);
+        MockBulkWriterContext bulkWriterContext = new MockBulkWriterContext(ring);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true, false, false);
         validateSuccessfulWrite(bulkWriterContext, data, COLUMN_NAMES);
     }
@@ -93,7 +95,7 @@ public class RecordWriterTest
     @Test
     public void testWriteWithTTLColumn()
     {
-        MockBulkWriterContext bulkWriterContext =  new MockBulkWriterContext(ring);
+        MockBulkWriterContext bulkWriterContext = new MockBulkWriterContext(ring);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true, true, false);
         String[] columnNamesWithTtl = {"id", "date", "course", "marks", "ttl"};
         validateSuccessfulWrite(bulkWriterContext, data, columnNamesWithTtl);
@@ -102,7 +104,7 @@ public class RecordWriterTest
     @Test
     public void testWriteWithConstantTimestamp()
     {
-        MockBulkWriterContext bulkWriterContext =  new MockBulkWriterContext(ring);
+        MockBulkWriterContext bulkWriterContext = new MockBulkWriterContext(ring);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true, false, false);
         validateSuccessfulWrite(bulkWriterContext, data, COLUMN_NAMES);
     }
@@ -110,7 +112,7 @@ public class RecordWriterTest
     @Test
     public void testWriteWithTimestampColumn()
     {
-        MockBulkWriterContext bulkWriterContext =  new MockBulkWriterContext(ring);
+        MockBulkWriterContext bulkWriterContext = new MockBulkWriterContext(ring);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true, false, true);
         String[] columnNamesWithTimestamp = {"id", "date", "course", "marks", "timestamp"};
         validateSuccessfulWrite(bulkWriterContext, data, columnNamesWithTimestamp);
@@ -119,7 +121,7 @@ public class RecordWriterTest
     @Test
     public void testWriteWithTimestampAndTTLColumn()
     {
-        MockBulkWriterContext bulkWriterContext =  new MockBulkWriterContext(ring);
+        MockBulkWriterContext bulkWriterContext = new MockBulkWriterContext(ring);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true, true, true);
         String[] columnNames = {"id", "date", "course", "marks", "ttl", "timestamp"};
         validateSuccessfulWrite(bulkWriterContext, data, columnNames);
@@ -128,7 +130,7 @@ public class RecordWriterTest
     @Test
     public void testCorruptSSTable()
     {
-        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path) ->  new SSTableWriter(tw.setOutDir(path), path));
+        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path) -> new SSTableWriter(tw.setOutDir(path), path));
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true);
         // TODO: Add better error handling with human-readable exception messages in SSTableReader::new
         // That way we can assert on the exception thrown here
@@ -143,7 +145,7 @@ public class RecordWriterTest
         RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
         assertThat(ex.getMessage(),
                    matchesPattern("java.lang.IllegalStateException: Received Token "
-                              + "5765203080415074583 outside of expected range \\[-9223372036854775808(‥|..)0]"));
+                                  + "5765203080415074583 outside of expected range \\[-9223372036854775808(‥|..)0]"));
     }
 
     @Test
@@ -180,17 +182,46 @@ public class RecordWriterTest
         rw.write(data);
     }
 
+    @DisplayName("Write 20 rows, in unbuffered mode with BATCH_SIZE of 2")
+    @Test()
+    void writeUnbuffered()
+    {
+        int numberOfRows = 20;
+        Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(numberOfRows, true);
+        validateSuccessfulWrite(writerContext, data, COLUMN_NAMES, (int) Math.ceil(numberOfRows / writerContext.getSstableBatchSize()));
+    }
+
+    @DisplayName("Write 20 rows, in buffered mode with SSTABLE_DATA_SIZE_IN_MB of 10")
+    @Test()
+    void writeBuffered()
+    {
+        int numberOfRows = 20;
+        Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(numberOfRows, true);
+        writerContext.setRowBufferMode(RowBufferMode.BUFFERED);
+        writerContext.setSstableDataSizeInMB(10);
+        // only a single data sstable file is created
+        validateSuccessfulWrite(writerContext, data, COLUMN_NAMES, 1);
+    }
+
     private void validateSuccessfulWrite(MockBulkWriterContext writerContext,
                                          Iterator<Tuple2<DecoratedKey, Object[]>> data,
                                          String[] columnNames)
+    {
+        validateSuccessfulWrite(writerContext, data, columnNames, UPLOADED_TABLES);
+    }
+
+    private void validateSuccessfulWrite(MockBulkWriterContext writerContext,
+                                         Iterator<Tuple2<DecoratedKey, Object[]>> data,
+                                         String[] columnNames,
+                                         int uploadedTables)
     {
         RecordWriter rw = new RecordWriter(writerContext, columnNames, () -> tc, SSTableWriter::new);
         rw.write(data);
         Map<CassandraInstance, List<UploadRequest>> uploads = writerContext.getUploads();
         assertThat(uploads.keySet().size(), is(REPLICA_COUNT));  // Should upload to 3 replicas
-        assertThat(uploads.values().stream().mapToInt(List::size).sum(), is(REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_TABLES));
+        assertThat(uploads.values().stream().mapToInt(List::size).sum(), is(REPLICA_COUNT * FILES_PER_SSTABLE * uploadedTables));
         List<UploadRequest> requests = uploads.values().stream().flatMap(List::stream).collect(Collectors.toList());
-        for (UploadRequest ur: requests)
+        for (UploadRequest ur : requests)
         {
             assertNotNull(ur.fileHash);
         }
@@ -200,6 +231,7 @@ public class RecordWriterTest
     {
         return generateData(numValues, onlyInRange, false, false);
     }
+
     private Iterator<Tuple2<DecoratedKey, Object[]>> generateData(int numValues, boolean onlyInRange, boolean withTTL, boolean withTimestamp)
     {
         Stream<Tuple2<DecoratedKey, Object[]>> source = IntStream.iterate(0, integer -> integer + 1).mapToObj(index -> {
@@ -226,6 +258,12 @@ public class RecordWriterTest
         {
             source = source.filter(val -> range.contains(val._1.getToken()));
         }
-        return source.limit(numValues).iterator();
+        Stream<Tuple2<DecoratedKey, Object[]>> limitedStream = source.limit(numValues);
+        if (onlyInRange)
+        {
+            return limitedStream.sorted((o1, o2) -> o1._1.compareTo(o2._1))
+                                .iterator();
+        }
+        return limitedStream.iterator();
     }
 }

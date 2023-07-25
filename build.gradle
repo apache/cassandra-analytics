@@ -20,16 +20,10 @@
 import java.nio.file.Files
 import java.nio.file.Paths
 
-buildscript {
-  dependencies {
-    classpath(group: 'com.github.jengelman.gradle.plugins', name: 'shadow', version: '6.1.0')
-  }
-}
-
 plugins {
   id 'java'
   id 'java-library'
-  id 'com.github.johnrengelman.shadow' version '5.1.0'
+  id 'com.github.johnrengelman.shadow' version '7.1.2'
 
   // Release Audit Tool (RAT) plugin for checking project licenses
   id("org.nosphere.apache.rat") version "0.8.0"

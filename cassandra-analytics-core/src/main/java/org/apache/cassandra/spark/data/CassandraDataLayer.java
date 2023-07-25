@@ -109,10 +109,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
 
     public static final Logger LOGGER = LoggerFactory.getLogger(CassandraDataLayer.class);
     private static final Cache<String, CompletableFuture<List<SSTable>>> SNAPSHOT_CACHE =
-            CacheBuilder.newBuilder()
-                        .expireAfterAccess(15, TimeUnit.MINUTES)
-                        .maximumSize(128)
-                        .build();
+    CacheBuilder.newBuilder()
+                .expireAfterAccess(15, TimeUnit.MINUTES)
+                .maximumSize(128)
+                .build();
 
     protected String snapshotName;
     protected String keyspace;
@@ -158,25 +158,25 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
     // For serialization
     @VisibleForTesting
     // CHECKSTYLE IGNORE: Constructor with many parameters
-    CassandraDataLayer(@Nullable String keyspace,
-                       @Nullable String table,
-                       @NotNull String snapshotName,
-                       @Nullable String datacenter,
-                       @NotNull Sidecar.ClientConfig sidecarClientConfig,
-                       @Nullable SslConfig sslConfig,
-                       @NotNull CqlTable cqlTable,
-                       @NotNull TokenPartitioner tokenPartitioner,
-                       @NotNull CassandraVersion version,
-                       @NotNull ConsistencyLevel consistencyLevel,
-                       @NotNull Set<SidecarInstanceImpl> clusterConfig,
-                       @NotNull Map<String, PartitionedDataLayer.AvailabilityHint> availabilityHints,
-                       @NotNull Map<String, BigNumberConfigImpl> bigNumberConfigMap,
-                       boolean enableStats,
-                       boolean readIndexOffset,
-                       boolean useIncrementalRepair,
-                       @Nullable String lastModifiedTimestampField,
-                       List<SchemaFeature> requestedFeatures,
-                       @NotNull Map<String, ReplicationFactor> rfMap)
+    protected CassandraDataLayer(@Nullable String keyspace,
+                                 @Nullable String table,
+                                 @NotNull String snapshotName,
+                                 @Nullable String datacenter,
+                                 @NotNull Sidecar.ClientConfig sidecarClientConfig,
+                                 @Nullable SslConfig sslConfig,
+                                 @NotNull CqlTable cqlTable,
+                                 @NotNull TokenPartitioner tokenPartitioner,
+                                 @NotNull CassandraVersion version,
+                                 @NotNull ConsistencyLevel consistencyLevel,
+                                 @NotNull Set<SidecarInstanceImpl> clusterConfig,
+                                 @NotNull Map<String, PartitionedDataLayer.AvailabilityHint> availabilityHints,
+                                 @NotNull Map<String, BigNumberConfigImpl> bigNumberConfigMap,
+                                 boolean enableStats,
+                                 boolean readIndexOffset,
+                                 boolean useIncrementalRepair,
+                                 @Nullable String lastModifiedTimestampField,
+                                 List<SchemaFeature> requestedFeatures,
+                                 @NotNull Map<String, ReplicationFactor> rfMap)
     {
         super(consistencyLevel, datacenter);
         this.snapshotName = snapshotName;
@@ -214,7 +214,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
         clusterConfig = initializeClusterConfig(options);
         initInstanceMap();
 
-        // Get cluster info from CassandraManager
+        // Get cluster info from Cassandra Sidecar
         int effectiveNumberOfCores;
         CompletableFuture<RingResponse> ringFuture = sidecar.ring(keyspace);
         try
@@ -271,8 +271,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(fullSchema, keyspace);
         rfMap = ImmutableMap.of(keyspace, replicationFactor);
         CompletableFuture<Integer> sizingFuture = CompletableFuture.supplyAsync(
-                () -> getSizing(clusterConfig, replicationFactor, options).getEffectiveNumberOfCores(),
-                ExecutorHolder.EXECUTOR_SERVICE);
+        () -> getSizing(clusterConfig, replicationFactor, options).getEffectiveNumberOfCores(),
+        ExecutorHolder.EXECUTOR_SERVICE);
         validateReplicationFactor(replicationFactor);
         udts.forEach(udt -> LOGGER.info("Adding schema UDT: '{}'", udt));
 
@@ -296,8 +296,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
             else
             {
                 LOGGER.warn("Skipping clearing snapshot because it was not created by this job. "
-                          + "Only the job that created the snapshot can clear it. "
-                          + "snapshotName={} keyspace={} table={} dc={}",
+                            + "Only the job that created the snapshot can clear it. "
+                            + "snapshotName={} keyspace={} table={} dc={}",
                             snapshotName, keyspace, table, datacenter);
             }
         }
@@ -317,57 +317,57 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
         Map<String, PartitionedDataLayer.AvailabilityHint> availabilityHints = new ConcurrentHashMap<>(ring.size());
 
         // Fire off create snapshot request across the entire cluster
-        List<CompletableFuture<Void>> futures = ring
-                .stream()
-                .filter(ringEntry -> datacenter == null || datacenter.equals(ringEntry.datacenter()))
-                .map(ringEntry -> {
-                    PartitionedDataLayer.AvailabilityHint hint =
-                            PartitionedDataLayer.AvailabilityHint.fromState(ringEntry.status(), ringEntry.state());
+        List<CompletableFuture<Void>> futures =
+        ring.stream()
+            .filter(ringEntry -> datacenter == null || datacenter.equals(ringEntry.datacenter()))
+            .map(ringEntry -> {
+                PartitionedDataLayer.AvailabilityHint hint =
+                PartitionedDataLayer.AvailabilityHint.fromState(ringEntry.status(), ringEntry.state());
 
-                    CompletableFuture<PartitionedDataLayer.AvailabilityHint> createSnapshotFuture;
-                    if (NODE_STATUS_NOT_CONSIDERED.contains(ringEntry.state()))
-                    {
-                        LOGGER.warn("Skip snapshot creating when node is joining or down "
-                                  + "snapshotName={} keyspace={} table={} datacenter={} fqdn={} status={} state={}",
-                                    snapshotName, keyspace, table, datacenter, ringEntry.fqdn(), ringEntry.status(), ringEntry.state());
-                        createSnapshotFuture = CompletableFuture.completedFuture(hint);
-                    }
-                    else
-                    {
-                        LOGGER.info("Creating snapshot on instance snapshotName={} keyspace={} table={} datacenter={} fqdn={}",
-                                    snapshotName, keyspace, table, datacenter, ringEntry.fqdn());
-                        SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.port());
-                        createSnapshotFuture = sidecar
-                                .createSnapshot(sidecarInstance, keyspace, table, snapshotName)
-                                .handle((resp, throwable) -> {
-                                    if (throwable == null)
-                                    {
-                                        // Create snapshot succeeded
-                                        return hint;
-                                    }
+                CompletableFuture<PartitionedDataLayer.AvailabilityHint> createSnapshotFuture;
+                if (NODE_STATUS_NOT_CONSIDERED.contains(ringEntry.state()))
+                {
+                    LOGGER.warn("Skip snapshot creating when node is joining or down "
+                                + "snapshotName={} keyspace={} table={} datacenter={} fqdn={} status={} state={}",
+                                snapshotName, keyspace, table, datacenter, ringEntry.fqdn(), ringEntry.status(), ringEntry.state());
+                    createSnapshotFuture = CompletableFuture.completedFuture(hint);
+                }
+                else
+                {
+                    LOGGER.info("Creating snapshot on instance snapshotName={} keyspace={} table={} datacenter={} fqdn={}",
+                                snapshotName, keyspace, table, datacenter, ringEntry.fqdn());
+                    SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.port());
+                    createSnapshotFuture = sidecar
+                                           .createSnapshot(sidecarInstance, keyspace, table, snapshotName)
+                                           .handle((resp, throwable) -> {
+                                               if (throwable == null)
+                                               {
+                                                   // Create snapshot succeeded
+                                                   return hint;
+                                               }
 
-                                    if (isExhausted(throwable))
-                                    {
-                                        LOGGER.warn("Failed to create snapshot on instance", throwable);
-                                        return PartitionedDataLayer.AvailabilityHint.DOWN;
-                                    }
+                                               if (isExhausted(throwable))
+                                               {
+                                                   LOGGER.warn("Failed to create snapshot on instance", throwable);
+                                                   return PartitionedDataLayer.AvailabilityHint.DOWN;
+                                               }
 
-                                    LOGGER.error("Unexpected error creating snapshot on instance", throwable);
-                                    return PartitionedDataLayer.AvailabilityHint.UNKNOWN;
-                                });
-                    }
+                                               LOGGER.error("Unexpected error creating snapshot on instance", throwable);
+                                               return PartitionedDataLayer.AvailabilityHint.UNKNOWN;
+                                           });
+                }
 
-                    return createSnapshotFuture
-                           .thenAccept(h -> availabilityHints.put(ringEntry.fqdn(), h));
-                })
-                .collect(Collectors.toList());
+                return createSnapshotFuture
+                       .thenAccept(h -> availabilityHints.put(ringEntry.fqdn(), h));
+            })
+            .collect(Collectors.toList());
 
         return CompletableFuture
                .allOf(futures.toArray(new CompletableFuture[0]))
                .handle((results, throwable) -> availabilityHints);
     }
 
-    private boolean isExhausted(@Nullable Throwable throwable)
+    protected boolean isExhausted(@Nullable Throwable throwable)
     {
         return throwable != null && (throwable instanceof RetriesExhaustedException || isExhausted(throwable.getCause()));
     }
@@ -511,14 +511,14 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
         }
         String key = snapshotKey(sidecarInstance);  // NOTE: We don't currently support token filtering in list snapshot
         LOGGER.info("Listing snapshot partition={} lowerBound={} upperBound={} "
-                  + "instance={} port={} keyspace={} tableName={} snapshotName={}",
+                    + "instance={} port={} keyspace={} tableName={} snapshotName={}",
                     partitionId, range.lowerEndpoint(), range.upperEndpoint(),
                     sidecarInstance.hostname(), sidecarInstance.port(), keyspace, table, snapshotName);
         try
         {
             return SNAPSHOT_CACHE.get(key, () -> {
                 LOGGER.info("Listing instance snapshot partition={} lowerBound={} upperBound={} "
-                          + "instance={} port={} keyspace={} tableName={} snapshotName={} cacheKey={}",
+                            + "instance={} port={} keyspace={} tableName={} snapshotName={} cacheKey={}",
                             partitionId, range.lowerEndpoint(), range.upperEndpoint(),
                             sidecarInstance.hostname(), sidecarInstance.port(), keyspace, table, snapshotName, key);
                 return sidecar.listSnapshotFiles(sidecarInstance, keyspace, table, snapshotName)
@@ -574,16 +574,16 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
 
         // Map to SSTable
         return result.values().stream()
-                              .map(components -> new SidecarProvisionedSSTable(sidecar,
-                                                                               sidecarClientConfig,
-                                                                               sidecarInstance,
-                                                                               keyspace,
-                                                                               table,
-                                                                               snapshotName,
-                                                                               components,
-                                                                               partitionId,
-                                                                               stats()))
-                              .collect(Collectors.toList());
+                     .map(components -> new SidecarProvisionedSSTable(sidecar,
+                                                                      sidecarClientConfig,
+                                                                      sidecarInstance,
+                                                                      keyspace,
+                                                                      table,
+                                                                      snapshotName,
+                                                                      components,
+                                                                      partitionId,
+                                                                      stats()))
+                     .collect(Collectors.toList());
     }
 
     @Override
@@ -606,10 +606,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
 
         CassandraDataLayer that = (CassandraDataLayer) other;
         return cqlTable.equals(that.cqlTable)
-            && snapshotName.equals(that.snapshotName)
-            && keyspace.equals(that.keyspace)
-            && table.equals(that.table)
-            && version().equals(that.version());
+               && snapshotName.equals(that.snapshotName)
+               && keyspace.equals(that.keyspace)
+               && table.equals(that.table)
+               && version().equals(that.version());
     }
 
     public Map<String, BigNumberConfigImpl> bigNumberConfigMap()
@@ -632,9 +632,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
                                                      RingResponse ring)
     {
         Collection<CassandraInstance> instances = ring
-                .stream()
-                .map(status -> new CassandraInstance(status.token(), status.fqdn(), status.datacenter()))
-                .collect(Collectors.toList());
+                                                  .stream()
+                                                  .map(status -> new CassandraInstance(status.token(), status.fqdn(), status.datacenter()))
+                                                  .collect(Collectors.toList());
         return new CassandraRing(partitioner, keyspace, replicationFactor, instances);
     }
 
@@ -800,35 +800,35 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
         {
             LOGGER.info("Deserializing CassandraDataLayer with Kryo");
             return new CassandraDataLayer(
-                    in.readString(),
-                    in.readString(),
-                    in.readString(),
-                    in.readString(),
-                    Sidecar.ClientConfig.create(in.readInt(),
-                                                in.readInt(),
-                                                in.readLong(),
-                                                in.readLong(),
-                                                in.readLong(),
-                                                in.readLong(),
-                                                in.readInt(),
-                                                in.readInt(),
-                                                (Map<FileType, Long>) kryo.readObject(in, HashMap.class),
-                                                (Map<FileType, Long>) kryo.readObject(in, HashMap.class)),
-                    kryo.readObjectOrNull(in, SslConfig.class),
-                    kryo.readObject(in, CqlTable.class),
-                    kryo.readObject(in, TokenPartitioner.class),
-                    kryo.readObject(in, CassandraVersion.class),
-                    kryo.readObject(in, ConsistencyLevel.class),
-                    kryo.readObject(in, HashSet.class),
-                    (Map<String, PartitionedDataLayer.AvailabilityHint>) kryo.readObject(in, HashMap.class),
-                    in.readBoolean() ? Collections.emptyMap()
-                                     : (Map<String, BigNumberConfigImpl>) kryo.readObject(in, HashMap.class),
-                    in.readBoolean(),
-                    in.readBoolean(),
-                    in.readBoolean(),
-                    in.readString(),
-                    kryo.readObject(in, SchemaFeaturesListWrapper.class).toList(),
-                    kryo.readObject(in, HashMap.class));
+            in.readString(),
+            in.readString(),
+            in.readString(),
+            in.readString(),
+            Sidecar.ClientConfig.create(in.readInt(),
+                                        in.readInt(),
+                                        in.readLong(),
+                                        in.readLong(),
+                                        in.readLong(),
+                                        in.readLong(),
+                                        in.readInt(),
+                                        in.readInt(),
+                                        (Map<FileType, Long>) kryo.readObject(in, HashMap.class),
+                                        (Map<FileType, Long>) kryo.readObject(in, HashMap.class)),
+            kryo.readObjectOrNull(in, SslConfig.class),
+            kryo.readObject(in, CqlTable.class),
+            kryo.readObject(in, TokenPartitioner.class),
+            kryo.readObject(in, CassandraVersion.class),
+            kryo.readObject(in, ConsistencyLevel.class),
+            kryo.readObject(in, HashSet.class),
+            (Map<String, PartitionedDataLayer.AvailabilityHint>) kryo.readObject(in, HashMap.class),
+            in.readBoolean() ? Collections.emptyMap()
+                             : (Map<String, BigNumberConfigImpl>) kryo.readObject(in, HashMap.class),
+            in.readBoolean(),
+            in.readBoolean(),
+            in.readBoolean(),
+            in.readString(),
+            kryo.readObject(in, SchemaFeaturesListWrapper.class).toList(),
+            kryo.readObject(in, HashMap.class));
         }
 
         // Wrapper only used internally for Kryo serialization/deserialization

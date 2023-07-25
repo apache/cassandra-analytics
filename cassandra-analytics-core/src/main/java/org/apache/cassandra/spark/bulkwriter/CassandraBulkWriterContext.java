@@ -30,7 +30,6 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import io.netty.channel.EventLoopGroup;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
@@ -56,11 +55,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     private transient DataTransferApi dataTransferApi;
     private final CassandraClusterInfo clusterInfo;
     private final SchemaInfo schemaInfo;
-
-    static
-    {
-        configureRelocatedNetty();
-    }
 
     private CassandraBulkWriterContext(@NotNull BulkSparkConf conf,
                                        @NotNull StructType dfSchema,
@@ -116,15 +110,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
             {
                 clusterInfo.close();
             }
-        }
-    }
-
-    // If using the shaded JAR, Configure our shaded Netty so it can find the correct native libraries
-    private static void configureRelocatedNetty()
-    {
-        if (EventLoopGroup.class.getName().startsWith("analytics"))
-        {
-            System.setProperty("analytics.io.netty.packagePrefix", "analytics");
         }
     }
 

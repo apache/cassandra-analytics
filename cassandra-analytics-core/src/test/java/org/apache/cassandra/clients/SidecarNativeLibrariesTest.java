@@ -17,10 +17,24 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.bulkwriter;
+package org.apache.cassandra.clients;
 
-public enum RowBufferMode
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import o.a.c.sidecar.client.shaded.io.vertx.core.net.OpenSSLEngineOptions;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Unit tests to ensure that Sidecar client native libraries are loaded correctly
+ */
+public class SidecarNativeLibrariesTest
 {
-    BUFFERED,
-    UNBUFFERED
+    @DisplayName("Ensures that the shading is correct for the vertx-client-shaded project")
+    @Test
+    void openSslIsAvailable()
+    {
+        assertTrue(OpenSSLEngineOptions.isAvailable());
+    }
 }

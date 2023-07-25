@@ -72,7 +72,7 @@ public class StreamSessionTest
     public void setup()
     {
         range = Range.range(BigInteger.valueOf(101L), BoundType.CLOSED, BigInteger.valueOf(199L), BoundType.CLOSED);
-        ring = RingUtils.buildRing(0, "app", "cluster", "DC1", "test", 12);
+        ring = RingUtils.buildRing(0, "DC1", "test", 12);
         writerContext = getBulkWriterContext();
         tableWriter = new MockTableWriter(folder);
         executor = new MockScheduledExecutorService();

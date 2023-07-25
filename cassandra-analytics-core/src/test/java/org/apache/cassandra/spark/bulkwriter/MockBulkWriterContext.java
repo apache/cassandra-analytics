@@ -33,9 +33,11 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.Pair;
 
+import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.sidecar.common.data.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
@@ -50,6 +52,7 @@ import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
@@ -61,6 +64,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private static final long serialVersionUID = -2912371629236770646L;
     private RowBufferMode rowBufferMode = RowBufferMode.UNBUFFERED;
     private ConsistencyLevel.CL consistencyLevel;
+    private int sstableDataSizeInMB = 128;
 
     public interface CommitResultSupplier extends BiFunction<List<String>, String, RemoteCommitResult>
     {
@@ -96,9 +100,9 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         this.cassandraVersion = cassandraVersion;
         this.consistencyLevel = consistencyLevel;
         validPair = TableSchemaTestCommon.buildMatchedDataframeAndCqlColumns(
-                new String[]{"id", "date", "course", "marks"},
-                new org.apache.spark.sql.types.DataType[]{DataTypes.IntegerType, DataTypes.DateType, DataTypes.StringType, DataTypes.IntegerType},
-                new CqlField.CqlType[]{mockCqlType(INT), mockCqlType(DATE), mockCqlType(VARCHAR), mockCqlType(INT)});
+        new String[]{"id", "date", "course", "marks"},
+        new org.apache.spark.sql.types.DataType[]{DataTypes.IntegerType, DataTypes.DateType, DataTypes.StringType, DataTypes.IntegerType},
+        new CqlField.CqlType[]{mockCqlType(INT), mockCqlType(DATE), mockCqlType(VARCHAR), mockCqlType(INT)});
         StructType validDataFrameSchema = validPair.getKey();
         ImmutableMap<String, CqlField.CqlType> validCqlColumns = validPair.getValue();
         String[] partitionKeyColumns = {"id", "date"};
@@ -173,6 +177,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         return "DC1";
     }
 
+    @NotNull
     @Override
     public RowBufferMode getRowBufferMode()
     {
@@ -187,13 +192,19 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     @Override
     public int getSstableDataSizeInMB()
     {
-        return 128;
+        return sstableDataSizeInMB;
+    }
+
+    @VisibleForTesting
+    void setSstableDataSizeInMB(int sstableDataSizeInMB)
+    {
+        this.sstableDataSizeInMB = sstableDataSizeInMB;
     }
 
     @Override
     public int getSstableBatchSize()
     {
-        return 1;
+        return 2;
     }
 
     @Override

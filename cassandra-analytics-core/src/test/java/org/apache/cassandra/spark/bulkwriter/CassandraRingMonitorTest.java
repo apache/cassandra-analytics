@@ -132,6 +132,6 @@ public class CassandraRingMonitorTest
 
     private CassandraRing<RingInstance> buildRing(int initialToken)
     {
-        return RingUtils.buildRing(initialToken, "dev3", "dev3", "DEV", "test", 3);
+        return RingUtils.buildRing(initialToken, "DEV", "test", 3);
     }
 }
