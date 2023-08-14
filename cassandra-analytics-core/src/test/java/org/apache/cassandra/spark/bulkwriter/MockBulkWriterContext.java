@@ -50,6 +50,7 @@ import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.validation.StartupValidation;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
@@ -414,5 +415,10 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public String getFullTableName()
     {
         return "keyspace.table";
+    }
+
+    @Override
+    public void register(StartupValidation validation)
+    {
     }
 }

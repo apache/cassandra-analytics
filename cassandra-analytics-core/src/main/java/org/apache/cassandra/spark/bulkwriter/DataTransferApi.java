@@ -26,9 +26,11 @@ import java.util.List;
 import org.apache.cassandra.spark.common.MD5Hash;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.validation.StartupValidatable;
+import org.apache.cassandra.spark.validation.StartupValidator;
 import org.jetbrains.annotations.Nullable;
 
-public interface DataTransferApi extends Serializable
+public interface DataTransferApi extends StartupValidatable, Serializable
 {
     class RemoteCommitResult
     {

@@ -49,6 +49,9 @@ import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.cassandra.spark.utils.MapUtils;
+import org.apache.cassandra.spark.validation.KeystoreValidator;
+import org.apache.cassandra.spark.validation.StartupValidation;
+import org.apache.cassandra.spark.validation.TruststoreValidator;
 
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_SIZE;
@@ -98,6 +101,9 @@ public final class Sidecar
                       .trustStoreInputStream(secretsProvider.trustStoreInputStream())
                       .trustStorePassword(String.valueOf(secretsProvider.trustStorePassword()))
                       .trustStoreType(secretsProvider.trustStoreType());
+
+            StartupValidation.instance().register(new KeystoreValidator(secretsProvider));
+            StartupValidation.instance().register(new TruststoreValidator(secretsProvider));
         }
 
         HttpClientConfig httpClientConfig = builder.build();
@@ -128,6 +134,9 @@ public final class Sidecar
                                             .trustStoreType(conf.getTrustStoreTypeOrDefault())
                                             .ssl(conf.hasKeystoreAndKeystorePassword())
                                             .build();
+
+        StartupValidation.instance().register(new KeystoreValidator(secretsProvider));
+        StartupValidation.instance().register(new TruststoreValidator(secretsProvider));
 
         SidecarConfig sidecarConfig = new SidecarConfig.Builder()
                                       .maxRetries(5)

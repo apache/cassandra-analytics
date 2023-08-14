@@ -34,6 +34,10 @@ import org.apache.cassandra.sidecar.common.data.SSTableImportResponse;
 import org.apache.cassandra.spark.common.MD5Hash;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.validation.CassandraValidator;
+import org.apache.cassandra.spark.validation.SidecarValidator;
+import org.apache.cassandra.spark.validation.StartupValidation;
+import org.apache.cassandra.spark.validation.StartupValidator;
 
 /**
  * A {@link DataTransferApi} implementation that interacts with Cassandra Sidecar
@@ -128,6 +132,13 @@ public class SidecarDataTransferApi implements DataTransferApi
             LOGGER.warn("Failed to clean upload uploadId={}, instance={}", uploadId, instance);
             throw new ClientException("Failed to clean the upload session with ID " + uploadId, exception);
         }
+    }
+
+    @Override
+    public void register(StartupValidation validation)
+    {
+        validation.register(new SidecarValidator(sidecarClient));
+        validation.register(new CassandraValidator(sidecarClient));
     }
 
     protected String updateComponentName(Path componentFile, int ssTableIdx)
