@@ -30,9 +30,13 @@ import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
+import org.apache.cassandra.spark.validation.CassandraValidation;
+import org.apache.cassandra.spark.validation.SidecarValidation;
+import org.apache.cassandra.spark.validation.StartupValidatable;
+import org.apache.cassandra.spark.validation.StartupValidator;
 import org.jetbrains.annotations.NotNull;
 
-public class CassandraContext implements Closeable
+public class CassandraContext implements StartupValidatable, Closeable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraContext.class);
     @NotNull
@@ -95,5 +99,15 @@ public class CassandraContext implements Closeable
     protected BulkSparkConf conf()
     {
         return conf;
+    }
+
+    // Startup Validation
+
+    @Override
+    public void startupValidate()
+    {
+        StartupValidator.instance().register(new SidecarValidation(sidecarClient));
+        StartupValidator.instance().register(new CassandraValidation(sidecarClient));
+        StartupValidator.instance().perform();
     }
 }

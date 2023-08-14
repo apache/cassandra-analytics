@@ -126,6 +126,9 @@ public final class CassandraDataSourceHelper
                                                               Sidecar.ClientConfig.create(options),
                                                               SslConfig.create(options));
         initializeDataLayerFn.accept(dataLayer, config);
+
+        dataLayer.startupValidate();
+
         return dataLayer;
     }
 }

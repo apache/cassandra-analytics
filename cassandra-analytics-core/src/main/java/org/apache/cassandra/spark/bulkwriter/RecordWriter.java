@@ -77,6 +77,8 @@ public class RecordWriter implements Serializable
         this.columnNames = columnNames;
         this.taskContextSupplier = taskContextSupplier;
         this.tableWriterSupplier = tableWriterSupplier;
+
+        writerContext.cluster().startupValidate();
     }
 
     private Range<BigInteger> getTokenRange(TaskContext taskContext)

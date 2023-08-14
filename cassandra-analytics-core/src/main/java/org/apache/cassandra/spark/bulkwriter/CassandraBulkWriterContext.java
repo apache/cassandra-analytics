@@ -57,11 +57,12 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     private final SchemaInfo schemaInfo;
 
     private CassandraBulkWriterContext(@NotNull BulkSparkConf conf,
+                                       @NotNull CassandraClusterInfo clusterInfo,
                                        @NotNull StructType dfSchema,
                                        SparkContext sparkContext)
     {
         this.conf = conf;
-        clusterInfo = new CassandraClusterInfo(conf);
+        this.clusterInfo = clusterInfo;
         CassandraRing<RingInstance> ring = clusterInfo.getRing(true);
         jobInfo = new CassandraJobInfo(conf,
                                        new TokenPartitioner(ring, conf.numberSplits, sparkContext.defaultParallelism(), conf.getCores()));
@@ -93,10 +94,15 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         Preconditions.checkNotNull(dfSchema);
 
         BulkSparkConf conf = new BulkSparkConf(sparkContext.getConf(), strOptions);
-        CassandraBulkWriterContext bulkWriterContext = new CassandraBulkWriterContext(conf, dfSchema, sparkContext);
+        CassandraClusterInfo clusterInfo = new CassandraClusterInfo(conf);
+
+        clusterInfo.startupValidate();
+
+        CassandraBulkWriterContext bulkWriterContext = new CassandraBulkWriterContext(conf, clusterInfo, dfSchema, sparkContext);
         ShutdownHookManager.addShutdownHook(org.apache.spark.util.ShutdownHookManager.TEMP_DIR_SHUTDOWN_PRIORITY(),
                                             ScalaFunctions.wrapLambda(bulkWriterContext::shutdown));
         bulkWriterContext.dialHome(sparkContext.version());
+
         return bulkWriterContext;
     }
 

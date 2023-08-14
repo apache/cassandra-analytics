@@ -37,7 +37,8 @@ import o.a.c.sidecar.client.shaded.io.vertx.core.VertxOptions;
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.sidecar.client.HttpClientConfig;
 import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarConfig;
+import org.apache.cassandra.sidecar.client.SidecarClientConfig;
+import org.apache.cassandra.sidecar.client.SidecarClientConfigImpl;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.VertxHttpClient;
@@ -49,6 +50,10 @@ import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.cassandra.spark.utils.MapUtils;
+import org.apache.cassandra.spark.validation.KeyStoreValidation;
+import org.apache.cassandra.spark.validation.SslValidation;
+import org.apache.cassandra.spark.validation.StartupValidator;
+import org.apache.cassandra.spark.validation.TrustStoreValidation;
 
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_SIZE;
@@ -98,15 +103,18 @@ public final class Sidecar
                       .trustStoreInputStream(secretsProvider.trustStoreInputStream())
                       .trustStorePassword(String.valueOf(secretsProvider.trustStorePassword()))
                       .trustStoreType(secretsProvider.trustStoreType());
+
+            StartupValidator.instance().register(new KeyStoreValidation(secretsProvider));
+            StartupValidator.instance().register(new TrustStoreValidation(secretsProvider));
         }
 
         HttpClientConfig httpClientConfig = builder.build();
 
-        SidecarConfig sidecarConfig = new SidecarConfig.Builder()
-                                      .maxRetries(config.maxRetries())
-                                      .retryDelayMillis(config.millisToSleep())
-                                      .maxRetryDelayMillis(config.maxMillisToSleep())
-                                      .build();
+        SidecarClientConfig sidecarConfig = SidecarClientConfigImpl.builder()
+                                            .maxRetries(config.maxRetries())
+                                            .retryDelayMillis(config.millisToSleep())
+                                            .maxRetryDelayMillis(config.maxMillisToSleep())
+                                            .build();
 
         return buildClient(sidecarConfig, vertx, httpClientConfig, sidecarInstancesProvider);
     }
@@ -129,16 +137,20 @@ public final class Sidecar
                                             .ssl(conf.hasKeystoreAndKeystorePassword())
                                             .build();
 
-        SidecarConfig sidecarConfig = new SidecarConfig.Builder()
-                                      .maxRetries(5)
-                                      .retryDelayMillis(200)
-                                      .maxRetryDelayMillis(500)
-                                      .build();
+        StartupValidator.instance().register(new SslValidation(conf));
+        StartupValidator.instance().register(new KeyStoreValidation(conf));
+        StartupValidator.instance().register(new TrustStoreValidation(conf));
+
+        SidecarClientConfig sidecarConfig = SidecarClientConfigImpl.builder()
+                                            .maxRetries(5)
+                                            .retryDelayMillis(200)
+                                            .maxRetryDelayMillis(500)
+                                            .build();
 
         return buildClient(sidecarConfig, vertx, httpClientConfig, sidecarInstancesProvider);
     }
 
-    public static SidecarClient buildClient(SidecarConfig sidecarConfig,
+    public static SidecarClient buildClient(SidecarClientConfig sidecarConfig,
                                             Vertx vertx,
                                             HttpClientConfig httpClientConfig,
                                             SidecarInstancesProvider clusterConfig)

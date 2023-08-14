@@ -200,10 +200,17 @@ public class BulkSparkConf implements Serializable
         }
     }
 
-    /*
-     * This method Will throw if the SSL configuration is incorrect (PATH provided w/o password, for example)
+    /**
+     * Validates the SSL configuration present and throws an exception if it is incorrect
+     *
+     * @throws NullPointerException if the mTLS KeyStore password is provided,
+     *                              but both file path and base64 string are missing;
+     *                              or if either mTLS TrustStore file path or base64 string is provided,
+     *                              but the password is missing
+     * @throws IllegalArgumentException if the mTLS TrustStore password is provided,
+     *                                  but both file path and base64 string are missing
      */
-    protected void validateSslConfiguration()
+    public void validateSslConfiguration()
     {
         if (getKeyStorePassword() != null)
         {
@@ -478,5 +485,10 @@ public class BulkSparkConf implements Serializable
     public boolean hasKeystoreAndKeystorePassword()
     {
         return keystorePassword != null && (keystorePath != null || keystoreBase64Encoded != null);
+    }
+
+    public boolean hasTruststoreAndTruststorePassword()
+    {
+        return truststorePassword != null && (truststorePath != null || truststoreBase64Encoded != null);
     }
 }

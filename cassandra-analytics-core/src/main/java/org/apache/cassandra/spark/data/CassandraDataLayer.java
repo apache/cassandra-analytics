@@ -96,6 +96,10 @@ import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.cassandra.spark.utils.ScalaFunctions;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
+import org.apache.cassandra.spark.validation.CassandraValidation;
+import org.apache.cassandra.spark.validation.SidecarValidation;
+import org.apache.cassandra.spark.validation.StartupValidatable;
+import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.util.ShutdownHookManager;
 import org.jetbrains.annotations.NotNull;
@@ -103,7 +107,7 @@ import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.utils.Properties.NODE_STATUS_NOT_CONSIDERED;
 
-public class CassandraDataLayer extends PartitionedDataLayer implements Serializable
+public class CassandraDataLayer extends PartitionedDataLayer implements StartupValidatable, Serializable
 {
     private static final long serialVersionUID = -9038926850642710787L;
 
@@ -200,7 +204,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
             aliasLastModifiedTimestamp(this.requestedFeatures, this.lastModifiedTimestampField);
         }
         this.rfMap = rfMap;
-        initInstanceMap();
+        this.initInstanceMap();
+        this.startupValidate();
     }
 
     public void initialize(@NotNull ClientConfig options)
@@ -639,6 +644,16 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
         return new CassandraRing(partitioner, keyspace, replicationFactor, instances);
     }
 
+    // Startup Validation
+
+    @Override
+    public void startupValidate()
+    {
+        StartupValidator.instance().register(new SidecarValidation(sidecar));
+        StartupValidator.instance().register(new CassandraValidation(sidecar));
+        StartupValidator.instance().perform();
+    }
+
     // JDK Serialization
 
     @SuppressWarnings("unchecked")
@@ -685,6 +700,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
         }
         this.rfMap = (Map<String, ReplicationFactor>) in.readObject();
         this.initInstanceMap();
+        this.startupValidate();
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException
