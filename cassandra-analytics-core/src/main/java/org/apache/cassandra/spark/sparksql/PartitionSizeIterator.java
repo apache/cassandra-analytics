@@ -54,6 +54,10 @@ public class PartitionSizeIterator implements PartitionReader<InternalRow>
         stats.openedPartitionSizeIterator(System.nanoTime() - startTimeNanos);
     }
 
+    /**
+     * The expected schema is defined in {@link DataLayer#partitionSizeStructType()}.
+     * It consists of the Cassandra partition keys, appended with the columns "uncompressed" and "compressed".
+     */
     public boolean next() throws IOException
     {
         if (it.hasNext())
