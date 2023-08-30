@@ -340,7 +340,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     {
         //NOTE: need to use SchemaBuilder to init keyspace if not already set in C* Schema instance
         SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
-        final TableMetadata metadata = schemaBuilder.tableMetaData();
+        TableMetadata metadata = schemaBuilder.tableMetaData();
         return new IndexIterator<>(ssTables, stats, ((ssTable, isRepairPrimary, consumer) -> new IndexReader(ssTable, metadata, rangeFilter, stats, consumer)));
     }
 

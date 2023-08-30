@@ -45,9 +45,9 @@ public class PartitionSizeTests extends VersionRunner
     public void testReadingPartitionSize(CassandraVersion version)
     {
         TestUtils.runTest(version, (partitioner, dir, bridge) -> {
-            final int numRows = Tester.DEFAULT_NUM_ROWS;
-            final int numCols = 25;
-            final TestSchema schema = TestSchema.builder()
+            int numRows = Tester.DEFAULT_NUM_ROWS;
+            int numCols = 25;
+            TestSchema schema = TestSchema.builder()
                                                 .withPartitionKey("a", bridge.text())
                                                 .withClusteringKey("b", bridge.aInt())
                                                 .withColumn("c", bridge.aInt())
@@ -57,11 +57,11 @@ public class PartitionSizeTests extends VersionRunner
             schema.writeSSTable(dir, bridge, partitioner, (writer) -> {
                 for (int i = 0; i < numRows; i++)
                 {
-                    final String key = UUID.randomUUID().toString();
+                    String key = UUID.randomUUID().toString();
                     int size = 0;
                     for (int j = 0; j < numCols; j++)
                     {
-                        final String str = TestUtils.randomLowEntropyString();
+                        String str = TestUtils.randomLowEntropyString();
                         writer.write(key, j, i + j, str);
                         size += 4 + 4 + str.getBytes(StandardCharsets.UTF_8).length;
                     }
@@ -69,22 +69,22 @@ public class PartitionSizeTests extends VersionRunner
                 }
             });
 
-            final Dataset<Row> ds = TestUtils.openLocalPartitionSizeSource(partitioner,
+            Dataset<Row> ds = TestUtils.openLocalPartitionSizeSource(partitioner,
                                                                            dir,
                                                                            schema.keyspace,
                                                                            schema.createStatement,
                                                                            version,
                                                                            Collections.emptySet(),
                                                                            null);
-            final List<Row> rows = ds.collectAsList();
+            List<Row> rows = ds.collectAsList();
             assertEquals(numRows, rows.size());
-            for (final Row row : rows)
+            for (Row row : rows)
             {
-                final String key = row.getString(0);
-                final long uncompressed = row.getLong(1);
-                final long compressed = row.getLong(2);
+                String key = row.getString(0);
+                long uncompressed = row.getLong(1);
+                long compressed = row.getLong(2);
                 assertTrue(sizes.containsKey(key));
-                final long len = sizes.get(key);
+                long len = sizes.get(key);
                 assertTrue(len < uncompressed);
                 assertTrue(Math.abs(uncompressed - len) < 500); // uncompressed size should be ~len size but with a fixed overhead
                 assertTrue(compressed < uncompressed);

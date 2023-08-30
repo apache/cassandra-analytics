@@ -76,9 +76,9 @@ public abstract class DataLayer implements Serializable
     public StructType partitionSizeStructType()
     {
         StructType structType = new StructType();
-        for (final CqlField field : cqlTable().partitionKeys())
+        for (CqlField field : cqlTable().partitionKeys())
         {
-            final MetadataBuilder metadata = fieldMetaData(field);
+            MetadataBuilder metadata = fieldMetaData(field);
             structType = structType.add(field.name(),
                                         field.type().sparkSqlType(bigNumberConfig(field)),
                                         true,
@@ -119,9 +119,9 @@ public abstract class DataLayer implements Serializable
         return structType;
     }
 
-    private MetadataBuilder fieldMetaData(final CqlField field)
+    private MetadataBuilder fieldMetaData(CqlField field)
     {
-        final MetadataBuilder metadata = new MetadataBuilder();
+        MetadataBuilder metadata = new MetadataBuilder();
         metadata.putLong("position", field.position());
         metadata.putString("cqlType", field.cqlTypeName());
         metadata.putBoolean("isPartitionKey", field.isPartitionKey());
@@ -330,9 +330,9 @@ public abstract class DataLayer implements Serializable
      * @param partitionId Spark partition id
      * @return a PartitionSizeIterator that iterates over Index.db files to calculate partition size.
      */
-    public StreamScanner<IndexEntry> openPartitionSizeIterator(final int partitionId)
+    public StreamScanner<IndexEntry> openPartitionSizeIterator(int partitionId)
     {
-        final SparkRangeFilter rangeFilter = sparkRangeFilter(partitionId);
+        SparkRangeFilter rangeFilter = sparkRangeFilter(partitionId);
         return bridge().getPartitionSizeIterator(cqlTable(), partitioner(), sstables(partitionId, rangeFilter, List.of()),
                                                  rangeFilter, timeProvider(), stats(), executorService());
     }

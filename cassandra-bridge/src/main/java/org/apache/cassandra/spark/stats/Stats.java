@@ -671,7 +671,7 @@ public abstract class Stats
     /**
      * @param timeToOpenNanos time taken to open PartitionSizeIterator in nanos
      */
-    public void openedPartitionSizeIterator(final long timeToOpenNanos)
+    public void openedPartitionSizeIterator(long timeToOpenNanos)
     {
 
     }
@@ -695,7 +695,7 @@ public abstract class Stats
     /**
      * @param timeNanos time taken to for PartitionSizeIterator to run in nanos.
      */
-    public void closedPartitionSizeIterator(final long timeNanos)
+    public void closedPartitionSizeIterator(long timeNanos)
     {
 
     }
@@ -703,7 +703,7 @@ public abstract class Stats
     /**
      * @param timeToOpenNanos time taken to open Index.db files in nanos
      */
-    public void openedIndexFiles(final long timeToOpenNanos)
+    public void openedIndexFiles(long timeToOpenNanos)
     {
 
     }
@@ -711,7 +711,7 @@ public abstract class Stats
     /**
      * @param timeToOpenNanos time in nanos the IndexIterator was open for.
      */
-    public void closedIndexIterator(final long timeToOpenNanos)
+    public void closedIndexIterator(long timeToOpenNanos)
     {
 
     }

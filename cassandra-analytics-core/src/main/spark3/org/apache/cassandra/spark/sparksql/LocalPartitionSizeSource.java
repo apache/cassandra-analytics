@@ -32,7 +32,7 @@ public class LocalPartitionSizeSource extends PartitionSizeTableProvider
     }
 
     @Override
-    public DataLayer getDataLayer(final CaseInsensitiveStringMap options)
+    public DataLayer getDataLayer(CaseInsensitiveStringMap options)
     {
         return LocalDataLayer.from(options);
     }

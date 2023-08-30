@@ -142,7 +142,7 @@ public class IndexReaderTests
                                                     long end, int endIdx, int endCompressedChunkSize,
                                                     int uncompressedChunkLength)
     {
-        final CompressionMetadata metadata = mock(CompressionMetadata.class);
+        CompressionMetadata metadata = mock(CompressionMetadata.class);
         when(metadata.chunkIdx(eq(start))).thenReturn(startIdx);
         when(metadata.chunkIdx(eq(end))).thenReturn(endIdx);
         when(metadata.chunkLength()).thenReturn(uncompressedChunkLength);
@@ -174,30 +174,30 @@ public class IndexReaderTests
             .checkAssert(partitioner -> {
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
-                    final Path dir = directory.path();
-                    final int numPartitions = 50000;
-                    final BigInteger eighth = partitioner.maxToken().divide(BigInteger.valueOf(8));
-                    final SparkRangeFilter rangeFilter = SparkRangeFilter.create(
+                    Path dir = directory.path();
+                    int numPartitions = 50000;
+                    BigInteger eighth = partitioner.maxToken().divide(BigInteger.valueOf(8));
+                    SparkRangeFilter rangeFilter = SparkRangeFilter.create(
                     TokenRange.closed(partitioner.minToken().add(eighth),
                                       partitioner.maxToken().subtract(eighth))
                     );
-                    final TestSchema schema = TestSchema.builder()
+                    TestSchema schema = TestSchema.builder()
                                                         .withPartitionKey("a", BRIDGE.aInt())
                                                         .withColumn("b", BRIDGE.blob())
                                                         .withCompression(withCompression)
                                                         .build();
-                    final CqlTable table = schema.buildTable();
-                    final TableMetadata metaData = new SchemaBuilder(schema.createStatement, schema.keyspace, schema.rf, partitioner).tableMetaData();
+                    CqlTable table = schema.buildTable();
+                    TableMetadata metaData = new SchemaBuilder(schema.createStatement, schema.keyspace, schema.rf, partitioner).tableMetaData();
 
                     // write an SSTable
-                    final Map<Integer, Integer> expected = new HashMap<>();
+                    Map<Integer, Integer> expected = new HashMap<>();
                     schema.writeSSTable(dir, BRIDGE, partitioner, (writer) -> {
                         for (int i = 0; i < numPartitions; i++)
                         {
-                            final BigInteger token = ReaderUtils.tokenToBigInteger(
+                            BigInteger token = ReaderUtils.tokenToBigInteger(
                             metaData.partitioner.decorateKey(Int32Serializer.instance.serialize(i)).getToken()
                             );
-                            final byte[] lowEntropyData = TestUtils.randomLowEntropyData();
+                            byte[] lowEntropyData = TestUtils.randomLowEntropyData();
                             if (rangeFilter.overlaps(token))
                             {
                                 expected.put(i, lowEntropyData.length);
@@ -208,14 +208,14 @@ public class IndexReaderTests
                     assertFalse(expected.isEmpty());
                     assertTrue(expected.size() < numPartitions);
 
-                    final TestDataLayer dataLayer = new TestDataLayer(BRIDGE, getFileType(dir, FileType.DATA).collect(Collectors.toList()), table);
-                    final List<SSTable> ssTables = dataLayer.listSSTables().collect(Collectors.toList());
+                    TestDataLayer dataLayer = new TestDataLayer(BRIDGE, getFileType(dir, FileType.DATA).collect(Collectors.toList()), table);
+                    List<SSTable> ssTables = dataLayer.listSSTables().collect(Collectors.toList());
                     assertFalse(ssTables.isEmpty());
-                    final AtomicReference<Throwable> error = new AtomicReference<>();
-                    final CountDownLatch latch = new CountDownLatch(ssTables.size());
-                    final AtomicInteger rowCount = new AtomicInteger(0);
+                    AtomicReference<Throwable> error = new AtomicReference<>();
+                    CountDownLatch latch = new CountDownLatch(ssTables.size());
+                    AtomicInteger rowCount = new AtomicInteger(0);
 
-                    final IndexConsumer consumer = new IndexConsumer()
+                    IndexConsumer consumer = new IndexConsumer()
                     {
                         public void onFailure(Throwable t)
                         {
@@ -235,8 +235,8 @@ public class IndexReaderTests
                         {
                             // we should only read in-range partition keys
                             rowCount.getAndIncrement();
-                            final int pk = indexEntry.partitionKey.getInt();
-                            final int blobSize = expected.get(pk);
+                            int pk = indexEntry.partitionKey.getInt();
+                            int blobSize = expected.get(pk);
                             assertTrue(expected.containsKey(pk));
                             assertTrue(indexEntry.compressed > 0);
                             assertTrue(withCompression

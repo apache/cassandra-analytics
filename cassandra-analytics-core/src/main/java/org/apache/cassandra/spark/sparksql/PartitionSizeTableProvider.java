@@ -161,7 +161,7 @@ class PartitionSizeReaderFactory implements PartitionReaderFactory
     @Override
     public PartitionReader<InternalRow> createReader(InputPartition partition)
     {
-        final int partitionId;
+        int partitionId;
         if (partition instanceof CassandraInputPartition)
         {
             partitionId = ((CassandraInputPartition) partition).getPartitionId();

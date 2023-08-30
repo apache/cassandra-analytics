@@ -58,7 +58,7 @@ public abstract class AbstractCompressionMetadata
      * @param position uncompressed position
      * @return the compressed chunk index for an uncompressed position.
      */
-    public int chunkIdx(final long position)
+    public int chunkIdx(long position)
     {
         return (int) (position / chunkLength());
     }
@@ -73,7 +73,7 @@ public abstract class AbstractCompressionMetadata
     public Chunk chunkAtPosition(long position) throws IOException
     {
         // Position of the chunk
-        final int index = chunkIdx(position);
+        int index = chunkIdx(position);
 
         if (index >= chunkOffsets.size)
         {

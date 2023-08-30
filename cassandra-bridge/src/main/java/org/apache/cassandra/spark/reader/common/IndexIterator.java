@@ -58,9 +58,9 @@ public class IndexIterator<ReaderType extends IIndexReader> implements StreamSca
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private IndexEntry curr = null;
 
-    public IndexIterator(@NotNull final SSTablesSupplier ssTables,
-                         @NotNull final Stats stats,
-                         @NotNull final IndexReaderOpener<ReaderType> supplier)
+    public IndexIterator(@NotNull SSTablesSupplier ssTables,
+                         @NotNull Stats stats,
+                         @NotNull IndexReaderOpener<ReaderType> supplier)
     {
         this.startTimeNanos = System.nanoTime();
         this.stats = stats;
@@ -146,7 +146,7 @@ public class IndexIterator<ReaderType extends IIndexReader> implements StreamSca
 
         try
         {
-            final long startTimeNanos = System.nanoTime();
+            long startTimeNanos = System.nanoTime();
             this.curr = queue.take();
             stats.indexIteratorTimeBlocked(System.nanoTime() - startTimeNanos);
         }

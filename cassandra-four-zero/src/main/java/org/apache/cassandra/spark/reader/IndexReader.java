@@ -54,26 +54,26 @@ public class IndexReader implements IIndexReader
 
     private TokenRange ssTableRange = null;
 
-    public IndexReader(@NotNull final SSTable ssTable,
-                       @NotNull final TableMetadata metadata,
-                       @Nullable final SparkRangeFilter rangeFilter,
-                       @NotNull final Stats stats,
-                       @NotNull final IndexConsumer consumer)
+    public IndexReader(@NotNull SSTable ssTable,
+                       @NotNull TableMetadata metadata,
+                       @Nullable SparkRangeFilter rangeFilter,
+                       @NotNull Stats stats,
+                       @NotNull IndexConsumer consumer)
     {
         long now = System.nanoTime();
-        final long startTimeNanos = now;
+        long startTimeNanos = now;
         try
         {
-            final File file = SSTableReader.constructFilename(metadata.keyspace, metadata.name, ssTable.getDataFileName());
-            final Descriptor descriptor = Descriptor.fromFilename(file);
-            final Version version = descriptor.version;
+            File file = SSTableReader.constructFilename(metadata.keyspace, metadata.name, ssTable.getDataFileName());
+            Descriptor descriptor = Descriptor.fromFilename(file);
+            Version version = descriptor.version;
 
             // if there is a range filter we can use the Summary.db file to seek to approximate start token range location in Index.db file
             long skipAhead = -1;
             now = System.nanoTime();
             if (rangeFilter != null)
             {
-                final SummaryDbUtils.Summary summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
+                SummaryDbUtils.Summary summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
                 if (summary != null)
                 {
                     this.ssTableRange = TokenRange.closed(ReaderUtils.tokenToBigInteger(summary.first().getToken()),
@@ -96,7 +96,7 @@ public class IndexReader implements IIndexReader
             }
 
             // read CompressionMetadata if it exists
-            final CompressionMetadata compressionMetadata = getCompressionMetadata(ssTable, version.hasMaxCompressedLength());
+            CompressionMetadata compressionMetadata = getCompressionMetadata(ssTable, version.hasMaxCompressedLength());
             if (compressionMetadata != null)
             {
                 stats.indexCompressionFileRead(System.nanoTime() - now);
@@ -134,7 +134,7 @@ public class IndexReader implements IIndexReader
     }
 
     @Nullable
-    public static CompressionMetadata getCompressionMetadata(final SSTable ssTable,
+    public static CompressionMetadata getCompressionMetadata(SSTable ssTable,
                                                              boolean hasMaxCompressedLength) throws IOException
     {
         try (InputStream cis = ssTable.openCompressionStream())
@@ -148,17 +148,17 @@ public class IndexReader implements IIndexReader
     }
 
     @SuppressWarnings("InfiniteLoopStatement")
-    static void consumePrimaryIndex(@NotNull final IPartitioner partitioner,
-                                    @NotNull final InputStream primaryIndex,
-                                    @NotNull final SSTable ssTable,
-                                    @Nullable final CompressionMetadata compressionMetadata,
-                                    @Nullable final SparkRangeFilter range,
-                                    @NotNull final Stats stats,
-                                    final long skipBytes,
-                                    @NotNull final IndexConsumer consumer) throws IOException
+    static void consumePrimaryIndex(@NotNull IPartitioner partitioner,
+                                    @NotNull InputStream primaryIndex,
+                                    @NotNull SSTable ssTable,
+                                    @Nullable CompressionMetadata compressionMetadata,
+                                    @Nullable SparkRangeFilter range,
+                                    @NotNull Stats stats,
+                                    long skipBytes,
+                                    @NotNull IndexConsumer consumer) throws IOException
     {
-        final long primaryIndexLength = ssTable.length(FileType.INDEX);
-        final long dataDbFileLength = ssTable.length(FileType.DATA);
+        long primaryIndexLength = ssTable.length(FileType.INDEX);
+        long dataDbFileLength = ssTable.length(FileType.DATA);
         try (DataInputStream dis = new DataInputStream(primaryIndex))
         {
             if (skipBytes > 0)
@@ -178,26 +178,26 @@ public class IndexReader implements IIndexReader
                 while (true)
                 {
                     // read partition key length
-                    final int len = dis.readUnsignedShort();
+                    int len = dis.readUnsignedShort();
 
                     // read partition key & decorate
-                    final byte[] buf = new byte[len];
+                    byte[] buf = new byte[len];
                     dis.readFully(buf);
-                    final ByteBuffer key = ByteBuffer.wrap(buf);
-                    final DecoratedKey decoratedKey = partitioner.decorateKey(key);
-                    final BigInteger token = ReaderUtils.tokenToBigInteger(decoratedKey.getToken());
+                    ByteBuffer key = ByteBuffer.wrap(buf);
+                    DecoratedKey decoratedKey = partitioner.decorateKey(key);
+                    BigInteger token = ReaderUtils.tokenToBigInteger(decoratedKey.getToken());
 
                     // read position & skip promoted index
-                    final long pos = ReaderUtils.readPosition(dis);
-                    final int promotedIndex = ReaderUtils.skipPromotedIndex(dis);
+                    long pos = ReaderUtils.readPosition(dis);
+                    int promotedIndex = ReaderUtils.skipPromotedIndex(dis);
                     totalBytesRead += 2 + len + VIntCoding.computeUnsignedVIntSize(pos) + promotedIndex;
 
                     if (prevKey != null && (range == null || range.overlaps(prevToken)))
                     {
                         // previous key overlaps with range filter, so consume
                         started = true;
-                        final long uncompressed = pos - prevPos;
-                        final long compressed = compressionMetadata == null
+                        long uncompressed = pos - prevPos;
+                        long compressed = compressionMetadata == null
                                                 ? uncompressed
                                                 : calculateCompressedSize(compressionMetadata, dataDbFileLength, prevPos, pos - 1);
                         consumer.accept(new IndexEntry(prevKey, prevToken, uncompressed, compressed));
@@ -214,7 +214,7 @@ public class IndexReader implements IIndexReader
                     prevToken = token;
                 }
             }
-            catch (final EOFException ignored)
+            catch (EOFException ignored)
             {
                 // finished
             }
@@ -226,9 +226,9 @@ public class IndexReader implements IIndexReader
             if (prevKey != null && (range == null || range.overlaps(prevToken)))
             {
                 // we reached the end of the file, so consume last key if overlaps
-                final long end = (compressionMetadata == null ? dataDbFileLength : compressionMetadata.getDataLength());
-                final long uncompressed = end - prevPos;
-                final long compressed = compressionMetadata == null
+                long end = (compressionMetadata == null ? dataDbFileLength : compressionMetadata.getDataLength());
+                long uncompressed = end - prevPos;
+                long compressed = compressionMetadata == null
                                         ? uncompressed
                                         : calculateCompressedSize(compressionMetadata, dataDbFileLength, prevPos, end - 1);
                 consumer.accept(new IndexEntry(prevKey, prevToken, uncompressed, compressed));
@@ -243,28 +243,28 @@ public class IndexReader implements IIndexReader
      * @param end                  uncompressed end position.
      * @return the compressed size of a partition using the uncompressed start and end offset in the Data.db file to calculate.
      */
-    public static long calculateCompressedSize(@NotNull final CompressionMetadata compressionMetadata,
-                                               final long compressedDataLength,
-                                               final long start,
-                                               final long end)
+    public static long calculateCompressedSize(@NotNull CompressionMetadata compressionMetadata,
+                                               long compressedDataLength,
+                                               long start,
+                                               long end)
     {
-        final int startIdx = compressionMetadata.chunkIdx(start);
-        final int endIdx = compressionMetadata.chunkIdx(end);
-        final AbstractCompressionMetadata.Chunk startChunk = compressionMetadata.chunkAtIndex(startIdx);
-        final long startLen = chunkCompressedLength(startChunk, compressedDataLength);
+        int startIdx = compressionMetadata.chunkIdx(start);
+        int endIdx = compressionMetadata.chunkIdx(end);
+        AbstractCompressionMetadata.Chunk startChunk = compressionMetadata.chunkAtIndex(startIdx);
+        long startLen = chunkCompressedLength(startChunk, compressedDataLength);
         // compressed chunk sizes vary, but uncompressed chunk length is the same for all chunks
-        final long uncompressedChunkLen = compressionMetadata.chunkLength();
+        long uncompressedChunkLen = compressionMetadata.chunkLength();
 
         if (startIdx == endIdx)
         {
             // within the same chunk, so take % of uncompressed length and apply to compressed length
-            final float perc = (end - start) / (float) uncompressedChunkLen;
+            float perc = (end - start) / (float) uncompressedChunkLen;
             return Math.round(perc * startLen);
         }
 
         long size = partialCompressedSizeWithinChunk(start, uncompressedChunkLen, startLen, true);
-        final AbstractCompressionMetadata.Chunk endChunk = compressionMetadata.chunkAtIndex(endIdx);
-        final long endLen = chunkCompressedLength(endChunk, compressedDataLength);
+        AbstractCompressionMetadata.Chunk endChunk = compressionMetadata.chunkAtIndex(endIdx);
+        long endLen = chunkCompressedLength(endChunk, compressedDataLength);
 
         size += partialCompressedSizeWithinChunk(end, uncompressedChunkLen, endLen, false);
 
@@ -277,7 +277,7 @@ public class IndexReader implements IIndexReader
         return size;
     }
 
-    private static long chunkCompressedLength(final AbstractCompressionMetadata.Chunk chunk, final long compressedDataLength)
+    private static long chunkCompressedLength(AbstractCompressionMetadata.Chunk chunk, long compressedDataLength)
     {
         // chunk.length < 0 means it is the last chunk so use compressedDataLength to calculate compressed size
         return chunk.length >= 0 ? chunk.length : compressedDataLength - chunk.offset;
@@ -293,16 +293,16 @@ public class IndexReader implements IIndexReader
      * @param start                true if uncompressedPos is start position of partition and false if end position of partition
      * @return the estimated compressed size of partition start or end that overlaps with this chunk.
      */
-    public static int partialCompressedSizeWithinChunk(final long uncompressedPos,
-                                                       final long uncompressedChunkLen,
-                                                       final long compressedChunkLen,
-                                                       final boolean start)
+    public static int partialCompressedSizeWithinChunk(long uncompressedPos,
+                                                       long uncompressedChunkLen,
+                                                       long compressedChunkLen,
+                                                       boolean start)
     {
-        final long mod = uncompressedPos % uncompressedChunkLen;
+        long mod = uncompressedPos % uncompressedChunkLen;
         // if start position then it occupies remaining bytes to end of chunk, if end position it occupies bytes from start of chunk
-        final long usedBytes = start ? (uncompressedChunkLen - mod) : mod;
+        long usedBytes = start ? (uncompressedChunkLen - mod) : mod;
         // percentage of uncompressed bytes that it occupies in the chunk
-        final float perc = usedBytes / (float) uncompressedChunkLen;
+        float perc = usedBytes / (float) uncompressedChunkLen;
         // apply percentage to compressed chunk length to give compressed bytes occupied
         return Math.round(perc * compressedChunkLen);
     }

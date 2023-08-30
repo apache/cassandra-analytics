@@ -44,7 +44,7 @@ public class PartitionSizeIterator implements PartitionReader<InternalRow>
     private final long startTimeNanos;
     private GenericInternalRow curr = null;
 
-    public PartitionSizeIterator(final int partitionId, @NotNull final DataLayer dataLayer)
+    public PartitionSizeIterator(int partitionId, @NotNull DataLayer dataLayer)
     {
         this.cqlTable = dataLayer.cqlTable();
         this.numPartitionKeys = cqlTable.numPartitionKeys();
@@ -64,8 +64,8 @@ public class PartitionSizeIterator implements PartitionReader<InternalRow>
         {
             it.advanceToNextColumn();
 
-            final IndexEntry entry = it.rid();
-            final Object[] values = new Object[numPartitionKeys + 2];
+            IndexEntry entry = it.rid();
+            Object[] values = new Object[numPartitionKeys + 2];
 
             SparkCellIterator.readPartitionKey(entry.getPartitionKey(), cqlTable, values, stats);
             values[numPartitionKeys] = entry.getUncompressed();

@@ -193,13 +193,13 @@ public final class TestUtils
         }
     }
 
-    static Dataset<Row> openLocalPartitionSizeSource(final Partitioner partitioner,
-                                                     final Path dir,
-                                                     final String keyspace,
-                                                     final String createStmt,
-                                                     final CassandraVersion version,
-                                                     final Set<CqlField.CqlUdt> udts,
-                                                     @Nullable final String statsClass)
+    static Dataset<Row> openLocalPartitionSizeSource(Partitioner partitioner,
+                                                     Path dir,
+                                                     String keyspace,
+                                                     String createStmt,
+                                                     CassandraVersion version,
+                                                     Set<CqlField.CqlUdt> udts,
+                                                     @Nullable String statsClass)
     {
         DataFrameReader frameReader = SPARK.read().format("org.apache.cassandra.spark.sparksql.LocalPartitionSizeSource")
                                            .option("keyspace", keyspace)

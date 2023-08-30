@@ -340,23 +340,23 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         readPartitionKey(rid.getPartitionKey(), cqlTable, this.values, stats);
     }
 
-    public static void readPartitionKey(final ByteBuffer partitionKey,
-                                        final CqlTable table,
-                                        final Object[] values,
-                                        final Stats stats)
+    public static void readPartitionKey(ByteBuffer partitionKey,
+                                        CqlTable table,
+                                        Object[] values,
+                                        Stats stats)
     {
         if (table.numPartitionKeys() == 1)
         {
             // Not a composite partition key
-            final CqlField field = table.partitionKeys().get(0);
+            CqlField field = table.partitionKeys().get(0);
             values[field.position()] = deserialize(field, partitionKey, stats);
         }
         else
         {
             // Split composite partition keys
-            final ByteBuffer[] partitionKeyBufs = ColumnTypes.split(partitionKey, table.numPartitionKeys());
+            ByteBuffer[] partitionKeyBufs = ColumnTypes.split(partitionKey, table.numPartitionKeys());
             int index = 0;
-            for (final CqlField field : table.partitionKeys())
+            for (CqlField field : table.partitionKeys())
             {
                 values[field.position()] = deserialize(field, partitionKeyBufs[index++], stats);
             }
@@ -414,8 +414,8 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
 
     private static Object deserialize(CqlField field, ByteBuffer buffer, Stats stats)
     {
-        final long now = System.nanoTime();
-        final Object value = buffer == null ? null : field.deserialize(buffer);
+        long now = System.nanoTime();
+        Object value = buffer == null ? null : field.deserialize(buffer);
         stats.fieldDeserialization(field, System.nanoTime() - now);
         return value;
     }
