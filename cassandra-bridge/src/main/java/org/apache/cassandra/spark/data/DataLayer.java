@@ -333,7 +333,7 @@ public abstract class DataLayer implements Serializable
     public StreamScanner<IndexEntry> openPartitionSizeIterator(int partitionId)
     {
         SparkRangeFilter rangeFilter = sparkRangeFilter(partitionId);
-        return bridge().getPartitionSizeIterator(cqlTable(), partitioner(), sstables(partitionId, rangeFilter, List.of()),
+        return bridge().getPartitionSizeIterator(cqlTable(), partitioner(), sstables(partitionId, rangeFilter, Collections.emptyList()),
                                                  rangeFilter, timeProvider(), stats(), executorService());
     }
 

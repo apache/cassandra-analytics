@@ -23,6 +23,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.IntStream;
 
+import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,7 +87,7 @@ class PartitionSizeTable implements Table, SupportsRead
     @Override
     public Set<TableCapability> capabilities()
     {
-        return Set.of(TableCapability.BATCH_READ);
+        return ImmutableSet.of(TableCapability.BATCH_READ);
     }
 
     @Override
