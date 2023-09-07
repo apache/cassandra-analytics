@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.secrets.SslConfig;
 import org.apache.cassandra.spark.utils.MapUtils;
-import org.apache.cassandra.spark.validation.StartupValidation;
+import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 
@@ -128,8 +128,8 @@ public final class CassandraDataSourceHelper
                                                               SslConfig.create(options));
         initializeDataLayerFn.accept(dataLayer, config);
 
-        dataLayer.register(StartupValidation.instance());
-        StartupValidation.instance().perform();
+        dataLayer.register(StartupValidator.instance());
+        StartupValidator.instance().perform();
 
         return dataLayer;
     }

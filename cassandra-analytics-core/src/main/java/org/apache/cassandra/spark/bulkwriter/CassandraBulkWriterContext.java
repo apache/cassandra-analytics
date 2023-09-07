@@ -38,8 +38,7 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.ScalaFunctions;
-import org.apache.cassandra.spark.validation.SidecarValidator;
-import org.apache.cassandra.spark.validation.StartupValidation;
+import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.util.ShutdownHookManager;
@@ -59,11 +58,12 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     private final SchemaInfo schemaInfo;
 
     private CassandraBulkWriterContext(@NotNull BulkSparkConf conf,
+                                       @NotNull CassandraClusterInfo clusterInfo,
                                        @NotNull StructType dfSchema,
                                        SparkContext sparkContext)
     {
         this.conf = conf;
-        clusterInfo = new CassandraClusterInfo(conf);
+        this.clusterInfo = clusterInfo;
         CassandraRing<RingInstance> ring = clusterInfo.getRing(true);
         jobInfo = new CassandraJobInfo(conf,
                                        new TokenPartitioner(ring, conf.numberSplits, sparkContext.defaultParallelism(), conf.getCores()));
@@ -95,12 +95,12 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         Preconditions.checkNotNull(dfSchema);
 
         BulkSparkConf conf = new BulkSparkConf(sparkContext.getConf(), strOptions);
-        CassandraContext cassandraContext = new CassandraContext(conf);
+        CassandraClusterInfo clusterInfo = new CassandraClusterInfo(conf);
 
-        cassandraContext.register(StartupValidation.instance());
-        StartupValidation.instance().perform();
+        clusterInfo.getCassandraContext().register(StartupValidator.instance());
+        StartupValidator.instance().perform();
 
-        CassandraBulkWriterContext bulkWriterContext = new CassandraBulkWriterContext(conf, dfSchema, sparkContext, cassandraContext);
+        CassandraBulkWriterContext bulkWriterContext = new CassandraBulkWriterContext(conf, clusterInfo, dfSchema, sparkContext);
         ShutdownHookManager.addShutdownHook(org.apache.spark.util.ShutdownHookManager.TEMP_DIR_SHUTDOWN_PRIORITY(),
                                             ScalaFunctions.wrapLambda(bulkWriterContext::shutdown));
         bulkWriterContext.dialHome(sparkContext.version());
@@ -185,11 +185,5 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
             dataTransferApi = new SidecarDataTransferApi(clusterInfo.getCassandraContext().getSidecarClient(), jobInfo, conf);
         }
         return dataTransferApi;
-    }
-
-    @Override
-    public void register(StartupValidation validation)
-    {
-        dataTransferApi.register(validation);
     }
 }

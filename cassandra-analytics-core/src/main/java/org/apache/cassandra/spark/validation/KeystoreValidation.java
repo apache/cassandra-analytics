@@ -17,14 +17,25 @@
  * under the License.
  */
 
-ext {
-    jacksonVersion="2.6.7.5"
-    scalaMajorVersion="2.11"
-    scalaVersion="2.11.12"
-    sparkGroupId="org.apache.spark"
-    sparkMajorVersion="2"
-    sparkVersion="2.4.8"
-    sidecarClientGroup="org.apache.cassandra.sidecar"
-    sidecarClientName="vertx-client-all"
-    sidecarVersion="1.0.0.44-jdk8-local"
+package org.apache.cassandra.spark.validation;
+
+import org.apache.cassandra.secrets.SecretsProvider;
+
+public class KeystoreValidation implements StartupValidation
+{
+    private final SecretsProvider secrets;
+
+    public KeystoreValidation(SecretsProvider secrets)
+    {
+        this.secrets = secrets;
+    }
+
+    @Override
+    public void validate()
+    {
+        if (!secrets.hasKeyStoreSecrets())
+        {
+            throw new RuntimeException("Keystore is empty");
+        }
+    }
 }

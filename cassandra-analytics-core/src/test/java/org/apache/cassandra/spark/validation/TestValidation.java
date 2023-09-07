@@ -1,20 +1,20 @@
 package org.apache.cassandra.spark.validation;
 
-public class TestValidator implements StartupValidator
+public class TestValidation implements StartupValidation
 {
     private final boolean succeed;
 
-    public static TestValidator failing()
+    public static TestValidation failing()
     {
-        return new TestValidator(false);
+        return new TestValidation(false);
     }
 
-    public static TestValidator succeeding()
+    public static TestValidation succeeding()
     {
-        return new TestValidator(true);
+        return new TestValidation(true);
     }
 
-    private TestValidator(boolean succeed)
+    private TestValidation(boolean succeed)
     {
         this.succeed = succeed;
     }

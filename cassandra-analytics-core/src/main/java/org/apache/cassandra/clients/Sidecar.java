@@ -49,9 +49,10 @@ import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.cassandra.spark.utils.MapUtils;
-import org.apache.cassandra.spark.validation.KeystoreValidator;
-import org.apache.cassandra.spark.validation.StartupValidation;
-import org.apache.cassandra.spark.validation.TruststoreValidator;
+import org.apache.cassandra.spark.validation.KeystoreValidation;
+import org.apache.cassandra.spark.validation.SslValidation;
+import org.apache.cassandra.spark.validation.StartupValidator;
+import org.apache.cassandra.spark.validation.TruststoreValidation;
 
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_SIZE;
@@ -102,8 +103,8 @@ public final class Sidecar
                       .trustStorePassword(String.valueOf(secretsProvider.trustStorePassword()))
                       .trustStoreType(secretsProvider.trustStoreType());
 
-            StartupValidation.instance().register(new KeystoreValidator(secretsProvider));
-            StartupValidation.instance().register(new TruststoreValidator(secretsProvider));
+            StartupValidator.instance().register(new KeystoreValidation(secretsProvider));
+            StartupValidator.instance().register(new TruststoreValidation(secretsProvider));
         }
 
         HttpClientConfig httpClientConfig = builder.build();
@@ -135,8 +136,7 @@ public final class Sidecar
                                             .ssl(conf.hasKeystoreAndKeystorePassword())
                                             .build();
 
-        StartupValidation.instance().register(new KeystoreValidator(secretsProvider));
-        StartupValidation.instance().register(new TruststoreValidator(secretsProvider));
+        StartupValidator.instance().register(new SslValidation(conf));
 
         SidecarConfig sidecarConfig = new SidecarConfig.Builder()
                                       .maxRetries(5)

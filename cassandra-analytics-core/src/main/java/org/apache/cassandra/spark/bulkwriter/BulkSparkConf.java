@@ -203,7 +203,7 @@ public class BulkSparkConf implements Serializable
     /*
      * This method Will throw if the SSL configuration is incorrect (PATH provided w/o password, for example)
      */
-    protected void validateSslConfiguration()
+    public void validateSslConfiguration()
     {
         if (getKeyStorePassword() != null)
         {

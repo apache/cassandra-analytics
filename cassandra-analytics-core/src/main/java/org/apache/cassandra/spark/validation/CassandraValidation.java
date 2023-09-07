@@ -17,14 +17,27 @@
  * under the License.
  */
 
-ext {
-    jacksonVersion="2.6.7.5"
-    scalaMajorVersion="2.11"
-    scalaVersion="2.11.12"
-    sparkGroupId="org.apache.spark"
-    sparkMajorVersion="2"
-    sparkVersion="2.4.8"
-    sidecarClientGroup="org.apache.cassandra.sidecar"
-    sidecarClientName="vertx-client-all"
-    sidecarVersion="1.0.0.44-jdk8-local"
+package org.apache.cassandra.spark.validation;
+
+import org.apache.cassandra.sidecar.client.SidecarClient;
+import org.apache.cassandra.sidecar.common.data.HealthResponse;
+
+public class CassandraValidation implements StartupValidation
+{
+    private final SidecarClient sidecar;
+
+    public CassandraValidation(SidecarClient sidecar)
+    {
+        this.sidecar = sidecar;
+    }
+
+    @Override
+    public void validate()
+    {
+        HealthResponse health = sidecar.cassandraHealth().get();
+        if (!health.isOk())
+        {
+            throw new RuntimeException("Cassandra is not healthy: " + health.status());
+        }
+    }
 }

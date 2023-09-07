@@ -30,6 +30,9 @@ import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
+import org.apache.cassandra.spark.validation.CassandraValidation;
+import org.apache.cassandra.spark.validation.SidecarValidation;
+import org.apache.cassandra.spark.validation.StartupValidator;
 import org.jetbrains.annotations.NotNull;
 
 public class CassandraContext implements Closeable
@@ -95,5 +98,11 @@ public class CassandraContext implements Closeable
     protected BulkSparkConf conf()
     {
         return conf;
+    }
+
+    public void register(StartupValidator validator)
+    {
+        validator.register(new SidecarValidation(sidecarClient));
+        validator.register(new CassandraValidation(sidecarClient));
     }
 }

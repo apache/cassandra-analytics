@@ -21,9 +21,9 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 
-import org.apache.cassandra.spark.validation.StartupValidatable;
+import org.apache.cassandra.spark.validation.StartupValidator;
 
-public interface BulkWriterContext extends StartupValidatable, Serializable
+public interface BulkWriterContext extends Serializable
 {
     ClusterInfo cluster();
 
