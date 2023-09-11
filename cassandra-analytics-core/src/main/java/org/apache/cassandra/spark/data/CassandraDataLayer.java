@@ -203,7 +203,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
             aliasLastModifiedTimestamp(this.requestedFeatures, this.lastModifiedTimestampField);
         }
         this.rfMap = rfMap;
-        initInstanceMap();
+        this.initInstanceMap();
+        this.startupValidate();
     }
 
     public void initialize(@NotNull ClientConfig options)
@@ -644,10 +645,11 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
 
     // Startup Validation
 
-    public void register(StartupValidator validator)
+    public void startupValidate()
     {
-        validator.register(new SidecarValidation(sidecar));
-        validator.register(new CassandraValidation(sidecar));
+        StartupValidator.instance().register(new SidecarValidation(sidecar));
+        StartupValidator.instance().register(new CassandraValidation(sidecar));
+        StartupValidator.instance().perform();
     }
 
     // JDK Serialization
@@ -696,6 +698,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
         }
         this.rfMap = (Map<String, ReplicationFactor>) in.readObject();
         this.initInstanceMap();
+        this.startupValidate();
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException

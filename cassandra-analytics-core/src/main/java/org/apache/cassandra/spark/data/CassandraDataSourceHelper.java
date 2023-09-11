@@ -128,8 +128,7 @@ public final class CassandraDataSourceHelper
                                                               SslConfig.create(options));
         initializeDataLayerFn.accept(dataLayer, config);
 
-        dataLayer.register(StartupValidator.instance());
-        StartupValidator.instance().perform();
+        dataLayer.startupValidate();
 
         return dataLayer;
     }

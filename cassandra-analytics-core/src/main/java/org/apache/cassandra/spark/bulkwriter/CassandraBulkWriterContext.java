@@ -97,8 +97,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         BulkSparkConf conf = new BulkSparkConf(sparkContext.getConf(), strOptions);
         CassandraClusterInfo clusterInfo = new CassandraClusterInfo(conf);
 
-        clusterInfo.getCassandraContext().register(StartupValidator.instance());
-        StartupValidator.instance().perform();
+        clusterInfo.getCassandraContext().startupValidate();
 
         CassandraBulkWriterContext bulkWriterContext = new CassandraBulkWriterContext(conf, clusterInfo, dfSchema, sparkContext);
         ShutdownHookManager.addShutdownHook(org.apache.spark.util.ShutdownHookManager.TEMP_DIR_SHUTDOWN_PRIORITY(),

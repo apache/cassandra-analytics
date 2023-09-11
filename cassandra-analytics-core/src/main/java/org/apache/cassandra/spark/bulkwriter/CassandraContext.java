@@ -100,9 +100,12 @@ public class CassandraContext implements Closeable
         return conf;
     }
 
-    public void register(StartupValidator validator)
+    // Startup Validation
+
+    public void startupValidate()
     {
-        validator.register(new SidecarValidation(sidecarClient));
-        validator.register(new CassandraValidation(sidecarClient));
+        StartupValidator.instance().register(new SidecarValidation(sidecarClient));
+        StartupValidator.instance().register(new CassandraValidation(sidecarClient));
+        StartupValidator.instance().perform();
     }
 }
