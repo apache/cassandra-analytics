@@ -21,6 +21,9 @@ package org.apache.cassandra.spark.validation;
 
 import org.apache.cassandra.secrets.SecretsProvider;
 
+/**
+ * A strartup validation that checks the Truststore
+ */
 public class TruststoreValidation implements StartupValidation
 {
     private final SecretsProvider secrets;

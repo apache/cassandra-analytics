@@ -25,6 +25,10 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * A singleton class for performing the startup validation
+ * using a list of necessary {@link StartupValidation} instances
+ */
 public class StartupValidator
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(StartupValidator.class);

@@ -416,9 +416,4 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     {
         return "keyspace.table";
     }
-
-    @Override
-    public void register(StartupValidator validator)
-    {
-    }
 }

@@ -19,11 +19,18 @@
 
 package org.apache.cassandra.spark.validation;
 
+import java.util.concurrent.TimeUnit;
+
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.common.data.HealthResponse;
 
+/**
+ * A strartup validation that checks the connectivity and health of Cassandra
+ */
 public class CassandraValidation implements StartupValidation
 {
+    private static final int TIMEOUT_SECONDS = 30;
+
     private final SidecarClient sidecar;
 
     public CassandraValidation(SidecarClient sidecar)
@@ -34,7 +41,15 @@ public class CassandraValidation implements StartupValidation
     @Override
     public void validate()
     {
-        HealthResponse health = sidecar.cassandraHealth().get();
+        HealthResponse health;
+        try
+        {
+            health = sidecar.cassandraHealth().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        }
+        catch (Throwable throwable)
+        {
+            throw new RuntimeException("Sidecar is unreachable", throwable);
+        }
         if (!health.isOk())
         {
             throw new RuntimeException("Cassandra is not healthy: " + health.status());

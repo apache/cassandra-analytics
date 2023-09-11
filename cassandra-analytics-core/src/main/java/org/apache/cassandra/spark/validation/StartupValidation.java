@@ -22,6 +22,9 @@ package org.apache.cassandra.spark.validation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * An interface that has to be implemented by all startup validations
+ */
 @FunctionalInterface
 public interface StartupValidation
 {
