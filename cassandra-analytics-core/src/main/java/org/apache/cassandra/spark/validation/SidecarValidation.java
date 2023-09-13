@@ -25,7 +25,7 @@ import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.common.data.HealthResponse;
 
 /**
- * A strartup validation that checks the connectivity and health of Sidecar
+ * A startup validation that checks the connectivity and health of Sidecar
  */
 public class SidecarValidation implements StartupValidation
 {

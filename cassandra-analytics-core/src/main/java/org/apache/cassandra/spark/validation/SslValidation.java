@@ -22,7 +22,7 @@ package org.apache.cassandra.spark.validation;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 
 /**
- * A strartup validation that checks the SSL configuration
+ * A startup validation that checks the SSL configuration
  */
 public class SslValidation implements StartupValidation
 {

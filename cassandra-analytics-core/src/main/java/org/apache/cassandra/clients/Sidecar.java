@@ -50,10 +50,10 @@ import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.cassandra.spark.utils.MapUtils;
-import org.apache.cassandra.spark.validation.KeystoreValidation;
+import org.apache.cassandra.spark.validation.KeyStoreValidation;
 import org.apache.cassandra.spark.validation.SslValidation;
 import org.apache.cassandra.spark.validation.StartupValidator;
-import org.apache.cassandra.spark.validation.TruststoreValidation;
+import org.apache.cassandra.spark.validation.TrustStoreValidation;
 
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_SIZE;
@@ -104,8 +104,8 @@ public final class Sidecar
                       .trustStorePassword(String.valueOf(secretsProvider.trustStorePassword()))
                       .trustStoreType(secretsProvider.trustStoreType());
 
-            StartupValidator.instance().register(new KeystoreValidation(secretsProvider));
-            StartupValidator.instance().register(new TruststoreValidation(secretsProvider));
+            StartupValidator.instance().register(new KeyStoreValidation(secretsProvider));
+            StartupValidator.instance().register(new TrustStoreValidation(secretsProvider));
         }
 
         HttpClientConfig httpClientConfig = builder.build();
