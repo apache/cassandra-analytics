@@ -33,11 +33,17 @@ public class StartupValidator
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(StartupValidator.class);
     private static final StartupValidator INSTANCE = new StartupValidator();
+    private static final String DISABLE = "SKIP_STARTUP_VALIDATIONS";
 
     private final List<StartupValidation> validations = new ArrayList<>();
 
     private StartupValidator()
     {
+    }
+
+    public static StartupValidator instance()
+    {
+        return INSTANCE;
     }
 
     public void register(StartupValidation validation)
@@ -47,13 +53,20 @@ public class StartupValidator
 
     public void perform()
     {
-        LOGGER.info("Performing startup validations");
-        validations.forEach(StartupValidation::perform);
-        LOGGER.info("Completed startup validations");
+        if (enabled())
+        {
+            LOGGER.info("Performing startup validations");
+            validations.forEach(StartupValidation::perform);
+            LOGGER.info("Completed startup validations");
+        }
+        else
+        {
+            LOGGER.info("Skipping startup validations");
+        }
     }
 
-    public static StartupValidator instance()
+    public boolean enabled()
     {
-        return INSTANCE;
+        return System.getProperty(DISABLE) == null;
     }
 }
