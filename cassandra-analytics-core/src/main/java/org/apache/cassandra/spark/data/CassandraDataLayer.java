@@ -98,6 +98,7 @@ import org.apache.cassandra.spark.utils.ScalaFunctions;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.validation.CassandraValidation;
 import org.apache.cassandra.spark.validation.SidecarValidation;
+import org.apache.cassandra.spark.validation.StartupValidatable;
 import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.util.ShutdownHookManager;
@@ -106,7 +107,7 @@ import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.utils.Properties.NODE_STATUS_NOT_CONSIDERED;
 
-public class CassandraDataLayer extends PartitionedDataLayer implements Serializable
+public class CassandraDataLayer extends PartitionedDataLayer implements StartupValidatable, Serializable
 {
     private static final long serialVersionUID = -9038926850642710787L;
 
@@ -645,6 +646,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements Serializ
 
     // Startup Validation
 
+    @Override
     public void startupValidate()
     {
         StartupValidator.instance().register(new SidecarValidation(sidecar));

@@ -534,4 +534,12 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         }
         return false;
     }
+
+    // Startup Validation
+
+    @Override
+    public void startupValidate()
+    {
+        getCassandraContext().startupValidate();
+    }
 }

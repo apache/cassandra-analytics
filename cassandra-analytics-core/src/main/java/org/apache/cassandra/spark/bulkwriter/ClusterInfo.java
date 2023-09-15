@@ -27,8 +27,9 @@ import org.apache.cassandra.sidecar.common.data.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
 import org.apache.cassandra.spark.common.client.InstanceState;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.validation.StartupValidatable;
 
-public interface ClusterInfo extends Serializable
+public interface ClusterInfo extends StartupValidatable, Serializable
 {
     void refreshClusterInfo();
 

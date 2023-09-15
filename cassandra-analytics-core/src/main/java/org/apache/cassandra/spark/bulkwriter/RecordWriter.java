@@ -78,7 +78,7 @@ public class RecordWriter implements Serializable
         this.taskContextSupplier = taskContextSupplier;
         this.tableWriterSupplier = tableWriterSupplier;
 
-        ((CassandraClusterInfo) writerContext.cluster()).getCassandraContext().startupValidate();
+        writerContext.cluster().startupValidate();
     }
 
     private Range<BigInteger> getTokenRange(TaskContext taskContext)
