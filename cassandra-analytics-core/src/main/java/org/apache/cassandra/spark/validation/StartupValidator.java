@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.validation;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,6 +50,12 @@ public class StartupValidator
     public void register(StartupValidation validation)
     {
         validations.add(validation);
+    }
+
+    @VisibleForTesting
+    void reset()
+    {
+        validations.clear();
     }
 
     public void perform()
