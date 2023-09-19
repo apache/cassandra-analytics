@@ -38,7 +38,6 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.ScalaFunctions;
-import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.util.ShutdownHookManager;

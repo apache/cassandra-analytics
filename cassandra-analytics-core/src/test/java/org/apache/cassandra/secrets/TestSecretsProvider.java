@@ -26,7 +26,7 @@ import java.util.Map;
 /**
  * A test implementation of {@link SecretsProvider} that reads KeyStore/TrustStore from resources
  */
-public class TestSecretsProvider implements SecretsProvider
+public final class TestSecretsProvider implements SecretsProvider
 {
     private enum Kind
     {

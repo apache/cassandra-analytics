@@ -34,9 +34,6 @@ import org.apache.cassandra.sidecar.common.data.SSTableImportResponse;
 import org.apache.cassandra.spark.common.MD5Hash;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
-import org.apache.cassandra.spark.validation.CassandraValidation;
-import org.apache.cassandra.spark.validation.SidecarValidation;
-import org.apache.cassandra.spark.validation.StartupValidator;
 
 /**
  * A {@link DataTransferApi} implementation that interacts with Cassandra Sidecar

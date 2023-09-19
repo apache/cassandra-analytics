@@ -56,7 +56,7 @@ public class TrustStoreValidation implements StartupValidation
                 throw new RuntimeException("TrustStore is empty");
             }
 
-            for (Enumeration<String> aliases = trustStore.aliases(); aliases.hasMoreElements(); )
+            for (Enumeration<String> aliases = trustStore.aliases(); aliases.hasMoreElements();)
             {
                 Certificate certificate = trustStore.getCertificate(aliases.nextElement());
                 if (certificate != null)

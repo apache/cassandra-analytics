@@ -57,7 +57,7 @@ public class KeyStoreValidation implements StartupValidation
                 throw new RuntimeException("KeyStore is empty");
             }
 
-            for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements(); )
+            for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements();)
             {
                 Key key = keyStore.getKey(aliases.nextElement(), secrets.keyStorePassword());
                 if (key != null && key instanceof PrivateKey)

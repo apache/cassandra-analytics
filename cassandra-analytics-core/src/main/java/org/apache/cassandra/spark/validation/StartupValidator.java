@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
  * A singleton class for performing the startup validation
  * using a list of necessary {@link StartupValidation} instances
  */
-public class StartupValidator
+public final class StartupValidator
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(StartupValidator.class);
     private static final StartupValidator INSTANCE = new StartupValidator();

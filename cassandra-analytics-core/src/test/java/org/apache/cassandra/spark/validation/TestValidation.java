@@ -22,7 +22,7 @@ package org.apache.cassandra.spark.validation;
 /**
  * A test implementation of {@link StartupValidation} that can succeed or fail as needed
  */
-public class TestValidation implements StartupValidation
+public final class TestValidation implements StartupValidation
 {
     private final boolean succeed;
 
