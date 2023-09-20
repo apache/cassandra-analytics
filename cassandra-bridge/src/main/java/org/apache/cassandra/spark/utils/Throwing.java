@@ -27,6 +27,26 @@ public final class Throwing
     }
 
     @FunctionalInterface
+    public interface Supplier<T>
+    {
+        T get() throws Exception;
+    }
+
+    public static <T> java.util.function.Supplier<T> supplier(Supplier<T> supplier)
+    {
+        return () -> {
+            try
+            {
+                return supplier.get();
+            }
+            catch (Exception exception)
+            {
+                throw new RuntimeException(exception);
+            }
+        };
+    }
+
+    @FunctionalInterface
     public interface Consumer<T>
     {
         void accept(T object) throws Exception;

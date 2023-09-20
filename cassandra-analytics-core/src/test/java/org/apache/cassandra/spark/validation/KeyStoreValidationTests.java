@@ -19,76 +19,81 @@
 
 package org.apache.cassandra.spark.validation;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.secrets.TestSecretsProvider;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests that cover startup validation of a KeyStore
  */
 public class KeyStoreValidationTests
 {
-    @Test()
-    public void testNullSecrets()
-    {
-        KeyStoreValidation validation = new KeyStoreValidation(null);
-
-        Assertions.assertThrows(RuntimeException.class, validation::perform);
-    }
-
-    @Test()
+    @Test
     public void testUnconfiguredKeyStore()
     {
-        SecretsProvider secrets = TestSecretsProvider.unconfigured();
+        SecretsProvider secrets = TestSecretsProvider.notConfigured();
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        Assertions.assertThrows(RuntimeException.class, validation::perform);
+        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
+        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
+        assertTrue(exception.getCause() instanceof RuntimeException);
     }
 
-    @Test()
+    @Test
     public void testMissingKeyStore()
     {
         SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-missing.p12", "qwerty");
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        Assertions.assertThrows(RuntimeException.class, validation::perform);
+        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
+        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
+        assertTrue(exception.getCause() instanceof RuntimeException);
     }
 
-    @Test()
+    @Test
     public void testMalformedKeyStore()
     {
         SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-malformed.p12", "qwerty");
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        Assertions.assertThrows(RuntimeException.class, validation::perform);
+        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
+        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
+        assertTrue(exception.getCause() instanceof RuntimeException);
     }
 
-    @Test()
+    @Test
     public void testEmptyKeyStore()
     {
         SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-empty.p12", "qwerty");
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        Assertions.assertThrows(RuntimeException.class, validation::perform);
+        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
+        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
+        assertTrue(exception.getCause() instanceof RuntimeException);
     }
 
-    @Test()
+    @Test
     public void testInvalidKeyStore()
     {
         SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-secret.p12", "qwerty");
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        Assertions.assertThrows(RuntimeException.class, validation::perform);
+        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
+        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
+        assertTrue(exception.getCause() instanceof RuntimeException);
     }
 
-    @Test()
+    @Test
     public void testValidKeyStore()
     {
         SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-private.p12", "qwerty");
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        Assertions.assertDoesNotThrow(validation::perform);
+        assertDoesNotThrow(validation::perform);
     }
 }

@@ -19,7 +19,15 @@
 
 package org.apache.cassandra.spark.validation;
 
+/**
+ * An interface for a class that requires and can perform startup validation using {@link StartupValidator}
+ */
 public interface StartupValidatable
 {
+    /**
+     * Performs startup validation using {@link StartupValidator} with currently registered {@link StartupValidation}s,
+     * throws a {@link RuntimeException} if any violations are found,
+     * needs to be invoked once per execution before any actual work is started
+     */
     void startupValidate();
 }

@@ -20,24 +20,43 @@
 package org.apache.cassandra.spark.validation;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.util.Enumeration;
+import java.util.function.Supplier;
 
 import org.apache.cassandra.secrets.SecretsProvider;
+import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
+import org.apache.cassandra.spark.utils.Throwing;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * A startup validation that checks the KeyStore
  */
 public class KeyStoreValidation implements StartupValidation
 {
-    private final SecretsProvider secrets;
+    private final boolean configured;
+    private final String type;
+    private final char[] password;
+    private final Supplier<InputStream> stream;
 
-    public KeyStoreValidation(SecretsProvider secrets)
+    public KeyStoreValidation(@NotNull SecretsProvider secrets)
     {
-        this.secrets = secrets;
+        configured = secrets.hasKeyStoreSecrets();
+        type = secrets.keyStoreType();
+        password = secrets.keyStorePassword();
+        stream = Throwing.supplier(() -> secrets.keyStoreInputStream());
+    }
+
+    public KeyStoreValidation(@NotNull BulkSparkConf configuration)
+    {
+        configured = configuration.hasKeystoreAndKeystorePassword();
+        type = configuration.getKeyStoreTypeOrDefault();
+        password = configuration.getKeyStorePassword().toCharArray();
+        stream = () -> configuration.getKeyStore();
     }
 
     @Override
@@ -45,13 +64,13 @@ public class KeyStoreValidation implements StartupValidation
     {
         try
         {
-            if (!secrets.hasKeyStoreSecrets())
+            if (!configured)
             {
-                throw new RuntimeException("KeyStore is unconfigured");
+                throw new RuntimeException("KeyStore is not configured");
             }
 
-            KeyStore keyStore = KeyStore.getInstance(secrets.keyStoreType());
-            keyStore.load(secrets.keyStoreInputStream(), secrets.keyStorePassword());
+            KeyStore keyStore = KeyStore.getInstance(type);
+            keyStore.load(stream.get(), password);
             if (keyStore.size() == 0)
             {
                 throw new RuntimeException("KeyStore is empty");
@@ -59,7 +78,7 @@ public class KeyStoreValidation implements StartupValidation
 
             for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements();)
             {
-                Key key = keyStore.getKey(aliases.nextElement(), secrets.keyStorePassword());
+                Key key = keyStore.getKey(aliases.nextElement(), password);
                 if (key != null && key instanceof PrivateKey)
                 {
                     return;  // KeyStore contains a private key

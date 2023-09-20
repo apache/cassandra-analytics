@@ -40,7 +40,7 @@ public final class TestSecretsProvider implements SecretsProvider
     private final String resource;
     private final String password;
 
-    public static SecretsProvider unconfigured()
+    public static SecretsProvider notConfigured()
     {
         return new TestSecretsProvider(Kind.None, null, null, null);
     }

@@ -20,23 +20,42 @@
 package org.apache.cassandra.spark.validation;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
 import java.security.cert.Certificate;
 import java.util.Enumeration;
+import java.util.function.Supplier;
 
 import org.apache.cassandra.secrets.SecretsProvider;
+import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
+import org.apache.cassandra.spark.utils.Throwing;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * A startup validation that checks the TrustStore
  */
 public class TrustStoreValidation implements StartupValidation
 {
-    private final SecretsProvider secrets;
+    private final boolean configured;
+    private final String type;
+    private final char[] password;
+    private final Supplier<InputStream> stream;
 
-    public TrustStoreValidation(SecretsProvider secrets)
+    public TrustStoreValidation(@NotNull SecretsProvider secrets)
     {
-        this.secrets = secrets;
+        configured = secrets.hasTrustStoreSecrets();
+        type = secrets.trustStoreType();
+        password = secrets.trustStorePassword();
+        stream = Throwing.supplier(() -> secrets.trustStoreInputStream());
+    }
+
+    public TrustStoreValidation(@NotNull BulkSparkConf configuration)
+    {
+        configured = configuration.hasTruststoreAndTruststorePassword();
+        type = configuration.getTrustStoreTypeOrDefault();
+        password = configuration.getTrustStorePasswordOrDefault().toCharArray();
+        stream = () -> configuration.getTrustStore();
     }
 
     @Override
@@ -44,13 +63,13 @@ public class TrustStoreValidation implements StartupValidation
     {
         try
         {
-            if (!secrets.hasTrustStoreSecrets())
+            if (!configured)
             {
                 return;  // TrustStore is optional
             }
 
-            KeyStore trustStore = KeyStore.getInstance(secrets.trustStoreType());
-            trustStore.load(secrets.trustStoreInputStream(), secrets.trustStorePassword());
+            KeyStore trustStore = KeyStore.getInstance(type);
+            trustStore.load(stream.get(), password);
             if (trustStore.size() == 0)
             {
                 throw new RuntimeException("TrustStore is empty");

@@ -138,6 +138,8 @@ public final class Sidecar
                                             .build();
 
         StartupValidator.instance().register(new SslValidation(conf));
+        StartupValidator.instance().register(new KeyStoreValidation(conf));
+        StartupValidator.instance().register(new TrustStoreValidation(conf));
 
         SidecarClientConfig sidecarConfig = SidecarClientConfigImpl.builder()
                                             .maxRetries(5)
