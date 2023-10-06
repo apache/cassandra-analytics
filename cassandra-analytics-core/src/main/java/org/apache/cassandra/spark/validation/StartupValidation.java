@@ -19,31 +19,24 @@
 
 package org.apache.cassandra.spark.validation;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * An interface that has to be implemented by all startup validations
  */
 @FunctionalInterface
 public interface StartupValidation
 {
-    Logger LOGGER = LoggerFactory.getLogger(StartupValidation.class);
-
     void validate();
 
-    default void perform()
+    default Throwable perform()
     {
         try
         {
-            LOGGER.info("Performing startup validation with " + getClass());
             validate();
         }
         catch (Throwable throwable)
         {
-            String message = "Failed startup validation with " + getClass();
-            LOGGER.error(message, throwable);
-            throw new RuntimeException(message, throwable);
+            return throwable;
         }
+        return null;
     }
 }

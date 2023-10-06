@@ -24,9 +24,9 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.secrets.TestSecretsProvider;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Unit tests that cover startup validation of a KeyStore
@@ -39,9 +39,9 @@ public class KeyStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.notConfigured();
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
-        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
-        assertTrue(exception.getCause() instanceof RuntimeException);
+        Throwable throwable = validation.perform();
+        assertInstanceOf(RuntimeException.class, throwable);
+        assertEquals("KeyStore is not configured", throwable.getMessage());
     }
 
     @Test
@@ -50,9 +50,9 @@ public class KeyStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-missing.p12", "qwerty");
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
-        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
-        assertTrue(exception.getCause() instanceof RuntimeException);
+        Throwable throwable = validation.perform();
+        assertInstanceOf(RuntimeException.class, throwable);
+        assertEquals("KeyStore is empty", throwable.getMessage());
     }
 
     @Test
@@ -61,9 +61,9 @@ public class KeyStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-malformed.p12", "qwerty");
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
-        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
-        assertTrue(exception.getCause() instanceof RuntimeException);
+        Throwable throwable = validation.perform();
+        assertInstanceOf(RuntimeException.class, throwable);
+        assertEquals("KeyStore is misconfigured", throwable.getMessage());
     }
 
     @Test
@@ -72,9 +72,9 @@ public class KeyStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-empty.p12", "qwerty");
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
-        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
-        assertTrue(exception.getCause() instanceof RuntimeException);
+        Throwable throwable = validation.perform();
+        assertInstanceOf(RuntimeException.class, throwable);
+        assertEquals("KeyStore is empty", throwable.getMessage());
     }
 
     @Test
@@ -83,9 +83,9 @@ public class KeyStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-secret.p12", "qwerty");
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
-        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
-        assertTrue(exception.getCause() instanceof RuntimeException);
+        Throwable throwable = validation.perform();
+        assertInstanceOf(RuntimeException.class, throwable);
+        assertEquals("KeyStore contains no private keys", throwable.getMessage());
     }
 
     @Test
@@ -94,6 +94,7 @@ public class KeyStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-private.p12", "qwerty");
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
-        assertDoesNotThrow(validation::perform);
+        Throwable throwable = validation.perform();
+        assertNull(throwable);
     }
 }
