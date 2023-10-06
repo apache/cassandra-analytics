@@ -24,8 +24,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests that cover basic functioning of the startup validation logic
@@ -62,8 +62,7 @@ public class StartupValidatorTests
         StartupValidator.instance().register(TestValidation.succeeding());
 
         RuntimeException exception = assertThrows(RuntimeException.class, StartupValidator.instance()::perform);
-        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
-        assertTrue(exception.getCause() instanceof RuntimeException);
+        assertEquals("Failed some of startup validations", exception.getMessage());
     }
 
     @AfterAll

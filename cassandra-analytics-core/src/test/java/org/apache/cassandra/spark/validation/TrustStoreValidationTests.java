@@ -24,9 +24,9 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.secrets.TestSecretsProvider;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
  * Unit tests that cover startup validation of a TrustStore
@@ -39,7 +39,8 @@ public class TrustStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.notConfigured();
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
-        assertDoesNotThrow(validation::perform);  // TrustStore is optional
+        Throwable throwable = validation.perform();
+        assertNull(throwable);  // TrustStore is optional
     }
 
     @Test
@@ -48,9 +49,9 @@ public class TrustStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.forTrustStore("PKCS12", "keystore-missing.p12", "qwerty");
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
-        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
-        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
-        assertTrue(exception.getCause() instanceof RuntimeException);
+        Throwable throwable = validation.perform();
+        assertInstanceOf(RuntimeException.class, throwable);
+        assertEquals("TrustStore is empty", throwable.getMessage());
     }
 
     @Test
@@ -59,9 +60,9 @@ public class TrustStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.forTrustStore("PKCS12", "keystore-malformed.p12", "qwerty");
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
-        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
-        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
-        assertTrue(exception.getCause() instanceof RuntimeException);
+        Throwable throwable = validation.perform();
+        assertInstanceOf(RuntimeException.class, throwable);
+        assertEquals("TrustStore is misconfigured", throwable.getMessage());
     }
 
     @Test
@@ -70,9 +71,9 @@ public class TrustStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.forTrustStore("PKCS12", "keystore-empty.p12", "qwerty");
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
-        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
-        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
-        assertTrue(exception.getCause() instanceof RuntimeException);
+        Throwable throwable = validation.perform();
+        assertInstanceOf(RuntimeException.class, throwable);
+        assertEquals("TrustStore is empty", throwable.getMessage());
     }
 
     @Test
@@ -81,9 +82,9 @@ public class TrustStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.forTrustStore("PKCS12", "keystore-secret.p12", "qwerty");
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
-        RuntimeException exception = assertThrows(RuntimeException.class, validation::perform);
-        assertTrue(exception.getMessage().startsWith("Failed startup validation"));
-        assertTrue(exception.getCause() instanceof RuntimeException);
+        Throwable throwable = validation.perform();
+        assertInstanceOf(RuntimeException.class, throwable);
+        assertEquals("TrustStore contains no certificates", throwable.getMessage());
     }
 
     @Test
@@ -92,6 +93,7 @@ public class TrustStoreValidationTests
         SecretsProvider secrets = TestSecretsProvider.forTrustStore("PKCS12", "keystore-certificate.p12", "qwerty");
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
-        assertDoesNotThrow(validation::perform);
+        Throwable throwable = validation.perform();
+        assertNull(throwable);
     }
 }

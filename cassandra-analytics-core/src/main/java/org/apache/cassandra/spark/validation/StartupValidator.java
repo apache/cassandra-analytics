@@ -60,24 +60,46 @@ public final class StartupValidator
 
     public void perform()
     {
-        try
+        StringBuilder message = new StringBuilder(1024);
+        boolean passed = true;
+
+        if (enabled())
         {
-            if (enabled())
+            message.append("Performed startup validations:");
+            for (StartupValidation validation : validations)
             {
-                LOGGER.info("Performing startup validations");
-                validations.forEach(StartupValidation::perform);
-                LOGGER.info("Completed startup validations");
-            }
-            else
-            {
-                LOGGER.info("Skipping startup validations");
+                String name = validation.getClass().getCanonicalName();
+                message.append(System.lineSeparator() + " * " + name + ": ");
+                Throwable result = validation.perform();
+                if (result == null)
+                {
+                    LOGGER.debug("Passed startup validation with " + name);
+                    message.append("PASSED");
+                }
+                else
+                {
+                    LOGGER.error("Failed startup validation with " + name, result);
+                    message.append("FAILED");
+                    passed = false;
+                }
             }
         }
-        finally
+        else
         {
-            // Regardless of enabled status, we should still remove all of the validations
-            // because otherwise the list just keeps growing.
-            reset();
+            message.append("Skipped startup validations");
+        }
+
+        // Regardless of the enabled status, remove all validations, because the list just keeps growing otherwise
+        reset();
+
+        if (passed)
+        {
+            LOGGER.info(message.toString());
+        }
+        else
+        {
+            LOGGER.error(message.toString());
+            throw new RuntimeException("Failed some of startup validations");
         }
     }
 
