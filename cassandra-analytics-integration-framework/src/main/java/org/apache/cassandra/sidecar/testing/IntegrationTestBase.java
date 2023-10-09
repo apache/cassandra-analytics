@@ -19,6 +19,7 @@
 package org.apache.cassandra.sidecar.testing;
 
 import java.io.IOException;
+import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -29,6 +30,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -50,15 +53,17 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.predicate.ResponsePredicate;
 import io.vertx.junit5.VertxTestContext;
+import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.sidecar.cluster.CassandraAdapterDelegate;
+import org.apache.cassandra.sidecar.cluster.InstancesConfig;
 import org.apache.cassandra.sidecar.cluster.instance.InstanceMetadata;
 import org.apache.cassandra.sidecar.common.dns.DnsResolver;
 import org.apache.cassandra.sidecar.server.MainModule;
 import org.apache.cassandra.sidecar.server.Server;
 import org.apache.cassandra.testing.AbstractCassandraTestContext;
-import org.assertj.core.api.Assertions;
 
 import static org.apache.cassandra.sidecar.server.SidecarServerEvents.ON_CASSANDRA_CQL_READY;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Base class for integration test.
@@ -86,7 +91,7 @@ public abstract class IntegrationTestBase
         IntegrationTestModule integrationTestModule = new IntegrationTestModule();
         Injector injector = Guice.createInjector(Modules.override(new MainModule()).with(integrationTestModule));
         vertx = injector.getInstance(Vertx.class);
-        sidecarTestContext = CassandraSidecarTestContext.from(vertx, cassandraTestContext, DnsResolver.DEFAULT);
+        sidecarTestContext = CassandraSidecarTestContext.from(vertx, cassandraTestContext, new LocalhostResolver());
         integrationTestModule.setCassandraTestContext(sidecarTestContext);
 
         server = injector.getInstance(Server.class);
@@ -105,6 +110,7 @@ public abstract class IntegrationTestBase
         server.start()
               .onSuccess(s -> {
                   logger.info("Started Sidecar on port={}", server.actualPort());
+                  sidecarTestContext.registerInstanceConfigListener(this::healthCheck);
                   if (!sidecarTestContext.isClusterBuilt())
                   {
                       context.completeNow();
@@ -153,7 +159,7 @@ public abstract class IntegrationTestBase
         }
 
         // wait until the test completes
-        Assertions.assertThat(context.awaitCompletion(2, TimeUnit.MINUTES)).isTrue();
+        assertThat(context.awaitCompletion(2, TimeUnit.MINUTES)).isTrue();
     }
 
     protected void createTestKeyspace()
@@ -163,11 +169,11 @@ public abstract class IntegrationTestBase
 
     protected void createTestKeyspace(String keyspace, Map<String, Integer> rf)
     {
-        sidecarTestContext.cassandraTestContext()
-                          .cluster()
-                          .schemaChange("CREATE KEYSPACE " + keyspace
-                                        + " WITH REPLICATION = { 'class':'NetworkTopologyStrategy', "
-                                        + generateRfString(rf) + " };");
+        String query = "CREATE KEYSPACE " + keyspace +
+                       " WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', " + generateRfString(rf) + " };";
+        UpgradeableCluster cluster = sidecarTestContext.cassandraTestContext()
+                                                       .cluster();
+        cluster.schemaChange(query, true, cluster.getFirstRunningInstance());
     }
 
     private String generateRfString(Map<String, Integer> dcToRf)
@@ -191,7 +197,7 @@ public abstract class IntegrationTestBase
     protected Session maybeGetSession()
     {
         Session session = sidecarTestContext.session();
-        Assertions.assertThat(session).isNotNull();
+        assertThat(session).isNotNull();
         return session;
     }
 
@@ -228,8 +234,14 @@ public abstract class IntegrationTestBase
         }
     }
 
+    private void healthCheck(InstancesConfig instancesConfig)
+    {
+        instancesConfig.instances()
+                       .forEach(instanceMetadata -> instanceMetadata.delegate().healthCheck());
+    }
+
     /**
-     * Waits for the specified keyspace to be available in Sidecar.
+     * Waits for the specified keyspace to be available in Sidecar..
      * Empirically, this loop usually executes either zero or one time before completing.
      * However, we set a fairly high number of retries to account for variability in build machines.
      *
@@ -261,5 +273,85 @@ public abstract class IntegrationTestBase
         }
         client.close();
         throw new RuntimeException(String.format("Keyspace %s did not become visible in Sidecar", keyspace));
+    }
+
+    /**
+     * A {@link DnsResolver} instance used for tests that provides fast DNS resolution, to avoid blocking
+     * DNS resolution at the JDK/OS-level.
+     *
+     * <p><b>NOTE:</b> The resolver assumes that the addresses are of the form 127.0.0.x, which is what is currently
+     * configured for integration tests.
+     */
+    static class LocalhostResolver implements DnsResolver
+    {
+        private static final Logger LOGGER = LoggerFactory.getLogger(LocalhostResolver.class);
+        private static final Pattern HOSTNAME_PATTERN = Pattern.compile("^localhost(\\d+)?$");
+        private final DnsResolver delegate;
+
+        LocalhostResolver()
+        {
+            this(DnsResolver.DEFAULT);
+        }
+
+        LocalhostResolver(DnsResolver delegate)
+        {
+
+            this.delegate = delegate;
+        }
+
+        /**
+         * Returns the resolved IP address from the hostname. If the {@code hostname} pattern is not matched,
+         * delegate the resolution to the delegate resolver.
+         *
+         * <pre>
+         * resolver.resolve("localhost") = "127.0.0.1"
+         * resolver.resolve("localhost2") = "127.0.0.2"
+         * resolver.resolve("localhost20") = "127.0.0.20"
+         * resolver.resolve("127.0.0.5") = "127.0.0.5"
+         * </pre>
+         *
+         * @param hostname the hostname to resolve
+         * @return the resolved IP address
+         */
+        @Override
+        public String resolve(String hostname) throws UnknownHostException
+        {
+            Matcher matcher = HOSTNAME_PATTERN.matcher(hostname);
+            if (!matcher.matches())
+            {
+                LOGGER.warn("Invalid hostname found {}.", hostname);
+                return delegate.resolve(hostname);
+            }
+            String group = matcher.group(1);
+            return "127.0.0." + (group != null ? group : "1");
+        }
+
+        /**
+         * Returns the resolved hostname from the given {@code address}. When an invalid IP address is provided,
+         * delegates {@code address} resolution to the delegate.
+         *
+         * <pre>
+         * resolver.reverseResolve("127.0.0.1") = "localhost"
+         * resolver.reverseResolve("127.0.0.2") = "localhost2"
+         * resolver.reverseResolve("127.0.0.20") = "localhost20"
+         * resolver.reverseResolve("localhost5") = "localhost5"
+         * </pre>
+         *
+         * @param address the IP address to perform the reverse resolution
+         * @return the resolved hostname for the given {@code address}
+         */
+        @Override
+        public String reverseResolve(String address) throws UnknownHostException
+        {
+            // IP addresses have the form 127.0.0.x
+            int lastDotIndex = address.lastIndexOf('.');
+            if (lastDotIndex < 0 || lastDotIndex + 1 == address.length())
+            {
+                LOGGER.warn("Invalid ip address found {}.", address);
+                return delegate.reverseResolve(address);
+            }
+            String netNumber = address.substring(lastDotIndex + 1);
+            return "1".equals(netNumber) ? "localhost" : "localhost" + netNumber;
+        }
     }
 }

@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import org.apache.cassandra.sidecar.common.data.RingEntry;
+import org.apache.cassandra.sidecar.common.data.TokenRangeReplicasResponse.ReplicaMetadata;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.jetbrains.annotations.Nullable;
 
@@ -39,6 +40,19 @@ public class RingInstance implements CassandraInstance, Serializable
         this.ringEntry = ringEntry;
     }
 
+    public RingInstance(ReplicaMetadata replica)
+    {
+        this.ringEntry = new RingEntry.Builder()
+                         .fqdn(replica.fqdn())
+                         .address(replica.address())
+                         .port(replica.port())
+                         .datacenter(replica.datacenter())
+                         .state(replica.state())
+                         .status(replica.status())
+                         .build();
+    }
+
+    // Used only in tests
     @Override
     public String getToken()
     {
@@ -57,6 +71,12 @@ public class RingInstance implements CassandraInstance, Serializable
         return ringEntry.datacenter();
     }
 
+    @Override
+    public String getIpAddress()
+    {
+        return ringEntry.address();
+    }
+
     /**
      * Custom equality that compares the token, fully qualified domain name, the port, and the datacenter
      *
@@ -70,12 +90,12 @@ public class RingInstance implements CassandraInstance, Serializable
         {
             return false;
         }
-
-        RingInstance that = (RingInstance) other;
-        return Objects.equals(this.ringEntry.token(), that.ringEntry.token())
-            && Objects.equals(this.ringEntry.fqdn(), that.ringEntry.fqdn())
-            && this.ringEntry.port() == that.ringEntry.port()
-            && Objects.equals(this.ringEntry.datacenter(), that.ringEntry.datacenter());
+        final RingInstance that = (RingInstance) other;
+        return Objects.equals(ringEntry.token(), that.ringEntry.token())
+               && Objects.equals(ringEntry.fqdn(), that.ringEntry.fqdn())
+               && Objects.equals(ringEntry.address(), that.ringEntry.address())
+               && ringEntry.port() == that.ringEntry.port()
+               && Objects.equals(ringEntry.datacenter(), that.ringEntry.datacenter());
     }
 
     /**
@@ -86,7 +106,7 @@ public class RingInstance implements CassandraInstance, Serializable
     @Override
     public int hashCode()
     {
-        return Objects.hash(ringEntry.token(), ringEntry.fqdn(), ringEntry.port(), ringEntry.datacenter());
+        return Objects.hash(ringEntry.token(), ringEntry.fqdn(), ringEntry.port(), ringEntry.datacenter(), ringEntry.address());
     }
 
     @Override

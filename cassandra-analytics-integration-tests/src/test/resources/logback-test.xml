@@ -28,7 +28,7 @@
   </appender>
 
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-    <file>${LOG_FILE_PATH:-../build/test-reports/complete-test-output.log}</file>
+    <file>${LOG_FILE_PATH:-../build/test-reports/complete-test-output}-${LOG_SUFFIX:-MAIN}.log</file>
     <encoder>
       <pattern>%-5level [%thread] %date{ISO8601} %msg%n</pattern>
     </encoder>
@@ -43,6 +43,7 @@
   </root>
 
 
+  <logger name="org.apache.cassandra.sidecar" level="INFO" />
   <logger name="com.datastax.driver.core" level="ERROR" />
   <logger name="com.datastax.driver.core.ControlConnection" level="OFF" />
 </configuration>

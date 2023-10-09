@@ -56,8 +56,8 @@ public class TemporaryCqlSessionProvider extends CQLSessionProvider
         this.addresses.addAll(addresses);
     }
 
-    @Override
-    public synchronized @Nullable Session localCql()
+    @Override @Nullable
+    public synchronized Session localCql()
     {
         Cluster cluster = null;
         try

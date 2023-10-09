@@ -26,4 +26,6 @@ public interface CassandraInstance
     String getNodeName();
 
     String getDataCenter();
+
+    String getIpAddress();
 }

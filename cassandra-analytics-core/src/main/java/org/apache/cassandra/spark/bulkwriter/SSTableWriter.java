@@ -43,6 +43,7 @@ import org.apache.cassandra.spark.common.MD5Hash;
 import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.data.LocalDataLayer;
+import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.jetbrains.annotations.NotNull;
 
@@ -122,11 +123,11 @@ public class SSTableWriter
         try
         {
             CassandraVersion version = CassandraBridgeFactory.getCassandraVersion(writerContext.cluster().getLowestCassandraVersion());
-            String keyspace = writerContext.cluster().getRing(true).getKeyspace();
+            String keyspace = writerContext.job().keyspace();
             String schema = writerContext.schema().getTableSchema().createStatement;
             String directory = getOutDir().toString();
             DataLayer layer = new LocalDataLayer(version, keyspace, schema, directory);
-            try (StreamScanner scanner = layer.openCompactionScanner(partitionId, Collections.emptyList(), null))
+            try (StreamScanner<Rid> scanner = layer.openCompactionScanner(partitionId, Collections.emptyList(), null))
             {
                 while (scanner.hasNext())
                 {

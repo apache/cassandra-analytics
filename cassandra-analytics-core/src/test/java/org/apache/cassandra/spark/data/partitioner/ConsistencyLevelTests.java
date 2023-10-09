@@ -55,7 +55,7 @@ public class ConsistencyLevelTests
     }
 
     @Test
-    public void testNetworkTopolgyStrategy()
+    public void testNetworkTopologyStrategy()
     {
         assertEquals(1, ConsistencyLevel.ONE.blockFor(
                 new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,

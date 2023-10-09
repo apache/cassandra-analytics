@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.spark.sql.types.StructType;
+import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
@@ -107,6 +109,13 @@ public class TableSchema implements Serializable
     }
 
     public Object[] getKeyColumns(Object[] allColumns)
+    {
+        return getKeyColumns(allColumns, keyFieldPositions);
+    }
+
+    @VisibleForTesting
+    @NotNull
+    public static Object[] getKeyColumns(Object[] allColumns, List<Integer> keyFieldPositions)
     {
         Object[] result = new Object[keyFieldPositions.size()];
         for (int keyFieldPosition = 0; keyFieldPosition < keyFieldPositions.size(); keyFieldPosition++)

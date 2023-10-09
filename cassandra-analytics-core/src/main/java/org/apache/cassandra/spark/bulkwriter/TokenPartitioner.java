@@ -41,37 +41,39 @@ import com.google.common.collect.TreeRangeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
 import org.apache.cassandra.spark.bulkwriter.token.RangeUtils;
+import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.spark.Partitioner;
 
 public class TokenPartitioner extends Partitioner
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(TokenPartitioner.class);
+    private static final long serialVersionUID = -8787074052066841747L;
 
     private transient int nrPartitions;
     private transient RangeMap<BigInteger, Integer> partitionMap;
     private transient Map<Integer, Range<BigInteger>> reversePartitionMap;
-    private final CassandraRing<RingInstance> ring;
+
+    private final transient TokenRangeMapping<RingInstance> tokenRangeMapping;
     private final Integer numberSplits;
 
-    public TokenPartitioner(CassandraRing<RingInstance> ring,
+    public TokenPartitioner(TokenRangeMapping<RingInstance> tokenRangeMapping,
                             Integer numberSplits,
                             int defaultParallelism,
                             Integer cores)
     {
-        this(ring, numberSplits, defaultParallelism, cores, true);
+        this(tokenRangeMapping, numberSplits, defaultParallelism, cores, true);
     }
 
     @VisibleForTesting
-    public TokenPartitioner(CassandraRing<RingInstance> ring,
+    public TokenPartitioner(TokenRangeMapping<RingInstance> tokenRangeMapping,
                             Integer numberSplits,
                             int defaultParallelism,
                             Integer cores,
                             boolean randomize)
     {
-        this.ring = ring;
-        this.numberSplits = calculateSplits(ring, numberSplits, defaultParallelism, cores);
+        this.tokenRangeMapping = tokenRangeMapping;
+        this.numberSplits = calculateSplits(tokenRangeMapping, numberSplits, defaultParallelism, cores);
         setupTokenRangeMap(randomize);
         validate();  // Intentionally not keeping this in readObject(), it is enough to validate in constructor alone
         LOGGER.info("Partition map " + partitionMap);
@@ -109,10 +111,13 @@ public class TokenPartitioner extends Partitioner
         partitionMap = TreeRangeMap.create();
         reversePartitionMap = new HashMap<>();
 
-        AtomicInteger nextPartitionId = new AtomicInteger(0);
-        List<Range<BigInteger>> subRanges = ring.getRangeMap().asMapOfRanges().keySet().stream()
-                .flatMap(tr -> RangeUtils.split(tr, numberSplits).stream())
-                .collect(Collectors.toList());
+        final AtomicInteger nextPartitionId = new AtomicInteger(0);
+        final List<Range<BigInteger>> subRanges = tokenRangeMapping.getRangeMap()
+                                                                   .asMapOfRanges()
+                                                                   .keySet()
+                                                                   .stream()
+                                                                   .flatMap(tr -> RangeUtils.split(tr, numberSplits).stream())
+                                                                   .collect(Collectors.toList());
         if (randomize)
         {
             // In order to help distribute the upload load more evenly, shuffle the subranges before assigning a partition
@@ -138,15 +143,15 @@ public class TokenPartitioner extends Partitioner
     private void validateRangesDoNotOverlap()
     {
         List<Range<BigInteger>> sortedRanges = partitionMap.asMapOfRanges().keySet().stream()
-                .sorted(Comparator.comparing(Range::lowerEndpoint))
-                .collect(Collectors.toList());
+                                                           .sorted(Comparator.comparing(Range::lowerEndpoint))
+                                                           .collect(Collectors.toList());
         Range<BigInteger> previous = null;
         for (Range<BigInteger> current : sortedRanges)
         {
             if (previous != null)
             {
                 Preconditions.checkState(!current.isConnected(previous) || current.intersection(previous).isEmpty(),
-                        String.format("Two ranges in partition map are overlapping %s %s", previous, current));
+                                         "Two ranges in partition map are overlapping %s %s", previous, current);
             }
 
             previous = current;
@@ -156,17 +161,17 @@ public class TokenPartitioner extends Partitioner
     private void validateCompleteRangeCoverage()
     {
         RangeSet<BigInteger> missingRangeSet = TreeRangeSet.create();
-        missingRangeSet.add(Range.closed(ring.getPartitioner().minToken(),
-                ring.getPartitioner().maxToken()));
+        missingRangeSet.add(Range.closed(tokenRangeMapping.partitioner().minToken(),
+                                         tokenRangeMapping.partitioner().maxToken()));
 
         partitionMap.asMapOfRanges().keySet().forEach(missingRangeSet::remove);
 
         List<Range<BigInteger>> missingRanges = missingRangeSet.asRanges().stream()
-                                                                          .filter(Range::isEmpty)
-                                                                          .collect(Collectors.toList());
+                                                               .filter(Range::isEmpty)
+                                                               .collect(Collectors.toList());
         // noinspection unchecked
         Preconditions.checkState(missingRanges.isEmpty(),
-                "There should be no missing ranges, but found " + missingRanges.toString());
+                                 "There should be no missing ranges, but found " + missingRanges.toString());
     }
 
     private void validateMapSizes()
@@ -177,15 +182,16 @@ public class TokenPartitioner extends Partitioner
         Preconditions.checkState(nrPartitions == reversePartitionMap.keySet().size(),
                                  String.format("Number of partitions %d not matching with reverse partition map size %d",
                                                nrPartitions, reversePartitionMap.keySet().size()));
-        Preconditions.checkState(nrPartitions >= ring.getRangeMap().asMapOfRanges().keySet().size(),
+        Preconditions.checkState(nrPartitions >= tokenRangeMapping.getRangeMap().asMapOfRanges().keySet().size(),
                                  String.format("Number of partitions %d supposed to be more than number of token ranges %d",
-                                               nrPartitions, ring.getRangeMap().asMapOfRanges().keySet().size()));
-        Preconditions.checkState(nrPartitions >= ring.getTokenRanges().keySet().size(),
+                                               nrPartitions, tokenRangeMapping.getRangeMap().asMapOfRanges().keySet().size()));
+        Preconditions.checkState(nrPartitions >= tokenRangeMapping.getTokenRanges().keySet().size(),
                                  String.format("Number of partitions %d supposed to be more than number of instances %d",
-                                               nrPartitions, ring.getTokenRanges().keySet().size()));
+                                               nrPartitions, tokenRangeMapping.getTokenRanges().keySet().size()));
         Preconditions.checkState(partitionMap.asMapOfRanges().keySet().size() == reversePartitionMap.keySet().size(),
                                  String.format("You must be kidding me! Partition map %d and reverse map %d are not of same size",
-                                               partitionMap.asMapOfRanges().keySet().size(), reversePartitionMap.keySet().size()));
+                                               partitionMap.asMapOfRanges().keySet().size(),
+                                               reversePartitionMap.keySet().size()));
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException
@@ -215,9 +221,9 @@ public class TokenPartitioner extends Partitioner
 
     // In order to best utilize the number of Spark cores while minimizing the number of commit calls,
     // we calculate the number of splits that will just match or exceed the total number of available Spark cores.
-    // NOTE: The actual number of partitions that result from this should always be at least
-    //       the number of token ranges times the number of splits, but can be slightly more.
-    public int calculateSplits(CassandraRing<RingInstance> ring,
+    // Note that the actual number of partitions that result from this should always be at least the number of token ranges * the number of splits,
+    // but can be slightly more.
+    public int calculateSplits(TokenRangeMapping<RingInstance> tokenRangeMapping,
                                Integer numberSplits,
                                int defaultParallelism,
                                Integer cores)
@@ -227,7 +233,7 @@ public class TokenPartitioner extends Partitioner
             return numberSplits;
         }
         int tasksToRun = Math.max(cores, defaultParallelism);
-        Map<Range<BigInteger>, List<RingInstance>> rangeListMap = ring.getRangeMap().asMapOfRanges();
+        Map<Range<BigInteger>, List<RingInstance>> rangeListMap = tokenRangeMapping.getRangeMap().asMapOfRanges();
         LOGGER.info("Initial ranges: {}", rangeListMap);
         int ranges = rangeListMap.size();
         LOGGER.info("Number of ranges: {}", ranges);

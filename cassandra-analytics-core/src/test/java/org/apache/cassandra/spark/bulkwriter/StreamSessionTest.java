@@ -37,7 +37,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
+import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
+import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.jetbrains.annotations.NotNull;
 
@@ -59,11 +60,12 @@ public class StreamSessionTest
     @TempDir
     public Path folder; // CHECKSTYLE IGNORE: Public mutable field for testing
     private static final int FILES_PER_SSTABLE = 8;
-    private static final int REPLICATION_FACTOR = 3;
+    private static final int RF = 3;
+
     private StreamSession ss;
     private MockBulkWriterContext writerContext;
     private List<String> expectedInstances;
-    private CassandraRing<RingInstance> ring;
+    private TokenRangeMapping<RingInstance> tokenRangeMapping;
     private MockScheduledExecutorService executor;
     private MockTableWriter tableWriter;
     private Range<BigInteger> range;
@@ -72,11 +74,11 @@ public class StreamSessionTest
     public void setup()
     {
         range = Range.range(BigInteger.valueOf(101L), BoundType.CLOSED, BigInteger.valueOf(199L), BoundType.CLOSED);
-        ring = RingUtils.buildRing(0, "DC1", "test", 12);
+        tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), 12);
         writerContext = getBulkWriterContext();
         tableWriter = new MockTableWriter(folder);
         executor = new MockScheduledExecutorService();
-        ss = new StreamSession(writerContext, "sessionId", range, executor);
+        ss = new StreamSession(writerContext, "sessionId", range, executor, new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()));
         expectedInstances = Lists.newArrayList("DC1-i1", "DC1-i2", "DC1-i3");
     }
 
@@ -90,8 +92,7 @@ public class StreamSessionTest
     }
 
     @Test
-    public void testScheduleStreamSendsCorrectFilesToCorrectInstances(
-            ) throws IOException, ExecutionException, InterruptedException
+    public void testScheduleStreamSendsCorrectFilesToCorrectInstances() throws IOException, ExecutionException, InterruptedException
     {
         SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
         tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
@@ -100,24 +101,9 @@ public class StreamSessionTest
         ss.close();  // Force "execution" of futures
         executor.assertFuturesCalled();
         assertThat(executor.futures.size(), equalTo(1));  // We only scheduled one SSTable
-        assertThat(writerContext.getUploads().values().stream()
-                                                      .mapToInt(Collection::size)
-                                                      .sum(),
-                   equalTo(REPLICATION_FACTOR * FILES_PER_SSTABLE));
-        List<String> instances = writerContext.getUploads().keySet().stream()
-                                                                    .map(CassandraInstance::getNodeName)
-                                                                    .collect(Collectors.toList());
+        assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));
+        final List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::getNodeName).collect(Collectors.toList());
         assertThat(instances, containsInAnyOrder(expectedInstances.toArray()));
-    }
-
-    @Test
-    public void testEmptyTokenRangeFails() throws IOException
-    {
-        Exception exception = assertThrows(IllegalStateException.class, () -> ss = new StreamSession(
-                writerContext,
-                "sessionId",
-                Range.range(BigInteger.valueOf(0L), BoundType.CLOSED, BigInteger.valueOf(0L), BoundType.OPEN)));
-        assertThat(exception.getMessage(), matchesPattern("Partition range \\[0(‥|..)0\\) is mapping more than one range \\{}"));
     }
 
     @Test
@@ -127,9 +113,9 @@ public class StreamSessionTest
         tr.addRow(BigInteger.valueOf(9999L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         IllegalStateException illegalStateException = assertThrows(IllegalStateException.class,
-                                                      () -> ss.scheduleStream(tr));
+                                                                   () -> ss.scheduleStream(tr));
         assertThat(illegalStateException.getMessage(), matchesPattern(
-                     "SSTable range \\[9999(‥|..)9999] should be enclosed in the partition range \\[101(‥|..)199]"));
+        "SSTable range \\[9999(‥|..)9999] should be enclosed in the partition range \\[101(‥|..)199]"));
     }
 
     @Test
@@ -138,8 +124,8 @@ public class StreamSessionTest
         runFailedUpload();
 
         List<String> actualInstances = writerContext.getCleanedInstances().stream()
-                                                                          .map(CassandraInstance::getNodeName)
-                                                                          .collect(Collectors.toList());
+                                                    .map(CassandraInstance::getNodeName)
+                                                    .collect(Collectors.toList());
         assertThat(actualInstances, containsInAnyOrder(expectedInstances.toArray()));
     }
 
@@ -150,12 +136,13 @@ public class StreamSessionTest
         runFailedUpload();
 
         List<String> actualInstances = writerContext.getCleanedInstances().stream()
-                                                                          .map(CassandraInstance::getNodeName)
-                                                                          .collect(Collectors.toList());
+                                                    .map(CassandraInstance::getNodeName)
+                                                    .collect(Collectors.toList());
         assertThat(actualInstances, iterableWithSize(0));
-        List<UploadRequest> uploads = writerContext.getUploads().values().stream()
-                                                                         .flatMap(Collection::stream)
-                                                                         .collect(Collectors.toList());
+        final List<UploadRequest> uploads = writerContext.getUploads().values()
+                                                         .stream()
+                                                         .flatMap(Collection::stream)
+                                                         .collect(Collectors.toList());
         assertTrue(uploads.size() > 0);
         assertTrue(uploads.stream().noneMatch(u -> u.uploadSucceeded));
     }
@@ -164,7 +151,7 @@ public class StreamSessionTest
     public void testUploadFailureRefreshesClusterInfo() throws IOException, ExecutionException, InterruptedException
     {
         runFailedUpload();
-        assertThat(writerContext.refreshClusterInfoCallCount, equalTo(3));
+        assertThat(writerContext.refreshClusterInfoCallCount(), equalTo(3));
     }
 
     @Test
@@ -180,29 +167,16 @@ public class StreamSessionTest
         });
 
         List<String> actualInstances = writerContext.getCleanedInstances().stream()
-                                                                          .map(CassandraInstance::getNodeName)
-                                                                          .collect(Collectors.toList());
+                                                    .map(CassandraInstance::getNodeName)
+                                                    .collect(Collectors.toList());
         assertThat(actualInstances, containsInAnyOrder(expectedInstances.toArray()));
-    }
-
-    @Test
-    public void unavailableInstancesCreateErrors() throws IOException, ExecutionException, InterruptedException
-    {
-        writerContext.setInstancesAreAvailable(false);
-        ss = new StreamSession(writerContext, "sessionId", range, executor);
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
-        tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
-        tr.close(writerContext, 1);
-        ss.scheduleStream(tr);
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> ss.close());
-        assertThat(ex.getMessage(), startsWith(LOAD_RANGE_ERROR_PREFIX));
     }
 
     @Test
     public void streamWithNoWritersReturnsEmptyStreamResult() throws ExecutionException, InterruptedException
     {
         writerContext.setInstancesAreAvailable(false);
-        ss = new StreamSession(writerContext, "sessionId", range, executor);
+        ss = new StreamSession(writerContext, "sessionId", range, executor, new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()));
         StreamResult result = ss.close();
         assertThat(result.failures.size(), equalTo(0));
         assertThat(result.passed.size(), equalTo(0));
@@ -219,9 +193,9 @@ public class StreamSessionTest
 
     @Test
     public void testLocalQuorumSucceedsWhenSingleCommitFails(
-            ) throws IOException, ExecutionException, InterruptedException
+    ) throws IOException, ExecutionException, InterruptedException
     {
-        ss = new StreamSession(writerContext, "sessionId", range, executor);
+        ss = new StreamSession(writerContext, "sessionId", range, executor, new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()));
         AtomicBoolean success = new AtomicBoolean(true);
         writerContext.setCommitResultSupplier((uuids, dc) -> {
             // Return failed result for 1st result, success for the rest
@@ -240,20 +214,15 @@ public class StreamSessionTest
         ss.scheduleStream(tr);
         ss.close();  // Force "execution" of futures
         executor.assertFuturesCalled();
-        assertThat(writerContext.getUploads().values().stream()
-                                                      .mapToInt(Collection::size)
-                                                      .sum(),
-                   equalTo(REPLICATION_FACTOR * FILES_PER_SSTABLE));
-        List<String> instances = writerContext.getUploads().keySet().stream()
-                                                                    .map(CassandraInstance::getNodeName)
-                                                                    .collect(Collectors.toList());
+        assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));
+        final List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::getNodeName).collect(Collectors.toList());
         assertThat(instances, containsInAnyOrder(expectedInstances.toArray()));
     }
 
     @Test
     public void testLocalQuorumFailsWhenCommitsFail() throws IOException, ExecutionException, InterruptedException
     {
-        ss = new StreamSession(writerContext, "sessionId", range, executor);
+        ss = new StreamSession(writerContext, "sessionId", range, executor, new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()));
         AtomicBoolean success = new AtomicBoolean(true);
         // Return successful result for 1st result, failed for the rest
         writerContext.setCommitResultSupplier((uuids, dc) -> {
@@ -266,21 +235,17 @@ public class StreamSessionTest
                 return new DataTransferApi.RemoteCommitResult(false, uuids, null, "");
             }
         });
+
         SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
         tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);
         RuntimeException exception = assertThrows(RuntimeException.class, () -> ss.close());  // Force "execution" of futures
         assertEquals("Failed to load 1 ranges with LOCAL_QUORUM for job " + writerContext.job().getId()
-                   + " in phase UploadAndCommit", exception.getMessage());
+                     + " in phase UploadAndCommit.", exception.getMessage());
         executor.assertFuturesCalled();
-        assertThat(writerContext.getUploads().values().stream()
-                                                      .mapToInt(Collection::size)
-                                                      .sum(),
-                   equalTo(REPLICATION_FACTOR * FILES_PER_SSTABLE));
-        List<String> instances = writerContext.getUploads().keySet().stream()
-                                                                    .map(CassandraInstance::getNodeName)
-                                                                    .collect(Collectors.toList());
+        assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));
+        List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::getNodeName).collect(Collectors.toList());
         assertThat(instances, containsInAnyOrder(expectedInstances.toArray()));
     }
 
@@ -298,6 +263,6 @@ public class StreamSessionTest
     @NotNull
     private MockBulkWriterContext getBulkWriterContext()
     {
-        return new MockBulkWriterContext(ring);
+        return new MockBulkWriterContext(tokenRangeMapping);
     }
 }

@@ -21,12 +21,12 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.util.Iterator;
 
-import org.apache.spark.api.java.function.VoidFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.function.VoidFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -42,21 +42,18 @@ import scala.util.control.NonFatal$;
 public class CassandraBulkSourceRelation extends BaseRelation implements InsertableRelation
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraBulkSourceRelation.class);
-
     private final BulkWriterContext writerContext;
     private final SQLContext sqlContext;
     private final JavaSparkContext sparkContext;
     private final Broadcast<BulkWriterContext> broadcastContext;
-    private final BulkWriteValidator writeValidator;
 
     @SuppressWarnings("RedundantTypeArguments")
-    public CassandraBulkSourceRelation(BulkWriterContext writerContext, SQLContext sqlContext) throws Exception
+    public CassandraBulkSourceRelation(BulkWriterContext writerContext, SQLContext sqlContext)
     {
         this.writerContext = writerContext;
         this.sqlContext = sqlContext;
         this.sparkContext = JavaSparkContext.fromSparkContext(sqlContext.sparkContext());
         this.broadcastContext = sparkContext.<BulkWriterContext>broadcast(writerContext);
-        this.writeValidator = new BulkWriteValidator(writerContext, this::cancelJob);
     }
 
     @Override
@@ -98,39 +95,19 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         Tokenizer tokenizer = new Tokenizer(writerContext);
         TableSchema tableSchema = writerContext.schema().getTableSchema();
         JavaPairRDD<DecoratedKey, Object[]> sortedRDD = data.toJavaRDD()
-                .map(Row::toSeq)
-                .map(seq -> JavaConverters.seqAsJavaListConverter(seq).asJava().toArray())
-                .map(tableSchema::normalize)
-                .keyBy(tokenizer::getDecoratedKey)
-                .repartitionAndSortWithinPartitions(broadcastContext.getValue().job().getTokenPartitioner());
+                                                            .map(Row::toSeq)
+                                                            .map(seq -> JavaConverters.seqAsJavaListConverter(seq).asJava().toArray())
+                                                            .map(tableSchema::normalize)
+                                                            .keyBy(tokenizer::getDecoratedKey)
+                                                            .repartitionAndSortWithinPartitions(broadcastContext.getValue().job().getTokenPartitioner());
         persist(sortedRDD, data.columns());
-    }
-
-    private void cancelJob(@NotNull CancelJobEvent cancelJobEvent)
-    {
-        if (cancelJobEvent.exception != null)
-        {
-            LOGGER.error("An unrecoverable error occurred during {} stage of import while validating the current cluster state; cancelling job",
-                         writeValidator.getPhase(), cancelJobEvent.exception);
-        }
-        else
-        {
-            LOGGER.error("Job was canceled due to '{}' during {} stage of import; please rerun import once topology changes are complete",
-                         cancelJobEvent.reason, writeValidator.getPhase());
-        }
-        sparkContext.cancelJobGroup(writerContext.job().getId().toString());
     }
 
     private void persist(@NotNull JavaPairRDD<DecoratedKey, Object[]> sortedRDD, String[] columnNames)
     {
-        writeValidator.setPhase("Environment Validation");
-        writeValidator.validateInitialEnvironment();
-        writeValidator.setPhase("UploadAndCommit");
-
         try
         {
             sortedRDD.foreachPartition(writeRowsInPartition(broadcastContext, columnNames));
-            writeValidator.failIfRingChanged();
         }
         catch (Throwable throwable)
         {
@@ -139,7 +116,6 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         }
         finally
         {
-            writeValidator.close();  // Uses the MgrClient, so needs to stop first
             try
             {
                 writerContext.shutdown();
@@ -149,21 +125,30 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
             {
                 // We've made our best effort to close the Bulk Writer context
             }
-            try
+            unpersist();
+        }
+    }
+
+    /**
+     * Deletes cached copies of the broadcast on the executors
+     */
+    protected void unpersist()
+    {
+        try
+        {
+            LOGGER.info("Unpersisting broadcast context");
+            broadcastContext.unpersist(false);
+        }
+        catch (Throwable throwable)
+        {
+            if (NonFatal$.MODULE$.apply(throwable))
             {
-                broadcastContext.unpersist(false);
+                LOGGER.error("Uncaught exception in thread {} attempting to unpersist broadcast variable",
+                             Thread.currentThread().getName(), throwable);
             }
-            catch (Throwable throwable)
+            else
             {
-                if (NonFatal$.MODULE$.apply(throwable))
-                {
-                    LOGGER.error("Uncaught exception in thread {} attempting to unpersist broadcast variable",
-                                 Thread.currentThread().getName(), throwable);
-                }
-                else
-                {
-                    throw throwable;
-                }
+                throw throwable;
             }
         }
     }

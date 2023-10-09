@@ -51,12 +51,16 @@ public class SparkBulkWriterSimpleTest extends IntegrationTestBase
         cluster.schemaChange(
         "  CREATE KEYSPACE " + keyspace + " WITH replication = "
         + "{'class': 'NetworkTopologyStrategy', 'datacenter1': '3'}\n"
-        + "      AND durable_writes = true;");
+        + "      AND durable_writes = true;",
+        true,
+        cluster.getFirstRunningInstance());
         cluster.schemaChange("CREATE TABLE " + keyspace + "." + table + " (\n"
                              + "          id BIGINT PRIMARY KEY,\n"
                              + "          course BLOB,\n"
                              + "          marks BIGINT\n"
-                             + "     );");
+                             + "     );",
+                             true,
+                             cluster.getFirstRunningInstance());
         waitUntilSidecarPicksUpSchemaChange(keyspace);
         Map<String, String> writerOptions = new HashMap<>();
         // A constant timestamp and TTL can be used by adding the following options to the writerOptions map

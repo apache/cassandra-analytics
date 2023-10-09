@@ -73,8 +73,8 @@ public class BulkSparkConfTest
     @Test
     public void testGetLong()
     {
-        sparkConf.set("spark.cassandra_analytics.sidecar.request.retries.delay.seconds", "2222");
-        assertThat(bulkSparkConf.getSidecarRequestRetryDelayInSeconds(), is(2222L));
+        sparkConf.set("spark.cassandra_analytics.sidecar.request.retries.delay.milliseconds", "2222");
+        assertThat(bulkSparkConf.getSidecarRequestRetryDelayMillis(), is(2222L));
     }
 
     @Test

@@ -131,11 +131,11 @@ public final class RangeUtils
             BigInteger rangeStart = new BigInteger(instances.get(disjointReplica).getToken());
             BigInteger rangeEnd = new BigInteger(instance.getToken());
 
-            // If start token is not strictly smaller than end token we are looking at a wrap around range, split it
+            // If start token is  greater than or equal to end token we are looking at a wrap around range, split it
             if (rangeStart.compareTo(rangeEnd) >= 0)
             {
                 tokenRanges.put(instance, Range.range(rangeStart, BoundType.OPEN, partitioner.maxToken(), BoundType.CLOSED));
-                tokenRanges.put(instance, Range.range(partitioner.minToken(), BoundType.CLOSED, rangeEnd, BoundType.CLOSED));
+                tokenRanges.put(instance, Range.range(partitioner.minToken(), BoundType.OPEN, rangeEnd, BoundType.CLOSED));
             }
             else
             {

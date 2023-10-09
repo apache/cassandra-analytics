@@ -20,7 +20,7 @@ commands:
   install_common:
     steps:
       - run: sudo apt-get update
-        # Somehow, the certs alreeady installed in the java 11 image are installed strangely
+        # Somehow, the certs already installed in the java 11 image are installed strangely
         # in that there's a directory called `cacerts` with a symlink in it named `cacerts`
         # (/etc/ssl/certs/java/cacerts/cacerts) rather than just a symlink to
         # `cacerts` in the /etc/ssl/certs/java directory - if this is the case, fix it by
@@ -41,24 +41,151 @@ commands:
       - run: |
           sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
           cat /etc/hosts
+  run_build:
+    parameters:
+      spark:
+        type: string
+      scala:
+        type: string
+      jdk:
+        type: string
+      use_jdk11:
+          type: string
+          default: "false"
+    description: Build and test against Spark <<parameters.spark>> Scala <<parameters.scala>> <<parameters.jdk>>
+    steps:
+      - run:
+          environment:
+            SPARK_VERSION: "<<parameters.spark>>"
+            SCALA_VERSION: "<<parameters.scala>>"
+            JDK_VERSION: "<<parameters.jdk>>"
+            INTEGRATION_MAX_PARALLEL_FORKS: 1
+            INTEGRATION_MAX_HEAP_SIZE: "1500M"
+            CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
+          command: |
+            # Run compile/unit tests, skipping integration tests
+            ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test
+
+  run_integration:
+    parameters:
+      spark:
+        type: string
+      scala:
+        type: string
+      jdk:
+        type: string
+      use_jdk11:
+        type: string
+        default: "false"
+    description: Build and integration test against Spark <<parameters.spark>> Scala <<parameters.scala>> <<parameters.jdk>>
+    steps:
+      - run:
+          environment:
+            SPARK_VERSION: "<<parameters.spark>>"
+            SCALA_VERSION: "<<parameters.scala>>"
+            JDK_VERSION: "<<parameters.jdk>>"
+            INTEGRATION_MAX_PARALLEL_FORKS: 1
+            INTEGRATION_MAX_HEAP_SIZE: "2500M"
+            CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
+          command: |
+            # Run compile but not unit tests (which are run in run_build)
+            ./gradlew --stacktrace clean assemble
+            # Run integration tests in parallel
+            cd cassandra-analytics-integration-tests/src/test/java
+            # Get list of classnames of tests that should run on this node
+            # NOTE: This assumes all actual tests suites end in "Test.java"
+            # AND NO OTHER FILES do, so "BaseTest" classes were renamed to
+            # "TestBase"
+            CLASSNAMES=$(circleci tests glob "**/*Test.java" \
+            | cut -c 1- | sed 's@/@.@g' \
+            | sed 's/.\{5\}$//' \
+            | circleci tests split --split-by=timings --timings-type=classname)
+            cd ../../../..
+            # Format the arguments to "./gradlew test"
+            # GRADLE_ARGS=$(echo $CLASSNAMES | awk '{for (i=1; i<=NF; i++) print "--tests",$i}')
+            echo "CircleCI assigned the following classes for testing: $CLASSNAMES"
+            # collect up exit statuses for all of the test classes and exit with that result at the end.
+            # If no gradle processes exit with non-zero status, it will still be 0
+            EXIT_STATUS=0
+            for TEST_NAME in $CLASSNAMES; do
+                ./gradlew cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
+            done;
+            exit $EXIT_STATUS
 
 jobs:
-  cassandra-analytics-core-spark2-2_11-jdk8:
+  build-dependencies-jdk8:
     docker:
       - image: cimg/openjdk:8.0
+    resource_class: large
     steps:
       - install_common
       - checkout
       - run:
-          name: Build and test against Spark 2 Scala 2.11 JDK8
+          name: Build dependencies for jdk8 builds
           command: |
             ./scripts/build-dependencies.sh
-            ./gradlew --stacktrace clean assemble check
-          environment:
-            SPARK_VERSION: "2"
-            SCALA_VERSION: "2.11"
-            JDK_VERSION: "1.8"
-            INTEGRATION_MAX_PARALLEL_FORKS: 2
+      - persist_to_workspace:
+          root: dependencies
+          paths:
+            - "*.jar"
+            - "org/**/*"
+
+  build-dependencies-jdk11:
+    docker:
+      - image: cimg/openjdk:11.0
+    resource_class: large
+    steps:
+      - install_common
+      - checkout
+      - run:
+          name: Build dependencies for jdk11 builds
+          command: |
+            CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
+      - persist_to_workspace:
+          root: dependencies
+          paths:
+            - "*.jar"
+            - "org/**/*"
+
+  cassandra-analytics-core-spark2-2_11-jdk8:
+    docker:
+      - image: cimg/openjdk:8.0
+    resource_class: large
+    steps:
+      - install_common
+      - checkout
+      - attach_workspace:
+          at: dependencies
+      - run_build:
+          spark: "2"
+          scala: "2.11"
+          jdk: "1.8"
+
+      - store_artifacts:
+          path: build/test-reports
+          destination: test-reports
+
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+
+      - store_test_results:
+          path: build/test-reports
+
+  cassandra-analytics-core-int-spark2-2_11-jdk8:
+    parallelism: 8
+    docker:
+      - image: cimg/openjdk:8.0
+    resource_class: large
+    steps:
+      - install_common
+      - checkout
+      - attach_workspace:
+          at: dependencies
+      - run_integration:
+          spark: "2"
+          scala: "2.11"
+          jdk: "1.8"
 
       - store_artifacts:
           path: build/test-reports
@@ -74,19 +201,42 @@ jobs:
   cassandra-analytics-core-spark2-2_12-jdk8:
     docker:
       - image: cimg/openjdk:8.0
+    resource_class: large
     steps:
       - install_common
       - checkout
-      - run:
-          name: Build and test against Spark 2 Scala 2.12 JDK8
-          command: |
-            ./scripts/build-dependencies.sh
-            ./gradlew --stacktrace clean assemble check
-          environment:
-            SPARK_VERSION: "2"
-            SCALA_VERSION: "2.12"
-            JDK_VERSION: "1.8"
-            INTEGRATION_MAX_PARALLEL_FORKS: 2
+      - attach_workspace:
+          at: dependencies
+      - run_build:
+          spark: "2"
+          scala: "2.12"
+          jdk: "1.8"
+
+      - store_artifacts:
+          path: build/test-reports
+          destination: test-reports
+
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+
+      - store_test_results:
+          path: build/test-reports
+
+  cassandra-analytics-core-int-spark2-2_12-jdk8:
+    parallelism: 8
+    docker:
+      - image: cimg/openjdk:8.0
+    resource_class: large
+    steps:
+      - install_common
+      - checkout
+      - attach_workspace:
+          at: dependencies
+      - run_integration:
+          spark: "2"
+          scala: "2.12"
+          jdk: "1.8"
 
       - store_artifacts:
           path: build/test-reports
@@ -102,18 +252,44 @@ jobs:
   cassandra-analytics-core-spark3-2_12-jdk11:
     docker:
       - image: cimg/openjdk:11.0
+    resource_class: large
     steps:
       - install_common
       - checkout
-      - run:
-          name: Build and test against Spark 3 Scala 2.12 JDK11
-          command: |
-            CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
-            ./gradlew --stacktrace clean assemble check
-          environment:
-            SPARK_VERSION: "3"
-            SCALA_VERSION: "2.12"
-            JDK_VERSION: "11"
+      - attach_workspace:
+          at: dependencies
+      - run_build:
+          spark: "3"
+          scala: "2.12"
+          jdk: "11"
+          use_jdk11: "true"
+
+      - store_artifacts:
+          path: build/test-reports
+          destination: test-reports
+
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+
+      - store_test_results:
+          path: build/test-reports
+
+  cassandra-analytics-core-int-spark3-2_12-jdk11:
+    parallelism: 8
+    docker:
+      - image: cimg/openjdk:11.0
+    resource_class: large
+    steps:
+      - install_common
+      - checkout
+      - attach_workspace:
+          at: dependencies
+      - run_integration:
+          spark: "3"
+          scala: "2.12"
+          jdk: "11"
+          use_jdk11: "true"
 
       - store_artifacts:
           path: build/test-reports
@@ -129,18 +305,44 @@ jobs:
   cassandra-analytics-core-spark3-2_13-jdk11:
     docker:
       - image: cimg/openjdk:11.0
+    resource_class: large
     steps:
       - install_common
       - checkout
-      - run:
-          name: Build and test against Spark 3 Scala 2.13 JDK11
-          command: |
-            CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
-            ./gradlew --stacktrace clean assemble check
-          environment:
-            SPARK_VERSION: "3"
-            SCALA_VERSION: "2.13"
-            JDK_VERSION: "11"
+      - attach_workspace:
+          at: dependencies
+      - run_build:
+          spark: "3"
+          scala: "2.12"
+          jdk: "11"
+          use_jdk11: "true"
+
+      - store_artifacts:
+          path: build/test-reports
+          destination: test-reports
+
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+
+      - store_test_results:
+          path: build/test-reports
+
+  cassandra-analytics-core-int-spark3-2_13-jdk11:
+    parallelism: 8
+    docker:
+      - image: cimg/openjdk:11.0
+    resource_class: large
+    steps:
+      - install_common
+      - checkout
+      - attach_workspace:
+          at: dependencies
+      - run_integration:
+          spark: "3"
+          scala: "2.12"
+          jdk: "11"
+          use_jdk11: "true"
 
       - store_artifacts:
           path: build/test-reports
@@ -157,7 +359,29 @@ workflows:
   version: 2
   build-and-test:
     jobs:
-      - cassandra-analytics-core-spark2-2_11-jdk8
-      - cassandra-analytics-core-spark2-2_12-jdk8
-      - cassandra-analytics-core-spark3-2_12-jdk11
-      - cassandra-analytics-core-spark3-2_13-jdk11
+      - build-dependencies-jdk8
+      - build-dependencies-jdk11
+      - cassandra-analytics-core-spark2-2_11-jdk8:
+          requires:
+            - build-dependencies-jdk8
+      - cassandra-analytics-core-spark2-2_12-jdk8:
+          requires:
+            - build-dependencies-jdk8
+      - cassandra-analytics-core-spark3-2_12-jdk11:
+          requires:
+            - build-dependencies-jdk11
+      - cassandra-analytics-core-spark3-2_13-jdk11:
+          requires:
+            - build-dependencies-jdk11
+      - cassandra-analytics-core-int-spark2-2_11-jdk8:
+          requires:
+            - build-dependencies-jdk8
+      - cassandra-analytics-core-int-spark2-2_12-jdk8:
+          requires:
+            - build-dependencies-jdk8
+      - cassandra-analytics-core-int-spark3-2_12-jdk11:
+          requires:
+            - build-dependencies-jdk11
+      - cassandra-analytics-core-int-spark3-2_13-jdk11:
+          requires:
+            - build-dependencies-jdk11

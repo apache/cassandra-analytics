@@ -89,19 +89,19 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
         // simply return the commit results we already collected
         if (successfulUploads.size() > 0 && successfulUploads.stream()
                                                              .allMatch(result -> result.commitResults != null
-                                                                              && result.commitResults.size() > 0))
+                                                                                 && result.commitResults.size() > 0))
         {
             List<CommitResult> collect = successfulUploads.stream()
-                    .flatMap(streamResult -> streamResult.commitResults.stream())
-                    .collect(Collectors.toList());
+                                                          .flatMap(streamResult -> streamResult.commitResults.stream())
+                                                          .collect(Collectors.toList());
             set(collect);
             return;
         }
         // First, group commits by instance so we can multi-commit
         Map<RingInstance, Map<String, Range<BigInteger>>> resultsByInstance = getResultsByInstance(successfulUploads);
         List<ListenableFuture<CommitResult>> commitFutures = resultsByInstance.entrySet().stream()
-                .flatMap(entry -> commit(executors, entry.getKey(), entry.getValue()))
-                .collect(Collectors.toList());
+                                                                              .flatMap(entry -> commit(executors, entry.getKey(), entry.getValue()))
+                                                                              .collect(Collectors.toList());
         // Create an aggregate ListenableFuture around the list of futures containing the results of the commit calls.
         // We'll fail fast if any of those errMsg (note that an errMsg here means an unexpected exception,
         // not a failure response from CassandraManager).
@@ -128,61 +128,51 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
                                                           RingInstance instance,
                                                           Map<String, Range<BigInteger>> uploadRanges)
     {
-        if (cluster.instanceIsAvailable(instance))
-        {
-            ListeningExecutorService executorService = executors.computeIfAbsent(instance,
-                    key -> MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(
-                            job.getCommitThreadsPerInstance(),
-                            ThreadUtil.threadFactory("commit-sstable-" + key.getNodeName()))));
-            List<String> allUuids = new ArrayList<>(uploadRanges.keySet());
-            LOGGER.info("Committing UUIDs={}, Ranges={}, instance={}",
-                        allUuids, uploadRanges.values(), instance.getNodeName());
-            List<List<String>> batches = Lists.partition(allUuids, job.getCommitBatchSize());
-            return batches.stream().map(uuids -> {
-                String migrationId = UUID.randomUUID().toString();
-                return executorService.submit(() -> {
-                    CommitResult commitResult = new CommitResult(migrationId, instance, uploadRanges);
-                    try
+        ListeningExecutorService executorService =
+        executors.computeIfAbsent(instance,
+                                  inst -> MoreExecutors.listeningDecorator(
+                                  Executors.newFixedThreadPool(job.getCommitThreadsPerInstance(),
+                                                               ThreadUtil.threadFactory("commit-sstable-" + inst.getNodeName()))));
+        List<String> allUuids = new ArrayList<>(uploadRanges.keySet());
+        LOGGER.info("Committing UUIDs={}, Ranges={}, instance={}", allUuids, uploadRanges.values(), instance.getNodeName());
+        List<List<String>> batches = Lists.partition(allUuids, job.getCommitBatchSize());
+        return batches.stream().map(uuids -> {
+            String migrationId = UUID.randomUUID().toString();
+            return executorService.submit(() -> {
+                CommitResult commitResult = new CommitResult(migrationId, instance, uploadRanges);
+                try
+                {
+                    DataTransferApi.RemoteCommitResult result = transferApi.commitSSTables(instance, migrationId, uuids);
+                    if (result.isSuccess)
                     {
-                        DataTransferApi.RemoteCommitResult result = transferApi.commitSSTables(instance, migrationId, uuids);
-                        if (result.isSuccess)
+                        LOGGER.info("[{}]: Commit succeeded on {} for {}", migrationId, instance.getNodeName(), uploadRanges);
+                    }
+                    else
+                    {
+                        LOGGER.error("[{}]: Commit failed: uploadRanges: {}, failedUuids: {}, stdErr: {}",
+                                     migrationId,
+                                     uploadRanges.entrySet(),
+                                     result.failedUuids,
+                                     result.stdErr);
+                        if (result.failedUuids.size() > 0)
                         {
-                            LOGGER.info("[{}]: Commit succeeded on {} for {}",
-                                        migrationId, instance.getNodeName(), uploadRanges);
+                            addFailures(result.failedUuids, uploadRanges, commitResult, result.stdErr);
                         }
                         else
                         {
-                            LOGGER.error("[{}]: Commit failed: uploadRanges: {}, failedUuids: {}, stdErr: {}",
-                                         migrationId,  uploadRanges.entrySet(), result.failedUuids, result.stdErr);
-                            if (result.failedUuids.size() > 0)
-                            {
-                                addFailures(result.failedUuids, uploadRanges, commitResult, result.stdErr);
-                            }
-                            else
-                            {
-                                addFailures(uploadRanges, commitResult, result.stdErr);
-                            }
+                            addFailures(uploadRanges, commitResult, result.stdErr);
                         }
                     }
-                    catch (Throwable throwable)
-                    {
-                        addFailures(uploadRanges, commitResult, throwable.toString());
-                        // On errMsg, refresh cluster information so we get the latest block list and status information to react accordingly
-                        cluster.refreshClusterInfo();
-                    }
-                    return commitResult;
-                });
+                }
+                catch (Throwable throwable)
+                {
+                    addFailures(uploadRanges, commitResult, throwable.toString());
+                    // On errMsg, refresh cluster information so we get the latest block list and status information to react accordingly
+                    cluster.refreshClusterInfo();
+                }
+                return commitResult;
             });
-        }
-        else
-        {
-            String migrationId = UUID.randomUUID().toString();
-            CommitResult commitResult = new CommitResult(migrationId, instance, uploadRanges);
-
-            String message = String.format("Instance %s is not available.", instance.getNodeName());
-            addFailures(uploadRanges, commitResult, message);
-            return Stream.of(Futures.immediateFuture(commitResult));
-        }
+        });
     }
 
     private void addFailures(List<String> failedRanges,
@@ -205,14 +195,14 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
     private Map<RingInstance, Map<String, Range<BigInteger>>> getResultsByInstance(List<StreamResult> successfulUploads)
     {
         return successfulUploads
-                .stream()
-                .flatMap(upload -> upload.passed
-                        .stream()
-                        .map(instance -> new AbstractMap.SimpleEntry<>(instance,
-                                         new AbstractMap.SimpleEntry<>(upload.sessionID, upload.tokenRange))))
-                .collect(Collectors.groupingBy(AbstractMap.SimpleEntry::getKey,
-                         Collectors.toMap(instance -> instance.getValue().getKey(),
-                                          instance -> instance.getValue().getValue())));
+               .stream()
+               .flatMap(upload -> upload.passed
+                                  .stream()
+                                  .map(instance -> new AbstractMap.SimpleEntry<>(instance,
+                                                                                 new AbstractMap.SimpleEntry<>(upload.sessionID, upload.tokenRange))))
+               .collect(Collectors.groupingBy(AbstractMap.SimpleEntry::getKey,
+                                              Collectors.toMap(instance -> instance.getValue().getKey(),
+                                                               instance -> instance.getValue().getValue())));
     }
 
     @Override
