@@ -111,10 +111,10 @@ public final class Sidecar
         HttpClientConfig httpClientConfig = builder.build();
 
         SidecarClientConfig sidecarConfig = SidecarClientConfigImpl.builder()
-                                            .maxRetries(config.maxRetries())
-                                            .retryDelayMillis(config.millisToSleep())
-                                            .maxRetryDelayMillis(config.maxMillisToSleep())
-                                            .build();
+                                                                   .maxRetries(config.maxRetries())
+                                                                   .retryDelayMillis(config.millisToSleep())
+                                                                   .maxRetryDelayMillis(config.maxMillisToSleep())
+                                                                   .build();
 
         return buildClient(sidecarConfig, vertx, httpClientConfig, sidecarInstancesProvider);
     }
@@ -141,11 +141,12 @@ public final class Sidecar
         StartupValidator.instance().register(new KeyStoreValidation(conf));
         StartupValidator.instance().register(new TrustStoreValidation(conf));
 
-        SidecarClientConfig sidecarConfig = SidecarClientConfigImpl.builder()
-                                            .maxRetries(5)
-                                            .retryDelayMillis(200)
-                                            .maxRetryDelayMillis(500)
-                                            .build();
+        SidecarClientConfig sidecarConfig =
+        SidecarClientConfigImpl.builder()
+                               .maxRetries(conf.getSidecarRequestRetries())
+                               .retryDelayMillis(conf.getSidecarRequestRetryDelayMillis())
+                               .maxRetryDelayMillis(conf.getSidecarRequestMaxRetryDelayMillis())
+                               .build();
 
         return buildClient(sidecarConfig, vertx, httpClientConfig, sidecarInstancesProvider);
     }
@@ -169,12 +170,12 @@ public final class Sidecar
     {
         return instances.stream()
                         .map(instance -> client
-                                .nodeSettings(instance)
-                                .exceptionally(throwable -> {
-                                    LOGGER.warn(String.format("Failed to execute node settings on instance=%s",
-                                                              instance), throwable);
-                                    return null;
-                                }))
+                                         .nodeSettings(instance)
+                                         .exceptionally(throwable -> {
+                                             LOGGER.warn(String.format("Failed to execute node settings on instance=%s",
+                                                                       instance), throwable);
+                                             return null;
+                                         }))
                         .collect(Collectors.toList());
     }
 

@@ -62,14 +62,14 @@ class QuoteIdentifiersWriteTest extends SparkIntegrationTestBase
 {
     static final int ROW_COUNT = 10_000;
 
-    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
+    @CassandraIntegrationTest(nodesPerDc = 2)
     void testWriteWithMixedCaseKeyspaceName()
     {
         QualifiedName qualifiedTableName = uniqueTestTableFullName("QuOtEd_KeYsPaCe");
         runWriteTestScenario(qualifiedTableName);
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
+    @CassandraIntegrationTest(nodesPerDc = 2)
     void testWriteWithReservedWordKeyspaceName()
     {
         // keyspace is a reserved word
@@ -77,14 +77,14 @@ class QuoteIdentifiersWriteTest extends SparkIntegrationTestBase
         runWriteTestScenario(qualifiedTableName);
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
+    @CassandraIntegrationTest(nodesPerDc = 2)
     void testWriteWithMixedCaseTableName()
     {
         QualifiedName qualifiedTableName = uniqueTestTableFullName(TEST_KEYSPACE, "QuOtEd_TaBlE");
         runWriteTestScenario(qualifiedTableName);
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
+    @CassandraIntegrationTest(nodesPerDc = 2)
     void testWriteWithReservedWordTableName()
     {
         // table is a reserved word

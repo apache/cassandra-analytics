@@ -34,8 +34,7 @@ public enum InstanceAvailability
      */
     UNAVAILABLE_REPLACEMENT("is a host replacement"),
     /**
-     * INVALID_STATE is true when a node is in any state but NORMAL, except for host replacements (see above).
-     * The SBW doesn't currently support hosts in non-NORMAL states.
+     * INVALID_STATE is true when a node is in an unknown state
      */
     INVALID_STATE("is in an invalid state");
 

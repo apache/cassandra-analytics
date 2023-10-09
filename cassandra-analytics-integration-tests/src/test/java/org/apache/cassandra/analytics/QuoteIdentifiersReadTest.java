@@ -47,14 +47,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 class QuoteIdentifiersReadTest extends SparkIntegrationTestBase
 {
 
-    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
+    @CassandraIntegrationTest
     void testMixedCaseKeyspace(VertxTestContext context)
     {
         QualifiedName qualifiedTableName = uniqueTestTableFullName("QuOtEd_KeYsPaCe");
         runTestScenario(context, qualifiedTableName);
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
+    @CassandraIntegrationTest
     void testReservedWordKeyspace(VertxTestContext context)
     {
         // keyspace is a reserved word
@@ -62,21 +62,21 @@ class QuoteIdentifiersReadTest extends SparkIntegrationTestBase
         runTestScenario(context, qualifiedTableName);
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
+    @CassandraIntegrationTest
     void testMixedCaseTable(VertxTestContext context)
     {
         QualifiedName qualifiedTableName = uniqueTestTableFullName(TEST_KEYSPACE, "QuOtEd_TaBlE");
         runTestScenario(context, qualifiedTableName);
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
+    @CassandraIntegrationTest
     void testReservedWordTable(VertxTestContext context)
     {
         // table is a reserved word
         runTestScenario(context, new QualifiedName(TEST_KEYSPACE, "table"));
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
+    @CassandraIntegrationTest
     void testReadComplexSchema(VertxTestContext context)
     {
         QualifiedName tableName = uniqueTestTableFullName("QuOtEd_KeYsPaCe", "QuOtEd_TaBlE");

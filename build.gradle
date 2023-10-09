@@ -83,9 +83,6 @@ tasks.idea.dependsOn(tasks.copyInspections)
 tasks.register('buildIgnoreRatList', Exec) {
   description 'Builds a list of ignored files for the rat task from the unversioned git files'
   commandLine 'bash', '-c', 'git clean --force -d --dry-run -x | grep -v "Would skip" | cut -c 14- '
-//    +
-//          '&& ' +
-//                            'git clean --force -d --dry-run -x | grep "Would skip" | cut -c 23-\n'
   doFirst {
   // make sure the build directory exists so rat task can run independently
     Files.createDirectories(buildDir)
@@ -198,7 +195,7 @@ subprojects {
       }
     }
     // uncomment the line below for local development
-    // mavenLocal()
+    //mavenLocal()
   }
 
   dependencies {
@@ -222,6 +219,8 @@ subprojects {
   }
 
   test {
+    def heapDumpPath = "${project.rootProject.rootDir}/build/${project.name}/heapDumps"
+    Files.createDirectories(Paths.get(heapDumpPath))
     if (JavaVersion.current().isJava11Compatible()) {
       def JDK11_OPTIONS = ['-Djdk.attach.allowAttachSelf=true',
                            '--add-exports', 'java.base/jdk.internal.misc=ALL-UNNAMED',
@@ -238,7 +237,9 @@ subprojects {
                            '--add-opens', 'java.base/jdk.internal.math=ALL-UNNAMED',
                            '--add-opens', 'java.base/jdk.internal.module=ALL-UNNAMED',
                            '--add-opens', 'java.base/jdk.internal.util.jar=ALL-UNNAMED',
-                           '--add-opens', 'jdk.management/com.sun.management.internal=ALL-UNNAMED']
+                           '--add-opens', 'jdk.management/com.sun.management.internal=ALL-UNNAMED',
+                           '-XX:+HeapDumpOnOutOfMemoryError',
+                           "-XX:HeapDumpPath=${heapDumpPath}"]
       jvmArgs(JDK11_OPTIONS)
       println("JVM arguments for $project.name are $allJvmArgs")
     }

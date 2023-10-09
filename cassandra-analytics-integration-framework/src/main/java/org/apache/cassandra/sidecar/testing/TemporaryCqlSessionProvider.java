@@ -19,7 +19,6 @@
 package org.apache.cassandra.sidecar.testing;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -38,35 +37,38 @@ import com.datastax.driver.core.policies.ReconnectionPolicy;
 import org.apache.cassandra.sidecar.common.CQLSessionProvider;
 import org.jetbrains.annotations.Nullable;
 
-public class TemporaryCqlSessionProvider extends CQLSessionProvider
+/**
+ * A CQL Session provider that always connects to and queries all hosts provided to it.
+ * Useful for integration testing, but will eventually be removed once issues with the Sidecar's
+ * CQLSessionProviderImpl are resolved.
+ */
+public class TemporaryCqlSessionProvider implements CQLSessionProvider
 {
     private static final Logger logger = LoggerFactory.getLogger(TemporaryCqlSessionProvider.class);
+    private final List<InetSocketAddress> contactPoints;
     private Session localSession;
-    private final InetSocketAddress inet;
     private final NettyOptions nettyOptions;
     private final ReconnectionPolicy reconnectionPolicy;
-    private final List<InetSocketAddress> addresses = new ArrayList<>();
 
-    public TemporaryCqlSessionProvider(InetSocketAddress target, NettyOptions options, List<InetSocketAddress> addresses)
+    public TemporaryCqlSessionProvider(List<InetSocketAddress> contactPoints, NettyOptions options)
     {
-        super(target, options);
-        inet = target;
         nettyOptions = options;
         reconnectionPolicy = new ExponentialReconnectionPolicy(100, 1000);
-        this.addresses.addAll(addresses);
+        this.contactPoints = contactPoints;
     }
 
+    @Nullable
     @Override
-    public synchronized @Nullable Session localCql()
+    public synchronized Session get()
     {
         Cluster cluster = null;
         try
         {
             if (localSession == null)
             {
-                logger.info("Connecting to {}", inet);
+                logger.info("Connecting to {}", contactPoints);
                 cluster = Cluster.builder()
-                                 .addContactPointsWithPorts(addresses)
+                                 .addContactPointsWithPorts(contactPoints)
                                  .withReconnectionPolicy(reconnectionPolicy)
                                  .withoutMetrics()
                                  // tests can create a lot of these Cluster objects, to avoid creating HWTs and
@@ -96,7 +98,13 @@ public class TemporaryCqlSessionProvider extends CQLSessionProvider
     }
 
     @Override
-    public Session close()
+    public Session getIfConnected()
+    {
+        return this.localSession;
+    }
+
+    @Override
+    public void close()
     {
         Session localSession;
         synchronized (this)
@@ -125,7 +133,6 @@ public class TemporaryCqlSessionProvider extends CQLSessionProvider
                 throw propagateCause(e);
             }
         }
-        return localSession;
     }
 
     static RuntimeException propagateCause(ExecutionException e)

@@ -29,5 +29,15 @@ public enum InstanceState
     MOVING,
     JOINING,
     STARTING,
-    UNKNOWN
+    // Custom state from sidecar when the instance is being replaced
+    REPLACING,
+    UNKNOWN;
+
+    public static boolean isTransitioning(String state)
+    {
+        return state.equalsIgnoreCase(JOINING.name()) ||
+               state.equalsIgnoreCase(LEAVING.name()) ||
+               state.equalsIgnoreCase(MOVING.name()) ||
+               state.equalsIgnoreCase(REPLACING.name());
+    }
 }

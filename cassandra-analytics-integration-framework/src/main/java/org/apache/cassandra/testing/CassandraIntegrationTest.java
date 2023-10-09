@@ -60,6 +60,13 @@ public @interface CassandraIntegrationTest
     int numDcs() default 1;
 
     /**
+     * This is only applied in context of multi-DC tests. Returns true if the keyspace is replicated
+     * across multiple DCs. Defaults to {@code true}
+     * @return whether the multi-DC test uses a cross-DC keyspace
+     */
+    boolean useCrossDcKeyspace() default true;
+
+    /**
      * Returns the number of data directories to use per instance. Cassandra supports multiple data directories
      * for each instance. Defaults to 1 data directory per instance.
      *
@@ -68,11 +75,12 @@ public @interface CassandraIntegrationTest
     int numDataDirsPerInstance() default 1;
 
     /**
-     * Returns whether gossip is enabled or disabled for the integration test. Defaults to {@code false}.
+     * Returns whether gossip is enabled or disabled for the integration test. Defaults to {@code true}.
+     * NOTE: When {@code nativeTransport} is enabled, gossip will be automatically enabled as well.
      *
      * @return whether gossip is enabled or disabled for the integration test
      */
-    boolean gossip() default false;
+    boolean gossip() default true;
 
     /**
      * Returns whether internode networking is enabled or disabled for the integration test. Defaults to {@code false}.
@@ -112,7 +120,7 @@ public @interface CassandraIntegrationTest
      *     or {@link ConfigurableCassandraTestContext#configureAndStartCluster(Consumer)} to get the cluster.
      *     NOTE: This cluster object must be closed by the test as the framework doesn't have access to it.
      * If true (the default), the test should take an instance of {@link CassandraTestContext}
-     *          {@link CassandraTestContext#getCluster()} will contain the built cluster.
+     *     {@link CassandraTestContext#cluster()} will contain the built cluster.
      * @return true if the cluster should be built by the test framework, false otherwise
      */
     boolean buildCluster() default true;

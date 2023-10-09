@@ -43,9 +43,4 @@ public class CassandraTestContext extends AbstractCassandraTestContext
                + ", cluster=" + cluster
                + '}';
     }
-
-    public UpgradeableCluster getCluster()
-    {
-        return cluster;
-    }
 }

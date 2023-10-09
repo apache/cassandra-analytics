@@ -23,6 +23,9 @@ import java.util.function.Consumer;
 
 import org.apache.cassandra.distributed.UpgradeableCluster;
 
+import static org.apache.cassandra.testing.CassandraTestTemplate.fixDistributedSchemas;
+import static org.apache.cassandra.testing.CassandraTestTemplate.waitForHealthyRing;
+
 /**
  * A Cassandra Test Context implementation that allows advanced cluster configuration before cluster creation
  * by providing access to the cluster builder.
@@ -59,6 +62,8 @@ public class ConfigurableCassandraTestContext extends AbstractCassandraTestConte
     {
         cluster = configureCluster(configurator);
         cluster.startup();
+        waitForHealthyRing(cluster);
+        fixDistributedSchemas(cluster);
         return cluster;
     }
 

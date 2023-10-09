@@ -46,8 +46,8 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
+import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.MD5Hash;
 import org.apache.cassandra.spark.common.SSTables;
 
@@ -63,27 +63,36 @@ public class StreamSession
     private final AtomicInteger nextSSTableIdx = new AtomicInteger(1);
     private final ExecutorService executor;
     private final List<Future<?>> futures = new ArrayList<>();
-    private final CassandraRing<RingInstance> ring;
+    private final TokenRangeMapping<RingInstance> tokenRangeMapping;
     private static final String WRITE_PHASE = "UploadAndCommit";
 
-    public StreamSession(BulkWriterContext writerContext, String sessionID, Range<BigInteger> tokenRange)
+    public StreamSession(final BulkWriterContext writerContext,
+                         final String sessionID,
+                         final Range<BigInteger> tokenRange,
+                         final ReplicaAwareFailureHandler<RingInstance> failureHandler)
     {
-        this(writerContext, sessionID, tokenRange, Executors.newSingleThreadExecutor());
+        this(writerContext, sessionID, tokenRange, Executors.newSingleThreadExecutor(), failureHandler);
     }
 
     @VisibleForTesting
     public StreamSession(BulkWriterContext writerContext,
                          String sessionID,
                          Range<BigInteger> tokenRange,
-                         ExecutorService executor)
+                         ExecutorService executor,
+                         ReplicaAwareFailureHandler<RingInstance> failureHandler)
     {
         this.writerContext = writerContext;
-        this.ring = writerContext.cluster().getRing(true);
-        this.failureHandler = new ReplicaAwareFailureHandler<>(ring);
+        this.tokenRangeMapping = writerContext.cluster().getTokenRangeMapping(true);
         this.sessionID = sessionID;
         this.tokenRange = tokenRange;
+        this.failureHandler = failureHandler;
         this.replicas = getReplicas();
         this.executor = executor;
+    }
+
+    public Range<BigInteger> getTokenRange()
+    {
+        return tokenRange;
     }
 
     public void scheduleStream(SSTableWriter ssTableWriter)
@@ -99,7 +108,7 @@ public class StreamSession
 
     public StreamResult close() throws ExecutionException, InterruptedException
     {
-        for (Future future : futures)
+        for (Future<?> future : futures)
         {
             try
             {
@@ -108,7 +117,7 @@ public class StreamSession
             catch (Exception exception)
             {
                 LOGGER.error("Unexpected stream errMsg. "
-                           + "Stream errors should have converted to StreamError and sent to driver", exception);
+                             + "Stream errors should have converted to StreamError and sent to driver", exception);
                 throw new RuntimeException(exception);
             }
         }
@@ -116,24 +125,27 @@ public class StreamSession
         executor.shutdown();
         LOGGER.info("[{}]: Closing stream session. Sent {} SSTables", sessionID, futures.size());
 
+        // No data written at all
         if (futures.isEmpty())
         {
             return new StreamResult(sessionID, tokenRange, new ArrayList<>(), new ArrayList<>());
         }
         else
         {
+            // StreamResult has errors streaming to replicas
             StreamResult streamResult = new StreamResult(sessionID, tokenRange, errors, new ArrayList<>(replicas));
             List<CommitResult> cr = commit(streamResult);
             streamResult.setCommitResults(cr);
             LOGGER.debug("StreamResult: {}", streamResult);
-            BulkWriteValidator.validateClOrFail(failureHandler, LOGGER, WRITE_PHASE, writerContext.job());
+            // Check consistency given the no. failures
+            BulkWriteValidator.validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, WRITE_PHASE, writerContext.job());
             return streamResult;
         }
     }
 
     private List<CommitResult> commit(StreamResult streamResult) throws ExecutionException, InterruptedException
     {
-        try (CommitCoordinator cc = CommitCoordinator.commit(writerContext, new StreamResult[]{streamResult}))
+        try (CommitCoordinator cc = CommitCoordinator.commit(writerContext, new StreamResult[]{streamResult }))
         {
             List<CommitResult> commitResults = cc.get();
             LOGGER.debug("All CommitResults: {}", commitResults);
@@ -145,32 +157,27 @@ public class StreamSession
     @VisibleForTesting
     List<RingInstance> getReplicas()
     {
-        Map<Range<BigInteger>, List<RingInstance>> overlappingRanges = ring.getSubRanges(tokenRange).asMapOfRanges();
+        Set<RingInstance> exclusions = failureHandler.getFailedInstances();
+        // Get ranges that intersect with the partition's token range
+        Map<Range<BigInteger>, List<RingInstance>> overlappingRanges = tokenRangeMapping.getSubRanges(tokenRange).asMapOfRanges();
 
-        Preconditions.checkState(overlappingRanges.keySet().size() == 1,
-                                 String.format("Partition range %s is mapping more than one range %s",
-                                               tokenRange, overlappingRanges));
+        LOGGER.debug("[{}]: Stream session token range: {} overlaps with ring ranges: {}",
+                     sessionID,
+                     tokenRange,
+                     overlappingRanges);
 
-        List<RingInstance> replicaList = overlappingRanges.values().stream()
-                                                          .flatMap(Collection::stream)
-                                                          .distinct()
-                                                          .collect(Collectors.toList());
-        List<RingInstance> availableReplicas = validateReplicas(replicaList);
-        // In order to better utilize replicas, shuffle the replicaList so each session starts writing to a different replica first
-        Collections.shuffle(availableReplicas);
-        return availableReplicas;
-    }
+        List<RingInstance> replicasForTokenRange = overlappingRanges.values().stream()
+                                                                    .flatMap(Collection::stream)
+                                                                    .distinct()
+                                                                    .filter(instance -> !exclusions.contains(instance))
+                                                                    .collect(Collectors.toList());
 
-    private List<RingInstance> validateReplicas(List<RingInstance> replicaList)
-    {
-        Map<Boolean, List<RingInstance>> groups = replicaList.stream()
-                .collect(Collectors.partitioningBy(writerContext.cluster()::instanceIsAvailable));
-        groups.get(false).forEach(instance -> {
-            String errorMessage = String.format("Instance %s is not available.", instance.getNodeName());
-            failureHandler.addFailure(tokenRange, instance, errorMessage);
-            errors.add(new StreamError(instance, errorMessage));
-        });
-        return groups.get(true);
+        Preconditions.checkState(!replicasForTokenRange.isEmpty(),
+                                 String.format("No replicas found for range %s", tokenRange));
+
+        // In order to better utilize replicas, shuffle the replicaList so each session starts writing to a different replica first.
+        Collections.shuffle(replicasForTokenRange);
+        return replicasForTokenRange;
     }
 
     private void sendSSTables(BulkWriterContext writerContext, SSTableWriter ssTableWriter)
@@ -250,8 +257,7 @@ public class StreamSession
                                       RingInstance instance,
                                       Map<Path, MD5Hash> fileHashes) throws Exception
     {
-        try (DirectoryStream<Path> componentFileStream =
-                Files.newDirectoryStream(dataFile.getParent(), SSTables.getSSTableBaseName(dataFile) + "*"))
+        try (DirectoryStream<Path> componentFileStream = Files.newDirectoryStream(dataFile.getParent(), SSTables.getSSTableBaseName(dataFile) + "*"))
         {
             for (Path componentFile : componentFileStream)
             {

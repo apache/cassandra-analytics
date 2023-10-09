@@ -51,13 +51,20 @@ project(':cassandra-analytics-integration-tests') {
         ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.4.jar" // latest supported Cassandra build is 4.1
         def dtestJarFullPath = "${dependencyLocation}${ext.dtestJar}"
         println("Using DTest jar: " + dtestJarFullPath)
-        testImplementation(files("${dtestJarFullPath}"))
+        testCompileOnly(files("${dtestJarFullPath}"))
         testImplementation("org.apache.cassandra:dtest-api:0.0.16")
         // Needed by the Cassandra dtest framework
         testImplementation("org.junit.vintage:junit-vintage-engine:${junitVersion}")
         testImplementation('com.datastax.cassandra:cassandra-driver-core:3.9.0')
 
         testImplementation('org.mockito:mockito-inline:4.10.0')
+        testImplementation("org.assertj:assertj-core:3.24.2")
+
+        // Logging
+        testImplementation(group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.22.0')
+        testImplementation(group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.22.0')
+        testImplementation(group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.22.0')
+        testImplementation(group: 'org.apache.logging.log4j', name: 'log4j-1.2-api', version: '2.22.0')
     }
 
 
@@ -66,7 +73,7 @@ project(':cassandra-analytics-integration-tests') {
         // set them again here.
         systemProperty "cassandra.test.dtest_jar_path", dependencyLocation
         systemProperty "cassandra.sidecar.versions_to_test",
-                System.getProperty("cassandra.sidecar.versions_to_test", "4.0")
+                System.getProperty("cassandra.sidecar.versions_to_test", "4.1")
         systemProperty "SKIP_STARTUP_VALIDATIONS", "true"
         systemProperty "logback.configurationFile", "src/test/resources/logback-test.xml"
         minHeapSize = '1g'
@@ -74,7 +81,17 @@ project(':cassandra-analytics-integration-tests') {
         maxParallelForks = integrationMaxParallelForks
         forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
-        // Make it so unit tests run on a JAr with Cassandra bridge implementations built in
+        beforeTest {descriptor ->
+            println("Setting test tags to ${descriptor.className}-${descriptor.name}")
+            systemProperty "cassandra.testtag", "${descriptor.className}"
+            systemProperty "suitename", "${descriptor.name}"
+        }
+
+        testLogging {
+            events "passed", "skipped", "failed"
+        }
+
+        // Make it so unit tests run on a jar with Cassandra bridge implementations built in
         dependsOn(tasks.jar)
         classpath = project.sourceSets.test.output + configurations.testRuntimeClasspath + files(jar.archiveFile)
         useJUnitPlatform()

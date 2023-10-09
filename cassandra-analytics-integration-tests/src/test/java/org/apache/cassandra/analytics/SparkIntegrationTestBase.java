@@ -62,6 +62,10 @@ public class SparkIntegrationTestBase extends IntegrationTestBase
                   .option("DC", "datacenter1")
                   .option("snapshotName", UUID.randomUUID().toString())
                   .option("createSnapshot", "true")
+                  // Shutdown hooks are called after the job ends, and in the case of integration tests
+                  // the sidecar is already shut down before this. Since the cluster will be torn
+                  // down anyway, the integration job skips clearing snapshots.
+                  .option("clearSnapshot", "false")
                   .option("defaultParallelism", sc.defaultParallelism())
                   .option("numCores", numCores)
                   .option("sizing", "default")

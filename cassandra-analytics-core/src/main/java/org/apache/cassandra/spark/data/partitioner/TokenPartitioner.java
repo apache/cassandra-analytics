@@ -51,6 +51,8 @@ import org.apache.cassandra.spark.utils.RangeUtils;
 
 /**
  * Util class for partitioning Spark workers across the token ring
+ * This class duplicates {@link org.apache.cassandra.spark.bulkwriter.TokenPartitioner} but is solely
+ * used in the context of the bulk reader (while the latter's context is the bulk writer).
  */
 @SuppressWarnings("UnstableApiUsage")
 public class TokenPartitioner implements Serializable
@@ -192,8 +194,8 @@ public class TokenPartitioner implements Serializable
             if (previous != null)
             {
                 Preconditions.checkState(!current.isConnected(previous) || current.intersection(previous).isEmpty(),
-                                         String.format("Two ranges in partition map are overlapping %s %s",
-                                                       previous, current));
+                                         "Two ranges in partition map are overlapping %s %s",
+                                                       previous, current);
             }
 
             previous = current;

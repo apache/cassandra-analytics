@@ -64,6 +64,10 @@ project(':cassandra-analytics-integration-framework') {
         }
         shadow("io.vertx:vertx-web-client:${project.vertxVersion}")
         shadow("io.vertx:vertx-junit5:${project.vertxVersion}")
+
+        testImplementation(platform('org.junit:junit-bom:5.9.2'))
+        testImplementation('org.junit.jupiter:junit-jupiter')
+        testImplementation("org.assertj:assertj-core:3.24.2")
     }
 
     shadowJar {

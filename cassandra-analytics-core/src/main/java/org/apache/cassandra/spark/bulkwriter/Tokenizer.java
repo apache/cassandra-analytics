@@ -21,26 +21,48 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.function.Function;
+
+import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.cassandra.spark.bulkwriter.token.TokenUtils;
+import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
 public class Tokenizer implements Serializable
 {
+
+    interface SerializableFunction<T, R> extends Function<T, R>, Serializable
+    {
+    }
     private final TokenUtils tokenUtils;
-    private final TableSchema tableSchema;
+    private final SerializableFunction<Object[], Object[]> keyColumnProvider;
 
     public Tokenizer(BulkWriterContext writerContext)
     {
-        this.tableSchema = writerContext.schema().getTableSchema();
+        TableSchema tableSchema = writerContext.schema().getTableSchema();
         this.tokenUtils = new TokenUtils(tableSchema.partitionKeyColumns,
                                          tableSchema.partitionKeyColumnTypes,
                                          writerContext.cluster().getPartitioner() == Partitioner.Murmur3Partitioner);
+        this.keyColumnProvider = tableSchema::getKeyColumns;
+    }
+
+    @VisibleForTesting
+    public Tokenizer(List<Integer> keyColumnIndexes,
+                     List<String> partitionKeyColumns,
+                     List<ColumnType<?>> partitionKeyColumnTypes,
+                     boolean isMurmur3Partitioner)
+    {
+        this.keyColumnProvider = (columns) -> TableSchema.getKeyColumns(columns, keyColumnIndexes);
+        this.tokenUtils = new TokenUtils(partitionKeyColumns,
+                                         partitionKeyColumnTypes,
+                                         isMurmur3Partitioner);
     }
 
     public DecoratedKey getDecoratedKey(Object[] columns)
     {
-        Object[] keyColumns = tableSchema.getKeyColumns(columns);
+        Object[] keyColumns = keyColumnProvider.apply(columns);
         ByteBuffer key = tokenUtils.getCompositeKey(keyColumns);
         return new DecoratedKey(tokenUtils.getToken(key), key);
     }

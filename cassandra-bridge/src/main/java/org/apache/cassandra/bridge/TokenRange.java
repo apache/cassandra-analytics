@@ -135,8 +135,8 @@ public final class TokenRange implements Serializable
     public boolean equals(@Nullable Object other)
     {
         return other instanceof TokenRange
-            && this.lowerBound.equals(((TokenRange) other).lowerBound)
-            && this.upperBound.equals(((TokenRange) other).upperBound);
+               && this.lowerBound.equals(((TokenRange) other).lowerBound)
+               && this.upperBound.equals(((TokenRange) other).upperBound);
     }
 
     @Override
