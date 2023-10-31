@@ -21,7 +21,6 @@ package org.apache.cassandra.bridge;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -51,13 +50,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
-import org.apache.cassandra.spark.cdc.CommitLog;
-import org.apache.cassandra.spark.cdc.CommitLogProvider;
-import org.apache.cassandra.spark.cdc.IPartitionUpdateWrapper;
-import org.apache.cassandra.spark.cdc.TableIdLookup;
-import org.apache.cassandra.spark.cdc.watermarker.Watermarker;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -66,7 +59,6 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.StreamScanner;
-import org.apache.cassandra.spark.sparksql.filters.CdcOffsetFilter;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
@@ -93,22 +85,6 @@ public abstract class CassandraBridge
                                                                                     @NotNull List<String> keys);
 
     public abstract TimeProvider timeProvider();
-
-    // CDC Stream Scanner
-    // CHECKSTYLE IGNORE: Method with many parameters
-    public abstract StreamScanner<Rid> getCdcScanner(int partitionId,
-                                                     @NotNull CqlTable table,
-                                                     @NotNull Partitioner partitioner,
-                                                     @NotNull CommitLogProvider commitLogProvider,
-                                                     @NotNull TableIdLookup tableIdLookup,
-                                                     @NotNull Stats stats,
-                                                     @Nullable SparkRangeFilter sparkRangeFilter,
-                                                     @Nullable CdcOffsetFilter offset,
-                                                     int minimumReplicasPerMutation,
-                                                     @NotNull Watermarker watermarker,
-                                                     @NotNull String jobId,
-                                                     @NotNull ExecutorService executorService,
-                                                     @NotNull TimeProvider timeProvider);
 
     // Compaction Stream Scanner
     // CHECKSTYLE IGNORE: Method with many parameters
@@ -398,21 +374,6 @@ public abstract class CassandraBridge
                                                    RowBufferMode rowBufferMode,
                                                    int bufferSizeMB);
 
-    // CDC Configuration
-
-    public abstract void setCDC(Path path);
-
-    public abstract void setCommitLogPath(Path path);
-
-    @VisibleForTesting
-    public abstract ICommitLog testCommitLog(File folder);
-
-    // CommitLog
-
-    public interface IMutation
-    {
-    }
-
     public interface IRow
     {
         Object get(int position);
@@ -446,60 +407,6 @@ public abstract class CassandraBridge
         }
     }
 
-    public interface ICommitLog
-    {
-        void start();
-
-        void stop();
-
-        void clear();
-
-        void add(IMutation mutation);
-
-        void sync();
-    }
-
-    /**
-     * Cassandra-version-specific implementation for logging a row mutation to CommitLog.
-     * Used for CDC unit test framework.`
-     *
-     * @param table     CQL table schema
-     * @param log       CommitLog instance
-     * @param row       row instance
-     * @param timestamp mutation timestamp
-     */
-    @VisibleForTesting
-    public abstract void log(CqlTable table, ICommitLog log, IRow row, long timestamp);
-
-    /**
-     * Determine whether a row is a partition deletion.
-     * It is a partition deletion, when all fields except the partition keys are null.
-     *
-     * @param table CQL table schema
-     * @param row   row instance
-     * @return true if it is a partition deletion
-     */
-    protected abstract boolean isPartitionDeletion(CqlTable table, IRow row);
-
-    /**
-     * Determine whether a row is a row deletion.
-     * It is a row deletion, when all fields except the parimary keys are null.
-     *
-     * @param table CQL table schema
-     * @param row   row instance
-     * @return true if it is a row deletion
-     */
-    protected abstract boolean isRowDeletion(CqlTable table, IRow row);
-
-    @VisibleForTesting
-    public abstract Object livingCollectionElement(ByteBuffer cellPath, Object value);
-
-    @VisibleForTesting
-    public abstract Object deletedCollectionElement(ByteBuffer cellPath);
-
-    @VisibleForTesting
-    public abstract Set<Long> readLog(CqlTable table, CommitLog log, Watermarker watermarker);
-
     // Version-Specific Test Utility Methods
 
     @VisibleForTesting
@@ -527,13 +434,6 @@ public abstract class CassandraBridge
     public abstract ByteBuffer uncompress(byte[] bytes) throws IOException;
 
     public abstract ByteBuffer uncompress(ByteBuffer input) throws IOException;
-
-    // Kryo Serializers
-
-    public abstract Serializer<? extends IPartitionUpdateWrapper> getPartitionUpdateSerializer(
-            String keyspace,
-            String table,
-            boolean includePartitionUpdate);
 
     // Kryo/Java (De-)Serialization
 

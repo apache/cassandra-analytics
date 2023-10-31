@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.data;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -35,10 +34,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.spark.cdc.CommitLogProvider;
-import org.apache.cassandra.spark.cdc.TableIdLookup;
-import org.apache.cassandra.spark.cdc.watermarker.DoNothingWatermarker;
-import org.apache.cassandra.spark.cdc.watermarker.Watermarker;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.EmptyStreamScanner;
@@ -46,7 +41,6 @@ import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.NoMatchFoundException;
-import org.apache.cassandra.spark.sparksql.filters.CdcOffsetFilter;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
@@ -177,10 +171,6 @@ public abstract class DataLayer implements Serializable
         return partitionKeyFilters;
     }
 
-    public abstract CommitLogProvider commitLogs(int partitionId);
-
-    public abstract TableIdLookup tableIdLookup();
-
     /**
      * DataLayer implementation should provide a SparkRangeFilter to filter out partitions and mutations
      * that do not overlap with the Spark worker's token range
@@ -195,7 +185,7 @@ public abstract class DataLayer implements Serializable
 
     /**
      * DataLayer implementation should provide an ExecutorService for doing blocking I/O
-     * when opening SSTable readers or reading CDC CommitLogs.
+     * when opening SSTable readers.
      * It is the responsibility of the DataLayer implementation to appropriately size and manage this ExecutorService.
      *
      * @return executor service
@@ -215,54 +205,9 @@ public abstract class DataLayer implements Serializable
     public abstract Partitioner partitioner();
 
     /**
-     * It specifies the minimum number of replicas required for CDC.
-     * For example, the minimum number of PartitionUpdates for compaction,
-     * and the minimum number of replicas to pull logs from to proceed to compaction.
-     *
-     * @return the minimum number of replicas. The returned value must be 1 or more.
-     */
-    public int minimumReplicasForCdc()
-    {
-        return 1;
-    }
-
-    /**
      * @return a string that uniquely identifies this Spark job
      */
     public abstract String jobId();
-
-    /**
-     * Override this method with a Watermarker implementation
-     * that persists high and low watermarks per Spark partition between Streaming batches
-     *
-     * @return watermarker for persisting high and low watermark and late updates
-     */
-    public Watermarker cdcWatermarker()
-    {
-        return DoNothingWatermarker.INSTANCE;
-    }
-
-    public Duration cdcWatermarkWindow()
-    {
-        return Duration.ofSeconds(30);
-    }
-
-    public StreamScanner openCdcScanner(int partitionId, @Nullable CdcOffsetFilter offset)
-    {
-        return bridge().getCdcScanner(partitionId,
-                                      cqlTable(),
-                                      partitioner(),
-                                      commitLogs(partitionId),
-                                      tableIdLookup(),
-                                      stats(),
-                                      sparkRangeFilter(partitionId),
-                                      offset,
-                                      minimumReplicasForCdc(),
-                                      cdcWatermarker(),
-                                      jobId(),
-                                      executorService(),
-                                      timeProvider());
-    }
 
     public StreamScanner openCompactionScanner(int partitionId, List<PartitionKeyFilter> partitionKeyFilters)
     {

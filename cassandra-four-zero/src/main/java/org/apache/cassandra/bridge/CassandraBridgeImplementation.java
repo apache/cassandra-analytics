@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.bridge;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -36,11 +35,9 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -48,32 +45,16 @@ import java.util.stream.Stream;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.config.ParameterizedClass;
-import org.apache.cassandra.cql3.ColumnIdentifier;
-import org.apache.cassandra.db.Clustering;
-import org.apache.cassandra.db.DecoratedKey;
-import org.apache.cassandra.db.DeletionTime;
 import org.apache.cassandra.db.Keyspace;
-import org.apache.cassandra.db.LivenessInfo;
-import org.apache.cassandra.db.Mutation;
-import org.apache.cassandra.db.commitlog.BufferingCommitLogReader;
-import org.apache.cassandra.db.commitlog.CommitLogSegmentManagerCDC;
-import org.apache.cassandra.db.commitlog.PartitionUpdateWrapper;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.ByteBufferAccessor;
 import org.apache.cassandra.db.marshal.CompositeType;
-import org.apache.cassandra.db.partitions.PartitionUpdate;
-import org.apache.cassandra.db.rows.BTreeRow;
-import org.apache.cassandra.db.rows.CellPath;
-import org.apache.cassandra.db.rows.Row;
-import org.apache.cassandra.db.rows.Rows;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
@@ -86,17 +67,8 @@ import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.SSTableTombstoneWriter;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.locator.SimpleSnitch;
-import org.apache.cassandra.schema.ColumnMetadata;
-import org.apache.cassandra.schema.Schema;
-import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.TableMetadataRef;
-import org.apache.cassandra.security.EncryptionContext;
-import org.apache.cassandra.spark.cdc.CommitLog;
-import org.apache.cassandra.spark.cdc.CommitLogProvider;
-import org.apache.cassandra.spark.cdc.IPartitionUpdateWrapper;
-import org.apache.cassandra.spark.cdc.TableIdLookup;
-import org.apache.cassandra.spark.cdc.watermarker.Watermarker;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.CqlType;
@@ -131,7 +103,6 @@ import org.apache.cassandra.spark.data.types.Timestamp;
 import org.apache.cassandra.spark.data.types.TinyInt;
 import org.apache.cassandra.spark.data.types.VarChar;
 import org.apache.cassandra.spark.data.types.VarInt;
-import org.apache.cassandra.spark.reader.CdcScannerBuilder;
 import org.apache.cassandra.spark.reader.CompactionStreamScanner;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.IndexReader;
@@ -139,12 +110,10 @@ import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.SchemaBuilder;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.reader.common.IndexIterator;
-import org.apache.cassandra.spark.sparksql.filters.CdcOffsetFilter;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.spark.stats.Stats;
-import org.apache.cassandra.spark.utils.ColumnTypes;
 import org.apache.cassandra.spark.utils.SparkClassLoaderOverride;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.tools.JsonTransformer;
@@ -258,49 +227,6 @@ public class CassandraBridgeImplementation extends CassandraBridge
     public TimeProvider timeProvider()
     {
         return FBUtilities::nowInSeconds;
-    }
-
-    @Override
-    public StreamScanner<Rid> getCdcScanner(int partitionId,
-                                            @NotNull CqlTable table,
-                                            @NotNull Partitioner partitioner,
-                                            @NotNull CommitLogProvider commitLogProvider,
-                                            @NotNull TableIdLookup tableIdLookup,
-                                            @NotNull Stats stats,
-                                            @Nullable SparkRangeFilter sparkRangeFilter,
-                                            @Nullable CdcOffsetFilter offset,
-                                            int minimumReplicasPerMutation,
-                                            @NotNull Watermarker watermarker,
-                                            @NotNull String jobId,
-                                            @NotNull ExecutorService executorService,
-                                            @NotNull TimeProvider timeProvider)
-    {
-        // NOTE: Need to use SchemaBuilder to init keyspace if not already set in Cassandra schema instance
-        UUID tableId = tableIdLookup.lookup(table.keyspace(), table.table());
-        SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner, tableId);
-        if (tableId != null)
-        {
-            // Verify TableMetadata and ColumnFamilyStore initialized in Schema
-            TableId tableIdAfter = TableId.fromUUID(tableId);
-            Preconditions.checkNotNull(Schema.instance.getTableMetadata(tableIdAfter),
-                                       "Table not initialized in the schema");
-            Preconditions.checkArgument(Objects.requireNonNull(Schema.instance.getKeyspaceInstance(table.keyspace()))
-                                               .hasColumnFamilyStore(tableIdAfter),
-                                        "ColumnFamilyStore not initialized in the schema");
-        }
-        TableMetadata metadata = schemaBuilder.tableMetaData();
-        return new CdcScannerBuilder(partitionId,
-                                     metadata,
-                                     partitioner,
-                                     commitLogProvider,
-                                     stats,
-                                     sparkRangeFilter,
-                                     offset,
-                                     minimumReplicasPerMutation,
-                                     watermarker,
-                                     jobId,
-                                     executorService,
-                                     timeProvider).build();
     }
 
     @Override
@@ -647,262 +573,6 @@ public class CassandraBridgeImplementation extends CassandraBridge
         return new SSTableWriterImplementation(inDirectory, partitioner, createStatement, insertStatement, rowBufferMode, bufferSizeMB);
     }
 
-    // CDC Configuration
-
-    @Override
-    public void setCDC(Path path)
-    {
-        DatabaseDescriptor.getRawConfig().cdc_raw_directory = path + "/cdc";
-        DatabaseDescriptor.setCDCEnabled(true);
-        DatabaseDescriptor.setCommitLogSync(Config.CommitLogSync.periodic);
-        DatabaseDescriptor.setCommitLogCompression(new ParameterizedClass("LZ4Compressor", Collections.emptyMap()));
-        DatabaseDescriptor.setEncryptionContext(new EncryptionContext());
-        DatabaseDescriptor.setCommitLogSyncPeriod(30);
-        DatabaseDescriptor.setCommitLogMaxCompressionBuffersPerPool(3);
-        DatabaseDescriptor.setCommitLogSyncGroupWindow(30);
-        DatabaseDescriptor.setCommitLogSegmentSize(32);
-        DatabaseDescriptor.getRawConfig().commitlog_total_space_in_mb = 1024;
-        DatabaseDescriptor.setCommitLogSegmentMgrProvider(commitLog -> new CommitLogSegmentManagerCDC(commitLog, path + "/commitlog"));
-    }
-
-    @Override
-    public void setCommitLogPath(Path path)
-    {
-        DatabaseDescriptor.getRawConfig().commitlog_directory = path + "/commitlog";
-        DatabaseDescriptor.getRawConfig().hints_directory = path + "/hints";
-        DatabaseDescriptor.getRawConfig().saved_caches_directory = path + "/saved_caches";
-    }
-
-    @Override
-    @VisibleForTesting
-    public ICommitLog testCommitLog(File folder)
-    {
-        return new TestCommitLog(folder);
-    }
-
-    // CommitLog
-
-    @VisibleForTesting
-    public static final class MutationWrapper implements IMutation
-    {
-        public final Mutation mutation;
-
-        private MutationWrapper(Mutation mutation)
-        {
-            this.mutation = mutation;
-        }
-
-        static MutationWrapper wrap(Mutation mutation)
-        {
-            return new MutationWrapper(mutation);
-        }
-    }
-
-    @Override
-    @VisibleForTesting
-    public void log(CqlTable table, ICommitLog log, IRow row, long timestamp)
-    {
-        Mutation mutation = makeMutation(table, row, timestamp);
-        log.add(MutationWrapper.wrap(mutation));
-    }
-
-    // CHECKSTYLE IGNORE: Long method
-    @NotNull
-    @VisibleForTesting
-    private Mutation makeMutation(CqlTable cqlTable, IRow row, long timestamp)
-    {
-        TableMetadata table = Schema.instance.getTableMetadata(cqlTable.keyspace(), cqlTable.table());
-        assert table != null;
-
-        Row.Builder rowBuilder = BTreeRow.sortedBuilder();
-        if (row.isInsert())
-        {
-            rowBuilder.addPrimaryKeyLivenessInfo(LivenessInfo.create(timestamp, timeProvider().nowInTruncatedSeconds()));
-        }
-        Row staticRow = Rows.EMPTY_STATIC_ROW;
-
-        // Build partition key
-        List<CqlField> partitionKeys = cqlTable.partitionKeys();
-        ByteBuffer partitionKey = ColumnTypes.buildPartitionKey(partitionKeys,
-                                                                partitionKeys.stream()
-                                                                             .map(field -> row.get(field.position()))
-                                                                             .toArray());
-
-        DecoratedKey decoratedPartitionKey = table.partitioner.decorateKey(partitionKey);
-
-        // Create a mutation and return early
-        if (isPartitionDeletion(cqlTable, row))
-        {
-            PartitionUpdate delete = PartitionUpdate.fullPartitionDelete(table, partitionKey, timestamp, timeProvider().nowInTruncatedSeconds());
-            return new Mutation(delete);
-        }
-
-        List<CqlField> clusteringKeys = cqlTable.clusteringKeys();
-
-        // Create a mutation with range tombstones
-        if (row.rangeTombstones() != null && !row.rangeTombstones().isEmpty())
-        {
-            PartitionUpdate.SimpleBuilder updateBuilder = PartitionUpdate.simpleBuilder(table, decoratedPartitionKey)
-                                                                         .timestamp(timestamp)
-                                                                         .nowInSec(timeProvider().nowInTruncatedSeconds());
-            for (RangeTombstone rangeTombstone : row.rangeTombstones())
-            {
-                // Range tombstone builder is built when partition update builder builds
-                PartitionUpdate.SimpleBuilder.RangeTombstoneBuilder tombstoneBuilder = updateBuilder.addRangeTombstone();
-                // Returns the same ref. just to make compiler happy
-                tombstoneBuilder = rangeTombstone.open.inclusive ? tombstoneBuilder.inclStart() : tombstoneBuilder.exclStart();
-                Object[] startValues = clusteringKeys.stream()
-                                                     .map(field -> {
-                                                         Object value = rangeTombstone.open.values[field.position() - cqlTable.numPartitionKeys()];
-                                                         return value != null ? field.serialize(value) : null;
-                                                     })
-                                                     .filter(Objects::nonNull)
-                                                     .toArray(ByteBuffer[]::new);
-                tombstoneBuilder.start(startValues);
-                tombstoneBuilder = rangeTombstone.close.inclusive ? tombstoneBuilder.inclEnd() : tombstoneBuilder.exclEnd();
-                Object[] endValues = clusteringKeys.stream()
-                                                   .map(field -> {
-                                                       Object value = rangeTombstone.close.values[field.position() - cqlTable.numPartitionKeys()];
-                                                       return value != null ? field.serialize(value) : null;
-                                                   })
-                                                   .filter(Objects::nonNull)
-                                                   .toArray(ByteBuffer[]::new);
-                tombstoneBuilder.end(endValues);
-            }
-            return new Mutation(updateBuilder.build());
-        }
-
-        // Build clustering key
-        if (!clusteringKeys.isEmpty())
-        {
-            rowBuilder.newRow(Clustering.make(clusteringKeys.stream()
-                                                            .map(field -> field.serialize(row.get(field.position())))
-                                                            .toArray(ByteBuffer[]::new)));
-        }
-        else
-        {
-            rowBuilder.newRow(Clustering.EMPTY);
-        }
-
-        if (!row.isDeleted())
-        {
-            BiConsumer<Row.Builder, CqlField> rowBuildFunc = (builder, field) -> {
-                CqlType type = (CqlType) field.type();
-                ColumnMetadata column = table.getColumn(new ColumnIdentifier(field.name(), false));
-                Object value = row.get(field.position());
-                if (value == CassandraBridge.UNSET_MARKER)
-                {
-                    // CHECKSTYLE IGNORE: Do not add the cell, a.k.a. unset
-                }
-                else if (value == null)
-                {
-                    if (column.isComplex())
-                    {
-                        type.addComplexTombstone(builder, column, timestamp);
-                    }
-                    else
-                    {
-                        type.addTombstone(builder, column, timestamp);
-                    }
-                }
-                else if (value instanceof CollectionElement)
-                {
-                    CollectionElement element = (CollectionElement) value;
-                    if (element.value == null)
-                    {
-                        type.addTombstone(builder, column, timestamp, element.cellPath);
-                    }
-                    else
-                    {
-                        type.addCell(builder, column, timestamp, element.value, element.cellPath);
-                    }
-                }
-                else
-                {
-                    type.addCell(builder, column, timestamp, value);
-                }
-            };
-
-            if (!cqlTable.staticColumns().isEmpty())
-            {
-                Row.Builder staticRowBuilder = BTreeRow.sortedBuilder();
-                staticRowBuilder.newRow(Clustering.STATIC_CLUSTERING);
-                for (CqlField field : cqlTable.staticColumns())
-                {
-                    rowBuildFunc.accept(staticRowBuilder, field);
-                }
-                staticRow = staticRowBuilder.build();  // Replace the empty row with the new static row built
-            }
-
-            // Build value cells
-            for (CqlField field : cqlTable.valueColumns())
-            {
-                rowBuildFunc.accept(rowBuilder, field);
-            }
-        }
-        else
-        {
-            rowBuilder.addRowDeletion(Row.Deletion.regular(new DeletionTime(timestamp, timeProvider().nowInTruncatedSeconds())));
-        }
-
-        return new Mutation(PartitionUpdate.singleRowUpdate(table, decoratedPartitionKey, rowBuilder.build(), staticRow));
-    }
-
-    @Override
-    @VisibleForTesting
-    protected boolean isPartitionDeletion(CqlTable table, IRow row)
-    {
-        List<CqlField> clusteringKeys = table.clusteringKeys();
-        List<CqlField> valueFields = table.valueColumns();
-        List<CqlField> staticFields = table.staticColumns();
-        for (CqlField field : Iterables.concat(clusteringKeys, valueFields, staticFields))
-        {
-            if (row.get(field.position()) != null)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    @Override
-    @VisibleForTesting
-    protected boolean isRowDeletion(CqlTable table, IRow row)
-    {
-        return row.isDeleted();
-    }
-
-    @Override
-    @VisibleForTesting
-    public Object livingCollectionElement(ByteBuffer cellPath, Object value)
-    {
-        return CollectionElement.living(CellPath.create(cellPath), value);
-    }
-
-    @Override
-    @VisibleForTesting
-    public Object deletedCollectionElement(ByteBuffer cellPath)
-    {
-        return CollectionElement.deleted(CellPath.create(cellPath));
-    }
-
-    @Override
-    @VisibleForTesting
-    public Set<Long> readLog(CqlTable table, CommitLog log, Watermarker watermarker)
-    {
-        SchemaBuilder schemaBuilder = new SchemaBuilder(table, Partitioner.Murmur3Partitioner);
-        TableMetadata metadata = schemaBuilder.tableMetaData();
-        try (BufferingCommitLogReader reader = new BufferingCommitLogReader(metadata, log, watermarker))
-        {
-            List<PartitionUpdateWrapper> updates = reader.result().updates();
-            Set<Long> keys = updates.stream()
-                                          .map(update -> update.partitionKey().getKey().getLong())
-                                          .collect(Collectors.toSet());
-            assert updates.size() == keys.size() : "Duplicate keys have been read from the commit log";
-            return keys;
-        }
-    }
-
     // Version-Specific Test Utility Methods
 
     @Override
@@ -1021,16 +691,6 @@ public class CassandraBridgeImplementation extends CassandraBridge
         COMPRESSOR.uncompress(input, output);
         output.flip();
         return output;
-    }
-
-    // Kryo Serializers
-
-    @Override
-    public Serializer<? extends IPartitionUpdateWrapper> getPartitionUpdateSerializer(String keyspace,
-                                                                                      String table,
-                                                                                      boolean includePartitionUpdate)
-    {
-        return new PartitionUpdateWrapper.Serializer(keyspace, table, includePartitionUpdate);
     }
 
     // Kryo/Java (De-)Serialization

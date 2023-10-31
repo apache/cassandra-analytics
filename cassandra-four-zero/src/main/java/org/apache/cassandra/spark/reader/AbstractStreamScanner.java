@@ -40,7 +40,6 @@ import org.apache.cassandra.db.partitions.UnfilteredPartitionIterator;
 import org.apache.cassandra.db.rows.Cell;
 import org.apache.cassandra.db.rows.ColumnData;
 import org.apache.cassandra.db.rows.ComplexColumnData;
-import org.apache.cassandra.db.rows.RangeTombstoneMarker;
 import org.apache.cassandra.db.rows.Row;
 import org.apache.cassandra.db.rows.Unfiltered;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
@@ -119,8 +118,6 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
     protected abstract void handleCellTombstone();
 
     protected abstract void handleCellTombstoneInComplex(Cell<?> cell);
-
-    protected abstract void handleRangeTombstone(RangeTombstoneMarker marker);
 
     @Override
     public void advanceToNextColumn()
@@ -202,7 +199,6 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
             try
             {
                 // Advance to next unfiltered
-                rid.setIsUpdate(false);  // Reset isUpdate flag
                 if (partition.hasNext())
                 {
                     unfiltered = partition.next();
@@ -212,14 +208,6 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                     // Current partition is exhausted
                     partition = null;
                     unfiltered = null;
-
-                    // Produce a spark row if there are range tombstone markers
-                    if (rid.hasRangeTombstoneMarkers())
-                    {
-                        // The current partition is exhusted and ready to produce a spark row for the range tombstones
-                        rid.setShouldConsumeRangeTombstoneMarkers(true);
-                        return true;
-                    }
                 }
             }
             catch (SSTableStreamException exception)
@@ -245,9 +233,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                     // and also for tables with only primary key columns defined.
                     // An empty PKLI is the 3.0 equivalent of having no row marker (e.g. row modifications via
                     // UPDATE not INSERT) so we don't emit a fake row marker in that case.
-                    boolean emptyLiveness = row.primaryKeyLivenessInfo().isEmpty();
-                    rid.setIsUpdate(emptyLiveness);
-                    if (!emptyLiveness)
+                    if (!row.primaryKeyLivenessInfo().isEmpty())
                     {
                         if (TableMetadata.Flag.isCQLTable(metadata.flags))
                         {
@@ -261,32 +247,6 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                     // iteration and move to the next unfiltered. So then only the row marker and/or row deletion (if
                     // either are present) will get emitted
                     columns = row.iterator();
-                }
-                else if (unfiltered.isRangeTombstoneMarker())
-                {
-                    // Range tombstone can get complicated:
-                    // - In the most simple case, that is a DELETE statement with a single clustering key range, we
-                    //   expect the UnfilteredRowIterator with 2 markers, i.e. open and close range tombstone markers
-                    // - In a slightly more complicated case, it contains IN operator (on prior clustering keys), we
-                    //   expect the UnfilteredRowIterator with 2 * N markers, where N is the number of values specified
-                    //   for IN
-                    // - In the most complicated case, client could comopse a complex partition update with a BATCH
-                    //   statement; it could have those further scenarios: (only discussing the statements applying to
-                    //   the same partition key)
-                    //   - Multiple disjoint ranges => we should expect 2 * N markers, where N is the number of ranges
-                    //   - Overlapping ranges with the same timestamp => we should expect 2 markers, considering the
-                    //     overlapping ranges are merged into a single one. (as the boundary is omitted)
-                    //   - Overlapping ranges with different timestamp ==> we should expect 3 markers, i.e. open bound,
-                    //     boundary and end bound
-                    //   - Ranges mixed with INSERT! => The order of the unfiltered (i.e. Row/RangeTombstoneMarker) is
-                    //     determined by comparing the row clustering with the bounds of the ranges.
-                    //     See o.a.c.d.r.RowAndDeletionMergeIterator
-                    RangeTombstoneMarker rangeTombstoneMarker = (RangeTombstoneMarker) unfiltered;
-                    // We encode the ranges within the same spark row. Therefore, it needs to keep the markers when
-                    // iterating through the partition, and _only_ generate a spark row with range tombstone info when
-                    // exhausting the partition / UnfilteredRowIterator.
-                    handleRangeTombstone(rangeTombstoneMarker);
-                    // Continue to consume the next unfiltered row/marker
                 }
                 else
                 {
@@ -465,22 +425,13 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                     }
                     else
                     {
-                        // Only adds the tombstoned cell when running as a CDC job
                         handleCellTombstoneInComplex(cell);
                     }
                     // In the case the cell is deleted, the deletion time is also the cell's timestamp
                     maxTimestamp = Math.max(maxTimestamp, cell.timestamp());
                 }
-                // In the case of CDC, consuming the mutation contains cell tombstones
-                // results into an empty buffer built
-                if (rid.hasCellTombstoneInComplex())
-                {
-                    rid.setValueCopy(null);
-                }
-                else
-                {
-                    rid.setValueCopy(buffer.build());
-                }
+
+                rid.setValueCopy(buffer.build());
                 rid.setTimestamp(maxTimestamp);
             }
             else

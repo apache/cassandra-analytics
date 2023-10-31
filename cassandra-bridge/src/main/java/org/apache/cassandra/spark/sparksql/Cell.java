@@ -24,20 +24,13 @@ class Cell
     final Object[] values;
     final int position;
     final boolean isNewRow;
-    final boolean isUpdate;
     final long timestamp;
 
-    Cell(Object[] values, int position, boolean isNewRow, boolean isUpdate, long timestamp)
+    Cell(Object[] values, int position, boolean isNewRow, long timestamp)
     {
         this.values = values;
         this.position = position;
         this.isNewRow = isNewRow;
-        this.isUpdate = isUpdate;
         this.timestamp = timestamp;
-    }
-
-    boolean isTombstone()
-    {
-        return false;
     }
 }

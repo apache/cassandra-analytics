@@ -52,10 +52,6 @@ import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.spark.cdc.CommitLogProvider;
-import org.apache.cassandra.spark.cdc.TableIdLookup;
-import org.apache.cassandra.spark.cdc.watermarker.InMemoryWatermarker;
-import org.apache.cassandra.spark.cdc.watermarker.Watermarker;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -315,38 +311,9 @@ public class LocalDataLayer extends DataLayer implements Serializable
         return this;
     }
 
-    @Override
-    public int minimumReplicasForCdc()
-    {
-        return minimumReplicasPerMutation;
-    }
-
     public String jobId()
     {
         return jobId;
-    }
-
-    @Override
-    public Watermarker cdcWatermarker()
-    {
-        return InMemoryWatermarker.INSTANCE;
-    }
-
-    @Override
-    public CommitLogProvider commitLogs(int partitionId)
-    {
-        return () -> Arrays.stream(paths)
-                           .map(Paths::get)
-                           .flatMap(LocalDataLayer::listPath)
-                           .map(Path::toFile)
-                           .map(LocalCommitLog::new);
-    }
-
-    @Override
-    public TableIdLookup tableIdLookup()
-    {
-        // Do nothing, because in tests the tableId in the CommitLog should match in the Schema instance in JVM
-        return (keyspace, table) -> null;
     }
 
     @Override

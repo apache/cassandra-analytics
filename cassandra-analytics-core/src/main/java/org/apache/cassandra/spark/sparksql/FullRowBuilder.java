@@ -80,7 +80,7 @@ class FullRowBuilder implements RowBuilder
     public void copyKeys(Cell cell)
     {
         // Need to handle special case where schema is only partition or clustering keys - i.e. no value columns
-        int length = noValueColumns || cell.isTombstone() ? cell.values.length : cell.values.length - 1;
+        int length = noValueColumns ? cell.values.length : cell.values.length - 1;
         System.arraycopy(cell.values, 0, result, 0, length);
         count += length;
     }

@@ -26,7 +26,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.data.DataLayer;
-import org.apache.cassandra.spark.sparksql.filters.CdcOffsetFilter;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.sources.v2.reader.InputPartitionReader;
@@ -56,10 +55,9 @@ public class SparkRowIterator extends AbstractSparkRowIterator implements InputP
     protected SparkRowIterator(int partitionId,
                                @NotNull DataLayer dataLayer,
                                @Nullable StructType columnFilter,
-                               @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                               @Nullable CdcOffsetFilter cdcOffsetFilter)
+                               @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
-        super(partitionId, dataLayer, columnFilter, partitionKeyFilters, cdcOffsetFilter);
+        super(partitionId, dataLayer, columnFilter, partitionKeyFilters);
     }
 
     @Override

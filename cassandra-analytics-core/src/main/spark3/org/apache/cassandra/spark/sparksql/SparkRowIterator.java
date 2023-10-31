@@ -32,7 +32,6 @@ import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
-import org.apache.cassandra.spark.sparksql.filters.CdcOffsetFilter;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.PartitionReader;
@@ -49,24 +48,15 @@ public class SparkRowIterator extends AbstractSparkRowIterator implements Partit
     @VisibleForTesting
     public SparkRowIterator(int partitionId, @NotNull DataLayer dataLayer)
     {
-        this(partitionId, dataLayer, null, new ArrayList<>(), null);
-    }
-
-    public SparkRowIterator(int partitionId,
-                            @NotNull DataLayer dataLayer,
-                            @Nullable StructType columnFilter,
-                            @NotNull List<PartitionKeyFilter> partitionKeyFilters)
-    {
-        this(partitionId, dataLayer, columnFilter, partitionKeyFilters, null);
+        this(partitionId, dataLayer, null, new ArrayList<>());
     }
 
     protected SparkRowIterator(int partitionId,
                                @NotNull DataLayer dataLayer,
                                @Nullable StructType columnFilter,
-                               @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                               @Nullable CdcOffsetFilter cdcOffsetFilter)
+                               @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
-        super(partitionId, dataLayer, columnFilter, partitionKeyFilters, cdcOffsetFilter);
+        super(partitionId, dataLayer, columnFilter, partitionKeyFilters);
     }
 
     @Override
@@ -171,7 +161,7 @@ public class SparkRowIterator extends AbstractSparkRowIterator implements Partit
             }
 
             // Otherwise we need to only return columns requested and map to new position in result array
-            int length = noValueColumns || cell.isTombstone() ? cell.values.length : cell.values.length - 1;
+            int length = noValueColumns ? cell.values.length : cell.values.length - 1;
             for (int index = 0; index < length; index++)
             {
                 int position = positionsMap[index];

@@ -42,12 +42,9 @@ import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.RangeTombstone;
-import org.apache.cassandra.spark.config.SchemaFeature;
-import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -58,7 +55,6 @@ import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -476,30 +472,6 @@ public final class TestSchema
                                       Consumer<CassandraBridge.Writer> writer)
     {
         bridge.writeTombstoneSSTable(partitioner, directory, createStatement, deleteStatement, writer);
-    }
-
-    public static StructType toStructType(CqlTable table, boolean addLastModificationTimeColumn)
-    {
-        StructType structType = new StructType();
-        for (CqlField field : table.fields())
-        {
-            structType = structType.add(field.name(), field.type().sparkSqlType(BigNumberConfig.DEFAULT));
-        }
-        if (addLastModificationTimeColumn)
-        {
-            structType = structType.add(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.field());
-        }
-        // CDC jobs always add the updated_fields_indicator and is_update column
-        for (SchemaFeature feature : SchemaFeatureSet.ALL_CDC_FEATURES)
-        {
-            structType = structType.add(feature.field());
-        }
-        return structType;
-    }
-
-    public TestRow[] randomRows(int numRows)
-    {
-        return randomRows(numRows, 0);
     }
 
     @SuppressWarnings("SameParameterValue")

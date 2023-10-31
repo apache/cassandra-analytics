@@ -27,7 +27,6 @@ import org.apache.commons.lang.builder.EqualsBuilder;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.cassandra.spark.cdc.CommitLog;
 
 @SuppressWarnings("WeakerAccess")
 public class CassandraInstance implements Serializable
@@ -57,17 +56,6 @@ public class CassandraInstance implements Serializable
     public String dataCenter()
     {
         return dataCenter;
-    }
-
-    @SuppressWarnings("unused")
-    public CommitLog.Marker zeroMarker()
-    {
-        return markerAt(0, 0);
-    }
-
-    public CommitLog.Marker markerAt(long section, int position)
-    {
-        return new CommitLog.Marker(this, section, position);
     }
 
     @Override

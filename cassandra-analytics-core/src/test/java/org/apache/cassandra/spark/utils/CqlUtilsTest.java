@@ -43,7 +43,6 @@ import org.apache.cassandra.spark.data.VersionRunner;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -156,8 +155,7 @@ public class CqlUtilsTest extends VersionRunner
                    + " AND compression = { 'chunk_length_in_kb' : 16, 'class' : 'org.apache.cassandra.io.compress.LZ4Compressor' }"
                    + " AND default_time_to_live = 0"
                    + " AND min_index_interval = 128"
-                   + " AND max_index_interval = 2048"
-                   + " AND cdc = false;", cleaned);
+                   + " AND max_index_interval = 2048;", cleaned);
     }
 
     @ParameterizedTest
@@ -176,7 +174,6 @@ public class CqlUtilsTest extends VersionRunner
                          + "PRIMARY KEY (key, column1) "
                          + ") WITH COMPACT STORAGE "
                          + "AND CLUSTERING ORDER BY (column1 ASC) "
-                         + "AND cdc = false "
                          + "AND bloom_filter_fp_chance = 0.1 "
                          + "AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} "
                          + "AND comment = '' "
@@ -202,7 +199,6 @@ public class CqlUtilsTest extends VersionRunner
                                   + "\"C4\" counter static, "
                                   + "value counter, "
                                   + "PRIMARY KEY (key, column1) ) WITH CLUSTERING ORDER BY (column1 ASC)"
-                                  + " AND cdc = false"
                                   + " AND bloom_filter_fp_chance = 0.1"
                                   + " AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.DeflateCompressor'}"
                                   + " AND default_time_to_live = 0"
@@ -244,7 +240,7 @@ public class CqlUtilsTest extends VersionRunner
                          + "value counter, "
                          + "PRIMARY KEY (key, column1) "
                          + ") WITH bloom_filter_fp_chance = 0.1 "
-                         + "AND cdc = true "
+                         + "AND cdc = false "
                          + "AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} "
                          + "AND comment = '' "
                          + "AND compaction = {'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'} "
@@ -269,7 +265,6 @@ public class CqlUtilsTest extends VersionRunner
                                   + "value counter, "
                                   + "PRIMARY KEY (key, column1) ) WITH"
                                   + " bloom_filter_fp_chance = 0.1"
-                                  + " AND cdc = true"
                                   + " AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.DeflateCompressor'}"
                                   + " AND default_time_to_live = 100 AND max_index_interval = 2048 "
                                   + "AND min_index_interval = 128;";
@@ -646,9 +641,9 @@ public class CqlUtilsTest extends VersionRunner
     public void testClusteringOrderByIsRetained(CassandraBridge bridge)
     {
         String schemaStr = "CREATE TABLE keyspace.table (id bigint, version bigint PRIMARY KEY (id, version)) "
-                         + "WITH CLUSTERING ORDER BY (id DESC, version DESC) AND foo = 1;";
+                           + "WITH CLUSTERING ORDER BY (id DESC, version DESC) AND foo = 1;";
         String expectedCreateStmt = "CREATE TABLE keyspace.table (id bigint, version bigint PRIMARY KEY (id, version)) "
-                                  + "WITH CLUSTERING ORDER BY (id DESC, version DESC);";
+                                    + "WITH CLUSTERING ORDER BY (id DESC, version DESC);";
         String actualCreateStmt = CqlUtils.extractTableSchema(schemaStr, "keyspace", "table");
         assertEquals(expectedCreateStmt, actualCreateStmt);
     }
@@ -792,32 +787,6 @@ public class CqlUtilsTest extends VersionRunner
         assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1 "
                                                       + "AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} AND max_index_interval = 6;",
                                                       Collections.singletonList("max_index_interval")).contains("max_index_interval = 6"));
-    }
-
-    @ParameterizedTest
-    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
-    public void testCdcExtractSchema(CassandraBridge bridge)
-    {
-        String schema = "CREATE KEYSPACE ks1"
-                      + " WITH REPLICATION = { 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy',"
-                      +                      " 'MS': '3', 'ST': '3' } AND DURABLE_WRITES = true;\\n\\n"
-                      + "CREATE TABLE ks1.tb1 (\"a\" text, \"b\" text, \"c\" text, \"d\" text,"
-                      + " e timestamp, f uuid, g blob, PRIMARY KEY ((\"a\", \"b\"), \"c\", \"d\"))"
-                      + " WITH CLUSTERING ORDER BY (\"c\" DESC, \"d\" ASC) AND cdc = true;\n\n"
-                      + "CREATE TABLE ks1.tb2 (a text, b text, c text, d text, PRIMARY KEY ((a), b, c))"
-                      + " WITH CLUSTERING ORDER BY (b DESC, c ASC) AND cdc = true;\n\n"
-                      + "CREATE KEYSPACE ks2"
-                      + " WITH REPLICATION = { 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy',"
-                      +                      " 'MS': '3', 'ST': '3' } AND DURABLE_WRITES = true;\\n\\n"
-                      + "CREATE TABLE ks2.tb3 (a text, b text, c text, d text, PRIMARY KEY ((a), b, c))"
-                      + " WITH CLUSTERING ORDER BY (b DESC, c ASC);\n\n"
-                      + "CREATE TABLE ks2.tb4 (a bigint, b int, c uuid, d text, PRIMARY KEY (a)) WITH cdc = true;\n\n";
-        Map<TableIdentifier, String> createStmts = CqlUtils.extractCdcTables(schema);
-        assertEquals(3, createStmts.size());
-        assertTrue(createStmts.containsKey(TableIdentifier.of("ks1", "tb1")));
-        assertTrue(createStmts.containsKey(TableIdentifier.of("ks1", "tb2")));
-        assertFalse(createStmts.containsKey(TableIdentifier.of("ks2", "tb3")));
-        assertTrue(createStmts.containsKey(TableIdentifier.of("ks2", "tb4")));
     }
 
     private static String loadFullSchemaSample() throws URISyntaxException, IOException
