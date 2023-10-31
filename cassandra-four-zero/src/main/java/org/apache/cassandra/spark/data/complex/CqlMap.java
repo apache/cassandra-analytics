@@ -29,9 +29,6 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.MapType;
-import org.apache.cassandra.db.rows.BufferCell;
-import org.apache.cassandra.db.rows.CellPath;
-import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.serializers.MapSerializer;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
@@ -197,19 +194,5 @@ public class CqlMap extends CqlCollection implements CqlField.CqlMap
         return map.entrySet().stream()
                 .collect(Collectors.toMap(element -> keyType().convertForCqlWriter(element.getKey(), version),
                                           element -> valueType().convertForCqlWriter(element.getValue(), version)));
-    }
-
-    @Override
-    public void addCell(org.apache.cassandra.db.rows.Row.Builder rowBuilder,
-                        ColumnMetadata column,
-                        long timestamp,
-                        Object value)
-    {
-        ((Map<?, ?>) value).entrySet().stream()
-                .map(element -> BufferCell.live(column,
-                                                timestamp,
-                                                valueType().serialize(element.getValue()),
-                                                CellPath.create(keyType().serialize(element.getKey()))))
-                .forEachOrdered(rowBuilder::addCell);
     }
 }

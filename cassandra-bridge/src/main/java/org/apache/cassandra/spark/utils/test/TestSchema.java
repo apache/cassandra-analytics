@@ -35,19 +35,14 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.bridge.RangeTombstone;
-import org.apache.cassandra.spark.config.SchemaFeature;
-import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -58,7 +53,6 @@ import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -478,78 +472,32 @@ public final class TestSchema
         bridge.writeTombstoneSSTable(partitioner, directory, createStatement, deleteStatement, writer);
     }
 
-    public static StructType toStructType(CqlTable table, boolean addLastModificationTimeColumn)
-    {
-        StructType structType = new StructType();
-        for (CqlField field : table.fields())
-        {
-            structType = structType.add(field.name(), field.type().sparkSqlType(BigNumberConfig.DEFAULT));
-        }
-        if (addLastModificationTimeColumn)
-        {
-            structType = structType.add(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.field());
-        }
-        // CDC jobs always add the updated_fields_indicator and is_update column
-        for (SchemaFeature feature : SchemaFeatureSet.ALL_CDC_FEATURES)
-        {
-            structType = structType.add(feature.field());
-        }
-        return structType;
-    }
-
-    public TestRow[] randomRows(int numRows)
-    {
-        return randomRows(numRows, 0);
-    }
-
     @SuppressWarnings("SameParameterValue")
-    private TestRow[] randomRows(int numRows, int numTombstones)
+    public TestRow[] randomRows(int numRows)
     {
         TestSchema.TestRow[] testRows = new TestSchema.TestRow[numRows];
         for (int testRow = 0; testRow < testRows.length; testRow++)
         {
-            testRows[testRow] = randomRow(testRow < numTombstones);
+            testRows[testRow] = randomRow();
         }
         return testRows;
     }
 
     public TestRow randomRow()
     {
-        return randomRow(false);
-    }
-
-    private TestRow randomRow(boolean tombstone)
-    {
-        return randomRow(field -> tombstone && field.isValueColumn());
-    }
-
-    private TestRow randomRow(Predicate<CqlField> nullifiedFields)
-    {
         Object[] values = new Object[allFields.size()];
         for (CqlField field : allFields)
         {
-            if (nullifiedFields.test(field))
+            if (field.type().getClass().getSimpleName().equals("Blob") && blobSize != null)
             {
-                values[field.position()] = null;
+                values[field.position()] = RandomUtils.randomByteBuffer(blobSize);
             }
             else
             {
-                if (field.type().getClass().getSimpleName().equals("Blob") && blobSize != null)
-                {
-                    values[field.position()] = RandomUtils.randomByteBuffer(blobSize);
-                }
-                else
-                {
-                    values[field.position()] = field.type().randomValue(minCollectionSize);
-                }
+                values[field.position()] = field.type().randomValue(minCollectionSize);
             }
         }
         return new TestRow(values);
-    }
-
-    public TestRow randomPartitionDelete()
-    {
-        return randomRow(field -> !field.isPartitionKey());
     }
 
     public TestRow toTestRow(InternalRow row)
@@ -590,58 +538,10 @@ public final class TestSchema
     public final class TestRow implements CassandraBridge.IRow
     {
         private final Object[] values;
-        private boolean isTombstoned;
-        private boolean isInsert;
-        private List<RangeTombstone> rangeTombstones;
 
         private TestRow(Object[] values)
         {
-            this(values, false, true);
-        }
-
-        private TestRow(Object[] values, boolean isTombstoned, boolean isInsert)
-        {
             this.values = values;
-            this.isTombstoned = isTombstoned;
-            this.isInsert = isInsert;
-        }
-
-        public void setRangeTombstones(List<RangeTombstone> rangeTombstones)
-        {
-            this.rangeTombstones = rangeTombstones;
-        }
-
-        @Override
-        public List<RangeTombstone> rangeTombstones()
-        {
-            return rangeTombstones;
-        }
-
-        public void delete()
-        {
-            isTombstoned = true;
-        }
-
-        public void fromUpdate()
-        {
-            isInsert = false;
-        }
-
-        public void fromInsert()
-        {
-            isInsert = true;
-        }
-
-        @Override
-        public boolean isDeleted()
-        {
-            return isTombstoned;
-        }
-
-        @Override
-        public boolean isInsert()
-        {
-            return isInsert;
         }
 
         public TestRow copy(String field, Object value)
@@ -682,29 +582,6 @@ public final class TestSchema
                 result[field.position() - skipped] = values[field.position()];
             }
             return new TestRow(result);
-        }
-
-        public TestRow nullifyUnsetColumn()
-        {
-            Object[] newValues = new Object[values.length];
-            System.arraycopy(values, 0, newValues, 0, values.length);
-            for (int value = 0; value < newValues.length; value++)
-            {
-                if (newValues[value] == CassandraBridge.UNSET_MARKER)
-                {
-                    newValues[value] = null;
-                }
-            }
-            return new TestRow(newValues);
-        }
-
-        public Object[] rawValues(int start, int end)
-        {
-            assert start <= end && end <= values.length
-                : String.format("start: %s, end: %s", version, start, end);
-            Object[] result = new Object[end - start];
-            System.arraycopy(values, start, result, 0, end - start);
-            return result;
         }
 
         public Object[] allValues()

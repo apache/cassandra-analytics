@@ -36,11 +36,9 @@ import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.StreamScanner;
-import org.apache.cassandra.spark.sparksql.filters.CdcOffsetFilter;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.stats.Stats;
-import org.apache.cassandra.spark.utils.ArrayUtils;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.ColumnTypes;
 import org.apache.spark.sql.types.StructField;
@@ -80,8 +78,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
     public SparkCellIterator(int partitionId,
                              @NotNull DataLayer dataLayer,
                              @Nullable StructType requiredSchema,
-                             @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                             @Nullable CdcOffsetFilter cdcOffsetFilter)
+                             @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
         this.partitionId = partitionId;
         this.dataLayer = dataLayer;
@@ -108,7 +105,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         // Open compaction scanner
         startTimeNanos = System.nanoTime();
         previousTimeNanos = startTimeNanos;
-        scanner = openScanner(partitionId, partitionKeyFilters, cdcOffsetFilter);
+        scanner = openScanner(partitionId, partitionKeyFilters);
         long openTimeNanos = System.nanoTime() - startTimeNanos;
         LOGGER.info("Opened CompactionScanner runtimeNanos={}", openTimeNanos);
         stats.openedCompactionScanner(openTimeNanos);
@@ -117,8 +114,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
     }
 
     protected StreamScanner<Rid> openScanner(int partitionId,
-                                             @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                                             @Nullable CdcOffsetFilter cdcOffsetFilter)
+                                             @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
         return dataLayer.openCompactionScanner(partitionId, partitionKeyFilters, columnFilter);
     }
@@ -183,40 +179,6 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
             // Deserialize partition keys - if we have moved to a new partition - and update 'values' Object[] array.
             maybeRebuildPartition();
 
-            if (rid.shouldConsumeRangeTombstoneMarkers())
-            {
-                List<RangeTombstoneMarker> markers = rid.getRangeTombstoneMarkers();
-                long maxTimestamp = markers.stream()
-                                           .map(marker -> {
-                                               if (marker.isBoundary())
-                                               {
-                                                   return Math.max(marker.openDeletionTime(false), marker.closeDeletionTime(false));
-                                               }
-                                               else
-                                               {
-                                                   return marker.isOpen(false) ? marker.openDeletionTime(false) : marker.closeDeletionTime(false);
-                                               }
-                                           })
-                                           .max(Long::compareTo)
-                                           .get();  // Safe to call get as markers is non-empty
-                // Range tombstones requires only to have the partition key in the spark row,
-                // the range tombstones are encoded in the extra column
-                int partitionkeyLength = cqlTable.numPartitionKeys();
-                next = new RangeTombstone(ArrayUtils.retain(values, 0, partitionkeyLength), maxTimestamp, markers);
-                rid.resetRangeTombstoneMarkers();
-                return true;
-            }
-
-            if (rid.isPartitionDeletion())
-            {
-                // Special case that row deletion will only have the partition key parts present in the values array
-                int partitionkeyLength = cqlTable.numPartitionKeys();
-                // Strip out other values if any rather than the partition keys
-                next = new Tombstone(ArrayUtils.retain(values, 0, partitionkeyLength), rid.getTimestamp());
-                rid.setPartitionDeletion(false);  // Reset
-                return true;
-            }
-
             scanner.advanceToNextColumn();
 
             // Skip partition e.g. if token is outside of Spark worker token range
@@ -237,21 +199,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
                 if (noValueColumns)
                 {
                     // Special case where schema consists only of partition keys, clustering keys or static columns, no value columns
-                    next = new Cell(values, 0, newRow, rid.isUpdate(), rid.getTimestamp());
-                    return true;
-                }
-
-                // SBR job (not CDC) should not expect encountering a row tombstone.
-                // It would throw IllegalStateException at the beginning of this method (at scanner.hasNext()).
-                // For a row deletion, the resulting row tombstone does not carry other fields than the primary keys.
-                if (rid.isRowDeletion())
-                {
-                    // Special case that row deletion will only have the primary key parts present in the values array
-                    int primaryKeyLength = cqlTable.numPrimaryKeyColumns();
-                    // Strip out other values if any rather than the primary keys
-                    next = new Tombstone(ArrayUtils.retain(values, 0, primaryKeyLength), rid.getTimestamp());
-                    // Reset row deletion flag
-                    rid.setRowDeletion(false);
+                    next = new Cell(values, 0, newRow, rid.getTimestamp());
                     return true;
                 }
 
@@ -274,16 +222,8 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
                 continue;
             }
 
-            if (rid.hasCellTombstoneInComplex())
-            {
-                next = new TombstonesInComplex(values, field.position(), newRow, rid.getTimestamp(), columnName, rid.getCellTombstonesInComplex());
-                rid.resetCellTombstonesInComplex();
-            }
-            else
-            {
-                // Update next Cell
-                next = new Cell(values, field.position(), newRow, rid.isUpdate(), rid.getTimestamp());
-            }
+            // Update next Cell
+            next = new Cell(values, field.position(), newRow, rid.getTimestamp());
 
             return true;
         }

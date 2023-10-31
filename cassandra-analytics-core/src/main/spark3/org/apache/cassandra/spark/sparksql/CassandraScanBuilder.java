@@ -43,7 +43,6 @@ import org.apache.spark.sql.connector.read.SupportsPushDownFilters;
 import org.apache.spark.sql.connector.read.SupportsPushDownRequiredColumns;
 import org.apache.spark.sql.connector.read.SupportsReportPartitioning;
 import org.apache.spark.sql.connector.read.partitioning.Partitioning;
-import org.apache.spark.sql.connector.read.streaming.MicroBatchStream;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
@@ -111,12 +110,6 @@ class CassandraScanBuilder implements ScanBuilder, Scan, Batch, SupportsPushDown
         return IntStream.range(0, dataLayer.partitionCount())
                 .mapToObj(CassandraInputPartition::new)
                 .toArray(InputPartition[]::new);
-    }
-
-    @Override
-    public MicroBatchStream toMicroBatchStream(String checkpointLocation)
-    {
-        return new CassandraMicroBatchStream(dataLayer, requiredSchema, options);
     }
 
     @Override

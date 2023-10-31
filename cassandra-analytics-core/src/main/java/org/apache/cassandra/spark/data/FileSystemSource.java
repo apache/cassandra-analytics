@@ -31,7 +31,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.spark.utils.IOUtils;
 import org.apache.cassandra.spark.utils.streaming.SSTableSource;
 import org.apache.cassandra.spark.utils.streaming.StreamBuffer;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
@@ -41,10 +40,6 @@ class FileSystemSource implements SSTableSource<FileSystemSSTable>, AutoCloseabl
     private static final Logger LOGGER = LoggerFactory.getLogger(FileSystemSource.class);
     static final ExecutorService FILE_IO_EXECUTOR =
             Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("file-io-%d")
-                                                                      .setDaemon(true)
-                                                                      .build());
-    protected static final ExecutorService COMMIT_LOG_EXECUTOR =
-            Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("commit-log-%d")
                                                                       .setDaemon(true)
                                                                       .build());
 
@@ -64,19 +59,19 @@ class FileSystemSource implements SSTableSource<FileSystemSSTable>, AutoCloseabl
     @Override
     public long maxBufferSize()
     {
-        return chunkBufferSize() * 4;
+        return chunkBufferSize() * 4L;
     }
 
     @Override
     public long chunkBufferSize()
     {
-        return 16 * 1024;
+        return 16L * 1024L;
     }
 
     @Override
     public long headerChunkSize()
     {
-        return fileType == FileType.COMMITLOG ? IOUtils.DEFAULT_CDC_BUFFER_SIZE : chunkBufferSize();
+        return chunkBufferSize();
     }
 
     public ExecutorService executor()

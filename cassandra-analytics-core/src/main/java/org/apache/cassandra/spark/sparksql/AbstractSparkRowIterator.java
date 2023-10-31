@@ -29,7 +29,6 @@ import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
-import org.apache.cassandra.spark.sparksql.filters.CdcOffsetFilter;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.spark.sql.catalyst.InternalRow;
@@ -59,13 +58,12 @@ abstract class AbstractSparkRowIterator
     AbstractSparkRowIterator(int partitionId,
                              @NotNull DataLayer dataLayer,
                              @Nullable StructType requiredSchema,
-                             @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                             @Nullable CdcOffsetFilter cdcOffsetFilter)
+                             @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
         this.stats = dataLayer.stats();
         this.cqlTable = dataLayer.cqlTable();
         this.columnFilter = useColumnFilter(requiredSchema, cqlTable) ? requiredSchema : null;
-        this.it = buildCellIterator(partitionId, dataLayer, columnFilter, partitionKeyFilters, cdcOffsetFilter);
+        this.it = buildCellIterator(partitionId, dataLayer, columnFilter, partitionKeyFilters);
         this.stats.openedSparkRowIterator();
         this.openTimeNanos = System.nanoTime();
         this.requestedFeatures = dataLayer.requestedFeatures();
@@ -76,10 +74,9 @@ abstract class AbstractSparkRowIterator
     protected SparkCellIterator buildCellIterator(int partitionId,
                                                   @NotNull DataLayer dataLayer,
                                                   @Nullable StructType columnFilter,
-                                                  @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                                                  @Nullable CdcOffsetFilter cdcOffsetFilter)
+                                                  @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
-        return new SparkCellIterator(partitionId, dataLayer, this.columnFilter, partitionKeyFilters, cdcOffsetFilter);  // TODO: This 'this.' feels wrong here
+        return new SparkCellIterator(partitionId, dataLayer, columnFilter, partitionKeyFilters);
     }
 
     private static boolean useColumnFilter(@Nullable StructType requiredSchema, CqlTable cqlTable)
@@ -135,9 +132,9 @@ abstract class AbstractSparkRowIterator
 
             builder.onCell(cell);
 
-            if (!noValueColumns && !cell.isTombstone())
+            if (!noValueColumns)
             {
-                // If schema has value column or not a row deletion then copy across
+                // If schema has value column
                 builder.copyValue(cell);
             }
             cell = null;

@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.utils;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +46,6 @@ public final class CqlUtils
 {
     // Properties to be overridden when extracted from the table schema
     private static final List<String> TABLE_PROPERTY_OVERRIDE_ALLOWLIST = Arrays.asList("bloom_filter_fp_chance",
-                                                                                        "cdc",
                                                                                         "compression",
                                                                                         "default_time_to_live",
                                                                                         "min_index_interval",
@@ -120,25 +118,6 @@ public final class CqlUtils
             table = table.substring(1, table.length() - 1);
         }
         return table;
-    }
-
-    /**
-     * @param schemaStr full cluster schema text
-     * @return map of keyspace/table identifier to table create statements
-     */
-    public static Map<TableIdentifier, String> extractCdcTables(@NotNull String schemaStr)
-    {
-        String cleaned = cleanCql(schemaStr);
-        Pattern pattern = Pattern.compile("CREATE TABLE \"?(\\w+)\"?\\.\"?(\\w+)\"?[^;]*cdc = true[^;]*;");
-        Matcher matcher = pattern.matcher(cleaned);
-        Map<TableIdentifier, String> createStmts = new HashMap<>();
-        while (matcher.find())
-        {
-            String keyspace = matcher.group(1);
-            String table = matcher.group(2);
-            createStmts.put(TableIdentifier.of(keyspace, table), extractCleanedTableSchema(cleaned, keyspace, table));
-        }
-        return createStmts;
     }
 
     public static Set<String> extractKeyspaceNames(@NotNull String schemaStr)

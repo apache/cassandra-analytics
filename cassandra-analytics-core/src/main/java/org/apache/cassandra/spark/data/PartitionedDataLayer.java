@@ -43,8 +43,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.TokenRange;
-import org.apache.cassandra.spark.cdc.CommitLog;
-import org.apache.cassandra.spark.cdc.CommitLogProvider;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
@@ -57,9 +55,7 @@ import org.apache.cassandra.spark.sparksql.NoMatchFoundException;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.spark.stats.Stats;
-import org.apache.cassandra.spark.utils.FutureUtils;
 import org.apache.cassandra.spark.utils.RangeUtils;
-import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -498,55 +494,7 @@ public abstract class PartitionedDataLayer extends DataLayer
         }
     }
 
-    // CDC
-
-    public abstract CompletableFuture<List<CommitLog>> listCommitLogs(CassandraInstance instance);
-
-    @Override
-    public CommitLogProvider commitLogs(int partitionId)
-    {
-        return () -> {
-            TokenPartitioner tokenPartitioner = tokenPartitioner();
-            Range<BigInteger> range = tokenPartitioner.getTokenRange(partitionId);
-
-            // For CDC we read from all available replicas that overlap with Spark token range
-            Map<Range<BigInteger>, List<CassandraInstance>> subRanges = ring().getSubRanges(range).asMapOfRanges();
-            Set<CassandraInstance> replicas = subRanges.values().stream()
-                    .flatMap(Collection::stream)
-                    .filter(instance -> datacenter == null || instance.dataCenter().equalsIgnoreCase(datacenter))
-                    .collect(Collectors.toSet());
-            List<CompletableFuture<List<CommitLog>>> futures = replicas.stream()
-                    .map(this::listCommitLogs)
-                    .collect(Collectors.toList());
-
-            // Block to list replicas
-            List<List<CommitLog>> replicaLogs = FutureUtils.awaitAll(futures, true, throwable ->
-                    LOGGER.warn("Failed to list CDC commit logs on instance", ThrowableUtils.rootCause(throwable)));
-
-            int requiredReplicas = minimumReplicasForCdc();
-            if (replicaLogs.size() < requiredReplicas)
-            {
-                // We need *at least* local quorum for CDC to work, but if all nodes are up then read from LOCAL ALL
-                throw new NotEnoughReplicasException(
-                        String.format("CDC requires at least %d replicas but only %d responded",
-                                      requiredReplicas, replicaLogs.size()));
-            }
-
-            return replicaLogs.stream()
-                              .flatMap(Collection::stream);
-        };
-    }
-
     public abstract ReplicationFactor replicationFactor(String keyspace);
-
-    @Override
-    public int minimumReplicasForCdc()
-    {
-        CassandraRing ring = ring();
-        ReplicationFactor replicationFactor = ring.replicationFactor();
-        validateReplicationFactor(replicationFactor);
-        return consistencyLevel.blockFor(replicationFactor, datacenter);
-    }
 
     @Override
     public int hashCode()

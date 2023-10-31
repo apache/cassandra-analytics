@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.data.complex;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -31,15 +30,11 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.ListType;
-import org.apache.cassandra.db.rows.BufferCell;
-import org.apache.cassandra.db.rows.CellPath;
-import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.serializers.ListSerializer;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.utils.RandomUtils;
-import org.apache.cassandra.utils.UUIDGen;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayData;
@@ -162,19 +157,5 @@ public class CqlList extends CqlCollection implements CqlField.CqlList
         return ((List<?>) value).stream()
                                 .map(element -> type().convertForCqlWriter(element, version))
                                 .collect(Collectors.toList());
-    }
-
-    @Override
-    public void addCell(org.apache.cassandra.db.rows.Row.Builder rowBuilder,
-                        ColumnMetadata column,
-                        long timestamp,
-                        Object value)
-    {
-        ((List<?>) value).stream()
-                         .map(element -> BufferCell.live(column,
-                                                         timestamp,
-                                                         type().serialize(element),
-                                                          CellPath.create(ByteBuffer.wrap(UUIDGen.getTimeUUIDBytes()))))
-                         .forEachOrdered(rowBuilder::addCell);
     }
 }

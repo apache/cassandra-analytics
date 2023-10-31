@@ -35,8 +35,6 @@ public final class IOUtils
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(IOUtils.class);
 
-    public static final int DEFAULT_CDC_BUFFER_SIZE = 4096;
-
     private IOUtils()
     {
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");

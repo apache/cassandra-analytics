@@ -521,11 +521,6 @@ public final class Tester
         return newUniqueRow(schema::randomRow, rows);
     }
 
-    public static TestSchema.TestRow newUniquePartitionDeletion(TestSchema schema, Map<String, TestSchema.TestRow> rows)
-    {
-        return newUniqueRow(schema::randomPartitionDelete, rows);
-    }
-
     private static TestSchema.TestRow newUniqueRow(Supplier<TestSchema.TestRow> rowProvider,
                                                    Map<String, TestSchema.TestRow> rows)
     {

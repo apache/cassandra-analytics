@@ -38,8 +38,6 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.spark.cdc.CommitLogProvider;
-import org.apache.cassandra.spark.cdc.TableIdLookup;
 import org.apache.cassandra.spark.data.BasicSupplier;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
@@ -99,18 +97,6 @@ public class TestDataLayer extends DataLayer
     public boolean isInPartition(int partitionId, BigInteger token, ByteBuffer key)
     {
         return true;
-    }
-
-    @Override
-    public CommitLogProvider commitLogs(int partitionId)
-    {
-        throw new UnsupportedOperationException("Test CommitLogProvider not implemented yet");
-    }
-
-    @Override
-    public TableIdLookup tableIdLookup()
-    {
-        throw new UnsupportedOperationException("Test TableIdLookup not implemented yet");
     }
 
     @Override

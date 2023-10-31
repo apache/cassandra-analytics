@@ -171,10 +171,6 @@ public final class TestUtils
                                  .option("useSSTableInputStream", true)  // Use in the test system to test the SSTableInputStream
                                  .option("partitioner", partitioner.name())
                                  .option(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), addLastModificationTime)
-                                 .option(SchemaFeatureSet.UPDATED_FIELDS_INDICATOR.optionName(), true)   // Always add the indicator column for CDC
-                                 .option(SchemaFeatureSet.UPDATE_FLAG.optionName(), true)                // Always add the update flag for CDC
-                                 .option(SchemaFeatureSet.CELL_DELETION_IN_COMPLEX.optionName(),  true)  // Support tombstones in complex for CDC
-                                 .option(SchemaFeatureSet.RANGE_DELETION.optionName(), true)             // Support range tombstones for CDC
                                  .option("udts", "")
                                  .load();
         try

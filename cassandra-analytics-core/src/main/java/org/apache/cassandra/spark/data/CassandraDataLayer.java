@@ -24,7 +24,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -79,9 +78,6 @@ import org.apache.cassandra.sidecar.common.NodeSettings;
 import org.apache.cassandra.sidecar.common.data.ListSnapshotFilesResponse;
 import org.apache.cassandra.sidecar.common.data.RingResponse;
 import org.apache.cassandra.sidecar.common.data.SchemaResponse;
-import org.apache.cassandra.spark.cdc.CommitLog;
-import org.apache.cassandra.spark.cdc.TableIdLookup;
-import org.apache.cassandra.spark.cdc.watermarker.Watermarker;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
@@ -461,33 +457,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     }
 
     @Override
-    public Watermarker cdcWatermarker()
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Duration cdcWatermarkWindow()
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public CompletableFuture<List<CommitLog>> listCommitLogs(CassandraInstance instance)
-    {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public ReplicationFactor replicationFactor(String keyspace)
     {
         return rfMap.get(keyspace);
-    }
-
-    @Override
-    public TableIdLookup tableIdLookup()
-    {
-        throw new UnsupportedOperationException();
     }
 
     @Override

@@ -25,7 +25,6 @@ import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -33,7 +32,6 @@ import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
-import org.apache.commons.lang.NotImplementedException;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -43,9 +41,6 @@ import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.secrets.SslConfig;
 import org.apache.cassandra.spark.TestUtils;
-import org.apache.cassandra.spark.cdc.CommitLog;
-import org.apache.cassandra.spark.cdc.CommitLogProvider;
-import org.apache.cassandra.spark.cdc.TableIdLookup;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
@@ -220,12 +215,6 @@ public class JDKSerializationTests extends VersionRunner
             return tokenPartitioner;
         }
 
-        @Override
-        public CompletableFuture<List<CommitLog>> listCommitLogs(CassandraInstance instance)
-        {
-            throw new NotImplementedException("Test listCommitLogs not implemented yet");
-        }
-
         protected ExecutorService executorService()
         {
             return SingleReplicaTests.EXECUTOR;
@@ -246,21 +235,10 @@ public class JDKSerializationTests extends VersionRunner
             return cqlTable;
         }
 
-        public CommitLogProvider commitLogs(int partitionId)
-        {
-            throw new NotImplementedException("Test CommitLogProvider not implemented yet");
-        }
-
         @Override
         public ReplicationFactor replicationFactor(String keyspace)
         {
             return ring.replicationFactor();
-        }
-
-        @Override
-        public TableIdLookup tableIdLookup()
-        {
-            throw new NotImplementedException("Test TableIdLookup not implemented yet");
         }
 
         private void writeObject(ObjectOutputStream out) throws IOException

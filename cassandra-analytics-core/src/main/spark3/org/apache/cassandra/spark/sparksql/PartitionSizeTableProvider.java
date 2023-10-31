@@ -40,7 +40,6 @@ import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.connector.read.Scan;
 import org.apache.spark.sql.connector.read.ScanBuilder;
-import org.apache.spark.sql.connector.read.streaming.MicroBatchStream;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
@@ -134,12 +133,6 @@ class PartitionSizeScanBuilder implements ScanBuilder, Scan, Batch
         return IntStream.range(0, this.dataLayer.partitionCount())
                         .mapToObj(CassandraInputPartition::new)
                         .toArray(InputPartition[]::new);
-    }
-
-    @Override
-    public MicroBatchStream toMicroBatchStream(String checkpointLocation)
-    {
-        return new CassandraMicroBatchStream(dataLayer, null, options);
     }
 
     @Override
