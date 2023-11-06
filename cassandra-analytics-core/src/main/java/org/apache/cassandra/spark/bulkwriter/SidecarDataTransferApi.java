@@ -46,12 +46,14 @@ public class SidecarDataTransferApi implements DataTransferApi
     private static final int SSTABLE_GENERATION_REVERSE_OFFSET = 3;
 
     private final transient SidecarClient sidecarClient;
+    private final int sidecarPort;
     private final JobInfo job;
     private final BulkSparkConf conf;
 
-    public SidecarDataTransferApi(SidecarClient sidecarClient, JobInfo job, BulkSparkConf conf)
+    public SidecarDataTransferApi(CassandraContext cassandraContext, JobInfo job, BulkSparkConf conf)
     {
-        this.sidecarClient = sidecarClient;
+        this.sidecarClient = cassandraContext.getSidecarClient();
+        this.sidecarPort = cassandraContext.sidecarPort();
         this.job = job;
         this.conf = conf;
     }
@@ -146,8 +148,8 @@ public class SidecarDataTransferApi implements DataTransferApi
         return sessionID + "-" + jobId;
     }
 
-    private SidecarInstanceImpl toSidecarInstance(CassandraInstance instance)
+    protected SidecarInstanceImpl toSidecarInstance(CassandraInstance instance)
     {
-        return new SidecarInstanceImpl(instance.getNodeName(), conf.getSidecarPort());
+        return new SidecarInstanceImpl(instance.getNodeName(), sidecarPort);
     }
 }

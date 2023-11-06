@@ -1,4 +1,5 @@
 1.0.0
+ * Get Sidecar port through CassandraContext for more flexibility (CASSANDRA-19903)
  * Log start-up validation result to a single report (CASSANDRA-18916)
  * Use in-jvm dtest framework from Sidecar for testing (CASSANDRA-18759)
  * Cassandra Analytics Start-Up Validation (CASSANDRA-18810)

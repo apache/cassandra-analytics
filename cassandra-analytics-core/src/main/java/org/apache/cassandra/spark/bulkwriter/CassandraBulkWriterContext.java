@@ -180,7 +180,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     {
         if (dataTransferApi == null)
         {
-            dataTransferApi = new SidecarDataTransferApi(clusterInfo.getCassandraContext().getSidecarClient(), jobInfo, conf);
+            dataTransferApi = new SidecarDataTransferApi(clusterInfo.getCassandraContext(), jobInfo, conf);
         }
         return dataTransferApi;
     }

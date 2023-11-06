@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.utils;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Supplier;
 
 /**
@@ -146,10 +147,24 @@ public final class MapUtils
      */
     public static int getInt(Map<String, String> options, String key, int defaultValue, String displayName)
     {
+        return getOptionalInt(options, key, displayName).orElse(defaultValue);
+    }
+
+    /**
+     * Returns an {@link Optional} of int value for the given {@code key} in the {@code options} map. The key is lower-cased before
+     * accessing the map. An empty {@link Optional} is returned when the key doesn't match any element from the map.
+     *
+     * @param options      the map
+     * @param key          the key to the map
+     * @param displayName  an optional name to display in the error message
+     * @return {@link Optional} of {@link Integer}
+     */
+    public static Optional<Integer> getOptionalInt(Map<String, String> options, String key, String displayName)
+    {
         String value = options.get(lowerCaseKey(key));
         try
         {
-            return value != null ? Integer.parseInt(value) : defaultValue;
+            return value != null ? Optional.of(Integer.parseInt(value)) : Optional.empty();
         }
         catch (NumberFormatException exception)
         {

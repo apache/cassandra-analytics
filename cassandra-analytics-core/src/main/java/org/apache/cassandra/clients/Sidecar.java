@@ -189,7 +189,7 @@ public final class Sidecar
         public static final String MAX_POOL_SIZE_KEY = "maxPoolSize";
         public static final String TIMEOUT_SECONDS_KEY = "timeoutSeconds";
 
-        private final int port;
+        private final int userProvidedPort;
         private final int maxRetries;
         private final int maxPoolSize;
         private final int timeoutSeconds;
@@ -201,7 +201,7 @@ public final class Sidecar
         private final Map<FileType, Long> chunkBufferOverride;
 
         // CHECKSTYLE IGNORE: Constructor with many parameters
-        private ClientConfig(int port,
+        private ClientConfig(int userProvidedPort,
                              int maxRetries,
                              long millisToSleep,
                              long maxMillisToSleep,
@@ -212,7 +212,7 @@ public final class Sidecar
                              Map<FileType, Long> maxBufferOverride,
                              Map<FileType, Long> chunkBufferOverride)
         {
-            this.port = port;
+            this.userProvidedPort = userProvidedPort;
             this.maxRetries = maxRetries;
             this.millisToSleep = millisToSleep;
             this.maxMillisToSleep = maxMillisToSleep;
@@ -224,9 +224,14 @@ public final class Sidecar
             this.chunkBufferOverride = chunkBufferOverride;
         }
 
-        public int port()
+        public int userProvidedPort()
         {
-            return port;
+            return userProvidedPort;
+        }
+
+        public int effectivePort()
+        {
+            return userProvidedPort == -1 ? DEFAULT_SIDECAR_PORT : userProvidedPort;
         }
 
         public int maxRetries()
@@ -286,17 +291,17 @@ public final class Sidecar
 
         public static ClientConfig create()
         {
-            return ClientConfig.create(DEFAULT_SIDECAR_PORT, DEFAULT_MAX_RETRIES, DEFAULT_MILLIS_TO_SLEEP);
+            return ClientConfig.create(-1, DEFAULT_MAX_RETRIES, DEFAULT_MILLIS_TO_SLEEP);
         }
 
-        public static ClientConfig create(int port)
+        public static ClientConfig create(int userProvidedPort, int effectivePort)
         {
-            return ClientConfig.create(port, DEFAULT_MAX_RETRIES, DEFAULT_MILLIS_TO_SLEEP);
+            return ClientConfig.create(userProvidedPort, DEFAULT_MAX_RETRIES, DEFAULT_MILLIS_TO_SLEEP);
         }
 
-        public static ClientConfig create(int port, int maxRetries, long millisToSleep)
+        public static ClientConfig create(int userProvidedPort, int maxRetries, long millisToSleep)
         {
-            return ClientConfig.create(port,
+            return ClientConfig.create(userProvidedPort,
                                        maxRetries,
                                        millisToSleep,
                                        DEFAULT_MAX_MILLIS_TO_SLEEP,
@@ -310,7 +315,8 @@ public final class Sidecar
 
         public static ClientConfig create(Map<String, String> options)
         {
-            return create(MapUtils.getInt(options, SIDECAR_PORT, DEFAULT_SIDECAR_PORT),
+            Optional<Integer> userProvidedPort = MapUtils.getOptionalInt(options, SIDECAR_PORT, SIDECAR_PORT);
+            return create(userProvidedPort.orElse(-1),
                           MapUtils.getInt(options, MAX_RETRIES_KEY, DEFAULT_MAX_RETRIES),
                           MapUtils.getLong(options, DEFAULT_MILLIS_TO_SLEEP_KEY, DEFAULT_MILLIS_TO_SLEEP),
                           MapUtils.getLong(options, MAX_MILLIS_TO_SLEEP_KEY, DEFAULT_MAX_MILLIS_TO_SLEEP),
@@ -350,7 +356,7 @@ public final class Sidecar
         }
 
         // CHECKSTYLE IGNORE: Method with many parameters
-        public static ClientConfig create(int port,
+        public static ClientConfig create(int userProvidedPort,
                                           int maxRetries,
                                           long millisToSleep,
                                           long maxMillisToSleep,
@@ -361,7 +367,7 @@ public final class Sidecar
                                           Map<FileType, Long> maxBufferOverride,
                                           Map<FileType, Long> chunkBufferOverride)
         {
-            return new ClientConfig(port,
+            return new ClientConfig(userProvidedPort,
                                     maxRetries,
                                     millisToSleep,
                                     maxMillisToSleep,
