@@ -22,6 +22,7 @@ package org.apache.cassandra.clients;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
+import static org.apache.cassandra.spark.data.CassandraDataLayer.ClientConfig.DEFAULT_SIDECAR_PORT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -33,7 +34,8 @@ public class SidecarClientConfigTest
     public void testDefaults()
     {
         Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of());
-        assertEquals(9043, clientConfig.port());
+        assertEquals(-1, clientConfig.userProvidedPort());
+        assertEquals(DEFAULT_SIDECAR_PORT, clientConfig.effectivePort());
         assertEquals(10, clientConfig.maxRetries());
         assertEquals(500, clientConfig.millisToSleep());
         assertEquals(60_000, clientConfig.maxMillisToSleep());
@@ -47,7 +49,8 @@ public class SidecarClientConfigTest
     public void testSidecarPort()
     {
         Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of("sidecar_port", "9999"));
-        assertEquals(9999, clientConfig.port());
+        assertEquals(9999, clientConfig.userProvidedPort());
+        assertEquals(9999, clientConfig.effectivePort());
     }
 
     @Test

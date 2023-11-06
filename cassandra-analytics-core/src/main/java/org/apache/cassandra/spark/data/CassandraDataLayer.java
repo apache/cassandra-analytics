@@ -341,7 +341,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 {
                     LOGGER.info("Creating snapshot on instance snapshotName={} keyspace={} table={} datacenter={} fqdn={}",
                                 snapshotName, keyspace, table, datacenter, ringEntry.fqdn());
-                    SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.port());
+                    SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.effectivePort());
                     createSnapshotFuture = sidecar
                                            .createSnapshot(sidecarInstance, keyspace, table, snapshotName)
                                            .handle((resp, throwable) -> {
@@ -710,7 +710,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         out.writeUTF(this.snapshotName);
         writeNullable(out, this.keyspace);
         writeNullable(out, this.table);
-        out.writeInt(this.sidecarClientConfig.port());
+        out.writeInt(this.sidecarClientConfig.userProvidedPort());
         out.writeInt(this.sidecarClientConfig.maxRetries());
         out.writeLong(this.sidecarClientConfig.millisToSleep());
         out.writeLong(this.sidecarClientConfig.maxMillisToSleep());
@@ -775,7 +775,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             out.writeString(dataLayer.table);
             out.writeString(dataLayer.snapshotName);
             out.writeString(dataLayer.datacenter);
-            out.writeInt(dataLayer.sidecarClientConfig.port());
+            out.writeInt(dataLayer.sidecarClientConfig.userProvidedPort());
             out.writeInt(dataLayer.sidecarClientConfig.maxRetries());
             out.writeLong(dataLayer.sidecarClientConfig.millisToSleep());
             out.writeLong(dataLayer.sidecarClientConfig.maxMillisToSleep());

@@ -208,7 +208,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         {
             List<SidecarInstance> instances = replicas
                     .stream()
-                    .map(replica -> new SidecarInstanceImpl(replica.getNodeName(), conf.getSidecarPort()))
+                    .map(replica -> new SidecarInstanceImpl(replica.getNodeName(), getCassandraContext().sidecarPort()))
                     .collect(Collectors.toList());
             return getCassandraContext().getSidecarClient().timeSkew(instances).get();
         }

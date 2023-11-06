@@ -34,6 +34,7 @@ import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.spark.SparkConf;
 import org.jetbrains.annotations.NotNull;
 
+import static org.apache.cassandra.spark.data.CassandraDataLayer.ClientConfig.DEFAULT_SIDECAR_PORT;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyString;
 import static org.hamcrest.core.Is.is;
@@ -168,7 +169,8 @@ public class BulkSparkConfTest
     public void testDefaultSidecarPort()
     {
         bulkSparkConf = new BulkSparkConf(new SparkConf(), defaultOptions);
-        assertEquals(9043, bulkSparkConf.getSidecarPort());
+        assertEquals(-1, bulkSparkConf.getUserProvidedSidecarPort());
+        assertEquals(DEFAULT_SIDECAR_PORT, bulkSparkConf.getEffectiveSidecarPort());
     }
 
     @Test
@@ -177,7 +179,8 @@ public class BulkSparkConfTest
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.SIDECAR_PORT.name(), "9999");
         bulkSparkConf = new BulkSparkConf(new SparkConf(), options);
-        assertEquals(9999, bulkSparkConf.getSidecarPort());
+        assertEquals(9999, bulkSparkConf.getUserProvidedSidecarPort());
+        assertEquals(9999, bulkSparkConf.getEffectiveSidecarPort());
     }
 
     @Test
@@ -188,7 +191,8 @@ public class BulkSparkConfTest
         SparkConf conf = new SparkConf()
                          .set(BulkSparkConf.SIDECAR_PORT, "9876");
         bulkSparkConf = new BulkSparkConf(conf, defaultOptions);
-        assertEquals(9876, bulkSparkConf.getSidecarPort());
+        assertEquals(9876, bulkSparkConf.getUserProvidedSidecarPort());
+        assertEquals(9876, bulkSparkConf.getEffectiveSidecarPort());
     }
 
     @Test

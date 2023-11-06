@@ -29,6 +29,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -125,15 +126,18 @@ public class BulkSparkConf implements Serializable
     protected final SparkConf conf;
     public final boolean validateSSTables;
     public final int commitThreadsPerInstance;
-    protected final int sidecarPort;
+    protected final int effectiveSidecarPort;
+    protected final int userProvidedSidecarPort;
     protected boolean useOpenSsl;
     protected int ringRetryCount;
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
         this.conf = conf;
-        this.sidecarPort = MapUtils.getInt(options, WriterOptions.SIDECAR_PORT.name(), getInt(SIDECAR_PORT, DEFAULT_SIDECAR_PORT), "sidecar port");
-        this.sidecarInstances = buildSidecarInstances(options, sidecarPort);
+        Optional<Integer> sidecarPortFromOptions = MapUtils.getOptionalInt(options, WriterOptions.SIDECAR_PORT.name(), "sidecar port");
+        this.userProvidedSidecarPort = sidecarPortFromOptions.isPresent() ? sidecarPortFromOptions.get() : getOptionalInt(SIDECAR_PORT).orElse(-1);
+        this.effectiveSidecarPort = this.userProvidedSidecarPort == -1 ? DEFAULT_SIDECAR_PORT : this.userProvidedSidecarPort;
+        this.sidecarInstances = buildSidecarInstances(options, effectiveSidecarPort);
         this.keyspace = MapUtils.getOrThrow(options, WriterOptions.KEYSPACE.name());
         this.table = MapUtils.getOrThrow(options, WriterOptions.TABLE.name());
         this.validateSSTables = MapUtils.getBoolean(options, WriterOptions.VALIDATE_SSTABLES.name(), true, "validate SSTables");
@@ -246,9 +250,14 @@ public class BulkSparkConf implements Serializable
         }
     }
 
-    public int getSidecarPort()
+    public int getUserProvidedSidecarPort()
     {
-        return sidecarPort;
+        return userProvidedSidecarPort;
+    }
+
+    public int getEffectiveSidecarPort()
+    {
+        return effectiveSidecarPort;
     }
 
     protected String getTrustStorePath()
@@ -397,6 +406,24 @@ public class BulkSparkConf implements Serializable
     {
         String finalSetting = getSettingNameOrDeprecatedName(settingName);
         return conf.getInt(finalSetting, defaultValue);
+    }
+
+    protected Optional<Integer> getOptionalInt(String settingName)
+    {
+        String finalSetting = getSettingNameOrDeprecatedName(settingName);
+        if (!conf.contains(finalSetting))
+        {
+            return Optional.empty();
+        }
+        try
+        {
+            return Optional.of(Integer.parseInt(conf.get(finalSetting)));
+        }
+        catch (NumberFormatException exception)
+        {
+            throw new IllegalArgumentException("Spark conf " + settingName + " is not set to a valid integer string.",
+                                               exception);
+        }
     }
 
     protected long getLong(String settingName, long defaultValue)

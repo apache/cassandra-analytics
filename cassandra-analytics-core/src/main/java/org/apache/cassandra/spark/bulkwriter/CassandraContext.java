@@ -96,6 +96,11 @@ public class CassandraContext implements StartupValidatable, Closeable
         return sidecarClient;
     }
 
+    public int sidecarPort()
+    {
+        return conf.getEffectiveSidecarPort();
+    }
+
     protected BulkSparkConf conf()
     {
         return conf;
