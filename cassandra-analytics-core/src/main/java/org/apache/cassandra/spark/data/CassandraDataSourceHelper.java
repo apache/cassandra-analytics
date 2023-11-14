@@ -56,9 +56,9 @@ public final class CassandraDataSourceHelper
 
     public static DataLayer getDataLayer(
             Map<String, String> options,
-            BiConsumer<CassandraDataLayer, CassandraDataLayer.ClientConfig> initializeDataLayerFn)
+            BiConsumer<CassandraDataLayer, ClientConfig> initializeDataLayerFn)
     {
-        CassandraDataLayer.ClientConfig config = CassandraDataLayer.ClientConfig.create(options);
+        ClientConfig config = ClientConfig.create(options);
 
         if (MapUtils.getBoolean(options, CACHE_DATA_LAYER_KEY, false))
         {
@@ -66,7 +66,7 @@ public final class CassandraDataSourceHelper
             // If any of the DataSourceOptions have changed otherwise use previously cached value.
             Map<String, String> key = new HashMap<>(options);
             // Exclude createSnapshot as user may change createSnapshot=false for a snapshotName already created
-            key.remove(CassandraDataLayer.ClientConfig.CREATE_SNAPSHOT_KEY);
+            key.remove(ClientConfig.CREATE_SNAPSHOT_KEY);
 
             Cache<Map<String, String>, CassandraDataLayer> cassandraDataLayerCache = getCassandraDataLayerCache();
             CassandraDataLayer cached;
@@ -117,9 +117,9 @@ public final class CassandraDataSourceHelper
     }
 
     protected static CassandraDataLayer createAndInitCassandraDataLayer(
-            CassandraDataLayer.ClientConfig config,
+            ClientConfig config,
             Map<String, String> options,
-            BiConsumer<CassandraDataLayer, CassandraDataLayer.ClientConfig> initializeDataLayerFn,
+            BiConsumer<CassandraDataLayer, ClientConfig> initializeDataLayerFn,
             SparkConf conf)
     {
         CassandraDataLayer dataLayer = new CassandraDataLayer(config,

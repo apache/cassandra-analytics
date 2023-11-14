@@ -165,8 +165,8 @@ public abstract class DataLayer implements Serializable
     public abstract boolean isInPartition(int partitionId, BigInteger token, ByteBuffer key);
 
     public List<PartitionKeyFilter> partitionKeyFiltersInRange(
-            int partitionId,
-            List<PartitionKeyFilter> partitionKeyFilters) throws NoMatchFoundException
+    int partitionId,
+    List<PartitionKeyFilter> partitionKeyFilters) throws NoMatchFoundException
     {
         return partitionKeyFilters;
     }
@@ -224,7 +224,7 @@ public abstract class DataLayer implements Serializable
      * the Data.db file for out-of-range partitions.
      *
      * @return true if, the SSTableReader should attempt to read Summary.db and Index.db files
-     *         to find the start index offset into the Data.db file that overlaps with the Spark workers token range
+     * to find the start index offset into the Data.db file that overlaps with the Spark workers token range
      */
     public boolean readIndexOffset()
     {
@@ -306,8 +306,8 @@ public abstract class DataLayer implements Serializable
             if (filter instanceof EqualTo || filter instanceof In)
             {
                 String columnName = StringUtils.lowerCase(filter instanceof EqualTo
-                        ? ((EqualTo) filter).attribute()
-                        : ((In) filter).attribute());
+                                                          ? ((EqualTo) filter).attribute()
+                                                          : ((In) filter).attribute());
 
                 if (partitionKeys.contains(columnName))
                 {

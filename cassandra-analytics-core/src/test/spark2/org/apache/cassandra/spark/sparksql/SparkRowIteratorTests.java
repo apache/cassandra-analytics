@@ -62,7 +62,7 @@ public class SparkRowIteratorTests
     {
         // I.e. "create table keyspace.table (a %s, b %s, primary key(a));"
         qt().forAll(TestUtils.versions(), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((version, type1, type2) -> runTest(version, TestSchema.builder()
+            .checkAssert((version, type1, type2) -> runTest(version, TestSchema.builder(bridge)
                     .withPartitionKey("a", type1)
                     .withColumn("b", type2)
                     .build()));
@@ -73,7 +73,7 @@ public class SparkRowIteratorTests
     public void testMultiPartitionKeys(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.versions(), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((version, type1, type2, type3) -> runTest(version, TestSchema.builder()
+            .checkAssert((version, type1, type2, type3) -> runTest(version, TestSchema.builder(bridge)
                     .withPartitionKey("a", type1)
                     .withPartitionKey("b", type2)
                     .withPartitionKey("c", type3)
@@ -88,7 +88,7 @@ public class SparkRowIteratorTests
         for (CassandraVersion version : TestUtils.testableVersions())
         {
             qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.sortOrder())
-                .checkAssert((type1, type2, type3, order) -> runTest(version, TestSchema.builder()
+                .checkAssert((type1, type2, type3, order) -> runTest(version, TestSchema.builder(bridge)
                         .withPartitionKey("a", type1)
                         .withClusteringKey("b", type2)
                         .withColumn("c", type3)
@@ -104,7 +104,7 @@ public class SparkRowIteratorTests
         for (CassandraVersion version : TestUtils.testableVersions())
         {
             qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.sortOrder(), TestUtils.sortOrder())
-                .checkAssert((type1, type2, order1, order2) -> runTest(version, TestSchema.builder()
+                .checkAssert((type1, type2, order1, order2) -> runTest(version, TestSchema.builder(bridge)
                         .withPartitionKey("a", bridge.bigint())
                         .withClusteringKey("b", type1)
                         .withClusteringKey("c", type2)
@@ -120,7 +120,7 @@ public class SparkRowIteratorTests
     public void testUdt(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((type1, type2) -> runTest(CassandraVersion.FOURZERO, TestSchema.builder()
+            .checkAssert((type1, type2) -> runTest(CassandraVersion.FOURZERO, TestSchema.builder(bridge)
                     .withPartitionKey("a", bridge.bigint())
                     .withClusteringKey("b", bridge.text())
                     .withColumn("c", bridge.udt("keyspace", "testudt")
@@ -136,7 +136,7 @@ public class SparkRowIteratorTests
     public void testTuple(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((type1, type2) -> runTest(CassandraVersion.FOURZERO, TestSchema.builder()
+            .checkAssert((type1, type2) -> runTest(CassandraVersion.FOURZERO, TestSchema.builder(bridge)
                     .withPartitionKey("a", bridge.bigint())
                     .withClusteringKey("b", bridge.text())
                     .withColumn("c", bridge.tuple(bridge.aInt(), type1, bridge.ascii(), type2, bridge.date()))

@@ -240,7 +240,7 @@ public class DataLayerUnsupportedPushDownFiltersTest
 
     private TestSchema schemaWithCompositePartitionKey(CassandraBridge bridge)
     {
-        return TestSchema.builder()
+        return TestSchema.builder(bridge)
                          .withPartitionKey("a", bridge.aInt())
                          .withPartitionKey("b", bridge.aInt())
                          .withPartitionKey("c", bridge.aInt())

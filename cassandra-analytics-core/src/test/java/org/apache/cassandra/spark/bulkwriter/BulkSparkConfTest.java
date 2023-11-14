@@ -34,7 +34,7 @@ import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.spark.SparkConf;
 import org.jetbrains.annotations.NotNull;
 
-import static org.apache.cassandra.spark.data.CassandraDataLayer.ClientConfig.DEFAULT_SIDECAR_PORT;
+import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.DEFAULT_SIDECAR_PORT;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyString;
 import static org.hamcrest.core.Is.is;

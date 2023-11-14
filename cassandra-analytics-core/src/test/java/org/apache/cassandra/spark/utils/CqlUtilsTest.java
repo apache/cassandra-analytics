@@ -302,7 +302,7 @@ public class CqlUtilsTest extends VersionRunner
                          + "    AND max_index_interval = 2048\\n"
                          + "    AND crc_check_chance = 1.0\\n"
                          + "    AND memtable_flush_period_in_ms = 0;";
-        String expectedCreateStmt = "CREATE TABLE ks.tb ("
+        String expectedCreateStmt = "CREATE TABLE ks.\"tb\" ("
                                   + "\"key\" text, "
                                   + "\"id1\" text, "
                                   + "\"id2\" text, "
@@ -330,15 +330,6 @@ public class CqlUtilsTest extends VersionRunner
         assertEquals("tb", table.table());
         assertEquals("key", table.getField("key").name());
         assertEquals("id1", table.getField("id1").name());
-    }
-
-    @ParameterizedTest
-    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
-    public void testCleanTableName(CassandraBridge bridge)
-    {
-        assertEquals("test", CqlUtils.cleanTableName("test"));
-        assertEquals("test", CqlUtils.cleanTableName("\"test\""));
-        assertEquals("test", CqlUtils.cleanTableName("\"\"test\"\""));
     }
 
     @ParameterizedTest

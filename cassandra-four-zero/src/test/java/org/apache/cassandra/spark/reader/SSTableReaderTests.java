@@ -947,7 +947,7 @@ public class SSTableReaderTests
             .checkAssert(partitioner -> {
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
-                    TestSchema schema = TestSchema.builder()
+                    TestSchema schema = TestSchema.builder(BRIDGE)
                                                   .withPartitionKey("a", BRIDGE.text())
                                                   .withClusteringKey("b", BRIDGE.aInt())
                                                   .withColumn("c", BRIDGE.aInt())

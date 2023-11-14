@@ -57,8 +57,6 @@ import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.streaming.OutputMode;
-import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.Nullable;
 import org.quicktheories.core.Gen;
@@ -72,6 +70,9 @@ public final class TestUtils
     private static final SparkSession SPARK = SparkSession.builder()
                                                           .appName("Java Test")
                                                           .config("spark.master", "local")
+                                                          // Spark is not case-sensitive by default, but we want to make it case-sensitive for
+                                                          // the quoted identifiers tests where we test mixed case
+                                                          .config("spark.sql.caseSensitive", "True")
                                                           .getOrCreate();
 
     private TestUtils()
@@ -152,44 +153,8 @@ public final class TestUtils
     }
 
     // CHECKSTYLE IGNORE: Method with many parameters
-    public static StreamingQuery openStreaming(String keyspace,
-                                               String createStmt,
-                                               CassandraVersion version,
-                                               Partitioner partitioner,
-                                               Path dir,
-                                               Path outputDir,
-                                               Path checkpointDir,
-                                               String dataSourceFQCN,
-                                               boolean addLastModificationTime)
-    {
-        Dataset<Row> rows = SPARK.readStream()
-                                 .format(dataSourceFQCN)
-                                 .option("keyspace", keyspace)
-                                 .option("createStmt", createStmt)
-                                 .option("dirs", dir.toAbsolutePath().toString())
-                                 .option("version", version.toString())
-                                 .option("useSSTableInputStream", true)  // Use in the test system to test the SSTableInputStream
-                                 .option("partitioner", partitioner.name())
-                                 .option(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), addLastModificationTime)
-                                 .option("udts", "")
-                                 .load();
-        try
-        {
-            return rows.writeStream()
-                       .format("parquet")
-                       .option("path", outputDir.toString())
-                       .option("checkpointLocation", checkpointDir.toString())
-                       .outputMode(OutputMode.Append())
-                       .start();
-        }
-        catch (Exception exception)
-        {
-            // In Spark3 start() can throw a TimeoutException
-            throw new RuntimeException(exception);
-        }
-    }
-
-    static Dataset<Row> openLocalPartitionSizeSource(Partitioner partitioner,
+    static Dataset<Row> openLocalPartitionSizeSource(CassandraBridge bridge,
+                                                     Partitioner partitioner,
                                                      Path dir,
                                                      String keyspace,
                                                      String createStmt,
@@ -204,7 +169,7 @@ public final class TestUtils
                                            .option("version", version.toString())
                                            .option("useSSTableInputStream", true) // use in the test system to test the SSTableInputStream
                                            .option("partitioner", partitioner.name())
-                                           .option("udts", udts.stream().map(f -> f.createStatement(keyspace)).collect(Collectors.joining("\n")));
+                                           .option("udts", udts.stream().map(f -> f.createStatement(bridge, keyspace)).collect(Collectors.joining("\n")));
         if (statsClass != null)
         {
             frameReader = frameReader.option("statsClass", statsClass);
@@ -222,7 +187,8 @@ public final class TestUtils
     }
 
     // CHECKSTYLE IGNORE: Method with many parameters
-    public static Dataset<Row> openLocalDataset(Partitioner partitioner,
+    public static Dataset<Row> openLocalDataset(CassandraBridge bridge,
+                                                Partitioner partitioner,
                                                 Path directory,
                                                 String keyspace,
                                                 String createStatement,
@@ -233,17 +199,18 @@ public final class TestUtils
                                                 @Nullable String filterExpression,
                                                 @Nullable String... columns)
     {
-        DataFrameReader frameReader = SPARK.read().format("org.apache.cassandra.spark.sparksql.LocalDataSource")
-                .option("keyspace", keyspace)
-                .option("createStmt", createStatement)
-                .option("dirs", directory.toAbsolutePath().toString())
-                .option("version", version.toString())
-                .option("useSSTableInputStream", true)  // Use in the test system to test the SSTableInputStream
-                .option("partitioner", partitioner.name())
-                .option(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), addLastModifiedTimestampColumn)
-                .option("udts", udts.stream()
-                                    .map(udt -> udt.createStatement(keyspace))
-                                    .collect(Collectors.joining("\n")));
+        DataFrameReader frameReader = SPARK.read()
+                                           .format("org.apache.cassandra.spark.sparksql.LocalDataSource")
+                                           .option("keyspace", keyspace)
+                                           .option("createStmt", createStatement)
+                                           .option("dirs", directory.toAbsolutePath().toString())
+                                           .option("version", version.toString())
+                                           .option("useSSTableInputStream", true)  // Use in the test system to test the SSTableInputStream
+                                           .option("partitioner", partitioner.name())
+                                           .option(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), addLastModifiedTimestampColumn)
+                                           .option("udts", udts.stream()
+                                                               .map(udt -> udt.createStatement(bridge, keyspace))
+                                                               .collect(Collectors.joining("\n")));
         if (statsClass != null)
         {
             frameReader = frameReader.option("statsClass", statsClass);

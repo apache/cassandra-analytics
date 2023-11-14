@@ -47,7 +47,7 @@ public class PartitionSizeTests extends VersionRunner
         TestUtils.runTest(version, (partitioner, dir, bridge) -> {
             int numRows = Tester.DEFAULT_NUM_ROWS;
             int numCols = 25;
-            TestSchema schema = TestSchema.builder()
+            TestSchema schema = TestSchema.builder(bridge)
                                                 .withPartitionKey("a", bridge.text())
                                                 .withClusteringKey("b", bridge.aInt())
                                                 .withColumn("c", bridge.aInt())
@@ -69,13 +69,14 @@ public class PartitionSizeTests extends VersionRunner
                 }
             });
 
-            Dataset<Row> ds = TestUtils.openLocalPartitionSizeSource(partitioner,
-                                                                           dir,
-                                                                           schema.keyspace,
-                                                                           schema.createStatement,
-                                                                           version,
-                                                                           Collections.emptySet(),
-                                                                           null);
+            Dataset<Row> ds = TestUtils.openLocalPartitionSizeSource(bridge,
+                                                                     partitioner,
+                                                                     dir,
+                                                                     schema.keyspace,
+                                                                     schema.createStatement,
+                                                                     version,
+                                                                     Collections.emptySet(),
+                                                                     null);
             List<Row> rows = ds.collectAsList();
             assertEquals(numRows, rows.size());
             for (Row row : rows)

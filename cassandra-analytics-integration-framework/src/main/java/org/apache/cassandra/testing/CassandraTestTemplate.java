@@ -18,7 +18,6 @@
 
 package org.apache.cassandra.testing;
 
-import java.lang.reflect.AnnotatedElement;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -26,7 +25,7 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
-import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
+import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -42,6 +41,8 @@ import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.shared.Versions;
+
+import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
 
 /**
@@ -94,15 +95,14 @@ public class CassandraTestTemplate implements TestTemplateInvocationContextProvi
     private static CassandraIntegrationTest getCassandraIntegrationTestAnnotation(ExtensionContext context,
                                                                                   boolean throwIfNotFound)
     {
-        Optional<AnnotatedElement> annotatedElement = context.getElement();
-        CassandraIntegrationTest result = annotatedElement.map(e -> e.getAnnotation(CassandraIntegrationTest.class))
-                                                          .orElse(null);
-        if (result == null && throwIfNotFound)
+        Optional<CassandraIntegrationTest> annotation = findAnnotation(context.getRequiredTestMethod(),
+                                                                       CassandraIntegrationTest.class);
+        if (throwIfNotFound && !annotation.isPresent())
         {
             throw new RuntimeException("CassandraTestTemplate could not "
                                        + "find @CassandraIntegrationTest annotation");
         }
-        return result;
+        return annotation.orElse(null);
     }
 
     private final class CassandraTestTemplateInvocationContext implements TestTemplateInvocationContext
@@ -137,7 +137,7 @@ public class CassandraTestTemplate implements TestTemplateInvocationContextProvi
         @Override
         public List<Extension> getAdditionalExtensions()
         {
-            return Arrays.asList(parameterResolver(), postProcessor(), beforeEach());
+            return Arrays.asList(parameterResolver(), afterEach(), beforeEach());
         }
 
         private BeforeEachCallback beforeEach()
@@ -159,8 +159,8 @@ public class CassandraTestTemplate implements TestTemplateInvocationContextProvi
 
                 UpgradeableCluster.Builder clusterBuilder =
                 UpgradeableCluster.build(originalNodeCount)
-                                  // Disabling dynamic port allocaiton until we can get it working across JVM forks
-                                  //.withDynamicPortAllocation(true) // to allow parallel test runs
+                                  // Disabling dynamic port allocation until we can get it working across JVM forks
+                                  .withDynamicPortAllocation(true) // to allow parallel test runs
                                   .withVersion(requestedVersion)
                                   .withDCs(dcCount)
                                   .withDataDirCount(annotation.numDataDirsPerInstance())
@@ -190,11 +190,12 @@ public class CassandraTestTemplate implements TestTemplateInvocationContextProvi
         }
 
         /**
-         * Shuts down the in-jvm dtest cluster when the test is finished
+         * Shuts down the in-jvm dtest cluster after an individual test and any user-defined teardown methods
+         * have been executed
          *
-         * @return the {@link AfterTestExecutionCallback}
+         * @return the {@link AfterEachCallback}
          */
-        private AfterTestExecutionCallback postProcessor()
+        private AfterEachCallback afterEach()
         {
             return postProcessorCtx -> {
                 if (cassandraTestContext != null)

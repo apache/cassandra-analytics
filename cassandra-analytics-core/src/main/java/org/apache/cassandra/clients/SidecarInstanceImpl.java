@@ -90,14 +90,14 @@ public class SidecarInstanceImpl implements Serializable, SidecarInstance
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
     {
-        LOGGER.warn("Falling back to JDK deserialization");
+        LOGGER.debug("Falling back to JDK deserialization");
         hostname = in.readUTF();
         port = in.readInt();
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException
     {
-        LOGGER.warn("Falling back to JDK serialization");
+        LOGGER.debug("Falling back to JDK serialization");
         out.writeUTF(hostname);
         out.writeInt(port);
     }

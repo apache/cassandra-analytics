@@ -202,10 +202,10 @@ public class CqlTable implements Serializable
         return udts;
     }
 
-    public Set<String> udtCreateStmts()
+    public Set<String> udtCreateStmts(CassandraBridge bridge)
     {
         return udts.stream()
-                   .map(udt -> udt.createStatement(keyspace))
+                   .map(udt -> udt.createStatement(bridge, keyspace))
                    .collect(Collectors.toSet());
     }
 

@@ -453,7 +453,8 @@ public final class Tester
                              "Number of SSTables written does not match expected");
             }
 
-            Dataset<Row> dataset = TestUtils.openLocalDataset(partitioner,
+            Dataset<Row> dataset = TestUtils.openLocalDataset(bridge,
+                                                              partitioner,
                                                               directory,
                                                               schema.keyspace,
                                                               schema.createStatement,

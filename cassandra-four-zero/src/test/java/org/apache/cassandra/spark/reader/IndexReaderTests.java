@@ -60,7 +60,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.quicktheories.QuickTheory.qt;
@@ -181,11 +181,11 @@ public class IndexReaderTests
                     TokenRange.closed(partitioner.minToken().add(eighth),
                                       partitioner.maxToken().subtract(eighth))
                     );
-                    TestSchema schema = TestSchema.builder()
-                                                        .withPartitionKey("a", BRIDGE.aInt())
-                                                        .withColumn("b", BRIDGE.blob())
-                                                        .withCompression(withCompression)
-                                                        .build();
+                    TestSchema schema = TestSchema.builder(BRIDGE)
+                                                  .withPartitionKey("a", BRIDGE.aInt())
+                                                  .withColumn("b", BRIDGE.blob())
+                                                  .withCompression(withCompression)
+                                                  .build();
                     CqlTable table = schema.buildTable();
                     TableMetadata metaData = new SchemaBuilder(schema.createStatement, schema.keyspace, schema.rf, partitioner).tableMetaData();
 

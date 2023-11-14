@@ -152,7 +152,7 @@ public class SslConfig implements Serializable
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
     {
-        LOGGER.warn("Falling back to JDK deserialization");
+        LOGGER.debug("Falling back to JDK deserialization");
         this.secretsPath = readNullableString(in);
         this.keyStorePath = readNullableString(in);
         this.base64EncodedKeyStore = readNullableString(in);
@@ -166,7 +166,7 @@ public class SslConfig implements Serializable
 
     private void writeObject(ObjectOutputStream out) throws IOException
     {
-        LOGGER.warn("Falling back to JDK serialization");
+        LOGGER.debug("Falling back to JDK serialization");
         writeNullableString(out, secretsPath);
         writeNullableString(out, keyStorePath);
         writeNullableString(out, base64EncodedKeyStore);

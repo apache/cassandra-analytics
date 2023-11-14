@@ -42,7 +42,7 @@ import static org.apache.spark.sql.types.DataTypes.LongType;
 public class SparkBulkWriterSimpleTest extends IntegrationTestBase
 {
 
-    @CassandraIntegrationTest(nodesPerDc = 3)
+    @CassandraIntegrationTest(nodesPerDc = 3, gossip = true)
     public void runSampleJob()
     {
         UpgradeableCluster cluster = sidecarTestContext.cluster();

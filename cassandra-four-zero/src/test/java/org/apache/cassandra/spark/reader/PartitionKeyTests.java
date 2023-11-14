@@ -48,7 +48,7 @@ public class PartitionKeyTests
     public void testBuildPartitionKey()
     {
         qt().forAll(arbitrary().pick(BRIDGE.supportedTypes())).checkAssert(partitionKeyType -> {
-            CqlTable table = TestSchema.builder()
+            CqlTable table = TestSchema.builder(BRIDGE)
                                        .withPartitionKey("a", partitionKeyType)
                                        .withClusteringKey("b", BRIDGE.aInt())
                                        .withColumn("c", BRIDGE.aInt())
@@ -66,7 +66,7 @@ public class PartitionKeyTests
     public void testBuildCompositePartitionKey()
     {
         qt().forAll(arbitrary().pick(BRIDGE.supportedTypes())).checkAssert(partitionKeyType -> {
-            CqlTable table = TestSchema.builder()
+            CqlTable table = TestSchema.builder(BRIDGE)
                                        .withPartitionKey("a", BRIDGE.aInt())
                                        .withPartitionKey("b", partitionKeyType)
                                        .withPartitionKey("c", BRIDGE.text())

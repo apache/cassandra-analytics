@@ -352,19 +352,25 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
         return InternalType.Udt;
     }
 
-    public String createStatement(String keyspace)
+    @Override
+    public String createStatement(CassandraBridge bridge, String keyspace)
     {
-        return String.format("CREATE TYPE %s.%s (%s);", keyspace, name, fieldsString());
+        return String.format("CREATE TYPE %s.%s (%s);",
+                             bridge.maybeQuoteIdentifier(keyspace),
+                             bridge.maybeQuoteIdentifier(name),
+                             fieldsString(bridge));
     }
 
-    private String fieldsString()
+    private String fieldsString(CassandraBridge bridge)
     {
-        return fields.stream().map(CqlUdt::fieldString).collect(Collectors.joining(", "));
+        return fields.stream()
+                     .map(field -> fieldString(bridge, field))
+                     .collect(Collectors.joining(", "));
     }
 
-    private static String fieldString(CqlField field)
+    private static String fieldString(CassandraBridge bridge, CqlField field)
     {
-        return String.format("%s %s", field.name(), field.type().cqlName());
+        return String.format("%s %s", bridge.maybeQuoteIdentifier(field.name()), field.type().cqlName());
     }
 
     public String keyspace()

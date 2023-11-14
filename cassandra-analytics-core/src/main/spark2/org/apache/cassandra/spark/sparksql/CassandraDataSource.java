@@ -39,6 +39,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.data.CassandraDataLayer;
 import org.apache.cassandra.spark.data.CassandraDataSourceHelper;
+import org.apache.cassandra.spark.data.ClientConfig;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
@@ -94,7 +95,7 @@ public class CassandraDataSource implements DataSourceV2, ReadSupport, DataSourc
     }
 
     @VisibleForTesting
-    void initializeDataLayer(CassandraDataLayer dataLayer, CassandraDataLayer.ClientConfig config)
+    void initializeDataLayer(CassandraDataLayer dataLayer, ClientConfig config)
     {
         dataLayer.initialize(config);
     }

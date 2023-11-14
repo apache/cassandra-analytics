@@ -239,7 +239,7 @@ public class TokenPartitioner implements Serializable
     @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
     {
-        LOGGER.warn("Falling back to JDK deserialization");
+        LOGGER.debug("Falling back to JDK deserialization");
         this.partitionMap = TreeRangeMap.create();
         this.reversePartitionMap = new HashMap<>();
         this.ring = (CassandraRing) in.readObject();
@@ -249,7 +249,7 @@ public class TokenPartitioner implements Serializable
 
     private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException
     {
-        LOGGER.warn("Falling back to JDK serialization");
+        LOGGER.debug("Falling back to JDK serialization");
         out.writeObject(this.ring);
         out.writeObject(this.subRanges);
     }

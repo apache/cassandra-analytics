@@ -51,6 +51,7 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.ByteBufferAccessor;
@@ -244,18 +245,20 @@ public class CassandraBridgeImplementation extends CassandraBridge
         // NOTE: Need to use SchemaBuilder to init keyspace if not already set in Cassandra Schema instance
         SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
         TableMetadata metadata = schemaBuilder.tableMetaData();
-        return new CompactionStreamScanner(metadata, partitioner, timeProvider, ssTables.openAll((ssTable, isRepairPrimary) ->
-                org.apache.cassandra.spark.reader.SSTableReader.builder(metadata, ssTable)
-                                                               .withSparkRangeFilter(sparkRangeFilter)
-                                                               .withPartitionKeyFilters(partitionKeyFilters)
-                                                               .withColumnFilter(columnFilter)
-                                                               .withReadIndexOffset(readIndexOffset)
-                                                               .withStats(stats)
-                                                               .useIncrementalRepair(useIncrementalRepair)
-                                                               .isRepairPrimary(isRepairPrimary)
-                                                               .build()));
+        return new CompactionStreamScanner(metadata, partitioner, timeProvider, ssTables.openAll((ssTable, isRepairPrimary) -> {
+            return org.apache.cassandra.spark.reader.SSTableReader.builder(metadata, ssTable)
+                                                                  .withSparkRangeFilter(sparkRangeFilter)
+                                                                  .withPartitionKeyFilters(partitionKeyFilters)
+                                                                  .withColumnFilter(columnFilter)
+                                                                  .withReadIndexOffset(readIndexOffset)
+                                                                  .withStats(stats)
+                                                                  .useIncrementalRepair(useIncrementalRepair)
+                                                                  .isRepairPrimary(isRepairPrimary)
+                                                                  .build();
+        }));
     }
 
+    @Override
     public StreamScanner<IndexEntry> getPartitionSizeIterator(@NotNull CqlTable table,
                                                               @NotNull Partitioner partitioner,
                                                               @NotNull SSTablesSupplier ssTables,
@@ -305,7 +308,17 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                 @Nullable UUID tableId,
                                 int indexCount)
     {
-        return new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner, udts, tableId, indexCount).build();
+        return new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner, bridge -> udts, tableId, indexCount).build();
+    }
+
+    @Override
+    public String maybeQuoteIdentifier(String identifier)
+    {
+        if (isAlreadyQuoted(identifier))
+        {
+            return identifier;
+        }
+        return ColumnIdentifier.maybeQuote(identifier);
     }
 
     // CQL Type Parser
@@ -524,16 +537,17 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                           Consumer<Writer> writer)
     {
         CQLSSTableWriter.Builder builder = CQLSSTableWriter.builder()
-                                                                 .inDirectory(directory.toFile())
-                                                                 .forTable(createStatement)
-                                                                 .withPartitioner(getPartitioner(partitioner))
-                                                                 .using(upsert ? updateStatement : insertStatement)
-                                                                 .withBufferSizeInMB(128);
+                                                           .inDirectory(directory.toFile())
+                                                           .forTable(createStatement)
+                                                           .withPartitioner(getPartitioner(partitioner))
+                                                           .using(upsert ? updateStatement : insertStatement)
+                                                           .withBufferSizeInMB(128);
 
         for (CqlField.CqlUdt udt : udts)
         {
             // Add user-defined types to CQL writer
-            builder.withType(udt.createStatement(keyspace));
+            String statement = udt.createStatement(this, keyspace);
+            builder.withType(statement);
         }
 
         // TODO: Remove me once CQLSSTableWriter.Builder synchronize on schema (see CASSANDRA-TBD)
@@ -584,12 +598,12 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                       Consumer<Writer> consumer)
     {
         try (SSTableTombstoneWriter writer = SSTableTombstoneWriter.builder()
-                                                                         .inDirectory(directory.toFile())
-                                                                         .forTable(createStatement)
-                                                                         .withPartitioner(getPartitioner(partitioner))
-                                                                         .using(deleteStatement)
-                                                                         .withBufferSizeInMB(128)
-                                                                         .build())
+                                                                   .inDirectory(directory.toFile())
+                                                                   .forTable(createStatement)
+                                                                   .withPartitioner(getPartitioner(partitioner))
+                                                                   .using(deleteStatement)
+                                                                   .withBufferSizeInMB(128)
+                                                                   .build())
         {
             consumer.accept(values -> {
                 try

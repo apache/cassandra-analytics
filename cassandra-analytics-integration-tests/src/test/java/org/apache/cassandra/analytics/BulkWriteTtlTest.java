@@ -48,7 +48,7 @@ import static org.apache.spark.sql.types.DataTypes.LongType;
 
 public class BulkWriteTtlTest extends IntegrationTestBase
 {
-    @CassandraIntegrationTest(nodesPerDc = 3)
+    @CassandraIntegrationTest(nodesPerDc = 3, gossip = true)
     public void testTableDefaultTtl()
     {
         UpgradeableCluster cluster = sidecarTestContext.cluster();
@@ -80,7 +80,7 @@ public class BulkWriteTtlTest extends IntegrationTestBase
         Assertions.assertFalse(result.hasNext());
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 3)
+    @CassandraIntegrationTest(nodesPerDc = 3, gossip = true)
     public void testTtlOptionConstant()
     {
         UpgradeableCluster cluster = sidecarTestContext.cluster();
@@ -113,7 +113,7 @@ public class BulkWriteTtlTest extends IntegrationTestBase
         Assertions.assertFalse(result.hasNext());
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 3)
+    @CassandraIntegrationTest(nodesPerDc = 3, gossip = true)
     public void testTtlOptionPerRow()
     {
         UpgradeableCluster cluster = sidecarTestContext.cluster();
