@@ -268,7 +268,7 @@ public class CassandraRing implements Serializable
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
     {
-        LOGGER.warn("Falling back to JDK deserialization");
+        LOGGER.debug("Falling back to JDK deserialization");
         this.partitioner = in.readByte() == 0 ? Partitioner.RandomPartitioner : Partitioner.Murmur3Partitioner;
         this.keyspace = in.readUTF();
 
@@ -292,7 +292,7 @@ public class CassandraRing implements Serializable
 
     private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException
     {
-        LOGGER.warn("Falling back to JDK serialization");
+        LOGGER.debug("Falling back to JDK serialization");
         out.writeByte(this.partitioner == Partitioner.RandomPartitioner ? 0 : 1);
         out.writeUTF(this.keyspace);
 

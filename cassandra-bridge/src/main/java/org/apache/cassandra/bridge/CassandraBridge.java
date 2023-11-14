@@ -157,6 +157,25 @@ public abstract class CassandraBridge
                                          @Nullable UUID tableId,
                                          int indexCount);
 
+    /**
+     * Returns the quoted identifier, if the {@code identifier} has mixed case or if the {@code identifier}
+     * is a reserved word.
+     *
+     * @param identifier the identifier
+     * @return the quoted identifier when the input is mixed case or a reserved word, the original input otherwise
+     */
+    public abstract String maybeQuoteIdentifier(String identifier);
+
+    protected boolean isAlreadyQuoted(String identifier)
+    {
+        if (identifier != null && identifier.length() > 1)
+        {
+            return identifier.charAt(0) == '"' &&
+                   identifier.charAt(identifier.length() - 1) == '"';
+        }
+        return false;
+    }
+
     // CQL Type Parsing
 
     public abstract CqlField.CqlType readType(CqlField.CqlType.InternalType type, Input input);

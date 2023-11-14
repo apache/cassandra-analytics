@@ -69,13 +69,14 @@ public class PartitionSizeTests extends VersionRunner
                 }
             });
 
-            Dataset<Row> ds = TestUtils.openLocalPartitionSizeSource(partitioner,
-                                                                           dir,
-                                                                           schema.keyspace,
-                                                                           schema.createStatement,
-                                                                           version,
-                                                                           Collections.emptySet(),
-                                                                           null);
+            Dataset<Row> ds = TestUtils.openLocalPartitionSizeSource(bridge,
+                                                                     partitioner,
+                                                                     dir,
+                                                                     schema.keyspace,
+                                                                     schema.createStatement,
+                                                                     version,
+                                                                     Collections.emptySet(),
+                                                                     null);
             List<Row> rows = ds.collectAsList();
             assertEquals(numRows, rows.size());
             for (Row row : rows)

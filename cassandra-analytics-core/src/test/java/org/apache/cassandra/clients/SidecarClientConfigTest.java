@@ -22,7 +22,7 @@ package org.apache.cassandra.clients;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
-import static org.apache.cassandra.spark.data.CassandraDataLayer.ClientConfig.DEFAULT_SIDECAR_PORT;
+import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.DEFAULT_SIDECAR_PORT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**

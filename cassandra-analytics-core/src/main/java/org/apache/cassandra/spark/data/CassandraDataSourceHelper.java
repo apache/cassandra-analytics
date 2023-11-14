@@ -55,10 +55,10 @@ public final class CassandraDataSourceHelper
     }
 
     public static DataLayer getDataLayer(
-            Map<String, String> options,
-            BiConsumer<CassandraDataLayer, CassandraDataLayer.ClientConfig> initializeDataLayerFn)
+    Map<String, String> options,
+    BiConsumer<CassandraDataLayer, ClientConfig> initializeDataLayerFn)
     {
-        CassandraDataLayer.ClientConfig config = CassandraDataLayer.ClientConfig.create(options);
+        ClientConfig config = ClientConfig.create(options);
 
         if (MapUtils.getBoolean(options, CACHE_DATA_LAYER_KEY, false))
         {
@@ -66,15 +66,19 @@ public final class CassandraDataSourceHelper
             // If any of the DataSourceOptions have changed otherwise use previously cached value.
             Map<String, String> key = new HashMap<>(options);
             // Exclude createSnapshot as user may change createSnapshot=false for a snapshotName already created
-            key.remove(CassandraDataLayer.ClientConfig.CREATE_SNAPSHOT_KEY);
+            key.remove(ClientConfig.CREATE_SNAPSHOT_KEY);
 
             Cache<Map<String, String>, CassandraDataLayer> cassandraDataLayerCache = getCassandraDataLayerCache();
             CassandraDataLayer cached;
             try
             {
-                cached = cassandraDataLayerCache.get(key, () ->
-                        // First thread wins
-                        createAndInitCassandraDataLayer(config, options, initializeDataLayerFn, SparkContext.getOrCreate().getConf()));
+                cached = cassandraDataLayerCache.get(key, () -> {
+                    // First thread wins
+                    return createAndInitCassandraDataLayer(config,
+                                                           options,
+                                                           initializeDataLayerFn,
+                                                           SparkContext.getOrCreate().getConf());
+                });
             }
             catch (ExecutionException exception)
             {
@@ -90,7 +94,7 @@ public final class CassandraDataSourceHelper
         }
     }
 
-    protected static Cache<Map<String, String>, CassandraDataLayer> getCassandraDataLayerCache()
+    public static Cache<Map<String, String>, CassandraDataLayer> getCassandraDataLayerCache()
     {
         if (cassandraDataLayerCache == null)
         {
@@ -105,22 +109,23 @@ public final class CassandraDataSourceHelper
      *
      * @param ticker the ticker to use for the cache
      */
-    protected static void initCassandraDataSourceCache(Ticker ticker)
+    public static void initCassandraDataSourceCache(Ticker ticker)
     {
         cassandraDataLayerCache = CacheBuilder
-                .newBuilder()
-                .ticker(ticker)
-                .expireAfterWrite(CACHE_HOURS, TimeUnit.HOURS)
-                .removalListener((RemovalListener<Map<String, String>, CassandraDataLayer>) notification ->
-                        LOGGER.debug("Removed entry '{}' from CassandraDataSourceCache", notification.getValue()))
-                .build();
+                                  .newBuilder()
+                                  .ticker(ticker)
+                                  .expireAfterWrite(CACHE_HOURS, TimeUnit.HOURS)
+                                  .removalListener((RemovalListener<Map<String, String>, CassandraDataLayer>) notification -> {
+                                      LOGGER.debug("Removed entry '{}' from CassandraDataSourceCache", notification.getValue());
+                                  })
+                                  .build();
     }
 
-    protected static CassandraDataLayer createAndInitCassandraDataLayer(
-            CassandraDataLayer.ClientConfig config,
-            Map<String, String> options,
-            BiConsumer<CassandraDataLayer, CassandraDataLayer.ClientConfig> initializeDataLayerFn,
-            SparkConf conf)
+    public static CassandraDataLayer createAndInitCassandraDataLayer(
+    ClientConfig config,
+    Map<String, String> options,
+    BiConsumer<CassandraDataLayer, ClientConfig> initializeDataLayerFn,
+    SparkConf conf)
     {
         CassandraDataLayer dataLayer = new CassandraDataLayer(config,
                                                               Sidecar.ClientConfig.create(options),

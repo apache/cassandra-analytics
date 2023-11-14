@@ -194,7 +194,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
             // Deserialize CQL field column name
             ByteBuffer component = ColumnTypes.extractComponent(columnNameBuf, cqlTable.numClusteringKeys());
             String columnName = component != null ? ByteBufferUtils.stringThrowRuntime(component) : null;
-            if (columnName == null || columnName.length() == 0)
+            if (columnName == null || columnName.isEmpty())
             {
                 if (noValueColumns)
                 {

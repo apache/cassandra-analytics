@@ -27,7 +27,10 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import org.apache.cassandra.sidecar.cluster.InstancesConfig;
 import org.apache.cassandra.sidecar.cluster.instance.InstanceMetadata;
+import org.apache.cassandra.sidecar.config.HealthCheckConfiguration;
+import org.apache.cassandra.sidecar.config.ServiceConfiguration;
 import org.apache.cassandra.sidecar.config.SidecarConfiguration;
+import org.apache.cassandra.sidecar.config.yaml.HealthCheckConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.ServiceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
 
@@ -36,9 +39,9 @@ import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
  */
 public class IntegrationTestModule extends AbstractModule
 {
-    private final CassandraSidecarTestContext cassandraTestContext;
+    private CassandraSidecarTestContext cassandraTestContext;
 
-    public IntegrationTestModule(CassandraSidecarTestContext cassandraTestContext)
+    public void setCassandraTestContext(CassandraSidecarTestContext cassandraTestContext)
     {
         this.cassandraTestContext = cassandraTestContext;
     }
@@ -47,26 +50,20 @@ public class IntegrationTestModule extends AbstractModule
     @Singleton
     public InstancesConfig instancesConfig()
     {
-        return new WrapperInstancesConfig(cassandraTestContext);
+        return new WrapperInstancesConfig();
     }
 
-    static class WrapperInstancesConfig implements InstancesConfig
+    class WrapperInstancesConfig implements InstancesConfig
     {
-        private final CassandraSidecarTestContext cassandraTestContext;
-
-        WrapperInstancesConfig(CassandraSidecarTestContext cassandraTestContext)
-        {
-            this.cassandraTestContext = cassandraTestContext;
-        }
-
         /**
          * @return metadata of instances owned by the sidecar
          */
+        @Override
         public List<InstanceMetadata> instances()
         {
-            if (cassandraTestContext.isClusterBuilt())
+            if (cassandraTestContext != null && cassandraTestContext.isClusterBuilt())
             {
-                return cassandraTestContext.instancesConfig.instances();
+                return cassandraTestContext.instancesConfig().instances();
             }
             return Collections.emptyList();
         }
@@ -78,9 +75,10 @@ public class IntegrationTestModule extends AbstractModule
          * @return instance meta information
          * @throws NoSuchElementException when the instance with {@code id} does not exist
          */
+        @Override
         public InstanceMetadata instanceFromId(int id) throws NoSuchElementException
         {
-            return cassandraTestContext.instancesConfig.instanceFromId(id);
+            return cassandraTestContext.instancesConfig().instanceFromId(id);
         }
 
         /**
@@ -90,9 +88,10 @@ public class IntegrationTestModule extends AbstractModule
          * @return instance meta information
          * @throws NoSuchElementException when the instance for {@code host} does not exist
          */
+        @Override
         public InstanceMetadata instanceFromHost(String host) throws NoSuchElementException
         {
-            return cassandraTestContext.instancesConfig.instanceFromHost(host);
+            return cassandraTestContext.instancesConfig().instanceFromHost(host);
         }
     }
 
@@ -100,6 +99,14 @@ public class IntegrationTestModule extends AbstractModule
     @Singleton
     public SidecarConfiguration sidecarConfiguration()
     {
-        return new SidecarConfigurationImpl(new ServiceConfigurationImpl("127.0.0.1"));
+        ServiceConfiguration conf = ServiceConfigurationImpl.builder()
+                                                            .host("0.0.0.0") // binds to all interfaces, potential security issue if left running for long
+                                                            .port(0) // let the test find an available port
+                                                            .build();
+        HealthCheckConfiguration healthCheckConfiguration = new HealthCheckConfigurationImpl(50, 1000);
+        return SidecarConfigurationImpl.builder()
+                                       .serviceConfiguration(conf)
+                                       .healthCheckConfiguration(healthCheckConfiguration)
+                                       .build();
     }
 }

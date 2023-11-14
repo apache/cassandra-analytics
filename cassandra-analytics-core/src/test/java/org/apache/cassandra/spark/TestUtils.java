@@ -189,7 +189,8 @@ public final class TestUtils
         }
     }
 
-    static Dataset<Row> openLocalPartitionSizeSource(Partitioner partitioner,
+    static Dataset<Row> openLocalPartitionSizeSource(CassandraBridge bridge,
+                                                     Partitioner partitioner,
                                                      Path dir,
                                                      String keyspace,
                                                      String createStmt,
@@ -204,7 +205,7 @@ public final class TestUtils
                                            .option("version", version.toString())
                                            .option("useSSTableInputStream", true) // use in the test system to test the SSTableInputStream
                                            .option("partitioner", partitioner.name())
-                                           .option("udts", udts.stream().map(f -> f.createStatement(keyspace)).collect(Collectors.joining("\n")));
+                                           .option("udts", udts.stream().map(f -> f.createStatement(bridge, keyspace)).collect(Collectors.joining("\n")));
         if (statsClass != null)
         {
             frameReader = frameReader.option("statsClass", statsClass);
@@ -222,7 +223,8 @@ public final class TestUtils
     }
 
     // CHECKSTYLE IGNORE: Method with many parameters
-    public static Dataset<Row> openLocalDataset(Partitioner partitioner,
+    public static Dataset<Row> openLocalDataset(CassandraBridge bridge,
+                                                Partitioner partitioner,
                                                 Path directory,
                                                 String keyspace,
                                                 String createStatement,
@@ -233,17 +235,18 @@ public final class TestUtils
                                                 @Nullable String filterExpression,
                                                 @Nullable String... columns)
     {
-        DataFrameReader frameReader = SPARK.read().format("org.apache.cassandra.spark.sparksql.LocalDataSource")
-                .option("keyspace", keyspace)
-                .option("createStmt", createStatement)
-                .option("dirs", directory.toAbsolutePath().toString())
-                .option("version", version.toString())
-                .option("useSSTableInputStream", true)  // Use in the test system to test the SSTableInputStream
-                .option("partitioner", partitioner.name())
-                .option(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), addLastModifiedTimestampColumn)
-                .option("udts", udts.stream()
-                                    .map(udt -> udt.createStatement(keyspace))
-                                    .collect(Collectors.joining("\n")));
+        DataFrameReader frameReader = SPARK.read()
+                                           .format("org.apache.cassandra.spark.sparksql.LocalDataSource")
+                                           .option("keyspace", keyspace)
+                                           .option("createStmt", createStatement)
+                                           .option("dirs", directory.toAbsolutePath().toString())
+                                           .option("version", version.toString())
+                                           .option("useSSTableInputStream", true)  // Use in the test system to test the SSTableInputStream
+                                           .option("partitioner", partitioner.name())
+                                           .option(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), addLastModifiedTimestampColumn)
+                                           .option("udts", udts.stream()
+                                                               .map(udt -> udt.createStatement(bridge, keyspace))
+                                                               .collect(Collectors.joining("\n")));
         if (statsClass != null)
         {
             frameReader = frameReader.option("statsClass", statsClass);

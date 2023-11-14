@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -94,7 +95,7 @@ public class SchemaBuilder
              table.keyspace(),
              table.replicationFactor(),
              partitioner,
-             table.udtCreateStmts(),
+             table::udtCreateStmts,
              tableId,
              0);
     }
@@ -102,7 +103,7 @@ public class SchemaBuilder
     @VisibleForTesting
     public SchemaBuilder(String createStmt, String keyspace, ReplicationFactor replicationFactor)
     {
-        this(createStmt, keyspace, replicationFactor, Partitioner.Murmur3Partitioner, Collections.emptySet(), null, 0);
+        this(createStmt, keyspace, replicationFactor, Partitioner.Murmur3Partitioner, bridge -> Collections.emptySet(), null, 0);
     }
 
     @VisibleForTesting
@@ -111,14 +112,14 @@ public class SchemaBuilder
                          ReplicationFactor replicationFactor,
                          Partitioner partitioner)
     {
-        this(createStmt, keyspace, replicationFactor, partitioner, Collections.emptySet(), null, 0);
+        this(createStmt, keyspace, replicationFactor, partitioner, bridge -> Collections.emptySet(), null, 0);
     }
 
     public SchemaBuilder(String createStmt,
                          String keyspace,
                          ReplicationFactor replicationFactor,
                          Partitioner partitioner,
-                         Set<String> udtStmts,
+                         Function<CassandraBridge, Set<String>> udtStatementsProvider,
                          @Nullable UUID tableId,
                          int indexCount)
     {
@@ -131,7 +132,7 @@ public class SchemaBuilder
         Pair<KeyspaceMetadata, TableMetadata> updated = CassandraSchema.apply(schema ->
                 updateSchema(schema,
                              this.keyspace,
-                             udtStmts,
+                             udtStatementsProvider.apply(bridge),
                              this.createStmt,
                              partitioner,
                              this.replicationFactor,
@@ -519,7 +520,7 @@ public class SchemaBuilder
             boolean isPartitionKey = col.isPartitionKey();
             boolean isClusteringColumn = col.isClusteringColumn();
             boolean isStatic = col.isStatic();
-            String name = col.name.toCQLString();
+            String name = col.name.toString();
             CqlField.CqlType type = col.type.isUDT() ? udts.get(((UserType) col.type).getNameAsString())
                                                      : bridge.parseType(col.type.asCQL3Type().toString(), udts);
             boolean isFrozen = col.type.isFreezable() && !col.type.isMultiCell();

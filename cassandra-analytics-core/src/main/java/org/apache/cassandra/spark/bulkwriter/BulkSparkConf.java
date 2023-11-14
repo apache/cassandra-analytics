@@ -56,21 +56,21 @@ public class BulkSparkConf implements Serializable
     private static final Logger LOGGER = LoggerFactory.getLogger(BulkSparkConf.class);
 
     public static final String JDK11_OPTIONS = " -Djdk.attach.allowAttachSelf=true"
-                                             + " --add-exports java.base/jdk.internal.misc=ALL-UNNAMED"
-                                             + " --add-exports java.base/jdk.internal.ref=ALL-UNNAMED"
-                                             + " --add-exports java.base/sun.nio.ch=ALL-UNNAMED"
-                                             + " --add-exports java.management.rmi/com.sun.jmx.remote.internal.rmi=ALL-UNNAMED"
-                                             + " --add-exports java.rmi/sun.rmi.registry=ALL-UNNAMED"
-                                             + " --add-exports java.rmi/sun.rmi.server=ALL-UNNAMED"
-                                             + " --add-exports java.sql/java.sql=ALL-UNNAMED"
-                                             + " --add-opens java.base/java.lang.module=ALL-UNNAMED"
-                                             + " --add-opens java.base/jdk.internal.loader=ALL-UNNAMED"
-                                             + " --add-opens java.base/jdk.internal.ref=ALL-UNNAMED"
-                                             + " --add-opens java.base/jdk.internal.reflect=ALL-UNNAMED"
-                                             + " --add-opens java.base/jdk.internal.math=ALL-UNNAMED"
-                                             + " --add-opens java.base/jdk.internal.module=ALL-UNNAMED"
-                                             + " --add-opens java.base/jdk.internal.util.jar=ALL-UNNAMED"
-                                             + " --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED";
+                                               + " --add-exports java.base/jdk.internal.misc=ALL-UNNAMED"
+                                               + " --add-exports java.base/jdk.internal.ref=ALL-UNNAMED"
+                                               + " --add-exports java.base/sun.nio.ch=ALL-UNNAMED"
+                                               + " --add-exports java.management.rmi/com.sun.jmx.remote.internal.rmi=ALL-UNNAMED"
+                                               + " --add-exports java.rmi/sun.rmi.registry=ALL-UNNAMED"
+                                               + " --add-exports java.rmi/sun.rmi.server=ALL-UNNAMED"
+                                               + " --add-exports java.sql/java.sql=ALL-UNNAMED"
+                                               + " --add-opens java.base/java.lang.module=ALL-UNNAMED"
+                                               + " --add-opens java.base/jdk.internal.loader=ALL-UNNAMED"
+                                               + " --add-opens java.base/jdk.internal.ref=ALL-UNNAMED"
+                                               + " --add-opens java.base/jdk.internal.reflect=ALL-UNNAMED"
+                                               + " --add-opens java.base/jdk.internal.math=ALL-UNNAMED"
+                                               + " --add-opens java.base/jdk.internal.module=ALL-UNNAMED"
+                                               + " --add-opens java.base/jdk.internal.util.jar=ALL-UNNAMED"
+                                               + " --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED";
 
     public static final int DEFAULT_NUM_SPLITS = -1;
     public static final int DEFAULT_HTTP_CONNECTION_TIMEOUT = 100_000;
@@ -128,6 +128,7 @@ public class BulkSparkConf implements Serializable
     public final int commitThreadsPerInstance;
     protected final int effectiveSidecarPort;
     protected final int userProvidedSidecarPort;
+    public boolean quoteIdentifiers;
     protected boolean useOpenSsl;
     protected int ringRetryCount;
 
@@ -166,6 +167,7 @@ public class BulkSparkConf implements Serializable
         this.ringRetryCount = getInt(RING_RETRY_COUNT, DEFAULT_RING_RETRY_COUNT);
         this.ttl = MapUtils.getOrDefault(options, WriterOptions.TTL.name(), null);
         this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
+        this.quoteIdentifiers = MapUtils.getBoolean(options, WriterOptions.QUOTE_IDENTIFIERS.name(), false, "quote identifiers");
         validateEnvironment();
     }
 

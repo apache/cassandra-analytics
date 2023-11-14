@@ -45,16 +45,20 @@ import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.util.Modules;
 import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpServer;
+import io.vertx.core.eventbus.Message;
+import io.vertx.core.eventbus.MessageConsumer;
+import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.junit5.VertxTestContext;
-import org.apache.cassandra.sidecar.MainModule;
-import org.apache.cassandra.sidecar.cluster.InstancesConfig;
+import org.apache.cassandra.sidecar.cluster.CassandraAdapterDelegate;
 import org.apache.cassandra.sidecar.cluster.instance.InstanceMetadata;
-import org.apache.cassandra.sidecar.common.data.QualifiedTableName;
 import org.apache.cassandra.sidecar.common.dns.DnsResolver;
+import org.apache.cassandra.sidecar.server.MainModule;
+import org.apache.cassandra.sidecar.server.Server;
 import org.apache.cassandra.testing.AbstractCassandraTestContext;
 import org.assertj.core.api.Assertions;
+
+import static org.apache.cassandra.sidecar.server.SidecarServerEvents.ON_CASSANDRA_CQL_READY;
 
 /**
  * Base class for integration test.
@@ -67,9 +71,9 @@ public abstract class IntegrationTestBase
     private static final long MAX_KEYSPACE_TABLE_TIME = 100L;
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
     protected Vertx vertx;
-    protected HttpServer server;
+    protected Server server;
 
-    protected static final String TEST_KEYSPACE = "testkeyspace";
+    protected static final String TEST_KEYSPACE = "spark_test";
     private static final String TEST_TABLE_PREFIX = "testtable";
 
     protected static final int DEFAULT_RF = 3;
@@ -79,22 +83,34 @@ public abstract class IntegrationTestBase
     @BeforeEach
     void setup(AbstractCassandraTestContext cassandraTestContext) throws InterruptedException
     {
-        sidecarTestContext = CassandraSidecarTestContext.from(cassandraTestContext, DnsResolver.DEFAULT);
-        Injector injector = Guice.createInjector(Modules
-                                                 .override(new MainModule())
-                                                 .with(new IntegrationTestModule(this.sidecarTestContext)));
-        server = injector.getInstance(HttpServer.class);
+        IntegrationTestModule integrationTestModule = new IntegrationTestModule();
+        Injector injector = Guice.createInjector(Modules.override(new MainModule()).with(integrationTestModule));
         vertx = injector.getInstance(Vertx.class);
+        sidecarTestContext = CassandraSidecarTestContext.from(vertx, cassandraTestContext, DnsResolver.DEFAULT);
+        integrationTestModule.setCassandraTestContext(sidecarTestContext);
+
+        server = injector.getInstance(Server.class);
 
         VertxTestContext context = new VertxTestContext();
-        server.listen(0, context.succeeding(p -> {
-            if (sidecarTestContext.isClusterBuilt())
-            {
-                healthCheck(sidecarTestContext.instancesConfig());
-            }
-            sidecarTestContext.registerInstanceConfigListener(IntegrationTestBase::healthCheck);
-            context.completeNow();
-        }));
+
+        if (sidecarTestContext.isClusterBuilt())
+        {
+            MessageConsumer<Object> cqlReadyConsumer = vertx.eventBus().localConsumer(ON_CASSANDRA_CQL_READY.address());
+            cqlReadyConsumer.handler(message -> {
+                cqlReadyConsumer.unregister();
+                context.completeNow();
+            });
+        }
+
+        server.start()
+              .onSuccess(s -> {
+                  logger.info("Started Sidecar on port={}", server.actualPort());
+                  if (!sidecarTestContext.isClusterBuilt())
+                  {
+                      context.completeNow();
+                  }
+              })
+              .onFailure(context::failNow);
 
         context.awaitCompletion(5, TimeUnit.SECONDS);
     }
@@ -102,9 +118,8 @@ public abstract class IntegrationTestBase
     @AfterEach
     void tearDown() throws InterruptedException
     {
-        final CountDownLatch closeLatch = new CountDownLatch(1);
-        server.close(res -> closeLatch.countDown());
-        vertx.close();
+        CountDownLatch closeLatch = new CountDownLatch(1);
+        server.close().onSuccess(res -> closeLatch.countDown());
         if (closeLatch.await(60, TimeUnit.SECONDS))
         {
             logger.info("Close event received before timeout.");
@@ -119,23 +134,40 @@ public abstract class IntegrationTestBase
     protected void testWithClient(VertxTestContext context, Consumer<WebClient> tester) throws Exception
     {
         WebClient client = WebClient.create(vertx);
+        CassandraAdapterDelegate delegate = sidecarTestContext.instancesConfig()
+                                                              .instanceFromId(1)
+                                                              .delegate();
 
-        tester.accept(client);
+        if (delegate.isUp())
+        {
+            tester.accept(client);
+        }
+        else
+        {
+            vertx.eventBus().localConsumer(ON_CASSANDRA_CQL_READY.address(), (Message<JsonObject> message) -> {
+                if (message.body().getInteger("cassandraInstanceId") == 1)
+                {
+                    tester.accept(client);
+                }
+            });
+        }
 
         // wait until the test completes
-        Assertions.assertThat(context.awaitCompletion(30, TimeUnit.SECONDS)).isTrue();
+        Assertions.assertThat(context.awaitCompletion(2, TimeUnit.MINUTES)).isTrue();
     }
 
     protected void createTestKeyspace()
     {
-        createTestKeyspace(ImmutableMap.of("datacenter1", 1));
+        createTestKeyspace(TEST_KEYSPACE, ImmutableMap.of("datacenter1", 1));
     }
 
-    protected void createTestKeyspace(Map<String, Integer> rf)
+    protected void createTestKeyspace(String keyspace, Map<String, Integer> rf)
     {
-        Session session = maybeGetSession();
-        session.execute("CREATE KEYSPACE " + TEST_KEYSPACE +
-                        " WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', " + generateRfString(rf) + " };");
+        sidecarTestContext.cassandraTestContext()
+                          .cluster()
+                          .schemaChange("CREATE KEYSPACE " + keyspace
+                                        + " WITH REPLICATION = { 'class':'NetworkTopologyStrategy', "
+                                        + generateRfString(rf) + " };");
     }
 
     private String generateRfString(Map<String, Integer> dcToRf)
@@ -144,12 +176,16 @@ public abstract class IntegrationTestBase
                      .collect(Collectors.joining(","));
     }
 
-    protected QualifiedTableName createTestTable(String createTableStatement)
+    protected QualifiedName createTestTable(String keyspace, String createTableStatement)
     {
-        Session session = maybeGetSession();
-        QualifiedTableName tableName = uniqueTestTableFullName();
-        session.execute(String.format(createTableStatement, tableName));
+        QualifiedName tableName = uniqueTestTableFullName(keyspace, TEST_TABLE_PREFIX);
+        createTestTable(String.format(createTableStatement, tableName));
         return tableName;
+    }
+
+    protected void createTestTable(String createTableStatement)
+    {
+        sidecarTestContext.cassandraTestContext().cluster().schemaChange(createTableStatement);
     }
 
     protected Session maybeGetSession()
@@ -159,9 +195,14 @@ public abstract class IntegrationTestBase
         return session;
     }
 
-    private static QualifiedTableName uniqueTestTableFullName()
+    public static QualifiedName uniqueTestTableFullName(String keyspace)
     {
-        return new QualifiedTableName(TEST_KEYSPACE, TEST_TABLE_PREFIX + TEST_TABLE_ID.getAndIncrement());
+        return uniqueTestTableFullName(keyspace, TEST_TABLE_PREFIX);
+    }
+
+    public static QualifiedName uniqueTestTableFullName(String keyspace, String testTablePrefix)
+    {
+        return new QualifiedName(keyspace, testTablePrefix + TEST_TABLE_ID.getAndIncrement());
     }
 
     public List<Path> findChildFile(CassandraSidecarTestContext context, String hostname, String target)
@@ -187,15 +228,9 @@ public abstract class IntegrationTestBase
         }
     }
 
-    private static void healthCheck(InstancesConfig instancesConfig)
-    {
-        instancesConfig.instances()
-                       .forEach(instanceMetadata -> instanceMetadata.delegate().healthCheck());
-    }
-
     /**
      * Waits for the specified keyspace/table to be available.
-     * Emperically, this loop usually executes either zero or one time before completing.
+     * Empirically, this loop usually executes either zero or one time before completing.
      * However, we set a fairly high number of retries to account for variability in build machines.
      *
      * @param keyspaceName the keyspace for which to wait

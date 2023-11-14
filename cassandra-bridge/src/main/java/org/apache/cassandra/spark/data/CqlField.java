@@ -212,7 +212,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
     {
         CqlFrozen frozen();
 
-        String createStatement(String keyspace);
+        String createStatement(CassandraBridge bridge, String keyspace);
 
         String keyspace();
 
@@ -263,7 +263,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
         this.isPartitionKey = isPartitionKey;
         this.isClusteringColumn = isClusteringColumn;
         this.isStaticColumn = isStaticColumn;
-        this.name = name.replaceAll("\"", "");
+        this.name = name;
         this.type = type;
         this.position = position;
     }

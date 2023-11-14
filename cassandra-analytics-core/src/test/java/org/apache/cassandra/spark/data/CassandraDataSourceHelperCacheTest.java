@@ -151,7 +151,7 @@ public class CassandraDataSourceHelperCacheTest
                                                      Map<String, String> options) throws ExecutionException
     {
         return cassandraDataLayerCache.get(key, () -> {
-            CassandraDataLayer.ClientConfig config = CassandraDataLayer.ClientConfig.create(options);
+            ClientConfig config = ClientConfig.create(options);
             return new CassandraDataLayer(config, Sidecar.ClientConfig.create(options), SslConfig.create(options));
         });
     }

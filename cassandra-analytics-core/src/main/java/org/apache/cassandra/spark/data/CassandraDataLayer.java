@@ -34,9 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -89,7 +87,6 @@ import org.apache.cassandra.spark.sparksql.LastModifiedTimestampDecorator;
 import org.apache.cassandra.spark.sparksql.RowBuilder;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.CqlUtils;
-import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.cassandra.spark.utils.ScalaFunctions;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.validation.CassandraValidation;
@@ -115,8 +112,11 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 .build();
 
     protected String snapshotName;
+    protected boolean quoteIdentifiers;
     protected String keyspace;
     protected String table;
+    protected String maybeQuotedKeyspace;
+    protected String maybeQuotedTable;
     protected CassandraBridge bridge;
     protected Set<? extends SidecarInstance> clusterConfig;
     protected TokenPartitioner tokenPartitioner;
@@ -144,7 +144,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         super(options.consistencyLevel(), options.datacenter());
         this.snapshotName = options.snapshotName();
         this.keyspace = options.keyspace();
-        this.table = CqlUtils.cleanTableName(options.table());
+        this.table = options.table();
+        this.quoteIdentifiers = options.quoteIdentifiers();
         this.sidecarClientConfig = sidecarClientConfig;
         this.sslConfig = sslConfig;
         this.bigNumberConfigMap = options.bigNumberConfigMap();
@@ -160,6 +161,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     // CHECKSTYLE IGNORE: Constructor with many parameters
     protected CassandraDataLayer(@Nullable String keyspace,
                                  @Nullable String table,
+                                 boolean quoteIdentifiers,
                                  @NotNull String snapshotName,
                                  @Nullable String datacenter,
                                  @NotNull Sidecar.ClientConfig sidecarClientConfig,
@@ -180,11 +182,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     {
         super(consistencyLevel, datacenter);
         this.snapshotName = snapshotName;
+        this.bridge = CassandraBridgeFactory.get(version);
         this.keyspace = keyspace;
         this.table = table;
+        this.quoteIdentifiers = quoteIdentifiers;
         this.cqlTable = cqlTable;
         this.tokenPartitioner = tokenPartitioner;
-        this.bridge = CassandraBridgeFactory.get(version);
         this.clusterConfig = clusterConfig;
         this.availabilityHints = availabilityHints;
         this.sidecarClientConfig = sidecarClientConfig;
@@ -200,6 +203,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             aliasLastModifiedTimestamp(this.requestedFeatures, this.lastModifiedTimestampField);
         }
         this.rfMap = rfMap;
+        this.maybeQuoteKeyspaceAndTable();
         this.initInstanceMap();
         this.startupValidate();
     }
@@ -217,11 +221,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         // Get cluster info from Cassandra Sidecar
         int effectiveNumberOfCores;
-        CompletableFuture<RingResponse> ringFuture = sidecar.ring(keyspace);
         try
         {
-            CompletableFuture<NodeSettings> nodeSettingsFuture = nodeSettingsFuture(clusterConfig, ringFuture);
-            effectiveNumberOfCores = initBulkReader(options, nodeSettingsFuture, ringFuture);
+            effectiveNumberOfCores = initBulkReader(options);
         }
         catch (InterruptedException exception)
         {
@@ -235,12 +237,23 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         LOGGER.info("Initialized Cassandra Bulk Reader with effectiveNumberOfCores={}", effectiveNumberOfCores);
     }
 
-    private int initBulkReader(@NotNull ClientConfig options,
-                               CompletableFuture<NodeSettings> nodeSettingsFuture,
-                               CompletableFuture<RingResponse> ringFuture) throws ExecutionException, InterruptedException
+    private int initBulkReader(@NotNull ClientConfig options) throws ExecutionException, InterruptedException
     {
         Preconditions.checkArgument(keyspace != null, "Keyspace must be non-null for Cassandra Bulk Reader");
         Preconditions.checkArgument(table != null, "Table must be non-null for Cassandra Bulk Reader");
+        ShutdownHookManager.addShutdownHook(org.apache.spark.util.ShutdownHookManager.TEMP_DIR_SHUTDOWN_PRIORITY(),
+                                            ScalaFunctions.wrapLambda(() -> shutdownHook(options)));
+
+        NodeSettings nodeSettings = sidecar.nodeSettings().get();
+        String cassandraVersion = getEffectiveCassandraVersionForRead(clusterConfig, nodeSettings);
+        Partitioner partitioner = Partitioner.from(nodeSettings.partitioner());
+        bridge = CassandraBridgeFactory.get(cassandraVersion);
+        // optionally quote identifiers if the option has been set, we need an instance for the bridge
+        maybeQuoteKeyspaceAndTable();
+
+        // Now we can use the quoted keyspace and table if needed
+        CompletableFuture<RingResponse> ringFuture = sidecar.ring(maybeQuotedKeyspace);
+        CompletableFuture<SchemaResponse> schemaFuture = sidecar.schema(maybeQuotedKeyspace);
         CompletableFuture<Map<String, PartitionedDataLayer.AvailabilityHint>> snapshotFuture;
         if (options.createSnapshot())
         {
@@ -253,16 +266,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         {
             snapshotFuture = CompletableFuture.completedFuture(new HashMap<>());
         }
-        ShutdownHookManager.addShutdownHook(org.apache.spark.util.ShutdownHookManager.TEMP_DIR_SHUTDOWN_PRIORITY(),
-                                            ScalaFunctions.wrapLambda(() -> shutdownHook(options)));
-
-        CompletableFuture<SchemaResponse> schemaFuture = sidecar.schema(keyspace);
-        NodeSettings nodeSettings = nodeSettingsFuture.get();
-
-        String cassandraVersion = getEffectiveCassandraVersionForRead(clusterConfig, nodeSettings);
-
-        Partitioner partitioner = Partitioner.from(nodeSettings.partitioner());
-        bridge = CassandraBridgeFactory.get(cassandraVersion);
         availabilityHints = snapshotFuture.get();
 
         String fullSchema = schemaFuture.get().schema();
@@ -281,7 +284,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         CassandraRing ring = createCassandraRingFromRing(partitioner, replicationFactor, ringFuture.get());
 
         int effectiveNumberOfCores = sizingFuture.get();
-        tokenPartitioner = new TokenPartitioner(ring, options.defaultParallelism, effectiveNumberOfCores);
+        tokenPartitioner = new TokenPartitioner(ring, options.defaultParallelism(), effectiveNumberOfCores);
         return effectiveNumberOfCores;
     }
 
@@ -339,7 +342,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                 snapshotName, keyspace, table, datacenter, ringEntry.fqdn());
                     SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.effectivePort());
                     createSnapshotFuture = sidecar
-                                           .createSnapshot(sidecarInstance, keyspace, table, snapshotName)
+                                           .createSnapshot(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName)
                                            .handle((resp, throwable) -> {
                                                if (throwable == null)
                                                {
@@ -498,7 +501,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                             + "instance={} port={} keyspace={} tableName={} snapshotName={} cacheKey={}",
                             partitionId, range.lowerEndpoint(), range.upperEndpoint(),
                             sidecarInstance.hostname(), sidecarInstance.port(), keyspace, table, snapshotName, key);
-                return sidecar.listSnapshotFiles(sidecarInstance, keyspace, table, snapshotName)
+                return sidecar.listSnapshotFiles(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName)
                               .thenApply(response -> collectSSTableList(sidecarInstance, response, partitionId));
             }).thenApply(Collection::stream);
         }
@@ -554,8 +557,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                      .map(components -> new SidecarProvisionedSSTable(sidecar,
                                                                       sidecarClientConfig,
                                                                       sidecarInstance,
-                                                                      keyspace,
-                                                                      table,
+                                                                      maybeQuotedKeyspace,
+                                                                      maybeQuotedTable,
                                                                       snapshotName,
                                                                       components,
                                                                       partitionId,
@@ -626,16 +629,37 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         StartupValidator.instance().perform();
     }
 
+    /**
+     * Uses the bridge {@link CassandraBridge#maybeQuoteIdentifier(String)} to attempt to quote the keyspace and table names
+     * when the {@code quoteIdentifiers} option is enabled.
+     */
+    private void maybeQuoteKeyspaceAndTable()
+    {
+        if (quoteIdentifiers)
+        {
+            Objects.requireNonNull(bridge, "bridge must be initialized to maybe quote keyspace and table");
+            maybeQuotedKeyspace = bridge.maybeQuoteIdentifier(keyspace);
+            maybeQuotedTable = bridge.maybeQuoteIdentifier(table);
+        }
+        else
+        {
+            // default to unquoted
+            maybeQuotedKeyspace = keyspace;
+            maybeQuotedTable = table;
+        }
+    }
+
     // JDK Serialization
 
     @SuppressWarnings("unchecked")
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
     {
-        LOGGER.warn("Falling back to JDK deserialization");
+        LOGGER.debug("Falling back to JDK deserialization");
         this.bridge = CassandraBridgeFactory.get(CassandraVersion.valueOf(in.readUTF()));
         this.snapshotName = in.readUTF();
         this.keyspace = readNullable(in);
         this.table = readNullable(in);
+        this.quoteIdentifiers = in.readBoolean();
         this.sidecarClientConfig = Sidecar.ClientConfig.create(in.readInt(),
                                                                in.readInt(),
                                                                in.readLong(),
@@ -671,17 +695,19 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             aliasLastModifiedTimestamp(this.requestedFeatures, this.lastModifiedTimestampField);
         }
         this.rfMap = (Map<String, ReplicationFactor>) in.readObject();
+        this.maybeQuoteKeyspaceAndTable();
         this.initInstanceMap();
         this.startupValidate();
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException
     {
-        LOGGER.warn("Falling back to JDK serialization");
+        LOGGER.debug("Falling back to JDK serialization");
         out.writeUTF(this.version().name());
         out.writeUTF(this.snapshotName);
         writeNullable(out, this.keyspace);
         writeNullable(out, this.table);
+        out.writeBoolean(this.quoteIdentifiers);
         out.writeInt(this.sidecarClientConfig.userProvidedPort());
         out.writeInt(this.sidecarClientConfig.maxRetries());
         out.writeLong(this.sidecarClientConfig.millisToSleep());
@@ -745,6 +771,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             LOGGER.info("Serializing CassandraDataLayer with Kryo");
             out.writeString(dataLayer.keyspace);
             out.writeString(dataLayer.table);
+            out.writeBoolean(dataLayer.quoteIdentifiers);
             out.writeString(dataLayer.snapshotName);
             out.writeString(dataLayer.datacenter);
             out.writeInt(dataLayer.sidecarClientConfig.userProvidedPort());
@@ -788,9 +815,11 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         public CassandraDataLayer read(Kryo kryo, Input in, Class<CassandraDataLayer> type)
         {
             LOGGER.info("Deserializing CassandraDataLayer with Kryo");
+
             return new CassandraDataLayer(
             in.readString(),
             in.readString(),
+            in.readBoolean(),
             in.readString(),
             in.readString(),
             Sidecar.ClientConfig.create(in.readInt(),
@@ -841,12 +870,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                      .collect(Collectors.toSet());
     }
 
-    protected CompletableFuture<NodeSettings> nodeSettingsFuture(Set<? extends SidecarInstance> clusterConfig,
-                                                                 CompletableFuture<RingResponse> ring)
-    {
-        return sidecar.nodeSettings();
-    }
-
     protected String getEffectiveCassandraVersionForRead(Set<? extends SidecarInstance> clusterConfig,
                                                          NodeSettings nodeSettings)
     {
@@ -860,6 +883,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
     protected void clearSnapshot(Set<? extends SidecarInstance> clusterConfig, @NotNull ClientConfig options)
     {
+        if (maybeQuotedKeyspace == null || maybeQuotedTable == null)
+        {
+            LOGGER.info("Bridge was never initialized. Skipping clearing snapshots. This implies snapshots were never created");
+            return;
+        }
+
         LOGGER.info("Clearing snapshot at end of Spark job snapshotName={} keyspace={} table={} dc={}",
                     snapshotName, keyspace, table, datacenter);
         CountDownLatch latch = new CountDownLatch(clusterConfig.size());
@@ -867,7 +896,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         {
             for (SidecarInstance instance : clusterConfig)
             {
-                sidecar.clearSnapshot(instance, keyspace, table, snapshotName).whenComplete((resp, throwable) -> {
+                sidecar.clearSnapshot(instance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName).whenComplete((resp, throwable) -> {
                     try
                     {
                         if (throwable != null)
@@ -922,204 +951,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
     }
 
-    public static final class ClientConfig
-    {
-        public static final String SIDECAR_INSTANCES = "sidecar_instances";
-        public static final String KEYSPACE_KEY = "keyspace";
-        public static final String TABLE_KEY = "table";
-        public static final String SNAPSHOT_NAME_KEY = "snapshotName";
-        public static final String DC_KEY = "dc";
-        public static final String CREATE_SNAPSHOT_KEY = "createSnapshot";
-        public static final String CLEAR_SNAPSHOT_KEY = "clearSnapshot";
-        public static final String DEFAULT_PARALLELISM_KEY = "defaultParallelism";
-        public static final String NUM_CORES_KEY = "numCores";
-        public static final String CONSISTENCY_LEVEL_KEY = "consistencyLevel";
-        public static final String ENABLE_STATS_KEY = "enableStats";
-        public static final String LAST_MODIFIED_COLUMN_NAME_KEY = "lastModifiedColumnName";
-        public static final String READ_INDEX_OFFSET_KEY = "readIndexOffset";
-        public static final String SIZING_KEY = "sizing";
-        public static final String SIZING_DEFAULT = "default";
-        public static final String MAX_PARTITION_SIZE_KEY = "maxPartitionSize";
-        public static final String USE_INCREMENTAL_REPAIR = "useIncrementalRepair";
-        public static final String ENABLE_EXPANSION_SHRINK_CHECK_KEY = "enableExpansionShrinkCheck";
-        public static final String SIDECAR_PORT = "sidecar_port";
-        public static final int DEFAULT_SIDECAR_PORT = 9043;
-
-        private final String sidecarInstances;
-        @Nullable
-        private final String keyspace;
-        @Nullable
-        private final String table;
-        private final String snapshotName;
-        private final String datacenter;
-        private final boolean createSnapshot;
-        private final boolean clearSnapshot;
-        private final int defaultParallelism;
-        private final int numCores;
-        private final ConsistencyLevel consistencyLevel;
-        private final Map<String, BigNumberConfigImpl> bigNumberConfigMap;
-        private final boolean enableStats;
-        private final boolean readIndexOffset;
-        private final String sizing;
-        private final int maxPartitionSize;
-        private final boolean useIncrementalRepair;
-        private final List<SchemaFeature> requestedFeatures;
-        private final String lastModifiedTimestampField;
-        private final Boolean enableExpansionShrinkCheck;
-        private final int sidecarPort;
-
-        private ClientConfig(Map<String, String> options)
-        {
-            this.sidecarInstances = MapUtils.getOrThrow(options, SIDECAR_INSTANCES, "sidecar_instances");
-            this.keyspace = MapUtils.getOrThrow(options, KEYSPACE_KEY, "keyspace");
-            this.table = MapUtils.getOrThrow(options, TABLE_KEY, "table");
-            this.snapshotName = MapUtils.getOrDefault(options, SNAPSHOT_NAME_KEY, "sbr_" + UUID.randomUUID().toString().replace("-", ""));
-            this.datacenter = options.get(MapUtils.lowerCaseKey(DC_KEY));
-            this.createSnapshot = MapUtils.getBoolean(options, CREATE_SNAPSHOT_KEY, true);
-            this.clearSnapshot = MapUtils.getBoolean(options, CLEAR_SNAPSHOT_KEY, createSnapshot);
-            this.defaultParallelism = MapUtils.getInt(options, DEFAULT_PARALLELISM_KEY, 1);
-            this.numCores = MapUtils.getInt(options, NUM_CORES_KEY, 1);
-            this.consistencyLevel = Optional.ofNullable(options.get(MapUtils.lowerCaseKey(CONSISTENCY_LEVEL_KEY)))
-                                            .map(ConsistencyLevel::valueOf)
-                                            .orElse(null);
-            this.bigNumberConfigMap = BigNumberConfigImpl.build(options);
-            this.enableStats = MapUtils.getBoolean(options, ENABLE_STATS_KEY, true);
-            this.readIndexOffset = MapUtils.getBoolean(options, READ_INDEX_OFFSET_KEY, true);
-            this.sizing = MapUtils.getOrDefault(options, SIZING_KEY, SIZING_DEFAULT);
-            this.maxPartitionSize = MapUtils.getInt(options, MAX_PARTITION_SIZE_KEY, 1);
-            this.useIncrementalRepair = MapUtils.getBoolean(options, USE_INCREMENTAL_REPAIR, true);
-            this.lastModifiedTimestampField = MapUtils.getOrDefault(options, LAST_MODIFIED_COLUMN_NAME_KEY, null);
-            this.enableExpansionShrinkCheck = MapUtils.getBoolean(options, ENABLE_EXPANSION_SHRINK_CHECK_KEY, false);
-            this.requestedFeatures = initRequestedFeatures(options);
-            this.sidecarPort = MapUtils.getInt(options, SIDECAR_PORT, DEFAULT_SIDECAR_PORT);
-        }
-
-        public String sidecarInstances()
-        {
-            return sidecarInstances;
-        }
-
-        @Nullable
-        public String keyspace()
-        {
-            return keyspace;
-        }
-
-        @Nullable
-        public String table()
-        {
-            return table;
-        }
-
-        public String snapshotName()
-        {
-            return snapshotName;
-        }
-
-        public String datacenter()
-        {
-            return datacenter;
-        }
-
-        public boolean createSnapshot()
-        {
-            return createSnapshot;
-        }
-
-        public boolean clearSnapshot()
-        {
-            return clearSnapshot;
-        }
-
-        public int getDefaultParallelism()
-        {
-            return defaultParallelism;
-        }
-
-        public int numCores()
-        {
-            return numCores;
-        }
-
-        public ConsistencyLevel consistencyLevel()
-        {
-            return consistencyLevel;
-        }
-
-        public Map<String, BigNumberConfigImpl> bigNumberConfigMap()
-        {
-            return bigNumberConfigMap;
-        }
-
-        public boolean enableStats()
-        {
-            return enableStats;
-        }
-
-        public boolean readIndexOffset()
-        {
-            return readIndexOffset;
-        }
-
-        public String sizing()
-        {
-            return sizing;
-        }
-
-        public int maxPartitionSize()
-        {
-            return maxPartitionSize;
-        }
-
-        public boolean useIncrementalRepair()
-        {
-            return useIncrementalRepair;
-        }
-
-        public List<SchemaFeature> requestedFeatures()
-        {
-            return requestedFeatures;
-        }
-
-        public String lastModifiedTimestampField()
-        {
-            return lastModifiedTimestampField;
-        }
-
-        public Boolean enableExpansionShrinkCheck()
-        {
-            return enableExpansionShrinkCheck;
-        }
-
-        public int sidecarPort()
-        {
-            return sidecarPort;
-        }
-
-        public static ClientConfig create(Map<String, String> options)
-        {
-            return new ClientConfig(options);
-        }
-
-        private List<SchemaFeature> initRequestedFeatures(Map<String, String> options)
-        {
-            Map<String, String> optionsCopy = new HashMap<>(options);
-            String lastModifiedColumnName = MapUtils.getOrDefault(options, LAST_MODIFIED_COLUMN_NAME_KEY, null);
-            if (lastModifiedColumnName != null)
-            {
-                optionsCopy.put(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), "true");
-            }
-            List<SchemaFeature> requestedFeatures = SchemaFeatureSet.initializeFromOptions(optionsCopy);
-            if (lastModifiedColumnName != null)
-            {
-                // Create alias to LAST_MODIFICATION_TIMESTAMP
-                aliasLastModifiedTimestamp(requestedFeatures, lastModifiedColumnName);
-            }
-            return requestedFeatures;
-        }
-    }
-
-    private static void aliasLastModifiedTimestamp(List<SchemaFeature> requestedFeatures, String alias)
+    static void aliasLastModifiedTimestamp(List<SchemaFeature> requestedFeatures, String alias)
     {
         SchemaFeature featureAlias = new SchemaFeature()
         {

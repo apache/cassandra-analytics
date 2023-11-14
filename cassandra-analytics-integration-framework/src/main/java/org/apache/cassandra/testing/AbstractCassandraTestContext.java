@@ -69,7 +69,7 @@ public abstract class AbstractCassandraTestContext implements AutoCloseable
             {
                 // Because different classloaders or different jars may be used to load this class, we can't
                 // actually catch the specific ShutdownException.
-                if (ex.getClass().getCanonicalName() == "org.apache.cassandra.distributed.shared.ShutdownException")
+                if (ex.getClass().getCanonicalName().equals("org.apache.cassandra.distributed.shared.ShutdownException"))
                 {
                     LOGGER.warn("Encountered shutdown exception which closing the cluster", ex);
                 }

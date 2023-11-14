@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.cassandra.spark.data.CassandraDataLayer;
 import org.apache.cassandra.spark.data.CassandraDataSourceHelper;
+import org.apache.cassandra.spark.data.ClientConfig;
 import org.apache.cassandra.spark.data.DataLayer;
 
 public class CassandraDataSource extends CassandraTableProvider
@@ -40,7 +41,7 @@ public class CassandraDataSource extends CassandraTableProvider
     }
 
     @VisibleForTesting
-    protected void initializeDataLayer(CassandraDataLayer dataLayer, CassandraDataLayer.ClientConfig config)
+    protected void initializeDataLayer(CassandraDataLayer dataLayer, ClientConfig config)
     {
         dataLayer.initialize(config);
     }

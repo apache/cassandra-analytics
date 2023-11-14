@@ -37,7 +37,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * CQL-related utility methods
@@ -99,25 +98,6 @@ public final class CqlUtils
             throw new RuntimeException("Found unbalanced parentheses in table schema " + schema);
         }
         return schema.substring(0, index + 1);
-    }
-
-    /**
-     * The schema might contain quotes, but on-disk the table path doesn't have quotes, so causes problems for create/list snapshot
-     *
-     * @param table table name
-     * @return return a cleaned table table without quotes
-     */
-    public static String cleanTableName(@Nullable String table)
-    {
-        if (table == null)
-        {
-            return null;
-        }
-        while (table.startsWith("\"") && table.endsWith("\""))
-        {
-            table = table.substring(1, table.length() - 1);
-        }
-        return table;
     }
 
     public static Set<String> extractKeyspaceNames(@NotNull String schemaStr)
@@ -191,14 +171,7 @@ public final class CqlUtils
         if (matcher.find())
         {
             String fullSchema = createStatementToClean.substring(matcher.start(0), matcher.end(0));
-            String tableOnly = removeTableProps(fullSchema);
-            String quotedTableName = String.format("\"%s\"", table);
-            if (tableOnly.contains(quotedTableName))
-            {
-                // Remove quoted table name from schema
-                tableOnly = tableOnly.replaceFirst(quotedTableName, table);
-            }
-            String redactedSchema = tableOnly;
+            String redactedSchema = removeTableProps(fullSchema);
             String clustering = extractClustering(fullSchema);
             String separator = " WITH ";
             if (clustering != null)

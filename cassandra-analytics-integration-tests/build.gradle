@@ -21,12 +21,16 @@ import java.nio.file.Paths
 
 project(':cassandra-analytics-integration-tests') {
     apply(plugin: 'java-library')
+
+    def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "6g"
+    println("Using ${integrationMaxHeapSize} maxHeapSize")
+
+    def integrationMaxParallelForks = (System.getenv("INTEGRATION_MAX_PARALLEL_FORKS") ?: "8") as int
+    println("Using ${integrationMaxParallelForks} maxParallelForks")
+
     configurations {
-        configureEach {
-            resolutionStrategy {
-                force("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
-            }
-        }
+        all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
+        all*.exclude(group: 'log4j', module: 'log4j')
     }
     dependencies {
 
@@ -36,12 +40,14 @@ project(':cassandra-analytics-integration-tests') {
         testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${sparkVersion}")
         testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${sparkVersion}")
 
+        testImplementation(group: "${sidecarClientGroup}", name: "${sidecarClientName}", version: "${sidecarVersion}")
+
         // JUnit
         testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
         testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
         testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
+        testImplementation("org.assertj:assertj-core:3.24.2")
         testImplementation(project(path: ":cassandra-analytics-integration-framework", configuration: "shadow"))
-        testImplementation(project(':cassandra-analytics-core-example'))
         ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.4.jar" // latest supported Cassandra build is 4.1
         def dtestJarFullPath = "${dependencyLocation}${ext.dtestJar}"
         println("Using DTest jar: " + dtestJarFullPath)
@@ -59,14 +65,13 @@ project(':cassandra-analytics-integration-tests') {
         // Because system properties aren't passed from the command line through to tests, we need to specifically
         // set them again here.
         systemProperty "cassandra.test.dtest_jar_path", dependencyLocation
-        systemProperty "cassandra.sidecar.versions_to_test", System.getProperty("cassandra.sidecar.versions_to_test", "4.0,4.1")
+        systemProperty "cassandra.sidecar.versions_to_test",
+                System.getProperty("cassandra.sidecar.versions_to_test", "4.0")
         systemProperty "SKIP_STARTUP_VALIDATIONS", "true"
         systemProperty "logback.configurationFile", "src/test/resources/logback-test.xml"
-        minHeapSize = '1024m'
-        maxHeapSize = '3072m'
-        // For now, keep maxParallelForks at 1 until we can fix dynamic port allocation across forks
-        maxParallelForks = 1
-        // maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
+        minHeapSize = '1g'
+        maxHeapSize = integrationMaxHeapSize
+        maxParallelForks = integrationMaxParallelForks
         forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
         // Make it so unit tests run on a JAr with Cassandra bridge implementations built in
@@ -79,7 +84,7 @@ project(':cassandra-analytics-integration-tests') {
                 enabled true
                 destination = destDir
             }
-            html{
+            html {
                 enabled true
                 destination = destDir
             }
