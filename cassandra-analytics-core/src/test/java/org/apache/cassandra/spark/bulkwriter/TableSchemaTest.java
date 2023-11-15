@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
 
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.data.CqlField;
@@ -67,7 +68,7 @@ public class TableSchemaTest
     {
         TableSchema schema = getValidSchemaBuilder()
                 .build();
-        assertThat(schema.modificationStatement,
+        assertThat(trimUniqueTableName(schema.modificationStatement),
                    is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks);")));
     }
 
@@ -75,14 +76,16 @@ public class TableSchemaTest
     public void testInsertStatementWithConstantTTL()
     {
         TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("1000")).build();
-        assertThat(schema.modificationStatement, is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL 1000;")));
+        assertThat(trimUniqueTableName(schema.modificationStatement),
+                   is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL 1000;")));
     }
 
     @Test
     public void testInsertStatementWithTTLColumn()
     {
         TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("ttl")).build();
-        assertThat(schema.modificationStatement, is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL :ttl;")));
+        assertThat(trimUniqueTableName(schema.modificationStatement),
+                   is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL :ttl;")));
     }
 
     @Test
@@ -90,7 +93,7 @@ public class TableSchemaTest
     {
         TableSchema schema = getValidSchemaBuilder().withTimeStampSetting(TimestampOption.from("1000")).build();
         String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP 1000;";
-        assertThat(schema.modificationStatement, is(equalTo(expectedQuery)));
+        assertThat(trimUniqueTableName(schema.modificationStatement), is(equalTo(expectedQuery)));
     }
 
     @Test
@@ -98,14 +101,14 @@ public class TableSchemaTest
     {
         TableSchema schema = getValidSchemaBuilder().withTimeStampSetting(TimestampOption.from("timestamp")).build();
         String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP :timestamp;";
-        assertThat(schema.modificationStatement, is(equalTo(expectedQuery)));
+        assertThat(trimUniqueTableName(schema.modificationStatement), is(equalTo(expectedQuery)));
     }
     @Test
     public void testInsertStatementWithTTLAndTimestampColumn()
     {
         TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("ttl")).withTimeStampSetting(TimestampOption.from("timestamp")).build();
         String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP :timestamp AND TTL :ttl;";
-        assertThat(schema.modificationStatement, is(equalTo(expectedQuery)));
+        assertThat(trimUniqueTableName(schema.modificationStatement), is(equalTo(expectedQuery)));
     }
 
     @Test
@@ -120,7 +123,7 @@ public class TableSchemaTest
         TableSchema schema = getValidSchemaBuilder()
                 .withWriteMode(WriteMode.DELETE_PARTITION)
                 .build();
-        assertThat(schema.modificationStatement, is(equalTo("DELETE FROM test.test where id=?;")));
+        assertThat(trimUniqueTableName(schema.modificationStatement), is(equalTo("DELETE FROM test.test where id=?;")));
     }
 
     @Test
@@ -222,7 +225,7 @@ public class TableSchemaTest
 
     private TableSchemaTestCommon.MockTableSchemaBuilder getValidSchemaBuilder()
     {
-        return new TableSchemaTestCommon.MockTableSchemaBuilder()
+        return new TableSchemaTestCommon.MockTableSchemaBuilder(CassandraBridgeFactory.get(cassandraVersion))
                 .withCqlColumns(validCqlColumns)
                 .withPartitionKeyColumns(partitionKeyColumns)
                 .withPrimaryKeyColumnNames(primaryKeyColumnNames)
@@ -230,5 +233,11 @@ public class TableSchemaTest
                 .withPartitionKeyColumnTypes(partitionKeyColumnTypes)
                 .withWriteMode(WriteMode.INSERT)
                 .withDataFrameSchema(validDataFrameSchema);
+    }
+
+    // Removes the unique table name to make validation consistent
+    private static String trimUniqueTableName(String statement)
+    {
+        return statement.replaceAll("test.test_table_\\d+", "test.test");
     }
 }

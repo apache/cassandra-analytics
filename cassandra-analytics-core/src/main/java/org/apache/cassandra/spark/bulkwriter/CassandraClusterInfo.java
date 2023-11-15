@@ -34,6 +34,8 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
@@ -52,6 +54,8 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.FutureUtils;
 import org.jetbrains.annotations.NotNull;
+
+import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
 public class CassandraClusterInfo implements ClusterInfo, Closeable
 {
@@ -233,7 +237,9 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     protected String getCurrentKeyspaceSchema() throws Exception
     {
-        SchemaResponse schemaResponse = getCassandraContext().getSidecarClient().schema(conf.keyspace).get();
+        SchemaResponse schemaResponse = getCassandraContext().getSidecarClient()
+                                                             .schema(maybeQuotedIdentifier(bridge(), conf.quoteIdentifiers, conf.keyspace))
+                                                             .get();
         return schemaResponse.schema();
     }
 
@@ -243,7 +249,11 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         RingResponse ringResponse = getCurrentRingResponse();
         List<RingInstance> instances = getSerializableInstances(ringResponse);
         ReplicationFactor replicationFactor = getReplicationFactor();
-        return new CassandraRing<>(getPartitioner(), conf.keyspace, replicationFactor, instances);
+
+        return new CassandraRing<>(getPartitioner(),
+                                   maybeQuotedIdentifier(bridge(), conf.quoteIdentifiers, conf.keyspace),
+                                   replicationFactor,
+                                   instances);
     }
 
     @NotNull
@@ -403,7 +413,9 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     private RingResponse getCurrentRingResponse() throws Exception
     {
-        return getCassandraContext().getSidecarClient().ring(conf.keyspace).get();
+        return getCassandraContext().getSidecarClient()
+                                    .ring(maybeQuotedIdentifier(bridge(), conf.quoteIdentifiers, conf.keyspace))
+                                    .get();
     }
 
     private static List<RingInstance> getSerializableInstances(RingResponse ringResponse)
@@ -533,6 +545,11 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
             }
         }
         return false;
+    }
+
+    protected CassandraBridge bridge()
+    {
+        return CassandraBridgeFactory.get(getLowestCassandraVersion());
     }
 
     // Startup Validation

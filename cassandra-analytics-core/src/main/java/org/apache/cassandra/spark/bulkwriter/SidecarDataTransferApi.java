@@ -27,6 +27,7 @@ import java.util.concurrent.ExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.request.ImportSSTableRequest;
@@ -34,6 +35,8 @@ import org.apache.cassandra.sidecar.common.data.SSTableImportResponse;
 import org.apache.cassandra.spark.common.MD5Hash;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+
+import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
 /**
  * A {@link DataTransferApi} implementation that interacts with Cassandra Sidecar
@@ -46,14 +49,16 @@ public class SidecarDataTransferApi implements DataTransferApi
     private static final int SSTABLE_GENERATION_REVERSE_OFFSET = 3;
 
     private final transient SidecarClient sidecarClient;
+    private final CassandraBridge bridge;
     private final int sidecarPort;
     private final JobInfo job;
     private final BulkSparkConf conf;
 
-    public SidecarDataTransferApi(CassandraContext cassandraContext, JobInfo job, BulkSparkConf conf)
+    public SidecarDataTransferApi(CassandraContext cassandraContext, CassandraBridge bridge, JobInfo job, BulkSparkConf conf)
     {
         this.sidecarClient = cassandraContext.getSidecarClient();
         this.sidecarPort = cassandraContext.sidecarPort();
+        this.bridge = bridge;
         this.job = job;
         this.conf = conf;
     }
@@ -69,17 +74,22 @@ public class SidecarDataTransferApi implements DataTransferApi
         String uploadId = getUploadId(sessionID, job.getId().toString());
         try
         {
-            sidecarClient.uploadSSTableRequest(toSidecarInstance(instance), conf.keyspace, conf.table, uploadId,
-                                               componentName, fileHash.toString(),
-                                               componentFile.toAbsolutePath().toString()).get();
+            sidecarClient.uploadSSTableRequest(toSidecarInstance(instance),
+                                               maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.keyspace),
+                                               maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.table),
+                                               uploadId,
+                                               componentName,
+                                               fileHash.toString(),
+                                               componentFile.toAbsolutePath().toString())
+                         .get();
         }
         catch (ExecutionException | InterruptedException exception)
         {
             LOGGER.warn("Failed to upload file={}, keyspace={}, table={}, uploadId={}, componentName={}, instance={}",
                         componentFile, conf.keyspace, conf.table, uploadId, componentName, instance);
             throw new ClientException(
-                    String.format("Failed to upload file=%s into keyspace=%s, table=%s, componentName=%s with uploadId=%s to instance=%s",
-                                  componentFile, conf.keyspace, conf.table, componentName, uploadId, instance), exception);
+            String.format("Failed to upload file=%s into keyspace=%s, table=%s, componentName=%s with uploadId=%s to instance=%s",
+                          componentFile, conf.keyspace, conf.table, componentName, uploadId, instance), exception);
         }
     }
 
@@ -104,7 +114,11 @@ public class SidecarDataTransferApi implements DataTransferApi
         try
         {
             SSTableImportResponse response =
-            sidecarClient.importSSTableRequest(toSidecarInstance(instance), conf.keyspace, conf.table, uploadId, importOptions).get();
+            sidecarClient.importSSTableRequest(toSidecarInstance(instance),
+                                               maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.keyspace),
+                                               maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.table),
+                                               uploadId,
+                                               importOptions).get();
             if (response.success())
             {
                 return new RemoteCommitResult(response.success(), Collections.emptyList(), Collections.singletonList(uploadId), null);

@@ -63,6 +63,9 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     {
         this.conf = conf;
         this.clusterInfo = clusterInfo;
+        String lowestCassandraVersion = clusterInfo.getLowestCassandraVersion();
+        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+
         CassandraRing<RingInstance> ring = clusterInfo.getRing(true);
         jobInfo = new CassandraJobInfo(conf,
                                        new TokenPartitioner(ring, conf.numberSplits, sparkContext.defaultParallelism(), conf.getCores()));
@@ -71,20 +74,20 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
                                     String.format("Keyspace %s is not replicated on datacenter %s",
                                                   conf.keyspace, conf.localDC));
 
-        String keyspace = conf.keyspace;
-        String table = conf.table;
+        String keyspace = jobInfo.keyspace();
+        String table = jobInfo.tableName();
 
         String keyspaceSchema = clusterInfo.getKeyspaceSchema(true);
-        CassandraBridge bridge = CassandraBridgeFactory.get(clusterInfo.getLowestCassandraVersion());
         Partitioner partitioner = clusterInfo.getPartitioner();
-        String tableSchema = CqlUtils.extractTableSchema(keyspaceSchema, keyspace, table);
+        String createTableSchema = CqlUtils.extractTableSchema(keyspaceSchema, keyspace, table);
         Set<String> udts = CqlUtils.extractUdts(keyspaceSchema, keyspace);
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(keyspaceSchema, keyspace);
         int indexCount = CqlUtils.extractIndexCount(keyspaceSchema, keyspace, table);
-        CqlTable cqlTable = bridge.buildSchema(tableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount);
+        CqlTable cqlTable = bridge.buildSchema(createTableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount);
 
-        TableInfoProvider tableInfoProvider = new CqlTableInfoProvider(tableSchema, cqlTable);
-        schemaInfo = new CassandraSchemaInfo(new TableSchema(dfSchema, tableInfoProvider, conf.writeMode, conf.getTTLOptions(), conf.getTimestampOptions()));
+        TableInfoProvider tableInfoProvider = new CqlTableInfoProvider(createTableSchema, cqlTable);
+        TableSchema tableSchema = initializeTableSchema(conf, dfSchema, tableInfoProvider, lowestCassandraVersion);
+        schemaInfo = new CassandraSchemaInfo(tableSchema);
     }
 
     public static BulkWriterContext fromOptions(@NotNull SparkContext sparkContext,
@@ -180,8 +183,27 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     {
         if (dataTransferApi == null)
         {
-            dataTransferApi = new SidecarDataTransferApi(clusterInfo.getCassandraContext(), jobInfo, conf);
+            CassandraBridge bridge = CassandraBridgeFactory.get(clusterInfo.getLowestCassandraVersion());
+            dataTransferApi = new SidecarDataTransferApi(clusterInfo.getCassandraContext(),
+                                                         bridge,
+                                                         jobInfo,
+                                                         conf);
         }
         return dataTransferApi;
+    }
+
+    @NotNull
+    protected TableSchema initializeTableSchema(@NotNull BulkSparkConf conf,
+                                                @NotNull StructType dfSchema,
+                                                TableInfoProvider tableInfoProvider,
+                                                String lowestCassandraVersion)
+    {
+        return new TableSchema(dfSchema,
+                               tableInfoProvider,
+                               conf.writeMode,
+                               conf.getTTLOptions(),
+                               conf.getTimestampOptions(),
+                               lowestCassandraVersion,
+                               conf.quoteIdentifiers);
     }
 }

@@ -57,7 +57,7 @@ public class SparkBulkWriterSimpleTest extends IntegrationTestBase
                              + "          course BLOB,\n"
                              + "          marks BIGINT\n"
                              + "     );");
-        waitForKeyspaceAndTable(keyspace, table);
+        waitUntilSidecarPicksUpSchemaChange(keyspace);
         Map<String, String> writerOptions = new HashMap<>();
         // A constant timestamp and TTL can be used by adding the following options to the writerOptions map
         // writerOptions.put(WriterOptions.TTL.name(), TTLOption.constant(20));

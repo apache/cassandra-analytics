@@ -64,7 +64,7 @@ public class BulkWriteTtlTest extends IntegrationTestBase
                              + "          marks BIGINT\n"
                              + "     )  WITH default_time_to_live = 1;"
         );
-        waitForKeyspaceAndTable(keyspace, table);
+        waitUntilSidecarPicksUpSchemaChange(keyspace);
         boolean addTTLColumn = false;
         boolean addTimestampColumn = false;
         IntegrationTestJob.builder((recordNum) -> generateCourse(recordNum, null, null),
@@ -96,7 +96,7 @@ public class BulkWriteTtlTest extends IntegrationTestBase
                              + "          marks BIGINT\n"
                              + "     );"
         );
-        waitForKeyspaceAndTable(keyspace, table);
+        waitUntilSidecarPicksUpSchemaChange(keyspace);
         Map<String, String> writerOptions = ImmutableMap.of(WriterOptions.TTL.name(), TTLOption.constant(1));
         boolean addTTLColumn = false;
         boolean addTimestampColumn = false;
@@ -129,7 +129,7 @@ public class BulkWriteTtlTest extends IntegrationTestBase
                              + "          marks BIGINT\n"
                              + "     );"
         );
-        waitForKeyspaceAndTable(keyspace, table);
+        waitUntilSidecarPicksUpSchemaChange(keyspace);
         Map<String, String> writerOptions = ImmutableMap.of(WriterOptions.TTL.name(), TTLOption.perRow("ttl"));
         boolean addTTLColumn = true;
         boolean addTimestampColumn = false;

@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
@@ -30,6 +31,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.tuple.Pair;
 
+import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.spark.sql.types.DataTypes;
@@ -131,12 +134,13 @@ public final class TableSchemaTestCommon
         Pair<StructType, ImmutableMap<String, CqlField.CqlType>> pair = buildMatchedDataframeAndCqlColumns(fieldNames, sparkTypes, driverTypes);
         ImmutableMap<String, CqlField.CqlType> cqlColumns = pair.getValue();
         StructType dataFrameSchema = pair.getKey();
+        String cassandraVersion = "4.0.0";
         return
-            new MockTableSchemaBuilder()
+            new MockTableSchemaBuilder(CassandraBridgeFactory.get(cassandraVersion))
                 .withCqlColumns(cqlColumns)
                 .withPartitionKeyColumns(partitionKeyColumns)
                 .withPrimaryKeyColumnNames(primaryKeyColumnNames)
-                .withCassandraVersion("3.0.24.8")
+                .withCassandraVersion(cassandraVersion)
                 .withPartitionKeyColumnTypes(partitionKeyColumnTypes)
                 .withWriteMode(WriteMode.INSERT)
                 .withDataFrameSchema(dataFrameSchema)
@@ -145,6 +149,7 @@ public final class TableSchemaTestCommon
 
     public static class MockTableSchemaBuilder
     {
+        private final CassandraBridge bridge;
         private ImmutableMap<String, CqlField.CqlType> cqlColumns;
         private String[] partitionKeyColumns;
         private String[] primaryKeyColumnNames;
@@ -154,11 +159,17 @@ public final class TableSchemaTestCommon
         private WriteMode writeMode = null;
         private TTLOption ttlOption = TTLOption.forever();
         private TimestampOption timestampOption = TimestampOption.now();
+        private boolean quoteIdentifiers = false;
+
+        public MockTableSchemaBuilder(CassandraBridge bridge)
+        {
+            this.bridge = bridge;
+        }
 
         public MockTableSchemaBuilder withCqlColumns(@NotNull Map<String, CqlField.CqlType> cqlColumns)
         {
             Preconditions.checkNotNull(cqlColumns, "cqlColumns cannot be null");
-            Preconditions.checkArgument(cqlColumns.size() > 0, "cqlColumns cannot be empty");
+            Preconditions.checkArgument(!cqlColumns.isEmpty(), "cqlColumns cannot be empty");
             this.cqlColumns = ImmutableMap.copyOf(cqlColumns);
             return this;
         }
@@ -182,7 +193,7 @@ public final class TableSchemaTestCommon
         public MockTableSchemaBuilder withCassandraVersion(@NotNull String cassandraVersion)
         {
             Preconditions.checkNotNull(cassandraVersion, "cassandraVersion cannot be null");
-            Preconditions.checkArgument(cassandraVersion.length() > 0, "cassandraVersion cannot be an empty string");
+            Preconditions.checkArgument(!cassandraVersion.isEmpty(), "cassandraVersion cannot be an empty string");
             this.cassandraVersion = cassandraVersion;
             return this;
         }
@@ -222,6 +233,12 @@ public final class TableSchemaTestCommon
             return this;
         }
 
+        public MockTableSchemaBuilder withQuotedIdentifiers()
+        {
+            this.quoteIdentifiers = true;
+            return this;
+        }
+
         public TableSchema build()
         {
             Objects.requireNonNull(cqlColumns,
@@ -238,11 +255,13 @@ public final class TableSchemaTestCommon
                                    "writeMode cannot be null. Please provide the write mode by calling #withWriteMode");
             Objects.requireNonNull(dataFrameSchema,
                                    "dataFrameSchema cannot be null. Please provide the write mode by calling #withDataFrameSchema");
-            MockTableInfoProvider tableInfoProvider = new MockTableInfoProvider(cqlColumns,
+            MockTableInfoProvider tableInfoProvider = new MockTableInfoProvider(bridge,
+                                                                                cqlColumns,
                                                                                 partitionKeyColumns,
                                                                                 partitionKeyColumnTypes,
                                                                                 primaryKeyColumnNames,
-                                                                                cassandraVersion);
+                                                                                cassandraVersion,
+                                                                                quoteIdentifiers);
             if (ttlOption.withTTl() && ttlOption.columnName() != null)
             {
                 dataFrameSchema = dataFrameSchema.add("ttl", DataTypes.IntegerType);
@@ -251,31 +270,41 @@ public final class TableSchemaTestCommon
             {
                 dataFrameSchema = dataFrameSchema.add("timestamp", DataTypes.IntegerType);
             }
-            return new TableSchema(dataFrameSchema, tableInfoProvider, writeMode, ttlOption, timestampOption);
+            return new TableSchema(dataFrameSchema, tableInfoProvider, writeMode, ttlOption, timestampOption, cassandraVersion, quoteIdentifiers);
         }
     }
 
     public static class MockTableInfoProvider implements TableInfoProvider
     {
+        public static final String TEST_TABLE_PREFIX = "test_table_";
+        public static final AtomicInteger TEST_TABLE_ID = new AtomicInteger(0);
+        private final CassandraBridge bridge;
         private final ImmutableMap<String, CqlField.CqlType> cqlColumns;
         private final String[] partitionKeyColumns;
         private final ColumnType[] partitionKeyColumnTypes;
         private final String[] primaryKeyColumnNames;
+        private final String uniqueTableName;
         Map<String, CqlField.CqlType> columns;
         private final String cassandraVersion;
+        private final boolean quoteIdentifiers;
 
-        public MockTableInfoProvider(ImmutableMap<String, CqlField.CqlType> cqlColumns,
+        public MockTableInfoProvider(CassandraBridge bridge,
+                                     ImmutableMap<String, CqlField.CqlType> cqlColumns,
                                      String[] partitionKeyColumns,
                                      ColumnType[] partitionKeyColumnTypes,
                                      String[] primaryKeyColumnNames,
-                                     String cassandraVersion)
+                                     String cassandraVersion,
+                                     boolean quoteIdentifiers)
         {
+            this.bridge = bridge;
             this.cqlColumns = cqlColumns;
             this.partitionKeyColumns = partitionKeyColumns;
             this.partitionKeyColumnTypes = partitionKeyColumnTypes;
             this.primaryKeyColumnNames = primaryKeyColumnNames;
             columns = cqlColumns;
             this.cassandraVersion = cassandraVersion.replaceAll("(\\w+-)*cassandra-", "");
+            this.quoteIdentifiers = quoteIdentifiers;
+            this.uniqueTableName = TEST_TABLE_PREFIX + TEST_TABLE_ID.getAndIncrement();
         }
 
         @Override
@@ -306,9 +335,9 @@ public final class TableSchemaTestCommon
         public String getCreateStatement()
         {
             String keyDef = getKeyDef();
-            String createStatement = "CREATE TABLE test.test (" + cqlColumns.entrySet()
+            String createStatement = "CREATE TABLE test." + uniqueTableName + " (" + cqlColumns.entrySet()
                                             .stream()
-                                            .map(column -> column.getKey() + " " + column.getValue().name())
+                                            .map(column -> maybeQuoteIdentifierIfRequested(column.getKey()) + " " + column.getValue().name())
                                             .collect(Collectors.joining(",\n")) + ", " + keyDef + ") "
                                    + "WITH COMPRESSION = {'class': '" + getCompression() + "'};";
             System.out.println("Create Table:" + createStatement);
@@ -333,8 +362,12 @@ public final class TableSchemaTestCommon
             List<String> partitionColumns = Lists.newArrayList(partitionKeyColumns);
             List<String> primaryColumns = Lists.newArrayList(primaryKeyColumnNames);
             primaryColumns.removeAll(partitionColumns);
-            String partitionKey = "(" + String.join(",", partitionKeyColumns) + ")";
-            String clusteringKey = String.join(",", primaryColumns);
+            String partitionKey = Arrays.stream(partitionKeyColumns)
+                                        .map(this::maybeQuoteIdentifierIfRequested)
+                                        .collect(Collectors.joining(",", "(", ")"));
+            String clusteringKey = primaryColumns.stream()
+                                                 .map(this::maybeQuoteIdentifierIfRequested)
+                                                 .collect(Collectors.joining(","));
             return "PRIMARY KEY (" + partitionKey + clusteringKey + ")";
         }
 
@@ -347,7 +380,7 @@ public final class TableSchemaTestCommon
         @Override
         public String getName()
         {
-            return "test";
+            return uniqueTableName;
         }
 
         @Override
@@ -366,6 +399,13 @@ public final class TableSchemaTestCommon
         public List<String> getColumnNames()
         {
             return cqlColumns.keySet().asList();
+        }
+
+        private String maybeQuoteIdentifierIfRequested(String identifier)
+        {
+            return quoteIdentifiers
+                   ? bridge.maybeQuoteIdentifier(identifier)
+                   : identifier;
         }
     }
 }

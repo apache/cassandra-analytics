@@ -113,9 +113,20 @@ public class CassandraJobInfo implements JobInfo
     }
 
     @Override
-    @NotNull
-    public String getFullTableName()
+    public boolean quoteIdentifiers()
     {
-        return conf.keyspace + "." + conf.table;
+        return conf.quoteIdentifiers;
+    }
+
+    @Override
+    public String keyspace()
+    {
+        return conf.keyspace;
+    }
+
+    @Override
+    public String tableName()
+    {
+        return conf.table;
     }
 }

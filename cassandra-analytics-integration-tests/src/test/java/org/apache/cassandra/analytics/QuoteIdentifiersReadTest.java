@@ -22,17 +22,11 @@ package org.apache.cassandra.analytics;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import io.vertx.ext.web.client.WebClient;
-import io.vertx.ext.web.client.predicate.ResponsePredicate;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
@@ -45,22 +39,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests the bulk reader behavior when requiring quoted identifiers for keyspace, table name, and column names.
- * These tests exercise a full integration test, which includes testing Sidecar behavior when dealing with quoted
+ *
+ * <p>These tests exercise a full integration test, which includes testing Sidecar behavior when dealing with quoted
  * identifiers.
  */
 @ExtendWith(VertxExtension.class)
-class QuoteIdentifiersTest extends SparkIntegrationTestBase
+class QuoteIdentifiersReadTest extends SparkIntegrationTestBase
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(QuoteIdentifiersTest.class);
 
-    @CassandraIntegrationTest(nodesPerDc = 3, gossip = true)
+    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
     void testMixedCaseKeyspace(VertxTestContext context)
     {
         QualifiedName qualifiedTableName = uniqueTestTableFullName("QuOtEd_KeYsPaCe");
         runTestScenario(context, qualifiedTableName);
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 3, gossip = true)
+    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
     void testReservedWordKeyspace(VertxTestContext context)
     {
         // keyspace is a reserved word
@@ -68,27 +62,27 @@ class QuoteIdentifiersTest extends SparkIntegrationTestBase
         runTestScenario(context, qualifiedTableName);
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 3, gossip = true)
+    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
     void testMixedCaseTable(VertxTestContext context)
     {
         QualifiedName qualifiedTableName = uniqueTestTableFullName(TEST_KEYSPACE, "QuOtEd_TaBlE");
         runTestScenario(context, qualifiedTableName);
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 3, gossip = true)
+    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
     void testReservedWordTable(VertxTestContext context)
     {
         // table is a reserved word
         runTestScenario(context, new QualifiedName(TEST_KEYSPACE, "table"));
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 3, gossip = true)
+    @CassandraIntegrationTest(nodesPerDc = 1, gossip = true)
     void testReadComplexSchema(VertxTestContext context)
     {
         QualifiedName tableName = uniqueTestTableFullName("QuOtEd_KeYsPaCe", "QuOtEd_TaBlE");
 
         String quotedKeyspace = tableName.maybeQuotedKeyspace();
-        createTestKeyspace(quotedKeyspace, ImmutableMap.of("datacenter1", 3));
+        createTestKeyspace(quotedKeyspace, ImmutableMap.of("datacenter1", 1));
 
         // Create UDT
         String createUdtQuery = "CREATE TYPE " + quotedKeyspace + ".\"UdT1\" (\"TimE\" bigint, \"limit\" int);";
@@ -129,7 +123,7 @@ class QuoteIdentifiersTest extends SparkIntegrationTestBase
     {
         String quotedKeyspace = tableName.maybeQuotedKeyspace();
 
-        createTestKeyspace(quotedKeyspace, ImmutableMap.of("datacenter1", 3));
+        createTestKeyspace(quotedKeyspace, ImmutableMap.of("datacenter1", 1));
         createTestTable(String.format("CREATE TABLE IF NOT EXISTS %s (\"IdEnTiFiEr\" text, IdEnTiFiEr int, PRIMARY KEY(\"IdEnTiFiEr\"));",
                                       tableName));
         List<String> dataset = Arrays.asList("a", "b", "c", "d", "e", "f", "g");
@@ -179,30 +173,5 @@ class QuoteIdentifiersTest extends SparkIntegrationTestBase
                               .coordinator()
                               .execute(query, ConsistencyLevel.ALL);
         }
-    }
-
-    void waitUntilSidecarPicksUpSchemaChange(String quotedKeyspace)
-    {
-        WebClient client = WebClient.create(vertx);
-        while (true)
-        {
-            try
-            {
-                client.get(server.actualPort(), "localhost", "/api/v1/keyspaces/" + quotedKeyspace + "/schema")
-                      .expect(ResponsePredicate.SC_OK)
-                      .send()
-                      .toCompletionStage()
-                      .toCompletableFuture()
-                      .get(30, TimeUnit.SECONDS);
-                LOGGER.info("Schema is ready in Sidecar");
-                break;
-            }
-            catch (Exception exception)
-            {
-                LOGGER.info("Waiting for schema to propagate to Sidecar");
-                Uninterruptibles.sleepUninterruptibly(200, TimeUnit.MILLISECONDS);
-            }
-        }
-        client.close();
     }
 }

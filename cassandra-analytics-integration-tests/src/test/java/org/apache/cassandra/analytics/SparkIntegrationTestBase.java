@@ -20,6 +20,7 @@
 package org.apache.cassandra.analytics;
 
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.cassandra.sidecar.testing.IntegrationTestBase;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
@@ -28,6 +29,9 @@ import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.DataFrameReader;
+import org.apache.spark.sql.DataFrameWriter;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
 
@@ -52,7 +56,7 @@ public class SparkIntegrationTestBase extends IntegrationTestBase
         int numCores = coresPerExecutor * numExecutors;
 
         return sql.read().format("org.apache.cassandra.spark.sparksql.CassandraDataSource")
-                  .option("sidecar_instances", "localhost,localhost2,localhost3")
+                  .option("sidecar_instances", "localhost")
                   .option("keyspace", tableName.keyspace()) // unquoted
                   .option("table", tableName.table()) // unquoted
                   .option("DC", "datacenter1")
@@ -64,12 +68,27 @@ public class SparkIntegrationTestBase extends IntegrationTestBase
                   .option("sidecar_port", server.actualPort());
     }
 
+    protected DataFrameWriter<Row> bulkWriterDataFrameWriter(Dataset<Row> df, QualifiedName tableName)
+    {
+        String sidecarInstances = sidecarTestContext.instancesConfig().instances().stream().map(f -> f.host()).collect(Collectors.joining(","));
+        return df.write()
+                 .format("org.apache.cassandra.spark.sparksql.CassandraDataSink")
+                 .option("sidecar_instances", sidecarInstances)
+                 .option("keyspace", tableName.keyspace())
+                 .option("table", tableName.table())
+                 .option("local_dc", "datacenter1")
+                 .option("bulk_writer_cl", "LOCAL_QUORUM")
+                 .option("number_splits", "-1")
+                 .option("sidecar_port", server.actualPort())
+                 .mode("append");
+    }
+
     protected SparkConf getOrCreateSparkConf()
     {
         if (sparkConf == null)
         {
             sparkConf = new SparkConf()
-                        .setAppName("Integration test Spark Cassandra Bulk Reader Job")
+                        .setAppName("Integration test Spark Cassandra Bulk Analytics Job")
                         .set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
                         // Spark is not case-sensitive by default, but we want to make it case-sensitive for
                         // the quoted identifiers tests where we test mixed case
@@ -87,7 +106,7 @@ public class SparkIntegrationTestBase extends IntegrationTestBase
         {
             sparkSession = SparkSession
                            .builder()
-                           .config(sparkConf)
+                           .config(getOrCreateSparkConf())
                            .getOrCreate();
         }
         return sparkSession;

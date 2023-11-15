@@ -37,6 +37,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.Pair;
 
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.sidecar.common.data.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
@@ -63,6 +64,14 @@ import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCq
 public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, JobInfo, SchemaInfo, DataTransferApi
 {
     private static final long serialVersionUID = -2912371629236770646L;
+    public static final String[] DEFAULT_PARTITION_KEY_COLUMNS = {"id", "date"};
+    public static final String[] DEFAULT_PRIMARY_KEY_COLUMN_NAMES = {"id", "date"};
+    public static final Pair<StructType, ImmutableMap<String, CqlField.CqlType>> DEFAULT_VALID_PAIR =
+    TableSchemaTestCommon.buildMatchedDataframeAndCqlColumns(
+    new String[]{"id", "date", "course", "marks"},
+    new org.apache.spark.sql.types.DataType[]{DataTypes.IntegerType, DataTypes.DateType, DataTypes.StringType, DataTypes.IntegerType},
+    new CqlField.CqlType[]{mockCqlType(INT), mockCqlType(DATE), mockCqlType(VARCHAR), mockCqlType(INT)});
+    private final boolean quoteIdentifiers;
     private RowBufferMode rowBufferMode = RowBufferMode.UNBUFFERED;
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
@@ -90,35 +99,57 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private CommitResultSupplier crSupplier = (uuids, dc) -> new RemoteCommitResult(true, Collections.emptyList(), uuids, null);
 
     private Predicate<CassandraInstance> uploadRequestConsumer = instance -> true;
-    private TTLOption ttlOption = TTLOption.forever();
+
+    public MockBulkWriterContext(CassandraRing<RingInstance> ring)
+    {
+        this(ring,
+             DEFAULT_CASSANDRA_VERSION,
+             ConsistencyLevel.CL.LOCAL_QUORUM,
+             DEFAULT_VALID_PAIR,
+             DEFAULT_PARTITION_KEY_COLUMNS,
+             DEFAULT_PRIMARY_KEY_COLUMN_NAMES,
+             false);
+    }
 
     public MockBulkWriterContext(CassandraRing<RingInstance> ring,
                                  String cassandraVersion,
                                  ConsistencyLevel.CL consistencyLevel)
     {
+        this(ring, cassandraVersion, consistencyLevel, DEFAULT_VALID_PAIR, DEFAULT_PARTITION_KEY_COLUMNS, DEFAULT_PRIMARY_KEY_COLUMN_NAMES, false);
+    }
+
+    public MockBulkWriterContext(CassandraRing<RingInstance> ring,
+                                 String cassandraVersion,
+                                 ConsistencyLevel.CL consistencyLevel,
+                                 Pair<StructType, ImmutableMap<String, CqlField.CqlType>> validPair,
+                                 String[] partitionKeyColumns,
+                                 String[] primaryKeyColumnNames,
+                                 boolean quoteIdentifiers)
+    {
+        this.quoteIdentifiers = quoteIdentifiers;
         this.ring = ring;
         this.tokenPartitioner = new TokenPartitioner(ring, 1, 2, 2, false);
         this.cassandraVersion = cassandraVersion;
         this.consistencyLevel = consistencyLevel;
-        validPair = TableSchemaTestCommon.buildMatchedDataframeAndCqlColumns(
-        new String[]{"id", "date", "course", "marks"},
-        new org.apache.spark.sql.types.DataType[]{DataTypes.IntegerType, DataTypes.DateType, DataTypes.StringType, DataTypes.IntegerType},
-        new CqlField.CqlType[]{mockCqlType(INT), mockCqlType(DATE), mockCqlType(VARCHAR), mockCqlType(INT)});
-        StructType validDataFrameSchema = validPair.getKey();
-        ImmutableMap<String, CqlField.CqlType> validCqlColumns = validPair.getValue();
-        String[] partitionKeyColumns = {"id", "date"};
-        String[] primaryKeyColumnNames = {"id", "date"};
+        this.validPair = validPair;
+        StructType validDataFrameSchema = this.validPair.getKey();
+        ImmutableMap<String, CqlField.CqlType> validCqlColumns = this.validPair.getValue();
         ColumnType<?>[] partitionKeyColumnTypes = {ColumnTypes.INT, ColumnTypes.INT};
-        this.schema = new TableSchemaTestCommon.MockTableSchemaBuilder()
-                      .withCqlColumns(validCqlColumns)
-                      .withPartitionKeyColumns(partitionKeyColumns)
-                      .withPrimaryKeyColumnNames(primaryKeyColumnNames)
-                      .withCassandraVersion(cassandraVersion)
-                      .withPartitionKeyColumnTypes(partitionKeyColumnTypes)
-                      .withWriteMode(WriteMode.INSERT)
-                      .withDataFrameSchema(validDataFrameSchema)
-                      .withTTLSetting(ttlOption)
-                      .build();
+        TTLOption ttlOption = TTLOption.forever();
+        TableSchemaTestCommon.MockTableSchemaBuilder builder = new TableSchemaTestCommon.MockTableSchemaBuilder(CassandraBridgeFactory.get(cassandraVersion))
+                                                               .withCqlColumns(validCqlColumns)
+                                                               .withPartitionKeyColumns(partitionKeyColumns)
+                                                               .withPrimaryKeyColumnNames(primaryKeyColumnNames)
+                                                               .withCassandraVersion(cassandraVersion)
+                                                               .withPartitionKeyColumnTypes(partitionKeyColumnTypes)
+                                                               .withWriteMode(WriteMode.INSERT)
+                                                               .withDataFrameSchema(validDataFrameSchema)
+                                                               .withTTLSetting(ttlOption);
+        if (quoteIdentifiers())
+        {
+            builder.withQuotedIdentifiers();
+        }
+        this.schema = builder.build();
         this.jobId = java.util.UUID.randomUUID();
     }
 
@@ -130,11 +161,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public void setTimeProvider(Supplier<Long> timeProvider)
     {
         this.timeProvider = timeProvider;
-    }
-
-    public MockBulkWriterContext(CassandraRing<RingInstance> ring)
-    {
-        this(ring, DEFAULT_CASSANDRA_VERSION, ConsistencyLevel.CL.LOCAL_QUORUM);
     }
 
     @Override
@@ -412,9 +438,21 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public String getFullTableName()
+    public boolean quoteIdentifiers()
     {
-        return "keyspace.table";
+        return quoteIdentifiers;
+    }
+
+    @Override
+    public String keyspace()
+    {
+        return "keyspace";
+    }
+
+    @Override
+    public String tableName()
+    {
+        return "table";
     }
 
     // Startup Validation

@@ -1,4 +1,5 @@
 1.0.0
+ * Fix bulk writing when using identifiers that need quotes (CASSANDRA-19031)
  * Fix bulk reading when using identifiers that need quotes (CASSANDRA-19024)
  * Remove unused dead code (CASSANDRA-19148)
  * Get Sidecar port through CassandraContext for more flexibility (CASSANDRA-19903)
