@@ -126,6 +126,7 @@ public class BulkSparkConf implements Serializable
     protected final SparkConf conf;
     public final boolean validateSSTables;
     public final int commitThreadsPerInstance;
+    public boolean quoteIdentifiers;
     protected final int effectiveSidecarPort;
     protected final int userProvidedSidecarPort;
     protected boolean useOpenSsl;
@@ -166,6 +167,7 @@ public class BulkSparkConf implements Serializable
         this.ringRetryCount = getInt(RING_RETRY_COUNT, DEFAULT_RING_RETRY_COUNT);
         this.ttl = MapUtils.getOrDefault(options, WriterOptions.TTL.name(), null);
         this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
+        this.quoteIdentifiers = MapUtils.getBoolean(options, WriterOptions.QUOTE_IDENTIFIERS.name(), false, "quote identifiers");
         validateEnvironment();
     }
 

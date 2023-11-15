@@ -29,7 +29,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
+import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,9 +39,19 @@ import org.junit.jupiter.api.io.TempDir;
 
 import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.spark.bulkwriter.token.CassandraRing;
+import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.data.CqlField;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructType;
 import scala.Tuple2;
 
+import static org.apache.cassandra.spark.bulkwriter.MockBulkWriterContext.DEFAULT_CASSANDRA_VERSION;
+import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
+import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
+import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHAR;
+import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCqlType;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.matchesPattern;
@@ -85,20 +97,41 @@ public class RecordWriterTest
     }
 
     @Test
+    public void testWriteWithMixedCaseColumnNames()
+    {
+        boolean quoteIdentifiers = true;
+        String[] pk = {"ID", "date"};
+        String[] columnNames = {"ID", "date", "course", "limit"};
+
+        Pair<StructType, ImmutableMap<String, CqlField.CqlType>> validPair = TableSchemaTestCommon.buildMatchedDataframeAndCqlColumns(
+        columnNames,
+        new DataType[]{DataTypes.IntegerType, DataTypes.DateType, DataTypes.StringType, DataTypes.IntegerType},
+        new CqlField.CqlType[]{mockCqlType(INT), mockCqlType(DATE), mockCqlType(VARCHAR), mockCqlType(INT)});
+
+        MockBulkWriterContext writerContext = new MockBulkWriterContext(ring,
+                                                                        DEFAULT_CASSANDRA_VERSION,
+                                                                        ConsistencyLevel.CL.LOCAL_QUORUM,
+                                                                        validPair,
+                                                                        pk,
+                                                                        pk,
+                                                                        quoteIdentifiers);
+        Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true);
+        validateSuccessfulWrite(writerContext, data, columnNames);
+    }
+
+    @Test
     public void testWriteWithConstantTTL()
     {
-        MockBulkWriterContext bulkWriterContext = new MockBulkWriterContext(ring);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true, false, false);
-        validateSuccessfulWrite(bulkWriterContext, data, COLUMN_NAMES);
+        validateSuccessfulWrite(writerContext, data, COLUMN_NAMES);
     }
 
     @Test
     public void testWriteWithTTLColumn()
     {
-        MockBulkWriterContext bulkWriterContext = new MockBulkWriterContext(ring);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true, true, false);
         String[] columnNamesWithTtl = {"id", "date", "course", "marks", "ttl"};
-        validateSuccessfulWrite(bulkWriterContext, data, columnNamesWithTtl);
+        validateSuccessfulWrite(writerContext, data, columnNamesWithTtl);
     }
 
     @Test

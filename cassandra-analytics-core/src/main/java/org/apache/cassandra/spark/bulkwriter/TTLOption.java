@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 import java.time.Duration;
+import java.util.function.Function;
 
 public final class TTLOption implements Serializable
 {
@@ -111,12 +112,11 @@ public final class TTLOption implements Serializable
                 && (ttlColumnName != null || ttlInSeconds != null);
     }
 
-    @Override
-    public String toString()
+    public String toCQLString(Function<String, String> maybeQuoteFunction)
     {
         if (ttlColumnName != null && !ttlColumnName.isEmpty())
         {
-            return ":" + ttlColumnName;
+            return ":" + maybeQuoteFunction.apply(ttlColumnName);
         }
         if (ttlInSeconds != null)
         {

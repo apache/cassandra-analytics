@@ -53,7 +53,7 @@ public class SbwKryoRegistrator implements KryoRegistrator
     {
         LOGGER.debug("Registering Spark Bulk Writer classes with Kryo which require use of Java Serializer");
         // NOTE: The order of calls to `register` matters, so we sort by class name just to make sure we always
-        //       register classess in the same order - HashSet doesn't guarantee its iteration order
+        //       register classes in the same order - HashSet doesn't guarantee its iteration order
         javaSerializableClasses.stream()
                 .sorted(Comparator.comparing(Class::getCanonicalName))
                 .forEach(javaSerializableClass -> kryo.register(javaSerializableClass, new SbwJavaSerializer()));

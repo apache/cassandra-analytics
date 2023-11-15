@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.io.Serializable;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
+import java.util.function.Function;
 
 public final class TimestampOption implements Serializable
 {
@@ -109,12 +110,11 @@ public final class TimestampOption implements Serializable
                 && (timestampColumnName != null || timeStampInMicroSeconds != null);
     }
 
-    @Override
-    public String toString()
+    public String toCQLString(Function<String, String> maybeQuoteFunction)
     {
         if (timestampColumnName != null && !timestampColumnName.isEmpty())
         {
-            return ":" + timestampColumnName;
+            return ":" + maybeQuoteFunction.apply(timestampColumnName);
         }
         if (timeStampInMicroSeconds != null)
         {

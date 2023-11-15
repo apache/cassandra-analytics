@@ -58,6 +58,7 @@ jobs:
             SPARK_VERSION: "2"
             SCALA_VERSION: "2.11"
             JDK_VERSION: "1.8"
+            INTEGRATION_MAX_PARALLEL_FORKS: 2
 
       - store_artifacts:
           path: build/test-reports
@@ -85,6 +86,7 @@ jobs:
             SPARK_VERSION: "2"
             SCALA_VERSION: "2.12"
             JDK_VERSION: "1.8"
+            INTEGRATION_MAX_PARALLEL_FORKS: 2
 
       - store_artifacts:
           path: build/test-reports

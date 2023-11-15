@@ -124,12 +124,24 @@ public final class CassandraBridgeFactory
             Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass("org.apache.cassandra.bridge.CassandraBridgeImplementation");
             Constructor<CassandraBridge> constructor = bridge.getConstructor();
             return constructor.newInstance();
-
         }
         catch (IOException | ClassNotFoundException | NoSuchMethodException | InstantiationException
              | IllegalAccessException | InvocationTargetException exception)
         {
             throw new RuntimeException("Failed to create Cassandra bridge for label " + label, exception);
         }
+    }
+
+    /***
+     * Returns the quoted name when the {@code quoteIdentifiers} parameter is {@code true} <i>AND</i> the
+     * {@code unquotedName} needs to be quoted (i.e. it uses mixed case, or it is a Cassandra reserved word).
+     * @param bridge the Cassandra bridge
+     * @param quoteIdentifiers whether identifiers should be quoted
+     * @param unquotedName the unquoted name to maybe be quoted
+     * @return the quoted name when the conditions are met
+     */
+    public static String maybeQuotedIdentifier(CassandraBridge bridge, boolean quoteIdentifiers, String unquotedName)
+    {
+        return quoteIdentifiers ? bridge.maybeQuoteIdentifier(unquotedName) : unquotedName;
     }
 }

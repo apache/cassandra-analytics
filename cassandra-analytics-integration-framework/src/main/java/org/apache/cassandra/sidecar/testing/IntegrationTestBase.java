@@ -39,7 +39,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.datastax.driver.core.KeyspaceMetadata;
 import com.datastax.driver.core.Session;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -49,6 +48,7 @@ import io.vertx.core.eventbus.Message;
 import io.vertx.core.eventbus.MessageConsumer;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClient;
+import io.vertx.ext.web.client.predicate.ResponsePredicate;
 import io.vertx.junit5.VertxTestContext;
 import org.apache.cassandra.sidecar.cluster.CassandraAdapterDelegate;
 import org.apache.cassandra.sidecar.cluster.instance.InstanceMetadata;
@@ -68,7 +68,7 @@ import static org.apache.cassandra.sidecar.server.SidecarServerEvents.ON_CASSAND
 public abstract class IntegrationTestBase
 {
     private static final int MAX_KEYSPACE_TABLE_WAIT_ATTEMPTS = 100;
-    private static final long MAX_KEYSPACE_TABLE_TIME = 100L;
+    private static final long MAX_KEYSPACE_TABLE_TIME = 200L;
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
     protected Vertx vertx;
     protected Server server;
@@ -229,41 +229,37 @@ public abstract class IntegrationTestBase
     }
 
     /**
-     * Waits for the specified keyspace/table to be available.
+     * Waits for the specified keyspace to be available in Sidecar.
      * Empirically, this loop usually executes either zero or one time before completing.
      * However, we set a fairly high number of retries to account for variability in build machines.
      *
-     * @param keyspaceName the keyspace for which to wait
-     * @param tableName    the table in the keyspace for which to wait
+     * @param keyspace the keyspace for which to wait
      */
-    protected void waitForKeyspaceAndTable(String keyspaceName, String tableName)
+    protected void waitUntilSidecarPicksUpSchemaChange(String keyspace)
     {
-        int numInstances = sidecarTestContext.instancesConfig().instances().size();
         int retries = MAX_KEYSPACE_TABLE_WAIT_ATTEMPTS;
-        boolean sidecarMissingSchema = true;
-        while (sidecarMissingSchema && retries-- > 0)
+        WebClient client = WebClient.create(vertx);
+        while (retries-- > 0)
         {
-            sidecarMissingSchema = false;
-            for (int i = 0; i < numInstances; i++)
+            try
             {
-                KeyspaceMetadata keyspace = sidecarTestContext.session(i)
-                                                              .getCluster()
-                                                              .getMetadata()
-                                                              .getKeyspace(keyspaceName);
-                sidecarMissingSchema |= (keyspace == null || keyspace.getTable(tableName) == null);
-            }
-            if (sidecarMissingSchema)
-            {
-                logger.info("Keyspace/table {}/{} not yet available - waiting...", keyspaceName, tableName);
-                Uninterruptibles.sleepUninterruptibly(MAX_KEYSPACE_TABLE_TIME, TimeUnit.MILLISECONDS);
-            }
-            else
-            {
+                client.get(server.actualPort(), "localhost", "/api/v1/keyspaces/" + keyspace + "/schema")
+                      .expect(ResponsePredicate.SC_OK)
+                      .send()
+                      .toCompletionStage()
+                      .toCompletableFuture()
+                      .get(MAX_KEYSPACE_TABLE_TIME, TimeUnit.MILLISECONDS);
+                logger.info("Schema is ready in Sidecar");
+                client.close();
                 return;
             }
+            catch (Exception exception)
+            {
+                logger.info("Waiting for schema to propagate to Sidecar");
+                Uninterruptibles.sleepUninterruptibly(MAX_KEYSPACE_TABLE_TIME, TimeUnit.MILLISECONDS);
+            }
         }
-        throw new RuntimeException(
-        String.format("Keyspace/table %s/%s did not become visible on all sidecar instances",
-                      keyspaceName, tableName));
+        client.close();
+        throw new RuntimeException(String.format("Keyspace %s did not become visible in Sidecar", keyspace));
     }
 }

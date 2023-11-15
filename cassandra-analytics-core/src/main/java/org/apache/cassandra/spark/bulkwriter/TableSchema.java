@@ -29,12 +29,16 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
-import org.apache.cassandra.spark.data.CqlField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.common.schema.ColumnType;
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.spark.sql.types.StructType;
+
+import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
 public class TableSchema implements Serializable
 {
@@ -49,13 +53,22 @@ public class TableSchema implements Serializable
     private final WriteMode writeMode;
     private final TTLOption ttlOption;
     private final TimestampOption timestampOption;
+    private final String lowestCassandraVersion;
+    private final boolean quoteIdentifiers;
 
-    public TableSchema(StructType dfSchema, TableInfoProvider tableInfo, WriteMode writeMode,
-                       TTLOption ttlOption, TimestampOption timestampOption)
+    public TableSchema(StructType dfSchema,
+                       TableInfoProvider tableInfo,
+                       WriteMode writeMode,
+                       TTLOption ttlOption,
+                       TimestampOption timestampOption,
+                       String lowestCassandraVersion,
+                       boolean quoteIdentifiers)
     {
         this.writeMode = writeMode;
         this.ttlOption = ttlOption;
         this.timestampOption = timestampOption;
+        this.lowestCassandraVersion = lowestCassandraVersion;
+        this.quoteIdentifiers = quoteIdentifiers;
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
         validateNoSecondaryIndexes(tableInfo);
@@ -123,7 +136,7 @@ public class TableSchema implements Serializable
                          CqlField.CqlType cqlType = tableInfo.getColumnType(fieldName);
                          return SqlToCqlTypeConverter.getConverter(cqlType);
                      })
-                    .collect(Collectors.toList());
+                     .collect(Collectors.toList());
     }
 
     private static List<ColumnType<?>> getPartitionKeyColumnTypes(TableInfoProvider tableInfo)
@@ -156,35 +169,44 @@ public class TableSchema implements Serializable
         }
     }
 
-    private static String getInsertStatement(StructType dfSchema, TableInfoProvider tableInfo,
-                                             TTLOption ttlOption, TimestampOption timestampOption)
+    private String getInsertStatement(StructType dfSchema,
+                                      TableInfoProvider tableInfo,
+                                      TTLOption ttlOption,
+                                      TimestampOption timestampOption)
     {
+        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
         List<String> columnNames = Arrays.stream(dfSchema.fieldNames())
                                          .filter(fieldName -> !fieldName.equals(ttlOption.columnName()))
                                          .filter(fieldName -> !fieldName.equals(timestampOption.columnName()))
                                          .collect(Collectors.toList());
         StringBuilder stringBuilder = new StringBuilder("INSERT INTO ")
-                .append(tableInfo.getKeyspaceName())
-                .append(".").append(tableInfo.getName())
-                .append(columnNames.stream().collect(Collectors.joining(",", " (", ") ")))
-                .append("VALUES")
-                .append(columnNames.stream().map(columnName -> ":" + columnName).collect(Collectors.joining(",", " (", ")")));
+                                      .append(maybeQuotedIdentifier(bridge, quoteIdentifiers, tableInfo.getKeyspaceName()))
+                                      .append(".")
+                                      .append(maybeQuotedIdentifier(bridge, quoteIdentifiers, tableInfo.getName()))
+                                      .append(columnNames.stream()
+                                                         .map(columnName -> maybeQuotedIdentifier(bridge, quoteIdentifiers, columnName))
+                                                         .collect(Collectors.joining(",", " (", ") ")));
+
+        stringBuilder.append("VALUES")
+                     .append(columnNames.stream()
+                                        .map(columnName -> ":" + maybeQuotedIdentifier(bridge, quoteIdentifiers, columnName))
+                                        .collect(Collectors.joining(",", " (", ")")));
         if (ttlOption.withTTl() && timestampOption.withTimestamp())
         {
             stringBuilder.append(" USING TIMESTAMP ")
-                         .append(timestampOption)
+                         .append(timestampOption.toCQLString(columnName -> maybeQuotedIdentifier(bridge, quoteIdentifiers, columnName)))
                          .append(" AND TTL ")
-                         .append(ttlOption);
+                         .append(ttlOption.toCQLString(columnName -> maybeQuotedIdentifier(bridge, quoteIdentifiers, columnName)));
         }
         else if (timestampOption.withTimestamp())
         {
             stringBuilder.append(" USING TIMESTAMP ")
-                         .append(timestampOption);
+                         .append(timestampOption.toCQLString(columnName -> maybeQuotedIdentifier(bridge, quoteIdentifiers, columnName)));
         }
         else if (ttlOption.withTTl())
         {
             stringBuilder.append(" USING TTL ")
-                    .append(ttlOption);
+                         .append(ttlOption.toCQLString(columnName -> maybeQuotedIdentifier(bridge, quoteIdentifiers, columnName)));
         }
         stringBuilder.append(";");
         String insertStatement = stringBuilder.toString();
@@ -195,10 +217,11 @@ public class TableSchema implements Serializable
 
     private String getDeleteStatement(StructType dfSchema, TableInfoProvider tableInfo)
     {
-        Stream<String> fieldEqualityStatements = Arrays.stream(dfSchema.fieldNames()).map(key -> key + "=?");
+        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+        Stream<String> fieldEqualityStatements = Arrays.stream(dfSchema.fieldNames()).map(key -> maybeQuotedIdentifier(bridge, quoteIdentifiers, key) + "=?");
         String deleteStatement = String.format("DELETE FROM %s.%s where %s;",
-                                               tableInfo.getKeyspaceName(),
-                                               tableInfo.getName(),
+                                               maybeQuotedIdentifier(bridge, quoteIdentifiers, tableInfo.getKeyspaceName()),
+                                               maybeQuotedIdentifier(bridge, quoteIdentifiers, tableInfo.getName()),
                                                fieldEqualityStatements.collect(Collectors.joining(" AND ")));
 
         LOGGER.info("CQL delete statement for the RDD {}", deleteStatement);
