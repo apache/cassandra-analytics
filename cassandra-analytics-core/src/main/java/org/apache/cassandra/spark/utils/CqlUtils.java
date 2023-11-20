@@ -46,12 +46,19 @@ import org.jetbrains.annotations.Nullable;
 public final class CqlUtils
 {
     // Properties to be overridden when extracted from the table schema
-    private static final List<String> TABLE_PROPERTY_OVERRIDE_ALLOWLIST = Arrays.asList("min_index_interval",
-                                                                                        "max_index_interval",
-                                                                                        "cdc");
+    private static final List<String> TABLE_PROPERTY_OVERRIDE_ALLOWLIST = Arrays.asList("bloom_filter_fp_chance",
+                                                                                        "cdc",
+                                                                                        "compression",
+                                                                                        "default_time_to_live",
+                                                                                        "min_index_interval",
+                                                                                        "max_index_interval"
+                                                                                        );
     private static final Pattern REPLICATION_FACTOR_PATTERN = Pattern.compile("WITH REPLICATION = (\\{[^\\}]*\\})");
     // Initialize a mapper allowing single quotes to process the RF string from the CREATE KEYSPACE statement
     private static final ObjectMapper MAPPER = new ObjectMapper().configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
+    private static final Pattern ESCAPED_WHITESPACE_PATTERN = Pattern.compile("(\\\\r|\\\\n|\\\\r\\n)+");
+    private static final Pattern NEWLINE_PATTERN = Pattern.compile("\n");
+    private static final Pattern ESCAPED_DOUBLE_BACKSLASH = Pattern.compile("\\\\");
 
     private CqlUtils()
     {
@@ -60,9 +67,10 @@ public final class CqlUtils
 
     public static String cleanCql(@NotNull String cql)
     {
-        return cql.replaceAll("(\\\\r|\\\\n|\\\\r\\n)+", "\n")
-                  .replaceAll("\n", "")
-                  .replaceAll("\\\\", "");
+        String result = ESCAPED_WHITESPACE_PATTERN.matcher(cql).replaceAll("\n");
+        result = NEWLINE_PATTERN.matcher(result).replaceAll("");
+        result = ESCAPED_DOUBLE_BACKSLASH.matcher(result).replaceAll("");
+        return result;
     }
 
     private static String removeTableProps(@NotNull String schema)
@@ -195,15 +203,15 @@ public final class CqlUtils
         return extractCleanedTableSchema(cleanCql(schemaStr), keyspace, table);
     }
 
-    public static String extractCleanedTableSchema(@NotNull String cleaned,
+    public static String extractCleanedTableSchema(@NotNull String createStatementToClean,
                                                    @NotNull String keyspace,
                                                    @NotNull String table)
     {
         Pattern pattern = Pattern.compile(String.format("CREATE TABLE ?\"?%s?\"?\\.{1}\"?%s\"?[^;]*;", keyspace, table));
-        Matcher matcher = pattern.matcher(cleaned);
+        Matcher matcher = pattern.matcher(createStatementToClean);
         if (matcher.find())
         {
-            String fullSchema = cleaned.substring(matcher.start(0), matcher.end(0));
+            String fullSchema = createStatementToClean.substring(matcher.start(0), matcher.end(0));
             String tableOnly = removeTableProps(fullSchema);
             String quotedTableName = String.format("\"%s\"", table);
             if (tableOnly.contains(quotedTableName))
@@ -241,7 +249,7 @@ public final class CqlUtils
         {
             return overrideTableProps;
         }
-        Pattern pattern = Pattern.compile("(" + properties.stream().collect(Collectors.joining("|")) + ") = (\\w+)");
+        Pattern pattern = Pattern.compile("(" + properties.stream().collect(Collectors.joining("|")) + ") = (([\\w|.]+)|(\\{[^}]+}))");
         Matcher matcher = pattern.matcher(schemaStr);
 
         while (matcher.find())

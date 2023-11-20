@@ -19,8 +19,6 @@ import java.nio.file.Paths
  * under the License.
  */
 
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-
 project(':cassandra-analytics-integration-framework') {
     apply(plugin: 'java-library')
     apply(plugin: 'com.github.johnrengelman.shadow')
