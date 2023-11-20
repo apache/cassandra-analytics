@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -151,6 +152,9 @@ public class CqlUtilsTest extends VersionRunner
                    + "    \"cyclist_Name\" text,"
                    + "    PRIMARY KEY ((race_year, \"RACE_NAME\"), rank)) "
                    + "WITH CLUSTERING ORDER BY (rank ASC)"
+                   + " AND bloom_filter_fp_chance = 0.01"
+                   + " AND compression = { 'chunk_length_in_kb' : 16, 'class' : 'org.apache.cassandra.io.compress.LZ4Compressor' }"
+                   + " AND default_time_to_live = 0"
                    + " AND min_index_interval = 128"
                    + " AND max_index_interval = 2048"
                    + " AND cdc = false;", cleaned);
@@ -197,8 +201,12 @@ public class CqlUtilsTest extends VersionRunner
                                   + "\"C3\" counter static, "
                                   + "\"C4\" counter static, "
                                   + "value counter, "
-                                  + "PRIMARY KEY (key, column1) ) WITH CLUSTERING ORDER BY (column1 ASC) "
-                                  + "AND cdc = false AND max_index_interval = 2048 AND min_index_interval = 128;";
+                                  + "PRIMARY KEY (key, column1) ) WITH CLUSTERING ORDER BY (column1 ASC)"
+                                  + " AND cdc = false"
+                                  + " AND bloom_filter_fp_chance = 0.1"
+                                  + " AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.DeflateCompressor'}"
+                                  + " AND default_time_to_live = 0"
+                                  + " AND max_index_interval = 2048 AND min_index_interval = 128;";
         String actualCreateStmt = CqlUtils.extractTableSchema(schemaStr, "keyspace", "table");
         assertEquals(expectedCreateStmt, actualCreateStmt);
     }
@@ -244,7 +252,7 @@ public class CqlUtilsTest extends VersionRunner
                          +                    "'class': 'org.apache.cassandra.io.compress.DeflateCompressor'} "
                          + "AND crc_check_chance = 1.0 "
                          + "AND dclocal_read_repair_chance = 0.1 "
-                         + "AND default_time_to_live = 0 "
+                         + "AND default_time_to_live = 100 "
                          + "AND gc_grace_seconds = 864000 "
                          + "AND max_index_interval = 2048 "
                          + "AND memtable_flush_period_in_ms = 0 "
@@ -259,10 +267,14 @@ public class CqlUtilsTest extends VersionRunner
                                   + "\"C2\" blob, "
                                   + "\"C4\" blob, "
                                   + "value counter, "
-                                  + "PRIMARY KEY (key, column1) ) WITH "
-                                  + "cdc = true AND max_index_interval = 2048 AND min_index_interval = 128;";
+                                  + "PRIMARY KEY (key, column1) ) WITH"
+                                  + " bloom_filter_fp_chance = 0.1"
+                                  + " AND cdc = true"
+                                  + " AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.DeflateCompressor'}"
+                                  + " AND default_time_to_live = 100 AND max_index_interval = 2048 "
+                                  + "AND min_index_interval = 128;";
         String actualCreateStmt = CqlUtils.extractTableSchema(schemaStr, "keyspace", "table");
-        assert expectedCreateStmt.equals(actualCreateStmt);
+        assertEquals(expectedCreateStmt, actualCreateStmt);
     }
 
     @ParameterizedTest
@@ -305,6 +317,9 @@ public class CqlUtilsTest extends VersionRunner
                                   + "metadata blob, "
                                   + "PRIMARY KEY ((\"key\", \"id1\"), \"id2\", \"id3\")) "
                                   + "WITH CLUSTERING ORDER BY (\"id2\" DESC, \"id3\" ASC)"
+                                  + " AND bloom_filter_fp_chance = 0.1"
+                                  + " AND compression = { 'chunk_length_in_kb' : 64, 'class' : 'org.apache.cassandra.io.compress.LZ4Compressor' }"
+                                  + " AND default_time_to_live = 0"
                                   + " AND min_index_interval = 128"
                                   + " AND max_index_interval = 2048;";
         String actualCreateStmt = CqlUtils.extractTableSchema(schemaStr, "ks", "tb");
@@ -367,10 +382,13 @@ public class CqlUtilsTest extends VersionRunner
                                   + "\"C2\" blob, "
                                   + "\"C4\" blob, "
                                   + "value counter, "
-                                  + "PRIMARY KEY ((key, column1), value) ) "
-                                  + "WITH max_index_interval = 2048 AND min_index_interval = 128;";
+                                  + "PRIMARY KEY ((key, column1), value) ) WITH"
+                                  + " bloom_filter_fp_chance = 0.1"
+                                  + " AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.DeflateCompressor'}"
+                                  + " AND default_time_to_live = 0"
+                                  + " AND max_index_interval = 2048 AND min_index_interval = 128;";
         String actualCreateStmt = CqlUtils.extractTableSchema(schemaStr, "keyspace", "table");
-        assert expectedCreateStmt.equals(actualCreateStmt);
+        assertEquals(expectedCreateStmt, actualCreateStmt);
     }
 
     @ParameterizedTest
@@ -635,9 +653,8 @@ public class CqlUtilsTest extends VersionRunner
         assertEquals(expectedCreateStmt, actualCreateStmt);
     }
 
-    @ParameterizedTest
-    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
-    public void testExtractCdcFlag(CassandraBridge bridge)
+    @Test
+    public void testExtractCdcFlag()
     {
         assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int);",
                                                       Collections.singletonList("cdc")).isEmpty());
@@ -657,6 +674,124 @@ public class CqlUtilsTest extends VersionRunner
         assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1 "
                                                     + "AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} AND cdc = false;",
                                                       Collections.singletonList("cdc")).contains("cdc = false"));
+    }
+
+    @Test
+    public void testExtractDefaultTtlOption()
+    {
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int);",
+                                                      Collections.singletonList("default_time_to_live")).isEmpty());
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH default_time_to_live = 1;",
+                                                      Collections.singletonList("default_time_to_live")).contains("default_time_to_live = 1"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH default_time_to_live = 2;",
+                                                      Collections.singletonList("default_time_to_live")).contains("default_time_to_live = 2"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH default_time_to_live = 3"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'};",
+                                                      Collections.singletonList("default_time_to_live")).contains("default_time_to_live = 3"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH default_time_to_live = 4"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'};",
+                                                      Collections.singletonList("default_time_to_live")).contains("default_time_to_live = 4"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} AND default_time_to_live = 5;",
+                                                      Collections.singletonList("default_time_to_live")).contains("default_time_to_live = 5"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1 "
+                                                      + "AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} AND default_time_to_live = 6;",
+                                                      Collections.singletonList("default_time_to_live")).contains("default_time_to_live = 6"));
+    }
+
+    @Test
+    public void testExtractBloomFilterFalsePositiveChance()
+    {
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int);",
+                                                      Collections.singletonList("bloom_filter_fp_chance")).isEmpty());
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1;",
+                                                      Collections.singletonList("bloom_filter_fp_chance")).contains("bloom_filter_fp_chance = 0.1"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.2;",
+                                                      Collections.singletonList("bloom_filter_fp_chance")).contains("bloom_filter_fp_chance = 0.2"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.3"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'};",
+                                                      Collections.singletonList("bloom_filter_fp_chance")).contains("bloom_filter_fp_chance = 0.3"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.4"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'};",
+                                                      Collections.singletonList("bloom_filter_fp_chance")).contains("bloom_filter_fp_chance = 0.4"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} AND bloom_filter_fp_chance = 0.5;",
+                                                      Collections.singletonList("bloom_filter_fp_chance")).contains("bloom_filter_fp_chance = 0.5"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1 "
+                                                      + "AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} AND bloom_filter_fp_chance = 0.6;",
+                                                      Collections.singletonList("bloom_filter_fp_chance")).contains("bloom_filter_fp_chance = 0.6"));
+    }
+
+
+    @Test
+    public void testExtractCompression()
+    {
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int);",
+                                                      Collections.singletonList("compression")).isEmpty());
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH compression = { 'fake_option': '0.1' };",
+                                                      Collections.singletonList("compression")).contains("compression = { 'fake_option': '0.1' }"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH compression = { 'fake_option': '0.2' };",
+                                                      Collections.singletonList("compression")).contains("compression = { 'fake_option': '0.2' }"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH compression = { 'fake_option': '0.3' }"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'};",
+                                                      Collections.singletonList("compression")).contains("compression = { 'fake_option': '0.3' }"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH compression = { 'fake_option': '0.4' }"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'};",
+                                                      Collections.singletonList("compression")).contains("compression = { 'fake_option': '0.4' }"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}"
+                                                      + " AND compression = { 'fake_option': '0.5' };",
+                                                      Collections.singletonList("compression")).contains("compression = { 'fake_option': '0.5' }"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} "
+                                                      + " AND compression = { 'fake_option': '0.6' };",
+                                                      Collections.singletonList("compression")).contains("compression = { 'fake_option': '0.6' }"));
+    }
+
+    @Test
+    public void testExtractMinIndexInterval()
+    {
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int);",
+                                                      Collections.singletonList("min_index_interval")).isEmpty());
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH min_index_interval = 1;",
+                                                      Collections.singletonList("min_index_interval")).contains("min_index_interval = 1"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH min_index_interval = 2;",
+                                                      Collections.singletonList("min_index_interval")).contains("min_index_interval = 2"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH min_index_interval = 3"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'};",
+                                                      Collections.singletonList("min_index_interval")).contains("min_index_interval = 3"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH min_index_interval = 4"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'};",
+                                                      Collections.singletonList("min_index_interval")).contains("min_index_interval = 4"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} AND min_index_interval = 5;",
+                                                      Collections.singletonList("min_index_interval")).contains("min_index_interval = 5"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1 "
+                                                      + "AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} AND min_index_interval = 6;",
+                                                      Collections.singletonList("min_index_interval")).contains("min_index_interval = 6"));
+    }
+
+    @Test
+    public void testExtractMaxIndexInterval()
+    {
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int);",
+                                                      Collections.singletonList("max_index_interval")).isEmpty());
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH max_index_interval = 1;",
+                                                      Collections.singletonList("max_index_interval")).contains("max_index_interval = 1"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH max_index_interval = 2;",
+                                                      Collections.singletonList("max_index_interval")).contains("max_index_interval = 2"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH max_index_interval = 3"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'};",
+                                                      Collections.singletonList("max_index_interval")).contains("max_index_interval = 3"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH max_index_interval = 4"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'};",
+                                                      Collections.singletonList("max_index_interval")).contains("max_index_interval = 4"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1"
+                                                      + " AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} AND max_index_interval = 5;",
+                                                      Collections.singletonList("max_index_interval")).contains("max_index_interval = 5"));
+        assertTrue(CqlUtils.extractOverrideProperties("CREATE TABLE k.t (a int PRIMARY KEY, b int) WITH bloom_filter_fp_chance = 0.1 "
+                                                      + "AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'} AND max_index_interval = 6;",
+                                                      Collections.singletonList("max_index_interval")).contains("max_index_interval = 6"));
     }
 
     @ParameterizedTest
