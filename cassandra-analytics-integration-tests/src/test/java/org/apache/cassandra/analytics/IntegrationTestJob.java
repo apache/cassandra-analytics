@@ -351,4 +351,29 @@ public final class IntegrationTestJob implements Serializable
             build().run();
         }
     }
+
+    /**
+     * An exmaple of a postWriteDatasetModifier.
+     * This function will remove `ttl` and `timestamp` columns from the dataframe after write, as
+     * the read part of the integration test job doesn't read ttl and timestamp columns, we need to remove them
+     * from the Dataset after it's saved so the final comparison works.
+     * @param addedTTLColumn if the "ttl" column was added to the dataframe.
+     * @param addedTimestampColumn if the "timestamp" column was added to the dataframe.
+     * @return the modified dataset
+     */
+    @SuppressWarnings("unused")
+    public static Function<Dataset<Row>, Dataset<Row>> ttlRemovalModifier(boolean addedTTLColumn, boolean addedTimestampColumn)
+    {
+        return (Dataset<Row> df) -> {
+            if (addedTTLColumn)
+            {
+                df = df.drop("ttl");
+            }
+            if (addedTimestampColumn)
+            {
+                df = df.drop("timestamp");
+            }
+            return df;
+        };
+    }
 }

@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Assertions;
@@ -38,7 +37,6 @@ import org.apache.cassandra.sidecar.testing.IntegrationTestBase;
 import org.apache.cassandra.spark.bulkwriter.TTLOption;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.CassandraIntegrationTest;
-import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.StructType;
@@ -74,7 +72,6 @@ public class BulkWriteTtlTest extends IntegrationTestBase
                           .withTable(table)
                           .withSidecarPort(server.actualPort())
                           .withExtraWriterOptions(Collections.emptyMap())
-//                          .withPostWriteDfMods(writeToReadDfFunc(addTTLColumn, addTimestampColumn))
                           .shouldRead(false)
                           .run();
         // Wait to make sure TTLs have expired
@@ -108,7 +105,6 @@ public class BulkWriteTtlTest extends IntegrationTestBase
                           .withTable(table)
                           .withSidecarPort(server.actualPort())
                           .withExtraWriterOptions(writerOptions)
-//                          .withPostWriteDatasetModifier(writeToReadDfFunc(addTTLColumn, addTimestampColumn))
                           .shouldRead(false)
                           .run();
         // Wait to make sure TTLs have expired
@@ -142,7 +138,6 @@ public class BulkWriteTtlTest extends IntegrationTestBase
                           .withTable(table)
                           .withSidecarPort(server.actualPort())
                           .withExtraWriterOptions(writerOptions)
-                          .withPostWriteDatasetModifier(buildColumnRemovalFunction(addTTLColumn, addTimestampColumn))
                           .shouldRead(false)
                           .run();
         // Wait to make sure TTLs have expired
@@ -198,29 +193,5 @@ public class BulkWriteTtlTest extends IntegrationTestBase
             buffer.put(stringBytes);
         }
         return buffer.array();
-    }
-
-    /**
-     * Because the read part of the integration test job doesn't read ttl and timestamp columns, we need to remove them
-     * from the Dataset after it's saved.
-     * NOTE: This is here for demonstration purposes as we're not actually _using_ this (since we set `shouldRead`
-     * to `false` so the read doesn't actually happen any more.
-     * @param addedTTLColumn
-     * @param addedTimestampColumn
-     * @return
-     */
-    private Function<Dataset<Row>, Dataset<Row>> buildColumnRemovalFunction(boolean addedTTLColumn, boolean addedTimestampColumn)
-    {
-        return (Dataset<Row> df) -> {
-            if (addedTTLColumn)
-            {
-                df = df.drop("ttl");
-            }
-            if (addedTimestampColumn)
-            {
-                df = df.drop("timestamp");
-            }
-            return df;
-        };
     }
 }
