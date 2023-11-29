@@ -111,8 +111,9 @@ public class CassandraContext implements StartupValidatable, Closeable
     @Override
     public void startupValidate()
     {
-        StartupValidator.instance().register(new SidecarValidation(sidecarClient));
-        StartupValidator.instance().register(new CassandraValidation(sidecarClient));
+        int timeoutSeconds = conf.getSidecarRequestTimeoutSeconds();
+        StartupValidator.instance().register(new SidecarValidation(sidecarClient, timeoutSeconds));
+        StartupValidator.instance().register(new CassandraValidation(sidecarClient, timeoutSeconds));
         StartupValidator.instance().perform();
     }
 }

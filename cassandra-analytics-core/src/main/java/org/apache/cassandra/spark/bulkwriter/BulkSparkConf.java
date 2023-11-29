@@ -80,6 +80,7 @@ public class BulkSparkConf implements Serializable
     public static final int DEFAULT_SIDECAR_REQUEST_RETRIES = 10;
     public static final long DEFAULT_SIDECAR_REQUEST_RETRY_DELAY_MILLIS = TimeUnit.SECONDS.toMillis(1L);
     public static final long DEFAULT_SIDECAR_REQUEST_MAX_RETRY_DELAY_MILLIS = TimeUnit.SECONDS.toMillis(60L);
+    public static final int DEFAULT_SIDECAR_REQUEST_TIMEOUT_SECONDS = 300;
     public static final int DEFAULT_COMMIT_BATCH_SIZE = 10_000;
     public static final int DEFAULT_RING_RETRY_COUNT = 3;
     public static final int DEFAULT_SSTABLE_DATA_SIZE_IN_MIB = 160;
@@ -96,6 +97,7 @@ public class BulkSparkConf implements Serializable
     public static final String SIDECAR_REQUEST_RETRIES                 = SETTING_PREFIX + "sidecar.request.retries";
     public static final String SIDECAR_REQUEST_RETRY_DELAY_MILLIS      = SETTING_PREFIX + "sidecar.request.retries.delay.milliseconds";
     public static final String SIDECAR_REQUEST_MAX_RETRY_DELAY_MILLIS  = SETTING_PREFIX + "sidecar.request.retries.max.delay.milliseconds";
+    public static final String SIDECAR_REQUEST_TIMEOUT_SECONDS         = SETTING_PREFIX + "sidecar.request.timeout.seconds";
     public static final String SKIP_CLEAN                              = SETTING_PREFIX + "job.skip_clean";
     public static final String USE_OPENSSL                             = SETTING_PREFIX + "use_openssl";
     public static final String RING_RETRY_COUNT                        = SETTING_PREFIX + "ring_retry_count";
@@ -382,6 +384,11 @@ public class BulkSparkConf implements Serializable
     public long getSidecarRequestMaxRetryDelayMillis()
     {
         return getLong(SIDECAR_REQUEST_MAX_RETRY_DELAY_MILLIS, DEFAULT_SIDECAR_REQUEST_MAX_RETRY_DELAY_MILLIS);
+    }
+
+    public int getSidecarRequestTimeoutSeconds()
+    {
+        return getInt(SIDECAR_REQUEST_TIMEOUT_SECONDS, DEFAULT_SIDECAR_REQUEST_TIMEOUT_SECONDS);
     }
 
     public int getHttpConnectionTimeoutMs()

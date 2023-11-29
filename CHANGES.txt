@@ -1,4 +1,5 @@
 1.0.0
+ * Startup Validation Failures when Checking Sidecar Connectivity (CASSANDRA-19377)
  * No longer need to synchronize on Schema.instance after Cassandra 4.0.12 (CASSANDRA-19351)
  * Upgrade to Cassandra 4.0.12 and remove RowBufferMode and BatchSize options (CASSANDRA-19334)
  * Improve logging for bulk writes and on task failures (CASSANDRA-19331)

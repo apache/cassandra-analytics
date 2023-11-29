@@ -29,13 +29,13 @@ import org.apache.cassandra.sidecar.common.data.HealthResponse;
  */
 public class CassandraValidation implements StartupValidation
 {
-    private static final int TIMEOUT_SECONDS = 30;
-
     private final SidecarClient sidecar;
+    private final int timeoutSeconds;
 
-    public CassandraValidation(SidecarClient sidecar)
+    public CassandraValidation(SidecarClient sidecar, int timeoutSeconds)
     {
         this.sidecar = sidecar;
+        this.timeoutSeconds = timeoutSeconds;
     }
 
     @Override
@@ -44,7 +44,7 @@ public class CassandraValidation implements StartupValidation
         HealthResponse health;
         try
         {
-            health = sidecar.cassandraHealth().get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            health = sidecar.cassandraHealth().get(timeoutSeconds, TimeUnit.SECONDS);
         }
         catch (Throwable throwable)
         {
