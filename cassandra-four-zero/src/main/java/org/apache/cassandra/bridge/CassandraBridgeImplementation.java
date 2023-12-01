@@ -163,7 +163,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
             {
                 throw new RuntimeException(exception);
             }
-            config.data_file_directories = new String[]{ tempDirectory.toString() };
+            config.data_file_directories = new String[]{tempDirectory.toString()};
             DatabaseDescriptor.setEndpointSnitch(new SimpleSnitch());
             Keyspace.setInitialized();
 
@@ -245,16 +245,17 @@ public class CassandraBridgeImplementation extends CassandraBridge
         // NOTE: Need to use SchemaBuilder to init keyspace if not already set in Cassandra Schema instance
         SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
         TableMetadata metadata = schemaBuilder.tableMetaData();
-        return new CompactionStreamScanner(metadata, partitioner, timeProvider, ssTables.openAll((ssTable, isRepairPrimary) ->
-                                                                                                 org.apache.cassandra.spark.reader.SSTableReader.builder(metadata, ssTable)
-                                                                                                                                                .withSparkRangeFilter(sparkRangeFilter)
-                                                                                                                                                .withPartitionKeyFilters(partitionKeyFilters)
-                                                                                                                                                .withColumnFilter(columnFilter)
-                                                                                                                                                .withReadIndexOffset(readIndexOffset)
-                                                                                                                                                .withStats(stats)
-                                                                                                                                                .useIncrementalRepair(useIncrementalRepair)
-                                                                                                                                                .isRepairPrimary(isRepairPrimary)
-                                                                                                                                                .build()));
+        return new CompactionStreamScanner(metadata, partitioner, timeProvider, ssTables.openAll((ssTable, isRepairPrimary) -> {
+            return org.apache.cassandra.spark.reader.SSTableReader.builder(metadata, ssTable)
+                                                                  .withSparkRangeFilter(sparkRangeFilter)
+                                                                  .withPartitionKeyFilters(partitionKeyFilters)
+                                                                  .withColumnFilter(columnFilter)
+                                                                  .withReadIndexOffset(readIndexOffset)
+                                                                  .withStats(stats)
+                                                                  .useIncrementalRepair(useIncrementalRepair)
+                                                                  .isRepairPrimary(isRepairPrimary)
+                                                                  .build();
+        }));
     }
 
     @Override
@@ -313,8 +314,10 @@ public class CassandraBridgeImplementation extends CassandraBridge
     @Override
     public String maybeQuoteIdentifier(String identifier)
     {
-        if (isAlreadyQuoted(identifier)) {
-            return identifier; }
+        if (isAlreadyQuoted(identifier))
+        {
+            return identifier;
+        }
         return ColumnIdentifier.maybeQuote(identifier);
     }
 
