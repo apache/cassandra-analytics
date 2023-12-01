@@ -114,7 +114,11 @@ class QuoteIdentifiersTest extends SparkIntegrationTestBase
                           .coordinator()
                           .execute(createUdtQuery, ConsistencyLevel.ALL);
 
-        createTestTable(String.format("CREATE TABLE IF NOT EXISTS %s (\"IdEnTiFiEr\" text, IdEnTiFiEr int, \"User_Defined_Type\" frozen<\"UdT1\">, PRIMARY KEY(\"IdEnTiFiEr\", IdEnTiFiEr));",
+        createTestTable(String.format("CREATE TABLE IF NOT EXISTS %s (" +
+                                      "\"IdEnTiFiEr\" text, " +
+                                      "IdEnTiFiEr int, " +
+                                      "\"User_Defined_Type\" frozen<\"UdT1\">, " +
+                                      "PRIMARY KEY(\"IdEnTiFiEr\", IdEnTiFiEr));",
                                       tableName));
         List<String> dataset = Arrays.asList("a", "b", "c", "d", "e", "f", "g");
         populateTableWithUdt(tableName, dataset);
@@ -182,7 +186,9 @@ class QuoteIdentifiersTest extends SparkIntegrationTestBase
         for (int i = 0; i < dataset.size(); i++)
         {
             String value = dataset.get(i);
-            String query = String.format("INSERT INTO %s (\"IdEnTiFiEr\", IdEnTiFiEr, \"User_Defined_Type\") VALUES ('%s', %d, { \"TimE\" : %d, \"limit\" : %d });", tableName, value, i, i, i);
+            String query = String.format("INSERT INTO %s (\"IdEnTiFiEr\", IdEnTiFiEr, \"User_Defined_Type\") " +
+                                         "VALUES ('%s', %d, { \"TimE\" : %d, \"limit\" : %d });",
+                                         tableName, value, i, i, i);
             sidecarTestContext.cassandraTestContext()
                               .cluster()
                               .getFirstRunningInstance()
