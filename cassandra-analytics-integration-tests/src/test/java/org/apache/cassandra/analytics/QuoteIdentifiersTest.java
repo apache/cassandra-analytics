@@ -27,8 +27,6 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,20 +52,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class QuoteIdentifiersTest extends SparkIntegrationTestBase
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(QuoteIdentifiersTest.class);
-
-    WebClient client;
-
-    @BeforeEach
-    void setup()
-    {
-        client = WebClient.create(vertx);
-    }
-
-    @AfterEach
-    void cleanup()
-    {
-        client.close();
-    }
 
     @CassandraIntegrationTest(nodesPerDc = 3, gossip = true)
     void testMixedCaseKeyspace(VertxTestContext context)
@@ -199,6 +183,7 @@ class QuoteIdentifiersTest extends SparkIntegrationTestBase
 
     void waitUntilSidecarPicksUpSchemaChange(String quotedKeyspace)
     {
+        WebClient client = WebClient.create(vertx);
         while (true)
         {
             try
@@ -218,5 +203,6 @@ class QuoteIdentifiersTest extends SparkIntegrationTestBase
                 Uninterruptibles.sleepUninterruptibly(200, TimeUnit.MILLISECONDS);
             }
         }
+        client.close();
     }
 }
