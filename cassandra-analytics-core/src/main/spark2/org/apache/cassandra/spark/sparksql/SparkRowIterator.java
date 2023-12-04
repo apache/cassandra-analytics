@@ -49,15 +49,7 @@ public class SparkRowIterator extends AbstractSparkRowIterator implements InputP
                                @Nullable StructType requiredSchema,
                                @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
-        this(partitionId, dataLayer, requiredSchema, partitionKeyFilters, null);
-    }
-
-    protected SparkRowIterator(int partitionId,
-                               @NotNull DataLayer dataLayer,
-                               @Nullable StructType columnFilter,
-                               @NotNull List<PartitionKeyFilter> partitionKeyFilters)
-    {
-        super(partitionId, dataLayer, columnFilter, partitionKeyFilters);
+        super(partitionId, dataLayer, requiredSchema, partitionKeyFilters);
     }
 
     @Override

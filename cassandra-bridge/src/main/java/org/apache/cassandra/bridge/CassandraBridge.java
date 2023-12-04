@@ -377,34 +377,6 @@ public abstract class CassandraBridge
     public interface IRow
     {
         Object get(int position);
-
-        /**
-         * @return true if the entire row is deleted, false otherwise
-         */
-        default boolean isDeleted()
-        {
-            return false;
-        }
-
-        /**
-         * @return true if the row is from an INSERT statement, false otherwise
-         */
-        default boolean isInsert()
-        {
-            return true;
-        }
-
-        /**
-         * Get the range tombstones for this partition
-         *
-         * TODO: IRow is used as a partition; semantically, it does not fit
-         *
-         * @return null if no range tombstones exist. Otherwise, return a list of range tombstones
-         */
-        default List<RangeTombstone> rangeTombstones()
-        {
-            return null;
-        }
     }
 
     // Version-Specific Test Utility Methods
