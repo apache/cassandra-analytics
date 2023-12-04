@@ -35,7 +35,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -44,7 +43,6 @@ import com.google.common.collect.ImmutableMap;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.bridge.RangeTombstone;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
