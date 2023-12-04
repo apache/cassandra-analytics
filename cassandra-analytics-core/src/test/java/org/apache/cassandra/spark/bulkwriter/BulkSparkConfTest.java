@@ -268,17 +268,6 @@ public class BulkSparkConfTest
         assertEquals(bulkSparkConf.rowBufferMode, RowBufferMode.BUFFERED);
     }
 
-    @Test
-    void testQuoteIdentifiers()
-    {
-        assertFalse(bulkSparkConf.quoteIdentifiers);
-        Map<String, String> options = copyDefaultOptions();
-        options.put(WriterOptions.QUOTE_IDENTIFIERS.name(), "true");
-        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
-        assertNotNull(bulkSparkConf);
-        assertTrue(bulkSparkConf.quoteIdentifiers);
-    }
-
     private Map<String, String> copyDefaultOptions()
     {
         TreeMap<String, String> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);

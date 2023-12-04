@@ -259,7 +259,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         {
             // Use create snapshot request to capture instance availability hint
             LOGGER.info("Creating snapshot snapshotName={} keyspace={} table={} dc={}",
-                        snapshotName, keyspace, table, datacenter);
+                        snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter);
             snapshotFuture = ringFuture.thenCompose(this::createSnapshot);
         }
         else
@@ -333,13 +333,13 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 {
                     LOGGER.warn("Skip snapshot creating when node is joining or down "
                                 + "snapshotName={} keyspace={} table={} datacenter={} fqdn={} status={} state={}",
-                                snapshotName, keyspace, table, datacenter, ringEntry.fqdn(), ringEntry.status(), ringEntry.state());
+                                snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, ringEntry.fqdn(), ringEntry.status(), ringEntry.state());
                     createSnapshotFuture = CompletableFuture.completedFuture(hint);
                 }
                 else
                 {
                     LOGGER.info("Creating snapshot on instance snapshotName={} keyspace={} table={} datacenter={} fqdn={}",
-                                snapshotName, keyspace, table, datacenter, ringEntry.fqdn());
+                                snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, ringEntry.fqdn());
                     SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.effectivePort());
                     createSnapshotFuture = sidecar
                                            .createSnapshot(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName)
@@ -493,14 +493,14 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         LOGGER.info("Listing snapshot partition={} lowerBound={} upperBound={} "
                     + "instance={} port={} keyspace={} tableName={} snapshotName={}",
                     partitionId, range.lowerEndpoint(), range.upperEndpoint(),
-                    sidecarInstance.hostname(), sidecarInstance.port(), keyspace, table, snapshotName);
+                    sidecarInstance.hostname(), sidecarInstance.port(), maybeQuotedKeyspace, maybeQuotedTable, snapshotName);
         try
         {
             return SNAPSHOT_CACHE.get(key, () -> {
                 LOGGER.info("Listing instance snapshot partition={} lowerBound={} upperBound={} "
                             + "instance={} port={} keyspace={} tableName={} snapshotName={} cacheKey={}",
                             partitionId, range.lowerEndpoint(), range.upperEndpoint(),
-                            sidecarInstance.hostname(), sidecarInstance.port(), keyspace, table, snapshotName, key);
+                            sidecarInstance.hostname(), sidecarInstance.port(), maybeQuotedKeyspace, maybeQuotedTable, snapshotName, key);
                 return sidecar.listSnapshotFiles(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName)
                               .thenApply(response -> collectSSTableList(sidecarInstance, response, partitionId));
             }).thenApply(Collection::stream);
@@ -885,12 +885,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     {
         if (maybeQuotedKeyspace == null || maybeQuotedTable == null)
         {
-            LOGGER.info("Bridge was never initialized. Skipping clearing snapshots. This implies snapshots were never created");
+            LOGGER.warn("Bridge was never initialized. Skipping clearing snapshots. This implies snapshots were never created");
             return;
         }
 
         LOGGER.info("Clearing snapshot at end of Spark job snapshotName={} keyspace={} table={} dc={}",
-                    snapshotName, keyspace, table, datacenter);
+                    snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter);
         CountDownLatch latch = new CountDownLatch(clusterConfig.size());
         try
         {
@@ -902,7 +902,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                         if (throwable != null)
                         {
                             LOGGER.warn("Failed to clear snapshot on instance hostname={} port={} snapshotName={} keyspace={} table={} datacenter={}",
-                                        instance.hostname(), instance.port(), snapshotName, keyspace, table, datacenter, throwable);
+                                        instance.hostname(), instance.port(), snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, throwable);
                         }
                     }
                     finally
@@ -913,12 +913,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             }
             await(latch);
             LOGGER.info("Snapshot cleared snapshotName={} keyspace={} table={} datacenter={}",
-                        snapshotName, keyspace, table, datacenter);
+                        snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter);
         }
         catch (Throwable throwable)
         {
             LOGGER.warn("Unexpected exception clearing snapshot snapshotName={} keyspace={} table={} dc={}",
-                        snapshotName, keyspace, table, datacenter, throwable);
+                        snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, throwable);
         }
     }
 
