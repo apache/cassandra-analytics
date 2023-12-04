@@ -45,10 +45,5 @@ public enum WriterOptions implements WriterOption
     ROW_BUFFER_MODE,
     SSTABLE_DATA_SIZE_IN_MB,
     TTL,
-    TIMESTAMP,
-    /**
-     * Option that specifies whether the identifiers (i.e. keyspace, table name, column names) should be quoted to
-     * support mixed case and reserved keyword names for these fields.
-     */
-    QUOTE_IDENTIFIERS,
+    TIMESTAMP
 }

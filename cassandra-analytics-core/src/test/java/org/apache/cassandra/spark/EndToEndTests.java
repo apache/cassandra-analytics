@@ -154,15 +154,15 @@ public class EndToEndTests
     public void testSingleClusteringKeyOrderBy(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.sortOrder())
-            .checkAssert((clusteringKeyType, sortOrder) -> {
+            .checkAssert((clusteringKeyType, sortOrder) ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("a", bridge.bigint())
                                          .withClusteringKey("b", clusteringKeyType)
                                          .withColumn("c", bridge.bigint())
                                          .withSortOrder(sortOrder))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -224,14 +224,14 @@ public class EndToEndTests
     {
         // Test value column can be read for all data types
         qt().forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(valueType -> {
+            .checkAssert(valueType ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("a", bridge.bigint())
                                          .withColumn("b", valueType))
                       .withNumRandomSSTables(1)
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run();
-            });
+                      .run()
+            );
     }
 
     /* Compaction */
@@ -493,15 +493,15 @@ public class EndToEndTests
                                  .withColumn("d", bridge.aInt()))
               .withNumRandomRows(0)
               .dontCheckNumSSTables()
-              .withSSTableWriter(writer -> {
+              .withSSTableWriter(writer ->
                   IntStream.range(0, Tester.DEFAULT_NUM_ROWS)
                            .forEach(row -> {
                                UUID pk = UUID.randomUUID();
                                IntStream.range(0, numClusteringKeys)
                                         .forEach(clusteringKey ->
-                                                 writer.write(pk, clusteringKey, row % 2 == 0 ? null : "Non-null", row));
-                           });
-              })
+                                                writer.write(pk, clusteringKey, row % 2 == 0 ? null : "Non-null", row));
+                           })
+              )
               .withReadListener(row -> {
                   String staticCol = row.isNull("c") ? null : row.getString("c");
                   if (row.getInteger("d") % 2 == 0)
@@ -570,7 +570,7 @@ public class EndToEndTests
               .withReadListener(actualRow -> assertTrue(rows.containsKey(actualRow.getUUID("a"))))
               .withReadListener(actualRow -> assertEquals(rows.get(actualRow.getUUID("a")), actualRow))
               .withReadListener(actualRow -> assertEquals(rows.get(actualRow.getUUID("a")).getLong("e"),
-                                                          actualRow.getLong("e")))
+                                                                   actualRow.getLong("e")))
               // Verify Spark aggregations match expected
               .withCheck(dataset -> assertEquals(total.get(), dataset.groupBy().sum("e").first().getLong(0)))
               .withCheck(dataset -> assertEquals(rows.size(), dataset.groupBy().count().first().getLong(0)))
@@ -639,7 +639,7 @@ public class EndToEndTests
         int numColumns = 10;
         qt().withExamples(20)
             .forAll(integers().between(0, numColumns - 1))
-            .checkAssert(colNum -> {
+            .checkAssert(colNum ->
                 Tester.builder(TestSchema.basicBuilder(bridge)
                                          .withDeleteFields("a =", "b ="))
                       .withVersions(TestUtils.tombstoneTestableVersions())
@@ -672,8 +672,8 @@ public class EndToEndTests
                           }
                           assertEquals(numRows * (numColumns - 1), count);
                       })
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -884,13 +884,13 @@ public class EndToEndTests
     public void testSet(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.set(type)))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -898,13 +898,13 @@ public class EndToEndTests
     public void testList(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.list(type)))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -913,13 +913,13 @@ public class EndToEndTests
     {
         qt().withExamples(50)  // Limit number of tests otherwise n x n tests takes too long
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((keyType, valueType) -> {
+            .checkAssert((keyType, valueType) ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.map(keyType, valueType)))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -942,13 +942,13 @@ public class EndToEndTests
     {
         // pk -> a frozen<set<?>>
         qt().forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.set(type).frozen()))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -957,13 +957,13 @@ public class EndToEndTests
     {
         // pk -> a frozen<list<?>>
         qt().forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.list(type).frozen()))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -973,13 +973,13 @@ public class EndToEndTests
         // pk -> a frozen<map<?, ?>>
         qt().withExamples(50)  // Limit number of tests otherwise n x n tests takes too long
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((keyType, valueType) -> {
+            .checkAssert((keyType, valueType) ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.map(keyType, valueType).frozen()))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1016,7 +1016,7 @@ public class EndToEndTests
         Tester.builder(TestSchema.builder()
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withColumn("a", bridge.map(bridge.text(),
-                                                             bridge.map(bridge.bigint(), bridge.varchar()).frozen())))
+                                                  bridge.map(bridge.bigint(), bridge.varchar()).frozen())))
               .withNumRandomRows(32)
               .withExpectedRowCountPerSSTable(32)
               .dontCheckNumSSTables()
@@ -1158,16 +1158,17 @@ public class EndToEndTests
     public void testUdtNativeTypes(CassandraBridge bridge)
     {
         // pk -> a testudt<b text, c type, d int>
-        qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
-            Tester.builder(TestSchema.builder()
-                                     .withPartitionKey("pk", bridge.uuid())
-                                     .withColumn("a", bridge.udt("keyspace", "testudt")
-                                                            .withField("b", bridge.text())
-                                                            .withField("c", type)
-                                                            .withField("d", bridge.aInt())
-                                                            .build()))
-                  .run();
-        });
+        qt().forAll(TestUtils.cql3Type(bridge))
+            .checkAssert(type ->
+                Tester.builder(TestSchema.builder()
+                              .withPartitionKey("pk", bridge.uuid())
+                              .withColumn("a", bridge.udt("keyspace", "testudt")
+                                                     .withField("b", bridge.text())
+                                                     .withField("c", type)
+                                                     .withField("d", bridge.aInt())
+                                                     .build()))
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1175,16 +1176,17 @@ public class EndToEndTests
     public void testUdtInnerSet(CassandraBridge bridge)
     {
         // pk -> a testudt<b text, c frozen<type>, d int>
-        qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
-            Tester.builder(TestSchema.builder()
-                                     .withPartitionKey("pk", bridge.uuid())
-                                     .withColumn("a", bridge.udt("keyspace", "testudt")
-                                                            .withField("b", bridge.text())
-                                                            .withField("c", bridge.set(type).frozen())
-                                                            .withField("d", bridge.aInt())
-                                                            .build()))
-                  .run();
-        });
+        qt().forAll(TestUtils.cql3Type(bridge))
+            .checkAssert(type ->
+                Tester.builder(TestSchema.builder()
+                                         .withPartitionKey("pk", bridge.uuid())
+                                         .withColumn("a", bridge.udt("keyspace", "testudt")
+                                                                .withField("b", bridge.text())
+                                                                .withField("c", bridge.set(type).frozen())
+                                                                .withField("d", bridge.aInt())
+                                                                .build()))
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1192,16 +1194,17 @@ public class EndToEndTests
     public void testUdtInnerList(CassandraBridge bridge)
     {
         // pk -> a testudt<b bigint, c frozen<list<type>>, d boolean>
-        qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
-            Tester.builder(TestSchema.builder()
-                                     .withPartitionKey("pk", bridge.uuid())
-                                     .withColumn("a", bridge.udt("keyspace", "testudt")
-                                                            .withField("b", bridge.bigint())
-                                                            .withField("c", bridge.list(type).frozen())
-                                                            .withField("d", bridge.bool())
-                                                            .build()))
-                  .run();
-        });
+        qt().forAll(TestUtils.cql3Type(bridge))
+            .checkAssert(type ->
+                Tester.builder(TestSchema.builder()
+                                         .withPartitionKey("pk", bridge.uuid())
+                                         .withColumn("a", bridge.udt("keyspace", "testudt")
+                                                                .withField("b", bridge.bigint())
+                                                                .withField("c", bridge.list(type).frozen())
+                                                                .withField("d", bridge.bool())
+                                                                .build()))
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1211,7 +1214,7 @@ public class EndToEndTests
         // pk -> a testudt<b float, c frozen<set<uuid>>, d frozen<map<type1, type2>>, e boolean>
         qt().withExamples(50)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((type1, type2) -> {
+            .checkAssert((type1, type2) ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.udt("keyspace", "testudt")
@@ -1220,8 +1223,8 @@ public class EndToEndTests
                                                                 .withField("d", bridge.map(type1, type2).frozen())
                                                                 .withField("e", bridge.bool())
                                                                 .build()))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1231,7 +1234,7 @@ public class EndToEndTests
         // pk -> col1 udt1<a float, b frozen<set<uuid>>, c frozen<set<type>>, d boolean>,
         //       col2 udt2<a text, b bigint, g varchar>, col3 udt3<int, type, ascii>
         qt().forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("col1", bridge.udt("keyspace", "udt1")
@@ -1250,8 +1253,8 @@ public class EndToEndTests
                                                                    .withField("b", bridge.list(type).frozen())
                                                                    .withField("c", bridge.ascii())
                                                                    .build()))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1260,7 +1263,7 @@ public class EndToEndTests
     {
         // pk -> a test_udt<b float, c frozen<set<uuid>>, d frozen<nested_udt<x int, y type, z int>>, e boolean>
         qt().forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.udt("keyspace", "test_udt")
@@ -1273,8 +1276,8 @@ public class EndToEndTests
                                                                                       .build().frozen())
                                                                 .withField("e", bridge.bool())
                                                                 .build()))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     /* Tuples */
@@ -1286,12 +1289,12 @@ public class EndToEndTests
         // pk -> a tuple<int, type1, bigint, type2>
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((type1, type2) -> {
+            .checkAssert((type1, type2) ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.tuple(bridge.aInt(), type1, bridge.bigint(), type2)))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1301,13 +1304,13 @@ public class EndToEndTests
         // pk -> col1 type1 -> a tuple<int, type2, bigint>
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((type1, type2) -> {
+            .checkAssert((type1, type2) ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withClusteringKey("col1", type1)
                                          .withColumn("a", bridge.tuple(bridge.aInt(), type2, bridge.bigint())))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1318,7 +1321,7 @@ public class EndToEndTests
         // Test tuples nested within tuple
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((type1, type2) -> {
+            .checkAssert((type1, type2) ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.tuple(bridge.varchar(),
@@ -1330,8 +1333,8 @@ public class EndToEndTests
                                                                                                  bridge.bool(),
                                                                                                  type2)),
                                                                        bridge.timeuuid())))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1342,7 +1345,7 @@ public class EndToEndTests
         // Test set nested within tuple
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.tuple(bridge.varchar(),
@@ -1352,8 +1355,8 @@ public class EndToEndTests
                                                                                     bridge.varchar(),
                                                                                     bridge.set(type)),
                                                                        bridge.timeuuid())))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1364,7 +1367,7 @@ public class EndToEndTests
         // Test list nested within tuple
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.tuple(bridge.varchar(),
@@ -1374,8 +1377,8 @@ public class EndToEndTests
                                                                                     bridge.varchar(),
                                                                                     bridge.list(type)),
                                                                        bridge.timeuuid())))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1386,18 +1389,18 @@ public class EndToEndTests
         // Test map nested within tuple
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((type1, type2) -> {
+            .checkAssert((type1, type2) ->
                 Tester.builder(TestSchema.builder()
-                                         .withPartitionKey("pk", bridge.uuid())
-                                         .withColumn("a", bridge.tuple(bridge.varchar(),
-                                                                       bridge.tuple(bridge.aInt(),
-                                                                                    bridge.varchar(),
-                                                                                    bridge.aFloat(),
-                                                                                    bridge.varchar(),
-                                                                                    bridge.map(type1, type2)),
-                                                                       bridge.timeuuid())))
-                      .run();
-            });
+                                        .withPartitionKey("pk", bridge.uuid())
+                                        .withColumn("a", bridge.tuple(bridge.varchar(),
+                                                                      bridge.tuple(bridge.aInt(),
+                                                                                   bridge.varchar(),
+                                                                                   bridge.aFloat(),
+                                                                                   bridge.varchar(),
+                                                                                   bridge.map(type1, type2)),
+                                                                                   bridge.timeuuid())))
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1408,15 +1411,15 @@ public class EndToEndTests
         // Test tuple nested within map
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.map(bridge.timeuuid(),
                                                                      bridge.tuple(bridge.bool(),
                                                                                   type,
                                                                                   bridge.timestamp()).frozen())))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1427,14 +1430,14 @@ public class EndToEndTests
         // Test tuple nested within set
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.set(bridge.tuple(type,
                                                                                   bridge.aFloat(),
                                                                                   bridge.text()).frozen())))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1445,15 +1448,15 @@ public class EndToEndTests
         // Test tuple nested within map
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.list(bridge.tuple(bridge.aInt(),
                                                                                    bridge.inet(),
                                                                                    bridge.decimal(),
                                                                                    type).frozen())))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1464,7 +1467,7 @@ public class EndToEndTests
         // Test tuple with inner UDT
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.tuple(bridge.varchar(),
@@ -1474,8 +1477,8 @@ public class EndToEndTests
                                                                              .withField("z", bridge.aInt())
                                                                              .build().frozen(),
                                                                        bridge.timeuuid())))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1486,7 +1489,7 @@ public class EndToEndTests
         // Test UDT with inner tuple
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.udt("keyspace", "nested_udt")
@@ -1497,8 +1500,8 @@ public class EndToEndTests
                                                                                              bridge.timestamp()))
                                                                 .withField("z", bridge.ascii())
                                                                 .build()))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1506,7 +1509,7 @@ public class EndToEndTests
     public void testTupleClusteringKey(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withClusteringKey("ck", bridge.tuple(bridge.aInt(),
@@ -1516,8 +1519,8 @@ public class EndToEndTests
                                          .withColumn("a", bridge.text())
                                          .withColumn("b", bridge.aInt())
                                          .withColumn("c", bridge.ascii()))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1525,7 +1528,7 @@ public class EndToEndTests
     public void testUdtClusteringKey(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
-            .checkAssert(type -> {
+            .checkAssert(type ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withClusteringKey("ck", bridge.udt("keyspace", "udt1")
@@ -1536,8 +1539,8 @@ public class EndToEndTests
                                          .withColumn("a", bridge.text())
                                          .withColumn("b", bridge.aInt())
                                          .withColumn("c", bridge.ascii()))
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest
@@ -1629,7 +1632,7 @@ public class EndToEndTests
                                      .withField("c", bridge.uuid())
                                      .withField("d", bridge.list(bridge.tuple(bridge.text(),
                                                                               bridge.bigint()).frozen()
-                                     ).frozen())
+                                                                             ).frozen())
                                      .build();
         CqlField.CqlUdt udt5 = bridge.udt(keyspace, "udt5")
                                      .withField("a", bridge.text())
@@ -1788,8 +1791,8 @@ public class EndToEndTests
                   for (UUID pk : udtSetValues.keySet())
                   {
                       Set<Object> udtSet = udtSetValues.get(pk).stream()
-                                                       .map(map -> bridge.toUserTypeValue(udtType, map))
-                                                       .collect(Collectors.toSet());
+                                                               .map(map ->  bridge.toUserTypeValue(udtType, map))
+                                                               .collect(Collectors.toSet());
                       Object tuple = bridge.toTupleValue(tupleType, tupleValues.get(pk));
 
                       writer.write(pk, udtSet, tuple);
@@ -1848,19 +1851,19 @@ public class EndToEndTests
                   for (long pk = 0; pk < Tester.DEFAULT_NUM_ROWS; pk++)
                   {
                       Map<String, Object> value = ImmutableMap.of(
-                      pk < midPoint ? "a" : "b", RandomUtils.randomValue(bridge.text()).toString(),
-                      "c", RandomUtils.randomValue(bridge.text()).toString());
+                            pk < midPoint ? "a" : "b", RandomUtils.randomValue(bridge.text()).toString(),
+                            "c", RandomUtils.randomValue(bridge.text()).toString());
                       values.put(pk, value);
                       writer.write(pk, bridge.toUserTypeValue(type, value),
-                                   RandomUtils.randomValue(bridge.text()),
-                                   RandomUtils.randomValue(bridge.timestamp()),
-                                   RandomUtils.randomValue(bridge.aInt()));
+                                       RandomUtils.randomValue(bridge.text()),
+                                       RandomUtils.randomValue(bridge.timestamp()),
+                                       RandomUtils.randomValue(bridge.aInt()));
                   }
               })
               .withCheck(dataset -> {
                   Map<Long, Row> rows = dataset.collectAsList().stream()
-                                               .collect(Collectors.toMap(row -> row.getLong(0),
-                                                                         row -> row.getStruct(1)));
+                                                               .collect(Collectors.toMap(row -> row.getLong(0),
+                                                                                         row -> row.getStruct(1)));
                   assertEquals(values.size(), rows.size());
                   for (Map.Entry<Long, Row> pk : rows.entrySet())
                   {
@@ -1968,7 +1971,7 @@ public class EndToEndTests
     public void testLargeBlobExclude(CassandraBridge bridge)
     {
         qt().forAll(booleans().all())
-            .checkAssert(enableCompression -> {
+            .checkAssert(enableCompression ->
                 Tester.builder(TestSchema.builder()
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withClusteringKey("ck", bridge.aInt())
@@ -2002,8 +2005,8 @@ public class EndToEndTests
                           assertTrue(skippedRangeBytes.get() > 5_000_000);
                       })
                       .withReset(EndToEndTests::resetStats)
-                      .run();
-            });
+                      .run()
+            );
     }
 
     @ParameterizedTest

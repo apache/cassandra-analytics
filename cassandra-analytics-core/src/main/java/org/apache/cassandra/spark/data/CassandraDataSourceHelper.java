@@ -55,8 +55,8 @@ public final class CassandraDataSourceHelper
     }
 
     public static DataLayer getDataLayer(
-    Map<String, String> options,
-    BiConsumer<CassandraDataLayer, ClientConfig> initializeDataLayerFn)
+            Map<String, String> options,
+            BiConsumer<CassandraDataLayer, ClientConfig> initializeDataLayerFn)
     {
         ClientConfig config = ClientConfig.create(options);
 
@@ -72,13 +72,9 @@ public final class CassandraDataSourceHelper
             CassandraDataLayer cached;
             try
             {
-                cached = cassandraDataLayerCache.get(key, () -> {
-                    // First thread wins
-                    return createAndInitCassandraDataLayer(config,
-                                                           options,
-                                                           initializeDataLayerFn,
-                                                           SparkContext.getOrCreate().getConf());
-                });
+                cached = cassandraDataLayerCache.get(key, () ->
+                        // First thread wins
+                        createAndInitCassandraDataLayer(config, options, initializeDataLayerFn, SparkContext.getOrCreate().getConf()));
             }
             catch (ExecutionException exception)
             {
@@ -94,7 +90,7 @@ public final class CassandraDataSourceHelper
         }
     }
 
-    public static Cache<Map<String, String>, CassandraDataLayer> getCassandraDataLayerCache()
+    protected static Cache<Map<String, String>, CassandraDataLayer> getCassandraDataLayerCache()
     {
         if (cassandraDataLayerCache == null)
         {
@@ -109,23 +105,22 @@ public final class CassandraDataSourceHelper
      *
      * @param ticker the ticker to use for the cache
      */
-    public static void initCassandraDataSourceCache(Ticker ticker)
+    protected static void initCassandraDataSourceCache(Ticker ticker)
     {
         cassandraDataLayerCache = CacheBuilder
-                                  .newBuilder()
-                                  .ticker(ticker)
-                                  .expireAfterWrite(CACHE_HOURS, TimeUnit.HOURS)
-                                  .removalListener((RemovalListener<Map<String, String>, CassandraDataLayer>) notification -> {
-                                      LOGGER.debug("Removed entry '{}' from CassandraDataSourceCache", notification.getValue());
-                                  })
-                                  .build();
+                .newBuilder()
+                .ticker(ticker)
+                .expireAfterWrite(CACHE_HOURS, TimeUnit.HOURS)
+                .removalListener((RemovalListener<Map<String, String>, CassandraDataLayer>) notification ->
+                        LOGGER.debug("Removed entry '{}' from CassandraDataSourceCache", notification.getValue()))
+                .build();
     }
 
-    public static CassandraDataLayer createAndInitCassandraDataLayer(
-    ClientConfig config,
-    Map<String, String> options,
-    BiConsumer<CassandraDataLayer, ClientConfig> initializeDataLayerFn,
-    SparkConf conf)
+    protected static CassandraDataLayer createAndInitCassandraDataLayer(
+            ClientConfig config,
+            Map<String, String> options,
+            BiConsumer<CassandraDataLayer, ClientConfig> initializeDataLayerFn,
+            SparkConf conf)
     {
         CassandraDataLayer dataLayer = new CassandraDataLayer(config,
                                                               Sidecar.ClientConfig.create(options),

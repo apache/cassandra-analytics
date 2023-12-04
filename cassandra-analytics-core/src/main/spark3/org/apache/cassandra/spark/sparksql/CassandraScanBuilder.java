@@ -24,7 +24,6 @@ import java.nio.ByteBuffer;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -109,8 +108,8 @@ class CassandraScanBuilder implements ScanBuilder, Scan, Batch, SupportsPushDown
     public InputPartition[] planInputPartitions()
     {
         return IntStream.range(0, dataLayer.partitionCount())
-                        .mapToObj(CassandraInputPartition::new)
-                        .toArray(InputPartition[]::new);
+                .mapToObj(CassandraInputPartition::new)
+                .toArray(InputPartition[]::new);
     }
 
     @Override
@@ -129,16 +128,17 @@ class CassandraScanBuilder implements ScanBuilder, Scan, Batch, SupportsPushDown
     {
         List<String> partitionKeyColumnNames = dataLayer.cqlTable().partitionKeys().stream().map(CqlField::name).collect(Collectors.toList());
         Map<String, List<String>> partitionKeyValues = FilterUtils.extractPartitionKeyValues(pushedFilters, new HashSet<>(partitionKeyColumnNames));
-
-        if (partitionKeyValues.isEmpty())
+        if (partitionKeyValues.size() > 0)
         {
-            return Collections.emptyList();
+            List<List<String>> orderedValues = partitionKeyColumnNames.stream().map(partitionKeyValues::get).collect(Collectors.toList());
+            return FilterUtils.cartesianProduct(orderedValues).stream()
+                .map(this::buildFilter)
+                .collect(Collectors.toList());
         }
-
-        List<List<String>> orderedValues = partitionKeyColumnNames.stream().map(partitionKeyValues::get).collect(Collectors.toList());
-        return FilterUtils.cartesianProduct(orderedValues).stream()
-                          .map(this::buildFilter)
-                          .collect(Collectors.toList());
+        else
+        {
+            return new ArrayList<>();
+        }
     }
 
     private PartitionKeyFilter buildFilter(List<String> keys)
