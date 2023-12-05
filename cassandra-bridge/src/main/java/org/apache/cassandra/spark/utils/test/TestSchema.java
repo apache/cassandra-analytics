@@ -156,7 +156,7 @@ public final class TestSchema
             return this;
         }
 
-        public Builder withQuoteIdentifiers()
+        public Builder withQuotedIdentifiers()
         {
             this.quoteIdentifiers = true;
             return this;
@@ -239,6 +239,7 @@ public final class TestSchema
                        List<CqlField> columns)
     {
         this.bridge = builder.bridge;
+        this.quoteIdentifiers = builder.quoteIdentifiers;
         this.keyspace = keyspace;
         this.table = table;
         this.partitionKeys = partitionKeys;
@@ -252,7 +253,6 @@ public final class TestSchema
         this.updateStatement = buildUpdateStatement();
         this.deleteStatement = buildDeleteStatement(builder.deleteFields);
         this.udts = getUdtsFromFields();
-        this.quoteIdentifiers = builder.quoteIdentifiers;
     }
 
     // We take allFields as a parameter here to ensure it's been created before use

@@ -57,8 +57,6 @@ import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.streaming.OutputMode;
-import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.Nullable;
 import org.quicktheories.core.Gen;
@@ -155,43 +153,6 @@ public final class TestUtils
     }
 
     // CHECKSTYLE IGNORE: Method with many parameters
-    public static StreamingQuery openStreaming(String keyspace,
-                                               String createStmt,
-                                               CassandraVersion version,
-                                               Partitioner partitioner,
-                                               Path dir,
-                                               Path outputDir,
-                                               Path checkpointDir,
-                                               String dataSourceFQCN,
-                                               boolean addLastModificationTime)
-    {
-        Dataset<Row> rows = SPARK.readStream()
-                                 .format(dataSourceFQCN)
-                                 .option("keyspace", keyspace)
-                                 .option("createStmt", createStmt)
-                                 .option("dirs", dir.toAbsolutePath().toString())
-                                 .option("version", version.toString())
-                                 .option("useSSTableInputStream", true)  // Use in the test system to test the SSTableInputStream
-                                 .option("partitioner", partitioner.name())
-                                 .option(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), addLastModificationTime)
-                                 .option("udts", "")
-                                 .load();
-        try
-        {
-            return rows.writeStream()
-                       .format("parquet")
-                       .option("path", outputDir.toString())
-                       .option("checkpointLocation", checkpointDir.toString())
-                       .outputMode(OutputMode.Append())
-                       .start();
-        }
-        catch (Exception exception)
-        {
-            // In Spark3 start() can throw a TimeoutException
-            throw new RuntimeException(exception);
-        }
-    }
-
     static Dataset<Row> openLocalPartitionSizeSource(CassandraBridge bridge,
                                                      Partitioner partitioner,
                                                      Path dir,

@@ -2404,7 +2404,8 @@ public class EndToEndTests
                                               .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
-                                              .withColumn("c2", bridge.text()))
+                                              .withColumn("c2", bridge.text())
+                                              .withQuotedIdentifiers())
               .run();
     }
 
@@ -2416,7 +2417,8 @@ public class EndToEndTests
                                               .withKeyspace("keyspace")
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
-                                              .withColumn("c2", bridge.text()))
+                                              .withColumn("c2", bridge.text())
+                                              .withQuotedIdentifiers())
               .run();
     }
 
@@ -2429,7 +2431,8 @@ public class EndToEndTests
                                               .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
-                                              .withColumn("c2", bridge.text()))
+                                              .withColumn("c2", bridge.text())
+                                              .withQuotedIdentifiers())
               .run();
     }
 
@@ -2442,7 +2445,8 @@ public class EndToEndTests
                                               .withTable("table")
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
-                                              .withColumn("c2", bridge.text()))
+                                              .withColumn("c2", bridge.text())
+                                              .withQuotedIdentifiers())
               .run();
     }
 
@@ -2455,7 +2459,8 @@ public class EndToEndTests
                                               .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("Partition_Key_0", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
-                                              .withColumn("c2", bridge.text()))
+                                              .withColumn("c2", bridge.text())
+                                              .withQuotedIdentifiers())
               .run();
     }
 
@@ -2469,7 +2474,8 @@ public class EndToEndTests
                                               .withPartitionKey("Partition_Key_0", bridge.uuid())
                                               .withPartitionKey("Partition_Key_1", bridge.bigint())
                                               .withColumn("c", bridge.text())
-                                              .withColumn("d", bridge.bigint()))
+                                              .withColumn("d", bridge.bigint())
+                                              .withQuotedIdentifiers())
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withSumField("d")
               .run();
@@ -2484,7 +2490,8 @@ public class EndToEndTests
                                               .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("a", bridge.uuid())
                                               .withClusteringKey("Clustering_Key_0", bridge.bigint())
-                                              .withClusteringKey("Clustering_Key_1", bridge.text()))
+                                              .withClusteringKey("Clustering_Key_1", bridge.text())
+                                              .withQuotedIdentifiers())
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .run();
     }
@@ -2498,7 +2505,8 @@ public class EndToEndTests
                                               .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("Partition_Key_0", bridge.uuid())
                                               .withColumn("Column_1", bridge.varint())
-                                              .withColumn("Column_2", bridge.text()))
+                                              .withColumn("Column_2", bridge.text())
+                                              .withQuotedIdentifiers())
               .run();
     }
 
@@ -2512,7 +2520,7 @@ public class EndToEndTests
                                               .withPartitionKey("Partition_Key_0", bridge.uuid())
                                               .withColumn("Column_1", bridge.varint())
                                               .withColumn("Column_2", bridge.text())
-                                              .withQuoteIdentifiers())
+                                              .withQuotedIdentifiers())
               .withColumns("Partition_Key_0", "Column_1") // PK is required for lookup of the inserted data
               .run();
     }
