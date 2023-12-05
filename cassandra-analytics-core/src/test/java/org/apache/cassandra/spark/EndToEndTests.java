@@ -2511,7 +2511,8 @@ public class EndToEndTests
                                               .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("Partition_Key_0", bridge.uuid())
                                               .withColumn("Column_1", bridge.varint())
-                                              .withColumn("Column_2", bridge.text()))
+                                              .withColumn("Column_2", bridge.text())
+                                              .withQuoteIdentifiers())
               .withColumns("Partition_Key_0", "Column_1") // PK is required for lookup of the inserted data
               .run();
     }
