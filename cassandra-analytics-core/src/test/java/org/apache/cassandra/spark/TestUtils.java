@@ -72,6 +72,9 @@ public final class TestUtils
     private static final SparkSession SPARK = SparkSession.builder()
                                                           .appName("Java Test")
                                                           .config("spark.master", "local")
+                                                          // Spark is not case-sensitive by default, but we want to make it case-sensitive for
+                                                          // the quoted identifiers tests where we test mixed case
+                                                          .config("spark.sql.caseSensitive", "True")
                                                           .getOrCreate();
 
     private TestUtils()

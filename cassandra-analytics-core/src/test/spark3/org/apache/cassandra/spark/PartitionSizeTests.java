@@ -47,7 +47,7 @@ public class PartitionSizeTests extends VersionRunner
         TestUtils.runTest(version, (partitioner, dir, bridge) -> {
             int numRows = Tester.DEFAULT_NUM_ROWS;
             int numCols = 25;
-            TestSchema schema = TestSchema.builder()
+            TestSchema schema = TestSchema.builder(bridge)
                                                 .withPartitionKey("a", bridge.text())
                                                 .withClusteringKey("b", bridge.aInt())
                                                 .withColumn("c", bridge.aInt())

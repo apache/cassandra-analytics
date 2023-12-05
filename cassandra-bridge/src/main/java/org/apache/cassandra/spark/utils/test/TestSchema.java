@@ -64,6 +64,7 @@ public final class TestSchema
     @SuppressWarnings("SameParameterValue")
     public static class Builder
     {
+        private final CassandraBridge bridge;
         private String keyspace = null;
         private String table = null;
         private final List<CqlField> partitionKeys = new ArrayList<>();
@@ -75,6 +76,11 @@ public final class TestSchema
         private int minCollectionSize = 16;
         private Integer blobSize = null;
         private boolean withCompression = true;
+
+        public Builder(CassandraBridge bridge)
+        {
+            this.bridge = bridge;
+        }
 
         public Builder withKeyspace(String keyspace)
         {
@@ -154,6 +160,7 @@ public final class TestSchema
             if (!partitionKeys.isEmpty())
             {
                 return new TestSchema(
+                        bridge,
                         keyspace != null ? keyspace : "keyspace_" + UUID.randomUUID().toString().replaceAll("-", ""),
                         table != null ? table : "table_" + UUID.randomUUID().toString().replaceAll("-", ""),
                         IntStream.range(0, partitionKeys.size())
@@ -182,6 +189,7 @@ public final class TestSchema
         }
     }
 
+        private final CassandraBridge bridge;
     @NotNull
     public final String keyspace;
     public final String table;
@@ -201,14 +209,14 @@ public final class TestSchema
     private final int minCollectionSize;
     private final Integer blobSize;
 
-    public static Builder builder()
+    public static Builder builder(CassandraBridge bridge)
     {
-        return new Builder();
+        return new Builder(bridge);
     }
 
     public static Builder basicBuilder(CassandraBridge bridge)
     {
-        return TestSchema.builder()
+        return TestSchema.builder(bridge)
                          .withPartitionKey("a", bridge.aInt())
                          .withClusteringKey("b", bridge.aInt())
                          .withColumn("c", bridge.aInt());
@@ -220,7 +228,8 @@ public final class TestSchema
     }
 
     // CHECKSTYLE IGNORE: Constructor with many parameters
-    private TestSchema(@NotNull String keyspace,
+    private TestSchema(CassandraBridge bridge,
+                       @NotNull String keyspace,
                        @NotNull String table,
                        List<CqlField> partitionKeys,
                        List<CqlField> clusteringKeys,
@@ -232,6 +241,7 @@ public final class TestSchema
                        @Nullable Integer blobSize,
                        boolean withCompression)
     {
+        this.bridge = bridge;
         this.keyspace = keyspace;
         this.table = table;
         this.partitionKeys = partitionKeys;
@@ -279,9 +289,9 @@ public final class TestSchema
     private String buildDeleteStatement(@Nullable List<String> deleteFields)
     {
         StringBuilder deleteStmtBuilder = new StringBuilder().append("DELETE FROM ")
-                                                             .append(keyspace)
+                                                             .append(bridge.maybeQuoteIdentifier(keyspace))
                                                              .append(".")
-                                                             .append(table)
+                                                             .append(bridge.maybeQuoteIdentifier(table))
                                                              .append(" WHERE ");
         if (deleteFields != null)
         {
@@ -292,7 +302,7 @@ public final class TestSchema
         else
         {
             deleteStmtBuilder.append(allFields.stream()
-                                              .map(field -> field.name() + " = ?")
+                                              .map(field -> bridge.maybeQuoteIdentifier(field.name()) + " = ?")
                                               .collect(Collectors.joining(" AND ")));
         }
         return deleteStmtBuilder.append(";")
@@ -301,21 +311,21 @@ public final class TestSchema
 
     private String buildUpdateStatement()
     {
-        StringBuilder updateStmtBuilder = new StringBuilder("UPDATE ").append(keyspace)
+        StringBuilder updateStmtBuilder = new StringBuilder("UPDATE ").append(bridge.maybeQuoteIdentifier(keyspace))
                                                                       .append(".")
-                                                                      .append(table)
+                                                                      .append(bridge.maybeQuoteIdentifier(table))
                                                                       .append(" SET ");
         updateStmtBuilder.append(allFields.stream()
                                           .sorted()
                                           .filter(field -> !field.isPartitionKey() && !field.isClusteringColumn())
-                                          .map(field -> field.name() + " = ?")
+                                          .map(field -> bridge.maybeQuoteIdentifier(field.name()) + " = ?")
                                           .collect(Collectors.joining(", ")));
         updateStmtBuilder.append(" WHERE ");
         updateStmtBuilder.append(allFields.stream()
                                           .sorted()
                                           .filter(field -> field.isPartitionKey() || field.isClusteringColumn())
-                                          .map(field -> field.name() + " = ?")
-                                          .collect(Collectors.joining(" and ")));
+                                          .map(field -> bridge.maybeQuoteIdentifier(field.name()) + " = ?")
+                                          .collect(Collectors.joining(" AND ")));
         return updateStmtBuilder.append(";")
                                 .toString();
     }
@@ -323,9 +333,9 @@ public final class TestSchema
     private String buildInsertStatement(List<CqlField> columns, @Nullable List<String> insertOverrides)
     {
         StringBuilder insertStmtBuilder = new StringBuilder().append("INSERT INTO ")
-                                                             .append(keyspace)
+                                                             .append(bridge.maybeQuoteIdentifier(keyspace))
                                                              .append(".")
-                                                             .append(table)
+                                                             .append(bridge.maybeQuoteIdentifier(table))
                                                              .append(" (");
         if (insertOverrides != null)
         {
@@ -339,7 +349,7 @@ public final class TestSchema
         {
             insertStmtBuilder.append(allFields.stream()
                                               .sorted()
-                                              .map(CqlField::name)
+                                              .map(cqlField -> bridge.maybeQuoteIdentifier(cqlField.name()))
                                               .collect(Collectors.joining(", ")))
                              .append(") VALUES (")
                              .append(Stream.of(partitionKeys, clusteringKeys, columns)
@@ -357,16 +367,16 @@ public final class TestSchema
                                         boolean withCompression)
     {
         StringBuilder createStmtBuilder = new StringBuilder().append("CREATE TABLE ")
-                                                             .append(keyspace)
+                                                             .append(bridge.maybeQuoteIdentifier(keyspace))
                                                              .append(".")
-                                                             .append(table)
+                                                             .append(bridge.maybeQuoteIdentifier(table))
                                                              .append(" (");
         for (CqlField field : Stream.of(partitionKeys, clusteringKeys, columns)
                                     .flatMap(Collection::stream)
                                     .sorted()
                                     .collect(Collectors.toList()))
         {
-            createStmtBuilder.append(field.name())
+            createStmtBuilder.append(bridge.maybeQuoteIdentifier(field.name()))
                              .append(" ")
                              .append(field.cqlTypeName())
                              .append(field.isStaticColumn() ? " static" : "")
@@ -375,7 +385,7 @@ public final class TestSchema
 
         createStmtBuilder.append("PRIMARY KEY((")
                          .append(partitionKeys.stream()
-                                              .map(CqlField::name)
+                                              .map(cqlField -> bridge.maybeQuoteIdentifier(cqlField.name()))
                                               .collect(Collectors.joining(", ")))
                          .append(")");
 
@@ -383,7 +393,7 @@ public final class TestSchema
         {
             createStmtBuilder.append(", ")
                              .append(clusteringKeys.stream()
-                                                   .map(CqlField::name)
+                                                   .map(cqlField -> bridge.maybeQuoteIdentifier(cqlField.name()))
                                                    .collect(Collectors.joining(", ")));
         }
 
@@ -394,7 +404,7 @@ public final class TestSchema
             createStmtBuilder.append(" WITH CLUSTERING ORDER BY (");
             for (int sortOrder = 0; sortOrder < sortOrders.size(); sortOrder++)
             {
-                createStmtBuilder.append(clusteringKeys.get(sortOrder).name())
+                createStmtBuilder.append(bridge.maybeQuoteIdentifier(clusteringKeys.get(sortOrder).name()))
                                  .append(" ")
                                  .append(sortOrders.get(sortOrder).toString());
                 if (sortOrder < sortOrders.size() - 1)

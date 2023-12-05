@@ -83,7 +83,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testSinglePartitionKey(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withColumn("c1", bridge.bigint())
                                  .withColumn("c2", bridge.text()))
@@ -97,11 +97,11 @@ public class EndToEndTests
     public void testOnlyPartitionKeys(CassandraBridge bridge)
     {
         // Special case where schema is only partition keys
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .run();
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid())
                                  .withPartitionKey("b", bridge.bigint()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
@@ -112,7 +112,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testOnlyPartitionClusteringKeys(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid())
                                  .withClusteringKey("b", bridge.bigint())
                                  .withClusteringKey("c", bridge.text()))
@@ -124,7 +124,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testMultiplePartitionKeys(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid())
                                  .withPartitionKey("b", bridge.bigint())
                                  .withColumn("c", bridge.text())
@@ -140,7 +140,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testBasicSingleClusteringKey(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.bigint())
                                  .withClusteringKey("b", bridge.bigint())
                                  .withColumn("c", bridge.bigint()))
@@ -155,7 +155,7 @@ public class EndToEndTests
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.sortOrder())
             .checkAssert((clusteringKeyType, sortOrder) ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("a", bridge.bigint())
                                          .withClusteringKey("b", clusteringKeyType)
                                          .withColumn("c", bridge.bigint())
@@ -169,7 +169,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testMultipleClusteringKeys(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid())
                                  .withClusteringKey("b", bridge.aInt())
                                  .withClusteringKey("c", bridge.text())
@@ -184,7 +184,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testManyClusteringKeys(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid())
                                  .withClusteringKey("b", bridge.timestamp())
                                  .withClusteringKey("c", bridge.text())
@@ -208,7 +208,7 @@ public class EndToEndTests
             .checkAssert(partitionKeyType -> {
                 // Boolean or empty types have limited cardinality
                 int numRows = partitionKeyType.cardinality(10);
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("a", partitionKeyType)
                                          .withColumn("b", bridge.bigint()))
                       .withNumRandomSSTables(1)
@@ -225,7 +225,7 @@ public class EndToEndTests
         // Test value column can be read for all data types
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(valueType ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("a", bridge.bigint())
                                          .withColumn("b", valueType))
                       .withNumRandomSSTables(1)
@@ -244,7 +244,7 @@ public class EndToEndTests
         AtomicLong newTotal = new AtomicLong(0);
         Map<UUID, Long> column1 = new HashMap<>(Tester.DEFAULT_NUM_ROWS);
         Map<UUID, String> column2 = new HashMap<>(Tester.DEFAULT_NUM_ROWS);
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withColumn("c1", bridge.bigint())
                                  .withColumn("c2", bridge.text()))
@@ -301,7 +301,7 @@ public class EndToEndTests
     {
         int numRowsColumns = 20;
         AtomicInteger total = new AtomicInteger(0);
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.aInt())
                                  .withClusteringKey("b", bridge.aInt())
                                  .withColumn("c", bridge.aInt()))
@@ -361,7 +361,7 @@ public class EndToEndTests
             testSum.put(clusteringKey, new MutableLong(0));
         }
 
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid())
                                  .withClusteringKey("b", bridge.aInt())
                                  .withColumn("c", bridge.bigint())
@@ -420,7 +420,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testOnlyStaticColumn(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid())
                                  .withClusteringKey("b", bridge.bigint())
                                  .withStaticColumn("c", bridge.aInt()))
@@ -435,7 +435,7 @@ public class EndToEndTests
     {
         int numRows = 100;
         int numColumns = 20;
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.aInt())
                                  .withClusteringKey("b", bridge.aInt())
                                  .withStaticColumn("c", bridge.aInt())
@@ -486,7 +486,7 @@ public class EndToEndTests
     public void testNulledStaticColumns(CassandraBridge bridge)
     {
         int numClusteringKeys = 10;
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid())
                                  .withClusteringKey("b", bridge.aInt())
                                  .withStaticColumn("c", bridge.text())
@@ -521,7 +521,7 @@ public class EndToEndTests
     public void testMultipleSSTableCompacted(CassandraVersion version)
     {
         CassandraBridge bridge = CassandraBridgeFactory.get(version);
-        TestSchema.Builder schemaBuilder = TestSchema.builder()
+        TestSchema.Builder schemaBuilder = TestSchema.builder(bridge)
                                                      .withPartitionKey("a", bridge.uuid())
                                                      .withClusteringKey("b", bridge.aInt())
                                                      .withClusteringKey("c", bridge.text())
@@ -741,7 +741,7 @@ public class EndToEndTests
                 assertTrue(endBound >= startBound && endBound <= numColumns);
                 int numTombstones = endBound - startBound;
 
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("a", bridge.aInt())
                                          .withClusteringKey("b", bridge.text())
                                          .withColumn("c", bridge.aInt())
@@ -788,7 +788,7 @@ public class EndToEndTests
     public void testPartialRow(CassandraBridge bridge)
     {
         Map<UUID, UUID> rows = new HashMap<>();
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid())
                                  .withColumn("b", bridge.text())
                                  .withColumn("c", bridge.uuid())
@@ -830,7 +830,7 @@ public class EndToEndTests
     public void testPartialRowClusteringKeys(CassandraBridge bridge)
     {
         Map<String, String> rows = new HashMap<>();
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid())
                                  .withClusteringKey("b", bridge.uuid())
                                  .withClusteringKey("c", bridge.uuid())
@@ -885,7 +885,7 @@ public class EndToEndTests
     {
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.set(type)))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
@@ -899,7 +899,7 @@ public class EndToEndTests
     {
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.list(type)))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
@@ -914,7 +914,7 @@ public class EndToEndTests
         qt().withExamples(50)  // Limit number of tests otherwise n x n tests takes too long
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
             .checkAssert((keyType, valueType) ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.map(keyType, valueType)))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
@@ -926,7 +926,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testClusteringKeySet(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("id", bridge.aInt())
                                  .withColumn("a", bridge.set(bridge.text())))
@@ -943,7 +943,7 @@ public class EndToEndTests
         // pk -> a frozen<set<?>>
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.set(type).frozen()))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
@@ -958,7 +958,7 @@ public class EndToEndTests
         // pk -> a frozen<list<?>>
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.list(type).frozen()))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
@@ -974,7 +974,7 @@ public class EndToEndTests
         qt().withExamples(50)  // Limit number of tests otherwise n x n tests takes too long
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
             .checkAssert((keyType, valueType) ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.map(keyType, valueType).frozen()))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
@@ -987,7 +987,7 @@ public class EndToEndTests
     public void testNestedMapSet(CassandraBridge bridge)
     {
         // pk -> a map<text, frozen<set<text>>>
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withColumn("a", bridge.map(bridge.text(), bridge.set(bridge.text()).frozen())))
               .withNumRandomRows(32)
@@ -1000,7 +1000,7 @@ public class EndToEndTests
     public void testNestedMapList(CassandraBridge bridge)
     {
         // pk -> a map<text, frozen<list<text>>>
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withColumn("a", bridge.map(bridge.text(), bridge.list(bridge.text()).frozen())))
               .withNumRandomRows(32)
@@ -1013,7 +1013,7 @@ public class EndToEndTests
     public void testNestedMapMap(CassandraBridge bridge)
     {
         // pk -> a map<text, frozen<map<bigint, varchar>>>
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withColumn("a", bridge.map(bridge.text(),
                                                   bridge.map(bridge.bigint(), bridge.varchar()).frozen())))
@@ -1028,7 +1028,7 @@ public class EndToEndTests
     public void testFrozenNestedMapMap(CassandraBridge bridge)
     {
         // pk -> a frozen<map<text, <map<int, timestamp>>>
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withColumn("a", bridge.map(bridge.text(),
                                                              bridge.map(bridge.aInt(), bridge.timestamp())).frozen()))
@@ -1045,7 +1045,7 @@ public class EndToEndTests
     public void testSinglePartitionKeyFilter(CassandraBridge bridge)
     {
         int numRows = 10;
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.aInt())
                                  .withColumn("b", bridge.aInt()))
               .dontWriteRandomData()
@@ -1074,7 +1074,7 @@ public class EndToEndTests
         int numColumns = 5;
         Set<String> keys = TestUtils.getKeys(ImmutableList.of(ImmutableList.of("2", "3"),
                                                               ImmutableList.of("2", "3", "4")));
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.aInt())
                                  .withPartitionKey("b", bridge.aInt())
                                  .withColumn("c", bridge.aInt()))
@@ -1108,7 +1108,7 @@ public class EndToEndTests
     public void testFiltersDoNotMatch(CassandraBridge bridge)
     {
         int numRows = 10;
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.aInt())
                                  .withColumn("b", bridge.aInt()))
               .dontWriteRandomData()
@@ -1128,7 +1128,7 @@ public class EndToEndTests
     public void testFilterWithClusteringKey(CassandraBridge bridge)
     {
         int numRows = 10;
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.aInt())
                                  .withClusteringKey("b", bridge.text())
                                  .withClusteringKey("c", bridge.timestamp()))
@@ -1160,7 +1160,7 @@ public class EndToEndTests
         // pk -> a testudt<b text, c type, d int>
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                               .withPartitionKey("pk", bridge.uuid())
                               .withColumn("a", bridge.udt("keyspace", "testudt")
                                                      .withField("b", bridge.text())
@@ -1178,7 +1178,7 @@ public class EndToEndTests
         // pk -> a testudt<b text, c frozen<type>, d int>
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.udt("keyspace", "testudt")
                                                                 .withField("b", bridge.text())
@@ -1196,7 +1196,7 @@ public class EndToEndTests
         // pk -> a testudt<b bigint, c frozen<list<type>>, d boolean>
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.udt("keyspace", "testudt")
                                                                 .withField("b", bridge.bigint())
@@ -1215,7 +1215,7 @@ public class EndToEndTests
         qt().withExamples(50)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
             .checkAssert((type1, type2) ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.udt("keyspace", "testudt")
                                                                 .withField("b", bridge.aFloat())
@@ -1235,7 +1235,7 @@ public class EndToEndTests
         //       col2 udt2<a text, b bigint, g varchar>, col3 udt3<int, type, ascii>
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("col1", bridge.udt("keyspace", "udt1")
                                                                    .withField("a", bridge.aFloat())
@@ -1264,7 +1264,7 @@ public class EndToEndTests
         // pk -> a test_udt<b float, c frozen<set<uuid>>, d frozen<nested_udt<x int, y type, z int>>, e boolean>
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.udt("keyspace", "test_udt")
                                                                 .withField("b", bridge.aFloat())
@@ -1290,7 +1290,7 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
             .checkAssert((type1, type2) ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.tuple(bridge.aInt(), type1, bridge.bigint(), type2)))
                       .run()
@@ -1305,7 +1305,7 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
             .checkAssert((type1, type2) ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withClusteringKey("col1", type1)
                                          .withColumn("a", bridge.tuple(bridge.aInt(), type2, bridge.bigint())))
@@ -1322,7 +1322,7 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
             .checkAssert((type1, type2) ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.tuple(bridge.varchar(),
                                                                        bridge.tuple(bridge.aInt(),
@@ -1346,7 +1346,7 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.tuple(bridge.varchar(),
                                                                        bridge.tuple(bridge.aInt(),
@@ -1368,7 +1368,7 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.tuple(bridge.varchar(),
                                                                        bridge.tuple(bridge.aInt(),
@@ -1390,7 +1390,7 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
             .checkAssert((type1, type2) ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                         .withPartitionKey("pk", bridge.uuid())
                                         .withColumn("a", bridge.tuple(bridge.varchar(),
                                                                       bridge.tuple(bridge.aInt(),
@@ -1412,7 +1412,7 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.map(bridge.timeuuid(),
                                                                      bridge.tuple(bridge.bool(),
@@ -1431,7 +1431,7 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.set(bridge.tuple(type,
                                                                                   bridge.aFloat(),
@@ -1449,7 +1449,7 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.list(bridge.tuple(bridge.aInt(),
                                                                                    bridge.inet(),
@@ -1468,7 +1468,7 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.tuple(bridge.varchar(),
                                                                        bridge.udt("keyspace", "nested_udt")
@@ -1490,7 +1490,7 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.udt("keyspace", "nested_udt")
                                                                 .withField("x", bridge.text())
@@ -1510,7 +1510,7 @@ public class EndToEndTests
     {
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withClusteringKey("ck", bridge.tuple(bridge.aInt(),
                                                                                bridge.text(),
@@ -1529,7 +1529,7 @@ public class EndToEndTests
     {
         qt().forAll(TestUtils.cql3Type(bridge))
             .checkAssert(type ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withClusteringKey("ck", bridge.udt("keyspace", "udt1")
                                                                         .withField("a", bridge.text())
@@ -1578,7 +1578,7 @@ public class EndToEndTests
                                      ).frozen())
                                      .build();
 
-        Tester.builder(keyspace1 -> TestSchema.builder()
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
                                               .withKeyspace(keyspace1)
                                               .withPartitionKey("\"consumerId\"", bridge.text())
                                               .withClusteringKey("dimensions", udt2.frozen())
@@ -1601,7 +1601,7 @@ public class EndToEndTests
                                         .withField("b", bridge.bigint())
                                         .withField("c", bridge.aInt())
                                         .build();
-        Tester.builder(keyspace -> TestSchema.builder()
+        Tester.builder(keyspace -> TestSchema.builder(bridge)
                                              .withKeyspace(keyspace)
                                              .withPartitionKey("a", bridge.bigint())
                                              .withColumn("b", bridge.map(bridge.aInt(), testudt.frozen())))
@@ -1674,7 +1674,7 @@ public class EndToEndTests
                                      .withField("o", bridge.text())
                                      .build();
 
-        Tester.builder(keyspace1 -> TestSchema.builder()
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
                                               .withKeyspace(keyspace1)
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withClusteringKey("ck", bridge.uuid())
@@ -1712,7 +1712,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testBigDecimal(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withColumn("c1", bridge.decimal())
                                  .withColumn("c2", bridge.text()))
@@ -1723,7 +1723,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testBigInteger(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withColumn("c1", bridge.varint())
                                  .withColumn("c2", bridge.text()))
@@ -1740,7 +1740,7 @@ public class EndToEndTests
                                      .withField("b", bridge.uuid())
                                      .withField("a", bridge.bool())
                                      .build();
-        Tester.builder(keyspace1 -> TestSchema.builder()
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
                                               .withKeyspace(keyspace1)
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("a", bridge.set(udt1.frozen())))
@@ -1781,7 +1781,7 @@ public class EndToEndTests
             tupleValues.put(pk, tuple);
         }
 
-        Tester.builder(keyspace -> TestSchema.builder()
+        Tester.builder(keyspace -> TestSchema.builder(bridge)
                                              .withKeyspace(keyspace)
                                              .withPartitionKey("pk", bridge.uuid())
                                              .withColumn("a", bridge.set(udtType.frozen()))
@@ -1838,7 +1838,7 @@ public class EndToEndTests
                                      .build();
         Map<Long, Map<String, Object>> values = new HashMap<>(Tester.DEFAULT_NUM_ROWS);
 
-        Tester.builder(keyspace -> TestSchema.builder()
+        Tester.builder(keyspace -> TestSchema.builder(bridge)
                                              .withKeyspace(keyspace)
                                              .withPartitionKey("pk", bridge.bigint())
                                              .withClusteringKey("ck", type.frozen())
@@ -1879,7 +1879,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testMapClusteringKey(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.map(bridge.bigint(), bridge.text()).frozen())
                                  .withColumn("c1", bridge.text())
@@ -1893,7 +1893,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testListClusteringKey(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.list(bridge.bigint()).frozen())
                                  .withColumn("c1", bridge.text())
@@ -1906,7 +1906,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testSetClusteringKey(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.set(bridge.aFloat()).frozen())
                                  .withColumn("c1", bridge.text())
@@ -1919,7 +1919,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testUdTClusteringKey(CassandraBridge bridge)
     {
-        Tester.builder(keyspace -> TestSchema.builder()
+        Tester.builder(keyspace -> TestSchema.builder(bridge)
                                              .withKeyspace(keyspace)
                                              .withPartitionKey("pk", bridge.uuid())
                                              .withClusteringKey("ck", bridge.udt("udt_clustering_key", "udt1")
@@ -1972,7 +1972,7 @@ public class EndToEndTests
     {
         qt().forAll(booleans().all())
             .checkAssert(enableCompression ->
-                Tester.builder(TestSchema.builder()
+                Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withClusteringKey("ck", bridge.aInt())
                                          .withColumn("a", bridge.bigint())
@@ -2013,7 +2013,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testExcludeColumns(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.aInt())
                                  .withColumn("a", bridge.bigint())
@@ -2050,7 +2050,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testUpsertExcludeColumns(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.aInt())
                                  .withColumn("a", bridge.bigint())
@@ -2089,7 +2089,7 @@ public class EndToEndTests
     public void testExcludeNoColumns(CassandraBridge bridge)
     {
         // Include all columns
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.aInt())
                                  .withColumn("a", bridge.bigint())
@@ -2108,7 +2108,7 @@ public class EndToEndTests
     public void testUpsertExcludeNoColumns(CassandraBridge bridge)
     {
         // Include all columns
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.aInt())
                                  .withColumn("a", bridge.bigint())
@@ -2128,7 +2128,7 @@ public class EndToEndTests
     public void testExcludeAllColumns(CassandraBridge bridge)
     {
         // Exclude all columns except for partition/clustering keys
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.aInt())
                                  .withColumn("a", bridge.bigint())
@@ -2147,7 +2147,7 @@ public class EndToEndTests
     public void testUpsertExcludeAllColumns(CassandraBridge bridge)
     {
         // Exclude all columns except for partition/clustering keys
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.aInt())
                                  .withColumn("a", bridge.bigint())
@@ -2166,7 +2166,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testExcludePartitionOnly(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid()))
               .withColumns("pk")
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
@@ -2177,7 +2177,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testExcludeKeysOnly(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck1", bridge.text())
                                  .withClusteringKey("ck2", bridge.bigint()))
@@ -2190,7 +2190,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testExcludeKeysStaticColumnOnly(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck1", bridge.text())
                                  .withClusteringKey("ck2", bridge.bigint())
@@ -2205,7 +2205,7 @@ public class EndToEndTests
     public void testExcludeStaticColumn(CassandraBridge bridge)
     {
         // Exclude static columns
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.aInt())
                                  .withStaticColumn("a", bridge.text())
@@ -2222,7 +2222,7 @@ public class EndToEndTests
     public void testUpsertExcludeStaticColumn(CassandraBridge bridge)
     {
         // Exclude static columns
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.aInt())
                                  .withStaticColumn("a", bridge.text())
@@ -2243,7 +2243,7 @@ public class EndToEndTests
         int numColumns = 5;
         long leastExpectedTimestamp = Timestamp.from(Instant.now()).getTime();
         Set<Pair<Integer, Long>> observedLMT = new HashSet<>();
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.aInt())
                                  .withClusteringKey("ck", bridge.aInt())
                                  .withStaticColumn("a", bridge.text()))
@@ -2279,7 +2279,7 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testLastModifiedTimestampWithExcludeColumns(CassandraBridge bridge)
     {
-        Tester.builder(TestSchema.builder().withPartitionKey("pk", bridge.uuid())
+        Tester.builder(TestSchema.builder(bridge).withPartitionKey("pk", bridge.uuid())
                                  .withClusteringKey("ck", bridge.aInt())
                                  .withColumn("a", bridge.bigint())
                                  .withColumn("b", bridge.text())
@@ -2322,7 +2322,7 @@ public class EndToEndTests
         int numRows = 10;
         long leastExpectedTimestamp = Timestamp.from(Instant.now()).getTime();
         Set<Long> observedLMT = new HashSet<>();
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.aInt())
                                  .withColumn("a", bridge.text())
                                  .withColumn("b", bridge.aDouble())
@@ -2363,7 +2363,7 @@ public class EndToEndTests
     {
         long leastExpectedTimestamp = Timestamp.from(Instant.now()).getTime();
         Set<Long> observedLMT = new HashSet<>();
-        Tester.builder(TestSchema.builder()
+        Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("pk", bridge.timeuuid())
                                  .withClusteringKey("ck", bridge.aInt())
                                  .withColumn("a", bridge.map(bridge.text(),
@@ -2400,8 +2400,8 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testQuotedKeyspaceName(CassandraBridge bridge)
     {
-        Tester.builder(keyspace1 -> TestSchema.builder()
-                                              .withKeyspace("\"Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
                                               .withColumn("c2", bridge.text()))
@@ -2412,8 +2412,8 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testReservedWordKeyspaceName(CassandraBridge bridge)
     {
-        Tester.builder(keyspace1 -> TestSchema.builder()
-                                              .withKeyspace("\"keyspace\"")
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
+                                              .withKeyspace("keyspace")
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
                                               .withColumn("c2", bridge.text()))
@@ -2424,9 +2424,9 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testQuotedTableName(CassandraBridge bridge)
     {
-        Tester.builder(keyspace1 -> TestSchema.builder()
-                                              .withKeyspace("\"Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
-                                              .withTable("\"Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
                                               .withColumn("c2", bridge.text()))
@@ -2437,9 +2437,9 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testReservedWordTableName(CassandraBridge bridge)
     {
-        Tester.builder(keyspace1 -> TestSchema.builder()
-                                              .withKeyspace("\"Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
-                                              .withTable("\"table\"")
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withTable("table")
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
                                               .withColumn("c2", bridge.text()))
@@ -2450,10 +2450,10 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testQuotedPartitionKey(CassandraBridge bridge)
     {
-        Tester.builder(keyspace1 -> TestSchema.builder()
-                                              .withKeyspace("\"Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
-                                              .withTable("\"Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
-                                              .withPartitionKey("\"Partition_Key_0\"", bridge.uuid())
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withPartitionKey("Partition_Key_0", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
                                               .withColumn("c2", bridge.text()))
               .run();
@@ -2463,11 +2463,11 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testMultipleQuotedPartitionKeys(CassandraBridge bridge)
     {
-        Tester.builder(keyspace1 -> TestSchema.builder()
-                                              .withKeyspace("\"Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
-                                              .withTable("\"Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
-                                              .withPartitionKey("\"Partition_Key_0\"", bridge.uuid())
-                                              .withPartitionKey("\"Partition_Key_1\"", bridge.bigint())
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withPartitionKey("Partition_Key_0", bridge.uuid())
+                                              .withPartitionKey("Partition_Key_1", bridge.bigint())
                                               .withColumn("c", bridge.text())
                                               .withColumn("d", bridge.bigint()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
@@ -2479,12 +2479,12 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testQuotedPartitionClusteringKeys(CassandraBridge bridge)
     {
-        Tester.builder(keyspace1 -> TestSchema.builder()
-                                              .withKeyspace("\"Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
-                                              .withTable("\"Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("a", bridge.uuid())
-                                              .withClusteringKey("\"Clustering_Key_0\"", bridge.bigint())
-                                              .withClusteringKey("\"Clustering_Key_1\"", bridge.text()))
+                                              .withClusteringKey("Clustering_Key_0", bridge.bigint())
+                                              .withClusteringKey("Clustering_Key_1", bridge.text()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .run();
     }
@@ -2493,12 +2493,26 @@ public class EndToEndTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testQuotedColumnNames(CassandraBridge bridge)
     {
-        Tester.builder(keyspace1 -> TestSchema.builder()
-                                              .withKeyspace("\"Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
-                                              .withTable("\"Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_") + "\"")
-                                              .withPartitionKey("\"Partition_Key_0\"", bridge.uuid())
-                                              .withColumn("\"Column_1\"", bridge.varint())
-                                              .withColumn("\"Column_2\"", bridge.text()))
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withPartitionKey("Partition_Key_0", bridge.uuid())
+                                              .withColumn("Column_1", bridge.varint())
+                                              .withColumn("Column_2", bridge.text()))
+              .run();
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testQuotedColumnNamesWithColumnFilter(CassandraBridge bridge)
+    {
+        Tester.builder(keyspace1 -> TestSchema.builder(bridge)
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withPartitionKey("Partition_Key_0", bridge.uuid())
+                                              .withColumn("Column_1", bridge.varint())
+                                              .withColumn("Column_2", bridge.text()))
+              .withColumns("Partition_Key_0", "Column_1") // PK is required for lookup of the inserted data
               .run();
     }
 }
