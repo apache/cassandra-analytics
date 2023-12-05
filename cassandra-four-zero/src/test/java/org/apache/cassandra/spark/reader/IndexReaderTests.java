@@ -181,11 +181,11 @@ public class IndexReaderTests
                     TokenRange.closed(partitioner.minToken().add(eighth),
                                       partitioner.maxToken().subtract(eighth))
                     );
-                    TestSchema schema = TestSchema.builder()
-                                                        .withPartitionKey("a", BRIDGE.aInt())
-                                                        .withColumn("b", BRIDGE.blob())
-                                                        .withCompression(withCompression)
-                                                        .build();
+                    TestSchema schema = TestSchema.builder(BRIDGE)
+                                                  .withPartitionKey("a", BRIDGE.aInt())
+                                                  .withColumn("b", BRIDGE.blob())
+                                                  .withCompression(withCompression)
+                                                  .build();
                     CqlTable table = schema.buildTable();
                     TableMetadata metaData = new SchemaBuilder(schema.createStatement, schema.keyspace, schema.rf, partitioner).tableMetaData();
 
