@@ -215,12 +215,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public boolean validateSSTables()
-    {
-        return true;
-    }
-
-    @Override
     public boolean skipExtendedVerify()
     {
         return false;

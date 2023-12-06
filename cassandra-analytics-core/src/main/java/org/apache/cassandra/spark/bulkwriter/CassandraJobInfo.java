@@ -77,12 +77,6 @@ public class CassandraJobInfo implements JobInfo
     }
 
     @Override
-    public boolean validateSSTables()
-    {
-        return conf.validateSSTables;
-    }
-
-    @Override
     public boolean skipExtendedVerify()
     {
         return conf.skipExtendedVerify;

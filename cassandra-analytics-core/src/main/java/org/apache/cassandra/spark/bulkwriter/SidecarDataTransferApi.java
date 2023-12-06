@@ -95,11 +95,8 @@ public class SidecarDataTransferApi implements DataTransferApi
         String uploadId = getUploadId(uuids.get(0), job.getId().toString());
         ImportSSTableRequest.ImportOptions importOptions = new ImportSSTableRequest.ImportOptions();
 
-        if (job.validateSSTables())
-        {
-            importOptions.verifySSTables(true)
-                         .extendedVerify(!job.skipExtendedVerify());
-        }
+        // Always verify SSTables on import
+        importOptions.verifySSTables(true).extendedVerify(!job.skipExtendedVerify());
 
         try
         {
