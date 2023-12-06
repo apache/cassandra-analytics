@@ -124,7 +124,6 @@ public class BulkSparkConf implements Serializable
     protected final String ttl;
     protected final String timestamp;
     protected final SparkConf conf;
-    public final boolean validateSSTables;
     public final int commitThreadsPerInstance;
     public boolean quoteIdentifiers;
     protected final int effectiveSidecarPort;
@@ -141,7 +140,6 @@ public class BulkSparkConf implements Serializable
         this.sidecarInstances = buildSidecarInstances(options, effectiveSidecarPort);
         this.keyspace = MapUtils.getOrThrow(options, WriterOptions.KEYSPACE.name());
         this.table = MapUtils.getOrThrow(options, WriterOptions.TABLE.name());
-        this.validateSSTables = MapUtils.getBoolean(options, WriterOptions.VALIDATE_SSTABLES.name(), true, "validate SSTables");
         this.skipExtendedVerify = MapUtils.getBoolean(options, WriterOptions.SKIP_EXTENDED_VERIFY.name(), true,
                                                       "skip extended verification of SSTables by Cassandra");
         this.consistencyLevel = ConsistencyLevel.CL.valueOf(MapUtils.getOrDefault(options, WriterOptions.BULK_WRITER_CL.name(), "EACH_QUORUM"));

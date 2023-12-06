@@ -1,4 +1,5 @@
 1.0.0
+ * Remove write option VALIDATE_SSTABLES to enforce validation (CASSANDRA-19199)
  * Fix bulk writing when using identifiers that need quotes (CASSANDRA-19031)
  * Fix bulk reading when using identifiers that need quotes (CASSANDRA-19024)
  * Remove unused dead code (CASSANDRA-19148)

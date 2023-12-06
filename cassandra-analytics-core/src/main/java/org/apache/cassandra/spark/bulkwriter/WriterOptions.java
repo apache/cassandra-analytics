@@ -30,7 +30,6 @@ public enum WriterOptions implements WriterOption
     BATCH_SIZE,
     COMMIT_THREADS_PER_INSTANCE,
     COMMIT_BATCH_SIZE,
-    VALIDATE_SSTABLES,
     SKIP_EXTENDED_VERIFY,
     WRITE_MODE,
     KEYSTORE_PASSWORD,

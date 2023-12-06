@@ -48,8 +48,6 @@ public interface JobInfo extends Serializable
 
     TokenPartitioner getTokenPartitioner();
 
-    boolean validateSSTables();
-
     boolean skipExtendedVerify();
 
     boolean quoteIdentifiers();
