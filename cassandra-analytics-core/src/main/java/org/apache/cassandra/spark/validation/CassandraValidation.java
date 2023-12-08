@@ -29,7 +29,7 @@ import org.apache.cassandra.sidecar.common.data.HealthResponse;
  */
 public class CassandraValidation implements StartupValidation
 {
-    private static final int TIMEOUT_SECONDS = 60;
+    private static final int TIMEOUT_SECONDS = 300;
 
     private final SidecarClient sidecar;
 
