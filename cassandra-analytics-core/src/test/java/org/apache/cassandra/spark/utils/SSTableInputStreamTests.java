@@ -220,20 +220,21 @@ public class SSTableInputStreamTests
                 });
             }
         }, timeout);
+        SSTableInputStream<SSTable> inputStream = new SSTableInputStream<>(source, STATS);
         try
         {
-            readStreamFully(new SSTableInputStream<>(source, STATS));
+            readStreamFully(inputStream);
             fail("Should not reach here, should throw TimeoutException");
         }
         catch (IOException exception)
         {
             assertTrue(exception.getCause() instanceof TimeoutException);
         }
-        Duration duration = Duration.ofNanos(System.nanoTime() - startTime);
-        Duration maxAcceptable = timeout.plus(Duration.ofMillis(sleepTimeInMillis));
-        assertTrue(duration.minus(maxAcceptable).toMillis() < 100,
+        long readAndTimeoutTotal = TimeUnit.NANOSECONDS.toMillis(inputStream.timeBlockedNanos()) + timeout.toMillis();
+        Duration clientTimeoutTotal = Duration.ofNanos(System.nanoTime() - startTime);
+        assertTrue(clientTimeoutTotal.toMillis() >= readAndTimeoutTotal,
                    "Timeout didn't account for activity time. "
-                   + "Took " + duration.toMillis() + "ms should have taken at most " + maxAcceptable.toMillis() + "ms");
+                   + "Took " + clientTimeoutTotal.toMillis() + "ms should have taken at least " + readAndTimeoutTotal + "ms");
     }
 
     @Test
