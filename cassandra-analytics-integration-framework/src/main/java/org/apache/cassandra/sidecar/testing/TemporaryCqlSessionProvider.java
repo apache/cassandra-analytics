@@ -35,38 +35,46 @@ import com.datastax.driver.core.exceptions.DriverException;
 import com.datastax.driver.core.exceptions.DriverInternalError;
 import com.datastax.driver.core.policies.ExponentialReconnectionPolicy;
 import com.datastax.driver.core.policies.ReconnectionPolicy;
-import org.apache.cassandra.sidecar.common.CQLSessionProvider;
+import org.apache.cassandra.sidecar.cluster.CQLSessionProviderImpl;
 import org.jetbrains.annotations.Nullable;
 
-public class TemporaryCqlSessionProvider extends CQLSessionProvider
+/**
+ * A CQL Session provider that always connects to and queries all hosts provided to it.
+ * Useful for integration testing, but will eventually be removed once issues with the Sidecar's
+ * CQLSessionProviderImpl are resolved.
+ */
+public class TemporaryCqlSessionProvider extends CQLSessionProviderImpl
 {
     private static final Logger logger = LoggerFactory.getLogger(TemporaryCqlSessionProvider.class);
+    private final List<InetSocketAddress> contactPoints;
     private Session localSession;
-    private final InetSocketAddress inet;
     private final NettyOptions nettyOptions;
     private final ReconnectionPolicy reconnectionPolicy;
     private final List<InetSocketAddress> addresses = new ArrayList<>();
 
-    public TemporaryCqlSessionProvider(InetSocketAddress target, NettyOptions options, List<InetSocketAddress> addresses)
+    public TemporaryCqlSessionProvider(List<InetSocketAddress> contactPoints, List<InetSocketAddress> localInstances,
+                                       int healthCheckFrequencyMillis, String localDc, int numConnections,
+                                       NettyOptions options)
     {
-        super(target, options);
-        inet = target;
+        super(contactPoints, localInstances, healthCheckFrequencyMillis, localDc, numConnections, options);
         nettyOptions = options;
         reconnectionPolicy = new ExponentialReconnectionPolicy(100, 1000);
         this.addresses.addAll(addresses);
+        this.contactPoints = contactPoints;
     }
 
-    @Override @Nullable
-    public synchronized Session localCql()
+    @Nullable
+    @Override
+    public synchronized Session get()
     {
         Cluster cluster = null;
         try
         {
             if (localSession == null)
             {
-                logger.info("Connecting to {}", inet);
+                logger.info("Connecting to {}", contactPoints);
                 cluster = Cluster.builder()
-                                 .addContactPointsWithPorts(addresses)
+                                 .addContactPointsWithPorts(contactPoints)
                                  .withReconnectionPolicy(reconnectionPolicy)
                                  .withoutMetrics()
                                  // tests can create a lot of these Cluster objects, to avoid creating HWTs and
@@ -96,7 +104,7 @@ public class TemporaryCqlSessionProvider extends CQLSessionProvider
     }
 
     @Override
-    public Session close()
+    public void close()
     {
         Session localSession;
         synchronized (this)
@@ -125,7 +133,6 @@ public class TemporaryCqlSessionProvider extends CQLSessionProvider
                 throw propagateCause(e);
             }
         }
-        return localSession;
     }
 
     static RuntimeException propagateCause(ExecutionException e)

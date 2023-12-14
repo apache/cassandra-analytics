@@ -67,6 +67,7 @@ import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.testing.CassandraIntegrationTest;
 import org.apache.cassandra.testing.ConfigurableCassandraTestContext;
+import org.jetbrains.annotations.NotNull;
 import scala.Tuple2;
 
 import static junit.framework.TestCase.assertTrue;
@@ -334,30 +335,15 @@ public abstract class ResiliencyTestBase extends IntegrationTestBase
         });
     }
 
-    protected QualifiedName bulkWriteData(ConsistencyLevel writeCL, String testName)
+    protected void bulkWriteData(ConsistencyLevel writeCL, QualifiedName schema)
     throws InterruptedException
     {
-        CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;
         List<String> sidecarInstances = generateSidecarInstances();
-
-        ImmutableMap<String, Integer> rf;
-        if (annotation.numDcs() > 1 && annotation.useCrossDcKeyspace())
-        {
-            rf = ImmutableMap.of("datacenter1", DEFAULT_RF, "datacenter2", DEFAULT_RF);
-        }
-        else
-        {
-            rf = ImmutableMap.of("datacenter1", DEFAULT_RF);
-        }
-
-        QualifiedName schema = initializeSchema(rf);
-        Thread.sleep(2000);
-
         // The spark job is executed in a separate process to ensure Spark's memory is cleaned up after the run.
         List<String> command = new ArrayList<>();
         command.add(System.getProperty("java.home") + File.separator + "bin" + File.separator + "java");
         // Uncomment the line below to debug on localhost
-//         command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5151");
+        // command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5151");
         command.addAll(ManagementFactory.getRuntimeMXBean().getInputArguments()
                                         .stream()
                                         // Remove any already-existing debugger agents from the arguments
@@ -404,7 +390,24 @@ public abstract class ResiliencyTestBase extends IntegrationTestBase
         {
             throw new RuntimeException("Unable to run spark job", e);
         }
+    }
 
+    @NotNull
+    public QualifiedName createAndWaitForKeyspaceAndTable()
+    {
+        CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;
+
+        ImmutableMap<String, Integer> rf;
+        if (annotation.numDcs() > 1 && annotation.useCrossDcKeyspace())
+        {
+            rf = ImmutableMap.of("datacenter1", DEFAULT_RF, "datacenter2", DEFAULT_RF);
+        }
+        else
+        {
+            rf = ImmutableMap.of("datacenter1", DEFAULT_RF);
+        }
+        QualifiedName schema = initializeSchema(rf);
+        waitUntilSidecarPicksUpSchemaChange(schema.keyspace());
         return schema;
     }
 

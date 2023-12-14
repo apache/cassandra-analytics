@@ -52,8 +52,6 @@ import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.testing.CassandraIntegrationTest;
 import org.apache.cassandra.testing.ConfigurableCassandraTestContext;
 
-import static org.apache.cassandra.testing.CassandraTestTemplate.fixDistributedSchemas;
-import static org.apache.cassandra.testing.CassandraTestTemplate.waitForHealthyRing;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -107,13 +105,11 @@ public class HostReplacementTestBase extends ResiliencyTestBase
             builder.withTokenSupplier(tokenSupplier);
         });
 
-        waitForHealthyRing(cluster);
-        fixDistributedSchemas(cluster);
+        QualifiedName schema = createAndWaitForKeyspaceAndTable();
 
         assertThat(additionalNodesToStop).isLessThan(cluster.size() - 1);
 
         List<IUpgradeableInstance> nodesToRemove = Collections.singletonList(cluster.get(cluster.size()));
-        QualifiedName schema = null;
         List<IUpgradeableInstance> newNodes;
         List<String> removedNodeAddresses = nodesToRemove.stream()
                                                          .map(n ->
@@ -163,14 +159,14 @@ public class HostReplacementTestBase extends ResiliencyTestBase
             // It is only in the event we have insufficient nodes, we expect write job to fail
             if (shouldWriteFail)
             {
-                SparkJobFailedException e = assertThrows(SparkJobFailedException.class, () -> bulkWriteData(writeCL, testName));
+                SparkJobFailedException e = assertThrows(SparkJobFailedException.class, () -> bulkWriteData(writeCL, schema));
                 assertThat(e.getStdErr()).containsPattern("Failed to load (\\d+) ranges with EACH_QUORUM for " +
                                                           "job ([a-zA-Z0-9-]+) in phase Environment Validation.");
                 return;
             }
             else
             {
-                schema = bulkWriteData(writeCL, testName);
+                bulkWriteData(writeCL, schema);
             }
 
             expectedInstanceData = getInstanceData(newNodes, true);

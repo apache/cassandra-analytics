@@ -18,10 +18,13 @@
 
 package org.apache.cassandra.testing;
 
+import java.util.Objects;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.distributed.UpgradeableCluster;
+import org.apache.cassandra.distributed.shared.ShutdownException;
 
 /**
  * The base class for all CassandraTestContext implementations
@@ -61,23 +64,29 @@ public abstract class AbstractCassandraTestContext implements AutoCloseable
     {
         if (cluster != null)
         {
+            LOGGER.info("Closing cluster={}", cluster);
             try
             {
                 cluster.close();
             }
-            catch (Throwable ex)
+            // ShutdownException may be thrown from a different classloader, and therefore the standard
+            // `catch (ShutdownException)` won't always work - compare the canonical names instead.
+            catch (Throwable t)
             {
-                // Because different classloaders or different jars may be used to load this class, we can't
-                // actually catch the specific ShutdownException.
-                if (ex.getClass().getCanonicalName().equals("org.apache.cassandra.distributed.shared.ShutdownException"))
+                if (Objects.equals(t.getClass().getCanonicalName(), ShutdownException.class.getCanonicalName()))
                 {
-                    LOGGER.debug("Encountered shutdown exception which closing the cluster", ex);
+                    LOGGER.debug("Encountered shutdown exception which closing the cluster", t);
                 }
                 else
                 {
-                    LOGGER.error("Failed to properly close the cluster", ex);
+                    throw t;
                 }
             }
         }
+    }
+
+    public int clusterSize()
+    {
+        return annotation.numDcs() * (annotation.nodesPerDc() + annotation.newNodesPerDc());
     }
 }

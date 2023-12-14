@@ -64,7 +64,8 @@ public class JoiningTestBase extends ResiliencyTestBase
             TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart, 2, TimeUnit.MINUTES);
 
             newInstances.forEach(instance -> ClusterUtils.awaitRingState(instance, instance, "Joining"));
-            table = bulkWriteData(writeCL, testName);
+            table = createAndWaitForKeyspaceAndTable();
+            bulkWriteData(writeCL, table);
 
             expectedInstanceData = generateExpectedInstanceData(cluster, newInstances);
         }

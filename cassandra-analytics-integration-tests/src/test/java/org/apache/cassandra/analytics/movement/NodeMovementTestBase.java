@@ -77,11 +77,13 @@ public class NodeMovementTestBase extends ResiliencyTestBase
             });
         }
 
+        schema = createAndWaitForKeyspaceAndTable();
 
         long moveTarget = getMoveTargetToken(cluster);
         IUpgradeableInstance movingNode = cluster.get(movingNodeIndex);
         String initialToken = movingNode.config().getString("initial_token");
         Map<IUpgradeableInstance, Set<String>> expectedInstanceData;
+        bulkWriteData(writeCL, schema);
         try
         {
             IUpgradeableInstance seed = cluster.get(1);
@@ -92,7 +94,7 @@ public class NodeMovementTestBase extends ResiliencyTestBase
             // Wait until nodes have reached expected state
             TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart, 2, TimeUnit.MINUTES);
             ClusterUtils.awaitRingState(seed, movingNode, "Moving");
-            schema = bulkWriteData(writeCL, testName);
+            bulkWriteData(writeCL, schema);
             expectedInstanceData = generateExpectedInstanceData(cluster, Collections.singletonList(movingNode));
         }
         finally

@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -126,8 +127,14 @@ public class TokenRangeMapping<Instance extends CassandraInstance> implements Se
 
     public Set<String> getPendingReplicas(String datacenter)
     {
-        return (pendingReplicasByDC == null || pendingReplicasByDC.isEmpty())
-               ? Collections.emptySet() : pendingReplicasByDC.get(datacenter).stream().collect(Collectors.toSet());
+        if (pendingReplicasByDC == null
+            || pendingReplicasByDC.isEmpty()
+            || pendingReplicasByDC.get(datacenter) == null
+            || pendingReplicasByDC.get(datacenter).isEmpty())
+        {
+            return Collections.emptySet();
+        }
+        return new HashSet<>(pendingReplicasByDC.get(datacenter));
     }
 
     public Set<String> getWriteReplicas()
@@ -139,7 +146,7 @@ public class TokenRangeMapping<Instance extends CassandraInstance> implements Se
     public Set<String> getWriteReplicas(String datacenter)
     {
         return (writeReplicasByDC == null || writeReplicasByDC.isEmpty())
-               ? Collections.emptySet() : writeReplicasByDC.get(datacenter).stream().collect(Collectors.toSet());
+               ? Collections.emptySet() : new HashSet<>(writeReplicasByDC.get(datacenter));
     }
 
     public Set<String> getBlockedInstances()

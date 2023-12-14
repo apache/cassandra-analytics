@@ -23,6 +23,7 @@ import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +40,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +55,6 @@ import io.vertx.core.json.JsonObject;
 import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.predicate.ResponsePredicate;
 import io.vertx.junit5.VertxTestContext;
-import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.sidecar.cluster.CassandraAdapterDelegate;
 import org.apache.cassandra.sidecar.cluster.InstancesConfig;
 import org.apache.cassandra.sidecar.cluster.instance.InstanceMetadata;
@@ -72,48 +73,56 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 public abstract class IntegrationTestBase
 {
-    private static final int MAX_KEYSPACE_TABLE_WAIT_ATTEMPTS = 100;
-    private static final long MAX_KEYSPACE_TABLE_TIME = 200L;
+    private static final int MAX_KEYSPACE_TABLE_WAIT_ATTEMPTS = 120;
+    private static final long MAX_KEYSPACE_TABLE_TIME = 1000L;
+    protected static final String TEST_KEYSPACE = "spark_test";
+    private static final String TEST_TABLE_PREFIX = "testtable";
+    protected static final int DEFAULT_RF = 3;
+
+    private static final AtomicInteger TEST_TABLE_ID = new AtomicInteger(0);
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
     protected Vertx vertx;
     protected Server server;
-
-    protected static final String TEST_KEYSPACE = "spark_test";
-    private static final String TEST_TABLE_PREFIX = "testtable";
-
-    protected static final int DEFAULT_RF = 3;
-    private static final AtomicInteger TEST_TABLE_ID = new AtomicInteger(0);
+    protected WebClient client;
     protected CassandraSidecarTestContext sidecarTestContext;
+    protected Injector injector;
 
     @BeforeEach
-    void setup(AbstractCassandraTestContext cassandraTestContext) throws InterruptedException
+    void setup(AbstractCassandraTestContext cassandraTestContext, TestInfo testInfo) throws InterruptedException
     {
         IntegrationTestModule integrationTestModule = new IntegrationTestModule();
-        Injector injector = Guice.createInjector(Modules.override(new MainModule()).with(integrationTestModule));
+        System.setProperty("cassandra.testtag", testInfo.getTestClass().get().getCanonicalName());
+        System.setProperty("suitename", testInfo.getDisplayName() + ": " + cassandraTestContext.version);
+        int clusterSize = cassandraTestContext.clusterSize();
+        injector = Guice.createInjector(Modules.override(new MainModule()).with(integrationTestModule));
         vertx = injector.getInstance(Vertx.class);
-        sidecarTestContext = CassandraSidecarTestContext.from(vertx, cassandraTestContext, new LocalhostResolver());
+        sidecarTestContext = CassandraSidecarTestContext.from(vertx, cassandraTestContext, new LocalhostResolver(),
+                                                              getNumInstancesToManage(clusterSize));
+
         integrationTestModule.setCassandraTestContext(sidecarTestContext);
 
         server = injector.getInstance(Server.class);
-
+        client = WebClient.create(vertx);
         VertxTestContext context = new VertxTestContext();
 
         if (sidecarTestContext.isClusterBuilt())
         {
-            MessageConsumer<Object> cqlReadyConsumer = vertx.eventBus().localConsumer(ON_CASSANDRA_CQL_READY.address());
+            MessageConsumer<JsonObject> cqlReadyConsumer = vertx.eventBus()
+                                                                .localConsumer(ON_CASSANDRA_CQL_READY.address());
             cqlReadyConsumer.handler(message -> {
                 cqlReadyConsumer.unregister();
                 context.completeNow();
             });
         }
 
+        client = WebClient.create(vertx);
         server.start()
               .onSuccess(s -> {
-                  logger.info("Started Sidecar on port={}", server.actualPort());
                   sidecarTestContext.registerInstanceConfigListener(this::healthCheck);
                   if (!sidecarTestContext.isClusterBuilt())
                   {
-                      context.completeNow();
+                      // Give everything a moment to get started and connected
+                      vertx.setTimer(TimeUnit.SECONDS.toMillis(1), id1 -> context.completeNow());
                   }
               })
               .onFailure(context::failNow);
@@ -121,10 +130,25 @@ public abstract class IntegrationTestBase
         context.awaitCompletion(5, TimeUnit.SECONDS);
     }
 
+    /**
+     * Some tests may want to "manage" fewer instances than the complete cluster.
+     * Therefore, override this if your test wants to manage fewer than the complete cluster size.
+     * The Sidecar will be configured to manage the first N instances in the cluster by instance number.
+     * Defaults to the entire cluster.
+     *
+     * @param clusterSize the size of the cluster as defined by the integration test
+     * @return the number of instances to manage
+     */
+    protected int getNumInstancesToManage(int clusterSize)
+    {
+        return clusterSize;
+    }
+
     @AfterEach
     void tearDown() throws InterruptedException
     {
         CountDownLatch closeLatch = new CountDownLatch(1);
+        client.close();
         server.close().onSuccess(res -> closeLatch.countDown());
         if (closeLatch.await(60, TimeUnit.SECONDS))
         {
@@ -139,12 +163,20 @@ public abstract class IntegrationTestBase
 
     protected void testWithClient(VertxTestContext context, Consumer<WebClient> tester) throws Exception
     {
-        WebClient client = WebClient.create(vertx);
+        testWithClient(context, true, tester);
+    }
+
+    protected void testWithClient(VertxTestContext context,
+                                  boolean waitForCluster,
+                                  Consumer<WebClient> tester)
+    throws Exception
+    {
         CassandraAdapterDelegate delegate = sidecarTestContext.instancesConfig()
                                                               .instanceFromId(1)
                                                               .delegate();
 
-        if (delegate.isUp())
+        assertThat(delegate).isNotNull();
+        if (delegate.isNativeUp() || !waitForCluster)
         {
             tester.accept(client);
         }
@@ -167,13 +199,38 @@ public abstract class IntegrationTestBase
         createTestKeyspace(TEST_KEYSPACE, ImmutableMap.of("datacenter1", 1));
     }
 
+    protected void createTestKeyspace(String keyspace)
+    {
+        createTestKeyspace(keyspace, ImmutableMap.of("datacenter1", 1));
+    }
+
     protected void createTestKeyspace(String keyspace, Map<String, Integer> rf)
     {
-        String query = "CREATE KEYSPACE " + keyspace +
-                       " WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', " + generateRfString(rf) + " };";
-        UpgradeableCluster cluster = sidecarTestContext.cassandraTestContext()
-                                                       .cluster();
-        cluster.schemaChange(query, true, cluster.getFirstRunningInstance());
+        int attempts = 1;
+        ArrayList<Throwable> thrown = new ArrayList<>(5);
+        while (attempts <= 5)
+        {
+            try
+            {
+                Session session = maybeGetSession();
+
+                session.execute("CREATE KEYSPACE IF NOT EXISTS " + keyspace +
+                                " WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', " +
+                                generateRfString(rf) + " };");
+                session.getCluster().getMetadata().checkSchemaAgreement();
+                return;
+            }
+            catch (Throwable t)
+            {
+                thrown.add(t);
+                logger.debug("Failed to create keyspace {} on attempt {}", keyspace, attempts);
+                attempts++;
+                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+            }
+        }
+        RuntimeException rte = new RuntimeException("Could not create test keyspace " + keyspace + " after 5 attempts.");
+        thrown.forEach(rte::addSuppressed);
+        throw rte;
     }
 
     private String generateRfString(Map<String, Integer> dcToRf)
@@ -182,16 +239,17 @@ public abstract class IntegrationTestBase
                      .collect(Collectors.joining(","));
     }
 
-    protected QualifiedName createTestTable(String keyspace, String createTableStatement)
+    protected QualifiedName createTestTable(String createTableStatement)
     {
-        QualifiedName tableName = uniqueTestTableFullName(keyspace, TEST_TABLE_PREFIX);
-        createTestTable(String.format(createTableStatement, tableName));
-        return tableName;
+        return createTestTable(TEST_TABLE_PREFIX, createTableStatement);
     }
 
-    protected void createTestTable(String createTableStatement)
+    protected QualifiedName createTestTable(String tablePrefix, String createTableStatement)
     {
-        sidecarTestContext.cassandraTestContext().cluster().schemaChange(createTableStatement);
+        Session session = maybeGetSession();
+        QualifiedName tableName = uniqueTestTableFullName(tablePrefix);
+        session.execute(String.format(createTableStatement, tableName));
+        return tableName;
     }
 
     protected Session maybeGetSession()
@@ -239,9 +297,8 @@ public abstract class IntegrationTestBase
         instancesConfig.instances()
                        .forEach(instanceMetadata -> instanceMetadata.delegate().healthCheck());
     }
-
     /**
-     * Waits for the specified keyspace to be available in Sidecar..
+     * Waits for the specified keyspace to be available in Sidecar.
      * Empirically, this loop usually executes either zero or one time before completing.
      * However, we set a fairly high number of retries to account for variability in build machines.
      *

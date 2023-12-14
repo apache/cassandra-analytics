@@ -56,9 +56,9 @@ class LeavingTestBase extends ResiliencyTestBase
                                 String testName) throws Exception
     {
         CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;
-        QualifiedName table;
         List<IUpgradeableInstance> leavingNodes;
         Map<IUpgradeableInstance, Set<String>> expectedInstanceData;
+        QualifiedName table = createAndWaitForKeyspaceAndTable();
         try
         {
             IUpgradeableInstance seed = cluster.get(1);
@@ -68,7 +68,7 @@ class LeavingTestBase extends ResiliencyTestBase
             TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart, 4, TimeUnit.MINUTES);
 
             leavingNodes.forEach(instance -> ClusterUtils.awaitRingState(seed, instance, "Leaving"));
-            table = bulkWriteData(writeCL, testName);
+            bulkWriteData(writeCL, table);
 
             expectedInstanceData = generateExpectedInstanceData(cluster, leavingNodes);
         }

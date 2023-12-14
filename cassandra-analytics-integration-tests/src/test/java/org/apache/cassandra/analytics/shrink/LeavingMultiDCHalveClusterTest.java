@@ -104,7 +104,8 @@ class LeavingMultiDCHalveClusterTest extends LeavingTestBase
                                cluster,
                                ConsistencyLevel.LOCAL_QUORUM,
                                ConsistencyLevel.LOCAL_QUORUM,
-                               false, testInfo.getDisplayName());
+                               true,
+                               testInfo.getDisplayName());
     }
 
     @CassandraIntegrationTest(nodesPerDc = 6, numDcs = 2, network = true, buildCluster = false)
@@ -136,7 +137,8 @@ class LeavingMultiDCHalveClusterTest extends LeavingTestBase
                                cluster,
                                ConsistencyLevel.LOCAL_QUORUM,
                                ConsistencyLevel.EACH_QUORUM,
-                               false, testInfo.getDisplayName());
+                               true,
+                               testInfo.getDisplayName());
     }
 
     @CassandraIntegrationTest(nodesPerDc = 6, numDcs = 2, network = true, buildCluster = false)
@@ -168,7 +170,8 @@ class LeavingMultiDCHalveClusterTest extends LeavingTestBase
                                cluster,
                                ConsistencyLevel.QUORUM,
                                ConsistencyLevel.QUORUM,
-                               false, testInfo.getDisplayName());
+                               true,
+                               testInfo.getDisplayName());
     }
 
     @CassandraIntegrationTest(nodesPerDc = 6, numDcs = 2, network = true, buildCluster = false)
@@ -236,7 +239,7 @@ class LeavingMultiDCHalveClusterTest extends LeavingTestBase
         public static void unbootstrap(@SuperCall Callable<?> orig) throws Exception
         {
             transitionalStateStart.countDown();
-            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitionalStateEnd, 2, TimeUnit.MINUTES);
+            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitionalStateEnd, 4, TimeUnit.MINUTES);
             orig.call();
         }
 
