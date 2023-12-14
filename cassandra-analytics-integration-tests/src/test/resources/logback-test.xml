@@ -28,9 +28,9 @@
   </appender>
 
   <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-    <file>${LOG_FILE_PATH:-../build/test-reports/complete-test-output}-${LOG_SUFFIX:-MAIN}.log</file>
+    <file>${LOG_FILE_PATH:-../build/test-reports/${cassandra.testtag:-MAIN}-${suitename:-}}.log</file>
     <encoder>
-      <pattern>%-5level [%thread] %date{ISO8601} %msg%n</pattern>
+      <pattern>%-5level [%thread] [%logger{35}] %date{ISO8601} %msg%n</pattern>
     </encoder>
     <immediateFlush>true</immediateFlush>
   </appender>

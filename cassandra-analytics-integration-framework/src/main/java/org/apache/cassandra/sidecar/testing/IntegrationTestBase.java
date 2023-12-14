@@ -91,8 +91,8 @@ public abstract class IntegrationTestBase
     void setup(AbstractCassandraTestContext cassandraTestContext, TestInfo testInfo) throws InterruptedException
     {
         IntegrationTestModule integrationTestModule = new IntegrationTestModule();
-        System.setProperty("cassandra.testtag", testInfo.getTestClass().get().getCanonicalName());
-        System.setProperty("suitename", testInfo.getDisplayName() + ": " + cassandraTestContext.version);
+        System.setProperty("cassandra.testtag", testInfo.getTestClass().get().getSimpleName());
+        System.setProperty("suitename", testInfo.getTestMethod().get().getName() + "-" + cassandraTestContext.version);
         int clusterSize = cassandraTestContext.clusterSize();
         injector = Guice.createInjector(Modules.override(new MainModule()).with(integrationTestModule));
         vertx = injector.getInstance(Vertx.class);
