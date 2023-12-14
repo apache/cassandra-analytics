@@ -102,7 +102,6 @@ public abstract class IntegrationTestBase
         integrationTestModule.setCassandraTestContext(sidecarTestContext);
 
         server = injector.getInstance(Server.class);
-        client = WebClient.create(vertx);
         VertxTestContext context = new VertxTestContext();
 
         if (sidecarTestContext.isClusterBuilt())
@@ -297,6 +296,7 @@ public abstract class IntegrationTestBase
         instancesConfig.instances()
                        .forEach(instanceMetadata -> instanceMetadata.delegate().healthCheck());
     }
+
     /**
      * Waits for the specified keyspace to be available in Sidecar.
      * Empirically, this loop usually executes either zero or one time before completing.

@@ -19,7 +19,6 @@
 package org.apache.cassandra.sidecar.testing;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -35,7 +34,7 @@ import com.datastax.driver.core.exceptions.DriverException;
 import com.datastax.driver.core.exceptions.DriverInternalError;
 import com.datastax.driver.core.policies.ExponentialReconnectionPolicy;
 import com.datastax.driver.core.policies.ReconnectionPolicy;
-import org.apache.cassandra.sidecar.cluster.CQLSessionProviderImpl;
+import org.apache.cassandra.sidecar.common.CQLSessionProvider;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -43,23 +42,18 @@ import org.jetbrains.annotations.Nullable;
  * Useful for integration testing, but will eventually be removed once issues with the Sidecar's
  * CQLSessionProviderImpl are resolved.
  */
-public class TemporaryCqlSessionProvider extends CQLSessionProviderImpl
+public class TemporaryCqlSessionProvider implements CQLSessionProvider
 {
     private static final Logger logger = LoggerFactory.getLogger(TemporaryCqlSessionProvider.class);
     private final List<InetSocketAddress> contactPoints;
     private Session localSession;
     private final NettyOptions nettyOptions;
     private final ReconnectionPolicy reconnectionPolicy;
-    private final List<InetSocketAddress> addresses = new ArrayList<>();
 
-    public TemporaryCqlSessionProvider(List<InetSocketAddress> contactPoints, List<InetSocketAddress> localInstances,
-                                       int healthCheckFrequencyMillis, String localDc, int numConnections,
-                                       NettyOptions options)
+    public TemporaryCqlSessionProvider(List<InetSocketAddress> contactPoints, NettyOptions options)
     {
-        super(contactPoints, localInstances, healthCheckFrequencyMillis, localDc, numConnections, options);
         nettyOptions = options;
         reconnectionPolicy = new ExponentialReconnectionPolicy(100, 1000);
-        this.addresses.addAll(addresses);
         this.contactPoints = contactPoints;
     }
 
@@ -101,6 +95,12 @@ public class TemporaryCqlSessionProvider extends CQLSessionProviderImpl
             }
         }
         return localSession;
+    }
+
+    @Override
+    public Session getIfConnected()
+    {
+        return this.localSession;
     }
 
     @Override

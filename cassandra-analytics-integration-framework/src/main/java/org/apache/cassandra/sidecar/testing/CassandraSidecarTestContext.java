@@ -220,8 +220,7 @@ public class CassandraSidecarTestContext implements AutoCloseable
         jmxClients = new ArrayList<>();
         List<InstanceConfig> configs = buildInstanceConfigs(cluster);
         List<InetSocketAddress> addresses = buildContactList(configs);
-        sessionProvider = new TemporaryCqlSessionProvider(addresses, addresses, 500, null, 0,
-                                                          SharedExecutorNettyOptions.INSTANCE);
+        sessionProvider = new TemporaryCqlSessionProvider(addresses, SharedExecutorNettyOptions.INSTANCE);
         for (int i = 0; i < configs.size(); i++)
         {
             IInstanceConfig config = configs.get(i);
