@@ -223,7 +223,7 @@ public class RecordWriter implements Serializable
         {
             // Create session using sub-range that contains the token from current row
             Optional<Range<BigInteger>> matchingSubRangeOpt = subRanges.stream().filter(r -> r.contains(token)).findFirst();
-            Preconditions.checkState(!matchingSubRangeOpt.isEmpty(),
+            Preconditions.checkState(matchingSubRangeOpt.isPresent(),
                                      String.format("Received Token %s outside of expected sub-ranges %s", token, subRanges));
             streamSession = maybeCreateSubRangeSession(taskContext, streamSession, failureHandler, results, matchingSubRangeOpt.get());
         }
