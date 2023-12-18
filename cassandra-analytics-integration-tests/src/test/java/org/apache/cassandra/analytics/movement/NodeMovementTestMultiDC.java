@@ -26,7 +26,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.Uninterruptibles;
 
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import com.datastax.driver.core.ConsistencyLevel;
@@ -51,7 +50,7 @@ public class NodeMovementTestMultiDC extends NodeMovementTestBase
 {
 
     @CassandraIntegrationTest(nodesPerDc = 3, numDcs = 2, network = true, buildCluster = false)
-    void moveNodeMultiDCTest(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeMultiDCTest(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMovingNodeMultiDC.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -60,12 +59,12 @@ public class NodeMovementTestMultiDC extends NodeMovementTestBase
                           BBHelperMovingNodeMultiDC.transitioningStateEnd,
                           false,
                           ConsistencyLevel.LOCAL_QUORUM,
-                          ConsistencyLevel.LOCAL_QUORUM, testInfo.getDisplayName());
+                          ConsistencyLevel.LOCAL_QUORUM);
 
     }
 
     @CassandraIntegrationTest(nodesPerDc = 3, numDcs = 2, network = true, buildCluster = false)
-    void moveNodeMultiDCQuorumReadWrite(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeMultiDCQuorumReadWrite(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMovingNodeMultiDC.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -74,12 +73,12 @@ public class NodeMovementTestMultiDC extends NodeMovementTestBase
                           BBHelperMovingNodeMultiDC.transitioningStateEnd,
                           false,
                           ConsistencyLevel.QUORUM,
-                          ConsistencyLevel.QUORUM, testInfo.getDisplayName());
+                          ConsistencyLevel.QUORUM);
 
     }
 
     @CassandraIntegrationTest(nodesPerDc = 3, numDcs = 2, network = true, buildCluster = false)
-    void moveNodeMultiDCEachQuorumWrite(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeMultiDCEachQuorumWrite(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMovingNodeMultiDC.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -87,27 +86,13 @@ public class NodeMovementTestMultiDC extends NodeMovementTestBase
                           BBHelperMovingNodeMultiDC.transitioningStateStart,
                           BBHelperMovingNodeMultiDC.transitioningStateEnd,
                           false,
-                          ConsistencyLevel.EACH_QUORUM,
-                          ConsistencyLevel.LOCAL_QUORUM, testInfo.getDisplayName());
+                          ConsistencyLevel.LOCAL_QUORUM,
+                          ConsistencyLevel.EACH_QUORUM);
 
     }
 
     @CassandraIntegrationTest(nodesPerDc = 3, numDcs = 2, network = true, buildCluster = false)
-    void moveNodeMultiDCAllWriteOneRead(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
-    {
-        BBHelperMovingNodeMultiDC.reset();
-        runMovingNodeTest(cassandraTestContext,
-                          BBHelperMovingNodeMultiDC::install,
-                          BBHelperMovingNodeMultiDC.transitioningStateStart,
-                          BBHelperMovingNodeMultiDC.transitioningStateEnd,
-                          false,
-                          ConsistencyLevel.ALL,
-                          ConsistencyLevel.ONE, testInfo.getDisplayName());
-
-    }
-
-    @CassandraIntegrationTest(nodesPerDc = 3, numDcs = 2, network = true, buildCluster = false)
-    void moveNodeMultiDCOneWriteAllRead(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeMultiDCAllWriteOneRead(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMovingNodeMultiDC.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -116,12 +101,26 @@ public class NodeMovementTestMultiDC extends NodeMovementTestBase
                           BBHelperMovingNodeMultiDC.transitioningStateEnd,
                           false,
                           ConsistencyLevel.ONE,
-                          ConsistencyLevel.ALL, testInfo.getDisplayName());
+                          ConsistencyLevel.ALL);
 
     }
 
     @CassandraIntegrationTest(nodesPerDc = 3, numDcs = 2, network = true, buildCluster = false)
-    void moveNodeFailureMultiDCTest(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeMultiDCOneWriteAllRead(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
+    {
+        BBHelperMovingNodeMultiDC.reset();
+        runMovingNodeTest(cassandraTestContext,
+                          BBHelperMovingNodeMultiDC::install,
+                          BBHelperMovingNodeMultiDC.transitioningStateStart,
+                          BBHelperMovingNodeMultiDC.transitioningStateEnd,
+                          false,
+                          ConsistencyLevel.ALL,
+                          ConsistencyLevel.ONE);
+
+    }
+
+    @CassandraIntegrationTest(nodesPerDc = 3, numDcs = 2, network = true, buildCluster = false)
+    void moveNodeFailureMultiDCTest(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMultiDCMovingNodeFailure.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -130,12 +129,12 @@ public class NodeMovementTestMultiDC extends NodeMovementTestBase
                           BBHelperMultiDCMovingNodeFailure.transitioningStateEnd,
                           true,
                           ConsistencyLevel.QUORUM,
-                          ConsistencyLevel.QUORUM, testInfo.getDisplayName());
+                          ConsistencyLevel.QUORUM);
 
     }
 
     @CassandraIntegrationTest(nodesPerDc = 3, numDcs = 2, network = true, buildCluster = false)
-    void moveNodeFailureMultiDCEachQuorumWrite(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeFailureMultiDCEachQuorumWrite(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMultiDCMovingNodeFailure.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -143,13 +142,13 @@ public class NodeMovementTestMultiDC extends NodeMovementTestBase
                           BBHelperMultiDCMovingNodeFailure.transitioningStateStart,
                           BBHelperMultiDCMovingNodeFailure.transitioningStateEnd,
                           true,
-                          ConsistencyLevel.EACH_QUORUM,
-                          ConsistencyLevel.LOCAL_QUORUM, testInfo.getDisplayName());
+                          ConsistencyLevel.LOCAL_QUORUM,
+                          ConsistencyLevel.EACH_QUORUM);
 
     }
 
     @CassandraIntegrationTest(nodesPerDc = 3, numDcs = 2, network = true, buildCluster = false)
-    void moveNodeFailureMultiDCAllWriteOneRead(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeFailureMultiDCAllWriteOneRead(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMultiDCMovingNodeFailure.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -157,8 +156,8 @@ public class NodeMovementTestMultiDC extends NodeMovementTestBase
                           BBHelperMultiDCMovingNodeFailure.transitioningStateStart,
                           BBHelperMultiDCMovingNodeFailure.transitioningStateEnd,
                           true,
-                          ConsistencyLevel.ALL,
-                          ConsistencyLevel.ONE, testInfo.getDisplayName());
+                          ConsistencyLevel.ONE,
+                          ConsistencyLevel.ALL);
 
     }
 

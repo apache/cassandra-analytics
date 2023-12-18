@@ -81,6 +81,12 @@ project(':cassandra-analytics-integration-tests') {
         maxParallelForks = integrationMaxParallelForks
         forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
+        beforeTest {descriptor ->
+            println("Setting test tags to ${descriptor.className}-${descriptor.name}")
+            systemProperty "cassandra.testtag", "${descriptor.className}"
+            systemProperty "suitename", "${descriptor.name}"
+        }
+
         testLogging {
             events "passed", "skipped", "failed"
         }

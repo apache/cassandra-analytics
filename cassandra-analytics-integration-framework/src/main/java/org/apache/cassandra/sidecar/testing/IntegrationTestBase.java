@@ -232,7 +232,7 @@ public abstract class IntegrationTestBase
         throw rte;
     }
 
-    private String generateRfString(Map<String, Integer> dcToRf)
+    protected String generateRfString(Map<String, Integer> dcToRf)
     {
         return dcToRf.entrySet().stream().map(e -> String.format("'%s':%d", e.getKey(), e.getValue()))
                      .collect(Collectors.joining(","));
@@ -245,10 +245,29 @@ public abstract class IntegrationTestBase
 
     protected QualifiedName createTestTable(String tablePrefix, String createTableStatement)
     {
-        Session session = maybeGetSession();
+        int attempts = 1;
+        ArrayList<Throwable> thrown = new ArrayList<>(5);
         QualifiedName tableName = uniqueTestTableFullName(tablePrefix);
-        session.execute(String.format(createTableStatement, tableName));
-        return tableName;
+        while (attempts <= 5)
+        {
+            try
+            {
+                Session session = maybeGetSession();
+                session.execute(String.format(createTableStatement, tableName));
+                return tableName;
+            }
+            catch (Throwable t)
+            {
+                thrown.add(t);
+                logger.debug("Failed to create table {} on attempt {}", tableName, attempts);
+                attempts++;
+                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+            }
+        }
+        RuntimeException rte = new RuntimeException("Could not create test table " + tableName +
+                                                    " after 5 attempts.");
+        thrown.forEach(rte::addSuppressed);
+        throw rte;
     }
 
     protected Session maybeGetSession()

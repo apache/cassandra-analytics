@@ -37,6 +37,7 @@ import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -370,26 +371,43 @@ public abstract class ResiliencyTestBase extends IntegrationTestBase
             LOGGER.info("Running: {}", String.join("\n", command));
             Process process = builder.start();
             CountDownLatch finishLatch = startReadOutputThreads(process, String.join(" ", command));
-            finishLatch.await();
-            int exitCode = process.waitFor();
+            boolean completed = process.waitFor(10, TimeUnit.MINUTES);
+            if (!completed)
+            {
+                process.destroyForcibly();
+                finishLatch.await(10, TimeUnit.MINUTES);
+                String errorMessage = "Spark job failed to complete after 10 minutes. " +
+                                      "Check log for 'SPARK STDOUT/SPARK STDERR' for details";
+                logSparkOutputAndThrow(errorMessage, command, process.exitValue());
+                throw new RuntimeException(errorMessage);
+            }
+            // Make sure the Java threads reading output have completed
+            boolean finishedReading = finishLatch.await(10, TimeUnit.MINUTES);
+            int exitCode = process.exitValue();
             if (exitCode != 0)
             {
-                String stdout = new String(outputBytes.get());
-                String stdErr = new String(errorOutput.get());
-                LOGGER.error("Spark STDOUT:\n*****{}\n*****", stdout);
-                LOGGER.error("Spark STDERR:\n*****{}\n*****", stdErr);
-                LOGGER.error("Failed to run spark command - please see output above for more information");
-                throw new SparkJobFailedException("Failed to run spark command",
-                                                  command,
-                                                  exitCode,
-                                                  stdout,
-                                                  stdErr);
+                logSparkOutputAndThrow("Failed to run spark command - please see output above for more information",
+                                       command, exitCode);
             }
         }
         catch (IOException e)
         {
             throw new RuntimeException("Unable to run spark job", e);
         }
+    }
+
+    private void logSparkOutputAndThrow(String errorMessage, List<String> command, int exitCode)
+    {
+        String stdout = new String(outputBytes.get());
+        String stdErr = new String(errorOutput.get());
+        LOGGER.error("Spark STDOUT:\n*****{}\n*****", stdout);
+        LOGGER.error("Spark STDERR:\n*****{}\n*****", stdErr);
+        LOGGER.error(errorMessage);
+        throw new SparkJobFailedException(errorMessage,
+                                          command,
+                                          exitCode,
+                                          stdout,
+                                          stdErr);
     }
 
     @NotNull

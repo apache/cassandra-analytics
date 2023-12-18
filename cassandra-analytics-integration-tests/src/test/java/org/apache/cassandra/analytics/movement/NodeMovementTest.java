@@ -26,8 +26,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.Uninterruptibles;
 
-import org.junit.jupiter.api.TestInfo;
-
 import com.datastax.driver.core.ConsistencyLevel;
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
@@ -47,7 +45,7 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 public class NodeMovementTest extends NodeMovementTestBase
 {
     @CassandraIntegrationTest(nodesPerDc = 5, network = true, buildCluster = false)
-    void moveNodeQuorumReadAndWrite(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeQuorumReadAndWrite(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMovingNode.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -56,11 +54,11 @@ public class NodeMovementTest extends NodeMovementTestBase
                           BBHelperMovingNode.transitioningStateEnd,
                           false,
                           ConsistencyLevel.QUORUM,
-                          ConsistencyLevel.QUORUM, testInfo.getDisplayName());
+                          ConsistencyLevel.QUORUM);
     }
 
     @CassandraIntegrationTest(nodesPerDc = 5, network = true, buildCluster = false)
-    void moveNodeOneReadAllWrite(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeOneReadAllWrite(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMovingNode.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -69,11 +67,11 @@ public class NodeMovementTest extends NodeMovementTestBase
                           BBHelperMovingNode.transitioningStateEnd,
                           false,
                           ConsistencyLevel.ONE,
-                          ConsistencyLevel.ALL, testInfo.getDisplayName());
+                          ConsistencyLevel.ALL);
     }
 
     @CassandraIntegrationTest(nodesPerDc = 5, network = true, buildCluster = false)
-    void moveNodeAllReadOneWrite(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeAllReadOneWrite(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMovingNode.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -82,11 +80,11 @@ public class NodeMovementTest extends NodeMovementTestBase
                           BBHelperMovingNode.transitioningStateEnd,
                           false,
                           ConsistencyLevel.ALL,
-                          ConsistencyLevel.ONE, testInfo.getDisplayName());
+                          ConsistencyLevel.ONE);
     }
 
     @CassandraIntegrationTest(nodesPerDc = 5, network = true, buildCluster = false)
-    void moveNodeFailureQuorumReadAndWrite(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeFailureQuorumReadAndWrite(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMovingNodeFailure.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -95,11 +93,11 @@ public class NodeMovementTest extends NodeMovementTestBase
                           BBHelperMovingNodeFailure.transitioningStateEnd,
                           true,
                           ConsistencyLevel.QUORUM,
-                          ConsistencyLevel.QUORUM, testInfo.getDisplayName());
+                          ConsistencyLevel.QUORUM);
     }
 
     @CassandraIntegrationTest(nodesPerDc = 5, network = true, buildCluster = false)
-    void moveNodeFailureOneReadAllWrite(ConfigurableCassandraTestContext cassandraTestContext, TestInfo testInfo) throws Exception
+    void moveNodeFailureOneReadAllWrite(ConfigurableCassandraTestContext cassandraTestContext) throws Exception
     {
         BBHelperMovingNodeFailure.reset();
         runMovingNodeTest(cassandraTestContext,
@@ -108,7 +106,7 @@ public class NodeMovementTest extends NodeMovementTestBase
                           BBHelperMovingNodeFailure.transitioningStateEnd,
                           true,
                           ConsistencyLevel.ONE,
-                          ConsistencyLevel.ALL, testInfo.getDisplayName());
+                          ConsistencyLevel.ALL);
     }
 
     /**

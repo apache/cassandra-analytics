@@ -45,14 +45,14 @@ public class NodeMovementTestBase extends ResiliencyTestBase
     public static final int SINGLE_DC_MOVING_NODE_IDX = 5;
     public static final int MULTI_DC_MOVING_NODE_IDX = 3;
 
-    // CHECKSTYLE IGNORE: Constructor with many parameters
+    // CHECKSTYLE IGNORE: Method with many parameters
     void runMovingNodeTest(ConfigurableCassandraTestContext cassandraTestContext,
                            BiConsumer<ClassLoader, Integer> instanceInitializer,
                            CountDownLatch transitioningStateStart,
                            CountDownLatch transitioningStateEnd,
                            boolean isFailure,
                            ConsistencyLevel readCL,
-                           ConsistencyLevel writeCL, String testName) throws Exception
+                           ConsistencyLevel writeCL) throws Exception
 
     {
         CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;

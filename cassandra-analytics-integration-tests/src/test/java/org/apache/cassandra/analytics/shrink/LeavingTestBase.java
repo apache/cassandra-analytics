@@ -52,8 +52,7 @@ class LeavingTestBase extends ResiliencyTestBase
                                 UpgradeableCluster cluster,
                                 ConsistencyLevel readCL,
                                 ConsistencyLevel writeCL,
-                                boolean isExpectedToFail,
-                                String testName) throws Exception
+                                boolean isExpectedToFail) throws Exception
     {
         CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;
         List<IUpgradeableInstance> leavingNodes;

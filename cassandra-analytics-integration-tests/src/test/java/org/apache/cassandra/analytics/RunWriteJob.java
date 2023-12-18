@@ -79,7 +79,6 @@ public class RunWriteJob
 
             dfWriter.save();
             spark.sparkContext().stop();
-//            clearSparkSizeEstimatorMemory();
         }
         catch (Throwable throwable)
         {
