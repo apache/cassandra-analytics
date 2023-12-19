@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -64,6 +63,9 @@ import org.apache.cassandra.sidecar.server.Server;
 import org.apache.cassandra.testing.AbstractCassandraTestContext;
 
 import static org.apache.cassandra.sidecar.server.SidecarServerEvents.ON_CASSANDRA_CQL_READY;
+import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
+import static org.apache.cassandra.testing.TestUtils.TEST_TABLE_PREFIX;
+import static org.apache.cassandra.testing.TestUtils.uniqueTestTableFullName;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -75,11 +77,9 @@ public abstract class IntegrationTestBase
 {
     private static final int MAX_KEYSPACE_TABLE_WAIT_ATTEMPTS = 120;
     private static final long MAX_KEYSPACE_TABLE_TIME = 1000L;
-    protected static final String TEST_KEYSPACE = "spark_test";
-    private static final String TEST_TABLE_PREFIX = "testtable";
     protected static final int DEFAULT_RF = 3;
 
-    private static final AtomicInteger TEST_TABLE_ID = new AtomicInteger(0);
+
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
     protected Vertx vertx;
     protected Server server;
@@ -275,16 +275,6 @@ public abstract class IntegrationTestBase
         Session session = sidecarTestContext.session();
         assertThat(session).isNotNull();
         return session;
-    }
-
-    public static QualifiedName uniqueTestTableFullName(String keyspace)
-    {
-        return uniqueTestTableFullName(keyspace, TEST_TABLE_PREFIX);
-    }
-
-    public static QualifiedName uniqueTestTableFullName(String keyspace, String testTablePrefix)
-    {
-        return new QualifiedName(keyspace, testTablePrefix + TEST_TABLE_ID.getAndIncrement());
     }
 
     public List<Path> findChildFile(CassandraSidecarTestContext context, String hostname, String target)

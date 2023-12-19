@@ -82,7 +82,7 @@ project(':cassandra-analytics-integration-tests') {
         forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
         beforeTest {descriptor ->
-            println("Setting test tags to ${descriptor.className}-${descriptor.name}")
+            // println("Setting test tags to ${descriptor.className}-${descriptor.name}")
             systemProperty "cassandra.testtag", "${descriptor.className}"
             systemProperty "suitename", "${descriptor.name}"
         }

@@ -18,6 +18,8 @@
 
 package org.apache.cassandra.sidecar.testing;
 
+import java.util.Objects;
+
 import org.apache.cassandra.cql3.ColumnIdentifier;
 
 /**
@@ -52,6 +54,27 @@ public class QualifiedName
     public String maybeQuotedTable()
     {
         return ColumnIdentifier.maybeQuote(table);
+    }
+
+    @Override
+    public boolean equals(Object object)
+    {
+        if (this == object)
+        {
+            return true;
+        }
+        if (object == null || getClass() != object.getClass())
+        {
+            return false;
+        }
+        QualifiedName that = (QualifiedName) object;
+        return Objects.equals(keyspace, that.keyspace) && Objects.equals(table, that.table);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(keyspace, table);
     }
 
     @Override

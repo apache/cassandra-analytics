@@ -23,8 +23,9 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.Test;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
@@ -34,93 +35,119 @@ import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
-import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
+import org.apache.cassandra.testing.TestUtils;
 import org.apache.cassandra.utils.Shared;
 
+import static com.datastax.driver.core.ConsistencyLevel.EACH_QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
-import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
+import static org.apache.cassandra.testing.TestUtils.DC1_RF3_DC2_RF3;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
- * Integration tests that verifies bulk writes during a host replacement operation in the Cassandra cluster where the
- * operation is expected to succeed
+ * Validate failed write operation when host replacement fails resulting in insufficient nodes. This is simulated by
+ * bringing down a node in addition to the replacement failure resulting in too few replicas to satisfy the
+ * replication factor requirements.
  */
-class HostReplacementTest extends HostReplacementTestBase
+class HostReplacementMultiDCInsufficientReplicasTest extends HostReplacementTestBase
 {
-    @ParameterizedTest(name = "{index} => {0}")
-    @MethodSource("singleDCTestInputs")
-    void testHostReplacement(TestConsistencyLevel cl)
+    static final QualifiedName QUALIFIED_NAME = TestUtils.uniqueTestTableFullName(TEST_KEYSPACE);
+
+    @Test
+    void nodeReplacementFailureMultiDCInsufficientNodes()
     {
-        QualifiedName table = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
-        bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
-                                            .save();
+        Throwable thrown = catchThrowable(() ->
+                                          bulkWriterDataFrameWriter(df, QUALIFIED_NAME)
+                                          .option(WriterOptions.BULK_WRITER_CL.name(), EACH_QUORUM.name())
+                                          .save());
+
+        assertThat(thrown).isInstanceOf(RuntimeException.class)
+                          .hasMessageContaining("java.lang.RuntimeException: Bulk Write to Cassandra has failed");
+
+        Throwable cause = thrown;
+
+        // Find the cause
+        while (cause != null && !StringUtils.contains(cause.getMessage(), "Failed to load"))
+        {
+            cause = cause.getCause();
+        }
+
+        assertThat(cause).isNotNull()
+                         .hasMessageFindingMatch("Failed to load (\\d+) ranges with EACH_QUORUM for " +
+                                                 "job ([a-zA-Z0-9-]+) in phase Environment Validation.");
     }
 
     @Override
     protected void beforeClusterShutdown()
     {
-        completeTransitionsAndValidateWrites(BBHelperReplacementsNode.transitioningStateEnd, singleDCTestInputs(), false);
+        BBHelperNodeReplacementMultiDCInsufficientReplicas.transitionalStateEnd.countDown();
     }
 
     @Override
     protected void initializeSchemaForTest()
     {
-        createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
-        singleDCTestInputs().forEach(arguments -> {
-            QualifiedName tableName = uniqueTestTableFullName(TEST_KEYSPACE, arguments.get());
-            createTestTable(tableName, CREATE_TEST_TABLE_STATEMENT);
-        });
+        createTestKeyspace(TEST_KEYSPACE, DC1_RF3_DC2_RF3);
+        createTestTable(QUALIFIED_NAME, CREATE_TEST_TABLE_STATEMENT);
     }
 
     @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        return clusterConfig().nodesPerDc(5)
+        return clusterConfig().nodesPerDc(3)
                               .newNodesPerDc(1)
+                              .dcCount(2)
                               .requestFeature(Feature.NETWORK)
-                              .instanceInitializer(BBHelperReplacementsNode::install);
+                              .instanceInitializer(BBHelperNodeReplacementMultiDCInsufficientReplicas::install);
+    }
+
+    @Override
+    protected int additionalNodesToStop()
+    {
+        return 2;
     }
 
     @Override
     protected CountDownLatch nodeStart()
     {
-        return BBHelperReplacementsNode.nodeStart;
+        return BBHelperNodeReplacementMultiDCInsufficientReplicas.nodeStart;
     }
 
     /**
-     * ByteBuddy helper for a single node replacement
+     * ByteBuddy helper for multi DC node replacement failure resulting in insufficient nodes
      */
     @Shared
-    public static class BBHelperReplacementsNode
+    public static class BBHelperNodeReplacementMultiDCInsufficientReplicas
     {
         // Additional latch used here to sequentially start the 2 new nodes to isolate the loading
         // of the shared Cassandra system property REPLACE_ADDRESS_FIRST_BOOT across instances
         static final CountDownLatch nodeStart = new CountDownLatch(1);
-        static final CountDownLatch transitioningStateStart = new CountDownLatch(1);
-        static final CountDownLatch transitioningStateEnd = new CountDownLatch(1);
+        static final CountDownLatch transitionalStateStart = new CountDownLatch(1);
+        static final CountDownLatch transitionalStateEnd = new CountDownLatch(1);
 
         public static void install(ClassLoader cl, Integer nodeNumber)
         {
-            // Test case involves 5 node cluster with a replacement node
-            // We intercept the bootstrap of the replacement (6th) node to validate token ranges
-            if (nodeNumber == 6)
+            // Test case involves 6 node cluster (3 per DC) with a replacement node
+            // We intercept the bootstrap of the replacement (7th) node to validate token ranges
+            if (nodeNumber == 7)
             {
                 TypePool typePool = TypePool.Default.of(cl);
                 TypeDescription description = typePool.describe("org.apache.cassandra.service.StorageService")
                                                       .resolve();
                 new ByteBuddy().rebase(description, ClassFileLocator.ForClassLoader.of(cl))
                                .method(named("bootstrap").and(takesArguments(2)))
-                               .intercept(MethodDelegation.to(BBHelperReplacementsNode.class))
+                               .intercept(MethodDelegation.to(BBHelperNodeReplacementMultiDCInsufficientReplicas.class))
                                // Defer class loading until all dependencies are loaded
                                .make(TypeResolutionStrategy.Lazy.INSTANCE, typePool)
                                .load(cl, ClassLoadingStrategy.Default.INJECTION);
             }
         }
+
 
         public static boolean bootstrap(Collection<?> tokens,
                                         long bootstrapTimeoutMillis,
@@ -129,9 +156,9 @@ class HostReplacementTest extends HostReplacementTestBase
             boolean result = orig.call();
             nodeStart.countDown();
             // trigger bootstrap start and wait until bootstrap is ready from test
-            transitioningStateStart.countDown();
-            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateEnd, 2, TimeUnit.MINUTES);
-            return result;
+            transitionalStateStart.countDown();
+            Uninterruptibles.awaitUninterruptibly(transitionalStateEnd, 2, TimeUnit.MINUTES);
+            throw new UnsupportedOperationException("Simulated failure");
         }
     }
 }

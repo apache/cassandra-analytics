@@ -18,6 +18,7 @@
 
 package org.apache.cassandra.analytics.replacement;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -27,165 +28,123 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import org.junit.jupiter.params.provider.Arguments;
 
-import com.datastax.driver.core.ConsistencyLevel;
+import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.ResiliencyTestBase;
-import org.apache.cassandra.analytics.SparkJobFailedException;
-import org.apache.cassandra.analytics.TestTokenSupplier;
 import org.apache.cassandra.config.CassandraRelevantProperties;
 import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
-import org.apache.cassandra.distributed.api.IUpgradeableInstance;
-import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.impl.AbstractCluster;
 import org.apache.cassandra.distributed.impl.InstanceConfig;
 import org.apache.cassandra.distributed.shared.ClusterUtils;
 import org.apache.cassandra.distributed.shared.NetworkTopology;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.testing.CassandraIntegrationTest;
-import org.apache.cassandra.testing.ConfigurableCassandraTestContext;
+import org.apache.cassandra.testing.TestVersion;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
 
+import static com.datastax.driver.core.ConsistencyLevel.ALL;
+import static com.datastax.driver.core.ConsistencyLevel.ONE;
+import static com.datastax.driver.core.ConsistencyLevel.QUORUM;
+import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
+import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class HostReplacementTestBase extends ResiliencyTestBase
+abstract class HostReplacementTestBase extends ResiliencyTestBase
 {
+    Dataset<Row> df;
+    Map<? extends IInstance, Set<String>> expectedInstanceData;
+    List<IInstance> newNodes;
+    List<String> removedNodeAddresses;
 
-    // CHECKSTYLE IGNORE: Method with many parameters
-    void runReplacementTest(ConfigurableCassandraTestContext cassandraTestContext,
-                            BiConsumer<ClassLoader, Integer> instanceInitializer,
-                            CountDownLatch transitioningStateStart,
-                            CountDownLatch transitioningStateEnd,
-                            CountDownLatch nodeStart,
-                            boolean isFailure,
-                            ConsistencyLevel readCL,
-                            ConsistencyLevel writeCL,
-                            String testName) throws Exception
+    @Override
+    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
     {
-        runReplacementTest(cassandraTestContext,
-                           instanceInitializer,
-                           transitioningStateStart,
-                           transitioningStateEnd,
-                           nodeStart,
-                           0,
-                           isFailure,
-                           false,
-                           readCL,
-                           writeCL,
-                           testName);
+        ClusterBuilderConfiguration configuration = testClusterConfiguration();
+        UpgradeableCluster provisionedCluster = clusterBuilder(configuration, testVersion);
+
+        assertThat(additionalNodesToStop()).isLessThan(provisionedCluster.size() - 1);
+
+        IInstance seed = provisionedCluster.get(1);
+        List<ClusterUtils.RingInstanceDetails> ring = ClusterUtils.ring(seed);
+
+        // Remove the last node
+        List<IInstance> nodesToRemove = Collections.singletonList(provisionedCluster.get(provisionedCluster.size()));
+        removedNodeAddresses = nodesToRemove.stream()
+                                            .map(n -> n.config()
+                                                       .broadcastAddress()
+                                                       .getAddress()
+                                                       .getHostAddress())
+                                            .collect(Collectors.toList());
+        List<String> removedNodeTokens = ring.stream()
+                                             .filter(i -> removedNodeAddresses.contains(i.getAddress()))
+                                             .map(ClusterUtils.RingInstanceDetails::getToken)
+                                             .collect(Collectors.toList());
+        stopNodes(seed, nodesToRemove);
+
+        List<IInstance> additionalRemovalNodes = new ArrayList<>();
+        for (int i = 1; i <= additionalNodesToStop(); i++)
+        {
+            additionalRemovalNodes.add(provisionedCluster.get(provisionedCluster.size() - i));
+        }
+        newNodes = startReplacementNodes(nodeStart(), provisionedCluster, nodesToRemove);
+        stopNodes(seed, additionalRemovalNodes);
+
+        // Wait until replacement nodes are in JOINING state
+        // NOTE: While many of these tests wait 2 minutes and pass, this particular transition
+        // takes longer, so upping the timeout to 5 minutes
+
+        // Verify state of replacement nodes
+        for (IInstance newInstance : newNodes)
+        {
+            ClusterUtils.awaitRingState(newInstance, newInstance, "Joining");
+            ClusterUtils.awaitGossipStatus(newInstance, newInstance, "BOOT_REPLACE");
+
+            String newAddress = newInstance.config().broadcastAddress().getAddress().getHostAddress();
+            Optional<ClusterUtils.RingInstanceDetails> replacementInstance = getMatchingInstanceFromRing(newInstance, newAddress);
+            assertThat(replacementInstance).isPresent();
+            // Verify that replacement node tokens match the removed nodes
+            assertThat(removedNodeTokens).contains(replacementInstance.get().getToken());
+        }
+
+        return provisionedCluster;
     }
 
-    // CHECKSTYLE IGNORE: Method with many parameters
-    void runReplacementTest(ConfigurableCassandraTestContext cassandraTestContext,
-                            BiConsumer<ClassLoader, Integer> instanceInitializer,
-                            CountDownLatch transitioningStateStart,
-                            CountDownLatch transitioningStateEnd,
-                            CountDownLatch nodeStart,
-                            int additionalNodesToStop,
-                            boolean isFailure,
-                            boolean shouldWriteFail,
-                            ConsistencyLevel readCL,
-                            ConsistencyLevel writeCL,
-                            String testName) throws Exception
+    protected void completeTransitionsAndValidateWrites(CountDownLatch transitionalStateEnd,
+                                                        Stream<Arguments> testInputs,
+                                                        boolean expectFailure)
     {
-        CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;
-        TokenSupplier tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(annotation.nodesPerDc(),
-                                                                                annotation.newNodesPerDc(),
-                                                                                annotation.numDcs(),
-                                                                                1);
-        UpgradeableCluster cluster = cassandraTestContext.configureAndStartCluster(builder -> {
-            builder.withInstanceInitializer(instanceInitializer);
-            builder.withTokenSupplier(tokenSupplier);
-        });
-
-        QualifiedName schema = createAndWaitForKeyspaceAndTable();
-
-        assertThat(additionalNodesToStop).isLessThan(cluster.size() - 1);
-
-        List<IUpgradeableInstance> nodesToRemove = Collections.singletonList(cluster.get(cluster.size()));
-        List<IUpgradeableInstance> newNodes;
-        List<String> removedNodeAddresses = nodesToRemove.stream()
-                                                         .map(n ->
-                                                              n.config()
-                                                               .broadcastAddress()
-                                                               .getAddress()
-                                                               .getHostAddress())
-                                                         .collect(Collectors.toList());
-        Map<IUpgradeableInstance, Set<String>> expectedInstanceData;
-        try
+        long count = transitionalStateEnd.getCount();
+        for (int i = 0; i < count; i++)
         {
-            IUpgradeableInstance seed = cluster.get(1);
-
-            List<ClusterUtils.RingInstanceDetails> ring = ClusterUtils.ring(seed);
-            List<String> removedNodeTokens = ring.stream()
-                                                 .filter(i -> removedNodeAddresses.contains(i.getAddress()))
-                                                 .map(ClusterUtils.RingInstanceDetails::getToken)
-                                                 .collect(Collectors.toList());
-            stopNodes(seed, nodesToRemove);
-
-            List<IUpgradeableInstance> additionalRemovalNodes = new ArrayList<>();
-            for (int i = 1; i <= additionalNodesToStop; i++)
-            {
-                additionalRemovalNodes.add(cluster.get(cluster.size() - i));
-            }
-            newNodes = startReplacementNodes(nodeStart, cluster, nodesToRemove);
-            stopNodes(seed, additionalRemovalNodes);
-
-            // Wait until replacement nodes are in JOINING state
-            // NOTE: While many of these tests wait 2 minutes and pass, this particular transition
-            // takes longer, so upping the timeout to 5 minutes
-//            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart, 10, TimeUnit.MINUTES);
-
-            // Verify state of replacement nodes
-            for (IUpgradeableInstance newInstance : newNodes)
-            {
-                ClusterUtils.awaitRingState(newInstance, newInstance, "Joining");
-                ClusterUtils.awaitGossipStatus(newInstance, newInstance, "BOOT_REPLACE");
-
-                String newAddress = newInstance.config().broadcastAddress().getAddress().getHostAddress();
-                Optional<ClusterUtils.RingInstanceDetails> replacementInstance = getMatchingInstanceFromRing(newInstance, newAddress);
-                assertThat(replacementInstance).isPresent();
-                // Verify that replacement node tokens match the removed nodes
-                assertThat(removedNodeTokens).contains(replacementInstance.get().getToken());
-            }
-
-            // It is only in the event we have insufficient nodes, we expect write job to fail
-            if (shouldWriteFail)
-            {
-                SparkJobFailedException e = assertThrows(SparkJobFailedException.class, () -> bulkWriteData(writeCL, schema));
-                assertThat(e.getStdErr()).containsPattern("Failed to load (\\d+) ranges with EACH_QUORUM for " +
-                                                          "job ([a-zA-Z0-9-]+) in phase Environment Validation.");
-                return;
-            }
-            else
-            {
-                bulkWriteData(writeCL, schema);
-            }
-
-            expectedInstanceData = getInstanceData(newNodes, true);
+            transitionalStateEnd.countDown();
         }
-        finally
-        {
-            for (int i = 0; i < (annotation.newNodesPerDc() * annotation.numDcs()); i++)
-            {
-                transitioningStateEnd.countDown();
-            }
-        }
+
+        assertThat(newNodes).isNotNull();
+        assertThat(removedNodeAddresses).isNotNull();
 
         // It is only in successful REPLACE operation that we validate that the node has reached NORMAL state
-        if (!isFailure)
+        if (!expectFailure)
         {
             ClusterUtils.awaitRingState(newNodes.get(0), newNodes.get(0), "Normal");
 
             // Validate if data was written to the new transitioning nodes only when bootstrap succeeded
-            validateNodeSpecificData(schema, expectedInstanceData);
+            testInputs.forEach(arguments -> {
+                TestConsistencyLevel cl = (TestConsistencyLevel) arguments.get()[0];
+
+                QualifiedName tableName = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
+                validateNodeSpecificData(tableName, expectedInstanceData);
+                validateData(tableName, cl.readCL, ROW_COUNT);
+            });
         }
         else
         {
@@ -195,27 +154,59 @@ public class HostReplacementTestBase extends ResiliencyTestBase
             Optional<ClusterUtils.RingInstanceDetails> replacementNode =
             getMatchingInstanceFromRing(newNodes.get(0), newNodes.get(0).broadcastAddress().getAddress().getHostAddress());
             // Validate that the replacement node did not succeed in joining (if still visible in ring)
-            if (replacementNode.isPresent())
-            {
-                assertThat(replacementNode.get().getState()).isNotEqualTo("Normal");
-            }
+            replacementNode.ifPresent(ringInstanceDetails -> assertThat(ringInstanceDetails.getState()).isNotEqualTo("Normal"));
 
             Optional<ClusterUtils.RingInstanceDetails> removedNode =
             getMatchingInstanceFromRing(cluster.get(1), removedNodeAddresses.get(0));
             // Validate that the removed node is "Down" (if still visible in ring)
-            if (removedNode.isPresent())
-            {
-                assertThat(removedNode.get().getStatus()).isEqualTo("Down");
-            }
+            removedNode.ifPresent(ringInstanceDetails -> assertThat(ringInstanceDetails.getStatus()).isEqualTo("Down"));
 
-            if (readCL == ConsistencyLevel.ALL)
-            {
-                // No more validations to be performed if CL is ALL and replacement fails
-                return;
-            }
+            testInputs.forEach(arguments -> {
+                TestConsistencyLevel cl = (TestConsistencyLevel) arguments.get()[0];
+
+                if (cl.readCL != ALL)
+                {
+                    QualifiedName tableName = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
+                    validateData(tableName, cl.readCL, ROW_COUNT);
+                }
+            });
         }
+    }
 
-        validateData(schema.table(), readCL);
+    @Override
+    protected void beforeTestStart()
+    {
+        SparkSession spark = getOrCreateSparkSession();
+        // Generate some artificial data for the test
+        df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
+        // generate the expected data for the new nodes
+        expectedInstanceData = getInstanceData(newNodes, true, ROW_COUNT);
+    }
+
+    /**
+     * @return the number of additional nodes to stop for the test
+     */
+    protected int additionalNodesToStop()
+    {
+        return 0;
+    }
+
+    /**
+     * @return the configuration for the test cluster
+     */
+    protected abstract ClusterBuilderConfiguration testClusterConfiguration();
+
+    /**
+     * @return a latch that will wait until the node starts
+     */
+    protected abstract CountDownLatch nodeStart();
+
+    static Stream<Arguments> singleDCTestInputs()
+    {
+        return Stream.of(
+        Arguments.of(TestConsistencyLevel.of(ONE, ALL)),
+        Arguments.of(TestConsistencyLevel.of(QUORUM, QUORUM))
+        );
     }
 
     public static <I extends IInstance> I addInstanceLocal(AbstractCluster<I> cluster,
@@ -233,19 +224,18 @@ public class HostReplacementTestBase extends ResiliencyTestBase
         return cluster.bootstrap(config);
     }
 
-    private List<IUpgradeableInstance> startReplacementNodes(CountDownLatch nodeStart,
-                                                             UpgradeableCluster cluster,
-                                                             List<IUpgradeableInstance> nodesToRemove)
+    private List<IInstance> startReplacementNodes(CountDownLatch nodeStart, UpgradeableCluster cluster,
+                                                  List<IInstance> nodesToRemove)
     {
-        List<IUpgradeableInstance> newNodes = new ArrayList<>();
+        List<IInstance> newNodes = new ArrayList<>();
         // Launch replacements nodes with the config of the removed nodes
-        for (IUpgradeableInstance removed : nodesToRemove)
+        for (IInstance removed : nodesToRemove)
         {
             // Add new instance for each removed instance as a replacement of its owned token
             IInstanceConfig removedConfig = removed.config();
             String remAddress = removedConfig.broadcastAddress().getAddress().getHostAddress();
             int remPort = removedConfig.getInt("storage_port");
-            IUpgradeableInstance replacement =
+            IInstance replacement =
             addInstanceLocal(cluster,
                              removedConfig.localDatacenter(),
                              removedConfig.localRack(),
@@ -271,7 +261,6 @@ public class HostReplacementTestBase extends ResiliencyTestBase
                                 Long.toString(TimeUnit.SECONDS.toMillis(10L)));
                 // This property tells cassandra that this new instance is replacing the node with
                 // address remAddress and port remPort
-                int localPort = replacement.config().getInt("storage_port");
                 properties.with("cassandra.replace_address_first_boot", remAddress + ":" + remPort);
             })).start();
 
@@ -281,9 +270,9 @@ public class HostReplacementTestBase extends ResiliencyTestBase
         return newNodes;
     }
 
-    private void stopNodes(IUpgradeableInstance seed, List<IUpgradeableInstance> nodesToRemove)
+    private void stopNodes(IInstance seed, List<IInstance> nodesToRemove)
     {
-        for (IUpgradeableInstance node : nodesToRemove)
+        for (IInstance node : nodesToRemove)
         {
             ClusterUtils.stopUnchecked(node);
             String remAddress = node.config().broadcastAddress().getAddress().getHostAddress();
@@ -297,26 +286,11 @@ public class HostReplacementTestBase extends ResiliencyTestBase
     }
 
 
-    private Optional<ClusterUtils.RingInstanceDetails> getMatchingInstanceFromRing(IUpgradeableInstance seed,
-                                                                                   String ipAddress)
+    protected Optional<ClusterUtils.RingInstanceDetails> getMatchingInstanceFromRing(IInstance seed, String ipAddress)
     {
         return ClusterUtils.ring(seed)
                            .stream()
                            .filter(i -> i.getAddress().equals(ipAddress))
                            .findFirst();
-    }
-
-    public static <I extends IInstance> I addInstance(AbstractCluster<I> cluster,
-                                                      String dc,
-                                                      String rack,
-                                                      Consumer<IInstanceConfig> fn, int remPort)
-    {
-        Objects.requireNonNull(dc, "dc");
-        Objects.requireNonNull(rack, "rack");
-        InstanceConfig config = cluster.newInstanceConfig();
-        config.set("storage_port", remPort);
-        config.networkTopology().put(config.broadcastAddress(), NetworkTopology.dcAndRack(dc, rack));
-        fn.accept(config);
-        return cluster.bootstrap(config);
     }
 }

@@ -22,9 +22,11 @@ import java.util.Collection;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import com.google.common.util.concurrent.Uninterruptibles;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.provider.Arguments;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
@@ -34,47 +36,46 @@ import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
-import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.utils.Shared;
 
+import static com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
-import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
+import static org.apache.cassandra.testing.TestUtils.DC1_RF3_DC2_RF3;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
 /**
- * Integration tests that verifies bulk writes during a host replacement operation in the Cassandra cluster where the
- * operation is expected to succeed
+ * Integration tests that validates successful bulk writes during a host replacement operation in a multi-datacenter
+ * Cassandra cluster where the replacement operation is expected to fail. Additionally, it validates that the
+ * node intended to be replaced is 'Down' and the replacement node is in 'Normal' state.
  */
-class HostReplacementTest extends HostReplacementTestBase
+class HostReplacementMultiDCFailureTest extends HostReplacementTestBase
 {
-    @ParameterizedTest(name = "{index} => {0}")
-    @MethodSource("singleDCTestInputs")
-    void testHostReplacement(TestConsistencyLevel cl)
+    static final QualifiedName QUALIFIED_NAME = uniqueTestTableFullName(TEST_KEYSPACE, LOCAL_QUORUM, LOCAL_QUORUM);
+
+    @Test
+    void nodeReplacementFailureMultiDC()
     {
-        QualifiedName table = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
-        bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
-                                            .save();
+        bulkWriterDataFrameWriter(df, QUALIFIED_NAME).option(WriterOptions.BULK_WRITER_CL.name(), LOCAL_QUORUM.name())
+                                                     .save();
     }
 
     @Override
     protected void beforeClusterShutdown()
     {
-        completeTransitionsAndValidateWrites(BBHelperReplacementsNode.transitioningStateEnd, singleDCTestInputs(), false);
+        Stream<Arguments> testInputs = Stream.of(Arguments.of(TestConsistencyLevel.of(LOCAL_QUORUM, LOCAL_QUORUM)));
+        completeTransitionsAndValidateWrites(BBHelperReplacementFailureMultiDC.transitionalStateEnd, testInputs, true);
     }
 
     @Override
     protected void initializeSchemaForTest()
     {
-        createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
-        singleDCTestInputs().forEach(arguments -> {
-            QualifiedName tableName = uniqueTestTableFullName(TEST_KEYSPACE, arguments.get());
-            createTestTable(tableName, CREATE_TEST_TABLE_STATEMENT);
-        });
+        createTestKeyspace(TEST_KEYSPACE, DC1_RF3_DC2_RF3);
+        createTestTable(QUALIFIED_NAME, CREATE_TEST_TABLE_STATEMENT);
     }
 
     @Override
@@ -82,40 +83,41 @@ class HostReplacementTest extends HostReplacementTestBase
     {
         return clusterConfig().nodesPerDc(5)
                               .newNodesPerDc(1)
+                              .dcCount(2)
                               .requestFeature(Feature.NETWORK)
-                              .instanceInitializer(BBHelperReplacementsNode::install);
+                              .instanceInitializer(BBHelperReplacementFailureMultiDC::install);
     }
 
     @Override
     protected CountDownLatch nodeStart()
     {
-        return BBHelperReplacementsNode.nodeStart;
+        return BBHelperReplacementFailureMultiDC.nodeStart;
     }
 
     /**
-     * ByteBuddy helper for a single node replacement
+     * ByteBuddy helper for multi DC node replacement failure
      */
     @Shared
-    public static class BBHelperReplacementsNode
+    public static class BBHelperReplacementFailureMultiDC
     {
         // Additional latch used here to sequentially start the 2 new nodes to isolate the loading
         // of the shared Cassandra system property REPLACE_ADDRESS_FIRST_BOOT across instances
         static final CountDownLatch nodeStart = new CountDownLatch(1);
-        static final CountDownLatch transitioningStateStart = new CountDownLatch(1);
-        static final CountDownLatch transitioningStateEnd = new CountDownLatch(1);
+        static final CountDownLatch transitionalStateStart = new CountDownLatch(1);
+        static final CountDownLatch transitionalStateEnd = new CountDownLatch(1);
 
         public static void install(ClassLoader cl, Integer nodeNumber)
         {
-            // Test case involves 5 node cluster with a replacement node
-            // We intercept the bootstrap of the replacement (6th) node to validate token ranges
-            if (nodeNumber == 6)
+            // Test case involves 10 node cluster (5 per DC) with a replacement node
+            // We intercept the bootstrap of the replacement (11th) node to validate token ranges
+            if (nodeNumber == 11)
             {
                 TypePool typePool = TypePool.Default.of(cl);
                 TypeDescription description = typePool.describe("org.apache.cassandra.service.StorageService")
                                                       .resolve();
                 new ByteBuddy().rebase(description, ClassFileLocator.ForClassLoader.of(cl))
                                .method(named("bootstrap").and(takesArguments(2)))
-                               .intercept(MethodDelegation.to(BBHelperReplacementsNode.class))
+                               .intercept(MethodDelegation.to(BBHelperReplacementFailureMultiDC.class))
                                // Defer class loading until all dependencies are loaded
                                .make(TypeResolutionStrategy.Lazy.INSTANCE, typePool)
                                .load(cl, ClassLoadingStrategy.Default.INJECTION);
@@ -129,9 +131,9 @@ class HostReplacementTest extends HostReplacementTestBase
             boolean result = orig.call();
             nodeStart.countDown();
             // trigger bootstrap start and wait until bootstrap is ready from test
-            transitioningStateStart.countDown();
-            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateEnd, 2, TimeUnit.MINUTES);
-            return result;
+            transitionalStateStart.countDown();
+            Uninterruptibles.awaitUninterruptibly(transitionalStateEnd, 2, TimeUnit.MINUTES);
+            throw new UnsupportedOperationException("Simulated failure");
         }
     }
 }
