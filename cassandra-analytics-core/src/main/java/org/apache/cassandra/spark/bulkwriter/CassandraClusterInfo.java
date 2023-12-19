@@ -523,8 +523,14 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     protected List<NodeSettings> getAllNodeSettings()
     {
+        // Worst-case, the http client is configured for 1 worker pool.
+        // In that case, each future can take the full retry delay * number of retries,
+        // and each instance will be processed serially.
+        final long totalTimeout = conf.getSidecarRequestMaxRetryDelayMillis() *
+                                  conf.getSidecarRequestRetries() *
+                                  allNodeSettingFutures.size();
         List<NodeSettings> allNodeSettings = FutureUtils.bestEffortGet(allNodeSettingFutures,
-                                                                       conf.getSidecarRequestMaxRetryDelayMillis(),
+                                                                       totalTimeout,
                                                                        TimeUnit.MILLISECONDS);
 
         if (allNodeSettings.isEmpty())
