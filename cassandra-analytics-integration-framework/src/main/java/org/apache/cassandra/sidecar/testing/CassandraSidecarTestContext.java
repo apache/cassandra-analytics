@@ -43,6 +43,7 @@ import org.apache.cassandra.sidecar.cluster.instance.InstanceMetadataImpl;
 import org.apache.cassandra.sidecar.common.CQLSessionProvider;
 import org.apache.cassandra.sidecar.common.JmxClient;
 import org.apache.cassandra.sidecar.common.dns.DnsResolver;
+import org.apache.cassandra.sidecar.common.utils.DriverUtils;
 import org.apache.cassandra.sidecar.common.utils.SidecarVersionProvider;
 import org.apache.cassandra.sidecar.utils.CassandraVersionProvider;
 import org.apache.cassandra.sidecar.utils.SimpleCassandraVersion;
@@ -105,10 +106,10 @@ public class CassandraSidecarTestContext implements AutoCloseable
     public static CassandraVersionProvider cassandraVersionProvider(DnsResolver dnsResolver)
     {
         return new CassandraVersionProvider.Builder()
-               .add(new CassandraFactory(dnsResolver, svp.sidecarVersion())).build();
+               .add(new CassandraFactory(dnsResolver, new DriverUtils())).build();
     }
 
-    private static int tryGetIntConfig(IInstanceConfig config, String configName, int defaultValue)
+    static int tryGetIntConfig(IInstanceConfig config, String configName, int defaultValue)
     {
         try
         {
@@ -249,6 +250,7 @@ public class CassandraSidecarTestContext implements AutoCloseable
                                                                              versionProvider,
                                                                              sessionProvider,
                                                                              jmxClient,
+                                                                             new DriverUtils(),
                                                                              "1.0-TEST",
                                                                              hostName,
                                                                              nativeTransportPort);

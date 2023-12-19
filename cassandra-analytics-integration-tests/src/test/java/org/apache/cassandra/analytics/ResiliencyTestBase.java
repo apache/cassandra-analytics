@@ -18,105 +18,124 @@
 
 package org.apache.cassandra.analytics;
 
-import java.io.ByteArrayOutputStream;
-import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.lang.management.ManagementFactory;
 import java.math.BigInteger;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import com.google.common.collect.ImmutableMap;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.datastax.driver.core.ConsistencyLevel;
+import com.vdurmont.semver4j.Semver;
 import o.a.c.analytics.sidecar.shaded.testing.adapters.base.StorageJmxOperations;
 import o.a.c.analytics.sidecar.shaded.testing.common.JmxClient;
 import org.apache.cassandra.distributed.UpgradeableCluster;
+import org.apache.cassandra.distributed.api.Feature;
+import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
-import org.apache.cassandra.distributed.api.IUpgradeableInstance;
 import org.apache.cassandra.distributed.api.Row;
 import org.apache.cassandra.distributed.api.SimpleQueryResult;
 import org.apache.cassandra.distributed.api.TokenSupplier;
-import org.apache.cassandra.sidecar.testing.IntegrationTestBase;
+import org.apache.cassandra.distributed.impl.AbstractCluster;
+import org.apache.cassandra.distributed.shared.Versions;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.DecoratedKey;
 import org.apache.cassandra.spark.bulkwriter.Tokenizer;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
-import org.apache.cassandra.testing.CassandraIntegrationTest;
-import org.apache.cassandra.testing.ConfigurableCassandraTestContext;
-import org.jetbrains.annotations.NotNull;
+import org.apache.cassandra.testing.TestVersion;
 import scala.Tuple2;
 
-import static junit.framework.TestCase.assertTrue;
 import static org.apache.cassandra.distributed.shared.NetworkTopology.dcAndRack;
 import static org.apache.cassandra.distributed.shared.NetworkTopology.networkTopology;
+import static org.apache.cassandra.testing.CassandraTestTemplate.fixDistributedSchemas;
+import static org.apache.cassandra.testing.CassandraTestTemplate.waitForHealthyRing;
+import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Base class for resiliency tests. Contains helper methods for data generation and validation
  */
-public abstract class ResiliencyTestBase extends IntegrationTestBase
+public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTestBase
 {
-    public static final int rowCount = 1000;
-    protected static final String retrieveRows = "select * from " + TEST_KEYSPACE + ".%s";
-    private static final Logger LOGGER = LoggerFactory.getLogger(ResiliencyTestBase.class);
-    private static final String createTableStmt = "create table if not exists %s (id int, course text, marks int, primary key (id));";
+    public static final String QUERY_ALL_ROWS = "SELECT * FROM %s";
 
-    private final ExecutorService executorService = Executors.newCachedThreadPool();
-    private final AtomicReference<byte[]> errorOutput = new AtomicReference<>();
-    private final AtomicReference<byte[]> outputBytes = new AtomicReference<>();
-
-
-    public QualifiedName initializeSchema()
+    public UpgradeableCluster clusterBuilder(ClusterBuilderConfiguration configuration, TestVersion testVersion)
+    throws IOException
     {
-        return initializeSchema(ImmutableMap.of("datacenter1", 1));
+        // spin up a C* cluster using the in-jvm dtest
+        Versions versions = Versions.find();
+        int nodesPerDc = configuration.nodesPerDc;
+        int dcCount = configuration.dcCount;
+        int newNodesPerDc = configuration.newNodesPerDc;
+        Preconditions.checkArgument(newNodesPerDc >= 0,
+                                    "newNodesPerDc cannot be a negative number");
+        int originalNodeCount = nodesPerDc * dcCount;
+        int finalNodeCount = dcCount * (nodesPerDc + newNodesPerDc);
+        Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(),
+                                                                          Semver.SemverType.LOOSE));
+
+        TokenSupplier tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(nodesPerDc, newNodesPerDc, dcCount, 1);
+
+        UpgradeableCluster.Builder clusterBuilder =
+        UpgradeableCluster.build(originalNodeCount)
+                          .withDynamicPortAllocation(true) // to allow parallel test runs
+                          .withVersion(requestedVersion)
+                          .withDCs(dcCount)
+                          .withDataDirCount(configuration.numDataDirsPerInstance)
+                          .withConfig(config -> configuration.features.forEach(config::with))
+                          .withTokenSupplier(tokenSupplier);
+
+        if (dcCount > 1)
+        {
+            clusterBuilder.withNodeIdTopology(networkTopology(finalNodeCount,
+                                                              (nodeId) -> nodeId % 2 != 0 ?
+                                                                          dcAndRack("datacenter1", "rack1") :
+                                                                          dcAndRack("datacenter2", "rack2")));
+        }
+
+        if (configuration.instanceInitializer != null)
+        {
+            clusterBuilder.withInstanceInitializer(configuration.instanceInitializer);
+        }
+
+        UpgradeableCluster cluster = clusterBuilder.start();
+        if (cluster.size() > 1)
+        {
+            waitForHealthyRing(cluster);
+            fixDistributedSchemas(cluster);
+        }
+        return cluster;
     }
 
-    public QualifiedName initializeSchema(Map<String, Integer> rf)
-    {
-        createTestKeyspace(TEST_KEYSPACE, rf);
-        return createTestTable(TEST_KEYSPACE, createTableStmt);
-    }
-
-    public Set<String> getDataForRange(Range<BigInteger> range)
+    public Set<String> getDataForRange(Range<BigInteger> range, int rowCount)
     {
         // Iterate through all data entries; filter only entries that belong to range; convert to strings
-        return generateExpectedData().stream()
-                                     .filter(t -> range.contains(t._1().getToken()))
-                                     .map(t -> t._2()[0] + ":" + t._2()[1] + ":" + t._2()[2])
-                                     .collect(Collectors.toSet());
+        return generateExpectedData(rowCount).stream()
+                                             .filter(t -> range.contains(t._1().getToken()))
+                                             .map(t -> t._2()[0] + ":" + t._2()[1] + ":" + t._2()[2])
+                                             .collect(Collectors.toSet());
     }
 
-    public List<Tuple2<DecoratedKey, Object[]>> generateExpectedData()
+    public List<Tuple2<DecoratedKey, Object[]>> generateExpectedData(int rowCount)
     {
         // "create table if not exists %s (id int, course text, marks int, primary key (id));";
-        List<ColumnType<?>> columnTypes = Arrays.asList(ColumnTypes.INT);
-        Tokenizer tokenizer = new Tokenizer(Arrays.asList(0),
-                                            Arrays.asList("id"),
+        List<ColumnType<?>> columnTypes = Collections.singletonList(ColumnTypes.INT);
+        Tokenizer tokenizer = new Tokenizer(Collections.singletonList(0),
+                                            Collections.singletonList("id"),
                                             columnTypes,
                                             true
         );
@@ -129,18 +148,17 @@ public abstract class ResiliencyTestBase extends IntegrationTestBase
         }).collect(Collectors.toList());
     }
 
-    public Map<IUpgradeableInstance, Set<String>> getInstanceData(List<IUpgradeableInstance> instances,
-                                                                  boolean isPending)
+    public Map<IInstance, Set<String>> getInstanceData(List<? extends IInstance> instances,
+                                                       boolean isPending, int rowCount)
     {
-
         return instances.stream().collect(Collectors.toMap(Function.identity(),
-                                                           i -> filterTokenRangeData(getRangesForInstance(i, isPending))));
+                                                           i -> filterTokenRangeData(rangesForInstance(i, isPending), rowCount)));
     }
 
-    public Set<String> filterTokenRangeData(List<Range<BigInteger>> ranges)
+    public Set<String> filterTokenRangeData(List<Range<BigInteger>> ranges, int rowCount)
     {
         return ranges.stream()
-                     .map(this::getDataForRange)
+                     .map((Range<BigInteger> range) -> getDataForRange(range, rowCount))
                      .flatMap(Collection::stream)
                      .collect(Collectors.toSet());
     }
@@ -148,13 +166,14 @@ public abstract class ResiliencyTestBase extends IntegrationTestBase
     /**
      * Returns the expected set of rows as strings for each instance in the cluster
      */
-    public Map<IUpgradeableInstance, Set<String>> generateExpectedInstanceData(UpgradeableCluster cluster,
-                                                                               List<IUpgradeableInstance> pendingNodes)
+    public Map<IInstance, Set<String>> generateExpectedInstanceData(AbstractCluster<? extends IInstance> cluster,
+                                                                    List<? extends IInstance> pendingNodes,
+                                                                    int rowCount)
     {
-        List<IUpgradeableInstance> instances = cluster.stream().collect(Collectors.toList());
-        Map<IUpgradeableInstance, Set<String>> expectedInstanceData = getInstanceData(instances, false);
+        List<IInstance> instances = cluster.stream().collect(Collectors.toList());
+        Map<IInstance, Set<String>> expectedInstanceData = getInstanceData(instances, false, rowCount);
         // Use pending ranges to get data for each transitioning instance
-        Map<IUpgradeableInstance, Set<String>> transitioningInstanceData = getInstanceData(pendingNodes, true);
+        Map<IInstance, Set<String>> transitioningInstanceData = getInstanceData(pendingNodes, true, rowCount);
         expectedInstanceData.putAll(transitioningInstanceData.entrySet()
                                                              .stream()
                                                              .filter(e -> !e.getValue().isEmpty())
@@ -163,58 +182,53 @@ public abstract class ResiliencyTestBase extends IntegrationTestBase
         return expectedInstanceData;
     }
 
-    public void validateData(String tableName, ConsistencyLevel cl)
+    protected void validateData(QualifiedName table, ConsistencyLevel readCL, int rowCount)
     {
-        String query = String.format(retrieveRows, tableName);
-        try
-        {
-            SimpleQueryResult resultSet = sidecarTestContext.cluster().get(1).coordinator()
-                                                            .executeWithResult(query, mapConsistencyLevel(cl));
-            Set<String> rows = new HashSet<>();
-            for (SimpleQueryResult it = resultSet; it.hasNext();)
-            {
-                Row row = it.next();
-                if (row.get("id") == null || row.get("course") == null || row.get("marks") == null)
-                {
-                    throw new RuntimeException("Unrecognized row in table");
-                }
+        String query = String.format(QUERY_ALL_ROWS, table);
 
-                int id = row.getInteger("id");
-                String course = row.getString("course");
-                int marks = row.getInteger("marks");
-                rows.add(id + ":" + course + ":" + marks);
-            }
-            for (int i = 0; i < rowCount; i++)
-            {
-                String expectedRow = i + ":course" + i + ":" + i;
-                rows.remove(expectedRow);
-            }
-            assertTrue(rows.isEmpty());
-        }
-        catch (Exception ex)
-        {
-            logger.error("Validation Query failed", ex);
-            throw ex;
-        }
+        Set<String> actualEntries =
+        Arrays.stream(cluster.coordinator(1)
+                             .execute(query, mapConsistencyLevel(readCL)))
+              .map((Object[] columns) -> String.format("%s:%s:%s", columns[0], columns[1], columns[2]))
+              .collect(Collectors.toSet());
+
+        assertThat(actualEntries.size()).isEqualTo(rowCount);
+
+        IntStream.range(0, rowCount)
+                 .forEach(i -> actualEntries.remove(i + ":course" + i + ":" + i));
+
+        assertThat(actualEntries).isEmpty();
+    }
+
+    protected static QualifiedName uniqueTestTableFullName(String keyspace, Object[] arguments)
+    {
+        TestConsistencyLevel cl = (TestConsistencyLevel) arguments[0];
+        return uniqueTestTableFullName(keyspace, cl.readCL, cl.writeCL);
+    }
+
+    protected static QualifiedName uniqueTestTableFullName(String keyspace, ConsistencyLevel readCL, ConsistencyLevel writeCL)
+    {
+        String tableName = String.format("r_%s__w_%s", readCL, writeCL).toLowerCase();
+        return new QualifiedName(keyspace, tableName);
     }
 
     public void validateNodeSpecificData(QualifiedName table,
-                                         Map<IUpgradeableInstance, Set<String>> expectedInstanceData)
+                                         Map<? extends IInstance, Set<String>> expectedInstanceData)
     {
         validateNodeSpecificData(table, expectedInstanceData, true);
     }
 
     public void validateNodeSpecificData(QualifiedName table,
-                                         Map<IUpgradeableInstance, Set<String>> expectedInstanceData,
+                                         Map<? extends IInstance, Set<String>> expectedInstanceData,
                                          boolean hasNewNodes)
     {
-        for (IUpgradeableInstance instance : expectedInstanceData.keySet())
+        for (IInstance instance : expectedInstanceData.keySet())
         {
-            SimpleQueryResult qr = instance.executeInternalWithResult(String.format(retrieveRows, table.table()));
+            SimpleQueryResult qr = instance.executeInternalWithResult(String.format(QUERY_ALL_ROWS, table));
             Set<String> rows = new HashSet<>();
             while (qr.hasNext())
             {
-                org.apache.cassandra.distributed.api.Row row = qr.next();
+                Row row = qr.next();
                 int id = row.getInteger("id");
                 String course = row.getString("course");
                 int marks = row.getInteger("marks");
@@ -232,43 +246,27 @@ public abstract class ResiliencyTestBase extends IntegrationTestBase
         }
     }
 
-    public void closeStream(Closeable... closeables)
-    {
-        for (Closeable closeable : closeables)
-        {
-            try
-            {
-                if (closeable != null)
-                {
-                    closeable.close();
-                }
-            }
-            catch (IOException e)
-            {
-                LOGGER.error("Error closing " + closeable.toString(), e);
-            }
-        }
-    }
-
-    private static String getCleanedClasspath()
-    {
-        String classpath = System.getProperty("java.class.path");
-        Pattern pattern = Pattern.compile(":?[^:]*/dtest-\\d\\.\\d+\\.\\d+\\.jar:?");
-        return pattern.matcher(classpath).replaceAll(":");
-    }
-
-    private List<Range<BigInteger>> getRangesForInstance(IUpgradeableInstance instance, boolean isPending)
+    private List<Range<BigInteger>> rangesForInstance(IInstance instance, boolean isPending)
     {
         IInstanceConfig config = instance.config();
-        JmxClient client = JmxClient.builder()
-                                    .host(config.broadcastAddress().getAddress().getHostAddress())
-                                    .port(config.jmxPort())
-                                    .build();
-        StorageJmxOperations ss = client.proxy(StorageJmxOperations.class, "org.apache.cassandra.db:type=StorageService");
+        Map<List<String>, List<String>> ranges = null;
+        try (JmxClient client = JmxClient.builder()
+                                         .host(config.broadcastAddress().getAddress().getHostAddress())
+                                         .port(config.jmxPort())
+                                         .build())
+        {
+            StorageJmxOperations ss = client.proxy(StorageJmxOperations.class,
+                                                   "org.apache.cassandra.db:type=StorageService");
 
-        Map<List<String>, List<String>> ranges = isPending ? ss.getPendingRangeToEndpointWithPortMap(TEST_KEYSPACE)
-                                                           : ss.getRangeToEndpointWithPortMap(TEST_KEYSPACE);
+            ranges = isPending ? ss.getPendingRangeToEndpointWithPortMap(TEST_KEYSPACE)
+                               : ss.getRangeToEndpointWithPortMap(TEST_KEYSPACE);
+        }
+        catch (IOException exception)
+        {
+            logger.warn("Unable to close JMX client");
+        }
 
+        assertThat(ranges).isNotNull();
         // filter ranges that belong to the instance
         return ranges.entrySet()
                      .stream()
@@ -301,217 +299,134 @@ public abstract class ResiliencyTestBase extends IntegrationTestBase
         return org.apache.cassandra.distributed.api.ConsistencyLevel.valueOf(cl.name());
     }
 
-    protected UpgradeableCluster getMultiDCCluster(BiConsumer<ClassLoader, Integer> initializer,
-                                                   ConfigurableCassandraTestContext cassandraTestContext)
-    throws IOException
+    public static ClusterBuilderConfiguration clusterConfig()
     {
-        return getMultiDCCluster(initializer, cassandraTestContext, null);
+        return new ClusterBuilderConfiguration();
     }
 
-    protected UpgradeableCluster getMultiDCCluster(BiConsumer<ClassLoader, Integer> initializer,
-                                                   ConfigurableCassandraTestContext cassandraTestContext,
-                                                   Consumer<UpgradeableCluster.Builder> additionalConfigurator)
-    throws IOException
+    /**
+     * {@code ClusterBuilder} static inner class.
+     */
+    public static class ClusterBuilderConfiguration
     {
-        CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;
-        TokenSupplier mdcTokenSupplier = TestTokenSupplier.evenlyDistributedTokens(annotation.nodesPerDc(),
-                                                                                   annotation.newNodesPerDc(),
-                                                                                   annotation.numDcs(),
-                                                                                   1);
+        public int nodesPerDc = 1;
+        public int dcCount = 1;
+        public int newNodesPerDc = 0;
+        public int numDataDirsPerInstance = 1;
+        private final EnumSet<Feature> features = EnumSet.of(Feature.GOSSIP, Feature.JMX, Feature.NATIVE_PROTOCOL);
+        public BiConsumer<ClassLoader, Integer> instanceInitializer = null;
 
-        int totalNodeCount = (annotation.nodesPerDc() + annotation.newNodesPerDc()) * annotation.numDcs();
-        return cassandraTestContext.configureAndStartCluster(
-        builder -> {
-            builder.withInstanceInitializer(initializer);
-            builder.withTokenSupplier(mdcTokenSupplier);
-            builder.withNodeIdTopology(networkTopology(totalNodeCount,
-                                                       (nodeId) -> nodeId % 2 != 0 ?
-                                                                   dcAndRack("datacenter1", "rack1") :
-                                                                   dcAndRack("datacenter2", "rack2")));
-
-            if (additionalConfigurator != null)
-            {
-                additionalConfigurator.accept(builder);
-            }
-        });
-    }
-
-    protected void bulkWriteData(ConsistencyLevel writeCL, QualifiedName schema)
-    throws InterruptedException
-    {
-        List<String> sidecarInstances = generateSidecarInstances();
-        // The spark job is executed in a separate process to ensure Spark's memory is cleaned up after the run.
-        List<String> command = new ArrayList<>();
-        command.add(System.getProperty("java.home") + File.separator + "bin" + File.separator + "java");
-        // Uncomment the line below to debug on localhost
-        // command.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=*:5151");
-        command.addAll(ManagementFactory.getRuntimeMXBean().getInputArguments()
-                                        .stream()
-                                        // Remove any already-existing debugger agents from the arguments
-                                        .filter(s -> shouldRetainSetting(s))
-                                        .collect(Collectors.toList()));
-        command.add("-Dspark.cassandra_analytics.request.max_connections=5");
-        // Set both max and min heap sizes because otherwise
-        command.add("-Xmx512m");
-        command.add("-Xms512m");
-        command.add("-XX:MaxDirectMemorySize=128m");
-        command.add("-cp");
-        String cleanedClasspath = getCleanedClasspath();
-        command.add(cleanedClasspath);
-        command.add(RunWriteJob.class.getName());
-        command.add(String.join(",", sidecarInstances));
-        command.add(schema.keyspace());
-        command.add(schema.table());
-        command.add(writeCL.name());
-        command.add(String.valueOf(server.actualPort()));
-        command.add(String.valueOf(rowCount));
-        try
+        private ClusterBuilderConfiguration()
         {
-            ProcessBuilder builder = new ProcessBuilder(command);
-            LOGGER.info("Running: {}", String.join("\n", command));
-            Process process = builder.start();
-            CountDownLatch finishLatch = startReadOutputThreads(process, String.join(" ", command));
-            boolean completed = process.waitFor(10, TimeUnit.MINUTES);
-            if (!completed)
-            {
-                process.destroyForcibly();
-                finishLatch.await(10, TimeUnit.MINUTES);
-                String errorMessage = "Spark job failed to complete after 10 minutes. " +
-                                      "Check log for 'SPARK STDOUT/SPARK STDERR' for details";
-                logSparkOutputAndThrow(errorMessage, command, process.exitValue());
-                throw new RuntimeException(errorMessage);
-            }
-            // Make sure the Java threads reading output have completed
-            boolean finishedReading = finishLatch.await(10, TimeUnit.MINUTES);
-            int exitCode = process.exitValue();
-            if (exitCode != 0)
-            {
-                logSparkOutputAndThrow("Failed to run spark command - please see output above for more information",
-                                       command, exitCode);
-            }
         }
-        catch (IOException e)
+
+        /**
+         * Adds a features to the list of default features.
+         *
+         * @param feature the {@code feature} to add
+         * @return a reference to this Builder
+         */
+        public ClusterBuilderConfiguration requestFeature(Feature feature)
         {
-            throw new RuntimeException("Unable to run spark job", e);
+            features.add(feature);
+            return this;
+        }
+
+        /**
+         * Removes a feature to the list of requested features for the cluster.
+         *
+         * @param feature the {@code feature} to add
+         * @return a reference to this Builder
+         */
+        public ClusterBuilderConfiguration removeFeature(Feature feature)
+        {
+            features.remove(feature);
+            return this;
+        }
+
+        /**
+         * Sets the {@code nodesPerDc} and returns a reference to this Builder enabling method chaining.
+         *
+         * @param nodesPerDc the {@code nodesPerDc} to set
+         * @return a reference to this Builder
+         */
+        public ClusterBuilderConfiguration nodesPerDc(int nodesPerDc)
+        {
+            this.nodesPerDc = nodesPerDc;
+            return this;
+        }
+
+        /**
+         * Sets the {@code dcCount} and returns a reference to this Builder enabling method chaining.
+         *
+         * @param dcCount the {@code dcCount} to set
+         * @return a reference to this Builder
+         */
+        public ClusterBuilderConfiguration dcCount(int dcCount)
+        {
+            this.dcCount = dcCount;
+            return this;
+        }
+
+        /**
+         * Sets the {@code newNodesPerDc} and returns a reference to this Builder enabling method chaining.
+         *
+         * @param newNodesPerDc the {@code newNodesPerDc} to set
+         * @return a reference to this Builder
+         */
+        public ClusterBuilderConfiguration newNodesPerDc(int newNodesPerDc)
+        {
+            Preconditions.checkArgument(newNodesPerDc >= 0,
+                                        "newNodesPerDc cannot be a negative number");
+            this.newNodesPerDc = newNodesPerDc;
+            return this;
+        }
+
+        /**
+         * Sets the {@code numDataDirsPerInstance} and returns a reference to this Builder enabling method chaining.
+         *
+         * @param numDataDirsPerInstance the {@code numDataDirsPerInstance} to set
+         * @return a reference to this Builder
+         */
+        public ClusterBuilderConfiguration numDataDirsPerInstance(int numDataDirsPerInstance)
+        {
+            this.numDataDirsPerInstance = numDataDirsPerInstance;
+            return this;
+        }
+
+        /**
+         * Sets the {@code instanceInitializer} and returns a reference to this Builder enabling method chaining.
+         *
+         * @param instanceInitializer the {@code instanceInitializer} to set
+         * @return a reference to this Builder
+         */
+        public ClusterBuilderConfiguration instanceInitializer(BiConsumer<ClassLoader, Integer> instanceInitializer)
+        {
+            this.instanceInitializer = instanceInitializer;
+            return this;
         }
     }
 
-    private void logSparkOutputAndThrow(String errorMessage, List<String> command, int exitCode)
+    public static class TestConsistencyLevel
     {
-        String stdout = new String(outputBytes.get());
-        String stdErr = new String(errorOutput.get());
-        LOGGER.error("Spark STDOUT:\n*****{}\n*****", stdout);
-        LOGGER.error("Spark STDERR:\n*****{}\n*****", stdErr);
-        LOGGER.error(errorMessage);
-        throw new SparkJobFailedException(errorMessage,
-                                          command,
-                                          exitCode,
-                                          stdout,
-                                          stdErr);
-    }
+        public final ConsistencyLevel readCL;
+        public final ConsistencyLevel writeCL;
 
-    @NotNull
-    public QualifiedName createAndWaitForKeyspaceAndTable()
-    {
-        CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;
-
-        ImmutableMap<String, Integer> rf;
-        if (annotation.numDcs() > 1 && annotation.useCrossDcKeyspace())
+        private TestConsistencyLevel(ConsistencyLevel readCL, ConsistencyLevel writeCL)
         {
-            rf = ImmutableMap.of("datacenter1", DEFAULT_RF, "datacenter2", DEFAULT_RF);
+            this.readCL = Objects.requireNonNull(readCL, "readCL is required");
+            this.writeCL = Objects.requireNonNull(writeCL, "writeCL is required");
         }
-        else
+
+        public static TestConsistencyLevel of(ConsistencyLevel readCL, ConsistencyLevel writeCL)
         {
-            rf = ImmutableMap.of("datacenter1", DEFAULT_RF);
+            return new TestConsistencyLevel(readCL, writeCL);
         }
-        QualifiedName schema = initializeSchema(rf);
-        waitUntilSidecarPicksUpSchemaChange(schema.keyspace());
-        return schema;
-    }
 
-    private static boolean shouldRetainSetting(String s)
-    {
-        return !s.startsWith("-agentlib:")
-               && !s.startsWith("-Xmx")
-               && !s.startsWith("-Xms")
-               && !s.startsWith("-Djava.security.manager");
-    }
-
-    protected List<String> generateSidecarInstances()
-    {
-        List<String> sidecarInstances = new ArrayList<>();
-        for (IUpgradeableInstance inst: sidecarTestContext.cluster())
+        @Override
+        public String toString()
         {
-            // For the sake of test speed, only give the Sidecar client instances that are actually
-            // up. This is similar to considering them "administratively blocked" assuming they
-            // are down for some kind of maintenance.
-            if (!inst.isShutdown())
-            {
-                sidecarInstances.add(inst.config().broadcastAddress().getHostName());
-            }
-        }
-        return sidecarInstances;
-    }
-
-    private CountDownLatch startReadOutputThreads(Process ps, String commandLine)
-    {
-        final CountDownLatch completeLatch = new CountDownLatch(2);
-        // we run threads that copy stderr and stdout to prevent the
-        // external process from blocking trying to write to a full buffer.
-        executorService.execute(() -> {
-            final String errorThreadName = Thread.currentThread().getName();
-            try
-            {
-                Thread.currentThread().setName("ProcessLauncher-stderr: " + commandLine);
-                final ByteArrayOutputStream bout = new ByteArrayOutputStream();
-                copyStream(ps.getErrorStream(), bout);
-                errorOutput.set(bout.toByteArray());
-            }
-            catch (IOException e)
-            {
-                errorOutput.set(("Error copying process stderr of " + commandLine + ": " + e.toString())
-                                .getBytes(Charset.defaultCharset())
-                );
-            }
-            finally
-            {
-                completeLatch.countDown();
-                Thread.currentThread().setName(errorThreadName);
-                closeStream(ps.getErrorStream());
-            }
-        });
-
-        executorService.execute(() -> {
-            final String outputThreadName = Thread.currentThread().getName();
-            try
-            {
-                Thread.currentThread().setName("ProcessLauncher-stdout: " + commandLine);
-                final ByteArrayOutputStream bout = new ByteArrayOutputStream();
-                copyStream(ps.getInputStream(), bout);
-                outputBytes.set(bout.toByteArray());
-            }
-            catch (Exception e)
-            {
-                LOGGER.error("Could not read Spark output", e);
-                outputBytes.set(null);
-            }
-            finally
-            {
-                completeLatch.countDown();
-                Thread.currentThread().setName(outputThreadName);
-                closeStream(ps.getInputStream());
-            }
-        });
-        return completeLatch;
-    }
-
-    private void copyStream(InputStream in, OutputStream out) throws IOException
-    {
-        int len;
-        byte[] buf = new byte[1024];
-        while ((len = in.read(buf)) != -1)
-        {
-            out.write(buf, 0, len);
+            return "readCL=" + readCL + ", writeCL=" + writeCL;
         }
     }
 }

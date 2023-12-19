@@ -18,15 +18,13 @@
 
 package org.apache.cassandra.analytics.movement;
 
+import java.io.IOException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import com.google.common.util.concurrent.Uninterruptibles;
 
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
@@ -36,76 +34,40 @@ import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
-import org.apache.cassandra.analytics.TestUninterruptibles;
-import org.apache.cassandra.distributed.api.Feature;
-import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.utils.Shared;
 
-import static com.datastax.driver.core.ConsistencyLevel.ALL;
-import static com.datastax.driver.core.ConsistencyLevel.ONE;
-import static com.datastax.driver.core.ConsistencyLevel.QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
-import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
-import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
-import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
 /**
- * Integration tests to verify bulk writes when a Cassandra's node range is moved and the operation is expected
- * to succeed
+ * Integration tests to verify bulk writes when a Cassandra's node range is moved and the operation is expected to
+ * fail
  */
-class NodeMovementTest extends NodeMovementTestBase
+class NodeMovementFailureTest extends NodeMovementTest
 {
-    @ParameterizedTest(name = "{index} => {0}")
-    @MethodSource("singleDCTestInputs")
-    void testMoveNode(TestConsistencyLevel cl)
-    {
-        runMovingNodeTest(cl);
-    }
-
-    @Override
-    protected void initializeSchemaForTest()
-    {
-        createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
-        singleDCTestInputs().forEach(arguments -> {
-            QualifiedName tableName = uniqueTestTableFullName(TEST_KEYSPACE, arguments.get());
-            createTestTable(tableName, CREATE_TEST_TABLE_STATEMENT);
-        });
-    }
-
     @Override
     protected CountDownLatch transitioningStateStart()
     {
-        return BBHelperMovingNode.transitioningStateStart;
+        return BBHelperMovingNodeFailure.transitioningStateStart;
     }
 
     @Override
     protected void beforeClusterShutdown()
     {
-        completeTransitionAndValidateWrites(BBHelperMovingNode.transitioningStateEnd, singleDCTestInputs(), false);
+        completeTransitionAndValidateWrites(BBHelperMovingNodeFailure.transitioningStateEnd, singleDCTestInputs(), true);
     }
 
     @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        return clusterConfig().nodesPerDc(5)
-                              .requestFeature(Feature.NETWORK)
-                              .instanceInitializer(BBHelperMovingNode::install);
-    }
-
-    static Stream<Arguments> singleDCTestInputs()
-    {
-        return Stream.of(
-        Arguments.of(TestConsistencyLevel.of(ONE, ALL)),
-        Arguments.of(TestConsistencyLevel.of(QUORUM, QUORUM)),
-        Arguments.of(TestConsistencyLevel.of(ALL, ONE))
-        );
+        return super.testClusterConfiguration()
+                    .instanceInitializer(BBHelperMovingNodeFailure::install);
     }
 
     /**
-     * ByteBuddy Helper for a single moving node
+     * ByteBuddy Helper for a single moving node simulating a move failure
      */
     @Shared
-    public static class BBHelperMovingNode
+    public static class BBHelperMovingNodeFailure
     {
         static final CountDownLatch transitioningStateStart = new CountDownLatch(1);
         static final CountDownLatch transitioningStateEnd = new CountDownLatch(1);
@@ -120,7 +82,7 @@ class NodeMovementTest extends NodeMovementTestBase
                                                       .resolve();
                 new ByteBuddy().rebase(description, ClassFileLocator.ForClassLoader.of(cl))
                                .method(named("stream"))
-                               .intercept(MethodDelegation.to(BBHelperMovingNode.class))
+                               .intercept(MethodDelegation.to(BBHelperMovingNodeFailure.class))
                                // Defer class loading until all dependencies are loaded
                                .make(TypeResolutionStrategy.Lazy.INSTANCE, typePool)
                                .load(cl, ClassLoadingStrategy.Default.INJECTION);
@@ -132,8 +94,9 @@ class NodeMovementTest extends NodeMovementTestBase
         {
             Future<?> res = orig.call();
             transitioningStateStart.countDown();
-            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateEnd, 2, TimeUnit.MINUTES);
-            return res;
+            Uninterruptibles.awaitUninterruptibly(transitioningStateEnd, 2, TimeUnit.MINUTES);
+
+            throw new IOException("Simulated node movement failures"); // Throws exception to nodetool
         }
     }
 }

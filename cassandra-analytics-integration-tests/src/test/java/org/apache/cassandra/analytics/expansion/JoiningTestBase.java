@@ -18,6 +18,7 @@
 
 package org.apache.cassandra.analytics.expansion;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,68 +26,90 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
-import com.datastax.driver.core.ConsistencyLevel;
+import org.junit.jupiter.params.provider.Arguments;
+
+import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.ResiliencyTestBase;
-import org.apache.cassandra.analytics.TestTokenSupplier;
 import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.Feature;
-import org.apache.cassandra.distributed.api.IUpgradeableInstance;
-import org.apache.cassandra.distributed.api.TokenSupplier;
+import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.shared.ClusterUtils;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.testing.CassandraIntegrationTest;
-import org.apache.cassandra.testing.ConfigurableCassandraTestContext;
+import org.apache.cassandra.spark.bulkwriter.WriterOptions;
+import org.apache.cassandra.testing.TestVersion;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
 
+import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
+import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class JoiningTestBase extends ResiliencyTestBase
+abstract class JoiningTestBase extends ResiliencyTestBase
 {
+    Dataset<Row> df;
+    Map<IInstance, Set<String>> expectedInstanceData;
+    List<IInstance> newInstances;
 
-    void runJoiningTestScenario(CountDownLatch transitioningStateStart,
-                                CountDownLatch transitioningStateEnd,
-                                UpgradeableCluster cluster,
-                                ConsistencyLevel readCL,
-                                ConsistencyLevel writeCL,
-                                boolean isFailure,
-                                String testName) throws Exception
+    protected void runJoiningTestScenario(TestConsistencyLevel cl)
     {
-        CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;
-        QualifiedName table;
-        List<IUpgradeableInstance> newInstances;
-        Map<IUpgradeableInstance, Set<String>> expectedInstanceData;
-        try
-        {
-            newInstances = addNewInstances(cluster, annotation.newNodesPerDc(), annotation.numDcs());
-
-            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart, 2, TimeUnit.MINUTES);
-
-            newInstances.forEach(instance -> ClusterUtils.awaitRingState(instance, instance, "Joining"));
-            table = createAndWaitForKeyspaceAndTable();
-            bulkWriteData(writeCL, table);
-
-            expectedInstanceData = generateExpectedInstanceData(cluster, newInstances);
-        }
-        finally
-        {
-            for (int i = 0; i < (annotation.newNodesPerDc() * annotation.numDcs()); i++)
-            {
-                transitioningStateEnd.countDown();
-            }
-        }
-
-        assertThat(table).isNotNull();
-
-        validateData(table.table(), readCL);
+        QualifiedName table = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
+        bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
+                                            .save();
+        // validate data right after bulk writes
+        validateData(table, cl.readCL, ROW_COUNT);
         validateNodeSpecificData(table, expectedInstanceData);
+    }
+
+    @Override
+    protected void beforeTestStart()
+    {
+        SparkSession spark = getOrCreateSparkSession();
+        // Generate some artificial data for the test
+        df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
+        // Generate the expected data for the new instances
+        expectedInstanceData = generateExpectedInstanceData(cluster, newInstances, ROW_COUNT);
+    }
+
+    @Override
+    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
+    {
+        ClusterBuilderConfiguration configuration = testClusterConfiguration();
+        UpgradeableCluster provisionedCluster = clusterBuilder(configuration, testVersion);
+
+        newInstances = addNewInstances(provisionedCluster, configuration.newNodesPerDc, configuration.dcCount);
+        TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart(), 2, TimeUnit.MINUTES);
+        newInstances.forEach(instance -> ClusterUtils.awaitRingState(instance, instance, "Joining"));
+
+        return provisionedCluster;
+    }
+
+    protected void completeTransitionsAndValidateWrites(CountDownLatch transitionalStateEnd,
+                                                        Stream<Arguments> testInputs,
+                                                        boolean failureExpected)
+    {
+        long count = transitionalStateEnd.getCount();
+        for (int i = 0; i < count; i++)
+        {
+            transitionalStateEnd.countDown();
+        }
+
+        testInputs.forEach(arguments -> {
+            TestConsistencyLevel cl = (TestConsistencyLevel) arguments.get()[0];
+
+            QualifiedName tableName = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
+            validateData(tableName, cl.readCL, ROW_COUNT);
+            validateNodeSpecificData(tableName, expectedInstanceData);
+        });
 
         // For tests that involve JOIN failures, we make a best-effort attempt to check if the node join has failed
         // by checking if the node has either left the ring or is still in JOINING state, but not NORMAL
-        if (isFailure)
+        if (failureExpected)
         {
-            for (IUpgradeableInstance joiningNode : newInstances)
+            for (IInstance joiningNode : newInstances)
             {
                 Optional<ClusterUtils.RingInstanceDetails> joiningNodeDetails =
                 getMatchingInstanceFromRing(cluster.get(1), joiningNode);
@@ -96,25 +119,35 @@ public class JoiningTestBase extends ResiliencyTestBase
         }
     }
 
-    private List<IUpgradeableInstance> addNewInstances(UpgradeableCluster cluster, int newNodesPerDc, int numDcs)
+    /**
+     * @return a latch to wait before the cluster provisioning is complete
+     */
+    protected abstract CountDownLatch transitioningStateStart();
+
+    /**
+     * @return the configuration for the test cluster
+     */
+    protected abstract ClusterBuilderConfiguration testClusterConfiguration();
+
+    private static List<IInstance> addNewInstances(UpgradeableCluster cluster, int newNodesPerDc, int numDcs)
     {
-        List<IUpgradeableInstance> newInstances = new ArrayList<>();
+        List<IInstance> newInstances = new ArrayList<>();
         // Go over new nodes and add them once for each DC
         for (int i = 0; i < newNodesPerDc; i++)
         {
             int dcNodeIdx = 1; // Use node 2's DC
             for (int dc = 1; dc <= numDcs; dc++)
             {
-                IUpgradeableInstance dcNode = cluster.get(dcNodeIdx++);
-                IUpgradeableInstance newInstance = ClusterUtils.addInstance(cluster,
-                                                                            dcNode.config().localDatacenter(),
-                                                                            dcNode.config().localRack(),
-                                                                            inst -> {
-                                                                                inst.set("auto_bootstrap", true);
-                                                                                inst.with(Feature.GOSSIP,
-                                                                                          Feature.JMX,
-                                                                                          Feature.NATIVE_PROTOCOL);
-                                                                            });
+                IInstance dcNode = cluster.get(dcNodeIdx++);
+                IInstance newInstance = ClusterUtils.addInstance(cluster,
+                                                                 dcNode.config().localDatacenter(),
+                                                                 dcNode.config().localRack(),
+                                                                 inst -> {
+                                                                     inst.set("auto_bootstrap", true);
+                                                                     inst.with(Feature.GOSSIP,
+                                                                               Feature.JMX,
+                                                                               Feature.NATIVE_PROTOCOL);
+                                                                 });
                 new Thread(() -> newInstance.startup(cluster)).start();
                 newInstances.add(newInstance);
             }
@@ -122,39 +155,8 @@ public class JoiningTestBase extends ResiliencyTestBase
         return newInstances;
     }
 
-    void runJoiningTestScenario(ConfigurableCassandraTestContext cassandraTestContext,
-                                BiConsumer<ClassLoader, Integer> instanceInitializer,
-                                CountDownLatch transitioningStateStart,
-                                CountDownLatch transitioningStateEnd,
-                                ConsistencyLevel readCL,
-                                ConsistencyLevel writeCL,
-                                boolean isFailure,
-                                String testName)
-    throws Exception
-    {
-
-        CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;
-        TokenSupplier tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(annotation.nodesPerDc(),
-                                                                                annotation.newNodesPerDc(),
-                                                                                annotation.numDcs(),
-                                                                                1);
-
-        UpgradeableCluster cluster = cassandraTestContext.configureAndStartCluster(builder -> {
-            builder.withInstanceInitializer(instanceInitializer);
-            builder.withTokenSupplier(tokenSupplier);
-        });
-
-        runJoiningTestScenario(transitioningStateStart,
-                               transitioningStateEnd,
-                               cluster,
-                               readCL,
-                               writeCL,
-                               isFailure,
-                               testName);
-    }
-
-    private Optional<ClusterUtils.RingInstanceDetails> getMatchingInstanceFromRing(IUpgradeableInstance seed,
-                                                                                   IUpgradeableInstance instance)
+    Optional<ClusterUtils.RingInstanceDetails> getMatchingInstanceFromRing(IInstance seed,
+                                                                           IInstance instance)
     {
         String ipAddress = instance.broadcastAddress().getAddress().getHostAddress();
         return ClusterUtils.ring(seed)

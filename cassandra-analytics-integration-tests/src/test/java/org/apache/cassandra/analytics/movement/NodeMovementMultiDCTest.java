@@ -42,22 +42,24 @@ import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.utils.Shared;
 
 import static com.datastax.driver.core.ConsistencyLevel.ALL;
+import static com.datastax.driver.core.ConsistencyLevel.EACH_QUORUM;
+import static com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM;
 import static com.datastax.driver.core.ConsistencyLevel.ONE;
 import static com.datastax.driver.core.ConsistencyLevel.QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
-import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
+import static org.apache.cassandra.testing.TestUtils.DC1_RF3_DC2_RF3;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
 /**
- * Integration tests to verify bulk writes when a Cassandra's node range is moved and the operation is expected
- * to succeed
+ * Integration tests to verify bulk writes when a Cassandra's node range is moved in a multi-DC cluster, and the
+ * move operation is expected to succeed
  */
-class NodeMovementTest extends NodeMovementTestBase
+class NodeMovementMultiDCTest extends NodeMovementTestBase
 {
     @ParameterizedTest(name = "{index} => {0}")
-    @MethodSource("singleDCTestInputs")
-    void testMoveNode(TestConsistencyLevel cl)
+    @MethodSource("multiDCTestInputs")
+    void testMoveNodeMultiDC(TestConsistencyLevel cl)
     {
         runMovingNodeTest(cl);
     }
@@ -65,8 +67,8 @@ class NodeMovementTest extends NodeMovementTestBase
     @Override
     protected void initializeSchemaForTest()
     {
-        createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
-        singleDCTestInputs().forEach(arguments -> {
+        createTestKeyspace(TEST_KEYSPACE, DC1_RF3_DC2_RF3);
+        multiDCTestInputs().forEach(arguments -> {
             QualifiedName tableName = uniqueTestTableFullName(TEST_KEYSPACE, arguments.get());
             createTestTable(tableName, CREATE_TEST_TABLE_STATEMENT);
         });
@@ -75,28 +77,31 @@ class NodeMovementTest extends NodeMovementTestBase
     @Override
     protected CountDownLatch transitioningStateStart()
     {
-        return BBHelperMovingNode.transitioningStateStart;
+        return BBHelperMovingNodeMultiDC.transitioningStateStart;
     }
 
     @Override
     protected void beforeClusterShutdown()
     {
-        completeTransitionAndValidateWrites(BBHelperMovingNode.transitioningStateEnd, singleDCTestInputs(), false);
+        completeTransitionAndValidateWrites(BBHelperMovingNodeMultiDC.transitioningStateEnd, multiDCTestInputs(), false);
     }
 
     @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        return clusterConfig().nodesPerDc(5)
+        return clusterConfig().nodesPerDc(3)
+                              .dcCount(2)
                               .requestFeature(Feature.NETWORK)
-                              .instanceInitializer(BBHelperMovingNode::install);
+                              .instanceInitializer(BBHelperMovingNodeMultiDC::install);
     }
 
-    static Stream<Arguments> singleDCTestInputs()
+    static Stream<Arguments> multiDCTestInputs()
     {
         return Stream.of(
-        Arguments.of(TestConsistencyLevel.of(ONE, ALL)),
+        Arguments.of(TestConsistencyLevel.of(LOCAL_QUORUM, LOCAL_QUORUM)),
         Arguments.of(TestConsistencyLevel.of(QUORUM, QUORUM)),
+        Arguments.of(TestConsistencyLevel.of(LOCAL_QUORUM, EACH_QUORUM)),
+        Arguments.of(TestConsistencyLevel.of(ONE, ALL)),
         Arguments.of(TestConsistencyLevel.of(ALL, ONE))
         );
     }
@@ -105,7 +110,7 @@ class NodeMovementTest extends NodeMovementTestBase
      * ByteBuddy Helper for a single moving node
      */
     @Shared
-    public static class BBHelperMovingNode
+    public static class BBHelperMovingNodeMultiDC
     {
         static final CountDownLatch transitioningStateStart = new CountDownLatch(1);
         static final CountDownLatch transitioningStateEnd = new CountDownLatch(1);
@@ -113,14 +118,14 @@ class NodeMovementTest extends NodeMovementTestBase
         public static void install(ClassLoader cl, Integer nodeNumber)
         {
             // Moving the 5th node in the test case
-            if (nodeNumber == SINGLE_DC_MOVING_NODE_IDX)
+            if (nodeNumber == MULTI_DC_MOVING_NODE_IDX)
             {
                 TypePool typePool = TypePool.Default.of(cl);
                 TypeDescription description = typePool.describe("org.apache.cassandra.service.RangeRelocator")
                                                       .resolve();
                 new ByteBuddy().rebase(description, ClassFileLocator.ForClassLoader.of(cl))
                                .method(named("stream"))
-                               .intercept(MethodDelegation.to(BBHelperMovingNode.class))
+                               .intercept(MethodDelegation.to(BBHelperMovingNodeMultiDC.class))
                                // Defer class loading until all dependencies are loaded
                                .make(TypeResolutionStrategy.Lazy.INSTANCE, typePool)
                                .load(cl, ClassLoadingStrategy.Default.INJECTION);

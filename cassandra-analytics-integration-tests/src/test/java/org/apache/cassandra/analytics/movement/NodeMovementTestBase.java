@@ -18,108 +18,124 @@
 
 package org.apache.cassandra.analytics.movement;
 
+import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
-import com.datastax.driver.core.ConsistencyLevel;
+import org.junit.jupiter.params.provider.Arguments;
+
+import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.ResiliencyTestBase;
-import org.apache.cassandra.analytics.TestTokenSupplier;
 import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.UpgradeableCluster;
-import org.apache.cassandra.distributed.api.IUpgradeableInstance;
-import org.apache.cassandra.distributed.api.TokenSupplier;
+import org.apache.cassandra.distributed.api.IInstance;
+import org.apache.cassandra.distributed.impl.AbstractCluster;
 import org.apache.cassandra.distributed.shared.ClusterUtils;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.testing.CassandraIntegrationTest;
-import org.apache.cassandra.testing.ConfigurableCassandraTestContext;
+import org.apache.cassandra.spark.bulkwriter.WriterOptions;
+import org.apache.cassandra.testing.TestVersion;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
 
+import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
+import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class NodeMovementTestBase extends ResiliencyTestBase
+abstract class NodeMovementTestBase extends ResiliencyTestBase
 {
     public static final int SINGLE_DC_MOVING_NODE_IDX = 5;
     public static final int MULTI_DC_MOVING_NODE_IDX = 3;
 
-    // CHECKSTYLE IGNORE: Method with many parameters
-    void runMovingNodeTest(ConfigurableCassandraTestContext cassandraTestContext,
-                           BiConsumer<ClassLoader, Integer> instanceInitializer,
-                           CountDownLatch transitioningStateStart,
-                           CountDownLatch transitioningStateEnd,
-                           boolean isFailure,
-                           ConsistencyLevel readCL,
-                           ConsistencyLevel writeCL) throws Exception
+    IInstance movingNode;
+    Dataset<Row> df;
+    Map<? extends IInstance, Set<String>> expectedInstanceData;
 
+    protected void runMovingNodeTest(TestConsistencyLevel cl)
     {
-        CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;
-        TokenSupplier tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(annotation.nodesPerDc(),
-                                                                                annotation.newNodesPerDc(),
-                                                                                annotation.numDcs(),
-                                                                                1);
-        UpgradeableCluster cluster;
-        QualifiedName schema;
-        int movingNodeIndex;
-        if (annotation.numDcs() > 1)
-        {
-            movingNodeIndex = MULTI_DC_MOVING_NODE_IDX;
-            cluster = getMultiDCCluster(instanceInitializer, cassandraTestContext);
-        }
-        else
-        {
-            movingNodeIndex = SINGLE_DC_MOVING_NODE_IDX;
-            cluster = cassandraTestContext.configureAndStartCluster(builder -> {
-                builder.withInstanceInitializer(instanceInitializer);
-                builder.withTokenSupplier(tokenSupplier);
-            });
-        }
+        QualifiedName table = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
+        bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
+                                            .save();
+        // validate data right after bulk writes
+        validateData(table, cl.readCL, ROW_COUNT);
+        validateNodeSpecificData(table, expectedInstanceData, false);
+    }
 
-        schema = createAndWaitForKeyspaceAndTable();
+    @Override
+    protected void beforeTestStart()
+    {
+        SparkSession spark = getOrCreateSparkSession();
+        // Generate some artificial data for the test
+        df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
+        // generate the expected data for the moving instance
+        expectedInstanceData = generateExpectedInstanceData(cluster, Collections.singletonList(movingNode), ROW_COUNT);
+    }
 
-        long moveTarget = getMoveTargetToken(cluster);
-        IUpgradeableInstance movingNode = cluster.get(movingNodeIndex);
-        String initialToken = movingNode.config().getString("initial_token");
-        Map<IUpgradeableInstance, Set<String>> expectedInstanceData;
-        bulkWriteData(writeCL, schema);
-        try
-        {
-            IUpgradeableInstance seed = cluster.get(1);
-            new Thread(() -> movingNode.nodetoolResult("move", "--", Long.toString(moveTarget))
-                                       .asserts()
-                                       .success()).start();
+    @Override
+    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
+    {
+        ClusterBuilderConfiguration configuration = testClusterConfiguration();
+        UpgradeableCluster provisionedCluster = clusterBuilder(configuration, testVersion);
 
-            // Wait until nodes have reached expected state
-            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart, 2, TimeUnit.MINUTES);
-            ClusterUtils.awaitRingState(seed, movingNode, "Moving");
-            bulkWriteData(writeCL, schema);
-            expectedInstanceData = generateExpectedInstanceData(cluster, Collections.singletonList(movingNode));
-        }
-        finally
-        {
-            transitioningStateEnd.countDown();
-        }
+        int movingNodeIndex = configuration.dcCount > 1 ? MULTI_DC_MOVING_NODE_IDX : SINGLE_DC_MOVING_NODE_IDX;
+        movingNode = provisionedCluster.get(movingNodeIndex);
+
+        IInstance seed = provisionedCluster.get(1);
+        new Thread(() -> {
+            long moveTarget = calculateMoveTargetToken(provisionedCluster, configuration.dcCount);
+            movingNode.nodetoolResult("move", "--", Long.toString(moveTarget)).asserts().success();
+        }).start();
+
+        // Wait until nodes have reached expected state
+        TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart(), 2, TimeUnit.MINUTES);
+        ClusterUtils.awaitRingState(seed, movingNode, "Moving");
+
+        return provisionedCluster;
+    }
+
+    /**
+     * @return a latch to wait before the cluster provisioning is complete
+     */
+    protected abstract CountDownLatch transitioningStateStart();
+
+    protected void completeTransitionAndValidateWrites(CountDownLatch transitionalStateEnd,
+                                                       Stream<Arguments> testInputs,
+                                                       boolean expectFailure)
+    {
+        transitionalStateEnd.countDown();
+
+        assertThat(movingNode).isNotNull();
 
         // It is only in successful MOVE operation that we validate that the node has reached NORMAL state
-        if (!isFailure)
+        if (!expectFailure)
         {
             ClusterUtils.awaitRingState(cluster.get(1), movingNode, "Normal");
         }
-        validateData(schema.table(), readCL);
-        validateNodeSpecificData(schema, expectedInstanceData, false);
+
+        testInputs.forEach(arguments -> {
+            TestConsistencyLevel cl = (TestConsistencyLevel) arguments.get()[0];
+
+            QualifiedName tableName = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
+            validateData(tableName, cl.readCL, ROW_COUNT);
+            validateNodeSpecificData(tableName, expectedInstanceData, false);
+        });
 
         // For tests that involve MOVE failures, we make a best-effort attempt by checking if the node is either
         // still MOVING or has flipped back to NORMAL state with the initial token that it previously held
-        if (isFailure)
+        if (expectFailure)
         {
+            String initialToken = movingNode.config().getString("initial_token");
             Optional<ClusterUtils.RingInstanceDetails> movingInstance =
             ClusterUtils.ring(cluster.get(1))
                         .stream()
                         .filter(i -> i.getAddress().equals(movingNode.broadcastAddress().getAddress().getHostAddress()))
                         .findFirst();
-            assertThat(movingInstance.isPresent()).isTrue();
+            assertThat(movingInstance).isPresent();
             String state = movingInstance.get().getState();
 
             assertThat(state.equals("Moving") ||
@@ -127,15 +143,19 @@ public class NodeMovementTestBase extends ResiliencyTestBase
         }
     }
 
-    protected long getMoveTargetToken(UpgradeableCluster cluster)
+    /**
+     * @return the configuration for the test cluster
+     */
+    protected abstract ClusterBuilderConfiguration testClusterConfiguration();
+
+    static long calculateMoveTargetToken(AbstractCluster<? extends IInstance> cluster, int dcCount)
     {
-        CassandraIntegrationTest annotation = sidecarTestContext.cassandraTestContext().annotation;
-        IUpgradeableInstance seed = cluster.get(1);
+        IInstance seed = cluster.get(1);
         // The target token to move the node to is calculated by adding an offset to the seed node token which
         // is half of the range between 2 tokens.
         // For multi-DC case (specifically 2 DCs), since neighbouring tokens can be consecutive, we use tokens 1
         // and 3 to calculate the offset
-        int nextIndex = (annotation.numDcs() > 1) ? 3 : 2;
+        int nextIndex = (dcCount > 1) ? 3 : 2;
         long t2 = Long.parseLong(seed.config().getString("initial_token"));
         long t3 = Long.parseLong(cluster.get(nextIndex).config().getString("initial_token"));
         return (t2 + ((t3 - t2) / 2));

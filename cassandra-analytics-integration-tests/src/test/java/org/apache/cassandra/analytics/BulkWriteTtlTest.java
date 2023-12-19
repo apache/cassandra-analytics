@@ -19,179 +19,130 @@
 
 package org.apache.cassandra.analytics;
 
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.collect.ImmutableMap;
-import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
+import com.vdurmont.semver4j.Semver;
 import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
+import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.SimpleQueryResult;
+import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.shared.Uninterruptibles;
-import org.apache.cassandra.sidecar.testing.IntegrationTestBase;
+import org.apache.cassandra.distributed.shared.Versions;
+import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.TTLOption;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
-import org.apache.cassandra.testing.CassandraIntegrationTest;
+import org.apache.cassandra.testing.TestVersion;
+import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
+import org.apache.spark.sql.SparkSession;
 
-import static org.apache.spark.sql.types.DataTypes.BinaryType;
-import static org.apache.spark.sql.types.DataTypes.IntegerType;
-import static org.apache.spark.sql.types.DataTypes.LongType;
+import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
+import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
+import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
+import static org.apache.cassandra.testing.CassandraTestTemplate.fixDistributedSchemas;
+import static org.apache.cassandra.testing.CassandraTestTemplate.waitForHealthyRing;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public class BulkWriteTtlTest extends IntegrationTestBase
+class BulkWriteTtlTest extends SharedClusterSparkIntegrationTestBase
 {
-    @CassandraIntegrationTest(nodesPerDc = 3)
-    public void testTableDefaultTtl()
+    static final QualifiedName DEFAULT_TTL_NAME = new QualifiedName(TEST_KEYSPACE, "test_default_ttl");
+    static final QualifiedName CONSTANT_TTL_NAME = new QualifiedName(TEST_KEYSPACE, "test_ttl_constant");
+    static final QualifiedName PER_ROW_TTL_NAME = new QualifiedName(TEST_KEYSPACE, "test_ttl_per_row");
+
+    @Test
+    void testTableDefaultTtl()
     {
-        UpgradeableCluster cluster = sidecarTestContext.cluster();
-        String keyspace = "spark_test";
-        String table = "test_default_ttl";
-        cluster.schemaChange("  CREATE KEYSPACE " + keyspace + " WITH replication = "
-                             + "{'class': 'NetworkTopologyStrategy', 'datacenter1': '3'}\n"
-                             + "      AND durable_writes = true;");
-        String qualifiedTableName = keyspace + '.' + table;
-        cluster.schemaChange("CREATE TABLE " + qualifiedTableName + " (\n"
-                             + "          id BIGINT PRIMARY KEY,\n"
-                             + "          course BLOB,\n"
-                             + "          marks BIGINT\n"
-                             + "     )  WITH default_time_to_live = 1;"
-        );
-        waitUntilSidecarPicksUpSchemaChange(keyspace);
-        boolean addTTLColumn = false;
-        boolean addTimestampColumn = false;
-        IntegrationTestJob.builder((recordNum) -> generateCourse(recordNum, null, null),
-                                   getWriteSchema(addTTLColumn, addTimestampColumn))
-                          .withTable(table)
-                          .withSidecarPort(server.actualPort())
-                          .withExtraWriterOptions(Collections.emptyMap())
-                          .shouldRead(false)
-                          .run();
+        SparkSession spark = getOrCreateSparkSession();
+        Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
+
+        bulkWriterDataFrameWriter(df, DEFAULT_TTL_NAME).save();
+
         // Wait to make sure TTLs have expired
         Uninterruptibles.sleepUninterruptibly(1100, TimeUnit.MILLISECONDS);
-        SimpleQueryResult result = cluster.coordinator(1).executeWithResult("select * from " + qualifiedTableName, ConsistencyLevel.ALL);
-        Assertions.assertFalse(result.hasNext());
+        SimpleQueryResult result = cluster.coordinator(1).executeWithResult("SELECT * FROM " + DEFAULT_TTL_NAME, ConsistencyLevel.ALL);
+        assertThat(result.hasNext()).isFalse();
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 3)
-    public void testTtlOptionConstant()
+    @Test
+    void testTtlOptionConstant()
     {
-        UpgradeableCluster cluster = sidecarTestContext.cluster();
-        String keyspace = "spark_test";
-        String table = "test_ttl_constant";
-        cluster.schemaChange("  CREATE KEYSPACE " + keyspace + " WITH replication = "
-                             + "{'class': 'NetworkTopologyStrategy', 'datacenter1': '3'}\n"
-                             + "      AND durable_writes = true;");
-        String qualifiedTableName = keyspace + '.' + table;
-        cluster.schemaChange("CREATE TABLE " + qualifiedTableName + " (\n"
-                             + "          id BIGINT PRIMARY KEY,\n"
-                             + "          course BLOB,\n"
-                             + "          marks BIGINT\n"
-                             + "     );"
-        );
-        waitUntilSidecarPicksUpSchemaChange(keyspace);
-        Map<String, String> writerOptions = ImmutableMap.of(WriterOptions.TTL.name(), TTLOption.constant(1));
-        boolean addTTLColumn = false;
-        boolean addTimestampColumn = false;
-        IntegrationTestJob.builder((recordNum) -> generateCourse(recordNum, null, null),
-                                   getWriteSchema(addTTLColumn, addTimestampColumn))
-                          .withTable(table)
-                          .withSidecarPort(server.actualPort())
-                          .withExtraWriterOptions(writerOptions)
-                          .shouldRead(false)
-                          .run();
+        SparkSession spark = getOrCreateSparkSession();
+        Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
+
+        bulkWriterDataFrameWriter(df, CONSTANT_TTL_NAME).option(WriterOptions.TTL.name(), TTLOption.constant(1))
+                                                        .save();
         // Wait to make sure TTLs have expired
         Uninterruptibles.sleepUninterruptibly(1100, TimeUnit.MILLISECONDS);
-        SimpleQueryResult result = cluster.coordinator(1).executeWithResult("select * from " + qualifiedTableName, ConsistencyLevel.ALL);
-        Assertions.assertFalse(result.hasNext());
+        SimpleQueryResult result = cluster.coordinator(1).executeWithResult("SELECT * FROM " + CONSTANT_TTL_NAME, ConsistencyLevel.ALL);
+        assertThat(result.hasNext()).isFalse();
     }
 
-    @CassandraIntegrationTest(nodesPerDc = 3)
-    public void testTtlOptionPerRow()
+    @Test
+    void testTtlOptionPerRow()
     {
-        UpgradeableCluster cluster = sidecarTestContext.cluster();
-        String keyspace = "spark_test";
-        String table = "test_ttl_per_row";
-        cluster.schemaChange("  CREATE KEYSPACE " + keyspace + " WITH replication = "
-                             + "{'class': 'NetworkTopologyStrategy', 'datacenter1': '3'}\n"
-                             + "      AND durable_writes = true;");
-        String qualifiedTableName = keyspace + '.' + table;
-        cluster.schemaChange("CREATE TABLE " + qualifiedTableName + " (\n"
-                             + "          id BIGINT PRIMARY KEY,\n"
-                             + "          course BLOB,\n"
-                             + "          marks BIGINT\n"
-                             + "     );"
-        );
-        waitUntilSidecarPicksUpSchemaChange(keyspace);
-        Map<String, String> writerOptions = ImmutableMap.of(WriterOptions.TTL.name(), TTLOption.perRow("ttl"));
-        boolean addTTLColumn = true;
-        boolean addTimestampColumn = false;
-        IntegrationTestJob.builder((recordNum) -> generateCourse(recordNum, 1, null),
-                                   getWriteSchema(addTTLColumn, addTimestampColumn))
-                          .withTable(table)
-                          .withSidecarPort(server.actualPort())
-                          .withExtraWriterOptions(writerOptions)
-                          .shouldRead(false)
-                          .run();
+        SparkSession spark = getOrCreateSparkSession();
+        Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, 1, null, ROW_COUNT);
+
+        bulkWriterDataFrameWriter(df, PER_ROW_TTL_NAME).option(WriterOptions.TTL.name(), TTLOption.perRow("ttl"))
+                                                       .save();
         // Wait to make sure TTLs have expired
         Uninterruptibles.sleepUninterruptibly(1100, TimeUnit.MILLISECONDS);
-        SimpleQueryResult result = cluster.coordinator(1).executeWithResult("select * from " + qualifiedTableName, ConsistencyLevel.ALL);
-        Assertions.assertFalse(result.hasNext());
+        SimpleQueryResult result = cluster.coordinator(1).executeWithResult("SELECT * FROM " + PER_ROW_TTL_NAME, ConsistencyLevel.ALL);
+        assertThat(result.hasNext()).isFalse();
     }
 
-    @SuppressWarnings("SameParameterValue")
-    private static StructType getWriteSchema(boolean addTTLColumn, boolean addTimestampColumn)
+    @Override
+    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
     {
-        StructType schema = new StructType()
-                            .add("id", LongType, false)
-                            .add("course", BinaryType, false)
-                            .add("marks", LongType, false);
-        if (addTTLColumn)
-        {
-            schema = schema.add("ttl", IntegerType, false);
-        }
-        if (addTimestampColumn)
-        {
-            schema = schema.add("timestamp", LongType, false);
-        }
-        return schema;
+        // spin up a C* cluster using the in-jvm dtest
+        Versions versions = Versions.find();
+        Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(), Semver.SemverType.LOOSE));
+
+        UpgradeableCluster.Builder clusterBuilder =
+        UpgradeableCluster.build(3)
+                          .withDynamicPortAllocation(true)
+                          .withVersion(requestedVersion)
+                          .withDCs(1)
+                          .withDataDirCount(1)
+                          .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
+                                                      .with(Feature.GOSSIP)
+                                                      .with(Feature.JMX));
+        TokenSupplier tokenSupplier = TokenSupplier.evenlyDistributedTokens(3, clusterBuilder.getTokenCount());
+        clusterBuilder.withTokenSupplier(tokenSupplier);
+        UpgradeableCluster cluster = clusterBuilder.createWithoutStarting();
+        cluster.startup();
+
+        waitForHealthyRing(cluster);
+        fixDistributedSchemas(cluster);
+        return cluster;
     }
 
-    @NotNull
-    @SuppressWarnings("SameParameterValue")
-    private static Row generateCourse(long recordNumber, Integer ttl, Long timestamp)
+    @Override
+    protected void initializeSchemaForTest()
     {
-        String courseNameString = String.valueOf(recordNumber);
-        int courseNameStringLen = courseNameString.length();
-        int courseNameMultiplier = 1000 / courseNameStringLen;
-        byte[] courseName = dupStringAsBytes(courseNameString, courseNameMultiplier);
-        ArrayList<Object> values = new ArrayList<>(Arrays.asList(recordNumber, courseName, recordNumber));
-        if (ttl != null)
-        {
-            values.add(ttl);
-        }
-        if (timestamp != null)
-        {
-            values.add(timestamp);
-        }
-        return RowFactory.create(values.toArray());
-    }
+        createTestKeyspace(DEFAULT_TTL_NAME, DC1_RF3);
 
-    private static byte[] dupStringAsBytes(String string, Integer times)
-    {
-        byte[] stringBytes = string.getBytes();
-        ByteBuffer buffer = ByteBuffer.allocate(stringBytes.length * times);
-        for (int time = 0; time < times; time++)
-        {
-            buffer.put(stringBytes);
-        }
-        return buffer.array();
+        cluster.schemaChangeIgnoringStoppedInstances("CREATE TABLE " + DEFAULT_TTL_NAME + " (\n"
+                                                     + "          id BIGINT PRIMARY KEY,\n"
+                                                     + "          course TEXT,\n"
+                                                     + "          marks BIGINT\n"
+                                                     + "     )  WITH default_time_to_live = 1;"
+        );
+        cluster.schemaChangeIgnoringStoppedInstances("CREATE TABLE " + CONSTANT_TTL_NAME + " (\n"
+                                                     + "          id BIGINT PRIMARY KEY,\n"
+                                                     + "          course TEXT,\n"
+                                                     + "          marks BIGINT\n"
+                                                     + "     );"
+        );
+        cluster.schemaChangeIgnoringStoppedInstances("CREATE TABLE " + PER_ROW_TTL_NAME + " (\n"
+                                                     + "          id BIGINT PRIMARY KEY,\n"
+                                                     + "          course TEXT,\n"
+                                                     + "          marks BIGINT\n"
+                                                     + "     );"
+        );
     }
 }

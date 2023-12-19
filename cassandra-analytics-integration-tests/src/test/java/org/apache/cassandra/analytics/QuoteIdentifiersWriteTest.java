@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.analytics;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -28,14 +29,21 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
+import java.util.stream.Stream;
 
-import com.google.common.collect.ImmutableMap;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import io.vertx.junit5.VertxExtension;
+import com.vdurmont.semver4j.Semver;
+import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
+import org.apache.cassandra.distributed.api.Feature;
+import org.apache.cassandra.distributed.api.TokenSupplier;
+import org.apache.cassandra.distributed.shared.Versions;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.testing.CassandraIntegrationTest;
+import org.apache.cassandra.spark.bulkwriter.WriterOptions;
+import org.apache.cassandra.testing.TestVersion;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -47,6 +55,10 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.StructType;
 
+import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
+import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
+import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
+import static org.apache.cassandra.testing.TestUtils.uniqueTestTableFullName;
 import static org.apache.spark.sql.types.DataTypes.BinaryType;
 import static org.apache.spark.sql.types.DataTypes.LongType;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,48 +69,18 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>These tests exercise a full integration test, which includes testing Sidecar behavior when dealing with quoted
  * identifiers.
  */
-@ExtendWith(VertxExtension.class)
-class QuoteIdentifiersWriteTest extends SparkIntegrationTestBase
+class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
 {
-    static final int ROW_COUNT = 10_000;
+    static final List<QualifiedName> TABLE_NAMES =
+    Arrays.asList(uniqueTestTableFullName("QuOtEd_KeYsPaCe"),
+                  uniqueTestTableFullName("keyspace"), // keyspace is a reserved word
+                  uniqueTestTableFullName(TEST_KEYSPACE, "QuOtEd_TaBlE"),
+                  new QualifiedName(TEST_KEYSPACE, "table"));  // table is a reserved word
 
-    @CassandraIntegrationTest(nodesPerDc = 2)
-    void testWriteWithMixedCaseKeyspaceName()
+    @ParameterizedTest(name = "{index} => table={0}")
+    @MethodSource("testInputs")
+    void testQuoteIdentifiersBulkWrite(QualifiedName tableName)
     {
-        QualifiedName qualifiedTableName = uniqueTestTableFullName("QuOtEd_KeYsPaCe");
-        runWriteTestScenario(qualifiedTableName);
-    }
-
-    @CassandraIntegrationTest(nodesPerDc = 2)
-    void testWriteWithReservedWordKeyspaceName()
-    {
-        // keyspace is a reserved word
-        QualifiedName qualifiedTableName = uniqueTestTableFullName("keyspace");
-        runWriteTestScenario(qualifiedTableName);
-    }
-
-    @CassandraIntegrationTest(nodesPerDc = 2)
-    void testWriteWithMixedCaseTableName()
-    {
-        QualifiedName qualifiedTableName = uniqueTestTableFullName(TEST_KEYSPACE, "QuOtEd_TaBlE");
-        runWriteTestScenario(qualifiedTableName);
-    }
-
-    @CassandraIntegrationTest(nodesPerDc = 2)
-    void testWriteWithReservedWordTableName()
-    {
-        // table is a reserved word
-        runWriteTestScenario(new QualifiedName(TEST_KEYSPACE, "table"));
-    }
-
-    void runWriteTestScenario(QualifiedName tableName)
-    {
-        String quotedKeyspace = tableName.maybeQuotedKeyspace();
-        createTestKeyspace(quotedKeyspace, ImmutableMap.of("datacenter1", 1));
-        createTestTable(String.format("CREATE TABLE IF NOT EXISTS %s (\"IdEnTiFiEr\" bigint, course blob, \"limit\" bigint, PRIMARY KEY(\"IdEnTiFiEr\"));",
-                                      tableName));
-        waitUntilSidecarPicksUpSchemaChange(tableName.maybeQuotedKeyspace());
-
         SparkSession spark = getOrCreateSparkSession();
         SparkContext sc = spark.sparkContext();
         JavaSparkContext javaSparkContext = JavaSparkContext.fromSparkContext(sc);
@@ -108,18 +90,16 @@ class QuoteIdentifiersWriteTest extends SparkIntegrationTestBase
         JavaRDD<Row> rows = genDataset(javaSparkContext, ROW_COUNT, parallelism);
         Dataset<Row> df = sql.createDataFrame(rows, writeSchema());
 
-        bulkWriterDataFrameWriter(df, tableName).option("quote_identifiers", "true")
+        bulkWriterDataFrameWriter(df, tableName).option(WriterOptions.QUOTE_IDENTIFIERS.name(), "true")
                                                 .save();
         validateWrites(tableName, rows);
     }
 
-    private void validateWrites(QualifiedName tableName, JavaRDD<Row> rowsWritten)
+    void validateWrites(QualifiedName tableName, JavaRDD<Row> rowsWritten)
     {
         // build a set of entries read from Cassandra into a set
-        Set<String> actualEntries = Arrays.stream(sidecarTestContext.cassandraTestContext()
-                                                                    .cluster()
-                                                                    .coordinator(1)
-                                                                    .execute(String.format("SELECT * FROM %s;", tableName), ConsistencyLevel.LOCAL_QUORUM))
+        Set<String> actualEntries = Arrays.stream(cluster.coordinator(1)
+                                                         .execute(String.format("SELECT * FROM %s;", tableName), ConsistencyLevel.LOCAL_QUORUM))
                                           .map((Object[] columns) -> String.format("%s:%s:%s",
                                                                                    new String(((ByteBuffer) columns[1]).array(), StandardCharsets.UTF_8),
                                                                                    columns[0],
@@ -145,6 +125,47 @@ class QuoteIdentifiersWriteTest extends SparkIntegrationTestBase
                                  .isEmpty();
     }
 
+    static Stream<Arguments> testInputs()
+    {
+        return TABLE_NAMES.stream().map(Arguments::of);
+    }
+
+    @Override
+    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
+    {
+        // spin up a C* cluster using the in-jvm dtest
+        Versions versions = Versions.find();
+        Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(), Semver.SemverType.LOOSE));
+
+        UpgradeableCluster.Builder clusterBuilder =
+        UpgradeableCluster.build(1)
+                          .withDynamicPortAllocation(true)
+                          .withVersion(requestedVersion)
+                          .withDCs(1)
+                          .withDataDirCount(1)
+                          .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
+                                                      .with(Feature.GOSSIP)
+                                                      .with(Feature.JMX));
+        TokenSupplier tokenSupplier = TokenSupplier.evenlyDistributedTokens(1, clusterBuilder.getTokenCount());
+        clusterBuilder.withTokenSupplier(tokenSupplier);
+        UpgradeableCluster cluster = clusterBuilder.createWithoutStarting();
+        cluster.startup();
+        return cluster;
+    }
+
+    @Override
+    protected void initializeSchemaForTest()
+    {
+        String createTableStatement = "CREATE TABLE IF NOT EXISTS %s " +
+                                      "(\"IdEnTiFiEr\" bigint, course blob, \"limit\" bigint," +
+                                      " PRIMARY KEY(\"IdEnTiFiEr\"));";
+
+        TABLE_NAMES.forEach(name -> {
+            createTestKeyspace(name, DC1_RF1);
+            createTestTable(name, createTableStatement);
+        });
+    }
+
     static StructType writeSchema()
     {
         return new StructType()
@@ -153,7 +174,7 @@ class QuoteIdentifiersWriteTest extends SparkIntegrationTestBase
                .add("limit", LongType, false); // limit is a reserved word in Cassandra
     }
 
-    private static JavaRDD<Row> genDataset(JavaSparkContext sc, int recordCount, Integer parallelism)
+    static JavaRDD<Row> genDataset(JavaSparkContext sc, int recordCount, Integer parallelism)
     {
         long recordsPerPartition = recordCount / parallelism;
         long remainder = recordCount - (recordsPerPartition * parallelism);
