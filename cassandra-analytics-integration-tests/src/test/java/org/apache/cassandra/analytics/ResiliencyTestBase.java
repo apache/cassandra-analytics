@@ -375,10 +375,22 @@ public abstract class ResiliencyTestBase extends IntegrationTestBase
             if (!completed)
             {
                 process.destroyForcibly();
-                finishLatch.await(10, TimeUnit.MINUTES);
+                // The process doesn't necessarily finish right after destroyForcibly, but will exit.
+                process.waitFor(1, TimeUnit.MINUTES);
                 String errorMessage = "Spark job failed to complete after 10 minutes. " +
                                       "Check log for 'SPARK STDOUT/SPARK STDERR' for details";
-                logSparkOutputAndThrow(errorMessage, command, process.exitValue());
+                // process.exitValue throws if the process is still running - be defensive.
+                int exitCode;
+                if (process.isAlive())
+                {
+                    exitCode = -1;
+                }
+                else
+                {
+                    exitCode = process.exitValue();
+                    finishLatch.await(1, TimeUnit.MINUTES);
+                }
+                logSparkOutputAndThrow(errorMessage, command, exitCode);
                 throw new RuntimeException(errorMessage);
             }
             // Make sure the Java threads reading output have completed
