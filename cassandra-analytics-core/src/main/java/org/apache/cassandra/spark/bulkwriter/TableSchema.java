@@ -136,11 +136,11 @@ public class TableSchema implements Serializable
                      .map(fieldName -> {
                          if (fieldName.equals(ttlOption.columnName()))
                          {
-                             return SqlToCqlTypeConverter.getIntegerConverter();
+                             return SqlToCqlTypeConverter.integerConverter();
                          }
                          if (fieldName.equals(timestampOption.columnName()))
                          {
-                             return SqlToCqlTypeConverter.getLongConverter();
+                             return SqlToCqlTypeConverter.microsecondsTimestampConverter();
                          }
                          CqlField.CqlType cqlType = tableInfo.getColumnType(fieldName);
                          return SqlToCqlTypeConverter.getConverter(cqlType);

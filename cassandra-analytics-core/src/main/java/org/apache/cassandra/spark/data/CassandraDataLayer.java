@@ -215,7 +215,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         LOGGER.info("Starting Cassandra Spark job snapshotName={} keyspace={} table={} dc={}",
                     snapshotName, keyspace, table, datacenter);
 
-        // Load cluster config from Discovery
+        // Load cluster config from options
         clusterConfig = initializeClusterConfig(options);
         initInstanceMap();
 

@@ -19,18 +19,10 @@
 
 package org.apache.cassandra.analytics;
 
-import java.net.UnknownHostException;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.junit.jupiter.api.extension.ExtendWith;
-
-import io.vertx.junit5.VertxExtension;
-import org.apache.cassandra.distributed.shared.JMXUtil;
+import org.apache.cassandra.sidecar.testing.IntegrationTestBase;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.sidecar.testing.SharedClusterIntegrationTestBase;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.DataFrameWriter;
@@ -43,12 +35,10 @@ import static org.apache.cassandra.analytics.SparkTestUtils.defaultBulkWriterDat
 import static org.apache.cassandra.analytics.SparkTestUtils.defaultSparkConf;
 
 /**
- * Extends functionality from {@link SharedClusterIntegrationTestBase} and provides additional functionality for running
- * Spark integration tests.
+ * Extends the {@link org.apache.cassandra.sidecar.testing.IntegrationTestBase} with Spark functionality for
+ * test classes.
  */
-@TestInstance(Lifecycle.PER_CLASS)
-@ExtendWith(VertxExtension.class)
-public abstract class SharedClusterSparkIntegrationTestBase extends SharedClusterIntegrationTestBase
+public class SparkIntegrationTestBase extends IntegrationTestBase
 {
     protected SparkConf sparkConf;
     protected SparkSession sparkSession;
@@ -62,10 +52,14 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
      */
     protected DataFrameReader bulkReaderDataFrame(QualifiedName tableName)
     {
+        String sidecarInstances = sidecarTestContext.instancesConfig()
+                                                    .instances()
+                                                    .stream().map(f -> f.host())
+                                                    .collect(Collectors.joining(","));
         return defaultBulkReaderDataFrame(getOrCreateSparkConf(),
                                           getOrCreateSparkSession(),
                                           tableName,
-                                          sidecarInstancesOption(),
+                                          sidecarInstances,
                                           server.actualPort());
     }
 
@@ -79,27 +73,11 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
      */
     protected DataFrameWriter<Row> bulkWriterDataFrameWriter(Dataset<Row> df, QualifiedName tableName)
     {
-        return defaultBulkWriterDataFrameWriter(df, tableName, sidecarInstancesOption(), server.actualPort());
-    }
-
-    /**
-     * @return a comma-separated string with a list of all the hosts in the in-jvm dtest cluster
-     */
-    protected String sidecarInstancesOption()
-    {
-        return IntStream.rangeClosed(1, cluster.size())
-                        .mapToObj(i -> {
-                            String ipAddress = JMXUtil.getJmxHost(cluster.get(i).config());
-                            try
-                            {
-                                return dnsResolver.reverseResolve(ipAddress);
-                            }
-                            catch (UnknownHostException e)
-                            {
-                                return ipAddress;
-                            }
-                        })
-                        .collect(Collectors.joining(","));
+        String sidecarInstances = sidecarTestContext.instancesConfig()
+                                                    .instances()
+                                                    .stream().map(f -> f.host())
+                                                    .collect(Collectors.joining(","));
+        return defaultBulkWriterDataFrameWriter(df, tableName, sidecarInstances, server.actualPort());
     }
 
     protected SparkConf getOrCreateSparkConf()

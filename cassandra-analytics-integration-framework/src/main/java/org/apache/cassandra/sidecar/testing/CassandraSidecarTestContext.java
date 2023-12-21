@@ -19,6 +19,7 @@
 package org.apache.cassandra.sidecar.testing;
 
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -225,12 +226,21 @@ public class CassandraSidecarTestContext implements AutoCloseable
         for (int i = 0; i < configs.size(); i++)
         {
             IInstanceConfig config = configs.get(i);
-            String hostName = JMXUtil.getJmxHost(config);
+            String ipAddress = JMXUtil.getJmxHost(config);
+            String hostName;
+            try
+            {
+                hostName = dnsResolver.reverseResolve(ipAddress);
+            }
+            catch (UnknownHostException e)
+            {
+                hostName = ipAddress;
+            }
             int nativeTransportPort = tryGetIntConfig(config, "native_transport_port", 9042);
             // The in-jvm dtest framework sometimes returns a cluster before all the jmx infrastructure is initialized.
             // In these cases, we want to wait longer than the default retry/delay settings to connect.
             JmxClient jmxClient = JmxClient.builder()
-                                           .host(hostName)
+                                           .host(ipAddress)
                                            .port(config.jmxPort())
                                            .connectionMaxRetries(20)
                                            .connectionRetryDelayMillis(1000L)
@@ -252,11 +262,11 @@ public class CassandraSidecarTestContext implements AutoCloseable
                                                                              jmxClient,
                                                                              new DriverUtils(),
                                                                              "1.0-TEST",
-                                                                             hostName,
+                                                                             ipAddress,
                                                                              nativeTransportPort);
             metadata.add(InstanceMetadataImpl.builder()
                                              .id(i + 1)
-                                             .host(config.broadcastAddress().getAddress().getHostAddress())
+                                             .host(hostName)
                                              .port(nativeTransportPort)
                                              .dataDirs(Arrays.asList(dataDirectories))
                                              .stagingDir(stagingDir)

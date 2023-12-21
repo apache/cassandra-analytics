@@ -25,6 +25,7 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -85,6 +86,8 @@ public final class SqlToCqlTypeConverter implements Serializable
     private static final BigDecimalConverter BIG_DECIMAL_CONVERTER = new BigDecimalConverter();
     private static final IntegerConverter INTEGER_CONVERTER = new IntegerConverter();
     private static final TimestampConverter TIMESTAMP_CONVERTER = new TimestampConverter();
+    private static final MicroSecondsTimestampConverter MICROSECONDS_TIMESTAMP_CONVERTER =
+    new MicroSecondsTimestampConverter();
     private static final TimeConverter TIME_CONVERTER = new TimeConverter();
     private static final UUIDConverter UUID_CONVERTER = new UUIDConverter();
     private static final BigIntegerConverter BIG_INTEGER_CONVERTER = new BigIntegerConverter();
@@ -171,14 +174,27 @@ public final class SqlToCqlTypeConverter implements Serializable
         }
     }
 
-    public static Converter<?> getIntegerConverter()
+    public static Converter<?> integerConverter()
     {
         return INTEGER_CONVERTER;
     }
 
-    public static Converter<?> getLongConverter()
+    public static Converter<?> microsecondsTimestampConverter()
     {
-        return LONG_CONVERTER;
+        return MICROSECONDS_TIMESTAMP_CONVERTER;
+    }
+
+    static boolean canConvertToLong(Object object)
+    {
+        return object instanceof Long
+               || object instanceof Integer
+               || object instanceof Short
+               || object instanceof Byte;
+    }
+
+    static long convertToLong(Object object)
+    {
+        return ((Number) object).longValue();
     }
 
     private static Converter<?> determineCustomConvert(CqlField.CqlCustom customType)
@@ -233,12 +249,9 @@ public final class SqlToCqlTypeConverter implements Serializable
         @Override
         public Long convertInternal(Object object)
         {
-            if (object instanceof Long
-                    || object instanceof Integer
-                    || object instanceof Short
-                    || object instanceof Byte)
+            if (canConvertToLong(object))
             {
-                return ((Number) object).longValue();
+                return convertToLong(object);
             }
             else
             {
@@ -358,8 +371,8 @@ public final class SqlToCqlTypeConverter implements Serializable
         public Integer convertInternal(Object object)
         {
             if (object instanceof Integer
-                    || object instanceof Short
-                    || object instanceof Byte)
+                || object instanceof Short
+                || object instanceof Byte)
             {
                 return ((Number) object).intValue();
             }
@@ -414,8 +427,57 @@ public final class SqlToCqlTypeConverter implements Serializable
         }
     }
 
+    @SuppressWarnings("serial")
+    static class MicroSecondsTimestampConverter extends Converter<Long>
+    {
+        /**
+         * Returns the time since epoch (January 1, 1970) in microseconds, as specified by
+         * <a
+         * href="https://docs.datastax.com/en/cql-oss/3.x/cql/cql_reference/cqlInsert.html#cqlInsert__timestamp-value">
+         * the documentation</a>.
+         *
+         * @param object the input object to convert
+         * @return the time since epoch in microseconds
+         * @throws RuntimeException when the object cannot be converted to timestamp
+         */
+        @Override
+        public Long convertInternal(Object object) throws RuntimeException
+        {
+            if (object instanceof Date)
+            {
+                Instant instant = ((Date) object).toInstant();
+                return TimeUnit.SECONDS.toMicros(instant.getEpochSecond())
+                       + TimeUnit.NANOSECONDS.toMicros(instant.getNano());
+            }
+            else if (canConvertToLong(object))
+            {
+                return convertToLong(object);
+            }
+            else
+            {
+                throw new RuntimeException("Unsupported conversion for TIMESTAMP from " + object.getClass().getTypeName());
+            }
+        }
+
+        @Override
+        public String toString()
+        {
+            return "Timestamp";
+        }
+    }
+
     static class TimestampConverter extends NullableConverter<Date>
     {
+        /**
+         * Returns a Date representing the number of milliseconds since the standard base time known as the epoch
+         * (January 1 1970 at 00:00:00 GMT), as specified by <a
+         * href="https://docs.datastax.com/en/cql-oss/3.x/cql/cql_reference/timestamp_type_r.html">the
+         * documentation</a>.
+         *
+         * @param object the input object to convert
+         * @return the Date
+         * @throws RuntimeException when the object cannot be converted to timestamp
+         */
         @Override
         public Date convertInternal(Object object) throws RuntimeException
         {
