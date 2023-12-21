@@ -143,7 +143,7 @@ public class SchemaBuilder
     }
 
     // Update schema with the given keyspace, table and udt.
-    // It creates the cooresponding metadata and opens instances for keyspace and table, if needed.
+    // It creates the corresponding metadata and opens instances for keyspace and table, if needed.
     // At the end, it validates that the input keyspace and table both should have metadata exist and instance opened.
     private static Pair<KeyspaceMetadata, TableMetadata> updateSchema(Schema schema,
                                                                       String keyspace,

@@ -171,14 +171,14 @@ public final class SqlToCqlTypeConverter implements Serializable
         }
     }
 
-    public static Converter<?> getIntegerConverter()
+    public static Converter<?> integerConverter()
     {
         return INTEGER_CONVERTER;
     }
 
-    public static Converter<?> getLongConverter()
+    public static Converter<?> timeConverter()
     {
-        return LONG_CONVERTER;
+        return TIME_CONVERTER;
     }
 
     private static Converter<?> determineCustomConvert(CqlField.CqlCustom customType)
