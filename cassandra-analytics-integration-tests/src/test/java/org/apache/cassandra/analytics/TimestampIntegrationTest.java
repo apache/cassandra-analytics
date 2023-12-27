@@ -19,10 +19,12 @@
 
 package org.apache.cassandra.analytics;
 
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
@@ -86,7 +88,7 @@ public class TimestampIntegrationTest extends SparkIntegrationTestBase
                                                                     .cluster()
                                                                     .coordinator(1)
                                                                     .execute(String.format("SELECT id, course, marks FROM %s;", tableName), ConsistencyLevel.LOCAL_QUORUM))
-                                          .map((Object[] columns) -> String.format("%s:%s:%s:1432815430948",
+                                          .map((Object[] columns) -> String.format("%s:%s:%s:1432815430948567",
                                                                                    columns[0],
                                                                                    columns[1],
                                                                                    columns[2]))
@@ -97,11 +99,13 @@ public class TimestampIntegrationTest extends SparkIntegrationTestBase
 
         // remove from actual entries to make sure that the data read is the same as the data written
         sourceData.forEach(row -> {
+            Instant instant = row.getTimestamp(3).toInstant();
+            long timeInMicros = TimeUnit.SECONDS.toMicros(instant.getEpochSecond()) + TimeUnit.NANOSECONDS.toMicros(instant.getNano());
             String key = String.format("%d:%s:%d:%s",
                                        row.getLong(0),
                                        row.getString(1),
                                        row.getLong(2),
-                                       row.getTimestamp(3).getTime());
+                                       timeInMicros);
             assertThat(actualEntries.remove(key)).as(key + " is expected to exist in the actual entries")
                                                  .isTrue();
         });
@@ -120,7 +124,7 @@ public class TimestampIntegrationTest extends SparkIntegrationTestBase
         for (int i = 0; i < values.size(); i++)
         {
             String value = values.get(i);
-            String query = String.format("INSERT INTO %s (id, course, marks) VALUES (%d,'%s',%d) USING TIMESTAMP 1432815430948000",
+            String query = String.format("INSERT INTO %s (id, course, marks) VALUES (%d,'%s',%d) USING TIMESTAMP 1432815430948567",
                                          tableName, i, "course_" + value, 80 + i);
             coordinator.execute(query, ConsistencyLevel.ALL);
         }
