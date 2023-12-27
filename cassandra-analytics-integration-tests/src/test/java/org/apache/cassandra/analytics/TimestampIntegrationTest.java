@@ -84,10 +84,11 @@ public class TimestampIntegrationTest extends SparkIntegrationTestBase
     void validateWrites(QualifiedName tableName, List<Row> sourceData)
     {
         // build a set of entries read from Cassandra into a set
+        String query = String.format("SELECT id, course, marks FROM %s;", tableName);
         Set<String> actualEntries = Arrays.stream(sidecarTestContext.cassandraTestContext()
                                                                     .cluster()
                                                                     .coordinator(1)
-                                                                    .execute(String.format("SELECT id, course, marks FROM %s;", tableName), ConsistencyLevel.LOCAL_QUORUM))
+                                                                    .execute(query, ConsistencyLevel.LOCAL_QUORUM))
                                           .map((Object[] columns) -> String.format("%s:%s:%s:1432815430948567",
                                                                                    columns[0],
                                                                                    columns[1],
