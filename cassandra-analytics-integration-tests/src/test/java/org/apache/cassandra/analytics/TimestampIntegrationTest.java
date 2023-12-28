@@ -59,13 +59,14 @@ public class TimestampIntegrationTest extends SparkIntegrationTestBase
     @CassandraIntegrationTest(nodesPerDc = 2)
     void testReadingAndWritingTimestamp()
     {
+        long desiredTimestamp = 1432815430948567L;
         QualifiedName sourceTableName = uniqueTestTableFullName(TEST_KEYSPACE, "source_tbl");
         QualifiedName targetTableName = uniqueTestTableFullName(TEST_KEYSPACE, "target_tbl");
 
         createTestKeyspace(sourceTableName.maybeQuotedKeyspace(), ImmutableMap.of("datacenter1", 1));
         createTestTable(String.format(CREATE_TABLE_SCHEMA, sourceTableName));
         createTestTable(String.format(CREATE_TABLE_SCHEMA, targetTableName));
-        populateTable(sourceTableName, DATASET);
+        populateTable(sourceTableName, DATASET, desiredTimestamp);
         waitUntilSidecarPicksUpSchemaChange(sourceTableName.maybeQuotedKeyspace());
         waitUntilSidecarPicksUpSchemaChange(targetTableName.maybeQuotedKeyspace());
 
@@ -84,15 +85,18 @@ public class TimestampIntegrationTest extends SparkIntegrationTestBase
     void validateWrites(QualifiedName tableName, List<Row> sourceData)
     {
         // build a set of entries read from Cassandra into a set
-        String query = String.format("SELECT id, course, marks FROM %s;", tableName);
+        // the writetime function must read the timestamp specified for the test
+        // to ensure that the persisted timestamp is correct
+        String query = String.format("SELECT id, course, marks, WRITETIME(course) FROM %s;", tableName);
         Set<String> actualEntries = Arrays.stream(sidecarTestContext.cassandraTestContext()
                                                                     .cluster()
                                                                     .coordinator(1)
                                                                     .execute(query, ConsistencyLevel.LOCAL_QUORUM))
-                                          .map((Object[] columns) -> String.format("%s:%s:%s:1432815430948567",
+                                          .map((Object[] columns) -> String.format("%s:%s:%s:%s",
                                                                                    columns[0],
                                                                                    columns[1],
-                                                                                   columns[2]))
+                                                                                   columns[2],
+                                                                                   columns[3]))
                                           .collect(Collectors.toSet());
 
         // Number of entries in Cassandra must match the original datasource
@@ -116,7 +120,7 @@ public class TimestampIntegrationTest extends SparkIntegrationTestBase
                                  .isEmpty();
     }
 
-    void populateTable(QualifiedName tableName, List<String> values)
+    void populateTable(QualifiedName tableName, List<String> values, long desiredTimestamp)
     {
         ICoordinator coordinator = sidecarTestContext.cassandraTestContext()
                                                      .cluster()
@@ -125,8 +129,8 @@ public class TimestampIntegrationTest extends SparkIntegrationTestBase
         for (int i = 0; i < values.size(); i++)
         {
             String value = values.get(i);
-            String query = String.format("INSERT INTO %s (id, course, marks) VALUES (%d,'%s',%d) USING TIMESTAMP 1432815430948567",
-                                         tableName, i, "course_" + value, 80 + i);
+            String query = String.format("INSERT INTO %s (id, course, marks) VALUES (%d,'%s',%d) USING TIMESTAMP %d",
+                                         tableName, i, "course_" + value, 80 + i, desiredTimestamp);
             coordinator.execute(query, ConsistencyLevel.ALL);
         }
     }

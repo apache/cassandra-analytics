@@ -140,7 +140,7 @@ public class TableSchema implements Serializable
                          }
                          if (fieldName.equals(timestampOption.columnName()))
                          {
-                             return SqlToCqlTypeConverter.timeConverter();
+                             return SqlToCqlTypeConverter.microsecondsTimestampConverter();
                          }
                          CqlField.CqlType cqlType = tableInfo.getColumnType(fieldName);
                          return SqlToCqlTypeConverter.getConverter(cqlType);
