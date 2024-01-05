@@ -29,13 +29,13 @@ import org.apache.cassandra.sidecar.testing.QualifiedName;
 /**
  * Helper class for integration testing functionality
  */
-public class TestUtils
+public final class TestUtils
 {
     public static final String TEST_KEYSPACE = "spark_test";
     public static final String TEST_TABLE_PREFIX = "testtable";
     private static final AtomicInteger TEST_TABLE_ID = new AtomicInteger(0);
 
-//    public static final int ROW_COUNT = 10_000;
+    //    public static final int ROW_COUNT = 10_000;
     public static final int ROW_COUNT = 1_000;
 
     // Replication factor configurations used for tests
@@ -46,6 +46,11 @@ public class TestUtils
 
     public static final String CREATE_TEST_TABLE_STATEMENT =
     "CREATE TABLE IF NOT EXISTS %s (id int, course text, marks int, PRIMARY KEY (id));";
+
+    private TestUtils()
+    {
+        throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
 
     public static QualifiedName uniqueTestTableFullName(String keyspace)
     {

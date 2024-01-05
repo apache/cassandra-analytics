@@ -289,7 +289,7 @@ public abstract class AbstractIntegrationTestBase
     {
         private final AbstractCluster<? extends IInstance> cluster;
 
-        public IntegrationTestModule(AbstractCluster<? extends IInstance> cluster)
+        IntegrationTestModule(AbstractCluster<? extends IInstance> cluster)
         {
             this.cluster = cluster;
         }

@@ -33,9 +33,14 @@ import org.slf4j.LoggerFactory;
  * <p>Ideally, we'd probably have concurrent runs of the test infrastructure each running tests against one specific
  * version of C*, but this will require some additional work in the dtest framework so for now we run one at a time.
  */
-public class TestVersionSupplier
+public final class TestVersionSupplier
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(TestVersionSupplier.class);
+
+    private TestVersionSupplier()
+    {
+        throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
 
     public static Stream<TestVersion> testVersions()
     {
