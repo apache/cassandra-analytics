@@ -74,6 +74,7 @@ import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
 import org.apache.cassandra.sidecar.server.MainModule;
 import org.apache.cassandra.sidecar.server.Server;
 import org.apache.cassandra.sidecar.utils.CassandraVersionProvider;
+import org.apache.cassandra.testing.TestUtils;
 import org.apache.cassandra.testing.TestVersion;
 import org.apache.cassandra.testing.TestVersionSupplier;
 
@@ -124,6 +125,12 @@ public abstract class AbstractIntegrationTestBase
     protected AbstractCluster<? extends IInstance> cluster;
     protected Server server;
     protected Injector injector;
+
+    static
+    {
+        // Initialize defaults to configure the in-jvm dtest
+        TestUtils.configureDefaultDTestJarProperties();
+    }
 
     @BeforeAll
     protected void setup() throws InterruptedException, IOException

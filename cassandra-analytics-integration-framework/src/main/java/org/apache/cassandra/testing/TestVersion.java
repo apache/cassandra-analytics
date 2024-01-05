@@ -34,4 +34,12 @@ public class TestVersion
     {
         return version;
     }
+
+    @Override
+    public String toString()
+    {
+        return "TestVersion{" +
+               "version='" + version + '\'' +
+               '}';
+    }
 }
