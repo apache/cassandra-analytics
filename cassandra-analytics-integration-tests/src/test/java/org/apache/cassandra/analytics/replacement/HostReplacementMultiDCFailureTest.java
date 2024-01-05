@@ -24,7 +24,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
-import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.Arguments;
 
@@ -36,6 +35,7 @@ import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
+import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
@@ -45,7 +45,7 @@ import static com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
-import static org.apache.cassandra.testing.TestUtils.DC1_RF3_DC2_RF3;
+import static org.apache.cassandra.testing.TestUtils.DC1_RF2_DC2_RF2;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
 /**
@@ -68,20 +68,22 @@ class HostReplacementMultiDCFailureTest extends HostReplacementTestBase
     protected void beforeClusterShutdown()
     {
         Stream<Arguments> testInputs = Stream.of(Arguments.of(TestConsistencyLevel.of(LOCAL_QUORUM, LOCAL_QUORUM)));
-        completeTransitionsAndValidateWrites(BBHelperReplacementFailureMultiDC.transitionalStateEnd, testInputs, true);
+        completeTransitionsAndValidateWrites(BBHelperReplacementFailureMultiDC.transitionalStateEnd,
+                                             testInputs,
+                                             true);
     }
 
     @Override
     protected void initializeSchemaForTest()
     {
-        createTestKeyspace(TEST_KEYSPACE, DC1_RF3_DC2_RF3);
+        createTestKeyspace(TEST_KEYSPACE, DC1_RF2_DC2_RF2);
         createTestTable(QUALIFIED_NAME, CREATE_TEST_TABLE_STATEMENT);
     }
 
     @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        return clusterConfig().nodesPerDc(5)
+        return clusterConfig().nodesPerDc(3)
                               .newNodesPerDc(1)
                               .dcCount(2)
                               .requestFeature(Feature.NETWORK)
@@ -108,9 +110,9 @@ class HostReplacementMultiDCFailureTest extends HostReplacementTestBase
 
         public static void install(ClassLoader cl, Integer nodeNumber)
         {
-            // Test case involves 10 node cluster (5 per DC) with a replacement node
-            // We intercept the bootstrap of the replacement (11th) node to validate token ranges
-            if (nodeNumber == 11)
+            // Test case involves 6 node cluster (3 per DC) with a replacement node
+            // We intercept the bootstrap of the replacement (7th) node to validate token ranges
+            if (nodeNumber == 7)
             {
                 TypePool typePool = TypePool.Default.of(cl);
                 TypeDescription description = typePool.describe("org.apache.cassandra.service.StorageService")
@@ -132,7 +134,7 @@ class HostReplacementMultiDCFailureTest extends HostReplacementTestBase
             nodeStart.countDown();
             // trigger bootstrap start and wait until bootstrap is ready from test
             transitionalStateStart.countDown();
-            Uninterruptibles.awaitUninterruptibly(transitionalStateEnd, 2, TimeUnit.MINUTES);
+            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitionalStateEnd, 2, TimeUnit.MINUTES);
             throw new UnsupportedOperationException("Simulated failure");
         }
     }

@@ -41,6 +41,8 @@ public final class TestUtils
     // Replication factor configurations used for tests
     public static final Map<String, Integer> DC1_RF1 = Collections.singletonMap("datacenter1", 1);
     public static final Map<String, Integer> DC1_RF3 = Collections.singletonMap("datacenter1", 3);
+    public static final Map<String, Integer> DC1_RF2_DC2_RF2 = ImmutableMap.of("datacenter1", 2,
+                                                                               "datacenter2", 2);
     public static final Map<String, Integer> DC1_RF3_DC2_RF3 = ImmutableMap.of("datacenter1", 3,
                                                                                "datacenter2", 3);
 
