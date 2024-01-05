@@ -40,8 +40,12 @@ import static org.apache.spark.sql.types.DataTypes.StringType;
 /**
  * Utilities for data generation used for tests
  */
-public class DataGenerationUtils
+public final class DataGenerationUtils
 {
+    private DataGenerationUtils()
+    {
+        throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
 
     /**
      * Generates course data with schema
@@ -67,7 +71,7 @@ public class DataGenerationUtils
         List<Row> rows = IntStream.range(0, rowCount)
                                   .mapToObj(recordNum -> {
                                       String course = "course" + recordNum;
-                                      Object[] values = { recordNum, course, recordNum };
+                                      Object[] values = {recordNum, course, recordNum};
                                       return RowFactory.create(values);
                                   }).collect(Collectors.toList());
         return sql.createDataFrame(rows, schema);

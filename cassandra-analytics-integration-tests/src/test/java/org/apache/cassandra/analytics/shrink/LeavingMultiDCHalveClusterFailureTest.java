@@ -48,7 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class LeavingMultiDCHalveClusterFailureTest extends LeavingTestBase
 {
-    final static int LEAVING_NODES_PER_DC = 3;
+    static final int LEAVING_NODES_PER_DC = 3;
 
     @ParameterizedTest(name = "{index} => {0}")
     @MethodSource("multiDCTestInputs")

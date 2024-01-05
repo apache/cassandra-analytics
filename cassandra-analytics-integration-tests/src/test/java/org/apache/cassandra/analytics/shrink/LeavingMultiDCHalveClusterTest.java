@@ -51,7 +51,7 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
 class LeavingMultiDCHalveClusterTest extends LeavingTestBase
 {
-    final static int LEAVING_NODES_PER_DC = 3;
+    static final int LEAVING_NODES_PER_DC = 3;
 
     @ParameterizedTest(name = "{index} => {0}")
     @MethodSource("multiDCTestInputs")
