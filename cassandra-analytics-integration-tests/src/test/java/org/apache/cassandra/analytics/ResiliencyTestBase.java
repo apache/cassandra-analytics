@@ -376,8 +376,9 @@ public abstract class ResiliencyTestBase extends IntegrationTestBase
             {
                 process.destroyForcibly();
                 // The process doesn't necessarily finish right after destroyForcibly, but will exit.
+                // Give it an extra minute to complete, which should really only take seconds.
                 process.waitFor(1, TimeUnit.MINUTES);
-                String errorMessage = "Spark job failed to complete after 10 minutes. " +
+                String errorMessage = "Spark job failed to complete after 10 minutes and was killed. " +
                                       "Check log for 'SPARK STDOUT/SPARK STDERR' for details";
                 // process.exitValue throws if the process is still running - be defensive.
                 int exitCode;
