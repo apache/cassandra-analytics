@@ -69,7 +69,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>These tests exercise a full integration test, which includes testing Sidecar behavior when dealing with quoted
  * identifiers.
  */
-class QuoteIdentifiersWriteTest extends AbstractSparkIntegrationTestBase
+class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
 {
     static final List<QualifiedName> TABLE_NAMES =
     Arrays.asList(uniqueTestTableFullName("QuOtEd_KeYsPaCe"),

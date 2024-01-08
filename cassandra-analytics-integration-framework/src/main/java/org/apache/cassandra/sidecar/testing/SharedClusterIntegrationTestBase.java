@@ -116,9 +116,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @ExtendWith(VertxExtension.class)
-public abstract class AbstractIntegrationTestBase
+public abstract class SharedClusterIntegrationTestBase
 {
-    protected final Logger logger = LoggerFactory.getLogger(AbstractIntegrationTestBase.class);
+    protected final Logger logger = LoggerFactory.getLogger(SharedClusterIntegrationTestBase.class);
 
     protected Vertx vertx;
     protected DnsResolver dnsResolver;

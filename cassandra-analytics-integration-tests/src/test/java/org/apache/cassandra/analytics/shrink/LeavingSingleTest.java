@@ -98,8 +98,8 @@ class LeavingSingleTest extends LeavingTestBase
     @Shared
     public static class BBHelperSingleLeavingNode
     {
-        static CountDownLatch transitionalStateStart = new CountDownLatch(1);
-        static CountDownLatch transitionalStateEnd = new CountDownLatch(1);
+        static final CountDownLatch transitionalStateStart = new CountDownLatch(1);
+        static final CountDownLatch transitionalStateEnd = new CountDownLatch(1);
 
         public static void install(ClassLoader cl, Integer nodeNumber)
         {
@@ -125,12 +125,6 @@ class LeavingSingleTest extends LeavingTestBase
             transitionalStateStart.countDown();
             TestUninterruptibles.awaitUninterruptiblyOrThrow(transitionalStateEnd, 2, TimeUnit.MINUTES);
             orig.call();
-        }
-
-        public static void reset()
-        {
-            transitionalStateStart = new CountDownLatch(1);
-            transitionalStateEnd = new CountDownLatch(1);
         }
     }
 }

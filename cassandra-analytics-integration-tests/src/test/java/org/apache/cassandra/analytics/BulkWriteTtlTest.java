@@ -47,7 +47,7 @@ import static org.apache.cassandra.testing.CassandraTestTemplate.fixDistributedS
 import static org.apache.cassandra.testing.CassandraTestTemplate.waitForHealthyRing;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class BulkWriteTtlTest extends AbstractSparkIntegrationTestBase
+class BulkWriteTtlTest extends SharedClusterSparkIntegrationTestBase
 {
     static final QualifiedName DEFAULT_TTL_NAME = new QualifiedName(TEST_KEYSPACE, "test_default_ttl");
     static final QualifiedName CONSTANT_TTL_NAME = new QualifiedName(TEST_KEYSPACE, "test_ttl_constant");

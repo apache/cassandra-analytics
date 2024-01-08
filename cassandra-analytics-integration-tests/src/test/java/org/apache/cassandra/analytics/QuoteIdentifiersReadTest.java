@@ -53,7 +53,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * <p>These tests exercise a full integration test, which includes testing Sidecar behavior when dealing with quoted
  * identifiers.
  */
-class QuoteIdentifiersReadTest extends AbstractSparkIntegrationTestBase
+class QuoteIdentifiersReadTest extends SharedClusterSparkIntegrationTestBase
 {
     static final List<String> DATASET = Arrays.asList("a", "b", "c", "d", "e", "f", "g");
     static final QualifiedName TABLE_NAME_FOR_UDT_TEST = uniqueTestTableFullName("QuOtEd_KeYsPaCe", "QuOtEd_TaBlE");

@@ -30,7 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.vertx.junit5.VertxExtension;
 import org.apache.cassandra.distributed.shared.JMXUtil;
-import org.apache.cassandra.sidecar.testing.AbstractIntegrationTestBase;
+import org.apache.cassandra.sidecar.testing.SharedClusterIntegrationTestBase;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.KryoRegister;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
@@ -44,12 +44,12 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
 
 /**
- * Extends functionality from {@link AbstractIntegrationTestBase} and provides additional functionality for running
+ * Extends functionality from {@link SharedClusterIntegrationTestBase} and provides additional functionality for running
  * Spark integration tests.
  */
 @TestInstance(Lifecycle.PER_CLASS)
 @ExtendWith(VertxExtension.class)
-public abstract class AbstractSparkIntegrationTestBase extends AbstractIntegrationTestBase
+public abstract class SharedClusterSparkIntegrationTestBase extends SharedClusterIntegrationTestBase
 {
     protected SparkConf sparkConf;
     protected SparkSession sparkSession;

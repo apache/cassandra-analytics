@@ -69,7 +69,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Base class for resiliency tests. Contains helper methods for data generation and validation
  */
-public abstract class ResiliencyTestBase extends AbstractSparkIntegrationTestBase
+public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTestBase
 {
     public static final String QUERY_ALL_ROWS = "SELECT * FROM %s";
 
