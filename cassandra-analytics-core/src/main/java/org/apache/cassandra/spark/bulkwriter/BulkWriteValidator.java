@@ -134,25 +134,20 @@ public class BulkWriteValidator
             // Check for blocked instances and ranges for the purpose of logging only.
             // We check for blocked instances while validating consistency level requirements
             case UNAVAILABLE_BLOCKED:
-                Collection<Range<BigInteger>> rangesInBlockedInstance = cluster.getTokenRangeMapping(true)
-                                                                               .getTokenRanges()
-                                                                               .get(instance);
-                rangesInBlockedInstance.forEach(failedRange -> {
-                    String nodeDisplayName = instance.getNodeName();
-                    String message = String.format("%s %s", nodeDisplayName, availability.getMessage());
-                    LOGGER.warn("{} failed in phase {} on {} because {}", failedRange, phase, nodeDisplayName, message);
-                });
-                break;
-
             case UNAVAILABLE_DOWN:
-                Collection<Range<BigInteger>> failedRanges = cluster.getTokenRangeMapping(true)
-                                                                    .getTokenRanges()
-                                                                    .get(instance);
-                failedRanges.forEach(failedRange -> {
+                boolean shouldAddFailure = availability == InstanceAvailability.UNAVAILABLE_DOWN;
+
+                Collection<Range<BigInteger>> unavailableRanges = cluster.getTokenRangeMapping(true)
+                                                                         .getTokenRanges()
+                                                                         .get(instance);
+                unavailableRanges.forEach(failedRange -> {
                     String nodeDisplayName = instance.getNodeName();
                     String message = String.format("%s %s", nodeDisplayName, availability.getMessage());
                     LOGGER.warn("{} failed in phase {} on {} because {}", failedRange, phase, nodeDisplayName, message);
-                    failureHandler.addFailure(failedRange, instance, message);
+                    if (shouldAddFailure)
+                    {
+                        failureHandler.addFailure(failedRange, instance, message);
+                    }
                 });
                 break;
 
