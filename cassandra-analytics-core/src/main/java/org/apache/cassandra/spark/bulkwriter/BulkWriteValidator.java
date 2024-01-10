@@ -122,27 +122,38 @@ public class BulkWriteValidator
 
     private void validateAvailabilityAndUpdateFailures(RingInstance instance, InstanceAvailability availability)
     {
-        if (availability == InstanceAvailability.INVALID_STATE)
+        switch (availability)
         {
-            // If we find any nodes in a totally invalid state, just throw as we can't continue
-            String message = String.format("Instance (%s) is in an invalid state (%s) during import. "
-                                           + "Please rerun import once topology changes are complete.",
-                                           instance.getNodeName(), cluster.getInstanceState(instance));
-            throw new RuntimeException(message);
-        }
+            case INVALID_STATE:
+                // If we find any nodes in a totally invalid state, just throw as we can't continue
+                String errorMessage = String.format("Instance (%s) is in an invalid state (%s) during import. "
+                                                    + "Please rerun import once topology changes are complete.",
+                                                    instance.getNodeName(), cluster.getInstanceState(instance));
+                throw new RuntimeException(errorMessage);
 
-        if (availability == InstanceAvailability.UNAVAILABLE_BLOCKED
-            || availability == InstanceAvailability.UNAVAILABLE_DOWN)
-        {
-            Collection<Range<BigInteger>> failedRanges = cluster.getTokenRangeMapping(true)
-                                                                .getTokenRanges()
-                                                                .get(instance);
-            failedRanges.forEach(failedRange -> {
-                String nodeDisplayName = instance.getNodeName();
-                String message = String.format("%s %s", nodeDisplayName, availability.getMessage());
-                LOGGER.warn("{} failed in phase {} on {} because {}", failedRange, phase, nodeDisplayName, message);
-                failureHandler.addFailure(failedRange, instance, message);
-            });
+            // Check for blocked instances and ranges for the purpose of logging only.
+            // We check for blocked instances while validating consistency level requirements
+            case UNAVAILABLE_BLOCKED:
+            case UNAVAILABLE_DOWN:
+                boolean shouldAddFailure = availability == InstanceAvailability.UNAVAILABLE_DOWN;
+
+                Collection<Range<BigInteger>> unavailableRanges = cluster.getTokenRangeMapping(true)
+                                                                         .getTokenRanges()
+                                                                         .get(instance);
+                unavailableRanges.forEach(failedRange -> {
+                    String nodeDisplayName = instance.getNodeName();
+                    String message = String.format("%s %s", nodeDisplayName, availability.getMessage());
+                    LOGGER.warn("{} failed in phase {} on {} because {}", failedRange, phase, nodeDisplayName, message);
+                    if (shouldAddFailure)
+                    {
+                        failureHandler.addFailure(failedRange, instance, message);
+                    }
+                });
+                break;
+
+            default:
+                // DO NOTHING
+                break;
         }
     }
 }

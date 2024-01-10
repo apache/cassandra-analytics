@@ -49,16 +49,55 @@ public final class TokenRangeMappingUtils
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    public static TokenRangeMapping<RingInstance> buildTokenRangeMapping(final int initialToken, final ImmutableMap<String, Integer> rfByDC, int instancesPerDC)
+    public static TokenRangeMapping<RingInstance> buildTokenRangeMapping(int initialToken, ImmutableMap<String, Integer> rfByDC, int instancesPerDC)
     {
         return buildTokenRangeMapping(initialToken, rfByDC, instancesPerDC, false, -1);
+    }
+
+    public static TokenRangeMapping<RingInstance> buildTokenRangeMappingWithBlockedInstance(int initialToken,
+                                                                                            ImmutableMap<String, Integer> rfByDC,
+                                                                                            int instancesPerDC, String blockedInstanceIp)
+    {
+        List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
+        RingInstance blockedInstance = instances.stream()
+                                                .filter(i -> i.getIpAddress().equals(blockedInstanceIp))
+                                                .findFirst()
+                                                .get();
+        ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
+        Map<String, Set<String>> writeReplicas =
+        instances.stream().collect(Collectors.groupingBy(RingInstance::getDataCenter,
+                                                         Collectors.mapping(RingInstance::getNodeName,
+                                                                            Collectors.toSet())));
+        writeReplicas.replaceAll((key, value) -> {
+            value.removeIf(e -> value.size() > 3);
+            return value;
+        });
+
+        List<ReplicaMetadata> replicaMetadata = instances.stream()
+                                                         .map(i -> new ReplicaMetadata(i.getRingInstance().state(),
+                                                                                       i.getRingInstance().status(),
+                                                                                       i.getNodeName(),
+                                                                                       i.getIpAddress(),
+                                                                                       7012,
+                                                                                       i.getDataCenter()))
+                                                         .collect(Collectors.toList());
+
+        Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
+        return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
+                                       replicationFactor,
+                                       writeReplicas,
+                                       Collections.emptyMap(),
+                                       tokenRanges,
+                                       replicaMetadata,
+                                       Collections.singleton(blockedInstance),
+                                       Collections.emptySet());
     }
 
     public static TokenRangeMapping<RingInstance> buildTokenRangeMappingWithFailures(int initialToken,
                                                                                      ImmutableMap<String, Integer> rfByDC,
                                                                                      int instancesPerDC)
     {
-        final List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
+        List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
         RingInstance instance = instances.remove(0);
         RingEntry entry = instance.getRingInstance();
         RingEntry newEntry = new RingEntry.Builder()
@@ -113,7 +152,7 @@ public final class TokenRangeMappingUtils
                                                                          int moveTargetToken)
     {
 
-        final List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
+        List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
         if (shouldUpdateToken)
         {
             RingInstance instance = instances.remove(0);
@@ -180,9 +219,9 @@ public final class TokenRangeMappingUtils
         }
         else if (replicationFactor.getReplicationStrategy() == ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy)
         {
-            for (final String dataCenter : replicationFactor.getOptions().keySet())
+            for (String dataCenter : replicationFactor.getOptions().keySet())
             {
-                final int rf = replicationFactor.getOptions().get(dataCenter);
+                int rf = replicationFactor.getOptions().get(dataCenter);
                 if (rf == 0)
                 {
                     // Apparently, its valid to have zero replication factor in Cassandra
@@ -219,7 +258,7 @@ public final class TokenRangeMappingUtils
         int dcOffset = 0;
         for (Map.Entry<String, Integer> rfForDC : rfByDC.entrySet())
         {
-            final String datacenter = rfForDC.getKey();
+            String datacenter = rfForDC.getKey();
             for (int i = 0; i < instancesPerDc; i++)
             {
                 RingEntry.Builder ringEntry = new RingEntry.Builder()

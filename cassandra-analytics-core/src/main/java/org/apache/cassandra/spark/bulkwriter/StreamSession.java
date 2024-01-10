@@ -157,7 +157,8 @@ public class StreamSession
     @VisibleForTesting
     List<RingInstance> getReplicas()
     {
-        Set<RingInstance> exclusions = failureHandler.getFailedInstances();
+        Set<RingInstance> failedInstances = failureHandler.getFailedInstances();
+        Set<String> blockedInstances = tokenRangeMapping.getBlockedInstances();
         // Get ranges that intersect with the partition's token range
         Map<Range<BigInteger>, List<RingInstance>> overlappingRanges = tokenRangeMapping.getSubRanges(tokenRange).asMapOfRanges();
 
@@ -169,7 +170,9 @@ public class StreamSession
         List<RingInstance> replicasForTokenRange = overlappingRanges.values().stream()
                                                                     .flatMap(Collection::stream)
                                                                     .distinct()
-                                                                    .filter(instance -> !exclusions.contains(instance))
+                                                                    .filter(instance -> !isExclusion(instance,
+                                                                                                     failedInstances,
+                                                                                                     blockedInstances))
                                                                     .collect(Collectors.toList());
 
         Preconditions.checkState(!replicasForTokenRange.isEmpty(),
@@ -178,6 +181,21 @@ public class StreamSession
         // In order to better utilize replicas, shuffle the replicaList so each session starts writing to a different replica first.
         Collections.shuffle(replicasForTokenRange);
         return replicasForTokenRange;
+    }
+
+    /**
+     * Evaluates if the given instance should be excluded from writes by checking if it is either blocked or
+     * has a failure
+     *
+     * @param ringInstance the instance being evaluated
+     * @param failedInstances set of failed instances
+     * @param blockedInstanceIps set of IP addresses of blocked instances
+     * @return true if the provided instance is either a failed or blocked instance
+     */
+    private boolean isExclusion(RingInstance ringInstance, Set<RingInstance> failedInstances, Set<String> blockedInstanceIps)
+    {
+        return failedInstances.contains(ringInstance)
+               || blockedInstanceIps.contains(ringInstance.getIpAddress());
     }
 
     private void sendSSTables(BulkWriterContext writerContext, SSTableWriter ssTableWriter)

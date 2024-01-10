@@ -25,8 +25,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -60,6 +62,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.Matchers.endsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -118,6 +121,39 @@ public class RecordWriterTest
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true);
         RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
         assertThat(ex.getMessage(), endsWith("Token range mappings have changed since the task started"));
+    }
+
+    @Test
+    public void testWriteWithBlockedInstances()
+    {
+
+        String blockedInstanceIp = "127.0.0.2";
+        TokenRangeMapping<RingInstance> testMapping =
+        TokenRangeMappingUtils.buildTokenRangeMappingWithBlockedInstance(100000,
+                                                                         ImmutableMap.of("DC1", 3),
+                                                                          3,
+                                                                         blockedInstanceIp);
+
+        Set<RingInstance> instances = testMapping.getTokenRanges().keySet();
+        Map<RingInstance, InstanceAvailability> availability
+        = instances.stream()
+                   .collect(Collectors.toMap(Function.identity(),
+                                             i -> (i.getIpAddress().equals(blockedInstanceIp)) ?
+                                                  InstanceAvailability.UNAVAILABLE_BLOCKED :
+                                                  InstanceAvailability.AVAILABLE));
+
+        writerContext = new MockBulkWriterContext(tokenRangeMapping, DEFAULT_CASSANDRA_VERSION, ConsistencyLevel.CL.QUORUM);
+        MockBulkWriterContext m = Mockito.spy(writerContext);
+        rw = new RecordWriter(m, COLUMN_NAMES, () -> tc, SSTableWriter::new);
+
+        when(m.getTokenRangeMapping(anyBoolean())).thenReturn(testMapping);
+        when(m.getInstanceAvailability()).thenReturn(availability);
+        Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true);
+        rw.write(data);
+        Map<CassandraInstance, List<UploadRequest>> uploads = writerContext.getUploads();
+        // Should not upload to blocked instances
+        assertThat(uploads.keySet().size(), is(REPLICA_COUNT - 1));
+        assertFalse(uploads.keySet().stream().map(i -> i.getIpAddress()).collect(Collectors.toSet()).contains(blockedInstanceIp));
     }
 
     @Test
