@@ -24,18 +24,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.BigNumberConfigImpl;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
 import org.apache.cassandra.spark.utils.MapUtils;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.data.CassandraDataLayer.aliasLastModifiedTimestamp;
 
 public final class ClientConfig
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ClientConfig.class);
+
     public static final String SIDECAR_INSTANCES = "sidecar_instances";
     public static final String KEYSPACE_KEY = "keyspace";
     public static final String TABLE_KEY = "table";
@@ -43,6 +50,19 @@ public final class ClientConfig
     public static final String DC_KEY = "dc";
     public static final String CREATE_SNAPSHOT_KEY = "createSnapshot";
     public static final String CLEAR_SNAPSHOT_KEY = "clearSnapshot";
+    /**
+     * Format of clearSnapshotStrategy is {strategy [snapshotTTLvalue]}, clearSnapshotStrategy holds both the strategy
+     * and in case of TTL based strategy, TTL value. For e.g. onCompletionOrTTL 2d, TTL 2d, noOp, onCompletion. For
+     * clear snapshot strategies allowed check {@link ClearSnapshotStrategy}
+     */
+    public static final String CLEAR_SNAPSHOT_STRATEGY_KEY = "clearSnapshotStrategy";
+    /**
+     * TTL value is time to live option for the snapshot (available since Cassandra 4.1+). TTL value specified must
+     * contain unit along. For e.g. 2d represents a TTL for 2 days; 1h represents a TTL of 1 hour, etc.
+     * Valid units are {@code d}, {@code h}, {@code s} and {@code m}.
+     */
+    public static final String DEFAULT_SNAPSHOT_TTL_VALUE = "2d";
+    public static final String SNAPSHOT_TTL_PATTERN = "\\d+(d|h|m|s)";
     public static final String DEFAULT_PARALLELISM_KEY = "defaultParallelism";
     public static final String NUM_CORES_KEY = "numCores";
     public static final String CONSISTENCY_LEVEL_KEY = "consistencyLevel";
@@ -67,6 +87,7 @@ public final class ClientConfig
     private final String datacenter;
     private final boolean createSnapshot;
     private final boolean clearSnapshot;
+    private final ClearSnapshotStrategy clearSnapshotStrategy;
     private final int defaultParallelism;
     private final int numCores;
     private final ConsistencyLevel consistencyLevel;
@@ -91,6 +112,11 @@ public final class ClientConfig
         this.datacenter = options.get(MapUtils.lowerCaseKey(DC_KEY));
         this.createSnapshot = MapUtils.getBoolean(options, CREATE_SNAPSHOT_KEY, true);
         this.clearSnapshot = MapUtils.getBoolean(options, CLEAR_SNAPSHOT_KEY, createSnapshot);
+        String clearSnapshotStrategyOption = MapUtils.getOrDefault(options, CLEAR_SNAPSHOT_STRATEGY_KEY, null);
+
+        this.clearSnapshotStrategy = parseClearSnapshotStrategy(MapUtils.containsKey(options, CLEAR_SNAPSHOT_KEY),
+                                                                clearSnapshot,
+                                                                clearSnapshotStrategyOption);
         this.defaultParallelism = MapUtils.getInt(options, DEFAULT_PARALLELISM_KEY, 1);
         this.numCores = MapUtils.getInt(options, NUM_CORES_KEY, 1);
         this.consistencyLevel = Optional.ofNullable(options.get(MapUtils.lowerCaseKey(CONSISTENCY_LEVEL_KEY)))
@@ -107,6 +133,50 @@ public final class ClientConfig
         this.requestedFeatures = initRequestedFeatures(options);
         this.sidecarPort = MapUtils.getInt(options, SIDECAR_PORT, DEFAULT_SIDECAR_PORT);
         this.quoteIdentifiers = MapUtils.getBoolean(options, QUOTE_IDENTIFIERS, false);
+    }
+
+    protected ClearSnapshotStrategy parseClearSnapshotStrategy(boolean hasDeprecatedOption,
+                                                               boolean clearSnapshot,
+                                                               String clearSnapshotStrategyOption)
+    {
+        if (hasDeprecatedOption)
+        {
+            LOGGER.warn("The deprecated option 'clearSnapshot' is set. Please set 'clearSnapshotStrategy' instead.");
+            if (clearSnapshotStrategyOption == null)
+            {
+                return clearSnapshot ? ClearSnapshotStrategy.defaultStrategy() : new ClearSnapshotStrategy.NoOp();
+            }
+        }
+        if (clearSnapshotStrategyOption == null)
+        {
+            LOGGER.debug("No clearSnapshotStrategy is set. Using the default strategy");
+            return ClearSnapshotStrategy.defaultStrategy();
+        }
+        String[] strategyParts = clearSnapshotStrategyOption.split(" ", 2);
+        String strategyName;
+        String snapshotTTL = null;
+        if (strategyParts.length == 1)
+        {
+            strategyName = strategyParts[0].trim();
+        }
+        else if (strategyParts.length == 2)
+        {
+            strategyName = strategyParts[0].trim();
+            snapshotTTL = strategyParts[1].trim();
+            if (!Pattern.matches(SNAPSHOT_TTL_PATTERN, snapshotTTL))
+            {
+                String msg = "Incorrect value set for clearSnapshotStrategy, expected format is " +
+                             "{strategy [snapshotTTLvalue]}. TTL value specified must contain unit along. " +
+                             "For e.g. 2d represents a TTL for 2 days. Allowed units are d, h, m and s.";
+                throw new IllegalArgumentException(msg);
+            }
+        }
+        else
+        {
+            LOGGER.error("Invalid value for ClearSnapshotStrategy: '{}'", clearSnapshotStrategyOption);
+            throw new IllegalArgumentException("Invalid value: " + clearSnapshotStrategyOption);
+        }
+        return ClearSnapshotStrategy.create(strategyName, snapshotTTL);
     }
 
     public String sidecarInstances()
@@ -144,6 +214,11 @@ public final class ClientConfig
     public boolean clearSnapshot()
     {
         return clearSnapshot;
+    }
+
+    public ClearSnapshotStrategy clearSnapshotStrategy()
+    {
+        return clearSnapshotStrategy;
     }
 
     public int defaultParallelism()
@@ -236,5 +311,139 @@ public final class ClientConfig
             aliasLastModifiedTimestamp(requestedFeatures, lastModifiedColumnName);
         }
         return requestedFeatures;
+    }
+
+    abstract static class ClearSnapshotStrategy
+    {
+        private final String snapshotTTL;
+
+        static ClearSnapshotStrategy create(String name, String snapshotTTL)
+        {
+            String stripped = name.trim();
+            if (stripped.equalsIgnoreCase(OnCompletion.class.getSimpleName()))
+            {
+                return new OnCompletion();
+            }
+            else if (stripped.equalsIgnoreCase(TTL.class.getSimpleName()))
+            {
+                return new TTL(snapshotTTL);
+            }
+            else if (stripped.equalsIgnoreCase(OnCompletionOrTTL.class.getSimpleName()))
+            {
+                return new OnCompletionOrTTL(snapshotTTL);
+            }
+            else if (stripped.equalsIgnoreCase(NoOp.class.getSimpleName()))
+            {
+                return new NoOp();
+            }
+            else
+            {
+                ClearSnapshotStrategy defaultStrategy = defaultStrategy();
+                LOGGER.warn("Unknown ClearSnapshotStrategy {} is passed. Fall back to default strategy {}.",
+                            name, defaultStrategy);
+                throw new IllegalArgumentException("Invalid ClearSnapshotStrategy " + name + " passed");
+            }
+        }
+
+        public static ClearSnapshotStrategy defaultStrategy()
+        {
+            LOGGER.info("A default TTL value of {} is added to the snapshot. If the job takes longer than {}, " +
+                        "the snapshot will be cleared before job completion leading to errors.",
+                        DEFAULT_SNAPSHOT_TTL_VALUE, DEFAULT_SNAPSHOT_TTL_VALUE);
+            return new OnCompletionOrTTL(DEFAULT_SNAPSHOT_TTL_VALUE);
+        }
+
+        abstract boolean shouldClearOnCompletion();
+
+        void validateTTLPresence(boolean expectTTL)
+        {
+            if (expectTTL && !hasTTL())
+            {
+                throw new IllegalArgumentException("Incorrect value set for clearSnapshotStrategy, expected format " +
+                                                   "is {strategy [snapshotTTLvalue]}. TTL value specified must " +
+                                                   "contain unit along. For e.g. 2d represents a TTL for 2 days. " +
+                                                   "Allowed units are d, h, m and s.");
+            }
+        }
+
+        boolean hasTTL()
+        {
+            return snapshotTTL != null && !snapshotTTL.isEmpty();
+        }
+
+        @Nullable
+        String ttl()
+        {
+            return snapshotTTL;
+        }
+
+        @Override
+        public String toString()
+        {
+            return this.getClass().getSimpleName() + (hasTTL() ? ' ' + ttl() : "");
+        }
+
+        protected ClearSnapshotStrategy(String snapshotTTL)
+        {
+            this.snapshotTTL = snapshotTTL;
+        }
+
+        static class OnCompletion extends ClearSnapshotStrategy
+        {
+            protected OnCompletion()
+            {
+                super(null);
+            }
+
+            @Override
+            boolean shouldClearOnCompletion()
+            {
+                return true;
+            }
+        }
+
+        static class NoOp extends ClearSnapshotStrategy
+        {
+            protected NoOp()
+            {
+                super(null);
+            }
+
+            @Override
+            boolean shouldClearOnCompletion()
+            {
+                return false;
+            }
+        }
+
+        static class OnCompletionOrTTL extends ClearSnapshotStrategy
+        {
+            protected OnCompletionOrTTL(@NotNull String snapshotTTL)
+            {
+                super(snapshotTTL);
+                validateTTLPresence(true);
+            }
+
+            @Override
+            boolean shouldClearOnCompletion()
+            {
+                return true;
+            }
+        }
+
+        static class TTL extends ClearSnapshotStrategy
+        {
+            protected TTL(@NotNull String snapshotTTL)
+            {
+                super(snapshotTTL);
+                validateTTLPresence(true);
+            }
+
+            @Override
+            boolean shouldClearOnCompletion()
+            {
+                return false;
+            }
+        }
     }
 }
