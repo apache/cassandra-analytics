@@ -40,13 +40,15 @@ import org.apache.cassandra.testing.CassandraIntegrationTest;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
+import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
+import static org.apache.cassandra.testing.TestUtils.uniqueTestTableFullName;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Integration test for the Cassandra timestamps
  */
 @ExtendWith(VertxExtension.class)
-public class TimestampIntegrationTest extends SparkIntegrationTestBase
+class TimestampIntegrationTest extends SparkIntegrationTestBase
 {
     public static final String CREATE_TABLE_SCHEMA = "CREATE TABLE IF NOT EXISTS %s " +
                                                      "(id BIGINT PRIMARY KEY, course TEXT, marks BIGINT);";
@@ -56,7 +58,7 @@ public class TimestampIntegrationTest extends SparkIntegrationTestBase
      * Reads from source table with timestamps, and then persist the read data to the target
      * table using the timestamp as input
      */
-    @CassandraIntegrationTest(nodesPerDc = 2)
+    @CassandraIntegrationTest
     void testReadingAndWritingTimestamp()
     {
         long desiredTimestamp = 1432815430948567L;
