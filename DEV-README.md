@@ -89,6 +89,18 @@ To enable git hooks, run the following command at project root.
 git config core.hooksPath githooks
 ```
 
+## Running Integration Tests
+
+To run integration tests, build dependencies with instructions under Dependencies section and configure IP aliases 
+needed for integration tests.
+
+### macOS network aliases
+create a temporary alias for every node except the first:
+
+```shell
+ for i in {2..20}; do sudo ifconfig lo0 alias "127.0.0.${i}"; done
+```
+
 ## IntelliJ
 
 The project is well-supported in IntelliJ.

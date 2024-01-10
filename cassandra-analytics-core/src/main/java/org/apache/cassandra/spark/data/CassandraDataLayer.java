@@ -112,6 +112,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 .build();
 
     protected String snapshotName;
+    protected transient String snapshotTtl;
+    protected transient boolean clearSnapshot;
     protected boolean quoteIdentifiers;
     protected String keyspace;
     protected String table;
@@ -143,6 +145,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     {
         super(options.consistencyLevel(), options.datacenter());
         this.snapshotName = options.snapshotName();
+        this.snapshotTtl = options.snapshotTtl();
+        this.clearSnapshot = options.clearSnapshot();
         this.keyspace = options.keyspace();
         this.table = options.table();
         this.quoteIdentifiers = options.quoteIdentifiers();
@@ -341,8 +345,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                     LOGGER.info("Creating snapshot on instance snapshotName={} keyspace={} table={} datacenter={} fqdn={}",
                                 snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, ringEntry.fqdn());
                     SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.effectivePort());
-                    createSnapshotFuture = sidecar
-                                           .createSnapshot(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName)
+                    CompletableFuture<Void> createSnapshotCall
+                    = clearSnapshot
+                      ? sidecar.createSnapshot(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName,
+                                               snapshotTtl)
+                      : sidecar.createSnapshot(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName);
+                    createSnapshotFuture = createSnapshotCall
                                            .handle((resp, throwable) -> {
                                                if (throwable == null)
                                                {

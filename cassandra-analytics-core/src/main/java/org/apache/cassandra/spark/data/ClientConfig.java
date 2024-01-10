@@ -43,6 +43,14 @@ public final class ClientConfig
     public static final String DC_KEY = "dc";
     public static final String CREATE_SNAPSHOT_KEY = "createSnapshot";
     public static final String CLEAR_SNAPSHOT_KEY = "clearSnapshot";
+    /**
+     * snapshotTTL a time to live option for the snapshot (available since Cassandra 4.1+).
+     * TTL value specified must contain unit along. For e.g. 2d represents a TTL for 2 days;
+     * 1h represents a TTL of 1 hour, etc. Valid units are {@code d}, {@code h}, {@code s},
+     * {@code ms}, {@code us}, {@code µs}, {@code ns}, and {@code m}.
+     */
+    public static final String SNAPSHOT_TTL = "snapshot_ttl";
+    public static final String DEFAULT_SNAPSHOT_TTL = "2d";
     public static final String DEFAULT_PARALLELISM_KEY = "defaultParallelism";
     public static final String NUM_CORES_KEY = "numCores";
     public static final String CONSISTENCY_LEVEL_KEY = "consistencyLevel";
@@ -67,6 +75,7 @@ public final class ClientConfig
     private final String datacenter;
     private final boolean createSnapshot;
     private final boolean clearSnapshot;
+    private final String snapshotTtl;
     private final int defaultParallelism;
     private final int numCores;
     private final ConsistencyLevel consistencyLevel;
@@ -91,6 +100,7 @@ public final class ClientConfig
         this.datacenter = options.get(MapUtils.lowerCaseKey(DC_KEY));
         this.createSnapshot = MapUtils.getBoolean(options, CREATE_SNAPSHOT_KEY, true);
         this.clearSnapshot = MapUtils.getBoolean(options, CLEAR_SNAPSHOT_KEY, createSnapshot);
+        this.snapshotTtl = MapUtils.getOrDefault(options, SNAPSHOT_TTL, DEFAULT_SNAPSHOT_TTL);
         this.defaultParallelism = MapUtils.getInt(options, DEFAULT_PARALLELISM_KEY, 1);
         this.numCores = MapUtils.getInt(options, NUM_CORES_KEY, 1);
         this.consistencyLevel = Optional.ofNullable(options.get(MapUtils.lowerCaseKey(CONSISTENCY_LEVEL_KEY)))
@@ -144,6 +154,11 @@ public final class ClientConfig
     public boolean clearSnapshot()
     {
         return clearSnapshot;
+    }
+
+    public String snapshotTtl()
+    {
+        return snapshotTtl;
     }
 
     public int defaultParallelism()
