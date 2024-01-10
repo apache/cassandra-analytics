@@ -123,7 +123,7 @@ public class RecordWriterTest
     }
 
     @Test
-        public void testWriteWithBlockedInstances()
+    public void testWriteWithBlockedInstances()
     {
 
         int numBlockedInstances = 1;
