@@ -152,7 +152,7 @@ public abstract class SharedClusterIntegrationTestBase
         stopSidecar();
         beforeClusterShutdown();
         closeCluster();
-        beforeTearDownEnd();
+        afterClusterShutdown();
     }
 
     /**
@@ -189,9 +189,9 @@ public abstract class SharedClusterIntegrationTestBase
     }
 
     /**
-     * Override to perform an action as the last step of the tear down method
+     * Override to perform an action after the cluster has shutdown
      */
-    protected void beforeTearDownEnd()
+    protected void afterClusterShutdown()
     {
     }
 
