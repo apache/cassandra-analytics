@@ -158,6 +158,7 @@ public class StreamSession
     List<RingInstance> getReplicas()
     {
         Set<RingInstance> failedInstances = failureHandler.getFailedInstances();
+        Set<String> blockedInstances = tokenRangeMapping.getBlockedInstances();
         // Get ranges that intersect with the partition's token range
         Map<Range<BigInteger>, List<RingInstance>> overlappingRanges = tokenRangeMapping.getSubRanges(tokenRange).asMapOfRanges();
 
@@ -171,7 +172,7 @@ public class StreamSession
                                                                     .distinct()
                                                                     .filter(instance -> !isExclusion(instance,
                                                                                                      failedInstances,
-                                                                                                     tokenRangeMapping.getBlockedInstances()))
+                                                                                                     blockedInstances))
                                                                     .collect(Collectors.toList());
 
         Preconditions.checkState(!replicasForTokenRange.isEmpty(),
