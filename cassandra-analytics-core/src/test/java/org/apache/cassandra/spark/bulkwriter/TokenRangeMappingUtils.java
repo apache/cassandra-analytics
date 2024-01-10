@@ -56,9 +56,13 @@ public final class TokenRangeMappingUtils
 
     public static TokenRangeMapping<RingInstance> buildTokenRangeMappingWithBlockedInstance(int initialToken,
                                                                                             ImmutableMap<String, Integer> rfByDC,
-                                                                                            int instancesPerDC)
+                                                                                            int instancesPerDC, String blockedInstanceIp)
     {
         List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
+        RingInstance blockedInstance = instances.stream()
+                                                .filter(i -> i.getIpAddress().equals(blockedInstanceIp))
+                                                .findFirst()
+                                                .get();
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
         Map<String, Set<String>> writeReplicas =
         instances.stream().collect(Collectors.groupingBy(RingInstance::getDataCenter,
@@ -85,7 +89,7 @@ public final class TokenRangeMappingUtils
                                        Collections.emptyMap(),
                                        tokenRanges,
                                        replicaMetadata,
-                                       Collections.singleton(instances.get(0)),
+                                       Collections.singleton(blockedInstance),
                                        Collections.emptySet());
     }
 

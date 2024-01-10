@@ -52,21 +52,25 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import scala.Tuple2;
 
+import static java.util.function.Predicate.not;
 import static org.apache.cassandra.spark.bulkwriter.MockBulkWriterContext.DEFAULT_CASSANDRA_VERSION;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHAR;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCqlType;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 import static org.hamcrest.Matchers.endsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.contains;
 import static org.mockito.Mockito.when;
 
 public class RecordWriterTest
@@ -126,17 +130,20 @@ public class RecordWriterTest
     public void testWriteWithBlockedInstances()
     {
 
-        int numBlockedInstances = 1;
+        String blockedInstanceIp = "127.0.0.2";
         TokenRangeMapping<RingInstance> testMapping =
         TokenRangeMappingUtils.buildTokenRangeMappingWithBlockedInstance(100000,
-                                                                          ImmutableMap.of("DC1", 3),
-                                                                          3);
+                                                                         ImmutableMap.of("DC1", 3),
+                                                                          3,
+                                                                         blockedInstanceIp);
 
         Set<RingInstance> instances = testMapping.getTokenRanges().keySet();
-        Map<RingInstance, InstanceAvailability> availability = instances.stream()
-                                                                        .collect(Collectors.toMap(Function.identity(),
-                                                                                                  i -> InstanceAvailability.AVAILABLE));
-        availability.entrySet().stream().limit(numBlockedInstances).forEach(e -> e.setValue(InstanceAvailability.UNAVAILABLE_BLOCKED));
+        Map<RingInstance, InstanceAvailability> availability
+        = instances.stream()
+                   .collect(Collectors.toMap(Function.identity(),
+                                             i -> (i.getIpAddress().equals(blockedInstanceIp)) ?
+                                                  InstanceAvailability.UNAVAILABLE_BLOCKED :
+                                                  InstanceAvailability.AVAILABLE));
 
         writerContext = new MockBulkWriterContext(tokenRangeMapping, DEFAULT_CASSANDRA_VERSION, ConsistencyLevel.CL.QUORUM);
         MockBulkWriterContext m = Mockito.spy(writerContext);
@@ -147,7 +154,9 @@ public class RecordWriterTest
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true);
         rw.write(data);
         Map<CassandraInstance, List<UploadRequest>> uploads = writerContext.getUploads();
-        assertThat(uploads.keySet().size(), is(REPLICA_COUNT));  // Should upload to 3 replicas
+        // Should not upload to blocked instances
+        assertThat(uploads.keySet().size(), is(REPLICA_COUNT - 1));
+        assertFalse(uploads.keySet().stream().map(i -> i.getIpAddress()).collect(Collectors.toSet()).contains(blockedInstanceIp));
     }
 
     @Test
