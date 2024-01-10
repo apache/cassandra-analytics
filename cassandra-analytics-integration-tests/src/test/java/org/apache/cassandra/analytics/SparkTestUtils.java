@@ -36,8 +36,13 @@ import org.apache.spark.sql.SparkSession;
 /**
  * Helper methods for Spark tests
  */
-public class SparkTestUtils
+public final class SparkTestUtils
 {
+    private SparkTestUtils()
+    {
+        throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
+
     /**
      * Returns a {@link DataFrameReader} with default options for performing a bulk read test, including
      * required parameters.
