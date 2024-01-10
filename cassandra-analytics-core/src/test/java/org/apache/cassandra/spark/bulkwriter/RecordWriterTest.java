@@ -25,8 +25,10 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -118,6 +120,34 @@ public class RecordWriterTest
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true);
         RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
         assertThat(ex.getMessage(), endsWith("Token range mappings have changed since the task started"));
+    }
+
+    @Test
+        public void testWriteWithBlockedInstances()
+    {
+
+        int numBlockedInstances = 1;
+        TokenRangeMapping<RingInstance> testMapping =
+        TokenRangeMappingUtils.buildTokenRangeMappingWithBlockedInstance(100000,
+                                                                          ImmutableMap.of("DC1", 3),
+                                                                          3);
+
+        Set<RingInstance> instances = testMapping.getTokenRanges().keySet();
+        Map<RingInstance, InstanceAvailability> availability = instances.stream()
+                                                                        .collect(Collectors.toMap(Function.identity(),
+                                                                                                  i -> InstanceAvailability.AVAILABLE));
+        availability.entrySet().stream().limit(numBlockedInstances).forEach(e -> e.setValue(InstanceAvailability.UNAVAILABLE_BLOCKED));
+
+        writerContext = new MockBulkWriterContext(tokenRangeMapping, DEFAULT_CASSANDRA_VERSION, ConsistencyLevel.CL.QUORUM);
+        MockBulkWriterContext m = Mockito.spy(writerContext);
+        rw = new RecordWriter(m, COLUMN_NAMES, () -> tc, SSTableWriter::new);
+
+        when(m.getTokenRangeMapping(anyBoolean())).thenReturn(testMapping);
+        when(m.getInstanceAvailability()).thenReturn(availability);
+        Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, true);
+        rw.write(data);
+        Map<CassandraInstance, List<UploadRequest>> uploads = writerContext.getUploads();
+        assertThat(uploads.keySet().size(), is(REPLICA_COUNT));  // Should upload to 3 replicas
     }
 
     @Test

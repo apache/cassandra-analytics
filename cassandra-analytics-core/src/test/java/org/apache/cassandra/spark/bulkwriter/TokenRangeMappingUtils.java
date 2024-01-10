@@ -54,6 +54,41 @@ public final class TokenRangeMappingUtils
         return buildTokenRangeMapping(initialToken, rfByDC, instancesPerDC, false, -1);
     }
 
+    public static TokenRangeMapping<RingInstance> buildTokenRangeMappingWithBlockedInstance(int initialToken,
+                                                                                            ImmutableMap<String, Integer> rfByDC,
+                                                                                            int instancesPerDC)
+    {
+        final List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
+        ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
+        Map<String, Set<String>> writeReplicas =
+        instances.stream().collect(Collectors.groupingBy(RingInstance::getDataCenter,
+                                                         Collectors.mapping(RingInstance::getNodeName,
+                                                                            Collectors.toSet())));
+        writeReplicas.replaceAll((key, value) -> {
+            value.removeIf(e -> value.size() > 3);
+            return value;
+        });
+
+        List<ReplicaMetadata> replicaMetadata = instances.stream()
+                                                         .map(i -> new ReplicaMetadata(i.getRingInstance().state(),
+                                                                                       i.getRingInstance().status(),
+                                                                                       i.getNodeName(),
+                                                                                       i.getIpAddress(),
+                                                                                       7012,
+                                                                                       i.getDataCenter()))
+                                                         .collect(Collectors.toList());
+
+        Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
+        return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
+                                       replicationFactor,
+                                       writeReplicas,
+                                       Collections.emptyMap(),
+                                       tokenRanges,
+                                       replicaMetadata,
+                                       Collections.singleton(instances.get(0)),
+                                       Collections.emptySet());
+    }
+
     public static TokenRangeMapping<RingInstance> buildTokenRangeMappingWithFailures(int initialToken,
                                                                                      ImmutableMap<String, Integer> rfByDC,
                                                                                      int instancesPerDC)
