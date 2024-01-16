@@ -578,9 +578,9 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         return ns.releaseVersion();
     }
 
-    protected boolean instanceIsBlocked(RingInstance ignored)
+    protected boolean instanceIsBlocked(RingInstance instance)
     {
-        return false;
+        return conf.blockedInstances.contains(instance.getIpAddress());
     }
 
     protected boolean instanceIsNormal(RingEntry ringEntry)

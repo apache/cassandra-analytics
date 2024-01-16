@@ -46,8 +46,13 @@ public final class TestUtils
     public static final Map<String, Integer> DC1_RF3_DC2_RF3 = ImmutableMap.of("datacenter1", 3,
                                                                                "datacenter2", 3);
 
+    /*
+     * Creates the test table with read-repair disabled for the in-jvm-dtests to allow validation of data
+     * on the nodes following bulk-writes without the chance of false-positives from replication resulting from
+     * read repairs.
+     */
     public static final String CREATE_TEST_TABLE_STATEMENT =
-    "CREATE TABLE IF NOT EXISTS %s (id int, course text, marks int, PRIMARY KEY (id));";
+    "CREATE TABLE IF NOT EXISTS %s (id int, course text, marks int, PRIMARY KEY (id)) WITH read_repair='NONE';";
 
     private TestUtils()
     {
