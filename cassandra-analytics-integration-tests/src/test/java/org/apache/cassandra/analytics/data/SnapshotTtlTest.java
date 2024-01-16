@@ -60,6 +60,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
     {
         DataFrameReader readDf = bulkReaderDataFrame(TTL_NAME)
                                  .option("snapshotName", "snapshotTTLTest")
+                                 .option("clearSnapshot", "true")
                                  .option("snapshot_ttl", "1m");
         List<Row> rows = readDf.load().collectAsList();
         assertEquals(8, rows.size());
