@@ -131,6 +131,7 @@ public class BulkSparkConf implements Serializable
     protected final int userProvidedSidecarPort;
     protected boolean useOpenSsl;
     protected int ringRetryCount;
+    protected final Set<String> blockedInstances;
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
@@ -167,7 +168,15 @@ public class BulkSparkConf implements Serializable
         this.ttl = MapUtils.getOrDefault(options, WriterOptions.TTL.name(), null);
         this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
         this.quoteIdentifiers = MapUtils.getBoolean(options, WriterOptions.QUOTE_IDENTIFIERS.name(), false, "quote identifiers");
+        this.blockedInstances = buildBlockedInstances(options);
         validateEnvironment();
+    }
+
+    private Set<String> buildBlockedInstances(Map<String, String> options)
+    {
+        String blockedInstances = MapUtils.getOrDefault(options, WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "");
+        return Arrays.stream(blockedInstances.split(","))
+                     .collect(Collectors.toSet());
     }
 
     protected Set<? extends SidecarInstance> buildSidecarInstances(Map<String, String> options, int sidecarPort)
