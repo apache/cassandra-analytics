@@ -112,7 +112,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 .build();
 
     protected String snapshotName;
-    protected transient String snapshotTtl;
+    protected transient String userProvidedSnapshotTtl;
+    protected transient String effectiveSnapshotTtl;
     protected transient boolean clearSnapshot;
     protected boolean quoteIdentifiers;
     protected String keyspace;
@@ -145,7 +146,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     {
         super(options.consistencyLevel(), options.datacenter());
         this.snapshotName = options.snapshotName();
-        this.snapshotTtl = options.snapshotTtl();
+        this.userProvidedSnapshotTtl = options.userProvidedSnapshotTtl();
+        this.effectiveSnapshotTtl = options.effectiveSnapshotTtl();
         this.clearSnapshot = options.clearSnapshot();
         this.keyspace = options.keyspace();
         this.table = options.table();
@@ -345,12 +347,15 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                     LOGGER.info("Creating snapshot on instance snapshotName={} keyspace={} table={} datacenter={} fqdn={}",
                                 snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, ringEntry.fqdn());
                     SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.effectivePort());
-                    CompletableFuture<Void> createSnapshotCall
-                    = clearSnapshot
-                      ? sidecar.createSnapshot(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName,
-                                               snapshotTtl)
-                      : sidecar.createSnapshot(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName);
-                    createSnapshotFuture = createSnapshotCall
+                    String resolvedSnapshotTtl = clearSnapshot ? effectiveSnapshotTtl : null;
+                    if (!clearSnapshot && userProvidedSnapshotTtl != null)
+                    {
+                        LOGGER.error("Snapshot TTL option was provided along with Clear Snapshot option, bulk reader" +
+                                     "can honor only one of the 2. Clear Snapshot takes precedence over Snapshot TTL, " +
+                                     "hence snapshot {} will not be cleared with TTL", snapshotName);
+                    }
+                    createSnapshotFuture = sidecar.createSnapshot(sidecarInstance, maybeQuotedKeyspace,
+                                                                  maybeQuotedTable, snapshotName, resolvedSnapshotTtl)
                                            .handle((resp, throwable) -> {
                                                if (throwable == null)
                                                {

@@ -42,6 +42,6 @@ public class CassandraDataLayerTests
         assertEquals("big-data", clientConfig.keyspace());
         assertEquals("customers", clientConfig.table());
         assertEquals("localhost", clientConfig.sidecarInstances());
-        assertEquals("2d", clientConfig.snapshotTtl());
+        assertEquals("2d", clientConfig.effectiveSnapshotTtl());
     }
 }
