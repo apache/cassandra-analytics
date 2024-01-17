@@ -629,8 +629,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     @Override
     public void startupValidate()
     {
-        StartupValidator.instance().register(new SidecarValidation(sidecar));
-        StartupValidator.instance().register(new CassandraValidation(sidecar));
+        int timeoutSeconds = sidecarClientConfig.timeoutSeconds();
+        StartupValidator.instance().register(new SidecarValidation(sidecar, timeoutSeconds));
+        StartupValidator.instance().register(new CassandraValidation(sidecar, timeoutSeconds));
         StartupValidator.instance().perform();
     }
 
