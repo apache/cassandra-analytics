@@ -50,5 +50,10 @@ public enum WriterOptions implements WriterOption
      * support mixed case and reserved keyword names for these fields.
      */
     QUOTE_IDENTIFIERS,
+    /**
+     * Option to specify a comma separated list of Cassandra instances that are blocked from receiving any
+     * writes from the analytics library. Note that this contributes to the number of unavailable instances for
+     * the write consistency level validations.
+     */
     BLOCKED_CASSANDRA_INSTANCES,
 }
