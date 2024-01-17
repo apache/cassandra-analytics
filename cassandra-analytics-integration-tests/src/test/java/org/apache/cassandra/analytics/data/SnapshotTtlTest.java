@@ -52,13 +52,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
 {
-    static final QualifiedName TTL_NAME = new QualifiedName(TEST_KEYSPACE, "test_user_provided_ttl");
+    static final QualifiedName TABLE_NAME_FOR_USER_PROVIDED_TTL
+    = new QualifiedName(TEST_KEYSPACE, "test_user_provided_ttl");
+    static final QualifiedName TABLE_NAME_FOR_CLEAR_SNAPSHOT_HONOR
+    = new QualifiedName(TEST_KEYSPACE, "test_clear_snapshot_honor");
     static final List<String> DATASET = Arrays.asList("a", "b", "c", "d", "e", "f", "g", "h");
 
     @Test
     void testWithUserProvidedTTL()
     {
-        DataFrameReader readDf = bulkReaderDataFrame(TTL_NAME)
+        DataFrameReader readDf = bulkReaderDataFrame(TABLE_NAME_FOR_USER_PROVIDED_TTL)
                                  .option("snapshotName", "userProvidedSnapshotTTLTest")
                                  .option("clearSnapshot", "true")
                                  .option("snapshot_ttl", "1m");
@@ -83,7 +86,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
     @Test
     void testClearSnapshotOptionHonored()
     {
-        DataFrameReader readDf = bulkReaderDataFrame(TTL_NAME)
+        DataFrameReader readDf = bulkReaderDataFrame(TABLE_NAME_FOR_CLEAR_SNAPSHOT_HONOR)
                                  .option("snapshotName", "clearSnapshotHonorTest")
                                  .option("clearSnapshot", "false")
                                  .option("snapshot_ttl", "1m");
@@ -143,18 +146,20 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
     @Override
     protected void initializeSchemaForTest()
     {
-        createTestKeyspace(TTL_NAME, DC1_RF3);
+        createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
         String createTableStatement = "CREATE TABLE IF NOT EXISTS %s (c1 int, c2 text, PRIMARY KEY(c1));";
-        createTestTable(TTL_NAME, createTableStatement);
-        populateTable();
+        createTestTable(TABLE_NAME_FOR_USER_PROVIDED_TTL, createTableStatement);
+        populateTable(TABLE_NAME_FOR_USER_PROVIDED_TTL);
+        createTestTable(TABLE_NAME_FOR_CLEAR_SNAPSHOT_HONOR, createTableStatement);
+        populateTable(TABLE_NAME_FOR_CLEAR_SNAPSHOT_HONOR);
     }
 
-    void populateTable()
+    void populateTable(QualifiedName tableName)
     {
         for (int i = 0; i < DATASET.size(); i++)
         {
             String value = DATASET.get(i);
-            String query = String.format("INSERT INTO %s (c1, c2) VALUES (%d, '%s');", TTL_NAME, i, value);
+            String query = String.format("INSERT INTO %s (c1, c2) VALUES (%d, '%s');", tableName, i, value);
             cluster.getFirstRunningInstance()
                    .coordinator()
                    .execute(query, ConsistencyLevel.ALL);
