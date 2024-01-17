@@ -59,7 +59,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
     void testWithUserProvidedTTL()
     {
         DataFrameReader readDf = bulkReaderDataFrame(TTL_NAME)
-                                 .option("snapshotName", "snapshotTTLTest")
+                                 .option("snapshotName", "userProvidedSnapshotTTLTest")
                                  .option("clearSnapshot", "true")
                                  .option("snapshot_ttl", "1m");
         List<Row> rows = readDf.load().collectAsList();
@@ -70,7 +70,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
                                               .getParams()
                                               .get("data_file_directories");
         String dataDir = dataDirs[0];
-        List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "snapshotTTLTest");
+        List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "userProvidedSnapshotTTLTest");
         assertFalse(snapshotPaths.isEmpty());
         Path snapshot = snapshotPaths.get(0);
         assertTrue(Files.exists(snapshot));
@@ -84,7 +84,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
     void testClearSnapshotOptionHonored()
     {
         DataFrameReader readDf = bulkReaderDataFrame(TTL_NAME)
-                                 .option("snapshotName", "snapshotTTLTest")
+                                 .option("snapshotName", "clearSnapshotHonorTest")
                                  .option("clearSnapshot", "false")
                                  .option("snapshot_ttl", "1m");
         List<Row> rows = readDf.load().collectAsList();
@@ -95,7 +95,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
                                               .getParams()
                                               .get("data_file_directories");
         String dataDir = dataDirs[0];
-        List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "snapshotTTLTest");
+        List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "clearSnapshotHonorTest");
         assertFalse(snapshotPaths.isEmpty());
         Path snapshot = snapshotPaths.get(0);
         assertTrue(Files.exists(snapshot));
