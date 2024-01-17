@@ -50,5 +50,5 @@ public enum WriterOptions implements WriterOption
      * support mixed case and reserved keyword names for these fields.
      */
     QUOTE_IDENTIFIERS,
-    BLOCKED_INSTANCES,
+    BLOCKED_CASSANDRA_INSTANCES,
 }

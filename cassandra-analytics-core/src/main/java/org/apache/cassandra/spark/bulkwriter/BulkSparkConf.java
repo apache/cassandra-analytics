@@ -174,7 +174,7 @@ public class BulkSparkConf implements Serializable
 
     private Set<String> buildBlockedInstances(Map<String, String> options)
     {
-        String blockedInstances = MapUtils.getOrDefault(options, WriterOptions.BLOCKED_INSTANCES.name(), "");
+        String blockedInstances = MapUtils.getOrDefault(options, WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "");
         return Arrays.stream(blockedInstances.split(","))
                      .collect(Collectors.toSet());
     }

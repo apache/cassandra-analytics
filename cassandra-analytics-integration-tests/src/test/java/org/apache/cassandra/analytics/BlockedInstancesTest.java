@@ -48,6 +48,14 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
+/**
+ * Collection of in-jvm-dtest based integration tests to validate the bulk write path when blocked instances
+ * are configured.
+ *
+ * Note: Since these tests are derived from {@link SharedClusterSparkIntegrationTestBase}, the tests reuse the same
+ * cluster with a unique table per test case. The implicit mapping from the test case to the table is made by
+ * creating the tables using the method name in {@link BlockedInstancesTest#initializeSchemaForTest()}.
+ */
 public class BlockedInstancesTest extends ResiliencyTestBase
 {
     Dataset<Row> df;
@@ -59,7 +67,7 @@ public class BlockedInstancesTest extends ResiliencyTestBase
         TestConsistencyLevel cl = TestConsistencyLevel.of(QUORUM, QUORUM);
         QualifiedName table = new QualifiedName(TEST_KEYSPACE, testInfo.getTestMethod().get().getName().toLowerCase());
         bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
-                                            .option("blocked_instances", "127.0.0.2")
+                                            .option(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2")
                                             .save();
         expectedInstanceData.entrySet()
                             .stream()
@@ -67,7 +75,6 @@ public class BlockedInstancesTest extends ResiliencyTestBase
                             .forEach(e -> e.setValue(Collections.emptySet()));
         validateNodeSpecificData(table, expectedInstanceData);
         validateData(table, cl.readCL, ROW_COUNT);
-
     }
 
     @Test
@@ -77,7 +84,7 @@ public class BlockedInstancesTest extends ResiliencyTestBase
         QualifiedName table = new QualifiedName(TEST_KEYSPACE, testInfo.getTestMethod().get().getName().toLowerCase());
         Throwable thrown = catchThrowable(() ->
                                           bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
-                                                                              .option("blocked_instances", "127.0.0.2")
+                                                                              .option(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2")
                                                                               .save());
         validateFailedJob(table, cl, thrown);
     }
@@ -89,7 +96,7 @@ public class BlockedInstancesTest extends ResiliencyTestBase
         QualifiedName table = new QualifiedName(TEST_KEYSPACE, testInfo.getTestMethod().get().getName().toLowerCase());
         Throwable thrown = catchThrowable(() ->
                                           bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
-                                                                              .option("blocked_instances", "127.0.0.2,127.0.0.3")
+                                                                              .option(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2,127.0.0.3")
                                                                               .save());
         validateFailedJob(table, cl, thrown);
     }
@@ -137,31 +144,20 @@ public class BlockedInstancesTest extends ResiliencyTestBase
     @Override
     protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
     {
-        ClusterBuilderConfiguration configuration = testClusterConfiguration();
-        return clusterBuilder(configuration, testVersion);
+        return clusterBuilder(testClusterConfiguration(), testVersion);
     }
 
     @Override
     protected void initializeSchemaForTest()
     {
         createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
-
-        try
+        Method[] methods = this.getClass().getDeclaredMethods();
+        for (Method method : methods)
         {
-            Class<?> testClass = Class.forName("org.apache.cassandra.analytics.BlockedInstancesTest");
-            Method[] methods = testClass.getDeclaredMethods();
-
-            for (Method method : methods)
+            if (method.isAnnotationPresent(Test.class))
             {
-                if (method.isAnnotationPresent(Test.class))
-                {
-                    createTestTable(new QualifiedName(TEST_KEYSPACE, method.getName().toLowerCase()), CREATE_TEST_TABLE_STATEMENT);
-                }
+                createTestTable(new QualifiedName(TEST_KEYSPACE, method.getName().toLowerCase()), CREATE_TEST_TABLE_STATEMENT);
             }
-        }
-        catch (ClassNotFoundException e)
-        {
-            throw new RuntimeException(e);
         }
     }
 }
