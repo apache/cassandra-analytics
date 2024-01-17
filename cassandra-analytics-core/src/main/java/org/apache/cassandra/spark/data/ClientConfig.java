@@ -102,7 +102,7 @@ public final class ClientConfig
         this.createSnapshot = MapUtils.getBoolean(options, CREATE_SNAPSHOT_KEY, true);
         this.clearSnapshot = MapUtils.getBoolean(options, CLEAR_SNAPSHOT_KEY, createSnapshot);
         this.userProvidedSnapshotTtl = MapUtils.getOrDefault(options, USER_PROVIDED_SNAPSHOT_TTL, null);
-        this.effectiveSnapshotTtl = this.userProvidedSnapshotTtl == null ? DEFAULT_SNAPSHOT_TTL : USER_PROVIDED_SNAPSHOT_TTL;
+        this.effectiveSnapshotTtl = this.userProvidedSnapshotTtl == null ? DEFAULT_SNAPSHOT_TTL : this.userProvidedSnapshotTtl;
         this.defaultParallelism = MapUtils.getInt(options, DEFAULT_PARALLELISM_KEY, 1);
         this.numCores = MapUtils.getInt(options, NUM_CORES_KEY, 1);
         this.consistencyLevel = Optional.ofNullable(options.get(MapUtils.lowerCaseKey(CONSISTENCY_LEVEL_KEY)))
