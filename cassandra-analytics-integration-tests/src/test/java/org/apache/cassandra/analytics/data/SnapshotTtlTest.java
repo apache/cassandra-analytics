@@ -43,12 +43,9 @@ import org.apache.cassandra.testing.TestVersion;
 import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.Row;
 
-import static org.apache.cassandra.testing.CassandraTestTemplate.waitForHealthyRing;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
 {
@@ -66,7 +63,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
                                  .option("clearSnapshot", "true")
                                  .option("snapshot_ttl", "1m");
         List<Row> rows = readDf.load().collectAsList();
-        assertEquals(8, rows.size());
+        assertThat(rows.size()).isEqualTo(8);
 
         String[] dataDirs = (String[]) cluster.getFirstRunningInstance()
                                               .config()
@@ -74,13 +71,13 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
                                               .get("data_file_directories");
         String dataDir = dataDirs[0];
         List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "userProvidedSnapshotTTLTest");
-        assertFalse(snapshotPaths.isEmpty());
+        assertThat(snapshotPaths).isEmpty();
         Path snapshot = snapshotPaths.get(0);
-        assertTrue(Files.exists(snapshot));
+        assertThat(snapshot).exists();
 
         // Wait to make sure TTLs have expired
         Uninterruptibles.sleepUninterruptibly(2, TimeUnit.MINUTES);
-        assertFalse(Files.exists(snapshot));
+        assertThat(snapshot).doesNotExist();
     }
 
     @Test
@@ -91,7 +88,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
                                  .option("clearSnapshot", "false")
                                  .option("snapshot_ttl", "1m");
         List<Row> rows = readDf.load().collectAsList();
-        assertEquals(8, rows.size());
+        assertThat(rows.size()).isEqualTo(8);
 
         String[] dataDirs = (String[]) cluster.getFirstRunningInstance()
                                               .config()
@@ -99,13 +96,13 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
                                               .get("data_file_directories");
         String dataDir = dataDirs[0];
         List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "clearSnapshotHonorTest");
-        assertFalse(snapshotPaths.isEmpty());
+        assertThat(snapshotPaths).isEmpty();
         Path snapshot = snapshotPaths.get(0);
-        assertTrue(Files.exists(snapshot));
+        assertThat(snapshot).exists();
 
         // Wait to make sure TTLs have expired
         Uninterruptibles.sleepUninterruptibly(2, TimeUnit.MINUTES);
-        assertTrue(Files.exists(snapshot));
+        assertThat(snapshot).exists();
     }
 
     private List<Path> findChildFile(Path path, String target)
@@ -128,7 +125,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
         Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(),
                                                                           Semver.SemverType.LOOSE));
         UpgradeableCluster.Builder clusterBuilder =
-        UpgradeableCluster.build(3)
+        UpgradeableCluster.build(1)
                           .withDynamicPortAllocation(true)
                           .withVersion(requestedVersion)
                           .withDataDirCount(1)
@@ -139,7 +136,6 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
         UpgradeableCluster cluster = clusterBuilder.createWithoutStarting();
         cluster.startup();
 
-        waitForHealthyRing(cluster);
         return cluster;
     }
 
