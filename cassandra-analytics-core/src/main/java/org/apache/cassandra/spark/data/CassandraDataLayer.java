@@ -112,9 +112,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 .build();
 
     protected String snapshotName;
-    protected transient String userProvidedSnapshotTtl;
-    protected transient String effectiveSnapshotTtl;
-    protected transient boolean clearSnapshot;
     protected boolean quoteIdentifiers;
     protected String keyspace;
     protected String table;
@@ -146,9 +143,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     {
         super(options.consistencyLevel(), options.datacenter());
         this.snapshotName = options.snapshotName();
-        this.userProvidedSnapshotTtl = options.userProvidedSnapshotTtl();
-        this.effectiveSnapshotTtl = options.effectiveSnapshotTtl();
-        this.clearSnapshot = options.clearSnapshot();
         this.keyspace = options.keyspace();
         this.table = options.table();
         this.quoteIdentifiers = options.quoteIdentifiers();
@@ -266,7 +260,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             // Use create snapshot request to capture instance availability hint
             LOGGER.info("Creating snapshot snapshotName={} keyspace={} table={} dc={}",
                         snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter);
-            snapshotFuture = ringFuture.thenCompose(this::createSnapshot);
+            snapshotFuture = ringFuture.thenCompose(ringResponse -> createSnapshot(options, ringResponse));
         }
         else
         {
@@ -322,7 +316,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
     }
 
-    private CompletionStage<Map<String, AvailabilityHint>> createSnapshot(RingResponse ring)
+    private CompletionStage<Map<String, AvailabilityHint>> createSnapshot(ClientConfig options, RingResponse ring)
     {
         Map<String, PartitionedDataLayer.AvailabilityHint> availabilityHints = new ConcurrentHashMap<>(ring.size());
 
@@ -347,8 +341,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                     LOGGER.info("Creating snapshot on instance snapshotName={} keyspace={} table={} datacenter={} fqdn={}",
                                 snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, ringEntry.fqdn());
                     SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.effectivePort());
-                    String resolvedSnapshotTtl = clearSnapshot ? effectiveSnapshotTtl : null;
-                    if (!clearSnapshot && userProvidedSnapshotTtl != null)
+                    String resolvedSnapshotTtl = options.clearSnapshot() ? options.effectiveSnapshotTtl() : null;
+                    if (!options.clearSnapshot() && options.userProvidedSnapshotTtl() != null)
                     {
                         LOGGER.warn("Snapshot TTL option was provided along with Clear Snapshot option, bulk reader" +
                                     "can honor only one of the 2. Clear Snapshot takes precedence over Snapshot TTL, " +
@@ -356,22 +350,22 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                     }
                     createSnapshotFuture = sidecar.createSnapshot(sidecarInstance, maybeQuotedKeyspace,
                                                                   maybeQuotedTable, snapshotName, resolvedSnapshotTtl)
-                                           .handle((resp, throwable) -> {
-                                               if (throwable == null)
-                                               {
-                                                   // Create snapshot succeeded
-                                                   return hint;
-                                               }
+                                                  .handle((resp, throwable) -> {
+                                                      if (throwable == null)
+                                                      {
+                                                          // Create snapshot succeeded
+                                                          return hint;
+                                                      }
 
-                                               if (isExhausted(throwable))
-                                               {
-                                                   LOGGER.warn("Failed to create snapshot on instance", throwable);
-                                                   return PartitionedDataLayer.AvailabilityHint.DOWN;
-                                               }
+                                                      if (isExhausted(throwable))
+                                                      {
+                                                          LOGGER.warn("Failed to create snapshot on instance", throwable);
+                                                          return PartitionedDataLayer.AvailabilityHint.DOWN;
+                                                      }
 
-                                               LOGGER.error("Unexpected error creating snapshot on instance", throwable);
-                                               return PartitionedDataLayer.AvailabilityHint.UNKNOWN;
-                                           });
+                                                      LOGGER.error("Unexpected error creating snapshot on instance", throwable);
+                                                      return PartitionedDataLayer.AvailabilityHint.UNKNOWN;
+                                                  });
                 }
 
                 return createSnapshotFuture
