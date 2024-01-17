@@ -35,7 +35,7 @@ class CassandraDataLayerTests
     "sidecar_instances", "localhost");
 
     @Test
-    public void testDefaultSnapshotTTL()
+   void testDefaultSnapshotTTL()
     {
         final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         ClientConfig clientConfig = ClientConfig.create(options);
