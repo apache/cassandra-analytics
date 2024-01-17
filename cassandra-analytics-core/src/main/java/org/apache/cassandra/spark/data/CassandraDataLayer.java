@@ -350,9 +350,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                     String resolvedSnapshotTtl = clearSnapshot ? effectiveSnapshotTtl : null;
                     if (!clearSnapshot && userProvidedSnapshotTtl != null)
                     {
-                        LOGGER.error("Snapshot TTL option was provided along with Clear Snapshot option, bulk reader" +
-                                     "can honor only one of the 2. Clear Snapshot takes precedence over Snapshot TTL, " +
-                                     "hence snapshot {} will not be removed after the specified snapshot TTL option", snapshotName);
+                        LOGGER.warn("Snapshot TTL option was provided along with Clear Snapshot option, bulk reader" +
+                                    "can honor only one of the 2. Clear Snapshot takes precedence over Snapshot TTL, " +
+                                    "hence snapshot {} will not be removed after the specified snapshot TTL option", snapshotName);
                     }
                     createSnapshotFuture = sidecar.createSnapshot(sidecarInstance, maybeQuotedKeyspace,
                                                                   maybeQuotedTable, snapshotName, resolvedSnapshotTtl)
