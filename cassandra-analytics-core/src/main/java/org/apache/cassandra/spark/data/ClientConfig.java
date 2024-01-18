@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import org.apache.cassandra.bridge.BigNumberConfigImpl;
 import org.apache.cassandra.spark.config.SchemaFeature;
@@ -32,6 +33,7 @@ import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.spark.data.CassandraDataLayer.LOGGER;
 import static org.apache.cassandra.spark.data.CassandraDataLayer.aliasLastModifiedTimestamp;
 
 public final class ClientConfig
@@ -44,13 +46,18 @@ public final class ClientConfig
     public static final String CREATE_SNAPSHOT_KEY = "createSnapshot";
     public static final String CLEAR_SNAPSHOT_KEY = "clearSnapshot";
     /**
-     * snapshotTTL a time to live option for the snapshot (available since Cassandra 4.1+).
-     * TTL value specified must contain unit along. For e.g. 2d represents a TTL for 2 days;
-     * 1h represents a TTL of 1 hour, etc. Valid units are {@code d}, {@code h}, {@code s},
-     * {@code ms}, {@code us}, {@code µs}, {@code ns}, and {@code m}.
+     * Format of clearSnapshotStrategy is {strategy [snapshotTTLvalue]}, clearSnapshotStrategy holds both the strategy
+     * and in case of TTL based strategy, TTL value. For e.g. onCompletionOrTTL [2d], TTL [2d], noOp, onCompletion. For
+     * clear snapshot strategies allowed check {@link ClearSnapshotStrategy}
      */
-    public static final String USER_PROVIDED_SNAPSHOT_TTL = "snapshot_ttl";
-    public static final String DEFAULT_SNAPSHOT_TTL = "2d";
+    public static final String CLEAR_SNAPSHOT_STRATEGY = "clearSnapshotStrategy";
+    /**
+     * TTL value is time to live option for the snapshot (available since Cassandra 4.1+). TTL value specified must
+     * contain unit along. For e.g. 2d represents a TTL for 2 days; 1h represents a TTL of 1 hour, etc.
+     * Valid units are {@code d}, {@code h}, {@code s}, {@code ms}, {@code us}, {@code µs}, {@code ns}, and {@code m}.
+     */
+    public static final String DEFAULT_SNAPSHOT_TTL_VALUE = "2d";
+    public static final String SNAPSHOT_TTL_PATTERN = "\\d+(d|h|m|s|ms|us|µs|ns)";
     public static final String DEFAULT_PARALLELISM_KEY = "defaultParallelism";
     public static final String NUM_CORES_KEY = "numCores";
     public static final String CONSISTENCY_LEVEL_KEY = "consistencyLevel";
@@ -75,8 +82,7 @@ public final class ClientConfig
     private final String datacenter;
     private final boolean createSnapshot;
     private final boolean clearSnapshot;
-    private final String userProvidedSnapshotTtl;
-    private final String effectiveSnapshotTtl;
+    private final ClearSnapshotStrategy clearSnapshotStrategy;
     private final int defaultParallelism;
     private final int numCores;
     private final ConsistencyLevel consistencyLevel;
@@ -101,8 +107,10 @@ public final class ClientConfig
         this.datacenter = options.get(MapUtils.lowerCaseKey(DC_KEY));
         this.createSnapshot = MapUtils.getBoolean(options, CREATE_SNAPSHOT_KEY, true);
         this.clearSnapshot = MapUtils.getBoolean(options, CLEAR_SNAPSHOT_KEY, createSnapshot);
-        this.userProvidedSnapshotTtl = MapUtils.getOrDefault(options, USER_PROVIDED_SNAPSHOT_TTL, null);
-        this.effectiveSnapshotTtl = this.userProvidedSnapshotTtl == null ? DEFAULT_SNAPSHOT_TTL : this.userProvidedSnapshotTtl;
+        String clearSnapshotStrategyOption = MapUtils.getOrDefault(options, CLEAR_SNAPSHOT_STRATEGY, null);
+        this.clearSnapshotStrategy = clearSnapshotStrategyOption != null
+                                     ? parseClearSnapshotStrategy(clearSnapshotStrategyOption)
+                                     : defaultClearSnapshotStrategy(this.clearSnapshot);
         this.defaultParallelism = MapUtils.getInt(options, DEFAULT_PARALLELISM_KEY, 1);
         this.numCores = MapUtils.getInt(options, NUM_CORES_KEY, 1);
         this.consistencyLevel = Optional.ofNullable(options.get(MapUtils.lowerCaseKey(CONSISTENCY_LEVEL_KEY)))
@@ -119,6 +127,35 @@ public final class ClientConfig
         this.requestedFeatures = initRequestedFeatures(options);
         this.sidecarPort = MapUtils.getInt(options, SIDECAR_PORT, DEFAULT_SIDECAR_PORT);
         this.quoteIdentifiers = MapUtils.getBoolean(options, QUOTE_IDENTIFIERS, false);
+    }
+
+    private ClearSnapshotStrategy parseClearSnapshotStrategy(String clearSnapshotStrategyOption)
+    {
+        String[] strategyParts = clearSnapshotStrategyOption.split(" ");
+        ClearSnapshotStrategyType type = ClearSnapshotStrategyType.valueOf(strategyParts[0]);
+        String snapshotTtl = strategyParts.length == 1
+                             ? null
+                             : strategyParts[1].substring(1, strategyParts[1].length() - 1);
+        if (!Pattern.matches(SNAPSHOT_TTL_PATTERN, snapshotTtl))
+        {
+            throw new RuntimeException("Incorrect value set for clearSnapshotStrategy, expected format is " +
+                                       "{strategy [snapshotTTLvalue]}. TTL value specified must contain unit along. " +
+                                       "For e.g. 2d represents a TTL for 2 days");
+        }
+        return new ClearSnapshotStrategy(type, snapshotTtl);
+
+    }
+
+    private ClearSnapshotStrategy defaultClearSnapshotStrategy(boolean clearSnapshot)
+    {
+        if (clearSnapshot)
+        {
+            LOGGER.warn("Please note, deprecated clearSnapshot option is set, hence a default TTL value of 2d will " +
+                        "be added during snapshot creation. If job takes longer than 2d, then snapshots might be " +
+                        "cleared before job completion leading to errors");
+            return new ClearSnapshotStrategy(ClearSnapshotStrategyType.onCompletionOrTTL, DEFAULT_SNAPSHOT_TTL_VALUE);
+        }
+        return new ClearSnapshotStrategy(ClearSnapshotStrategyType.noOp, null);
     }
 
     public String sidecarInstances()
@@ -158,14 +195,9 @@ public final class ClientConfig
         return clearSnapshot;
     }
 
-    public String userProvidedSnapshotTtl()
+    public ClearSnapshotStrategy clearSnapshotStrategy()
     {
-        return userProvidedSnapshotTtl;
-    }
-
-    public String effectiveSnapshotTtl()
-    {
-        return effectiveSnapshotTtl;
+        return clearSnapshotStrategy;
     }
 
     public int defaultParallelism()
@@ -258,5 +290,38 @@ public final class ClientConfig
             aliasLastModifiedTimestamp(requestedFeatures, lastModifiedColumnName);
         }
         return requestedFeatures;
+    }
+
+    class ClearSnapshotStrategy
+    {
+        private ClearSnapshotStrategyType type;
+        private String snapshotTtl;
+
+        ClearSnapshotStrategy(ClearSnapshotStrategyType type, String snapshotTtl)
+        {
+            this.type = type;
+            this.snapshotTtl = snapshotTtl;
+        }
+
+        public ClearSnapshotStrategyType type()
+        {
+            return type;
+        }
+
+        public String ttl()
+        {
+            return snapshotTtl;
+        }
+    }
+
+    /**
+     * Various clearSnapshotStrategy options allowed.
+     */
+    public enum ClearSnapshotStrategyType
+    {
+        onCompletion,
+        noOp,
+        onCompletionOrTTL,
+        TTL;
     }
 }

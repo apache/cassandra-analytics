@@ -290,8 +290,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
     protected void shutdownHook(ClientConfig options)
     {
-        // Preserves previous behavior, but we may just want to check for the clearSnapshot option in the future
-        if (options.clearSnapshot())
+        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = options.clearSnapshotStrategy();
+        boolean clearOnCompletion = ClientConfig.ClearSnapshotStrategyType.onCompletion.equals(clearSnapshotStrategy.type());
+        boolean clearOnCompletionOrTTL = ClientConfig.ClearSnapshotStrategyType.onCompletionOrTTL.equals(clearSnapshotStrategy.type());
+        if (clearOnCompletion || clearOnCompletionOrTTL)
         {
             if (options.createSnapshot())
             {
@@ -304,6 +306,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                             + "snapshotName={} keyspace={} table={} dc={}",
                             snapshotName, keyspace, table, datacenter);
             }
+        }
+        if (ClientConfig.ClearSnapshotStrategyType.TTL.equals(clearSnapshotStrategy.type()))
+        {
+            LOGGER.warn("Skipping clearing snapshot because snapshot TTL was set to {}", clearSnapshotStrategy.ttl());
         }
 
         try
@@ -341,15 +347,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                     LOGGER.info("Creating snapshot on instance snapshotName={} keyspace={} table={} datacenter={} fqdn={}",
                                 snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, ringEntry.fqdn());
                     SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.effectivePort());
-                    String resolvedSnapshotTtl = options.clearSnapshot() ? options.effectiveSnapshotTtl() : null;
-                    if (!options.clearSnapshot() && options.userProvidedSnapshotTtl() != null)
-                    {
-                        LOGGER.warn("Snapshot TTL option was provided along with Clear Snapshot option, bulk reader" +
-                                    "can honor only one of the 2. Clear Snapshot takes precedence over Snapshot TTL, " +
-                                    "hence snapshot {} will not be removed after the specified snapshot TTL option", snapshotName);
-                    }
+                    ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = options.clearSnapshotStrategy();
                     createSnapshotFuture = sidecar.createSnapshot(sidecarInstance, maybeQuotedKeyspace,
-                                                                  maybeQuotedTable, snapshotName, resolvedSnapshotTtl)
+                                                                  maybeQuotedTable, snapshotName, clearSnapshotStrategy.ttl())
                                                   .handle((resp, throwable) -> {
                                                       if (throwable == null)
                                                       {
