@@ -35,13 +35,15 @@ class CassandraDataLayerTests
     "sidecar_instances", "localhost");
 
     @Test
-   void testDefaultSnapshotTTL()
+    void testDefaultClearSnapshotStrategy()
     {
         final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         ClientConfig clientConfig = ClientConfig.create(options);
         assertEquals("big-data", clientConfig.keyspace());
         assertEquals("customers", clientConfig.table());
         assertEquals("localhost", clientConfig.sidecarInstances());
-        assertEquals("2d", clientConfig.effectiveSnapshotTtl());
+        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = clientConfig.clearSnapshotStrategy();
+        assertEquals(ClientConfig.ClearSnapshotStrategyType.onCompletionOrTTL, clearSnapshotStrategy.type());
+        assertEquals("2d", clearSnapshotStrategy.ttl());
     }
 }

@@ -57,7 +57,6 @@ public final class ClientConfig
      * Valid units are {@code d}, {@code h}, {@code s}, {@code ms}, {@code us}, {@code µs}, {@code ns}, and {@code m}.
      */
     public static final String DEFAULT_SNAPSHOT_TTL_VALUE = "2d";
-    public static final String SNAPSHOT_TTL_PATTERN = "\\d+(d|h|m|s|ms|us|µs|ns)";
     public static final String DEFAULT_PARALLELISM_KEY = "defaultParallelism";
     public static final String NUM_CORES_KEY = "numCores";
     public static final String CONSISTENCY_LEVEL_KEY = "consistencyLevel";
@@ -136,12 +135,6 @@ public final class ClientConfig
         String snapshotTtl = strategyParts.length == 1
                              ? null
                              : strategyParts[1].substring(1, strategyParts[1].length() - 1);
-        if (!Pattern.matches(SNAPSHOT_TTL_PATTERN, snapshotTtl))
-        {
-            throw new RuntimeException("Incorrect value set for clearSnapshotStrategy, expected format is " +
-                                       "{strategy [snapshotTTLvalue]}. TTL value specified must contain unit along. " +
-                                       "For e.g. 2d represents a TTL for 2 days");
-        }
         return new ClearSnapshotStrategy(type, snapshotTtl);
 
     }
