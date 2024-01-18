@@ -49,22 +49,23 @@ import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
+class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
 {
     private static final WithProperties properties = new WithProperties();
-    static final QualifiedName TABLE_NAME_FOR_USER_PROVIDED_TTL
-    = new QualifiedName(TEST_KEYSPACE, "test_user_provided_ttl");
-    static final QualifiedName TABLE_NAME_FOR_CLEAR_SNAPSHOT_HONOR
-    = new QualifiedName(TEST_KEYSPACE, "test_clear_snapshot_honor");
+    static final QualifiedName TABLE_NAME_FOR_TTL_CLEAR_SNAPSHOT_STRATEGY
+    = new QualifiedName(TEST_KEYSPACE, "test_ttl_clear_snapshot_strategy");
+    static final QualifiedName TABLE_NAME_FOR_NO_OP_CLEAR_SNAPSHOT_STRATEGY
+    = new QualifiedName(TEST_KEYSPACE, "test_no_op_clear_snapshot_strategy");
+    static final QualifiedName TABLE_NAME_FOR_CLEAR_SNAPSHOT_STRATEGY_PRECEDENCE
+    = new QualifiedName(TEST_KEYSPACE, "test_clear_snapshot_strategy_precedence");
     static final List<String> DATASET = Arrays.asList("a", "b", "c", "d", "e", "f", "g", "h");
 
     @Test
-    void testWithUserProvidedTTL()
+    void testTTLClearSnapshotStrategy()
     {
-        DataFrameReader readDf = bulkReaderDataFrame(TABLE_NAME_FOR_USER_PROVIDED_TTL)
-                                 .option("snapshotName", "userProvidedSnapshotTTLTest")
-                                 .option("clearSnapshot", "true")
-                                 .option("snapshot_ttl", "10s");
+        DataFrameReader readDf = bulkReaderDataFrame(TABLE_NAME_FOR_TTL_CLEAR_SNAPSHOT_STRATEGY)
+                                 .option("snapshotName", "ttlClearSnapshotStrategyTest")
+                                 .option("clearSnapshotStrategy", "TTL [10s]");
         List<Row> rows = readDf.load().collectAsList();
         assertThat(rows.size()).isEqualTo(8);
 
@@ -73,7 +74,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
                                               .getParams()
                                               .get("data_file_directories");
         String dataDir = dataDirs[0];
-        List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "userProvidedSnapshotTTLTest");
+        List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "ttlClearSnapshotStrategyTest");
         assertThat(snapshotPaths).isNotEmpty();
         Path snapshot = snapshotPaths.get(0);
         assertThat(snapshot).exists();
@@ -88,12 +89,11 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
     }
 
     @Test
-    void testClearSnapshotOptionHonored()
+    void testNoOpClearSnapshotStrategy()
     {
-        DataFrameReader readDf = bulkReaderDataFrame(TABLE_NAME_FOR_CLEAR_SNAPSHOT_HONOR)
-                                 .option("snapshotName", "clearSnapshotHonorTest")
-                                 .option("clearSnapshot", "false")
-                                 .option("snapshot_ttl", "10s");
+        DataFrameReader readDf = bulkReaderDataFrame(TABLE_NAME_FOR_NO_OP_CLEAR_SNAPSHOT_STRATEGY)
+                                 .option("snapshotName", "noOpClearSnapshotStrategyTest")
+                                 .option("clearSnapshotStrategy", "noOp");
         List<Row> rows = readDf.load().collectAsList();
         assertThat(rows.size()).isEqualTo(8);
 
@@ -102,12 +102,35 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
                                               .getParams()
                                               .get("data_file_directories");
         String dataDir = dataDirs[0];
-        List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "clearSnapshotHonorTest");
+        List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "noOpClearSnapshotStrategyTest");
         assertThat(snapshotPaths).isNotEmpty();
         Path snapshot = snapshotPaths.get(0);
         assertThat(snapshot).exists();
 
-        // Wait to make sure TTLs have expired
+        Uninterruptibles.sleepUninterruptibly(30, TimeUnit.SECONDS);
+        assertThat(snapshot).exists();
+    }
+
+    @Test
+    void testClearSnapshotStrategyPrecedenceOverClearSnapshotOption()
+    {
+        DataFrameReader readDf = bulkReaderDataFrame(TABLE_NAME_FOR_NO_OP_CLEAR_SNAPSHOT_STRATEGY)
+                                 .option("snapshotName", "clearSnapshotStrategyPrecedenceTest")
+                                 .option("clearSnapshot", "true")
+                                 .option("clearSnapshotStrategy", "noOp");
+        List<Row> rows = readDf.load().collectAsList();
+        assertThat(rows.size()).isEqualTo(8);
+
+        String[] dataDirs = (String[]) cluster.getFirstRunningInstance()
+                                              .config()
+                                              .getParams()
+                                              .get("data_file_directories");
+        String dataDir = dataDirs[0];
+        List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "clearSnapshotStrategyPrecedenceTest");
+        assertThat(snapshotPaths).isNotEmpty();
+        Path snapshot = snapshotPaths.get(0);
+        assertThat(snapshot).exists();
+
         Uninterruptibles.sleepUninterruptibly(30, TimeUnit.SECONDS);
         assertThat(snapshot).exists();
     }
@@ -159,10 +182,12 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
     {
         createTestKeyspace(TEST_KEYSPACE, DC1_RF1);
         String createTableStatement = "CREATE TABLE IF NOT EXISTS %s (c1 int, c2 text, PRIMARY KEY(c1));";
-        createTestTable(TABLE_NAME_FOR_USER_PROVIDED_TTL, createTableStatement);
-        populateTable(TABLE_NAME_FOR_USER_PROVIDED_TTL);
-        createTestTable(TABLE_NAME_FOR_CLEAR_SNAPSHOT_HONOR, createTableStatement);
-        populateTable(TABLE_NAME_FOR_CLEAR_SNAPSHOT_HONOR);
+        createTestTable(TABLE_NAME_FOR_TTL_CLEAR_SNAPSHOT_STRATEGY, createTableStatement);
+        populateTable(TABLE_NAME_FOR_TTL_CLEAR_SNAPSHOT_STRATEGY);
+        createTestTable(TABLE_NAME_FOR_NO_OP_CLEAR_SNAPSHOT_STRATEGY, createTableStatement);
+        populateTable(TABLE_NAME_FOR_NO_OP_CLEAR_SNAPSHOT_STRATEGY);
+        createTestTable(TABLE_NAME_FOR_CLEAR_SNAPSHOT_STRATEGY_PRECEDENCE, createTableStatement);
+        populateTable(TABLE_NAME_FOR_CLEAR_SNAPSHOT_STRATEGY_PRECEDENCE);
     }
 
     void populateTable(QualifiedName tableName)
