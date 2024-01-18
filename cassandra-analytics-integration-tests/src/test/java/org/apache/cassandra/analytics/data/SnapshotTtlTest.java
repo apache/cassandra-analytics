@@ -33,22 +33,25 @@ import org.junit.jupiter.api.Test;
 
 import com.vdurmont.semver4j.Semver;
 import org.apache.cassandra.analytics.SharedClusterSparkIntegrationTestBase;
+import org.apache.cassandra.config.CassandraRelevantProperties;
 import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.shared.Uninterruptibles;
 import org.apache.cassandra.distributed.shared.Versions;
+import org.apache.cassandra.distributed.shared.WithProperties;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.testing.TestVersion;
 import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.Row;
 
-import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
+import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
 {
+    private static final WithProperties properties = new WithProperties();
     static final QualifiedName TABLE_NAME_FOR_USER_PROVIDED_TTL
     = new QualifiedName(TEST_KEYSPACE, "test_user_provided_ttl");
     static final QualifiedName TABLE_NAME_FOR_CLEAR_SNAPSHOT_HONOR
@@ -61,7 +64,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
         DataFrameReader readDf = bulkReaderDataFrame(TABLE_NAME_FOR_USER_PROVIDED_TTL)
                                  .option("snapshotName", "userProvidedSnapshotTTLTest")
                                  .option("clearSnapshot", "true")
-                                 .option("snapshot_ttl", "1m");
+                                 .option("snapshot_ttl", "10s");
         List<Row> rows = readDf.load().collectAsList();
         assertThat(rows.size()).isEqualTo(8);
 
@@ -71,12 +74,16 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
                                               .get("data_file_directories");
         String dataDir = dataDirs[0];
         List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "userProvidedSnapshotTTLTest");
-        assertThat(snapshotPaths).isEmpty();
+        assertThat(snapshotPaths).isNotEmpty();
         Path snapshot = snapshotPaths.get(0);
         assertThat(snapshot).exists();
 
-        // Wait to make sure TTLs have expired
-        Uninterruptibles.sleepUninterruptibly(2, TimeUnit.MINUTES);
+        // Wait up to 30 seconds to make sure files are cleared after TTLs have expired
+        int wait = 0;
+        while (Files.exists(snapshot) && wait++ < 30)
+        {
+            Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+        }
         assertThat(snapshot).doesNotExist();
     }
 
@@ -86,7 +93,7 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
         DataFrameReader readDf = bulkReaderDataFrame(TABLE_NAME_FOR_CLEAR_SNAPSHOT_HONOR)
                                  .option("snapshotName", "clearSnapshotHonorTest")
                                  .option("clearSnapshot", "false")
-                                 .option("snapshot_ttl", "1m");
+                                 .option("snapshot_ttl", "10s");
         List<Row> rows = readDf.load().collectAsList();
         assertThat(rows.size()).isEqualTo(8);
 
@@ -96,12 +103,12 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
                                               .get("data_file_directories");
         String dataDir = dataDirs[0];
         List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "clearSnapshotHonorTest");
-        assertThat(snapshotPaths).isEmpty();
+        assertThat(snapshotPaths).isNotEmpty();
         Path snapshot = snapshotPaths.get(0);
         assertThat(snapshot).exists();
 
         // Wait to make sure TTLs have expired
-        Uninterruptibles.sleepUninterruptibly(2, TimeUnit.MINUTES);
+        Uninterruptibles.sleepUninterruptibly(30, TimeUnit.SECONDS);
         assertThat(snapshot).exists();
     }
 
@@ -121,6 +128,10 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
     @Override
     protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
     {
+        properties.set(CassandraRelevantProperties.SNAPSHOT_CLEANUP_INITIAL_DELAY_SECONDS, 0);
+        properties.set(CassandraRelevantProperties.SNAPSHOT_CLEANUP_PERIOD_SECONDS, 1);
+        properties.set(CassandraRelevantProperties.SNAPSHOT_MIN_ALLOWED_TTL_SECONDS, 5);
+
         Versions versions = Versions.find();
         Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(),
                                                                           Semver.SemverType.LOOSE));
@@ -133,16 +144,20 @@ class SnapshotTtlTest extends SharedClusterSparkIntegrationTestBase
                           .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
                                                       .with(Feature.GOSSIP)
                                                       .with(Feature.JMX));
-        UpgradeableCluster cluster = clusterBuilder.createWithoutStarting();
-        cluster.startup();
 
-        return cluster;
+        return clusterBuilder.start();
+    }
+
+    @Override
+    protected void afterClusterShutdown()
+    {
+        properties.close();
     }
 
     @Override
     protected void initializeSchemaForTest()
     {
-        createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
+        createTestKeyspace(TEST_KEYSPACE, DC1_RF1);
         String createTableStatement = "CREATE TABLE IF NOT EXISTS %s (c1 int, c2 text, PRIMARY KEY(c1));";
         createTestTable(TABLE_NAME_FOR_USER_PROVIDED_TTL, createTableStatement);
         populateTable(TABLE_NAME_FOR_USER_PROVIDED_TTL);
