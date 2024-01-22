@@ -55,7 +55,7 @@ public final class ClientConfig
      * and in case of TTL based strategy, TTL value. For e.g. onCompletionOrTTL 2d, TTL 2d, noOp, onCompletion. For
      * clear snapshot strategies allowed check {@link ClearSnapshotStrategy}
      */
-    public static final String CLEAR_SNAPSHOT_STRATEGY = "clearSnapshotStrategy";
+    public static final String CLEAR_SNAPSHOT_STRATEGY_KEY = "clearSnapshotStrategy";
     /**
      * TTL value is time to live option for the snapshot (available since Cassandra 4.1+). TTL value specified must
      * contain unit along. For e.g. 2d represents a TTL for 2 days; 1h represents a TTL of 1 hour, etc.
@@ -112,7 +112,7 @@ public final class ClientConfig
         this.datacenter = options.get(MapUtils.lowerCaseKey(DC_KEY));
         this.createSnapshot = MapUtils.getBoolean(options, CREATE_SNAPSHOT_KEY, true);
         this.clearSnapshot = MapUtils.getBoolean(options, CLEAR_SNAPSHOT_KEY, createSnapshot);
-        String clearSnapshotStrategyOption = MapUtils.getOrDefault(options, CLEAR_SNAPSHOT_STRATEGY, null);
+        String clearSnapshotStrategyOption = MapUtils.getOrDefault(options, CLEAR_SNAPSHOT_STRATEGY_KEY, null);
         this.clearSnapshotStrategy = parseClearSnapshotStrategy(options.containsKey(CLEAR_SNAPSHOT_KEY),
                                                                 clearSnapshot,
                                                                 clearSnapshotStrategyOption);
@@ -365,7 +365,7 @@ public final class ClientConfig
         @Override
         public String toString()
         {
-            return this.getClass().getSimpleName() + (hasTTL() ? "" : ' ' + ttl());
+            return this.getClass().getSimpleName() + (hasTTL() ? ' ' + ttl() : "");
         }
 
         protected ClearSnapshotStrategy(String snapshotTTL)

@@ -26,6 +26,8 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CassandraDataLayerTests
 {
@@ -43,7 +45,23 @@ class CassandraDataLayerTests
         assertEquals("customers", clientConfig.table());
         assertEquals("localhost", clientConfig.sidecarInstances());
         ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = clientConfig.clearSnapshotStrategy();
-        assertEquals(ClientConfig.ClearSnapshotStrategyType.onCompletionOrTTL, clearSnapshotStrategy.type());
+        assertTrue(clearSnapshotStrategy.shouldClearOnCompletion());
         assertEquals("2d", clearSnapshotStrategy.ttl());
+    }
+
+    @Test
+    void testCustomClearSnapshotStrategy()
+    {
+        final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
+        options.put("clearsnapshotstrategy", "tTl 4h");
+        ClientConfig clientConfig = ClientConfig.create(options);
+        assertEquals("big-data", clientConfig.keyspace());
+        assertEquals("customers", clientConfig.table());
+        assertEquals("localhost", clientConfig.sidecarInstances());
+        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = clientConfig.clearSnapshotStrategy();
+        assertEquals("TTL 4h", clearSnapshotStrategy.toString());
+        assertTrue(clearSnapshotStrategy.hasTTL());
+        assertFalse(clearSnapshotStrategy.shouldClearOnCompletion());
+        assertEquals("4h", clearSnapshotStrategy.ttl());
     }
 }
