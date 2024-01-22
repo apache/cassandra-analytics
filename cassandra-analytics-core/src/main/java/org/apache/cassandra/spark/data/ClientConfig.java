@@ -153,12 +153,12 @@ public final class ClientConfig
         String snapshotTTL = null;
         if (strategyParts.length == 1)
         {
-            strategyName = strategyParts[0].strip();
+            strategyName = strategyParts[0].trim();
         }
         else if (strategyParts.length == 2)
         {
-            strategyName = strategyParts[0].strip();
-            snapshotTTL = strategyParts[1].strip();
+            strategyName = strategyParts[0].trim();
+            snapshotTTL = strategyParts[1].trim();
             if (!Pattern.matches(SNAPSHOT_TTL_PATTERN, snapshotTTL))
             {
                 String msg = "Incorrect value set for clearSnapshotStrategy, expected format is " +
@@ -315,7 +315,7 @@ public final class ClientConfig
 
         static ClearSnapshotStrategy create(String name, String snapshotTTL)
         {
-            String stripped = name.strip();
+            String stripped = name.trim();
             if (stripped.equalsIgnoreCase(OnCompletion.class.getSimpleName()))
             {
                 return new OnCompletion();
