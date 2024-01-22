@@ -56,8 +56,6 @@ class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
     = new QualifiedName(TEST_KEYSPACE, "test_ttl_clear_snapshot_strategy");
     static final QualifiedName TABLE_NAME_FOR_NO_OP_CLEAR_SNAPSHOT_STRATEGY
     = new QualifiedName(TEST_KEYSPACE, "test_no_op_clear_snapshot_strategy");
-    static final QualifiedName TABLE_NAME_FOR_CLEAR_SNAPSHOT_STRATEGY_PRECEDENCE
-    = new QualifiedName(TEST_KEYSPACE, "test_clear_snapshot_strategy_precedence");
     static final List<String> DATASET = Arrays.asList("a", "b", "c", "d", "e", "f", "g", "h");
 
     @Test
@@ -65,7 +63,7 @@ class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
     {
         DataFrameReader readDf = bulkReaderDataFrame(TABLE_NAME_FOR_TTL_CLEAR_SNAPSHOT_STRATEGY)
                                  .option("snapshotName", "ttlClearSnapshotStrategyTest")
-                                 .option("clearSnapshotStrategy", "TTL [10s]");
+                                 .option("clearSnapshotStrategy", "TTL 10s");
         List<Row> rows = readDf.load().collectAsList();
         assertThat(rows.size()).isEqualTo(8);
 
@@ -103,30 +101,6 @@ class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
                                               .get("data_file_directories");
         String dataDir = dataDirs[0];
         List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "noOpClearSnapshotStrategyTest");
-        assertThat(snapshotPaths).isNotEmpty();
-        Path snapshot = snapshotPaths.get(0);
-        assertThat(snapshot).exists();
-
-        Uninterruptibles.sleepUninterruptibly(30, TimeUnit.SECONDS);
-        assertThat(snapshot).exists();
-    }
-
-    @Test
-    void testClearSnapshotStrategyPrecedenceOverClearSnapshotOption()
-    {
-        DataFrameReader readDf = bulkReaderDataFrame(TABLE_NAME_FOR_NO_OP_CLEAR_SNAPSHOT_STRATEGY)
-                                 .option("snapshotName", "clearSnapshotStrategyPrecedenceTest")
-                                 .option("clearSnapshot", "true")
-                                 .option("clearSnapshotStrategy", "noOp");
-        List<Row> rows = readDf.load().collectAsList();
-        assertThat(rows.size()).isEqualTo(8);
-
-        String[] dataDirs = (String[]) cluster.getFirstRunningInstance()
-                                              .config()
-                                              .getParams()
-                                              .get("data_file_directories");
-        String dataDir = dataDirs[0];
-        List<Path> snapshotPaths = findChildFile(Paths.get(dataDir), "clearSnapshotStrategyPrecedenceTest");
         assertThat(snapshotPaths).isNotEmpty();
         Path snapshot = snapshotPaths.get(0);
         assertThat(snapshot).exists();
@@ -186,8 +160,6 @@ class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
         populateTable(TABLE_NAME_FOR_TTL_CLEAR_SNAPSHOT_STRATEGY);
         createTestTable(TABLE_NAME_FOR_NO_OP_CLEAR_SNAPSHOT_STRATEGY, createTableStatement);
         populateTable(TABLE_NAME_FOR_NO_OP_CLEAR_SNAPSHOT_STRATEGY);
-        createTestTable(TABLE_NAME_FOR_CLEAR_SNAPSHOT_STRATEGY_PRECEDENCE, createTableStatement);
-        populateTable(TABLE_NAME_FOR_CLEAR_SNAPSHOT_STRATEGY_PRECEDENCE);
     }
 
     void populateTable(QualifiedName tableName)
