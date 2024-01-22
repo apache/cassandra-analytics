@@ -159,8 +159,9 @@ public abstract class SharedClusterIntegrationTestBase
             }
             catch (RuntimeException runtimeException)
             {
-                boolean addressAlreadyInUse = Throwables.anyCauseMatches(runtimeException, ex -> ex instanceof BindException &&
-                                                                                                 StringUtils.contains(ex.getMessage(), "Address already in use"));
+                boolean addressAlreadyInUse = Throwables.anyCauseMatches(runtimeException,
+                                                                         ex -> ex instanceof BindException &&
+                                                                               StringUtils.contains(ex.getMessage(), "Address already in use"));
                 if (addressAlreadyInUse)
                 {
                     logger.warn("Failed to provision cluster after {} retries", retry, runtimeException);
