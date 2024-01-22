@@ -20,6 +20,7 @@
 package org.apache.cassandra.sidecar.testing;
 
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.nio.file.Path;
@@ -34,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
@@ -77,6 +79,7 @@ import org.apache.cassandra.sidecar.utils.CassandraVersionProvider;
 import org.apache.cassandra.testing.TestUtils;
 import org.apache.cassandra.testing.TestVersion;
 import org.apache.cassandra.testing.TestVersionSupplier;
+import org.apache.cassandra.utils.Throwables;
 
 import static org.apache.cassandra.sidecar.testing.CassandraSidecarTestContext.tryGetIntConfig;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -119,6 +122,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class SharedClusterIntegrationTestBase
 {
     protected final Logger logger = LoggerFactory.getLogger(SharedClusterIntegrationTestBase.class);
+    private static final int MAX_CLUSTER_PROVISION_RETRIES = 5;
 
     protected Vertx vertx;
     protected DnsResolver dnsResolver;
@@ -138,11 +142,37 @@ public abstract class SharedClusterIntegrationTestBase
         Optional<TestVersion> testVersion = TestVersionSupplier.testVersions().findFirst();
         assertThat(testVersion).isPresent();
         logger.info("Testing with version={}", testVersion);
-        cluster = provisionCluster(testVersion.get());
+        cluster = provisionClusterWithRetries(testVersion.get());
         assertThat(cluster).isNotNull();
         initializeSchemaForTest();
         startSidecar(cluster);
         beforeTestStart();
+    }
+
+    protected AbstractCluster<? extends IInstance> provisionClusterWithRetries(TestVersion testVersion) throws IOException
+    {
+        for (int retry = 0; retry < MAX_CLUSTER_PROVISION_RETRIES; retry++)
+        {
+            try
+            {
+                return provisionCluster(testVersion);
+            }
+            catch (RuntimeException runtimeException)
+            {
+                boolean addressAlreadyInUse = Throwables.anyCauseMatches(runtimeException,
+                                                                         ex -> ex instanceof BindException &&
+                                                                               StringUtils.contains(ex.getMessage(), "Address already in use"));
+                if (addressAlreadyInUse)
+                {
+                    logger.warn("Failed to provision cluster after {} retries", retry, runtimeException);
+                }
+                else
+                {
+                    throw runtimeException;
+                }
+            }
+        }
+        throw new RuntimeException("Unable to provision cluster");
     }
 
     @AfterAll
