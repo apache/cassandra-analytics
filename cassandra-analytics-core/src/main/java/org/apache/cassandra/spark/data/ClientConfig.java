@@ -138,10 +138,13 @@ public final class ClientConfig
                                                              boolean clearSnapshot,
                                                              String clearSnapshotStrategyOption)
     {
-        if (hasDeprecatedOption && clearSnapshotStrategyOption == null)
+        if (hasDeprecatedOption)
         {
             LOGGER.warn("The deprecated option 'clearSnapshot' is set. Please set 'clearSnapshotStrategy' instead.");
-            return clearSnapshot ? ClearSnapshotStrategy.defaultStrategy() : new ClearSnapshotStrategy.NoOp();
+            if (clearSnapshotStrategyOption == null)
+            {
+                return clearSnapshot ? ClearSnapshotStrategy.defaultStrategy() : new ClearSnapshotStrategy.NoOp();
+            }
         }
         if (clearSnapshotStrategyOption == null)
         {
