@@ -291,9 +291,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected void shutdownHook(ClientConfig options)
     {
         ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = options.clearSnapshotStrategy();
-        boolean clearOnCompletion = ClientConfig.ClearSnapshotStrategyType.onCompletion.equals(clearSnapshotStrategy.type());
-        boolean clearOnCompletionOrTTL = ClientConfig.ClearSnapshotStrategyType.onCompletionOrTTL.equals(clearSnapshotStrategy.type());
-        if (clearOnCompletion || clearOnCompletionOrTTL)
+        if (clearSnapshotStrategy.shouldClearOnCompletion())
         {
             if (options.createSnapshot())
             {
@@ -307,9 +305,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                             snapshotName, keyspace, table, datacenter);
             }
         }
-        if (ClientConfig.ClearSnapshotStrategyType.TTL.equals(clearSnapshotStrategy.type()))
+        else if (clearSnapshotStrategy.hasTTL())
         {
-            LOGGER.warn("Skipping clearing snapshot because snapshot TTL was set to {}", clearSnapshotStrategy.ttl());
+            LOGGER.warn("Skipping clearing snapshot because clearSnapshotStrategy '{}' is used", clearSnapshotStrategy);
         }
 
         try
