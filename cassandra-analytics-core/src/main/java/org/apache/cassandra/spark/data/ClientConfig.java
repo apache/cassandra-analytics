@@ -59,10 +59,10 @@ public final class ClientConfig
     /**
      * TTL value is time to live option for the snapshot (available since Cassandra 4.1+). TTL value specified must
      * contain unit along. For e.g. 2d represents a TTL for 2 days; 1h represents a TTL of 1 hour, etc.
-     * Valid units are {@code d}, {@code h}, {@code s}, {@code ms}, {@code us}, {@code µs}, {@code ns}, and {@code m}.
+     * Valid units are {@code d}, {@code h}, {@code s} and {@code m}.
      */
     public static final String DEFAULT_SNAPSHOT_TTL_VALUE = "2d";
-    public static final String SNAPSHOT_TTL_PATTERN = "\\d+(d|h|m|s|ms)|(\\d+|\\d+\\.\\d+|\\.\\d+)[eE][+-](\\d+|\\d+\\.\\d+|\\.\\d+)(us|µs|ns)";
+    public static final String SNAPSHOT_TTL_PATTERN = "\\d+(d|h|m|s)";
     public static final String DEFAULT_PARALLELISM_KEY = "defaultParallelism";
     public static final String NUM_CORES_KEY = "numCores";
     public static final String CONSISTENCY_LEVEL_KEY = "consistencyLevel";
@@ -134,9 +134,9 @@ public final class ClientConfig
         this.quoteIdentifiers = MapUtils.getBoolean(options, QUOTE_IDENTIFIERS, false);
     }
 
-    private ClearSnapshotStrategy parseClearSnapshotStrategy(boolean hasDeprecatedOption,
-                                                             boolean clearSnapshot,
-                                                             String clearSnapshotStrategyOption)
+    protected ClearSnapshotStrategy parseClearSnapshotStrategy(boolean hasDeprecatedOption,
+                                                               boolean clearSnapshot,
+                                                               String clearSnapshotStrategyOption)
     {
         if (hasDeprecatedOption)
         {
@@ -344,7 +344,7 @@ public final class ClientConfig
             }
         }
 
-        static ClearSnapshotStrategy defaultStrategy()
+        public static ClearSnapshotStrategy defaultStrategy()
         {
             LOGGER.info("A default TTL value of {} is added to the snapshot. If the job takes longer than {}, " +
                         "the snapshot will be cleared before job completion leading to errors.",
@@ -420,7 +420,7 @@ public final class ClientConfig
 
         static class TTL extends ClearSnapshotStrategy
         {
-            protected TTL(@NotNull String snapshotTTL)
+            protected TTL(@NotNull String snapshotTTL) // check NotNull not throwing error
             {
                 super(snapshotTTL);
             }

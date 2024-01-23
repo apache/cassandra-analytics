@@ -19,41 +19,84 @@
 
 package org.apache.cassandra.spark.data;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.apache.cassandra.spark.data.ClientConfig.SNAPSHOT_TTL_PATTERN;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ClientConfigTests
 {
-    @Test
-    void testPositiveSnapshotTTLPatterns()
+    @ParameterizedTest
+    @ValueSource(strings = {"2h", "200s", "4d", "60m", "  60m", "50s ", " 32d "})
+    void testPositiveSnapshotTTLPatterns(String input)
     {
-        assertTrue("2h".matches(SNAPSHOT_TTL_PATTERN));
-        assertTrue("200s".matches(SNAPSHOT_TTL_PATTERN));
-        assertTrue("20000ms".matches(SNAPSHOT_TTL_PATTERN));
-        assertTrue("4d".matches(SNAPSHOT_TTL_PATTERN));
-        assertTrue("60m".matches(SNAPSHOT_TTL_PATTERN));
-        assertTrue("2e+9us".matches(SNAPSHOT_TTL_PATTERN));
-        assertTrue("1.5e+9µs".matches(SNAPSHOT_TTL_PATTERN));
-        assertTrue("2e+1.9ns".matches(SNAPSHOT_TTL_PATTERN));
-        assertTrue(".2e+9ns".matches(SNAPSHOT_TTL_PATTERN));
-        assertTrue("2e+.9ns".matches(SNAPSHOT_TTL_PATTERN));
+        assertThat(input.trim()).matches(SNAPSHOT_TTL_PATTERN);
     }
 
-    @Test
-    void testNegativeSnapshotTTLPatterns()
+    @ParameterizedTest
+    @ValueSource(strings = {"", " ", "2 h", "200", "d", "6 0m", " h", "3.5h", ".8m", "4.d", "1e+7m"})
+    void testNegativeSnapshotTTLPatterns(String input)
     {
-        assertFalse("2 h".matches(SNAPSHOT_TTL_PATTERN));
-        assertFalse("200".matches(SNAPSHOT_TTL_PATTERN));
-        assertFalse("ms".matches(SNAPSHOT_TTL_PATTERN));
-        assertFalse(".89".matches(SNAPSHOT_TTL_PATTERN));
-        assertFalse("39xs".matches(SNAPSHOT_TTL_PATTERN));
-        assertFalse("2+9ms".matches(SNAPSHOT_TTL_PATTERN));
-        assertFalse("2e8µs".matches(SNAPSHOT_TTL_PATTERN));
-        assertFalse("2+9ms".matches(SNAPSHOT_TTL_PATTERN));
-        assertFalse(".e+9ns".matches(SNAPSHOT_TTL_PATTERN));
-        assertFalse("2e+.us".matches(SNAPSHOT_TTL_PATTERN));
+        assertThat(input).doesNotMatch(SNAPSHOT_TTL_PATTERN);
+    }
+
+    @ParameterizedTest
+    @ValueSource()
+    void testValidTTLClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption, boolean clearSnapshot,
+                                                  String option, String expectedSnapshotTTL)
+    {
+        ClientConfig clientConfig = mock(ClientConfig.class);
+        when(clientConfig.clearSnapshotStrategy()).thenCallRealMethod();
+        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
+        = clientConfig.parseClearSnapshotStrategy(hasDeprecatedSnapshotOption, clearSnapshot, option);
+        assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isFalse();
+        assertThat(clearSnapshotStrategy.hasTTL()).isTrue();
+        assertThat(clearSnapshotStrategy.ttl()).isEqualTo(expectedSnapshotTTL);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " ", "2 h", "200", "d", "6 0m", " h", "3.5h", ".8m", "4.d", "1e+7m"})
+    void testValidNoOpClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption, boolean clearSnapshot,
+                                                   String option)
+    {
+        ClientConfig clientConfig = mock(ClientConfig.class);
+        when(clientConfig.clearSnapshotStrategy()).thenCallRealMethod();
+        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
+        = clientConfig.parseClearSnapshotStrategy(hasDeprecatedSnapshotOption, clearSnapshot, option);
+        assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isFalse();
+        assertThat(clearSnapshotStrategy.hasTTL()).isFalse();
+        assertThat(clearSnapshotStrategy.ttl()).isNull();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " ", "2 h", "200", "d", "6 0m", " h", "3.5h", ".8m", "4.d", "1e+7m"})
+    void testValidOnCompletionClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption, boolean clearSnapshot,
+                                                           String option)
+    {
+        ClientConfig clientConfig = mock(ClientConfig.class);
+        when(clientConfig.clearSnapshotStrategy()).thenCallRealMethod();
+        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
+        = clientConfig.parseClearSnapshotStrategy(hasDeprecatedSnapshotOption, clearSnapshot, option);
+        assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isTrue();
+        assertThat(clearSnapshotStrategy.hasTTL()).isFalse();
+        assertThat(clearSnapshotStrategy.ttl()).isNull();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", " ", "2 h", "200", "d", "6 0m", " h", "3.5h", ".8m", "4.d", "1e+7m"})
+    void testValidOnCompletionOrTTLClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption,
+                                                                boolean clearSnapshot, String option,
+                                                                String expectedSnapshotTTL)
+    {
+        ClientConfig clientConfig = mock(ClientConfig.class);
+        when(clientConfig.clearSnapshotStrategy()).thenCallRealMethod();
+        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
+        = clientConfig.parseClearSnapshotStrategy(hasDeprecatedSnapshotOption, clearSnapshot, option);
+        assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isTrue();
+        assertThat(clearSnapshotStrategy.hasTTL()).isTrue();
+        assertThat(clearSnapshotStrategy.ttl()).isEqualTo(expectedSnapshotTTL);
     }
 }

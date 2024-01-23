@@ -64,4 +64,17 @@ class CassandraDataLayerTests
         assertFalse(clearSnapshotStrategy.shouldClearOnCompletion());
         assertEquals("4h", clearSnapshotStrategy.ttl());
     }
+
+    @Test
+    void testInvalidClearSnapshotStrategy()
+    {
+        final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
+        options.put("clearsnapshotstrategy", "tTl");
+        ClientConfig clientConfig = ClientConfig.create(options);
+        assertEquals("big-data", clientConfig.keyspace());
+        assertEquals("customers", clientConfig.table());
+        assertEquals("localhost", clientConfig.sidecarInstances());
+        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = clientConfig.clearSnapshotStrategy();
+        System.out.println(clearSnapshotStrategy);
+    }
 }
