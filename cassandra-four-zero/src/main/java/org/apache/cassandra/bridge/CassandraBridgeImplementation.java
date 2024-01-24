@@ -51,8 +51,10 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.config.ParameterizedClass;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.Keyspace;
+import org.apache.cassandra.db.commitlog.CommitLogSegmentManagerStandard;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.ByteBufferAccessor;
 import org.apache.cassandra.db.marshal.CompositeType;
@@ -164,11 +166,29 @@ public class CassandraBridgeImplementation extends CassandraBridge
                 throw new RuntimeException(exception);
             }
             config.data_file_directories = new String[]{tempDirectory.toString()};
+            setupCommitLogConfigs(tempDirectory);
             DatabaseDescriptor.setEndpointSnitch(new SimpleSnitch());
             Keyspace.setInitialized();
 
             setup = true;
         }
+    }
+
+    public static void setupCommitLogConfigs(Path path)
+    {
+        String commitLogPath = path + "/commitlog";
+        DatabaseDescriptor.getRawConfig().commitlog_directory = commitLogPath;
+        DatabaseDescriptor.getRawConfig().hints_directory = path + "/hints";
+        DatabaseDescriptor.getRawConfig().saved_caches_directory = path + "/saved_caches";
+        DatabaseDescriptor.setCommitLogSync(Config.CommitLogSync.periodic);
+        DatabaseDescriptor.setCommitLogCompression(new ParameterizedClass("LZ4Compressor",
+                                                                          Collections.emptyMap()));
+        DatabaseDescriptor.setCommitLogSyncPeriod(30);
+        DatabaseDescriptor.setCommitLogMaxCompressionBuffersPerPool(3);
+        DatabaseDescriptor.setCommitLogSyncGroupWindow(30);
+        DatabaseDescriptor.setCommitLogSegmentSize(32);
+        DatabaseDescriptor.getRawConfig().commitlog_total_space_in_mb = 1024;
+        DatabaseDescriptor.setCommitLogSegmentMgrProvider(commitLog -> new CommitLogSegmentManagerStandard(commitLog, commitLogPath));
     }
 
     public CassandraBridgeImplementation()
@@ -581,10 +601,9 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                           String partitioner,
                                           String createStatement,
                                           String insertStatement,
-                                          RowBufferMode rowBufferMode,
                                           int bufferSizeMB)
     {
-        return new SSTableWriterImplementation(inDirectory, partitioner, createStatement, insertStatement, rowBufferMode, bufferSizeMB);
+        return new SSTableWriterImplementation(inDirectory, partitioner, createStatement, insertStatement, bufferSizeMB);
     }
 
     // Version-Specific Test Utility Methods

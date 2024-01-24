@@ -29,7 +29,7 @@ project(':cassandra-four-zero') {
         compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
         compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
 
-        implementation(group: 'org.apache.cassandra', name: 'cassandra-all', version: '4.0.2') {
+        implementation(group: 'org.apache.cassandra', name: 'cassandra-all', version: '4.0.12') {
             // Exclude JNA libraries from the cassandra-all dependency tree because Spark has its own version
             // and trying to load two different versions causes issues with the native libraries
             exclude(group: 'net.java.dev.jna')

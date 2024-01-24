@@ -1,4 +1,5 @@
 1.0.0
+ * Upgrade to Cassandra 4.0.12 and remove RowBufferMode and BatchSize options (CASSANDRA-19334)
  * Improve logging for bulk writes and on task failures (CASSANDRA-19331)
  * Allow setting TTL for snapshots created by Analytics bulk reader (CASSANDRA-19273)
  * Fix range split and use open-closed range notation consistently (CASSANDRA-19325)

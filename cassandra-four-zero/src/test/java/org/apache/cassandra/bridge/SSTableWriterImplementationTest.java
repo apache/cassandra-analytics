@@ -21,6 +21,7 @@ package org.apache.cassandra.bridge;
 
 import java.io.File;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -30,8 +31,6 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter;
 import org.apache.cassandra.utils.ReflectionUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -46,32 +45,16 @@ class SSTableWriterImplementationTest
     File writeDirectory;
 
     @Test
-    void testUnbufferedRowBufferModeConfiguration() throws NoSuchFieldException, IllegalAccessException
+    void testSSTableWriterConfiguration() throws NoSuchFieldException, IllegalAccessException
     {
         CQLSSTableWriter.Builder builder = SSTableWriterImplementation.configureBuilder(writeDirectory.getAbsolutePath(),
                                                                                         CREATE_STATEMENT,
                                                                                         INSERT_STATEMENT,
-                                                                                        RowBufferMode.UNBUFFERED,
                                                                                         250,
                                                                                         new Murmur3Partitioner());
 
 
         assertTrue(peekSorted(builder));
-        assertNotEquals(250, peekBufferSizeInMB(builder)); // 250 should not be set
-    }
-
-    @Test
-    void testBufferedRowBufferModeConfiguration() throws NoSuchFieldException, IllegalAccessException
-    {
-        CQLSSTableWriter.Builder builder = SSTableWriterImplementation.configureBuilder(writeDirectory.getAbsolutePath(),
-                                                                                        CREATE_STATEMENT,
-                                                                                        INSERT_STATEMENT,
-                                                                                        RowBufferMode.BUFFERED,
-                                                                                        250,
-                                                                                        new Murmur3Partitioner());
-
-
-        assertFalse(peekSorted(builder));
         assertEquals(250, peekBufferSizeInMB(builder));
     }
 
@@ -84,20 +67,34 @@ class SSTableWriterImplementationTest
 
     static long peekBufferSizeInMB(CQLSSTableWriter.Builder builder) throws NoSuchFieldException, IllegalAccessException
     {
-        Field bufferSizeInMBField;
-        try
+        // The name of the size field has been changed in Cassandra code base.
+        // We find the field using the old name to newer one.
+        Field sizeField = findFirstField(builder.getClass(),
+                                         "bufferSizeInMB", "bufferSizeInMiB", "maxSSTableSizeInMiB");
+        sizeField.setAccessible(true);
+        return (long) sizeField.get(builder);
+    }
+
+    static Field findFirstField(Class<?> clazz, String... fieldNames) throws NoSuchFieldException, IllegalAccessException
+    {
+        Field field = null;
+        for (String fieldName : fieldNames)
         {
-            bufferSizeInMBField = ReflectionUtils.getField(builder.getClass(), "bufferSizeInMB");
-        }
-        catch (NoSuchFieldException noSuchFieldException)
-        {
-            // The bufferSizeInMB field has been renamed to bufferSizeInMiB in trunk, so we expect this to
-            // fail at some point, and we have a way to recover from the failure without causing the test
-            // to fail.
-            bufferSizeInMBField = ReflectionUtils.getField(builder.getClass(), "bufferSizeInMiB");
+            try
+            {
+                field = ReflectionUtils.getField(clazz, fieldName);
+            }
+            catch (NoSuchFieldException nsfe)
+            {
+                // ignore the exception and try with the next fieldName
+            }
         }
 
-        bufferSizeInMBField.setAccessible(true);
-        return (long) bufferSizeInMBField.get(builder);
+        if (field == null)
+        {
+            throw new NoSuchFieldException("The class does not contain any of the supplied fieldNames: " + Arrays.asList(fieldNames));
+        }
+
+        return field;
     }
 }

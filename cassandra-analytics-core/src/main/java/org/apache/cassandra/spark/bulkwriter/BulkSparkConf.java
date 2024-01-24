@@ -39,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
-import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.clients.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
@@ -83,8 +82,7 @@ public class BulkSparkConf implements Serializable
     public static final long DEFAULT_SIDECAR_REQUEST_MAX_RETRY_DELAY_MILLIS = TimeUnit.SECONDS.toMillis(60L);
     public static final int DEFAULT_COMMIT_BATCH_SIZE = 10_000;
     public static final int DEFAULT_RING_RETRY_COUNT = 3;
-    public static final RowBufferMode DEFAULT_ROW_BUFFER_MODE = RowBufferMode.UNBUFFERED;
-    public static final int DEFAULT_BATCH_SIZE_IN_ROWS = 1_000_000;
+    public static final int DEFAULT_SSTABLE_DATA_SIZE_IN_MIB = 160;
 
     // NOTE: All Cassandra Analytics setting names must start with "spark" in order to not be ignored by Spark,
     //       and must not start with "spark.cassandra" so as to not conflict with Spark Cassandra Connector
@@ -108,9 +106,7 @@ public class BulkSparkConf implements Serializable
     public final ConsistencyLevel.CL consistencyLevel;
     public final String localDC;
     public final Integer numberSplits;
-    public final RowBufferMode rowBufferMode;
-    public final Integer sstableDataSizeInMB;
-    public final Integer sstableBatchSize;
+    public final Integer sstableDataSizeInMiB;
     public final int commitBatchSize;
     public final boolean skipExtendedVerify;
     public final WriteMode writeMode;
@@ -147,9 +143,7 @@ public class BulkSparkConf implements Serializable
         this.consistencyLevel = ConsistencyLevel.CL.valueOf(MapUtils.getOrDefault(options, WriterOptions.BULK_WRITER_CL.name(), "EACH_QUORUM"));
         this.localDC = MapUtils.getOrDefault(options, WriterOptions.LOCAL_DC.name(), null);
         this.numberSplits = MapUtils.getInt(options, WriterOptions.NUMBER_SPLITS.name(), DEFAULT_NUM_SPLITS, "number of splits");
-        this.rowBufferMode = MapUtils.getEnumOption(options, WriterOptions.ROW_BUFFER_MODE.name(), DEFAULT_ROW_BUFFER_MODE, "row buffering mode");
-        this.sstableDataSizeInMB = MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name(), 160, "sstable data size in MB");
-        this.sstableBatchSize = MapUtils.getInt(options, WriterOptions.BATCH_SIZE.name(), 1_000_000, "sstable batch size");
+        this.sstableDataSizeInMiB = resolveSSTableDataSizeInMiB(options);
         this.commitBatchSize = MapUtils.getInt(options, WriterOptions.COMMIT_BATCH_SIZE.name(), DEFAULT_COMMIT_BATCH_SIZE, "commit batch size");
         this.commitThreadsPerInstance = MapUtils.getInt(options, WriterOptions.COMMIT_THREADS_PER_INSTANCE.name(), 2, "commit threads per instance");
         this.keystorePassword = MapUtils.getOrDefault(options, WriterOptions.KEYSTORE_PASSWORD.name(), null);
@@ -179,6 +173,29 @@ public class BulkSparkConf implements Serializable
                      .collect(Collectors.toSet());
     }
 
+    protected int resolveSSTableDataSizeInMiB(Map<String, String> options)
+    {
+        int legacyOptionValue = -1;
+        if (options.containsKey(WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name()))
+        {
+            LOGGER.warn("The writer option: SSTABLE_DATA_SIZE_IN_MB is deprecated. " +
+                        "Please use SSTABLE_DATA_SIZE_IN_MIB instead. See option description for details.");
+            legacyOptionValue = MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name(),
+                                                DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
+        }
+
+        if (options.containsKey(WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name()))
+        {
+            LOGGER.info("The writer option: SSTABLE_DATA_SIZE_IN_MIB is defined. " +
+                        "Favor the value over SSTABLE_DATA_SIZE_IN_MB");
+            return MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name(),
+                                   DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
+
+        }
+
+        return legacyOptionValue == -1 ? DEFAULT_SSTABLE_DATA_SIZE_IN_MIB : legacyOptionValue;
+    }
+
     protected Set<? extends SidecarInstance> buildSidecarInstances(Map<String, String> options, int sidecarPort)
     {
         String sidecarInstances = MapUtils.getOrThrow(options, WriterOptions.SIDECAR_INSTANCES.name(), "sidecar_instances");
@@ -193,25 +210,7 @@ public class BulkSparkConf implements Serializable
         Preconditions.checkNotNull(table);
         Preconditions.checkArgument(getHttpResponseTimeoutMs() > 0, HTTP_RESPONSE_TIMEOUT + " must be > 0");
         validateSslConfiguration();
-        validateTableWriterSettings();
         CassandraBridgeFactory.validateBridges();
-    }
-
-    protected void validateTableWriterSettings()
-    {
-        boolean batchSizeIsZero = sstableBatchSize == 0;
-
-        if (rowBufferMode == RowBufferMode.UNBUFFERED)
-        {
-            Preconditions.checkArgument(!batchSizeIsZero,
-                                        "If writing in sorted order (ROW_BUFFER_MODE is UNBUFFERED) then BATCH_SIZE "
-                                        + "should be non zero, but it was set to 0 in writer options");
-        }
-        else if (!batchSizeIsZero && sstableBatchSize != DEFAULT_BATCH_SIZE_IN_ROWS)
-        {
-            LOGGER.warn("BATCH_SIZE is set to a non-zero, non-default value ({}) but ROW_BUFFER_MODE is set to BUFFERED."
-                        + " Ignoring BATCH_SIZE.", sstableBatchSize);
-        }
     }
 
     /**

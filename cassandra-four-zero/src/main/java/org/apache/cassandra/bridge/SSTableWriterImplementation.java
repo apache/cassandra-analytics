@@ -44,7 +44,6 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        String partitioner,
                                        String createStatement,
                                        String insertStatement,
-                                       RowBufferMode rowBufferMode,
                                        int bufferSizeMB)
     {
         IPartitioner cassPartitioner = partitioner.toLowerCase().contains("random") ? new RandomPartitioner()
@@ -53,7 +52,6 @@ public class SSTableWriterImplementation implements SSTableWriter
         CQLSSTableWriter.Builder builder = configureBuilder(inDirectory,
                                                             createStatement,
                                                             insertStatement,
-                                                            rowBufferMode,
                                                             bufferSizeMB,
                                                             cassPartitioner);
         // TODO: Remove me once CQLSSTableWriter.Builder synchronize on schema (see CASSANDRA-TBD)
@@ -84,23 +82,18 @@ public class SSTableWriterImplementation implements SSTableWriter
     static CQLSSTableWriter.Builder configureBuilder(String inDirectory,
                                                      String createStatement,
                                                      String insertStatement,
-                                                     RowBufferMode rowBufferMode,
                                                      int bufferSizeMB,
                                                      IPartitioner cassPartitioner)
     {
-        CQLSSTableWriter.Builder builder = CQLSSTableWriter.builder()
-                                                           .inDirectory(inDirectory)
-                                                           .forTable(createStatement)
-                                                           .withPartitioner(cassPartitioner)
-                                                           .using(insertStatement);
-        if (rowBufferMode == RowBufferMode.UNBUFFERED)
-        {
-            builder.sorted();
-        }
-        else if (rowBufferMode == RowBufferMode.BUFFERED)
-        {
-            builder.withBufferSizeInMB(bufferSizeMB);
-        }
-        return builder;
+        return CQLSSTableWriter
+               .builder()
+               .inDirectory(inDirectory)
+               .forTable(createStatement)
+               .withPartitioner(cassPartitioner)
+               .using(insertStatement)
+               // The data frame to write is always sorted,
+               // see org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation.insert
+               .sorted()
+               .withMaxSSTableSizeInMiB(bufferSizeMB);
     }
 }

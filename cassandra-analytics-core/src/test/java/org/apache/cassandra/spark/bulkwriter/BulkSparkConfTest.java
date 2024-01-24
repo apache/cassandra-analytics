@@ -28,7 +28,6 @@ import com.google.common.collect.Maps;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.spark.SparkConf;
@@ -213,59 +212,6 @@ public class BulkSparkConfTest
                                                 () -> new BulkSparkConf(sparkConf, options));
         assertEquals("Trust Store Path was provided, but password is missing. "
                      + "Please provide option " + WriterOptions.TRUSTSTORE_PASSWORD, npe.getMessage());
-    }
-
-    @Test
-    public void testUnbufferedRowBufferMode()
-    {
-        Map<String, String> options = copyDefaultOptions();
-        options.put(WriterOptions.ROW_BUFFER_MODE.name(), "UNBUFFERED");
-        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
-        assertNotNull(bulkSparkConf);
-        assertEquals(bulkSparkConf.rowBufferMode, RowBufferMode.UNBUFFERED);
-    }
-
-    @Test
-    public void testBufferedRowBufferMode()
-    {
-        Map<String, String> options = copyDefaultOptions();
-        options.put(WriterOptions.ROW_BUFFER_MODE.name(), "BUFFERED");
-        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
-        assertNotNull(bulkSparkConf);
-        assertEquals(bulkSparkConf.rowBufferMode, RowBufferMode.BUFFERED);
-    }
-
-    @Test
-    public void testInvalidRowBufferMode()
-    {
-        Map<String, String> options = copyDefaultOptions();
-        options.put(WriterOptions.ROW_BUFFER_MODE.name(), "invalid");
-        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                                                          () -> new BulkSparkConf(sparkConf, options));
-        assertEquals("Key row buffering mode with value invalid is not a valid Enum of type class org.apache.cassandra.bridge.RowBufferMode.",
-                     exception.getMessage());
-    }
-
-    @Test
-    public void testBufferedRowBufferModeWithZeroBatchSize()
-    {
-        Map<String, String> options = copyDefaultOptions();
-        options.put(WriterOptions.ROW_BUFFER_MODE.name(), "BUFFERED");
-        options.put(WriterOptions.BATCH_SIZE.name(), "0");
-        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
-        assertNotNull(bulkSparkConf);
-        assertEquals(bulkSparkConf.rowBufferMode, RowBufferMode.BUFFERED);
-    }
-
-    @Test
-    public void testNonZeroBatchSizeIsIgnoredWithBufferedRowBufferMode()
-    {
-        Map<String, String> options = copyDefaultOptions();
-        options.put(WriterOptions.BATCH_SIZE.name(), "5");
-        options.put(WriterOptions.ROW_BUFFER_MODE.name(), "BUFFERED");
-        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
-        assertNotNull(bulkSparkConf);
-        assertEquals(bulkSparkConf.rowBufferMode, RowBufferMode.BUFFERED);
     }
 
     @Test
