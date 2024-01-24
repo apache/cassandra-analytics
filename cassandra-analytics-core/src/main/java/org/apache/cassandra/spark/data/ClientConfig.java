@@ -340,7 +340,7 @@ public final class ClientConfig
                 ClearSnapshotStrategy defaultStrategy = defaultStrategy();
                 LOGGER.warn("Unknown ClearSnapshotStrategy {} is passed. Fall back to default strategy {}.",
                             name, defaultStrategy);
-                return defaultStrategy;
+                throw new IllegalArgumentException("Invalid ClearSnapshotStrategy " + name + " passed");
             }
         }
 
