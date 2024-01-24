@@ -195,7 +195,7 @@ public class StreamSession
     private boolean isExclusion(RingInstance ringInstance, Set<RingInstance> failedInstances, Set<String> blockedInstanceIps)
     {
         return failedInstances.contains(ringInstance)
-               || blockedInstanceIps.contains(ringInstance.getIpAddress());
+               || blockedInstanceIps.contains(ringInstance.ipAddress());
     }
 
     private void sendSSTables(BulkWriterContext writerContext, SSTableWriter ssTableWriter)
@@ -208,7 +208,7 @@ public class StreamSession
 
                 LOGGER.info("[{}]: Pushing SSTable {} to replicas {}",
                             sessionID, dataFile, replicas.stream()
-                                                         .map(RingInstance::getNodeName)
+                                                         .map(RingInstance::nodeName)
                                                          .collect(Collectors.joining(",")));
                 replicas.removeIf(replica -> !trySendSSTableToReplica(writerContext, ssTableWriter, dataFile, ssTableIdx, replica));
             }
@@ -250,7 +250,7 @@ public class StreamSession
         catch (Exception exception)
         {
             LOGGER.error("[{}]: Failed to stream range {} to instance {}",
-                         sessionID, tokenRange, replica.getNodeName(), exception);
+                         sessionID, tokenRange, replica.nodeName(), exception);
             writerContext.cluster().refreshClusterInfo();
             failureHandler.addFailure(tokenRange, replica, exception.getMessage());
             errors.add(new StreamError(replica, exception.getMessage()));
@@ -297,7 +297,7 @@ public class StreamSession
     {
         Preconditions.checkNotNull(fileHash, "All files must have a hash. SSTableWriter should have calculated these. This is a bug.");
         long fileSize = Files.size(componentFile);
-        LOGGER.info("[{}]: Uploading {} to {}: Size is {}", sessionID, componentFile, instance.getNodeName(), fileSize);
+        LOGGER.info("[{}]: Uploading {} to {}: Size is {}", sessionID, componentFile, instance.nodeName(), fileSize);
         writerContext.transfer().uploadSSTableComponent(componentFile, ssTableIdx, instance, sessionID, fileHash);
     }
 
@@ -306,11 +306,11 @@ public class StreamSession
         if (writerContext.job().getSkipClean())
         {
             LOGGER.info("Skip clean requested - not cleaning SSTable session {} on instance {}",
-                        sessionID, instance.getNodeName());
+                        sessionID, instance.nodeName());
             return;
         }
         String jobID = writerContext.job().getId().toString();
-        LOGGER.info("Cleaning SSTable session {} on instance {}", sessionID, instance.getNodeName());
+        LOGGER.info("Cleaning SSTable session {} on instance {}", sessionID, instance.nodeName());
         try
         {
             writerContext.transfer().cleanUploadSession(instance, sessionID, jobID);
@@ -318,7 +318,7 @@ public class StreamSession
         catch (Exception exception)
         {
             LOGGER.warn("Failed to clean SSTables on {} for session {} and ignoring errMsg",
-                        instance.getNodeName(), sessionID, exception);
+                        instance.nodeName(), sessionID, exception);
         }
     }
 }

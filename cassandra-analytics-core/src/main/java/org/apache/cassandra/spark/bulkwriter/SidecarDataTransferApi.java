@@ -161,6 +161,6 @@ public class SidecarDataTransferApi implements DataTransferApi
 
     protected SidecarInstanceImpl toSidecarInstance(CassandraInstance instance)
     {
-        return new SidecarInstanceImpl(instance.getNodeName(), sidecarPort);
+        return new SidecarInstanceImpl(instance.nodeName(), sidecarPort);
     }
 }

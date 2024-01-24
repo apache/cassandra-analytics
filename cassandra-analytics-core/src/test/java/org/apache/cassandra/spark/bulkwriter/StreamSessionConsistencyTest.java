@@ -140,7 +140,7 @@ public class StreamSessionConsistencyTest
                                 .sum(),
                    equalTo(REPLICATION_FACTOR * NUMBER_DCS * FILES_PER_SSTABLE));
         List<String> instances = writerContext.getUploads().keySet().stream()
-                                              .map(CassandraInstance::getNodeName)
+                                              .map(CassandraInstance::nodeName)
                                               .collect(Collectors.toList());
         assertThat(instances, containsInAnyOrder(EXPECTED_INSTANCES.toArray()));
     }
@@ -162,7 +162,7 @@ public class StreamSessionConsistencyTest
         int numFailures = dc1Failures.get() + dc2Failures.get();
         ImmutableMap<String, AtomicInteger> dcFailures = ImmutableMap.of("DC1", dc1Failures, "DC2", dc2Failures);
         boolean shouldFail = calculateFailure(consistencyLevel, dc1Failures.get(), dc2Failures.get());
-        writerContext.setUploadSupplier(instance -> dcFailures.get(instance.getDataCenter()).getAndDecrement() <= 0);
+        writerContext.setUploadSupplier(instance -> dcFailures.get(instance.datacenter()).getAndDecrement() <= 0);
         SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder);
         tr.addRow(BigInteger.valueOf(102L), COLUMN_BIND_VALUES);
         tr.close(writerContext, 1);
@@ -188,7 +188,7 @@ public class StreamSessionConsistencyTest
                                 .sum(),
                    equalTo(totalFilesToUpload - filesSkipped));
         List<String> instances = writerContext.getUploads().keySet().stream()
-                                              .map(CassandraInstance::getNodeName)
+                                              .map(CassandraInstance::nodeName)
                                               .collect(Collectors.toList());
         assertThat(instances, containsInAnyOrder(EXPECTED_INSTANCES.toArray()));
     }

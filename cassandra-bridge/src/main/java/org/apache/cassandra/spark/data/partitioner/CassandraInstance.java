@@ -27,9 +27,10 @@ import org.apache.commons.lang.builder.EqualsBuilder;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import org.apache.cassandra.spark.data.model.TokenOwner;
 
 @SuppressWarnings("WeakerAccess")
-public class CassandraInstance implements Serializable
+public class CassandraInstance implements TokenOwner, Serializable
 {
     private static final long serialVersionUID = 6767636627576239773L;
     private final String token;

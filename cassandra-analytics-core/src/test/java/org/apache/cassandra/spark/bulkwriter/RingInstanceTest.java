@@ -212,13 +212,13 @@ public class RingInstanceTest
         BigInteger[] tokens = getTokens(partitioner, 5);
         List<RingInstance> instances = getInstances(tokens, DATACENTER_1);
         CassandraInstance instance1 = instances.get(0);
-        CassandraInstance instance2 = instance(tokens[0], instance1.getNodeName(), instance1.getDataCenter(), "?");
+        CassandraInstance instance2 = instance(tokens[0], instance1.nodeName(), instance1.datacenter(), "?");
         ReplicaAwareFailureHandler<CassandraInstance> replicationFactor3 = ntsStrategyHandler(partitioner);
         ReplicationFactor repFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
                                                             ntsOptions(new String[]{DATACENTER_1 }, new int[]{3 }));
         Map<String, Set<String>> writeReplicas = instances.stream()
-                                                          .collect(Collectors.groupingBy(CassandraInstance::getDataCenter,
-                                                                                         Collectors.mapping(CassandraInstance::getNodeName,
+                                                          .collect(Collectors.groupingBy(CassandraInstance::datacenter,
+                                                                                         Collectors.mapping(CassandraInstance::nodeName,
                                                                                                             Collectors.toSet())));
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = TokenRangeMappingUtils.setupTokenRangeMap(partitioner, repFactor, instances);
         TokenRangeMapping<RingInstance> tokenRange = new TokenRangeMapping<>(partitioner,

@@ -60,13 +60,13 @@ public final class TokenRangeMappingUtils
     {
         List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
         RingInstance blockedInstance = instances.stream()
-                                                .filter(i -> i.getIpAddress().equals(blockedInstanceIp))
+                                                .filter(i -> i.ipAddress().equals(blockedInstanceIp))
                                                 .findFirst()
                                                 .get();
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
         Map<String, Set<String>> writeReplicas =
-        instances.stream().collect(Collectors.groupingBy(RingInstance::getDataCenter,
-                                                         Collectors.mapping(RingInstance::getNodeName,
+        instances.stream().collect(Collectors.groupingBy(RingInstance::datacenter,
+                                                         Collectors.mapping(RingInstance::nodeName,
                                                                             Collectors.toSet())));
         writeReplicas.replaceAll((key, value) -> {
             value.removeIf(e -> value.size() > 3);
@@ -74,12 +74,12 @@ public final class TokenRangeMappingUtils
         });
 
         List<ReplicaMetadata> replicaMetadata = instances.stream()
-                                                         .map(i -> new ReplicaMetadata(i.getRingInstance().state(),
-                                                                                       i.getRingInstance().status(),
-                                                                                       i.getNodeName(),
-                                                                                       i.getIpAddress(),
+                                                         .map(i -> new ReplicaMetadata(i.ringInstance().state(),
+                                                                                       i.ringInstance().status(),
+                                                                                       i.nodeName(),
+                                                                                       i.ipAddress(),
                                                                                        7012,
-                                                                                       i.getDataCenter()))
+                                                                                       i.datacenter()))
                                                          .collect(Collectors.toList());
 
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
@@ -99,7 +99,7 @@ public final class TokenRangeMappingUtils
     {
         List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
         RingInstance instance = instances.remove(0);
-        RingEntry entry = instance.getRingInstance();
+        RingEntry entry = instance.ringInstance();
         RingEntry newEntry = new RingEntry.Builder()
                              .datacenter(entry.datacenter())
                              .port(entry.port())
@@ -117,8 +117,8 @@ public final class TokenRangeMappingUtils
         instances.add(0, newInstance);
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
         Map<String, Set<String>> writeReplicas =
-        instances.stream().collect(Collectors.groupingBy(RingInstance::getDataCenter,
-                                                         Collectors.mapping(RingInstance::getNodeName,
+        instances.stream().collect(Collectors.groupingBy(RingInstance::datacenter,
+                                                         Collectors.mapping(RingInstance::nodeName,
                                                                             Collectors.toSet())));
         writeReplicas.replaceAll((key, value) -> {
             value.removeIf(e -> value.size() > 3);
@@ -126,12 +126,12 @@ public final class TokenRangeMappingUtils
         });
 
         List<ReplicaMetadata> replicaMetadata = instances.stream()
-                                                         .map(i -> new ReplicaMetadata(i.getRingInstance().state(),
-                                                                                       i.getRingInstance().status(),
-                                                                                       i.getNodeName(),
-                                                                                       i.getIpAddress(),
+                                                         .map(i -> new ReplicaMetadata(i.ringInstance().state(),
+                                                                                       i.ringInstance().status(),
+                                                                                       i.nodeName(),
+                                                                                       i.ipAddress(),
                                                                                        7012,
-                                                                                       i.getDataCenter()))
+                                                                                       i.datacenter()))
                                                          .collect(Collectors.toList());
 
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
@@ -156,7 +156,7 @@ public final class TokenRangeMappingUtils
         if (shouldUpdateToken)
         {
             RingInstance instance = instances.remove(0);
-            RingEntry entry = instance.getRingInstance();
+            RingEntry entry = instance.ringInstance();
             RingEntry newEntry = new RingEntry.Builder()
                                  .datacenter(entry.datacenter())
                                  .port(entry.port())
@@ -176,8 +176,8 @@ public final class TokenRangeMappingUtils
 
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
         Map<String, Set<String>> writeReplicas =
-        instances.stream().collect(Collectors.groupingBy(RingInstance::getDataCenter,
-                                                         Collectors.mapping(RingInstance::getNodeName,
+        instances.stream().collect(Collectors.groupingBy(RingInstance::datacenter,
+                                                         Collectors.mapping(RingInstance::nodeName,
                                                                             Collectors.toSet())));
         writeReplicas.replaceAll((key, value) -> {
             value.removeIf(e -> value.size() > 3);
@@ -185,12 +185,12 @@ public final class TokenRangeMappingUtils
         });
 
         List<ReplicaMetadata> replicaMetadata = instances.stream()
-                                                         .map(i -> new ReplicaMetadata(i.getRingInstance().state(),
-                                                                                       i.getRingInstance().status(),
-                                                                                       i.getNodeName(),
-                                                                                       i.getIpAddress(),
+                                                         .map(i -> new ReplicaMetadata(i.ringInstance().state(),
+                                                                                       i.ringInstance().status(),
+                                                                                       i.nodeName(),
+                                                                                       i.ipAddress(),
                                                                                        7012,
-                                                                                       i.getDataCenter()))
+                                                                                       i.datacenter()))
                                                          .collect(Collectors.toList());
 
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
@@ -228,7 +228,7 @@ public final class TokenRangeMappingUtils
                     continue;
                 }
                 List<RingInstance> dcInstances = instances.stream()
-                                                          .filter(instance -> instance.getDataCenter().matches(dataCenter))
+                                                          .filter(instance -> instance.datacenter().matches(dataCenter))
                                                           .collect(Collectors.toList());
                 tokenRangeMap.putAll(RangeUtils.calculateTokenRanges(dcInstances,
                                                                      replicationFactor.getOptions().get(dataCenter),

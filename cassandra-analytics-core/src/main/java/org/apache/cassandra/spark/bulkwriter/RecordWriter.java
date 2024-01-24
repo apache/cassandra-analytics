@@ -31,11 +31,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -139,16 +137,33 @@ public class RecordWriter implements Serializable
         Map<String, Object> valueMap = new HashMap<>();
         try
         {
-            Set<Range<BigInteger>> newRanges = new HashSet<>(initialTokenRangeMapping.getRangeMap().asMapOfRanges().keySet());
+            // Use list to preserve order of ranges
+            List<Range<BigInteger>> newRanges = new ArrayList<>(initialTokenRangeMapping.getRangeMap()
+                                                                                        .asMapOfRanges()
+                                                                                        .keySet());
             Range<BigInteger> tokenRange = getTokenRange(taskContext);
-            Set<Range<BigInteger>> subRanges = newRanges.contains(tokenRange) ?
-                                               Collections.singleton(tokenRange) :
-                                               getIntersectingSubRanges(newRanges, tokenRange);
+            List<Range<BigInteger>> subRanges = newRanges.contains(tokenRange) ?
+                                                Collections.singletonList(tokenRange) : // no overlaps
+                                                getIntersectingSubRanges(newRanges, tokenRange); // has overlaps; split into sub-ranges
 
+            int currentRangeIndex = 0;
+            Range<BigInteger> currentRange = subRanges.get(currentRangeIndex);
             while (dataIterator.hasNext())
             {
                 Tuple2<DecoratedKey, Object[]> rowData = dataIterator.next();
-                streamSession = maybeCreateStreamSession(taskContext, streamSession, rowData, subRanges, failureHandler, results);
+                // advance to new sub-range if needed
+                BigInteger token = rowData._1().getToken();
+                if (!currentRange.contains(token))
+                {
+                    currentRangeIndex++;
+                    if (currentRangeIndex >= subRanges.size())
+                    {
+                        String errMsg = String.format("Received Token %s outside the expected ranges %s", token, subRanges);
+                        throw new IllegalStateException(errMsg);
+                    }
+                    currentRange = subRanges.get(currentRangeIndex);
+                }
+                streamSession = maybeCreateStreamSession(taskContext, streamSession, currentRange, failureHandler, results);
                 maybeCreateTableWriter(partitionId, baseDir);
                 writeRow(rowData, valueMap, partitionId, streamSession.getTokenRange());
                 checkBatchSize(streamSession, partitionId, job);
@@ -205,28 +220,12 @@ public class RecordWriter implements Serializable
      */
     private StreamSession maybeCreateStreamSession(TaskContext taskContext,
                                                    StreamSession streamSession,
-                                                   Tuple2<DecoratedKey, Object[]> rowData,
-                                                   Set<Range<BigInteger>> subRanges,
+                                                   Range<BigInteger> currentRange,
                                                    ReplicaAwareFailureHandler<RingInstance> failureHandler,
                                                    List<StreamResult> results)
     throws IOException, ExecutionException, InterruptedException
     {
-        BigInteger token = rowData._1().getToken();
-        Range<BigInteger> tokenRange = getTokenRange(taskContext);
-
-        Preconditions.checkState(tokenRange.contains(token),
-                                 String.format("Received Token %s outside of expected range %s", token, tokenRange));
-
-        // We have split ranges likely resulting from pending nodes
-        // Evaluate creating a new session if the token from current row is part of a sub-range
-        if (subRanges.size() > 1)
-        {
-            // Create session using sub-range that contains the token from current row
-            Optional<Range<BigInteger>> matchingSubRangeOpt = subRanges.stream().filter(r -> r.contains(token)).findFirst();
-            Preconditions.checkState(matchingSubRangeOpt.isPresent(),
-                                     String.format("Received Token %s outside of expected sub-ranges %s", token, subRanges));
-            streamSession = maybeCreateSubRangeSession(taskContext, streamSession, failureHandler, results, matchingSubRangeOpt.get());
-        }
+        streamSession = maybeCreateSubRangeSession(taskContext, streamSession, failureHandler, results, currentRange);
 
         // If we do not have any stream session at this point, we create a session using the partition's token range
         return (streamSession == null) ? createStreamSession(taskContext) : streamSession;
@@ -267,11 +266,11 @@ public class RecordWriter implements Serializable
     /**
      * Get ranges from the set that intersect and/or overlap with the provided token range
      */
-    private Set<Range<BigInteger>> getIntersectingSubRanges(Set<Range<BigInteger>> ranges, Range<BigInteger> tokenRange)
+    private List<Range<BigInteger>> getIntersectingSubRanges(List<Range<BigInteger>> ranges, Range<BigInteger> tokenRange)
     {
         return ranges.stream()
                      .filter(r -> r.isConnected(tokenRange) && !r.intersection(tokenRange).isEmpty())
-                     .collect(Collectors.toSet());
+                     .collect(Collectors.toUnmodifiableList());
     }
 
     private boolean haveTokenRangeMappingsChanged(TokenRangeMapping<RingInstance> startTaskMapping, Range<BigInteger> taskTokenRange)

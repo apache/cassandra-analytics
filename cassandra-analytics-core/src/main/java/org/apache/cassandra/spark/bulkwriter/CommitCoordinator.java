@@ -132,9 +132,9 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
         executors.computeIfAbsent(instance,
                                   inst -> MoreExecutors.listeningDecorator(
                                   Executors.newFixedThreadPool(job.getCommitThreadsPerInstance(),
-                                                               ThreadUtil.threadFactory("commit-sstable-" + inst.getNodeName()))));
+                                                               ThreadUtil.threadFactory("commit-sstable-" + inst.nodeName()))));
         List<String> allUuids = new ArrayList<>(uploadRanges.keySet());
-        LOGGER.info("Committing UUIDs={}, Ranges={}, instance={}", allUuids, uploadRanges.values(), instance.getNodeName());
+        LOGGER.info("Committing UUIDs={}, Ranges={}, instance={}", allUuids, uploadRanges.values(), instance.nodeName());
         List<List<String>> batches = Lists.partition(allUuids, job.getCommitBatchSize());
         return batches.stream().map(uuids -> {
             String migrationId = UUID.randomUUID().toString();
@@ -145,7 +145,7 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
                     DataTransferApi.RemoteCommitResult result = transferApi.commitSSTables(instance, migrationId, uuids);
                     if (result.isSuccess)
                     {
-                        LOGGER.info("[{}]: Commit succeeded on {} for {}", migrationId, instance.getNodeName(), uploadRanges);
+                        LOGGER.info("[{}]: Commit succeeded on {} for {}", migrationId, instance.nodeName(), uploadRanges);
                     }
                     else
                     {

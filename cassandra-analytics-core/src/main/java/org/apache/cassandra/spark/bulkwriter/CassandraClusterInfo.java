@@ -108,15 +108,15 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     @Override
     public boolean instanceIsAvailable(RingInstance ringInstance)
     {
-        return instanceIsUp(ringInstance.getRingInstance())
-               && instanceIsNormal(ringInstance.getRingInstance())
+        return instanceIsUp(ringInstance.ringInstance())
+               && instanceIsNormal(ringInstance.ringInstance())
                && !instanceIsBlocked(ringInstance);
     }
 
     @Override
     public InstanceState getInstanceState(RingInstance ringInstance)
     {
-        return InstanceState.valueOf(ringInstance.getRingInstance().state().toUpperCase());
+        return InstanceState.valueOf(ringInstance.ringInstance().state().toUpperCase());
     }
 
     public CassandraContext getCassandraContext()
@@ -207,7 +207,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         {
             List<SidecarInstance> instances = replicas
                                               .stream()
-                                              .map(replica -> new SidecarInstanceImpl(replica.getNodeName(), getCassandraContext().sidecarPort()))
+                                              .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort()))
                                               .collect(Collectors.toList());
             return getCassandraContext().getSidecarClient().timeSkew(instances).get();
         }
@@ -362,7 +362,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     private InstanceAvailability determineInstanceAvailability(RingInstance instance)
     {
-        if (!instanceIsUp(instance.getRingInstance()))
+        if (!instanceIsUp(instance.ringInstance()))
         {
             return InstanceAvailability.UNAVAILABLE_DOWN;
         }
@@ -370,9 +370,9 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         {
             return InstanceAvailability.UNAVAILABLE_BLOCKED;
         }
-        if (instanceIsNormal(instance.getRingInstance()) ||
-            instanceIsTransitioning(instance.getRingInstance()) ||
-            instanceIsBeingReplaced(instance.getRingInstance()))
+        if (instanceIsNormal(instance.ringInstance()) ||
+            instanceIsTransitioning(instance.ringInstance()) ||
+            instanceIsBeingReplaced(instance.ringInstance()))
         {
             return InstanceAvailability.AVAILABLE;
         }
@@ -413,7 +413,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                                        .filter(this::instanceIsBlocked)
                                        .collect(Collectors.toSet());
 
-            Set<String> blockedIps = blockedInstances.stream().map(i -> i.getRingInstance().address())
+            Set<String> blockedIps = blockedInstances.stream().map(i -> i.ringInstance().address())
                                                      .collect(Collectors.toSet());
 
             // Each token range has hosts by DC. We collate them across all ranges into all hosts by DC
@@ -580,7 +580,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     protected boolean instanceIsBlocked(RingInstance instance)
     {
-        return conf.blockedInstances.contains(instance.getIpAddress());
+        return conf.blockedInstances.contains(instance.ipAddress());
     }
 
     protected boolean instanceIsNormal(RingEntry ringEntry)

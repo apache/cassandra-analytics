@@ -47,8 +47,8 @@ import org.slf4j.LoggerFactory;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import org.apache.cassandra.spark.bulkwriter.token.RangeUtils;
 import org.apache.cassandra.spark.data.ReplicationFactor;
-import org.apache.cassandra.spark.utils.RangeUtils;
 
 import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.SimpleStrategy;
 
@@ -72,7 +72,7 @@ public class CassandraRing implements Serializable
     private Partitioner partitioner;
     private String keyspace;
     private ReplicationFactor replicationFactor;
-    private ArrayList<CassandraInstance> instances;
+    private List<CassandraInstance> instances;
 
     private transient RangeMap<BigInteger, List<CassandraInstance>> replicas;
     private transient Multimap<CassandraInstance, Range<BigInteger>> tokenRangeMap;

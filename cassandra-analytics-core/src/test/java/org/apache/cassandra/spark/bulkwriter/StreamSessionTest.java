@@ -87,7 +87,7 @@ public class StreamSessionTest
     {
         List<RingInstance> replicas = ss.getReplicas();
         assertNotNull(replicas);
-        List<String> actualInstances = replicas.stream().map(RingInstance::getNodeName).collect(Collectors.toList());
+        List<String> actualInstances = replicas.stream().map(RingInstance::nodeName).collect(Collectors.toList());
         assertThat(actualInstances, containsInAnyOrder(expectedInstances.toArray()));
     }
 
@@ -102,7 +102,7 @@ public class StreamSessionTest
         executor.assertFuturesCalled();
         assertThat(executor.futures.size(), equalTo(1));  // We only scheduled one SSTable
         assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));
-        final List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::getNodeName).collect(Collectors.toList());
+        final List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::nodeName).collect(Collectors.toList());
         assertThat(instances, containsInAnyOrder(expectedInstances.toArray()));
     }
 
@@ -124,7 +124,7 @@ public class StreamSessionTest
         runFailedUpload();
 
         List<String> actualInstances = writerContext.getCleanedInstances().stream()
-                                                    .map(CassandraInstance::getNodeName)
+                                                    .map(CassandraInstance::nodeName)
                                                     .collect(Collectors.toList());
         assertThat(actualInstances, containsInAnyOrder(expectedInstances.toArray()));
     }
@@ -136,7 +136,7 @@ public class StreamSessionTest
         runFailedUpload();
 
         List<String> actualInstances = writerContext.getCleanedInstances().stream()
-                                                    .map(CassandraInstance::getNodeName)
+                                                    .map(CassandraInstance::nodeName)
                                                     .collect(Collectors.toList());
         assertThat(actualInstances, iterableWithSize(0));
         final List<UploadRequest> uploads = writerContext.getUploads().values()
@@ -167,7 +167,7 @@ public class StreamSessionTest
         });
 
         List<String> actualInstances = writerContext.getCleanedInstances().stream()
-                                                    .map(CassandraInstance::getNodeName)
+                                                    .map(CassandraInstance::nodeName)
                                                     .collect(Collectors.toList());
         assertThat(actualInstances, containsInAnyOrder(expectedInstances.toArray()));
     }
@@ -215,7 +215,7 @@ public class StreamSessionTest
         ss.close();  // Force "execution" of futures
         executor.assertFuturesCalled();
         assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));
-        final List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::getNodeName).collect(Collectors.toList());
+        final List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::nodeName).collect(Collectors.toList());
         assertThat(instances, containsInAnyOrder(expectedInstances.toArray()));
     }
 
@@ -245,7 +245,7 @@ public class StreamSessionTest
                      + " in phase UploadAndCommit.", exception.getMessage());
         executor.assertFuturesCalled();
         assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));
-        List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::getNodeName).collect(Collectors.toList());
+        List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::nodeName).collect(Collectors.toList());
         assertThat(instances, containsInAnyOrder(expectedInstances.toArray()));
     }
 

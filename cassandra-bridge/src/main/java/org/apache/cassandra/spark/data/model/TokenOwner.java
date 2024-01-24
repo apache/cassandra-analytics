@@ -17,15 +17,9 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.common.model;
+package org.apache.cassandra.spark.data.model;
 
-import org.apache.cassandra.spark.data.model.TokenOwner;
-
-public interface CassandraInstance extends TokenOwner
+public interface TokenOwner
 {
-    String nodeName();
-
-    String datacenter();
-
-    String ipAddress();
+    String token();
 }
