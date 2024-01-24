@@ -390,7 +390,6 @@ public abstract class CassandraBridge
                                                    String partitioner,
                                                    String createStatement,
                                                    String insertStatement,
-                                                   RowBufferMode rowBufferMode,
                                                    int bufferSizeMB);
 
     public interface IRow

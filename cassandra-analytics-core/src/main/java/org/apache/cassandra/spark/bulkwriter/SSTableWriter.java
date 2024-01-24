@@ -81,7 +81,6 @@ public class SSTableWriter
         writerContext.cluster().getPartitioner().toString(),
         tableSchema.createStatement,
         tableSchema.modificationStatement,
-        writerContext.job().getRowBufferMode(),
         writerContext.job().getSstableDataSizeInMB());
     }
 

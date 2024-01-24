@@ -40,7 +40,6 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
-import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.sidecar.common.data.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -56,7 +55,6 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
@@ -74,7 +72,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     new org.apache.spark.sql.types.DataType[]{DataTypes.IntegerType, DataTypes.DateType, DataTypes.StringType, DataTypes.IntegerType},
     new CqlField.CqlType[]{mockCqlType(INT), mockCqlType(DATE), mockCqlType(VARCHAR), mockCqlType(INT)});
     private final boolean quoteIdentifiers;
-    private RowBufferMode rowBufferMode = RowBufferMode.UNBUFFERED;
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
     private int sstableWriteBatchSize = 2;
@@ -219,18 +216,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         return "DC1";
     }
 
-    @NotNull
-    @Override
-    public RowBufferMode getRowBufferMode()
-    {
-        return rowBufferMode;
-    }
-
-    public void setRowBufferMode(RowBufferMode rowBufferMode)
-    {
-        this.rowBufferMode = rowBufferMode;
-    }
-
     @Override
     public int getSstableDataSizeInMB()
     {
@@ -243,19 +228,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         this.sstableDataSizeInMB = sstableDataSizeInMB;
     }
 
-    @Override
-    public int getSstableBatchSize()
-    {
-        return sstableWriteBatchSize;
-    }
-
-    @VisibleForTesting
-    void setSstableWriteBatchSize(int sstableWriteBatchSize)
-    {
-        this.sstableWriteBatchSize = sstableWriteBatchSize;
-    }
-
-    @Override
     public int getCommitBatchSize()
     {
         return 1;

@@ -49,7 +49,6 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.sidecar.common.data.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -63,16 +62,16 @@ import static org.apache.cassandra.spark.utils.ScalaConversionUtils.asScalaItera
 public class RecordWriter implements Serializable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordWriter.class);
+
     private final BulkWriterContext writerContext;
     private final String[] columnNames;
-    private Supplier<TaskContext> taskContextSupplier;
     private final BiFunction<BulkWriterContext, Path, SSTableWriter> tableWriterSupplier;
-    private SSTableWriter sstableWriter = null;
-
     private final BulkWriteValidator writeValidator;
     private final ReplicaAwareFailureHandler<RingInstance> failureHandler;
-    private int batchNumber = 0;
-    private int batchSize = 0;
+
+    private Supplier<TaskContext> taskContextSupplier;
+    private SSTableWriter sstableWriter = null;
+    private int outputSequence = 0; // sub-folder for possible subrange splits
 
     public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
     {
@@ -179,13 +178,12 @@ public class RecordWriter implements Serializable
                 streamSession = maybeCreateStreamSession(taskContext, streamSession, currentRange, failureHandler, results);
                 maybeCreateTableWriter(partitionId, baseDir);
                 writeRow(rowData, valueMap, partitionId, streamSession.getTokenRange());
-                checkBatchSize(streamSession, partitionId, job);
             }
 
             // Finalize SSTable for the last StreamSession
             if (sstableWriter != null)
             {
-                finalizeSSTable(streamSession, partitionId, sstableWriter, batchNumber, batchSize);
+                finalizeSSTable(streamSession, partitionId);
                 results.add(streamSession.close());
             }
             LOGGER.info("[{}] Done with all writers and waiting for stream to complete", partitionId);
@@ -256,13 +254,8 @@ public class RecordWriter implements Serializable
             // Schedule data to be sent if we are processing a batch that has not been scheduled yet.
             if (streamSession != null)
             {
-                // Complete existing batched writes (if any) before the existing stream session is closed
-                if (batchSize != 0)
-                {
-                    finalizeSSTable(streamSession, taskContext.partitionId(), sstableWriter, batchNumber, batchSize);
-                    sstableWriter = null;
-                    batchSize = 0;
-                }
+                // Complete existing writes (if any) before the existing stream session is closed
+                finalizeSSTable(streamSession, taskContext.partitionId());
                 results.add(streamSession.close());
             }
             streamSession = new StreamSession(writerContext, getStreamId(taskContext), matchingSubRange, failureHandler);
@@ -360,32 +353,15 @@ public class RecordWriter implements Serializable
         }
     }
 
-    /**
-     * Stream to replicas; if batchSize is reached, "finalize" SST to "schedule" streamSession
-     */
-    private void checkBatchSize(StreamSession streamSession, int partitionId, JobInfo job) throws IOException
-    {
-        if (job.getRowBufferMode() == RowBufferMode.UNBUFFERED)
-        {
-            batchSize++;
-            if (batchSize >= job.getSstableBatchSize())
-            {
-                finalizeSSTable(streamSession, partitionId, sstableWriter, batchNumber, batchSize);
-                sstableWriter = null;
-                batchSize = 0;
-            }
-        }
-    }
-
     private void maybeCreateTableWriter(int partitionId, Path baseDir) throws IOException
     {
         if (sstableWriter == null)
         {
-            Path outDir = Paths.get(baseDir.toString(), Integer.toString(++batchNumber));
+            Path outDir = Paths.get(baseDir.toString(), Integer.toString(outputSequence++));
             Files.createDirectories(outDir);
 
             sstableWriter = tableWriterSupplier.apply(writerContext, outDir);
-            LOGGER.info("[{}][{}] Created new SSTable writer", partitionId, batchNumber);
+            LOGGER.info("[{}] Created new SSTable writer", partitionId);
         }
     }
 
@@ -399,16 +375,23 @@ public class RecordWriter implements Serializable
         return map;
     }
 
+    /**
+     * Close the {@link RecordWriter#sstableWriter} is present. Schedule a stream session with the produced sstables.
+     * And finally, nullify {@link RecordWriter#sstableWriter}
+     */
     private void finalizeSSTable(StreamSession streamSession,
-                                 int partitionId,
-                                 SSTableWriter sstableWriter,
-                                 int batchNumber,
-                                 int batchSize) throws IOException
+                                 int partitionId) throws IOException
     {
-        LOGGER.info("[{}][{}] Closing writer and scheduling SStable stream with {} rows",
-                    partitionId, batchNumber, batchSize);
+        if (sstableWriter == null)
+        {
+            LOGGER.warn("SSTableWriter is null. Nothing to finalize");
+            return;
+        }
+        LOGGER.info("[{}] Closing writer and scheduling SStable stream",
+                    partitionId);
         sstableWriter.close(writerContext, partitionId);
         streamSession.scheduleStream(sstableWriter);
+        sstableWriter = null;
     }
 
     private StreamSession createStreamSession(TaskContext taskContext)

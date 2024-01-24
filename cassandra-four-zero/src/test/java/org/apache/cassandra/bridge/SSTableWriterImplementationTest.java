@@ -51,7 +51,6 @@ class SSTableWriterImplementationTest
         CQLSSTableWriter.Builder builder = SSTableWriterImplementation.configureBuilder(writeDirectory.getAbsolutePath(),
                                                                                         CREATE_STATEMENT,
                                                                                         INSERT_STATEMENT,
-                                                                                        RowBufferMode.UNBUFFERED,
                                                                                         250,
                                                                                         new Murmur3Partitioner());
 
@@ -66,7 +65,6 @@ class SSTableWriterImplementationTest
         CQLSSTableWriter.Builder builder = SSTableWriterImplementation.configureBuilder(writeDirectory.getAbsolutePath(),
                                                                                         CREATE_STATEMENT,
                                                                                         INSERT_STATEMENT,
-                                                                                        RowBufferMode.BUFFERED,
                                                                                         250,
                                                                                         new Murmur3Partitioner());
 

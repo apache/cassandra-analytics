@@ -287,7 +287,6 @@ public final class SSTableTombstoneWriter implements Closeable
         private ModificationStatement.Parsed deleteStatement;
         private IPartitioner partitioner;
 
-        private boolean sorted = false;
         private long bufferSizeInMB = 128;
 
         Builder()
@@ -440,9 +439,9 @@ public final class SSTableTombstoneWriter implements Closeable
 
             DeleteStatement preparedDelete = prepareDelete();
             TableMetadataRef ref = TableMetadataRef.forOfflineTools(tableMetadata);
-            AbstractSSTableSimpleWriter writer = sorted
-                    ? new SSTableSimpleWriter(directory, ref, preparedDelete.updatedColumns())
-                    : new SSTableSimpleUnsortedWriter(directory, ref, preparedDelete.updatedColumns(), bufferSizeInMB);
+            AbstractSSTableSimpleWriter writer = new SSTableSimpleWriter(directory, ref,
+                                                                         preparedDelete.updatedColumns(),
+                                                                         bufferSizeInMB);
 
             if (formatType != null)
             {

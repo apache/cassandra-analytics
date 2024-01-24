@@ -21,7 +21,6 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.util.UUID;
 
-import org.apache.cassandra.bridge.RowBufferMode;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.jetbrains.annotations.NotNull;
 
@@ -51,23 +50,10 @@ public class CassandraJobInfo implements JobInfo
         return conf.localDC;
     }
 
-    @NotNull
-    @Override
-    public RowBufferMode getRowBufferMode()
-    {
-        return conf.rowBufferMode;
-    }
-
     @Override
     public int getSstableDataSizeInMB()
     {
         return conf.sstableDataSizeInMB;
-    }
-
-    @Override
-    public int getSstableBatchSize()
-    {
-        return conf.sstableBatchSize;
     }
 
     @Override
