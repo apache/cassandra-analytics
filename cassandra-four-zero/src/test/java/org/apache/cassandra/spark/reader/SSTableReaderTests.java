@@ -774,14 +774,14 @@ public class SSTableReaderTests
                 SparkRangeFilter.create(TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(500L))),
                 Collections.emptyList());
         assertTrue(range1.isPresent());
-        assertEquals(BigInteger.valueOf(5L), range1.get().lowerEndpoint());
+        assertEquals(BigInteger.valueOf(5L), range1.get().firstEnclosedValue());
         assertEquals(BigInteger.valueOf(500L), range1.get().upperEndpoint());
 
         Optional<TokenRange> range2 = SSTableReader.extractRange(
                 SparkRangeFilter.create(TokenRange.closed(BigInteger.valueOf(-10000L), BigInteger.valueOf(29593L))),
                 Collections.emptyList());
         assertTrue(range2.isPresent());
-        assertEquals(BigInteger.valueOf(-10000L), range2.get().lowerEndpoint());
+        assertEquals(BigInteger.valueOf(-10000L), range2.get().firstEnclosedValue());
         assertEquals(BigInteger.valueOf(29593L), range2.get().upperEndpoint());
 
         assertFalse(SSTableReader.extractRange(null, Collections.emptyList()).isPresent());

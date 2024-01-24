@@ -56,24 +56,27 @@ public class IndexOffsetTests
     private static final Logger LOGGER = LoggerFactory.getLogger(IndexOffsetTests.class);
     private static final CassandraBridgeImplementation BRIDGE = new CassandraBridgeImplementation();
     @SuppressWarnings("unchecked")
-    private static final Multimap<Partitioner, TokenRange> RANGES = new ImmutableMultimap.Builder<Partitioner, TokenRange>()
-        .putAll(Partitioner.RandomPartitioner,  TokenRange.closedOpen(BigInteger.ZERO,
-                                                                      BigInteger.ZERO),
-                                                TokenRange.closedOpen(BigInteger.ONE,
-                                                                      new BigInteger("56713727820156410577229101238628035242")),
-                                                TokenRange.closedOpen(new BigInteger("56713727820156410577229101238628035243"),
-                                                                      new BigInteger("113427455640312821154458202477256070484")),
-                                                TokenRange.closedOpen(new BigInteger("113427455640312821154458202477256070485"),
-                                                                      new BigInteger("170141183460469231731687303715884105727")))
-        .putAll(Partitioner.Murmur3Partitioner, TokenRange.closed(new BigInteger("-9223372036854775808"),
-                                                                  new BigInteger("-9223372036854775808")),
-                                                TokenRange.closed(new BigInteger("-9223372036854775807"),
-                                                                  new BigInteger("-3074457345618258603")),
-                                                TokenRange.closed(new BigInteger("-3074457345618258602"),
-                                                                  new BigInteger("3074457345618258602")),
-                                                TokenRange.closed(new BigInteger("3074457345618258603"),
-                                                                  new BigInteger("9223372036854775807")))
-        .build();
+    private static final Multimap<Partitioner, TokenRange> RANGES =
+    new ImmutableMultimap.Builder<Partitioner, TokenRange>()
+    .putAll(Partitioner.RandomPartitioner,
+            TokenRange.openClosed(BigInteger.ZERO,
+                                  BigInteger.ONE),
+            TokenRange.openClosed(BigInteger.ONE,
+                                  new BigInteger("56713727820156410577229101238628035242")),
+            TokenRange.openClosed(new BigInteger("56713727820156410577229101238628035243"),
+                                  new BigInteger("113427455640312821154458202477256070484")),
+            TokenRange.openClosed(new BigInteger("113427455640312821154458202477256070485"),
+                                  new BigInteger("170141183460469231731687303715884105727")))
+    .putAll(Partitioner.Murmur3Partitioner,
+            TokenRange.openClosed(new BigInteger("-9223372036854775808"),
+                                  new BigInteger("-9223372036854775807")),
+            TokenRange.openClosed(new BigInteger("-9223372036854775807"),
+                                  new BigInteger("-3074457345618258603")),
+            TokenRange.openClosed(new BigInteger("-3074457345618258602"),
+                                  new BigInteger("3074457345618258602")),
+            TokenRange.openClosed(new BigInteger("3074457345618258603"),
+                                  new BigInteger("9223372036854775807")))
+    .build();
 
     @Test
     @SuppressWarnings("static-access")

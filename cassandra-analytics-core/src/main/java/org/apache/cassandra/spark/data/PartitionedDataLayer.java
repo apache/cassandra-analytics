@@ -43,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.TokenRange;
+import org.apache.cassandra.spark.utils.RangeUtils;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
@@ -55,7 +56,6 @@ import org.apache.cassandra.spark.sparksql.NoMatchFoundException;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.spark.stats.Stats;
-import org.apache.cassandra.spark.utils.RangeUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -228,8 +228,8 @@ public abstract class PartitionedDataLayer extends DataLayer
 
         if (!filters.isEmpty() && filtersInRange.isEmpty())
         {
-            LOGGER.info("None of the partition key filters overlap with Spark partition token range firstToken={} lastToken{}",
-                        sparkTokenRange.lowerEndpoint(), sparkTokenRange.upperEndpoint());
+            LOGGER.info("None of the partition key filters overlap with Spark partition token range firstToken={} lastToken={}",
+                        sparkTokenRange.firstEnclosedValue(), sparkTokenRange.upperEndpoint());
             throw new NoMatchFoundException();
         }
         return filterNonIntersectingSSTables() ? filtersInRange : filters;

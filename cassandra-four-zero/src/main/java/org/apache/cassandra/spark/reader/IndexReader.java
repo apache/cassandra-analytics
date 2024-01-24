@@ -81,14 +81,14 @@ public class IndexReader implements IIndexReader
                     if (!rangeFilter.overlaps(this.ssTableRange))
                     {
                         LOGGER.info("Skipping non-overlapping Index.db file rangeFilter='[{},{}]' sstableRange='[{},{}]'",
-                                    rangeFilter.tokenRange().lowerEndpoint(), rangeFilter.tokenRange().upperEndpoint(),
-                                    this.ssTableRange.lowerEndpoint(), this.ssTableRange.upperEndpoint());
+                                    rangeFilter.tokenRange().firstEnclosedValue(), rangeFilter.tokenRange().upperEndpoint(),
+                                    this.ssTableRange.firstEnclosedValue(), this.ssTableRange.upperEndpoint());
                         stats.indexFileSkipped();
                         return;
                     }
 
                     skipAhead = summary.summary().getPosition(
-                    SummaryDbUtils.binarySearchSummary(summary.summary(), metadata.partitioner, rangeFilter.tokenRange().lowerEndpoint())
+                    SummaryDbUtils.binarySearchSummary(summary.summary(), metadata.partitioner, rangeFilter.tokenRange().firstEnclosedValue())
                     );
                     stats.indexSummaryFileRead(System.nanoTime() - now);
                     now = System.nanoTime();
@@ -309,7 +309,7 @@ public class IndexReader implements IIndexReader
 
     public BigInteger firstToken()
     {
-        return ssTableRange != null ? ssTableRange.lowerEndpoint() : null;
+        return ssTableRange != null ? ssTableRange.firstEnclosedValue() : null;
     }
 
     public BigInteger lastToken()

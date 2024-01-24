@@ -54,25 +54,25 @@ public class RingInstance implements CassandraInstance, Serializable
 
     // Used only in tests
     @Override
-    public String getToken()
+    public String token()
     {
         return ringEntry.token();
     }
 
     @Override
-    public String getNodeName()
+    public String nodeName()
     {
         return ringEntry.fqdn();
     }
 
     @Override
-    public String getDataCenter()
+    public String datacenter()
     {
         return ringEntry.datacenter();
     }
 
     @Override
-    public String getIpAddress()
+    public String ipAddress()
     {
         return ringEntry.address();
     }
@@ -115,7 +115,7 @@ public class RingInstance implements CassandraInstance, Serializable
         return ringEntry.toString();
     }
 
-    public RingEntry getRingInstance()
+    public RingEntry ringInstance()
     {
         return ringEntry;
     }

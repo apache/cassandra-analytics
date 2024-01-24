@@ -228,20 +228,14 @@ public class IndexDbTests
     @Test
     public void testLessThan()
     {
-        assertTrue(IndexDbUtils.isLessThan(BigInteger.valueOf(4L), TokenRange.open(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
         assertTrue(IndexDbUtils.isLessThan(BigInteger.valueOf(4L), TokenRange.openClosed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
         assertTrue(IndexDbUtils.isLessThan(BigInteger.valueOf(4L), TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
-        assertTrue(IndexDbUtils.isLessThan(BigInteger.valueOf(4L), TokenRange.closedOpen(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
 
-        assertTrue(IndexDbUtils.isLessThan(BigInteger.valueOf(5L), TokenRange.open(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
         assertTrue(IndexDbUtils.isLessThan(BigInteger.valueOf(5L), TokenRange.openClosed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
         assertFalse(IndexDbUtils.isLessThan(BigInteger.valueOf(5L), TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
-        assertFalse(IndexDbUtils.isLessThan(BigInteger.valueOf(5L), TokenRange.closedOpen(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
 
-        assertFalse(IndexDbUtils.isLessThan(BigInteger.valueOf(6L), TokenRange.open(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
         assertFalse(IndexDbUtils.isLessThan(BigInteger.valueOf(6L), TokenRange.openClosed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
         assertFalse(IndexDbUtils.isLessThan(BigInteger.valueOf(6L), TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
-        assertFalse(IndexDbUtils.isLessThan(BigInteger.valueOf(6L), TokenRange.closedOpen(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
     }
 
     private static BigInteger token(IPartitioner iPartitioner, int value)

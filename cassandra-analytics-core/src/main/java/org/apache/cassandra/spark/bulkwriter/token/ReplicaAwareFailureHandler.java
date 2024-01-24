@@ -46,7 +46,7 @@ public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
 
     public ReplicaAwareFailureHandler(Partitioner partitioner)
     {
-        failedRangesMap.put(Range.closed(partitioner.minToken(), partitioner.maxToken()), ArrayListMultimap.create());
+        failedRangesMap.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), ArrayListMultimap.create());
     }
 
     /**
@@ -135,7 +135,7 @@ public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
         boolean isConsistencyLevelMet = true;
 
         Set<String> failedInstanceIPs = failedInstances.stream()
-                                                       .map(CassandraInstance::getIpAddress)
+                                                       .map(CassandraInstance::ipAddress)
                                                        .collect(Collectors.toSet());
         Set<String> datacenters = Collections.emptySet();
         ReplicationFactor replicationFactor = tokenRangeMapping.replicationFactor();
@@ -158,8 +158,8 @@ public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
             for (String dc : datacenters)
             {
                 Set<String> failedIpsPerDC = failedInstances.stream()
-                                                            .filter(inst -> inst.getDataCenter().matches(dc))
-                                                            .map(CassandraInstance::getIpAddress)
+                                                            .filter(inst -> inst.datacenter().matches(dc))
+                                                            .map(CassandraInstance::ipAddress)
                                                             .collect(Collectors.toSet());
 
                 Set<String> dcWriteReplicas = maybeUpdateWriteReplicasForReplacements(tokenRangeMapping.getWriteReplicas(dc),

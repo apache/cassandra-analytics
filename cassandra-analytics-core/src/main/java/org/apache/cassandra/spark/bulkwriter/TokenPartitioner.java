@@ -41,7 +41,7 @@ import com.google.common.collect.TreeRangeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.spark.bulkwriter.token.RangeUtils;
+import org.apache.cassandra.spark.utils.RangeUtils;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.spark.Partitioner;
 
@@ -58,22 +58,22 @@ public class TokenPartitioner extends Partitioner
     private final Integer numberSplits;
 
     public TokenPartitioner(TokenRangeMapping<RingInstance> tokenRangeMapping,
-                            Integer numberSplits,
+                            Integer userSpecifiedNumberSplits,
                             int defaultParallelism,
                             Integer cores)
     {
-        this(tokenRangeMapping, numberSplits, defaultParallelism, cores, true);
+        this(tokenRangeMapping, userSpecifiedNumberSplits, defaultParallelism, cores, true);
     }
 
     @VisibleForTesting
     public TokenPartitioner(TokenRangeMapping<RingInstance> tokenRangeMapping,
-                            Integer numberSplits,
+                            Integer userSpecifiedNumberSplits,
                             int defaultParallelism,
                             Integer cores,
                             boolean randomize)
     {
         this.tokenRangeMapping = tokenRangeMapping;
-        this.numberSplits = calculateSplits(tokenRangeMapping, numberSplits, defaultParallelism, cores);
+        this.numberSplits = calculateSplits(tokenRangeMapping, userSpecifiedNumberSplits, defaultParallelism, cores);
         setupTokenRangeMap(randomize);
         validate();  // Intentionally not keeping this in readObject(), it is enough to validate in constructor alone
         LOGGER.info("Partition map " + partitionMap);
@@ -87,13 +87,17 @@ public class TokenPartitioner extends Partitioner
         return nrPartitions;
     }
 
+    /**
+     * @param key the decorated key
+     * @return the partition (non-negative) for the given key; if key is not present in the partition map, 0 is returned
+     */
     @SuppressWarnings("ConstantConditions")
     @Override
     public int getPartition(Object key)
     {
         DecoratedKey decoratedKey = (DecoratedKey) key;
-
-        return partitionMap.get(decoratedKey.getToken());
+        Integer partition = partitionMap.get(decoratedKey.getToken());
+        return partition == null ? 0 : partition;
     }
 
     public int numSplits()
@@ -111,13 +115,13 @@ public class TokenPartitioner extends Partitioner
         partitionMap = TreeRangeMap.create();
         reversePartitionMap = new HashMap<>();
 
-        final AtomicInteger nextPartitionId = new AtomicInteger(0);
-        final List<Range<BigInteger>> subRanges = tokenRangeMapping.getRangeMap()
-                                                                   .asMapOfRanges()
-                                                                   .keySet()
-                                                                   .stream()
-                                                                   .flatMap(tr -> RangeUtils.split(tr, numberSplits).stream())
-                                                                   .collect(Collectors.toList());
+        AtomicInteger nextPartitionId = new AtomicInteger(0);
+        List<Range<BigInteger>> subRanges = tokenRangeMapping.getRangeMap()
+                                                             .asMapOfRanges()
+                                                             .keySet()
+                                                             .stream()
+                                                             .flatMap(tr -> RangeUtils.split(tr, numberSplits).stream())
+                                                             .collect(Collectors.toList());
         if (randomize)
         {
             // In order to help distribute the upload load more evenly, shuffle the subranges before assigning a partition

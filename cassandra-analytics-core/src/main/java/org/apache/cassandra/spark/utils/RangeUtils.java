@@ -31,109 +31,137 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 
 import org.apache.cassandra.bridge.TokenRange;
-import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
+import org.apache.cassandra.spark.data.model.TokenOwner;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Common Cassandra range operations on Guava ranges. Assumes ranges are not wrapped around.
- * It's the responsibility of caller to unwrap ranges. For example, [100, 1] should become
- * [100, MAX] and [MIN, 1]. MIN and MAX depend on {@link Partitioner}.
+ * It's the responsibility of caller to unwrap ranges. For example, {@code (100, 1]} should become
+ * {@code (100, MAX]} and {@code (MIN, 1]}. MIN and MAX values depend on {@link Partitioner}.
  */
 public final class RangeUtils
 {
     private RangeUtils()
     {
-        throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    @NotNull
-    private static BigInteger sizeOf(@NotNull Range<BigInteger> range)
+    public static BigInteger sizeOf(Range<BigInteger> range)
     {
         Preconditions.checkArgument(range.lowerEndpoint().compareTo(range.upperEndpoint()) <= 0,
                                     "RangeUtils assume ranges are not wrap-around");
+        Preconditions.checkArgument(range.lowerBoundType() == BoundType.OPEN
+                                    && range.upperBoundType() == BoundType.CLOSED,
+                                    "Input must be an open-closed range");
 
         if (range.isEmpty())
         {
             return BigInteger.ZERO;
         }
 
-        BigInteger size = range.upperEndpoint().subtract(range.lowerEndpoint()).add(BigInteger.ONE);
-
-        if (range.lowerBoundType() == BoundType.OPEN)
-        {
-            size = size.subtract(BigInteger.ONE);
-        }
-
-        if (range.upperBoundType() == BoundType.OPEN)
-        {
-            size = size.subtract(BigInteger.ONE);
-        }
-
-        return size;
+        return range.upperEndpoint().subtract(range.lowerEndpoint());
     }
 
     /**
-     * Splits the given range into equal sized small ranges. Number of splits can be controlled by
-     * numberOfSplits. If numberOfSplits are smaller than size of the range, split size would be set to 1.
+     * Splits the given range into equal-sized small ranges. Number of splits can be controlled by
+     * nrSplits. If nrSplits are smaller than size of the range, split size would be set to 1, which is
+     * the minimum allowed. For example, if the input range is {@code (0, 1]} and nrSplits is 10, the split
+     * process yields a single range. Because {@code (0, 1]} cannot be split further.
      *
-     * This is best effort scheme, numberOfSplits not necessarily as promised and not all splits may not be
-     * exact same size.
+     * This is a best-effort scheme. The nrSplits is not necessarily as promised, and not all splits may be
+     * the exact same size.
      *
-     * @param range          the range to split
-     * @param numberOfSplits the desired number of splits
-     * @return the list of split ranges
+     * @param range the range to split
+     * @param nrSplits the number of sub-ranges into which the range should be divided
+     * @return a list of sub-ranges
      */
-    @NotNull
-    public static List<Range<BigInteger>> split(@NotNull Range<BigInteger> range, int numberOfSplits)
+    public static List<Range<BigInteger>> split(Range<BigInteger> range, int nrSplits)
     {
         Preconditions.checkArgument(range.lowerEndpoint().compareTo(range.upperEndpoint()) <= 0,
                                     "RangeUtils assume ranges are not wrap-around");
+        Preconditions.checkArgument(range.lowerBoundType() == BoundType.OPEN
+                                    && range.upperBoundType() == BoundType.CLOSED,
+                                    "Input must be an open-closed range");
 
         if (range.isEmpty())
         {
             return Collections.emptyList();
         }
 
-        // Make sure split size is not 0
-        BigInteger splitSize = sizeOf(range).divide(BigInteger.valueOf(numberOfSplits)).max(BigInteger.ONE);
-
-        // Start from range lower endpoint and spit ranges of size splitSize, until we cross the range
-        BigInteger nextLowerEndpoint = range.lowerBoundType() == BoundType.CLOSED ? range.lowerEndpoint() : range.lowerEndpoint().add(BigInteger.ONE);
-        List<Range<BigInteger>> splits = new ArrayList<>();
-        while (range.contains(nextLowerEndpoint))
+        if (nrSplits == 1 || sizeOf(range).equals(BigInteger.ONE))
         {
-            BigInteger upperEndpoint = nextLowerEndpoint.add(splitSize);
-            splits.add(range.intersection(Range.closedOpen(nextLowerEndpoint, upperEndpoint)));
-            nextLowerEndpoint = upperEndpoint;
+            // no split required; exit early
+            return Collections.singletonList(range);
+        }
+
+        Preconditions.checkArgument(nrSplits >= 1, "nrSplits must be greater than or equal to 1");
+
+        // The following algorithm tries to get a more evenly-split ranges.
+        // For example, if we split the range (0, 11] into 4 sub-ranges, the naive split yields the following:
+        // (0, 2], (2, 4], (4, 6], (6, 11]
+        // As you can see, the last range is significantly larger than the prior range.
+        // The desired split is (0, 3], (3, 6], (6, 9], (9, 11]. The sizes of the ranges are more close to each other.
+        // --
+        // The procedure of the algorithm is as simple as the below 2 steps:
+        // 1. Get the quotient and the remainder from the integer division.
+        // 2. For each range, as long as the remainder is not 0, we move 1 from the remainder to it.
+        // See org.apache.cassandra.spark.utils.RangeUtilsTest.testSplitYieldMoreEvenRanges
+        // Given that the remainder is always smaller than the divisor (nrSplits), the remainder is exhausted
+        // before the for-loop end.
+        // In some special cases, for example, split (0, 3] into 5 sub-ranges. The quotient is 0 and the remainder is 3.
+        // When the remainder is exhausted, the input is also exhausted. It yields, (0, 1], (1, 2], (2, 3].
+        // See org.apache.cassandra.spark.utils.RangeUtilsTest.testSplitNotSatisfyNrSplits
+        BigInteger[] divideAndRemainder = sizeOf(range).divideAndRemainder(BigInteger.valueOf(nrSplits));
+        BigInteger quotient = divideAndRemainder[0]; // quotient could be 0
+        int remainder = divideAndRemainder[1].intValue(); // remainder must be smaller than nrSplit, which is an integer
+        BigInteger lowerEndpoint = range.lowerEndpoint();
+        List<Range<BigInteger>> splits = new ArrayList<>();
+        for (int i = 0; i < nrSplits; i++)
+        {
+            BigInteger upperEndpoint = lowerEndpoint.add(quotient);
+            if (remainder > 0)
+            {
+                upperEndpoint = upperEndpoint.add(BigInteger.ONE);
+                remainder--;
+            }
+            if (i + 1 == nrSplits || upperEndpoint.compareTo(range.upperEndpoint()) >= 0)
+            {
+                splits.add(Range.openClosed(lowerEndpoint, range.upperEndpoint()));
+                break; // the split process terminate early because the original range is exhausted
+            }
+            splits.add(Range.openClosed(lowerEndpoint, upperEndpoint));
+            lowerEndpoint = upperEndpoint;
         }
 
         return splits;
     }
 
-    @NotNull
-    public static Multimap<CassandraInstance, Range<BigInteger>> calculateTokenRanges(
-            @NotNull List<CassandraInstance> instances,
-            int replicationFactor,
-            @NotNull Partitioner partitioner)
+    public static <Instance extends TokenOwner> Multimap<Instance, Range<BigInteger>>
+    calculateTokenRanges(List<Instance> instances,
+                         int replicationFactor,
+                         Partitioner partitioner)
     {
-        Preconditions.checkArgument(replicationFactor != 0, "RF cannot be 0");
-        Preconditions.checkArgument(instances.size() == 0 || replicationFactor <= instances.size(),
-                String.format("RF (%d) cannot be greater than the number of Cassandra instances (%d)",
-                              replicationFactor, instances.size()));
-        Multimap<CassandraInstance, Range<BigInteger>> tokenRanges = ArrayListMultimap.create();
+        Preconditions.checkArgument(replicationFactor != 0, "Calculation token ranges wouldn't work with RF 0");
+        Preconditions.checkArgument(instances.isEmpty() || replicationFactor <= instances.size(),
+                                    "Calculation token ranges wouldn't work when RF (" + replicationFactor
+                                  + ") is greater than number of Cassandra instances " + instances.size());
+        Multimap<Instance, Range<BigInteger>> tokenRanges = ArrayListMultimap.create();
         for (int index = 0; index < instances.size(); index++)
         {
-            CassandraInstance instance = instances.get(index);
+            Instance instance = instances.get(index);
             int disjointReplica = ((instances.size() + index) - replicationFactor) % instances.size();
             BigInteger rangeStart = new BigInteger(instances.get(disjointReplica).token());
             BigInteger rangeEnd = new BigInteger(instance.token());
 
-            // If start token is not strictly smaller than end token we are looking at a wrap around range, split it
+            // If start token is greater than or equal to end token we are looking at a wrap around range, split it
             if (rangeStart.compareTo(rangeEnd) >= 0)
             {
-                tokenRanges.put(instance, Range.range(rangeStart, BoundType.OPEN, partitioner.maxToken(), BoundType.CLOSED));
-                tokenRanges.put(instance, Range.range(partitioner.minToken(), BoundType.CLOSED, rangeEnd, BoundType.CLOSED));
+                tokenRanges.put(instance, Range.openClosed(rangeStart, partitioner.maxToken()));
+                // Skip adding the empty range (minToken, minToken]
+                if (!rangeEnd.equals(partitioner.minToken()))
+                {
+                    tokenRanges.put(instance, Range.openClosed(partitioner.minToken(), rangeEnd));
+                }
             }
             else
             {
@@ -147,22 +175,15 @@ public final class RangeUtils
     @NotNull
     public static TokenRange toTokenRange(@NotNull Range<BigInteger> range)
     {
-        BigInteger lowerEndpoint = range.lowerEndpoint();
-        if (range.lowerBoundType() == BoundType.OPEN)
-        {
-            lowerEndpoint = lowerEndpoint.add(BigInteger.ONE);
-        }
-        BigInteger upperEndpoint = range.upperEndpoint();
-        if (range.upperBoundType() == BoundType.OPEN)
-        {
-            upperEndpoint = upperEndpoint.subtract(BigInteger.ONE);
-        }
-        return TokenRange.closed(lowerEndpoint, upperEndpoint);
+        Preconditions.checkArgument(range.lowerBoundType() == BoundType.OPEN
+                                    && range.upperBoundType() == BoundType.CLOSED,
+                                    "Input must be an open-closed range");
+        return TokenRange.openClosed(range.lowerEndpoint(), range.upperEndpoint());
     }
 
     @NotNull
     public static Range<BigInteger> fromTokenRange(@NotNull TokenRange range)
     {
-        return Range.closed(range.lowerEndpoint(), range.upperEndpoint());
+        return Range.openClosed(range.lowerEndpoint(), range.upperEndpoint());
     }
 }

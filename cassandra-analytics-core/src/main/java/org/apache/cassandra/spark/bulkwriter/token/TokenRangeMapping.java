@@ -152,15 +152,15 @@ public class TokenRangeMapping<Instance extends CassandraInstance> implements Se
     public Set<String> getBlockedInstances()
     {
         return blockedInstances.stream()
-                               .map(RingInstance::getIpAddress)
+                               .map(RingInstance::ipAddress)
                                .collect(Collectors.toSet());
     }
 
     public Set<String> getBlockedInstances(String datacenter)
     {
         return blockedInstances.stream()
-                               .filter(r -> r.getDataCenter().equalsIgnoreCase(datacenter))
-                               .map(RingInstance::getIpAddress)
+                               .filter(r -> r.datacenter().equalsIgnoreCase(datacenter))
+                               .map(RingInstance::ipAddress)
                                .collect(Collectors.toSet());
     }
 
@@ -168,15 +168,15 @@ public class TokenRangeMapping<Instance extends CassandraInstance> implements Se
     public Set<String> getReplacementInstances()
     {
         return replacementInstances.stream()
-                                   .map(RingInstance::getIpAddress)
+                                   .map(RingInstance::ipAddress)
                                    .collect(Collectors.toSet());
     }
 
     public Set<String> getReplacementInstances(String datacenter)
     {
         return replacementInstances.stream()
-                                   .filter(r -> r.getDataCenter().equalsIgnoreCase(datacenter))
-                                   .map(RingInstance::getIpAddress)
+                                   .filter(r -> r.datacenter().equalsIgnoreCase(datacenter))
+                                   .map(RingInstance::ipAddress)
                                    .collect(Collectors.toSet());
     }
 

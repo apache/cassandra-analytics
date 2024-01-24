@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.utils.RandomUtils;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
@@ -54,7 +55,14 @@ public class TokenPartitionerTests
     private void runTest(Partitioner partitioner, int numInstances, int numCores)
     {
         TokenPartitioner tokenPartitioner = new TokenPartitioner(TestUtils.createRing(partitioner, numInstances), 1, numCores);
-        assertTrue(tokenPartitioner.numPartitions() > 1);
+        if (numInstances == 1 && numCores == 1)
+        {
+            assertEquals(1, tokenPartitioner.numPartitions());
+        }
+        else
+        {
+            assertTrue(tokenPartitioner.numPartitions() > 1);
+        }
 
         // Generate some random tokens and verify they only exist in a single token partition
         Map<BigInteger, Integer> tokens = IntStream.range(0, NUM_TOKEN_TESTS)

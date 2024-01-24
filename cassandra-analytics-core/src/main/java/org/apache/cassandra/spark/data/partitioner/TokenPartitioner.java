@@ -46,8 +46,8 @@ import org.slf4j.LoggerFactory;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.RangeUtils;
+import org.apache.cassandra.spark.utils.ByteBufferUtils;
 
 /**
  * Util class for partitioning Spark workers across the token ring

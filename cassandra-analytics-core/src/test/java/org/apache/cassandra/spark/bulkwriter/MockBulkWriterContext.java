@@ -77,6 +77,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private RowBufferMode rowBufferMode = RowBufferMode.UNBUFFERED;
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
+    private int sstableWriteBatchSize = 2;
 
     public interface CommitResultSupplier extends BiFunction<List<String>, String, RemoteCommitResult>
     {
@@ -245,7 +246,13 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     @Override
     public int getSstableBatchSize()
     {
-        return 2;
+        return sstableWriteBatchSize;
+    }
+
+    @VisibleForTesting
+    void setSstableWriteBatchSize(int sstableWriteBatchSize)
+    {
+        this.sstableWriteBatchSize = sstableWriteBatchSize;
     }
 
     @Override
@@ -324,7 +331,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public RemoteCommitResult commitSSTables(CassandraInstance instance, String migrationId, List<String> uuids)
     {
         commits.computeIfAbsent(instance, k -> new ArrayList<>()).add(migrationId);
-        return crSupplier.apply(buildCompleteBatchIds(uuids), instance.getDataCenter());
+        return crSupplier.apply(buildCompleteBatchIds(uuids), instance.datacenter());
     }
 
     private List<String> buildCompleteBatchIds(List<String> uuids)
