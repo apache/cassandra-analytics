@@ -28,7 +28,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -96,7 +95,8 @@ public class TokenPartitioner extends Partitioner
     public int getPartition(Object key)
     {
         DecoratedKey decoratedKey = (DecoratedKey) key;
-        return Objects.requireNonNullElse(partitionMap.get(decoratedKey.getToken()), 0);
+        Integer partition = partitionMap.get(decoratedKey.getToken());
+        return partition == null ? 0 : partition;
     }
 
     public int numSplits()
