@@ -232,7 +232,7 @@ public final class MapUtils
      * @param key       the key to the map
      * @return boolean
      */
-    public static boolean contains(Map<String, String> options, String key)
+    public static boolean containsKey(Map<String, String> options, String key)
     {
         return options.containsKey(lowerCaseKey(key));
     }

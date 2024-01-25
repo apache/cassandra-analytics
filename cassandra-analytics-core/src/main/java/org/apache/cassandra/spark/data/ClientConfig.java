@@ -114,7 +114,7 @@ public final class ClientConfig
         this.clearSnapshot = MapUtils.getBoolean(options, CLEAR_SNAPSHOT_KEY, createSnapshot);
         String clearSnapshotStrategyOption = MapUtils.getOrDefault(options, CLEAR_SNAPSHOT_STRATEGY_KEY, null);
 
-        this.clearSnapshotStrategy = parseClearSnapshotStrategy(MapUtils.contains(options, CLEAR_SNAPSHOT_KEY),
+        this.clearSnapshotStrategy = parseClearSnapshotStrategy(MapUtils.containsKey(options, CLEAR_SNAPSHOT_KEY),
                                                                 clearSnapshot,
                                                                 clearSnapshotStrategyOption);
         this.defaultParallelism = MapUtils.getInt(options, DEFAULT_PARALLELISM_KEY, 1);
