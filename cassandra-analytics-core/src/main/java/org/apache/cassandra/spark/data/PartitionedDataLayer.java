@@ -228,8 +228,8 @@ public abstract class PartitionedDataLayer extends DataLayer
 
         if (!filters.isEmpty() && filtersInRange.isEmpty())
         {
-            LOGGER.info("None of the partition key filters overlap with Spark partition token range firstToken={} lastToken{}",
-                        sparkTokenRange.lowerEndpoint(), sparkTokenRange.upperEndpoint());
+            LOGGER.info("None of the partition key filters overlap with Spark partition token range firstToken={} lastToken={}",
+                        sparkTokenRange.firstEnclosedValue(), sparkTokenRange.upperEndpoint());
             throw new NoMatchFoundException();
         }
         return filterNonIntersectingSSTables() ? filtersInRange : filters;

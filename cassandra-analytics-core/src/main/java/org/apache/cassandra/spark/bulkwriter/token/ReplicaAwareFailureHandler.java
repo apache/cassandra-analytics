@@ -46,7 +46,7 @@ public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
 
     public ReplicaAwareFailureHandler(Partitioner partitioner)
     {
-        failedRangesMap.put(Range.closed(partitioner.minToken(), partitioner.maxToken()), ArrayListMultimap.create());
+        failedRangesMap.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), ArrayListMultimap.create());
     }
 
     /**

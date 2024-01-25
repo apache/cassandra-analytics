@@ -96,13 +96,9 @@ public final class RangeUtils
 
         Preconditions.checkArgument(nrSplits >= 1, "nrSplits must be greater than or equal to 1");
 
-        // Make sure split size is not 0
-        BigInteger splitSize = sizeOf(range).divide(BigInteger.valueOf(nrSplits));
-        boolean isTinyRange = splitSize.compareTo(BigInteger.ZERO) == 0; // a tiny range that cannot be split this many times
-        if (isTinyRange)
-        {
-            splitSize = BigInteger.ONE;
-        }
+        // Make sure split size is at lease 1
+        BigInteger splitSize = sizeOf(range).divide(BigInteger.valueOf(nrSplits))
+                                            .max(BigInteger.ONE);
 
         // Start from range lower endpoint and spit ranges of size splitSize, until we cross the range
         BigInteger lowerEndpoint = range.lowerEndpoint();
@@ -110,17 +106,10 @@ public final class RangeUtils
         for (int i = 0; i < nrSplits; i++)
         {
             BigInteger upperEndpoint = lowerEndpoint.add(splitSize);
-            if (isTinyRange && upperEndpoint.compareTo(range.upperEndpoint()) >= 0)
+            if (upperEndpoint.compareTo(range.upperEndpoint()) >= 0)
             {
-                splits.add(Range.openClosed(lowerEndpoint, upperEndpoint));
+                splits.add(Range.openClosed(lowerEndpoint, range.upperEndpoint()));
                 break; // the split process terminate early because the original range is exhausted
-            }
-
-            // correct the upper endpoint of the last range if needed
-            if (i + 1 == nrSplits && (upperEndpoint.compareTo(range.upperEndpoint()) != 0))
-            {
-                upperEndpoint = range.upperEndpoint();
-
             }
             splits.add(Range.openClosed(lowerEndpoint, upperEndpoint));
             lowerEndpoint = upperEndpoint;
@@ -146,11 +135,15 @@ public final class RangeUtils
             BigInteger rangeStart = new BigInteger(instances.get(disjointReplica).token());
             BigInteger rangeEnd = new BigInteger(instance.token());
 
-            // If start token is  greater than or equal to end token we are looking at a wrap around range, split it
+            // If start token is greater than or equal to end token we are looking at a wrap around range, split it
             if (rangeStart.compareTo(rangeEnd) >= 0)
             {
                 tokenRanges.put(instance, Range.openClosed(rangeStart, partitioner.maxToken()));
-                tokenRanges.put(instance, Range.openClosed(partitioner.minToken(), rangeEnd));
+                // Skip adding the empty range (minToken, minToken]
+                if (!rangeEnd.equals(partitioner.minToken()))
+                {
+                    tokenRanges.put(instance, Range.openClosed(partitioner.minToken(), rangeEnd));
+                }
             }
             else
             {
@@ -164,22 +157,15 @@ public final class RangeUtils
     @NotNull
     public static TokenRange toTokenRange(@NotNull Range<BigInteger> range)
     {
-        BigInteger lowerEndpoint = range.lowerEndpoint();
-        if (range.lowerBoundType() == BoundType.OPEN)
-        {
-            lowerEndpoint = lowerEndpoint.add(BigInteger.ONE);
-        }
-        BigInteger upperEndpoint = range.upperEndpoint();
-        if (range.upperBoundType() == BoundType.OPEN)
-        {
-            upperEndpoint = upperEndpoint.subtract(BigInteger.ONE);
-        }
-        return TokenRange.closed(lowerEndpoint, upperEndpoint);
+        Preconditions.checkArgument(range.lowerBoundType() == BoundType.OPEN
+                                    && range.upperBoundType() == BoundType.CLOSED,
+                                    "Input must be an open-closed range");
+        return TokenRange.openClosed(range.lowerEndpoint(), range.upperEndpoint());
     }
 
     @NotNull
     public static Range<BigInteger> fromTokenRange(@NotNull TokenRange range)
     {
-        return Range.closed(range.lowerEndpoint(), range.upperEndpoint());
+        return Range.openClosed(range.lowerEndpoint(), range.upperEndpoint());
     }
 }

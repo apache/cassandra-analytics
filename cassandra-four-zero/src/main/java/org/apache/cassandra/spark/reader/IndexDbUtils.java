@@ -53,7 +53,7 @@ final class IndexDbUtils
                                         @NotNull SSTable ssTable,
                                         @NotNull Stats stats) throws IOException
     {
-        long searchStartOffset = SummaryDbUtils.findIndexOffsetInSummary(indexSummary, partitioner, range.lowerEndpoint());
+        long searchStartOffset = SummaryDbUtils.findIndexOffsetInSummary(indexSummary, partitioner, range.firstEnclosedValue());
 
         // Open the Index.db, skip to nearest offset found in Summary.db and find start & end offset for the Data.db file
         return findDataDbOffset(range, partitioner, ssTable, stats, searchStartOffset);
@@ -136,7 +136,7 @@ final class IndexDbUtils
             previous = ReaderUtils.readPosition(in);
             ReaderUtils.skipPromotedIndex(in);
         }
-        assert range.lowerEndpoint().compareTo(keyToken) <= 0;
+        assert range.firstEnclosedValue().compareTo(keyToken) <= 0;
         // Found first token that overlaps with Spark token range because we passed the target
         // by skipping the promoted index, we use the previously-read position as start
         return previous;
@@ -145,11 +145,12 @@ final class IndexDbUtils
     /**
      * @param keyToken key token read from Index.db
      * @param range    spark worker token range
-     * @return true if keyToken is less than the range lower bound
+     * @return true if keyToken is not enclosed in the range and less than all values in the range
      */
     static boolean isLessThan(@NotNull BigInteger keyToken, @NotNull TokenRange range)
     {
-        return keyToken.compareTo(range.lowerEndpoint()) < 0;
+        // TokenRange is always open at the lower end
+        return keyToken.compareTo(range.lowerEndpoint()) <= 0;
     }
 
     /**

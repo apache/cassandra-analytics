@@ -155,7 +155,7 @@ public class CassandraRing implements Serializable
         }
 
         // Calculate token range to replica mapping
-        replicas.put(Range.closed(partitioner.minToken(), partitioner.maxToken()), Collections.emptyList());
+        replicas.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), Collections.emptyList());
         tokenRangeMap.asMap().forEach((instance, ranges) -> ranges.forEach(range -> addReplica(instance, range, replicas)));
     }
 

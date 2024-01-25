@@ -22,10 +22,12 @@ package org.apache.cassandra.spark.utils;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.common.collect.BoundType;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
@@ -38,15 +40,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-public class RangeUtilsTest
+class RangeUtilsTest
 {
     private static final Pattern RANGE_PATTERN = Pattern.compile("^[\\\\(|\\[](-?\\d+),(-?\\d+)[\\\\)|\\]]$");
 
     @Test
-    public void testCalculateTokenRangesTenNodesRF10()
+    void testCalculateTokenRangesTenNodesRF10()
     {
         assertTokenRanges(10, 10,
-                new String[]{"(-9223372036854775808,9223372036854775807]", "(-9223372036854775808,-9223372036854775808]"},
+                new String[]{"(-9223372036854775808,9223372036854775807]"},
                 new String[]{"(-7378697629483820647,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
                 new String[]{"(-5534023222112865486,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
                 new String[]{"(-3689348814741910325,9223372036854775807]", "(-9223372036854775808,-3689348814741910325]"},
@@ -59,10 +61,10 @@ public class RangeUtilsTest
     }
 
     @Test
-    public void testCalculateTokenRangesTenNodesRF7()
+    void testCalculateTokenRangesTenNodesRF7()
     {
         assertTokenRanges(10, 7,
-                new String[]{"(-3689348814741910325,9223372036854775807]", "(-9223372036854775808,-9223372036854775808]"},
+                new String[]{"(-3689348814741910325,9223372036854775807]"},
                 new String[]{"(-1844674407370955164,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
                 new String[]{"(-3,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
                 new String[]{"(1844674407370955158,9223372036854775807]", "(-9223372036854775808,-3689348814741910325]"},
@@ -75,10 +77,10 @@ public class RangeUtilsTest
     }
 
     @Test
-    public void testCalculateTokenRangesTenNodesRF5()
+    void testCalculateTokenRangesTenNodesRF5()
     {
         assertTokenRanges(10, 5,
-                new String[]{"(-3,9223372036854775807]", "(-9223372036854775808,-9223372036854775808]"},
+                new String[]{"(-3,9223372036854775807]"},
                 new String[]{"(1844674407370955158,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
                 new String[]{"(3689348814741910319,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
                 new String[]{"(5534023222112865480,9223372036854775807]", "(-9223372036854775808,-3689348814741910325]"},
@@ -91,10 +93,10 @@ public class RangeUtilsTest
     }
 
     @Test
-    public void testCalculateTokenRangesTenNodesRF3()
+    void testCalculateTokenRangesTenNodesRF3()
     {
         assertTokenRanges(10, 3,
-                new String[]{"(3689348814741910319,9223372036854775807]", "(-9223372036854775808,-9223372036854775808]"},
+                new String[]{"(3689348814741910319,9223372036854775807]"},
                 new String[]{"(5534023222112865480,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
                 new String[]{"(7378697629483820641,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
                 new String[]{"(-9223372036854775808,-3689348814741910325]"},
@@ -107,10 +109,10 @@ public class RangeUtilsTest
     }
 
     @Test
-    public void testCalculateTokenRangesTenNodesRF1()
+    void testCalculateTokenRangesTenNodesRF1()
     {
         assertTokenRanges(10, 1,
-                new String[]{"(7378697629483820641,9223372036854775807]", "(-9223372036854775808,-9223372036854775808]"},
+                new String[]{"(7378697629483820641,9223372036854775807]"},
                 new String[]{"(-9223372036854775808,-7378697629483820647]"},
                 new String[]{"(-7378697629483820647,-5534023222112865486]"},
                 new String[]{"(-5534023222112865486,-3689348814741910325]"},
@@ -123,47 +125,47 @@ public class RangeUtilsTest
     }
 
     @Test
-    public void testCalculateTokenRangesFourNodesRF4()
+    void testCalculateTokenRangesFourNodesRF4()
     {
         assertTokenRanges(4, 4,
-                new String[]{"(-9223372036854775808,9223372036854775807]", "(-9223372036854775808,-9223372036854775808]"},
+                new String[]{"(-9223372036854775808,9223372036854775807]"},
                 new String[]{"(-4611686018427387904,9223372036854775807]", "(-9223372036854775808,-4611686018427387904]"},
                 new String[]{"(0,9223372036854775807]", "(-9223372036854775808,0]"},
                 new String[]{"(4611686018427387904,9223372036854775807]", "(-9223372036854775808,4611686018427387904]"});
     }
 
     @Test
-    public void testCalculateTokenRangesFourNodesRF3()
+    void testCalculateTokenRangesFourNodesRF3()
     {
         assertTokenRanges(4, 3,
-                new String[]{"(-4611686018427387904,9223372036854775807]", "(-9223372036854775808,-9223372036854775808]"},
+                new String[]{"(-4611686018427387904,9223372036854775807]"},
                 new String[]{"(0,9223372036854775807]", "(-9223372036854775808,-4611686018427387904]"},
                 new String[]{"(4611686018427387904,9223372036854775807]", "(-9223372036854775808,0]"},
                 new String[]{"(-9223372036854775808,4611686018427387904]"});
     }
 
     @Test
-    public void testCalculateTokenRangesFourNodesRF2()
+    void testCalculateTokenRangesFourNodesRF2()
     {
         assertTokenRanges(4, 2,
-                new String[]{"(0,9223372036854775807]", "(-9223372036854775808,-9223372036854775808]"},
+                new String[]{"(0,9223372036854775807]"},
                 new String[]{"(4611686018427387904,9223372036854775807]", "(-9223372036854775808,-4611686018427387904]"},
                 new String[]{"(-9223372036854775808,0]"},
                 new String[]{"(-4611686018427387904,4611686018427387904]"});
     }
 
     @Test
-    public void testCalculateTokenRangesFourNodesRF1()
+    void testCalculateTokenRangesFourNodesRF1()
     {
         assertTokenRanges(4, 1,
-                new String[]{"(4611686018427387904,9223372036854775807]", "(-9223372036854775808,-9223372036854775808]"},
+                new String[]{"(4611686018427387904,9223372036854775807]"},
                 new String[]{"(-9223372036854775808,-4611686018427387904]"},
                 new String[]{"(-4611686018427387904,0]"},
                 new String[]{"(0,4611686018427387904]"});
     }
 
-    @Test()
-    public void testCalculateTokenRangesRFGreaterThanNodesFails()
+    @Test
+    void testCalculateTokenRangesRFGreaterThanNodesFails()
     {
         assertThrows(IllegalArgumentException.class,
                      () -> assertTokenRanges(2, 3,
@@ -173,9 +175,35 @@ public class RangeUtilsTest
     }
 
     @Test
-    public void testCalculateTokenRangesZeroNodesSucceeds()
+    void testCalculateTokenRangesZeroNodesSucceeds()
     {
         assertTokenRanges(0, 3);
+    }
+
+    @Test
+    void testSplitTinyRange()
+    {
+        Range<BigInteger> range = Range.openClosed(BigInteger.ZERO, BigInteger.ONE);
+        List<Range<BigInteger>> expected = Collections.singletonList(range);
+        for (int nrSplits = 1; nrSplits < 5; nrSplits++)
+        {
+            // regardless of number of splits, the output should be a list of single range
+            assertEquals(expected, RangeUtils.split(range, nrSplits));
+        }
+    }
+
+    @Test
+    void testSplitOnlyProduceOpenClosedRanges()
+    {
+        Range<BigInteger> range = Range.openClosed(BigInteger.ZERO, BigInteger.TEN);
+        for (int nrSplit = 1; nrSplit < 15; nrSplit++) // the input range can be split for at most 10 time
+        {
+            for (Range<BigInteger> subrange : RangeUtils.split(range, nrSplit))
+            {
+                assertEquals(BoundType.OPEN, subrange.lowerBoundType());
+                assertEquals(BoundType.CLOSED, subrange.upperBoundType());
+            }
+        }
     }
 
     private static void assertTokenRanges(int nodes, int replicationFactor, String[]... ranges)
