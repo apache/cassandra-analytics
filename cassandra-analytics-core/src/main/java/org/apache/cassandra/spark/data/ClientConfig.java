@@ -151,7 +151,7 @@ public final class ClientConfig
             LOGGER.debug("No clearSnapshotStrategy is set. Using the default strategy");
             return ClearSnapshotStrategy.defaultStrategy();
         }
-        String[] strategyParts = clearSnapshotStrategyOption.split(" ");
+        String[] strategyParts = clearSnapshotStrategyOption.split(" ", 2);
         String strategyName;
         String snapshotTTL = null;
         if (strategyParts.length == 1)
@@ -166,7 +166,7 @@ public final class ClientConfig
             {
                 String msg = "Incorrect value set for clearSnapshotStrategy, expected format is " +
                              "{strategy [snapshotTTLvalue]}. TTL value specified must contain unit along. " +
-                             "For e.g. 2d represents a TTL for 2 days";
+                             "For e.g. 2d represents a TTL for 2 days. Allowed units are d, h, m and s.";
                 throw new IllegalArgumentException(msg);
             }
         }
@@ -354,6 +354,17 @@ public final class ClientConfig
 
         abstract boolean shouldClearOnCompletion();
 
+        void validateTTLPresence(boolean expectTTL)
+        {
+            if (expectTTL && !hasTTL())
+            {
+                throw new IllegalArgumentException("Incorrect value set for clearSnapshotStrategy, expected format " +
+                                                   "is {strategy [snapshotTTLvalue]}. TTL value specified must " +
+                                                   "contain unit along. For e.g. 2d represents a TTL for 2 days. " +
+                                                   "Allowed units are d, h, m and s.");
+            }
+        }
+
         boolean hasTTL()
         {
             return snapshotTTL != null && !snapshotTTL.isEmpty();
@@ -409,6 +420,7 @@ public final class ClientConfig
             protected OnCompletionOrTTL(@NotNull String snapshotTTL)
             {
                 super(snapshotTTL);
+                validateTTLPresence(true);
             }
 
             @Override
@@ -423,6 +435,7 @@ public final class ClientConfig
             protected TTL(@NotNull String snapshotTTL) // check NotNull not throwing error
             {
                 super(snapshotTTL);
+                validateTTLPresence(true);
             }
 
             @Override

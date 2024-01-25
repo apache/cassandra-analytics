@@ -29,8 +29,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.apache.cassandra.spark.data.ClientConfig.SNAPSHOT_TTL_PATTERN;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ClientConfigTests
 {
@@ -54,56 +53,34 @@ class ClientConfigTests
     }
 
     @ParameterizedTest
-    @CsvSource({ "false,false,tTL 10h,10h", "true,false,TTL 5d,5d", "true,true,  Ttl 2m  ,2m"})
-    void testValidTTLClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption, boolean clearSnapshot,
-                                                  String option, String expectedSnapshotTTL)
+    @CsvSource({"false,false,tTL 10h,10h", "true,false,  TTL   5d  ,5d", "true,true,  Ttl 2m  ,2m", "false,false,noop,",
+                "true,false,NoOp,", "true,true,  Noop ,", "false,false,noop 50m,", "false,false,onCompletion,",
+                "true,false,OnCoMpLeTiOn,", "true,true,  ONCOMPLETION ,", "false,false,OnCoMpLeTiOn 5h,",
+                "false,false,onCompletionOrTTL 200m, 200m", "true,false,oNcOmPlEtIoNoRtTL   0560m,0560m",
+                "true,true,  ONCOMPLETIONORTTL  3d, 3d"})
+    void testValidClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption, boolean clearSnapshot,
+                                               String option, String expectedSnapshotTTL)
     {
         final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         options.put("clearsnapshotstrategy", option);
         ClientConfig clientConfig = ClientConfig.create(options);
         ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
         = clientConfig.parseClearSnapshotStrategy(hasDeprecatedSnapshotOption, clearSnapshot, option);
-
+        validateStrategy(clearSnapshotStrategy, expectedSnapshotTTL);
     }
 
     @ParameterizedTest
-    @CsvSource({ "false,false,noop", "true,false,NoOp", "true,true,  Noop "})
-    void testValidNoOpClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption, boolean clearSnapshot,
-                                                   String option)
+    @CsvSource({"delete 10h", "ttl5d", "Ttl 2ms", "TTL", "No Op", "on Completion", "ON COMPLETION 3d",
+                "onCompletionOrTTL ", "oN cOmPlEtIoNoRtTL 560m"})
+    void testInValidClearSnapshotStrategyParsing(String option)
     {
         final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         options.put("clearsnapshotstrategy", option);
-        ClientConfig clientConfig = ClientConfig.create(options);
-        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
-        = clientConfig.parseClearSnapshotStrategy(hasDeprecatedSnapshotOption, clearSnapshot, option);
-
-    }
-
-    @ParameterizedTest
-    @CsvSource({ "false,false,noop", "true,false,NoOp", "true,true,  Noop "})
-    void testValidOnCompletionClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption, boolean clearSnapshot,
-                                                           String option)
-    {
-        final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
-        options.put("clearsnapshotstrategy", option);
-        ClientConfig clientConfig = ClientConfig.create(options);
-        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
-        = clientConfig.parseClearSnapshotStrategy(hasDeprecatedSnapshotOption, clearSnapshot, option);
-
-    }
-
-    @ParameterizedTest
-    @CsvSource({ "false,false,noop", "true,false,NoOp", "true,true,  Noop "})
-    void testValidOnCompletionOrTTLClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption,
-                                                                boolean clearSnapshot, String option,
-                                                                String expectedSnapshotTTL)
-    {
-        ClientConfig clientConfig = mock(ClientConfig.class);
-        when(clientConfig.clearSnapshotStrategy()).thenCallRealMethod();
-        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
-        = clientConfig.parseClearSnapshotStrategy(hasDeprecatedSnapshotOption, clearSnapshot, option);
-
-        assertThat(clearSnapshotStrategy.ttl()).isEqualTo(expectedSnapshotTTL);
+        assertThatThrownBy(() -> {
+            ClientConfig clientConfig = ClientConfig.create(options);
+            clientConfig.parseClearSnapshotStrategy(false, false, option);
+        })
+        .isInstanceOf(IllegalArgumentException.class);
     }
 
     private void validateStrategy(ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy, String expectedSnapshotTTL)
