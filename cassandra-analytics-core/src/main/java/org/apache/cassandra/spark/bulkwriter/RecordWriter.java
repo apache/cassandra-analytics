@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -138,9 +139,9 @@ public class RecordWriter implements Serializable
         try
         {
             // Use list to preserve order of ranges
-            List<Range<BigInteger>> newRanges = new ArrayList<>(initialTokenRangeMapping.getRangeMap()
-                                                                                        .asMapOfRanges()
-                                                                                        .keySet());
+            Set<Range<BigInteger>> newRanges = new LinkedHashSet<>(initialTokenRangeMapping.getRangeMap()
+                                                                                           .asMapOfRanges()
+                                                                                           .keySet());
             Range<BigInteger> tokenRange = getTokenRange(taskContext);
             List<Range<BigInteger>> subRanges = newRanges.contains(tokenRange) ?
                                                 Collections.singletonList(tokenRange) : // no overlaps
@@ -151,9 +152,10 @@ public class RecordWriter implements Serializable
             while (dataIterator.hasNext())
             {
                 Tuple2<DecoratedKey, Object[]> rowData = dataIterator.next();
-                // advance to new sub-range if needed
                 BigInteger token = rowData._1().getToken();
-                if (!currentRange.contains(token))
+                // Advance to the next range that contains the token.
+                // The intermediate ranges that do not contain the token will be skipped
+                while (!currentRange.contains(token))
                 {
                     currentRangeIndex++;
                     if (currentRangeIndex >= subRanges.size())
@@ -266,7 +268,7 @@ public class RecordWriter implements Serializable
     /**
      * Get ranges from the set that intersect and/or overlap with the provided token range
      */
-    private List<Range<BigInteger>> getIntersectingSubRanges(List<Range<BigInteger>> ranges, Range<BigInteger> tokenRange)
+    private List<Range<BigInteger>> getIntersectingSubRanges(Set<Range<BigInteger>> ranges, Range<BigInteger> tokenRange)
     {
         return ranges.stream()
                      .filter(r -> r.isConnected(tokenRange) && !r.intersection(tokenRange).isEmpty())
