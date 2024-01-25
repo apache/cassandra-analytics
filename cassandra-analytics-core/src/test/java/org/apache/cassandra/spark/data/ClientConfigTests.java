@@ -70,7 +70,7 @@ class ClientConfigTests
     }
 
     @ParameterizedTest
-    @CsvSource({"delete 10h", "ttl5d", "Ttl 2ms", "TTL", "No Op", "on Completion", "ON COMPLETION 3d",
+    @CsvSource({"delete 10h", "ttl5d", "Ttl 2ms", "TTL", "tTL", "No Op", "on Completion", "ON COMPLETION 3d",
                 "onCompletionOrTTL ", "oN cOmPlEtIoNoRtTL 560m"})
     void testInValidClearSnapshotStrategyParsing(String option)
     {

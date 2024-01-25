@@ -225,4 +225,15 @@ public final class MapUtils
     {
         return options.getOrDefault(lowerCaseKey(key), defaultValue);
     }
+
+    /**
+     * Method to check if key is present in {@code options} map.
+     * @param options   the map
+     * @param key       the key to the map
+     * @return boolean
+     */
+    public static boolean contains(Map<String, String> options, String key)
+    {
+        return options.containsKey(lowerCaseKey(key));
+    }
 }

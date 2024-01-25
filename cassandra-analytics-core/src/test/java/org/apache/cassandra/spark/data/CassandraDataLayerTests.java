@@ -24,9 +24,11 @@ import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CassandraDataLayerTests
@@ -49,32 +51,19 @@ class CassandraDataLayerTests
         assertEquals("2d", clearSnapshotStrategy.ttl());
     }
 
-    @Test
-    void testCustomClearSnapshotStrategy()
+    @ParameterizedTest
+    @CsvSource({"false, NOOP", "true,ONCOMPLETIONORTTL 2d"})
+    void testClearSnapshotOptionSupport(Boolean clearSnapshot, String expectedClearSnapshotStrategyOption)
     {
         final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
-        options.put("clearsnapshotstrategy", "tTl 4h");
+        options.put("clearsnapshot", clearSnapshot.toString());
         ClientConfig clientConfig = ClientConfig.create(options);
-        assertEquals("big-data", clientConfig.keyspace());
-        assertEquals("customers", clientConfig.table());
-        assertEquals("localhost", clientConfig.sidecarInstances());
         ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = clientConfig.clearSnapshotStrategy();
-        assertEquals("TTL 4h", clearSnapshotStrategy.toString());
-        assertTrue(clearSnapshotStrategy.hasTTL());
-        assertFalse(clearSnapshotStrategy.shouldClearOnCompletion());
-        assertEquals("4h", clearSnapshotStrategy.ttl());
-    }
-
-    @Test
-    void testInvalidClearSnapshotStrategy()
-    {
-        final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
-        options.put("clearsnapshotstrategy", "tTl");
-        ClientConfig clientConfig = ClientConfig.create(options);
-        assertEquals("big-data", clientConfig.keyspace());
-        assertEquals("customers", clientConfig.table());
-        assertEquals("localhost", clientConfig.sidecarInstances());
-        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = clientConfig.clearSnapshotStrategy();
-        System.out.println(clearSnapshotStrategy);
+        ClientConfig.ClearSnapshotStrategy expectedClearSnapshotStrategy
+        = clientConfig.parseClearSnapshotStrategy(false, false, expectedClearSnapshotStrategyOption);
+        assertThat(clearSnapshotStrategy.shouldClearOnCompletion())
+        .isEqualTo(expectedClearSnapshotStrategy.shouldClearOnCompletion());
+        assertThat(clearSnapshotStrategy.hasTTL()).isEqualTo(expectedClearSnapshotStrategy.hasTTL());
+        assertThat(clearSnapshotStrategy.ttl()).isEqualTo(expectedClearSnapshotStrategy.ttl());
     }
 }
