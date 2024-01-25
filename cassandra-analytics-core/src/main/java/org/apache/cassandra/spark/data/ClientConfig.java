@@ -433,7 +433,7 @@ public final class ClientConfig
 
         static class TTL extends ClearSnapshotStrategy
         {
-            protected TTL(@NotNull String snapshotTTL) // check NotNull not throwing error
+            protected TTL(@NotNull String snapshotTTL)
             {
                 super(snapshotTTL);
                 validateTTLPresence(true);
