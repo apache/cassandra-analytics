@@ -41,7 +41,7 @@ class CassandraDataLayerTests
     @Test
     void testDefaultClearSnapshotStrategy()
     {
-        final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
+        Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         ClientConfig clientConfig = ClientConfig.create(options);
         assertEquals("big-data", clientConfig.keyspace());
         assertEquals("customers", clientConfig.table());
@@ -55,7 +55,7 @@ class CassandraDataLayerTests
     @CsvSource({"false, NOOP", "true,ONCOMPLETIONORTTL 2d"})
     void testClearSnapshotOptionSupport(Boolean clearSnapshot, String expectedClearSnapshotStrategyOption)
     {
-        final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
+        Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         options.put("clearsnapshot", clearSnapshot.toString());
         ClientConfig clientConfig = ClientConfig.create(options);
         ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = clientConfig.clearSnapshotStrategy();

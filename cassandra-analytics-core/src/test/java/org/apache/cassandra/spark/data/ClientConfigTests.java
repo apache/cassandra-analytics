@@ -53,20 +53,58 @@ class ClientConfigTests
     }
 
     @ParameterizedTest
-    @CsvSource({"false,false,tTL 10h,10h", "true,false,  TTL   5d  ,5d", "true,true,  Ttl 2m  ,2m", "false,false,noop,",
-                "true,false,NoOp,", "true,true,  Noop ,", "false,false,noop 50m,", "false,false,onCompletion,",
-                "true,false,OnCoMpLeTiOn,", "true,true,  ONCOMPLETION ,", "false,false,OnCoMpLeTiOn 5h,",
-                "false,false,onCompletionOrTTL 200m, 200m", "true,false,oNcOmPlEtIoNoRtTL   0560m,0560m",
-                "true,true,  ONCOMPLETIONORTTL  3d, 3d"})
-    void testValidClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption, boolean clearSnapshot,
-                                               String option, String expectedSnapshotTTL)
+    @CsvSource({"false,false,noop", "true,false,NoOp", "true,true,  Noop ", "false,false,noop 50m"})
+    void testValidNoOpClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption, boolean clearSnapshot,
+                                                   String option)
     {
-        final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
-        options.put("clearsnapshotstrategy", option);
-        ClientConfig clientConfig = ClientConfig.create(options);
         ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
-        = clientConfig.parseClearSnapshotStrategy(hasDeprecatedSnapshotOption, clearSnapshot, option);
-        validateStrategy(clearSnapshotStrategy, expectedSnapshotTTL);
+        = getClearSnapshotStrategy(option, hasDeprecatedSnapshotOption, clearSnapshot);
+        assertThat(clearSnapshotStrategy).isInstanceOf(ClientConfig.ClearSnapshotStrategy.NoOp.class);
+        assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isFalse();
+        assertThat(clearSnapshotStrategy.hasTTL()).isFalse();
+        assertThat(clearSnapshotStrategy.ttl()).isNull();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false,false,tTL 10h,10h", "true,false,  TTL   5d  ,5d", "true,true,  Ttl 2m  ,2m"})
+    void testValidTTLClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption, boolean clearSnapshot,
+                                                  String option, String expectedSnapshotTTL)
+    {
+        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
+        = getClearSnapshotStrategy(option, hasDeprecatedSnapshotOption, clearSnapshot);
+        assertThat(clearSnapshotStrategy).isInstanceOf(ClientConfig.ClearSnapshotStrategy.TTL.class);
+        assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isFalse();
+        assertThat(clearSnapshotStrategy.hasTTL()).isTrue();
+        assertThat(clearSnapshotStrategy.ttl()).isEqualTo(expectedSnapshotTTL);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false,false,onCompletion", "true,false,OnCoMpLeTiOn", "true,true,  ONCOMPLETION ",
+                "false,false,OnCoMpLeTiOn 5h"})
+    void testValidOnCompletionClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption, boolean clearSnapshot,
+                                                           String option)
+    {
+        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
+        = getClearSnapshotStrategy(option, hasDeprecatedSnapshotOption, clearSnapshot);
+        assertThat(clearSnapshotStrategy).isInstanceOf(ClientConfig.ClearSnapshotStrategy.OnCompletion.class);
+        assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isTrue();
+        assertThat(clearSnapshotStrategy.hasTTL()).isFalse();
+        assertThat(clearSnapshotStrategy.ttl()).isNull();
+    }
+
+    @ParameterizedTest
+    @CsvSource({"false,false,onCompletionOrTTL 200m, 200m", "true,false,oNcOmPlEtIoNoRtTL   0560m,0560m",
+                "true,true,  ONCOMPLETIONORTTL  3d, 3d"})
+    void testValidOnCompletionOrTTLClearSnapshotStrategyParsing(boolean hasDeprecatedSnapshotOption,
+                                                                boolean clearSnapshot, String option,
+                                                                String expectedSnapshotTTL)
+    {
+        ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy
+        = getClearSnapshotStrategy(option, hasDeprecatedSnapshotOption, clearSnapshot);
+        assertThat(clearSnapshotStrategy).isInstanceOf(ClientConfig.ClearSnapshotStrategy.OnCompletionOrTTL.class);
+        assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isTrue();
+        assertThat(clearSnapshotStrategy.hasTTL()).isTrue();
+        assertThat(clearSnapshotStrategy.ttl()).isEqualTo(expectedSnapshotTTL);
     }
 
     @ParameterizedTest
@@ -74,7 +112,7 @@ class ClientConfigTests
                 "onCompletionOrTTL ", "oN cOmPlEtIoNoRtTL 560m"})
     void testInValidClearSnapshotStrategyParsing(String option)
     {
-        final Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
+        Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         options.put("clearsnapshotstrategy", option);
         assertThatThrownBy(() -> {
             ClientConfig clientConfig = ClientConfig.create(options);
@@ -83,31 +121,15 @@ class ClientConfigTests
         .isInstanceOf(IllegalArgumentException.class);
     }
 
-    private void validateStrategy(ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy, String expectedSnapshotTTL)
+    private ClientConfig.ClearSnapshotStrategy getClearSnapshotStrategy(String clearSnapshotStrategyOption,
+                                                                        boolean hasDeprecatedSnapshotOption,
+                                                                        boolean clearSnapshot)
     {
-        if (clearSnapshotStrategy instanceof ClientConfig.ClearSnapshotStrategy.TTL)
-        {
-            assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isFalse();
-            assertThat(clearSnapshotStrategy.hasTTL()).isTrue();
-            assertThat(clearSnapshotStrategy.ttl()).isEqualTo(expectedSnapshotTTL);
-        }
-        else if (clearSnapshotStrategy instanceof ClientConfig.ClearSnapshotStrategy.OnCompletionOrTTL)
-        {
-            assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isTrue();
-            assertThat(clearSnapshotStrategy.hasTTL()).isTrue();
-            assertThat(clearSnapshotStrategy.ttl()).isEqualTo(expectedSnapshotTTL);
-        }
-        else if (clearSnapshotStrategy instanceof ClientConfig.ClearSnapshotStrategy.OnCompletion)
-        {
-            assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isTrue();
-            assertThat(clearSnapshotStrategy.hasTTL()).isFalse();
-            assertThat(clearSnapshotStrategy.ttl()).isNull();
-        }
-        else
-        {
-            assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isFalse();
-            assertThat(clearSnapshotStrategy.hasTTL()).isFalse();
-            assertThat(clearSnapshotStrategy.ttl()).isNull();
-        }
+        Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
+        options.put("clearsnapshotstrategy", clearSnapshotStrategyOption);
+        ClientConfig clientConfig = ClientConfig.create(options);
+        return clientConfig.parseClearSnapshotStrategy(hasDeprecatedSnapshotOption,
+                                                       clearSnapshot,
+                                                       clearSnapshotStrategyOption);
     }
 }
