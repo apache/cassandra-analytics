@@ -272,7 +272,7 @@ public class RecordWriter implements Serializable
     {
         return ranges.stream()
                      .filter(r -> r.isConnected(tokenRange) && !r.intersection(tokenRange).isEmpty())
-                     .collect(Collectors.toUnmodifiableList());
+                     .collect(Collectors.toList());
     }
 
     private boolean haveTokenRangeMappingsChanged(TokenRangeMapping<RingInstance> startTaskMapping, Range<BigInteger> taskTokenRange)
