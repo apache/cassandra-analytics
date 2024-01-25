@@ -138,7 +138,7 @@ public class RecordWriter implements Serializable
         Map<String, Object> valueMap = new HashMap<>();
         try
         {
-            // Use list to preserve order of ranges
+            // preserve the order of ranges
             Set<Range<BigInteger>> newRanges = new LinkedHashSet<>(initialTokenRangeMapping.getRangeMap()
                                                                                            .asMapOfRanges()
                                                                                            .keySet());
