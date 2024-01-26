@@ -33,7 +33,6 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.spark.bulkwriter.token.RangeUtils;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
@@ -224,11 +223,11 @@ class RangeUtilsTest
     @Test
     void testSplitNotSatisfyNrSplits()
     {
-        Range<BigInteger> range = Range.openClosed(BigInteger.ZERO, BigInteger.TWO);
+        Range<BigInteger> range = Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(2));
         int nrSplits = 5;
         List<Range<BigInteger>> expectedResult = Arrays.asList(
         Range.openClosed(BigInteger.ZERO, BigInteger.ONE),
-        Range.openClosed(BigInteger.ONE, BigInteger.TWO)
+        Range.openClosed(BigInteger.ONE, BigInteger.valueOf(2))
         );
         assertEquals(expectedResult, RangeUtils.split(range, nrSplits));
     }

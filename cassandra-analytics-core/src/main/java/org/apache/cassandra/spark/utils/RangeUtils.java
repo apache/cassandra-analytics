@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.bulkwriter.token;
+package org.apache.cassandra.spark.utils;
 
 import java.math.BigInteger;
 import java.util.ArrayList;

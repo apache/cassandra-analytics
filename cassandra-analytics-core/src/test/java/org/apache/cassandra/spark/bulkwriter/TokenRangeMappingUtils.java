@@ -35,7 +35,7 @@ import com.google.common.collect.Range;
 
 import org.apache.cassandra.sidecar.common.data.RingEntry;
 import org.apache.cassandra.sidecar.common.data.TokenRangeReplicasResponse.ReplicaMetadata;
-import org.apache.cassandra.spark.bulkwriter.token.RangeUtils;
+import org.apache.cassandra.spark.utils.RangeUtils;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.client.InstanceStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;

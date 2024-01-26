@@ -41,7 +41,7 @@ import com.google.common.collect.TreeRangeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.spark.bulkwriter.token.RangeUtils;
+import org.apache.cassandra.spark.utils.RangeUtils;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.spark.Partitioner;
 
