@@ -58,7 +58,7 @@ public class TokenPartitionerTest
     @Test
     public void testTwoSplits()
     {
-        // There are 4 unwrapped ranges; each range is futher split into 2 subranges
+        // There are 4 unwrapped ranges; each range is further split into 2 sub-ranges
         TokenRangeMapping<RingInstance> tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), 3);
         partitioner = new TokenPartitioner(tokenRangeMapping, 2, 2, 1, false);
         // result into the following ranges:
@@ -68,36 +68,47 @@ public class TokenPartitionerTest
         // (50000‥100000]=3,
         // (100000‥150000]=4,
         // (150000‥200000]=5,
-        // (200000‥4611686018427487903]=6,
-        // (4611686018427487903‥9223372036854775807]=7
+        // (200000‥4611686018427487904]=6,
+        // (4611686018427487904‥9223372036854775807]=7
         assertEquals(8, partitioner.numPartitions());
 
+        // Partition 0 -
         // Test with the min token of Murmur3Partitioner. It should not exit.
         // However, spark partitioner does not permit negative values, so it assigns the token to partition 0 artificially
         assertEquals(0, partitionForToken(new BigInteger("-9223372036854775808")));
-        // Exclusive Boundary: -4611686018427387903
+        assertEquals(0, partitionForToken(new BigInteger("-9223372036854775807")));
+        // Inclusive Boundary: -4611686018427387904
         assertEquals(0, partitionForToken(new BigInteger("-4611686018427387904")));
+
+        // Partition 1 - Exclusive Boundary: -4611686018427387904
         assertEquals(1, partitionForToken(new BigInteger("-4611686018427387903")));
         // Inclusive Boundary: 0
         assertEquals(1, partitionForToken(0));
+
+        // Partition 2 -
         assertEquals(2, partitionForToken(1));
         assertEquals(2, partitionForToken(50));
-        // Exclusive Boundary: 50000
+
+        // Partition 3 -
         assertEquals(3, partitionForToken(51000));
         assertEquals(3, partitionForToken(51100));
-        // Inclusive Boundary: 100000
+
+        // Partition 4 -
         assertEquals(4, partitionForToken(100001));
         assertEquals(4, partitionForToken(100150));
         assertEquals(4, partitionForToken(150000));
-        // Exclusive Boundary: 150001
+
+        // Partition 5 -
         assertEquals(5, partitionForToken(150001));
-        // Inclusive Boundary: 200000
-        assertEquals(5, partitionForToken(200000)); // boundary
+        assertEquals(5, partitionForToken(200000));
+
+        // Partition 6 -
         assertEquals(6, partitionForToken(200001));
         assertEquals(6, partitionForToken(new BigInteger("4611686018427388003")));
-        assertEquals(6, partitionForToken(new BigInteger("4611686018427487903")));
-        // Exclusive Boundary: 4611686018427487904
-        assertEquals(7, partitionForToken(new BigInteger("4611686018427487904"))); // boundary
+        assertEquals(6, partitionForToken(new BigInteger("4611686018427487904")));
+
+        // Partition 7 - Exclusive Boundary: 4611686018427487904
+        assertEquals(7, partitionForToken(new BigInteger("4611686018427487905"))); // boundary
         // Inclusive Boundary: 9223372036854775807
         assertEquals(7, partitionForToken(new BigInteger("9223372036854775807")));
     }

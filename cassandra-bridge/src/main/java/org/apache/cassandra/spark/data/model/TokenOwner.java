@@ -19,7 +19,13 @@
 
 package org.apache.cassandra.spark.data.model;
 
+/**
+ * Token owner owns a token
+ */
 public interface TokenOwner
 {
+    /**
+     * @return the token it owns
+     */
     String token();
 }

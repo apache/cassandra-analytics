@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.utils;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -204,6 +205,32 @@ class RangeUtilsTest
                 assertEquals(BoundType.CLOSED, subrange.upperBoundType());
             }
         }
+    }
+
+    @Test
+    void testSplitYieldMoreEvenRanges()
+    {
+        Range<BigInteger> range = Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(11L));
+        int nrSplits = 4;
+        List<Range<BigInteger>> expectedResult = Arrays.asList(
+        Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(3)),
+        Range.openClosed(BigInteger.valueOf(3), BigInteger.valueOf(6)),
+        Range.openClosed(BigInteger.valueOf(6), BigInteger.valueOf(9)),
+        Range.openClosed(BigInteger.valueOf(9), BigInteger.valueOf(11))
+        );
+        assertEquals(expectedResult, RangeUtils.split(range, nrSplits));
+    }
+
+    @Test
+    void testSplitNotSatisfyNrSplits()
+    {
+        Range<BigInteger> range = Range.openClosed(BigInteger.ZERO, BigInteger.TWO);
+        int nrSplits = 5;
+        List<Range<BigInteger>> expectedResult = Arrays.asList(
+        Range.openClosed(BigInteger.ZERO, BigInteger.ONE),
+        Range.openClosed(BigInteger.ONE, BigInteger.TWO)
+        );
+        assertEquals(expectedResult, RangeUtils.split(range, nrSplits));
     }
 
     private static void assertTokenRanges(int nodes, int replicationFactor, String[]... ranges)

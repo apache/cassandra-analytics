@@ -88,7 +88,8 @@ public class TokenPartitioner extends Partitioner
     }
 
     /**
-     * Get the partition (non-negative) for the given key; if key is not present in the partition map, 0 is returned
+     * @param key the decorated key
+     * @return the partition (non-negative) for the given key; if key is not present in the partition map, 0 is returned
      */
     @SuppressWarnings("ConstantConditions")
     @Override

@@ -43,24 +43,31 @@ public class CassandraRingTests
 {
     private static Range<BigInteger> mergeRanges(Collection<Range<BigInteger>> ranges)
     {
-        Range<BigInteger> mergedRange = Range.closedOpen(BigInteger.ZERO, BigInteger.ZERO);
+        Range<BigInteger> mergedRange = null;
         for (Range<BigInteger> range : ranges)
         {
-            mergedRange = mergedRange.span(range);
+            if (mergedRange == null)
+            {
+                mergedRange = range;
+            }
+            else
+            {
+                mergedRange = mergedRange.span(range);
+            }
         }
 
         return mergedRange;
     }
 
     private void validateRanges(Collection<Range<BigInteger>> ranges,
-                                Collection<BigInteger> validTokens,
-                                Collection<BigInteger> invalidTokens)
+                                Collection<BigInteger> enclosedTokens,
+                                Collection<BigInteger> excludedTokens)
     {
         RangeSet<BigInteger> rangeSet = TreeRangeSet.create();
 
         ranges.forEach(rangeSet::add);
-        validTokens.forEach(token -> assertTrue(rangeSet.contains(token), token + " should have been a valid token"));
-        invalidTokens.forEach(token -> assertFalse(rangeSet.contains(token)));
+        enclosedTokens.forEach(token -> assertTrue(rangeSet.contains(token), token + " should have been a valid token"));
+        excludedTokens.forEach(token -> assertFalse(rangeSet.contains(token)));
     }
 
     @Test
@@ -84,8 +91,8 @@ public class CassandraRingTests
         for (CassandraInstance instance : instances)
         {
             assertEquals(mergeRanges(tokenRanges.get(instance)),
-                         Range.closed(Partitioner.Murmur3Partitioner.minToken(),
-                                      Partitioner.Murmur3Partitioner.maxToken()));
+                         Range.openClosed(Partitioner.Murmur3Partitioner.minToken(),
+                                          Partitioner.Murmur3Partitioner.maxToken()));
         }
     }
 
@@ -111,10 +118,10 @@ public class CassandraRingTests
         // token(0) => [201 - 0] => [201 - MAX], [MIN - 0]
         validateRanges(tokenRanges.get(instances.get(0)),
                        Arrays.asList(BigInteger.ZERO,
-                                     Partitioner.Murmur3Partitioner.minToken(),
                                      Partitioner.Murmur3Partitioner.maxToken(),
                                      BigInteger.valueOf(201L)),
-                       Arrays.asList(BigInteger.valueOf(200L),
+                       Arrays.asList(Partitioner.Murmur3Partitioner.minToken(),
+                                     BigInteger.valueOf(200L),
                                      BigInteger.valueOf(100L),
                                      BigInteger.valueOf(1L)));
 
@@ -163,21 +170,21 @@ public class CassandraRingTests
         // token(0) => [101 - 0] => [101 - MAX] [MIN - 0]
         validateRanges(tokenRanges.get(instances.get(0)),
                        Arrays.asList(BigInteger.ZERO,
-                                     Partitioner.Murmur3Partitioner.minToken(),
                                      Partitioner.Murmur3Partitioner.maxToken(),
                                      BigInteger.valueOf(200L),
                                      BigInteger.valueOf(101L)),
-                       Arrays.asList(BigInteger.valueOf(100L),
+                       Arrays.asList(Partitioner.Murmur3Partitioner.minToken(),
+                                     BigInteger.valueOf(100L),
                                      BigInteger.valueOf(1L)));
 
         // token(100) => [201 - 100] => [201 - MAX] [MIN - 100]
         validateRanges(tokenRanges.get(instances.get(1)),
                        Arrays.asList(BigInteger.valueOf(0L),
-                                     Partitioner.Murmur3Partitioner.minToken(),
                                      Partitioner.Murmur3Partitioner.maxToken(),
                                      BigInteger.valueOf(100L),
                                      BigInteger.valueOf(201L)),
-                       Arrays.asList(BigInteger.valueOf(101L),
+                       Arrays.asList(Partitioner.Murmur3Partitioner.minToken(),
+                                     BigInteger.valueOf(101L),
                                      BigInteger.valueOf(200L)));
 
         // token(200) => [1 - 200]
@@ -233,7 +240,7 @@ public class CassandraRingTests
         for (CassandraInstance instance : instances)
         {
             assertEquals(mergeRanges(tokenRanges.get(instance)),
-                         Range.closed(Partitioner.Murmur3Partitioner.minToken(),
+                         Range.openClosed(Partitioner.Murmur3Partitioner.minToken(),
                                       Partitioner.Murmur3Partitioner.maxToken()));
         }
     }
@@ -281,10 +288,10 @@ public class CassandraRingTests
         // token(0) => [201 - 0] => [201 - MAX], [MIN - 0]
         validateRanges(tokenRanges.get(instances.get(0)),
                        Arrays.asList(BigInteger.ZERO,
-                                     Partitioner.Murmur3Partitioner.minToken(),
                                      Partitioner.Murmur3Partitioner.maxToken(),
                                      BigInteger.valueOf(201L)),
-                       Arrays.asList(BigInteger.valueOf(200L),
+                       Arrays.asList(Partitioner.Murmur3Partitioner.minToken(),
+                                     BigInteger.valueOf(200L),
                                      BigInteger.valueOf(100L),
                                      BigInteger.valueOf(1L)));
 
@@ -313,10 +320,10 @@ public class CassandraRingTests
         // token(1) => [202 - 1] => [202 - MAX], [MIN - 1]
         validateRanges(tokenRanges.get(instances.get(3)),
                        Arrays.asList(BigInteger.ONE,
-                                     Partitioner.Murmur3Partitioner.minToken(),
                                      Partitioner.Murmur3Partitioner.maxToken(),
                                      BigInteger.valueOf(202L)),
-                       Arrays.asList(BigInteger.valueOf(201L),
+                       Arrays.asList(Partitioner.Murmur3Partitioner.minToken(),
+                                     BigInteger.valueOf(201L),
                                      BigInteger.valueOf(101L),
                                      BigInteger.valueOf(2L)));
 
@@ -386,21 +393,21 @@ public class CassandraRingTests
         // token(0) => [101 - 0] => [101 - MAX] [MIN - 0]
         validateRanges(tokenRanges.get(instances.get(0)),
                        Arrays.asList(BigInteger.ZERO,
-                                     Partitioner.Murmur3Partitioner.minToken(),
                                      Partitioner.Murmur3Partitioner.maxToken(),
                                      BigInteger.valueOf(200L),
                                      BigInteger.valueOf(101L)),
-                       Arrays.asList(BigInteger.valueOf(100L),
+                       Arrays.asList(Partitioner.Murmur3Partitioner.minToken(),
+                                     BigInteger.valueOf(100L),
                                      BigInteger.valueOf(1L)));
 
         // token(100) => [201 - 100] => [201 - MAX] [MIN - 100]
         validateRanges(tokenRanges.get(instances.get(1)),
                        Arrays.asList(BigInteger.valueOf(0L),
-                                     Partitioner.Murmur3Partitioner.minToken(),
                                      Partitioner.Murmur3Partitioner.maxToken(),
                                      BigInteger.valueOf(100L),
                                      BigInteger.valueOf(201L)),
-                       Arrays.asList(BigInteger.valueOf(101L),
+                       Arrays.asList(Partitioner.Murmur3Partitioner.minToken(),
+                                     BigInteger.valueOf(101L),
                                      BigInteger.valueOf(200L)));
 
         // token(200) => [1 - 200]
@@ -416,21 +423,21 @@ public class CassandraRingTests
         // token(1) => [102 - 1] => [102 - MAX] [MIN - 1]
         validateRanges(tokenRanges.get(instances.get(3)),
                        Arrays.asList(BigInteger.ONE,
-                                     Partitioner.Murmur3Partitioner.minToken(),
                                      Partitioner.Murmur3Partitioner.maxToken(),
                                      BigInteger.valueOf(200L),
                                      BigInteger.valueOf(102L)),
-                       Arrays.asList(BigInteger.valueOf(101L),
+                       Arrays.asList(Partitioner.Murmur3Partitioner.minToken(),
+                                     BigInteger.valueOf(101L),
                                      BigInteger.valueOf(2L)));
 
         // token(101) => [202 - 101] => [202 - MAX] [MIN - 101]
         validateRanges(tokenRanges.get(instances.get(4)),
                        Arrays.asList(BigInteger.valueOf(1L),
-                                     Partitioner.Murmur3Partitioner.minToken(),
                                      Partitioner.Murmur3Partitioner.maxToken(),
                                      BigInteger.valueOf(101L),
                                      BigInteger.valueOf(202L)),
-                       Arrays.asList(BigInteger.valueOf(102L),
+                       Arrays.asList(Partitioner.Murmur3Partitioner.minToken(),
+                                     BigInteger.valueOf(102L),
                                      BigInteger.valueOf(201L)));
 
         // token(201) => [2 - 201]

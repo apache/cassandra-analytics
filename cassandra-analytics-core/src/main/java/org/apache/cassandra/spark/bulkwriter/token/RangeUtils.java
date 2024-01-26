@@ -96,17 +96,35 @@ public final class RangeUtils
 
         Preconditions.checkArgument(nrSplits >= 1, "nrSplits must be greater than or equal to 1");
 
-        // Make sure split size is at lease 1
-        BigInteger splitSize = sizeOf(range).divide(BigInteger.valueOf(nrSplits))
-                                            .max(BigInteger.ONE);
-
-        // Start from range lower endpoint and spit ranges of size splitSize, until we cross the range
+        // The following algorithm tries to get a more evenly-split ranges.
+        // For example, if we split the range (0, 11] into 4 sub-ranges, the naive split yields the following:
+        // (0, 2], (2, 4], (4, 6], (6, 11]
+        // As you can see, the last range is significantly larger than the prior range.
+        // The desired split is (0, 3], (3, 6], (6, 9], (9, 11]. The sizes of the ranges are more close to each other.
+        // --
+        // The procedure of the algorithm is as simple as the below 2 steps:
+        // 1. Get the quotient and the remainder from the integer division.
+        // 2. For each range, as long as the remainder is not 0, we move 1 from the remainder to it.
+        // See org.apache.cassandra.spark.utils.RangeUtilsTest.testSplitYieldMoreEvenRanges
+        // Given that the remainder is always smaller than the divisor (nrSplits), the remainder is exhausted
+        // before the for-loop end.
+        // In some special cases, for example, split (0, 3] into 5 sub-ranges. The quotient is 0 and the remainder is 3.
+        // When the remainder is exhausted, the input is also exhausted. It yields, (0, 1], (1, 2], (2, 3].
+        // See org.apache.cassandra.spark.utils.RangeUtilsTest.testSplitNotSatisfyNrSplits
+        BigInteger[] divideAndRemainder = sizeOf(range).divideAndRemainder(BigInteger.valueOf(nrSplits));
+        BigInteger quotient = divideAndRemainder[0]; // quotient could be 0
+        int remainder = divideAndRemainder[1].intValue(); // remainder must be smaller than nrSplit, which is an integer
         BigInteger lowerEndpoint = range.lowerEndpoint();
         List<Range<BigInteger>> splits = new ArrayList<>();
         for (int i = 0; i < nrSplits; i++)
         {
-            BigInteger upperEndpoint = lowerEndpoint.add(splitSize);
-            if (upperEndpoint.compareTo(range.upperEndpoint()) >= 0)
+            BigInteger upperEndpoint = lowerEndpoint.add(quotient);
+            if (remainder > 0)
+            {
+                upperEndpoint = upperEndpoint.add(BigInteger.ONE);
+                remainder--;
+            }
+            if (i + 1 == nrSplits || upperEndpoint.compareTo(range.upperEndpoint()) >= 0)
             {
                 splits.add(Range.openClosed(lowerEndpoint, range.upperEndpoint()));
                 break; // the split process terminate early because the original range is exhausted

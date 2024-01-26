@@ -261,7 +261,7 @@ public class PartitionedDataLayerTests extends VersionRunner
         DataLayer dataLayer = new JDKSerializationTests.TestPartitionedDataLayer(bridge, 4, 32, null, ring, table);
 
         PartitionKeyFilter filter = PartitionKeyFilter.create(ByteBuffer.wrap(RandomUtils.nextBytes(10)),
-                                                              BigInteger.valueOf(-9223372036854775808L));
+                                                              BigInteger.valueOf(-9223372036854775807L));
         SSTablesSupplier supplier = dataLayer.sstables(partitionId, null, Collections.singletonList(filter));
         Set<MultipleReplicasTests.TestSSTableReader> ssTableReaders =
                 supplier.openAll((ssTable, isRepairPrimary) -> new MultipleReplicasTests.TestSSTableReader(ssTable));
@@ -287,7 +287,7 @@ public class PartitionedDataLayerTests extends VersionRunner
     public void testFiltersInRange() throws Exception
     {
         Map<Integer, Range<BigInteger>> reversePartitionMap = Collections.singletonMap(
-                TaskContext.getPartitionId(), Range.closed(BigInteger.ONE, BigInteger.valueOf(2L)));
+                TaskContext.getPartitionId(), Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(2L)));
         TokenPartitioner mockPartitioner = mock(TokenPartitioner.class);
         when(mockPartitioner.reversePartitionMap()).thenReturn(reversePartitionMap);
 
