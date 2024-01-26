@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -107,12 +108,23 @@ public class RecordWriter implements Serializable
     public List<StreamResult> write(Iterator<Tuple2<DecoratedKey, Object[]>> sourceIterator)
     {
         TaskContext taskContext = taskContextSupplier.get();
+        LOGGER.info("[{}]: Processing bulk writer partition", taskContext.partitionId());
+
         Range<BigInteger> taskTokenRange = getTokenRange(taskContext);
         Preconditions.checkState(!taskTokenRange.isEmpty(),
                                  "Token range for the partition %s is empty",
                                  taskTokenRange);
 
         TokenRangeMapping<RingInstance> initialTokenRangeMapping = writerContext.cluster().getTokenRangeMapping(false);
+        LOGGER.info("[{}]: Fetched token range mapping for keyspace: {} with write replicas: {} containing pending " +
+                    "replicas: {}, blocked instances: {}, replacement instances: {}",
+                    taskContext.partitionId(),
+                    writerContext.job().keyspace(),
+                    initialTokenRangeMapping.getWriteReplicas().size(),
+                    initialTokenRangeMapping.getPendingReplicas().size(),
+                    initialTokenRangeMapping.getBlockedInstances().size(),
+                    initialTokenRangeMapping.getReplacementInstances().size());
+
         Map<Range<BigInteger>, List<RingInstance>> initialTokenRangeInstances =
         taskTokenRangeMapping(initialTokenRangeMapping, taskTokenRange);
         List<StreamResult> results = new ArrayList<>();
@@ -124,7 +136,6 @@ public class RecordWriter implements Serializable
         // for all replicas in this partition
         validateAcceptableTimeSkewOrThrow(new ArrayList<>(instancesFromMapping(initialTokenRangeInstances)));
 
-        LOGGER.info("[{}]: Processing bulk writer partition", taskContext.partitionId());
         scala.collection.Iterator<scala.Tuple2<DecoratedKey, Object[]>> dataIterator =
         new InterruptibleIterator<>(taskContext, asScalaIterator(sourceIterator));
         StreamSession streamSession = null;
@@ -181,13 +192,7 @@ public class RecordWriter implements Serializable
 
             // When instances for the partition's token range have changed within the scope of the task execution,
             // we fail the task for it to be retried
-            if (haveTokenRangeMappingsChanged(initialTokenRangeMapping, taskTokenRange))
-            {
-                String message = String.format("[%s] Token range mappings have changed since the task started", partitionId);
-                LOGGER.error(message);
-                throw new RuntimeException(message);
-            }
-
+            validateTaskTokenRangeMappings(partitionId, initialTokenRangeMapping, taskTokenRange);
             return results;
         }
         catch (Exception exception)
@@ -275,16 +280,42 @@ public class RecordWriter implements Serializable
                      .collect(Collectors.toList());
     }
 
-    private boolean haveTokenRangeMappingsChanged(TokenRangeMapping<RingInstance> startTaskMapping, Range<BigInteger> taskTokenRange)
+    private void validateTaskTokenRangeMappings(int partitionId,
+                                                TokenRangeMapping<RingInstance> startTaskMapping,
+                                                Range<BigInteger> taskTokenRange)
     {
         // Get the uncached, current view of the ring to compare with initial ring
         TokenRangeMapping<RingInstance> endTaskMapping = writerContext.cluster().getTokenRangeMapping(false);
         Map<Range<BigInteger>, List<RingInstance>> startMapping = taskTokenRangeMapping(startTaskMapping, taskTokenRange);
         Map<Range<BigInteger>, List<RingInstance>> endMapping = taskTokenRangeMapping(endTaskMapping, taskTokenRange);
 
+        Set<RingInstance> initialInstances = instancesFromMapping(startMapping);
+        Set<RingInstance> endInstances = instancesFromMapping(endMapping);
         // Token ranges are identical and overall instance list is same
-        return !(startMapping.keySet().equals(endMapping.keySet()) &&
-               instancesFromMapping(startMapping).equals(instancesFromMapping(endMapping)));
+        boolean haveMappingsChanged = !(startMapping.keySet().equals(endMapping.keySet()) &&
+                                        initialInstances.equals(endInstances));
+        if (haveMappingsChanged)
+        {
+            Set<Range<BigInteger>> rangeDelta = symmetricDifference(startMapping.keySet(), endMapping.keySet());
+            Set<String> instanceDelta = symmetricDifference(initialInstances, endInstances).stream()
+                                                                                           .map(RingInstance::ipAddress)
+                                                                                           .collect(Collectors.toSet());
+            String message = String.format("[%s] Token range mappings have changed since the task started " +
+                                           "with non-overlapping instances: %s and ranges: %s",
+                                           partitionId,
+                                           instanceDelta,
+                                           rangeDelta);
+            LOGGER.error(message);
+            throw new RuntimeException(message);
+        }
+    }
+
+    public static <T> Set<T> symmetricDifference(Set<T> set1, Set<T> set2)
+    {
+        return Stream.concat(
+                     set1.stream().filter(element -> !set2.contains(element)),
+                     set2.stream().filter(element -> !set1.contains(element)))
+                     .collect(Collectors.toSet());
     }
 
     private void validateAcceptableTimeSkewOrThrow(List<RingInstance> replicas)
