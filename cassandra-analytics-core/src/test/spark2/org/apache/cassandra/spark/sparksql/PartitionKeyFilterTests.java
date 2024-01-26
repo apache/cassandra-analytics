@@ -99,6 +99,11 @@ public class PartitionKeyFilterTests
                                                            .collect(Collectors.toList());
                 for (BigInteger token : boundaryTokens)
                 {
+                    if (token.equals(partitioner.minToken()))
+                    {
+                        // minToken is excluded in the ring
+                        continue;
+                    }
                     // Check boundary tokens only match 1 Spark token range
                     PartitionKeyFilter filter = PartitionKeyFilter.create(bridge.aInt().serialize(11), token);
                     assertEquals(1, tokenPartitioner.subRanges().stream()
