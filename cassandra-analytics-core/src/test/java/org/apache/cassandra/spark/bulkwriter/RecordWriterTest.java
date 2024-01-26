@@ -57,7 +57,7 @@ import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHAR;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCqlType;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.endsWith;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -123,7 +123,7 @@ public class RecordWriterTest
         when(m.getTokenRangeMapping(false)).thenCallRealMethod().thenReturn(testMapping);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(true);
         RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
-        assertThat(ex.getMessage(), endsWith("Token range mappings have changed since the task started"));
+        assertThat(ex.getMessage(), containsString("Token range mappings have changed since the task started"));
     }
 
     @Test

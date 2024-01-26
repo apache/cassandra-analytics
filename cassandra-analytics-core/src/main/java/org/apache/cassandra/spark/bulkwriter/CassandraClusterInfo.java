@@ -392,12 +392,15 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         Multimap<RingInstance, Range<BigInteger>> tokenRangesByInstance;
         try
         {
+            long start = System.nanoTime();
             TokenRangeReplicasResponse response = getTokenRangesAndReplicaSets();
+            long elapsedTimeNanos = System.nanoTime() - start;
             replicaMetadata = response.replicaMetadata();
 
             tokenRangesByInstance = getTokenRangesByInstance(response.writeReplicas(), response.replicaMetadata());
-            LOGGER.info("Retrieved token ranges for {} instances from write replica set ",
-                        tokenRangesByInstance.size());
+            LOGGER.info("Retrieved token ranges for {} instances from write replica set in {} nanoseconds",
+                        tokenRangesByInstance.size(),
+                        elapsedTimeNanos);
 
             replacementInstances = response.replicaMetadata()
                                            .values()
