@@ -21,6 +21,8 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -58,6 +60,7 @@ import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHA
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCqlType;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -102,6 +105,20 @@ public class RecordWriterTest
         tc = new TestTaskContext();
         range = writerContext.job().getTokenPartitioner().getTokenRange(tc.partitionId());
         tokenizer = new Tokenizer(writerContext);
+    }
+
+    @Test
+    void symmetricDifferenceTest()
+    {
+        Set<Integer> s1 = new HashSet<>(Arrays.asList(1, 2, 3));
+        Set<Integer> s2 = new HashSet<>(Arrays.asList(2, 3, 4));
+        Set<Integer> s3 = new HashSet<>(Arrays.asList(5, 6, 7));
+        Set<Integer> s4 = new HashSet<>(Arrays.asList(5, 6, 7));
+        Set<Integer> s5 = new HashSet<>();
+        assertThat(RecordWriter.symmetricDifference(s1, s2), is(new HashSet<>(Arrays.asList(1, 4))));
+        assertThat(RecordWriter.symmetricDifference(s2, s3), is(new HashSet<>(Arrays.asList(2, 3, 4, 5, 6, 7))));
+        assertThat(RecordWriter.symmetricDifference(s3, s4), empty());
+        assertThat(RecordWriter.symmetricDifference(s4, s5), is(s4));
     }
 
     @Test
