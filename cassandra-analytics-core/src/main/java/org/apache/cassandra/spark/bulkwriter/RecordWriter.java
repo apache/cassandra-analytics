@@ -116,8 +116,8 @@ public class RecordWriter implements Serializable
                                  taskTokenRange);
 
         TokenRangeMapping<RingInstance> initialTokenRangeMapping = writerContext.cluster().getTokenRangeMapping(false);
-        LOGGER.info("[{}]: Fetched token range mapping for keyspace:{} with write replicas:{} containing pending " +
-                    "replicas:{}, blocked instances: {}, replacement instances: {}",
+        LOGGER.info("[{}]: Fetched token range mapping for keyspace: {} with write replicas: {} containing pending " +
+                    "replicas: {}, blocked instances: {}, replacement instances: {}",
                     taskContext.partitionId(),
                     writerContext.job().keyspace(),
                     initialTokenRangeMapping.getWriteReplicas().size(),
