@@ -32,6 +32,8 @@ import java.util.SortedSet;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.cassandra.bridge.CassandraSchema;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.ColumnSpecification;
@@ -70,7 +72,9 @@ import org.apache.cassandra.utils.ByteBufferUtil;
 
 /**
  * Re-write of CQLSSTableWriter for writing tombstones to an SSTable for testing
+ * Used for testing purpose only
  */
+@VisibleForTesting
 public final class SSTableTombstoneWriter implements Closeable
 {
     private static final ByteBuffer UNSET_VALUE = ByteBufferUtil.UNSET_BYTE_BUFFER;
@@ -439,9 +443,9 @@ public final class SSTableTombstoneWriter implements Closeable
 
             DeleteStatement preparedDelete = prepareDelete();
             TableMetadataRef ref = TableMetadataRef.forOfflineTools(tableMetadata);
-            AbstractSSTableSimpleWriter writer = new SSTableSimpleWriter(directory, ref,
-                                                                         preparedDelete.updatedColumns(),
-                                                                         bufferSizeInMB);
+            AbstractSSTableSimpleWriter writer = new SSTableSimpleUnsortedWriter(directory, ref,
+                                                                                 preparedDelete.updatedColumns(),
+                                                                                 bufferSizeInMB);
 
             if (formatType != null)
             {
