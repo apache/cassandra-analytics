@@ -35,7 +35,7 @@ public interface JobInfo extends Serializable
     /**
      * @return the max sstable data file size in mebibytes
      */
-    int getSstableDataSizeInMB();
+    int sstableDataSizeInMiB();
 
     int getCommitBatchSize();
 

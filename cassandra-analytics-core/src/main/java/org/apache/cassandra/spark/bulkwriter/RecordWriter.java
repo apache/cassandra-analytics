@@ -376,7 +376,7 @@ public class RecordWriter implements Serializable
     }
 
     /**
-     * Close the {@link RecordWriter#sstableWriter} is present. Schedule a stream session with the produced sstables.
+     * Close the {@link RecordWriter#sstableWriter} if present. Schedule a stream session with the produced sstables.
      * And finally, nullify {@link RecordWriter#sstableWriter}
      */
     private void finalizeSSTable(StreamSession streamSession,

@@ -51,9 +51,9 @@ public class CassandraJobInfo implements JobInfo
     }
 
     @Override
-    public int getSstableDataSizeInMB()
+    public int sstableDataSizeInMiB()
     {
-        return conf.sstableDataSizeInMB;
+        return conf.sstableDataSizeInMiB;
     }
 
     @Override

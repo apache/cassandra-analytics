@@ -217,7 +217,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public int getSstableDataSizeInMB()
+    public int sstableDataSizeInMiB()
     {
         return sstableDataSizeInMB;
     }

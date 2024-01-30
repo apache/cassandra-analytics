@@ -82,7 +82,7 @@ public class BulkSparkConf implements Serializable
     public static final long DEFAULT_SIDECAR_REQUEST_MAX_RETRY_DELAY_MILLIS = TimeUnit.SECONDS.toMillis(60L);
     public static final int DEFAULT_COMMIT_BATCH_SIZE = 10_000;
     public static final int DEFAULT_RING_RETRY_COUNT = 3;
-    public static final int DEFAULT_SSTABLE_DATA_SIZE_IN_MB = 160;
+    public static final int DEFAULT_SSTABLE_DATA_SIZE_IN_MIB = 160;
 
     // NOTE: All Cassandra Analytics setting names must start with "spark" in order to not be ignored by Spark,
     //       and must not start with "spark.cassandra" so as to not conflict with Spark Cassandra Connector
@@ -106,7 +106,7 @@ public class BulkSparkConf implements Serializable
     public final ConsistencyLevel.CL consistencyLevel;
     public final String localDC;
     public final Integer numberSplits;
-    public final Integer sstableDataSizeInMB;
+    public final Integer sstableDataSizeInMiB;
     public final int commitBatchSize;
     public final boolean skipExtendedVerify;
     public final WriteMode writeMode;
@@ -143,7 +143,7 @@ public class BulkSparkConf implements Serializable
         this.consistencyLevel = ConsistencyLevel.CL.valueOf(MapUtils.getOrDefault(options, WriterOptions.BULK_WRITER_CL.name(), "EACH_QUORUM"));
         this.localDC = MapUtils.getOrDefault(options, WriterOptions.LOCAL_DC.name(), null);
         this.numberSplits = MapUtils.getInt(options, WriterOptions.NUMBER_SPLITS.name(), DEFAULT_NUM_SPLITS, "number of splits");
-        this.sstableDataSizeInMB = MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name(), DEFAULT_SSTABLE_DATA_SIZE_IN_MB, "sstable data size in mebibytes");
+        this.sstableDataSizeInMiB = resolveSSTableDataSizeInMiB(options);
         this.commitBatchSize = MapUtils.getInt(options, WriterOptions.COMMIT_BATCH_SIZE.name(), DEFAULT_COMMIT_BATCH_SIZE, "commit batch size");
         this.commitThreadsPerInstance = MapUtils.getInt(options, WriterOptions.COMMIT_THREADS_PER_INSTANCE.name(), 2, "commit threads per instance");
         this.keystorePassword = MapUtils.getOrDefault(options, WriterOptions.KEYSTORE_PASSWORD.name(), null);
@@ -171,6 +171,27 @@ public class BulkSparkConf implements Serializable
         String blockedInstances = MapUtils.getOrDefault(options, WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "");
         return Arrays.stream(blockedInstances.split(","))
                      .collect(Collectors.toSet());
+    }
+
+    protected int resolveSSTableDataSizeInMiB(Map<String, String> options)
+    {
+        int legacyOptionValue = -1;
+        if (options.containsKey(WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name()))
+        {
+            LOGGER.warn("The writer option: SSTABLE_DATA_SIZE_IN_MB has be deprecated. " +
+                        "Please use SSTABLE_DATA_SIZE_IN_MIB instead. See option description for details.");
+            legacyOptionValue = MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name(), DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
+        }
+
+        if (options.containsKey(WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name()))
+        {
+            LOGGER.info("The writer options: SSTABLE_DATA_SIZE_IN_MIB are defined. " +
+                        "Favor the value over SSTABLE_DATA_SIZE_IN_MB");
+            return MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name(), DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
+
+        }
+
+        return legacyOptionValue == -1 ? DEFAULT_SSTABLE_DATA_SIZE_IN_MIB : legacyOptionValue;
     }
 
     protected Set<? extends SidecarInstance> buildSidecarInstances(Map<String, String> options, int sidecarPort)

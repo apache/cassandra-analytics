@@ -38,7 +38,7 @@ else
   #   "cassandra-4.0:cassandra-4.0"
   # Due to MacOS being stuck on Bash < 4, we don't use associative arrays here.
   CANDIDATE_BRANCHES=(
-    "cassandra-4.0:af752fcd535ccdac69b9fed88047b2dd7625801e"
+    "cassandra-4.0:cassandra-4.0.12"
     "cassandra-4.1:99d9faeef57c9cf5240d11eac9db5b283e45a4f9"
   )
   BRANCHES=( ${BRANCHES:-cassandra-4.0 cassandra-4.1} )

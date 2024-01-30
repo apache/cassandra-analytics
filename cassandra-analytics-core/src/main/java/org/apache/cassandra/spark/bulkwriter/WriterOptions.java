@@ -40,7 +40,9 @@ public enum WriterOptions implements WriterOption
     TRUSTSTORE_PATH,
     TRUSTSTORE_BASE64_ENCODED,
     SIDECAR_PORT,
+    @Deprecated // the size unit `MB` is incorrect, use `SSTABLE_DATA_SIZE_IN_MIB` instead
     SSTABLE_DATA_SIZE_IN_MB,
+    SSTABLE_DATA_SIZE_IN_MIB,
     TTL,
     TIMESTAMP,
     /**
