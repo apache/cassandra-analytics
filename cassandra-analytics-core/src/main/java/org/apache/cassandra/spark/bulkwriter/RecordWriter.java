@@ -298,7 +298,7 @@ public class RecordWriter implements Serializable
         {
             Set<Range<BigInteger>> rangeDelta = symmetricDifference(startMapping.keySet(), endMapping.keySet());
             Set<String> instanceDelta = symmetricDifference(initialInstances, endInstances).stream()
-                                                                                           .map(RingInstance::getIpAddress)
+                                                                                           .map(RingInstance::ipAddress)
                                                                                            .collect(Collectors.toSet());
             String message = String.format("[%s] Token range mappings have changed since the task started " +
                                            "with non-overlapping instances: %s and ranges: %s",
