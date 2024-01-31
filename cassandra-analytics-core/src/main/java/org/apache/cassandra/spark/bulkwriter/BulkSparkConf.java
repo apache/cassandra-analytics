@@ -130,6 +130,7 @@ public class BulkSparkConf implements Serializable
     protected boolean useOpenSsl;
     protected int ringRetryCount;
     protected final Set<String> blockedInstances;
+    protected final DigestAlgorithmSupplier digestAlgorithmSupplier;
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
@@ -157,6 +158,7 @@ public class BulkSparkConf implements Serializable
         this.truststoreBase64Encoded = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_BASE64_ENCODED.name(), null);
         this.truststoreType = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_TYPE.name(), null);
         this.writeMode = MapUtils.getEnumOption(options, WriterOptions.WRITE_MODE.name(), WriteMode.INSERT, "write mode");
+        this.digestAlgorithmSupplier = digestAlgorithmSupplierFromOptions(options);
         // For backwards-compatibility with port settings, use writer option if available,
         // else fall back to props, and then default if neither specified
         this.useOpenSsl = getBoolean(USE_OPENSSL, true);
@@ -168,7 +170,19 @@ public class BulkSparkConf implements Serializable
         validateEnvironment();
     }
 
-    private Set<String> buildBlockedInstances(Map<String, String> options)
+    /**
+     * Returns the supplier for the digest algorithm from the configured {@code options}.
+     *
+     * @param options a key-value map with options for the bulk write job
+     * @return the configured {@link DigestAlgorithmSupplier}
+     */
+    @NotNull
+    protected DigestAlgorithmSupplier digestAlgorithmSupplierFromOptions(Map<String, String> options)
+    {
+        return MapUtils.getEnumOption(options, WriterOptions.DIGEST.name(), DigestAlgorithms.XXHASH32, "digest type");
+    }
+
+    protected Set<String> buildBlockedInstances(Map<String, String> options)
     {
         String blockedInstances = MapUtils.getOrDefault(options, WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "");
         return Arrays.stream(blockedInstances.split(","))

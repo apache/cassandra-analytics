@@ -43,7 +43,7 @@ import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.sidecar.common.data.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.common.MD5Hash;
+import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.client.InstanceState;
 import org.apache.cassandra.spark.common.model.BulkFeatures;
@@ -55,6 +55,7 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
@@ -245,6 +246,13 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         return skipClean;
     }
 
+    @NotNull
+    @Override
+    public DigestAlgorithmSupplier digestAlgorithmSupplier()
+    {
+        return DigestAlgorithms.XXHASH32;
+    }
+
     public void setSkipCleanOnFailures(boolean skipClean)
     {
         this.skipClean = skipClean;
@@ -326,7 +334,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
                                        int ssTableIdx,
                                        CassandraInstance instance,
                                        String sessionID,
-                                       MD5Hash fileHash) throws ClientException
+                                       Digest digest) throws ClientException
     {
         boolean uploadSucceeded = uploadRequestConsumer.test(instance);
         uploads.compute(instance, (k, pathList) -> {
@@ -334,7 +342,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
             {
                 pathList = new ArrayList<>();
             }
-            pathList.add(new UploadRequest(componentFile, ssTableIdx, instance, sessionID, fileHash, uploadSucceeded));
+            pathList.add(new UploadRequest(componentFile, ssTableIdx, instance, sessionID, digest, uploadSucceeded));
             return pathList;
         });
         if (!uploadSucceeded)

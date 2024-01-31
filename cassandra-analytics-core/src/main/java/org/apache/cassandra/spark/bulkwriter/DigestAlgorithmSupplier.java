@@ -19,21 +19,13 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.nio.file.Path;
+import java.util.function.Supplier;
 
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
-import org.jetbrains.annotations.NotNull;
 
-class NonValidatingTestSSTableWriter extends SSTableWriter
+/**
+ * An interface that defines a {@link DigestAlgorithm} for a concrete digest type
+ */
+public interface DigestAlgorithmSupplier extends Supplier<DigestAlgorithm>
 {
-    NonValidatingTestSSTableWriter(MockTableWriter tableWriter, Path path, DigestAlgorithm digestAlgorithm)
-    {
-        super(tableWriter, path, digestAlgorithm);
-    }
-
-    @Override
-    public void validateSSTables(@NotNull BulkWriterContext writerContext, int partitionId)
-    {
-        // Skip validation for these tests
-    }
 }

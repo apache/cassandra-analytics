@@ -19,7 +19,11 @@
 
 package org.apache.cassandra.analytics;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.KryoRegister;
@@ -32,6 +36,8 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Helper methods for Spark tests
@@ -126,5 +132,33 @@ public final class SparkTestUtils
         BulkSparkConf.setupSparkConf(sparkConf, true);
         KryoRegister.setup(sparkConf);
         return sparkConf;
+    }
+
+    public static void validateWrites(List<Row> sourceData, Object[][] queriedData)
+    {
+        // build a set of entries read from Cassandra into a set
+        Set<String> actualEntries = Arrays.stream(queriedData)
+                                          .map((Object[] columns) -> String.format("%s:%s:%s",
+                                                                                   columns[0],
+                                                                                   columns[1],
+                                                                                   columns[2]))
+                                          .collect(Collectors.toSet());
+
+        // Number of entries in Cassandra must match the original datasource
+        assertThat(actualEntries.size()).isEqualTo(sourceData.size());
+
+        // remove from actual entries to make sure that the data read is the same as the data written
+        sourceData.forEach(row -> {
+            String key = String.format("%d:%s:%d",
+                                       row.getInt(0),
+                                       row.getString(1),
+                                       row.getInt(2));
+            assertThat(actualEntries.remove(key)).as(key + " is expected to exist in the actual entries")
+                                                 .isTrue();
+        });
+
+        // If this fails, it means there was more data in the database than we expected
+        assertThat(actualEntries).as("All entries are expected to be read from database")
+                                 .isEmpty();
     }
 }

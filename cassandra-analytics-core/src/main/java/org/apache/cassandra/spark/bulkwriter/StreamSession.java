@@ -48,12 +48,14 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.common.MD5Hash;
+import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
 
 public class StreamSession
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(StreamSession.class);
+    private static final String WRITE_PHASE = "UploadAndCommit";
+
     private final BulkWriterContext writerContext;
     private final String sessionID;
     private final Range<BigInteger> tokenRange;
@@ -64,7 +66,6 @@ public class StreamSession
     private final ExecutorService executor;
     private final List<Future<?>> futures = new ArrayList<>();
     private final TokenRangeMapping<RingInstance> tokenRangeMapping;
-    private static final String WRITE_PHASE = "UploadAndCommit";
 
     public StreamSession(final BulkWriterContext writerContext,
                          final String sessionID,
@@ -244,7 +245,7 @@ public class StreamSession
     {
         try
         {
-            sendSSTableToReplica(writerContext, dataFile, ssTableIdx, replica, ssTableWriter.getFileHashes());
+            sendSSTableToReplica(writerContext, dataFile, ssTableIdx, replica, ssTableWriter.fileDigestMap());
             return true;
         }
         catch (Exception exception)
@@ -273,7 +274,7 @@ public class StreamSession
                                       Path dataFile,
                                       int ssTableIdx,
                                       RingInstance instance,
-                                      Map<Path, MD5Hash> fileHashes) throws Exception
+                                      Map<Path, Digest> fileDigestMap) throws Exception
     {
         try (DirectoryStream<Path> componentFileStream = Files.newDirectoryStream(dataFile.getParent(), SSTables.getSSTableBaseName(dataFile) + "*"))
         {
@@ -283,9 +284,9 @@ public class StreamSession
                 {
                     continue;
                 }
-                sendSSTableComponent(writerContext, componentFile, ssTableIdx, instance, fileHashes.get(componentFile));
+                sendSSTableComponent(writerContext, componentFile, ssTableIdx, instance, fileDigestMap.get(componentFile));
             }
-            sendSSTableComponent(writerContext, dataFile, ssTableIdx, instance, fileHashes.get(dataFile));
+            sendSSTableComponent(writerContext, dataFile, ssTableIdx, instance, fileDigestMap.get(dataFile));
         }
     }
 
@@ -293,12 +294,12 @@ public class StreamSession
                                       Path componentFile,
                                       int ssTableIdx,
                                       RingInstance instance,
-                                      MD5Hash fileHash) throws Exception
+                                      Digest digest) throws Exception
     {
-        Preconditions.checkNotNull(fileHash, "All files must have a hash. SSTableWriter should have calculated these. This is a bug.");
+        Preconditions.checkNotNull(digest, "All files must have a hash. SSTableWriter should have calculated these. This is a bug.");
         long fileSize = Files.size(componentFile);
         LOGGER.info("[{}]: Uploading {} to {}: Size is {}", sessionID, componentFile, instance.nodeName(), fileSize);
-        writerContext.transfer().uploadSSTableComponent(componentFile, ssTableIdx, instance, sessionID, fileHash);
+        writerContext.transfer().uploadSSTableComponent(componentFile, ssTableIdx, instance, sessionID, digest);
     }
 
     public static void clean(BulkWriterContext writerContext, RingInstance instance, String sessionID)

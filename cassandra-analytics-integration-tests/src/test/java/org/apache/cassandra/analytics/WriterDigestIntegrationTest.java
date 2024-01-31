@@ -22,18 +22,14 @@ package org.apache.cassandra.analytics;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Stream;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.api.Test;
 
 import com.vdurmont.semver4j.Semver;
 import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.shared.Versions;
-import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.TestVersion;
@@ -41,45 +37,55 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
-import static org.apache.cassandra.analytics.DataGenerationUtils.generateCourseData;
 import static org.apache.cassandra.analytics.SparkTestUtils.validateWrites;
+import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
-import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.apache.cassandra.testing.TestUtils.uniqueTestTableFullName;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 
 /**
- * Tests the bulk writer behavior when requiring quoted identifiers for keyspace, table name, and column names.
- *
- * <p>These tests exercise a full integration test, which includes testing Sidecar behavior when dealing with quoted
- * identifiers.
+ * Tests bulk writes with different digest options
  */
-class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
+class WriterDigestIntegrationTest extends SharedClusterSparkIntegrationTestBase
 {
-    static final List<QualifiedName> TABLE_NAMES =
-    Arrays.asList(uniqueTestTableFullName("QuOtEd_KeYsPaCe"),
-                  uniqueTestTableFullName("keyspace"), // keyspace is a reserved word
-                  uniqueTestTableFullName(TEST_KEYSPACE, "QuOtEd_TaBlE"),
-                  new QualifiedName(TEST_KEYSPACE, "table"));  // table is a reserved word
+    static final QualifiedName DEFAULT_DIGEST_TABLE = uniqueTestTableFullName("default_digest");
+    static final QualifiedName MD5_DIGEST_TABLE = uniqueTestTableFullName("md5_digest");
+    static final QualifiedName CORRUPT_SSTABLE_TABLE = uniqueTestTableFullName("corrupt_sstable");
+    static final List<QualifiedName> TABLE_NAMES = Arrays.asList(DEFAULT_DIGEST_TABLE, MD5_DIGEST_TABLE,
+                                                                 CORRUPT_SSTABLE_TABLE);
+    Dataset<Row> df;
 
-    @ParameterizedTest(name = "{index} => table={0}")
-    @MethodSource("testInputs")
-    void testQuoteIdentifiersBulkWrite(QualifiedName tableName)
+    @Test
+    void testDefaultDigest()
     {
-        SparkSession spark = getOrCreateSparkSession();
-        // Generates course data from and renames the dataframe columns to use case-sensitive and reserved
-        // words in the dataframe
-        Dataset<Row> df = generateCourseData(spark, ROW_COUNT).toDF("IdEnTiFiEr", // case-sensitive struct
-                                                                    "course",
-                                                                    "limit"); // limit is a reserved word in Cassandra
-        bulkWriterDataFrameWriter(df, tableName).option(WriterOptions.QUOTE_IDENTIFIERS.name(), "true")
-                                                .save();
-        validateWrites(df.collectAsList(), queryAllData(tableName));
+        bulkWriterDataFrameWriter(df, DEFAULT_DIGEST_TABLE).save();
+        validateWrites(df.collectAsList(), queryAllData(DEFAULT_DIGEST_TABLE));
     }
 
-    static Stream<Arguments> testInputs()
+    @Test
+    void testMD5Digest()
     {
-        return TABLE_NAMES.stream().map(Arguments::of);
+        SparkSession spark = getOrCreateSparkSession();
+        Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
+        bulkWriterDataFrameWriter(df, MD5_DIGEST_TABLE).option(WriterOptions.DIGEST.name(), "MD5").save();
+        validateWrites(df.collectAsList(), queryAllData(MD5_DIGEST_TABLE));
+    }
+
+    @Test
+    void failsOnInvalidDigestOption()
+    {
+        assertThatIllegalArgumentException()
+        .isThrownBy(() -> bulkWriterDataFrameWriter(df, DEFAULT_DIGEST_TABLE).option(WriterOptions.DIGEST.name(), "invalid")
+                                                                             .save())
+        .withMessageContaining("Key digest type with value invalid is not a valid Enum of type class org.apache.cassandra.spark.bulkwriter.DigestAlgorithms");
+    }
+
+    @Override
+    protected void beforeTestStart()
+    {
+        SparkSession spark = getOrCreateSparkSession();
+        df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
     }
 
     @Override
@@ -95,7 +101,6 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
                           .withVersion(requestedVersion)
                           .withDCs(1)
                           .withDataDirCount(1)
-                          .withSharedClasses(JvmDTestSharedClassesPredicate.INSTANCE)
                           .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
                                                       .with(Feature.GOSSIP)
                                                       .with(Feature.JMX));
@@ -109,13 +114,9 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
     @Override
     protected void initializeSchemaForTest()
     {
-        String createTableStatement = "CREATE TABLE IF NOT EXISTS %s " +
-                                      "(\"IdEnTiFiEr\" int, course text, \"limit\" int," +
-                                      " PRIMARY KEY(\"IdEnTiFiEr\"));";
-
         TABLE_NAMES.forEach(name -> {
             createTestKeyspace(name, DC1_RF1);
-            createTestTable(name, createTableStatement);
+            createTestTable(name, CREATE_TEST_TABLE_STATEMENT);
         });
     }
 }

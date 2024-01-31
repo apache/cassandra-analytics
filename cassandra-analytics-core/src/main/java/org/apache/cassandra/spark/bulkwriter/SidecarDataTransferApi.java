@@ -31,9 +31,8 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.request.ImportSSTableRequest;
-import org.apache.cassandra.sidecar.common.data.MD5Digest;
 import org.apache.cassandra.sidecar.common.data.SSTableImportResponse;
-import org.apache.cassandra.spark.common.MD5Hash;
+import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 
@@ -69,7 +68,7 @@ public class SidecarDataTransferApi implements DataTransferApi
                                        int ssTableIdx,
                                        CassandraInstance instance,
                                        String sessionID,
-                                       MD5Hash fileHash) throws ClientException
+                                       Digest digest) throws ClientException
     {
         String componentName = updateComponentName(componentFile, ssTableIdx);
         String uploadId = getUploadId(sessionID, job.getId().toString());
@@ -80,7 +79,7 @@ public class SidecarDataTransferApi implements DataTransferApi
                                                maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.table),
                                                uploadId,
                                                componentName,
-                                               new MD5Digest(fileHash.toString()),
+                                               digest.toSidecarDigest(),
                                                componentFile.toAbsolutePath().toString())
                          .get();
         }

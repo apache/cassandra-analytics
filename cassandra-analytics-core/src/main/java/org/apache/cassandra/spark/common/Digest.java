@@ -19,25 +19,18 @@
 
 package org.apache.cassandra.spark.common;
 
-import java.security.MessageDigest;
-import java.util.Base64;
-
-public final class MD5Hash
+/**
+ * Interface that represents the computed digest
+ */
+public interface Digest
 {
-    private final String value;
+    /**
+     * @return the string representation of the digest
+     */
+    String value();
 
-    private MD5Hash(MessageDigest digest)
-    {
-        value = Base64.getEncoder().encodeToString(digest.digest());
-    }
-
-    public static MD5Hash fromDigest(MessageDigest messageDigest)
-    {
-        return new MD5Hash(messageDigest);
-    }
-
-    public String toString()
-    {
-        return value;
-    }
+    /**
+     * @return the digest translated to Sidecar digest
+     */
+    org.apache.cassandra.sidecar.common.data.Digest toSidecarDigest();
 }

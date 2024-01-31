@@ -34,7 +34,7 @@ public class AbstractClusterUtils
      * @param nodeNumber the number of the node for which a configuration should be created
      * @return the instance configuration for the specified node number
      */
-    public static InstanceConfig createInstanceConfig(AbstractCluster cluster, int nodeNumber)
+    public static InstanceConfig createInstanceConfig(AbstractCluster<?> cluster, int nodeNumber)
     {
         return cluster.createInstanceConfig(nodeNumber);
     }

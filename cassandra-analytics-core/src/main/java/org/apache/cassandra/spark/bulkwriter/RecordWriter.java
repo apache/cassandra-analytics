@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -52,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.sidecar.common.data.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.TaskContext;
 import scala.Tuple2;
@@ -62,14 +62,16 @@ import static org.apache.cassandra.spark.utils.ScalaConversionUtils.asScalaItera
 public class RecordWriter implements Serializable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordWriter.class);
-
+    private static final long serialVersionUID = 3746578054834640428L;
     private final BulkWriterContext writerContext;
     private final String[] columnNames;
-    private final BiFunction<BulkWriterContext, Path, SSTableWriter> tableWriterSupplier;
+    private final SSTableWriterFactory tableWriterFactory;
+    private final DigestAlgorithm digestAlgorithm;
+
     private final BulkWriteValidator writeValidator;
     private final ReplicaAwareFailureHandler<RingInstance> failureHandler;
 
-    private Supplier<TaskContext> taskContextSupplier;
+    private final Supplier<TaskContext> taskContextSupplier;
     private SSTableWriter sstableWriter = null;
     private int outputSequence = 0; // sub-folder for possible subrange splits
 
@@ -82,14 +84,15 @@ public class RecordWriter implements Serializable
     RecordWriter(BulkWriterContext writerContext,
                  String[] columnNames,
                  Supplier<TaskContext> taskContextSupplier,
-                 BiFunction<BulkWriterContext, Path, SSTableWriter> tableWriterSupplier)
+                 SSTableWriterFactory tableWriterFactory)
     {
         this.writerContext = writerContext;
         this.columnNames = columnNames;
         this.taskContextSupplier = taskContextSupplier;
-        this.tableWriterSupplier = tableWriterSupplier;
+        this.tableWriterFactory = tableWriterFactory;
         this.failureHandler = new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
+        this.digestAlgorithm = this.writerContext.job().digestAlgorithmSupplier().get();
 
         writerContext.cluster().startupValidate();
     }
@@ -360,7 +363,7 @@ public class RecordWriter implements Serializable
             Path outDir = Paths.get(baseDir.toString(), Integer.toString(outputSequence++));
             Files.createDirectories(outDir);
 
-            sstableWriter = tableWriterSupplier.apply(writerContext, outDir);
+            sstableWriter = tableWriterFactory.create(writerContext, outDir, digestAlgorithm);
             LOGGER.info("[{}] Created new SSTable writer", partitionId);
         }
     }
@@ -399,5 +402,24 @@ public class RecordWriter implements Serializable
         Range<BigInteger> tokenRange = getTokenRange(taskContext);
         LOGGER.info("[{}] Creating stream session for range={}", taskContext.partitionId(), tokenRange);
         return new StreamSession(writerContext, getStreamId(taskContext), tokenRange, failureHandler);
+    }
+
+    /**
+     * Functional interface that helps with creating {@link SSTableWriter} instances.
+     */
+    public interface SSTableWriterFactory
+    {
+        /**
+         * Creates a new instance of the {@link SSTableWriter} with the provided {@code writerContext},
+         * {@code outDir}, and {@code digestProvider} parameters.
+         *
+         * @param writerContext  the context for the bulk writer job
+         * @param outDir         an output directory where SSTables components will be written to
+         * @param digestAlgorithm a digest provider to calculate digests for every SSTable component
+         * @return a new {@link SSTableWriter}
+         */
+        SSTableWriter create(BulkWriterContext writerContext,
+                             Path outDir,
+                             DigestAlgorithm digestAlgorithm);
     }
 }

@@ -23,7 +23,7 @@ import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.List;
 
-import org.apache.cassandra.spark.common.MD5Hash;
+import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.jetbrains.annotations.Nullable;
@@ -59,5 +59,5 @@ public interface DataTransferApi extends Serializable
                                 int ssTableIdx,
                                 CassandraInstance instance,
                                 String sessionID,
-                                MD5Hash fileHash) throws ClientException;
+                                Digest digest) throws ClientException;
 }
