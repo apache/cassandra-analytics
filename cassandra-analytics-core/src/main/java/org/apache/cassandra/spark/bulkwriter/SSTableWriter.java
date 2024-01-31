@@ -20,31 +20,29 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
-import org.apache.cassandra.spark.common.MD5Hash;
+import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.StreamScanner;
+import org.apache.cassandra.spark.utils.DigestProvider;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings("WeakerAccess")
@@ -58,17 +56,21 @@ public class SSTableWriter
     private final org.apache.cassandra.bridge.SSTableWriter cqlSSTableWriter;
     private BigInteger minToken = null;
     private BigInteger maxToken = null;
-    private final Map<Path, MD5Hash> fileHashes = new HashMap<>();
+    private final Map<Path, Digest> fileDigestMap = new HashMap<>();
+    private final DigestProvider digestProvider;
 
-    public SSTableWriter(org.apache.cassandra.bridge.SSTableWriter tableWriter, Path outDir)
+    public SSTableWriter(org.apache.cassandra.bridge.SSTableWriter tableWriter, Path outDir,
+                         DigestProvider digestProvider)
     {
         cqlSSTableWriter = tableWriter;
         this.outDir = outDir;
+        this.digestProvider = digestProvider;
     }
 
-    public SSTableWriter(BulkWriterContext writerContext, Path outDir)
+    public SSTableWriter(BulkWriterContext writerContext, Path outDir, DigestProvider digestProvider)
     {
         this.outDir = outDir;
+        this.digestProvider = digestProvider;
 
         String lowestCassandraVersion = writerContext.cluster().getLowestCassandraVersion();
         String packageVersion = getPackageVersion(lowestCassandraVersion);
@@ -108,7 +110,7 @@ public class SSTableWriter
             // NOTE: We calculate file hashes before re-reading so that we know what we hashed
             //       is what we validated. Then we send these along with the files and the
             //       receiving end re-hashes the files to make sure they still match.
-            fileHashes.putAll(calculateFileHashes(dataFile));
+            fileDigestMap.putAll(calculateFileDigestMap(dataFile));
         }
         validateSSTables(writerContext, partitionId);
     }
@@ -146,27 +148,20 @@ public class SSTableWriter
         return Files.newDirectoryStream(getOutDir(), "*Data.db");
     }
 
-    private Map<Path, MD5Hash> calculateFileHashes(Path dataFile) throws IOException
+    private Map<Path, Digest> calculateFileDigestMap(Path dataFile) throws IOException
     {
-        Map<Path, MD5Hash> fileHashes = new HashMap<>();
+        Map<Path, Digest> fileHashes = new HashMap<>();
         try (DirectoryStream<Path> filesToHash =
              Files.newDirectoryStream(dataFile.getParent(), SSTables.getSSTableBaseName(dataFile) + "*"))
         {
             for (Path path : filesToHash)
             {
-                fileHashes.put(path, calculateFileHash(path));
+                Digest digest = digestProvider.calculateFileDigest(path);
+                fileHashes.put(path, digest);
+                LOGGER.debug("Calculated digest={} for path={}", digest, path);
             }
         }
         return fileHashes;
-    }
-
-    private MD5Hash calculateFileHash(Path path) throws IOException
-    {
-        try (InputStream is = Files.newInputStream(path))
-        {
-            MessageDigest computedMd5 = DigestUtils.updateDigest(DigestUtils.getMd5Digest(), is);
-            return MD5Hash.fromDigest(computedMd5);
-        }
     }
 
     public Range<BigInteger> getTokenRange()
@@ -179,8 +174,11 @@ public class SSTableWriter
         return outDir;
     }
 
-    public Map<Path, MD5Hash> getFileHashes()
+    /**
+     * @return a view of the file digest map
+     */
+    public Map<Path, Digest> fileDigestMap()
     {
-        return fileHashes;
+        return Collections.unmodifiableMap(fileDigestMap);
     }
 }

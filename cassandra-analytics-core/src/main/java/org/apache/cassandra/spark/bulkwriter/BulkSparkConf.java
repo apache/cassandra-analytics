@@ -130,12 +130,13 @@ public class BulkSparkConf implements Serializable
     protected boolean useOpenSsl;
     protected int ringRetryCount;
     protected final Set<String> blockedInstances;
+    protected DigestTypeOption digestTypeOption = DigestTypeOption.XXHASH32;
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
         this.conf = conf;
         Optional<Integer> sidecarPortFromOptions = MapUtils.getOptionalInt(options, WriterOptions.SIDECAR_PORT.name(), "sidecar port");
-        this.userProvidedSidecarPort = sidecarPortFromOptions.isPresent() ? sidecarPortFromOptions.get() : getOptionalInt(SIDECAR_PORT).orElse(-1);
+        this.userProvidedSidecarPort = sidecarPortFromOptions.orElseGet(() -> getOptionalInt(SIDECAR_PORT).orElse(-1));
         this.effectiveSidecarPort = this.userProvidedSidecarPort == -1 ? DEFAULT_SIDECAR_PORT : this.userProvidedSidecarPort;
         this.sidecarInstances = buildSidecarInstances(options, effectiveSidecarPort);
         this.keyspace = MapUtils.getOrThrow(options, WriterOptions.KEYSPACE.name());
@@ -157,6 +158,7 @@ public class BulkSparkConf implements Serializable
         this.truststoreBase64Encoded = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_BASE64_ENCODED.name(), null);
         this.truststoreType = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_TYPE.name(), null);
         this.writeMode = MapUtils.getEnumOption(options, WriterOptions.WRITE_MODE.name(), WriteMode.INSERT, "write mode");
+        this.digestTypeOption = MapUtils.getEnumOption(options, WriterOptions.DIGEST_TYPE.name(), DigestTypeOption.XXHASH32, "digest type");
         // For backwards-compatibility with port settings, use writer option if available,
         // else fall back to props, and then default if neither specified
         this.useOpenSsl = getBoolean(USE_OPENSSL, true);

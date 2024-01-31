@@ -31,9 +31,10 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.request.ImportSSTableRequest;
-import org.apache.cassandra.sidecar.common.data.MD5Digest;
 import org.apache.cassandra.sidecar.common.data.SSTableImportResponse;
-import org.apache.cassandra.spark.common.MD5Hash;
+import org.apache.cassandra.spark.common.Digest;
+import org.apache.cassandra.spark.common.MD5Digest;
+import org.apache.cassandra.spark.common.XXHash32Digest;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 
@@ -69,7 +70,7 @@ public class SidecarDataTransferApi implements DataTransferApi
                                        int ssTableIdx,
                                        CassandraInstance instance,
                                        String sessionID,
-                                       MD5Hash fileHash) throws ClientException
+                                       Digest digest) throws ClientException
     {
         String componentName = updateComponentName(componentFile, ssTableIdx);
         String uploadId = getUploadId(sessionID, job.getId().toString());
@@ -80,7 +81,7 @@ public class SidecarDataTransferApi implements DataTransferApi
                                                maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.table),
                                                uploadId,
                                                componentName,
-                                               new MD5Digest(fileHash.toString()),
+                                               toSidecarDigest(digest),
                                                componentFile.toAbsolutePath().toString())
                          .get();
         }
@@ -163,5 +164,20 @@ public class SidecarDataTransferApi implements DataTransferApi
     protected SidecarInstanceImpl toSidecarInstance(CassandraInstance instance)
     {
         return new SidecarInstanceImpl(instance.nodeName(), sidecarPort);
+    }
+
+    protected org.apache.cassandra.sidecar.common.data.Digest toSidecarDigest(Digest digest)
+    {
+        if (digest instanceof XXHash32Digest)
+        {
+            XXHash32Digest xxHash32Digest = (XXHash32Digest) digest;
+            return new org.apache.cassandra.sidecar.common.data.XXHash32Digest(xxHash32Digest.value(),
+                                                                               xxHash32Digest.seedHex());
+        }
+        else if (digest instanceof MD5Digest)
+        {
+            return new org.apache.cassandra.sidecar.common.data.MD5Digest(digest.value());
+        }
+        throw new UnsupportedOperationException("Unsupported digest in Sidecar");
     }
 }

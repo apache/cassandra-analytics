@@ -21,7 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.nio.file.Path;
 
-import org.apache.cassandra.spark.common.MD5Hash;
+import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 
 public class UploadRequest
@@ -29,22 +29,22 @@ public class UploadRequest
     public final Path path;
     public final int ssTableIdx;
     public final CassandraInstance instance;
-    public final String sesssionId;
-    public final MD5Hash fileHash;
+    public final String sessionId;
+    public final Digest digest;
     public final boolean uploadSucceeded;
 
     public UploadRequest(Path path,
                          int ssTableIdx,
                          CassandraInstance instance,
-                         String sesssionId,
-                         MD5Hash fileHash,
+                         String sessionId,
+                         Digest digest,
                          boolean uploadSucceeded)
     {
         this.path = path;
         this.ssTableIdx = ssTableIdx;
         this.instance = instance;
-        this.sesssionId = sesssionId;
-        this.fileHash = fileHash;
+        this.sessionId = sessionId;
+        this.digest = digest;
         this.uploadSucceeded = uploadSucceeded;
     }
 }

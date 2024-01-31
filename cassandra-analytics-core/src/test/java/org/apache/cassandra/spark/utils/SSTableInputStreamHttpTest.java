@@ -64,7 +64,7 @@ import static org.quicktheories.generators.SourceDSL.arbitrary;
  * Test the {@link SSTableInputStream} by firing up an in-test HTTP server and reading the files with an HTTP client
  * Compares the MD5s to verify file bytes match bytes returned by {@link SSTableInputStream}.
  */
-public class SSTableInputStreamHttpTests
+public class SSTableInputStreamHttpTest
 {
     static final ExecutorService HTTP_EXECUTOR =
             Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("http-server-%d")
@@ -74,10 +74,10 @@ public class SSTableInputStreamHttpTests
             Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("http-client-%d")
                                                                       .setDaemon(true)
                                                                       .build());
-    private static final Logger LOGGER = LoggerFactory.getLogger(SSTableInputStreamHttpTests.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SSTableInputStreamHttpTest.class);
 
     @TempDir
-    public static Path DIRECTORY;  // CHECKSTYLE IGNORE: Constant cannot be made final
+    private static Path DIRECTORY;
     private static final String HOST = "localhost";
     private static final int PORT = 8001;
     private static final int HTTP_CLIENT_CHUNK_SIZE = 8192;

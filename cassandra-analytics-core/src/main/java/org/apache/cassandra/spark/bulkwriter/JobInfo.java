@@ -60,4 +60,7 @@ public interface JobInfo extends Serializable
     }
 
     boolean getSkipClean();
+
+    @NotNull
+    DigestTypeOption getDigestTypeOption();
 }

@@ -17,23 +17,24 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.bulkwriter;
+package org.apache.cassandra.spark.utils;
 
+import java.io.IOException;
 import java.nio.file.Path;
 
-import org.apache.cassandra.spark.utils.DigestProvider;
-import org.jetbrains.annotations.NotNull;
+import org.apache.cassandra.spark.common.Digest;
 
-class NonValidatingTestSSTableWriter extends SSTableWriter
+/**
+ * Interface that provides a {@link Digest}
+ */
+public interface DigestProvider
 {
-    NonValidatingTestSSTableWriter(MockTableWriter tableWriter, Path path, DigestProvider digestProvider)
-    {
-        super(tableWriter, path, digestProvider);
-    }
-
-    @Override
-    public void validateSSTables(@NotNull BulkWriterContext writerContext, int partitionId)
-    {
-        // Skip validation for these tests
-    }
+    /**
+     * Calculates the {@link Digest} for the given file in the {@code path}.
+     *
+     * @param path the path of the file
+     * @return the calculated digest for the given {@code path}
+     * @throws IOException when an error occurs while reading the file or calculating the digest
+     */
+    Digest calculateFileDigest(Path path) throws IOException;
 }

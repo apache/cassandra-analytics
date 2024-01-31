@@ -19,25 +19,13 @@
 
 package org.apache.cassandra.spark.common;
 
-import java.security.MessageDigest;
-import java.util.Base64;
-
-public final class MD5Hash
+/**
+ * Interface that represents a checksum digest
+ */
+public interface Digest
 {
-    private final String value;
-
-    private MD5Hash(MessageDigest digest)
-    {
-        value = Base64.getEncoder().encodeToString(digest.digest());
-    }
-
-    public static MD5Hash fromDigest(MessageDigest messageDigest)
-    {
-        return new MD5Hash(messageDigest);
-    }
-
-    public String toString()
-    {
-        return value;
-    }
+    /**
+     * @return the string representation of the digest
+     */
+    String value();
 }

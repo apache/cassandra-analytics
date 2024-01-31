@@ -109,4 +109,11 @@ public class CassandraJobInfo implements JobInfo
     {
         return conf.table;
     }
+
+    @NotNull
+    @Override
+    public DigestTypeOption getDigestTypeOption()
+    {
+        return conf.digestTypeOption;
+    }
 }

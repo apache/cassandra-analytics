@@ -19,21 +19,42 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.nio.file.Path;
-
 import org.apache.cassandra.spark.utils.DigestProvider;
-import org.jetbrains.annotations.NotNull;
+import org.apache.cassandra.spark.utils.MD5DigestProvider;
+import org.apache.cassandra.spark.utils.XXHash32DigestProvider;
 
-class NonValidatingTestSSTableWriter extends SSTableWriter
+/**
+ * Represents the user-provided digest type configuration to be used to validate SSTable files during bulk writes
+ */
+public enum DigestTypeOption
 {
-    NonValidatingTestSSTableWriter(MockTableWriter tableWriter, Path path, DigestProvider digestProvider)
+    /**
+     * Represents an MD5 digest type option. This option is supported for legacy reasons, but its use
+     * is strongly discouraged.
+     */
+    MD5
     {
-        super(tableWriter, path, digestProvider);
-    }
+        @Override
+        DigestProvider provider()
+        {
+            return new MD5DigestProvider();
+        }
+    },
 
-    @Override
-    public void validateSSTables(@NotNull BulkWriterContext writerContext, int partitionId)
+    /**
+     * Represents an xxhash32 digest type option
+     */
+    XXHASH32
     {
-        // Skip validation for these tests
-    }
+        @Override
+        DigestProvider provider()
+        {
+            return new XXHash32DigestProvider();
+        }
+    };
+
+    /**
+     * @return the provider for the configured digest type
+     */
+    abstract DigestProvider provider();
 }

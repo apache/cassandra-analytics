@@ -17,23 +17,44 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.bulkwriter;
+package org.apache.cassandra.spark.common;
 
-import java.nio.file.Path;
 
-import org.apache.cassandra.spark.utils.DigestProvider;
+import java.util.Objects;
+
 import org.jetbrains.annotations.NotNull;
 
-class NonValidatingTestSSTableWriter extends SSTableWriter
+/**
+ * An implementation of {@link Digest} that represents an MD5 digest
+ */
+public class MD5Digest implements Digest
 {
-    NonValidatingTestSSTableWriter(MockTableWriter tableWriter, Path path, DigestProvider digestProvider)
+    private final @NotNull String value;
+
+    /**
+     * Constructs a new MD5Digest with the provided MD5 {@code value}
+     *
+     * @param value the MD5 value
+     */
+    public MD5Digest(@NotNull String value)
     {
-        super(tableWriter, path, digestProvider);
+        this.value = Objects.requireNonNull(value, "value is required");
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public String value()
+    {
+        return value;
     }
 
     @Override
-    public void validateSSTables(@NotNull BulkWriterContext writerContext, int partitionId)
+    public String toString()
     {
-        // Skip validation for these tests
+        return "MD5Digest{" +
+               "value='" + value + '\'' +
+               '}';
     }
 }
