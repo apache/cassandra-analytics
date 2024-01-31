@@ -54,9 +54,7 @@ public class SSTableWriterImplementation implements SSTableWriter
                                                             insertStatement,
                                                             bufferSizeMB,
                                                             cassPartitioner);
-        // TODO: Remove me once CQLSSTableWriter.Builder synchronize on schema (see CASSANDRA-TBD)
-        //       build update schema, we need to synchronize
-        writer = CassandraSchema.apply(s -> builder.build());
+        writer = builder.build();
     }
 
     @Override
