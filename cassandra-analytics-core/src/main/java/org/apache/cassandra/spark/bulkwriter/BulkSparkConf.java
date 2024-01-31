@@ -180,14 +180,16 @@ public class BulkSparkConf implements Serializable
         {
             LOGGER.warn("The writer option: SSTABLE_DATA_SIZE_IN_MB is deprecated. " +
                         "Please use SSTABLE_DATA_SIZE_IN_MIB instead. See option description for details.");
-            legacyOptionValue = MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name(), DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
+            legacyOptionValue = MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name(),
+                                                DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
         }
 
         if (options.containsKey(WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name()))
         {
             LOGGER.info("The writer option: SSTABLE_DATA_SIZE_IN_MIB is defined. " +
                         "Favor the value over SSTABLE_DATA_SIZE_IN_MB");
-            return MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name(), DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
+            return MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name(),
+                                   DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
 
         }
 
