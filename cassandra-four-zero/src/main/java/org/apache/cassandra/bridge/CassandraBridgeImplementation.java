@@ -570,9 +570,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
             builder.withType(statement);
         }
 
-        // TODO: Remove me once CQLSSTableWriter.Builder synchronize on schema (see CASSANDRA-TBD)
-        //       build update schema, we need to synchornize
-        try (CQLSSTableWriter ssTable = CassandraSchema.apply(s -> builder.build()))
+        try (CQLSSTableWriter ssTable = builder.build())
         {
             writer.accept(values -> {
                 try
