@@ -45,7 +45,6 @@ import java.util.stream.Stream;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
-import org.apache.commons.lang3.function.TriFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,7 +65,7 @@ public class RecordWriter implements Serializable
     private static final long serialVersionUID = 3746578054834640428L;
     private final BulkWriterContext writerContext;
     private final String[] columnNames;
-    private final TriFunction<BulkWriterContext, Path, DigestProvider, SSTableWriter> tableWriterSupplier;
+    private final SSTableWriterSupplier tableWriterSupplier;
     private final DigestProvider digestProvider;
 
     private final BulkWriteValidator writeValidator;
@@ -85,7 +84,7 @@ public class RecordWriter implements Serializable
     RecordWriter(BulkWriterContext writerContext,
                  String[] columnNames,
                  Supplier<TaskContext> taskContextSupplier,
-                 TriFunction<BulkWriterContext, Path, DigestProvider, SSTableWriter> tableWriterSupplier)
+                 SSTableWriterSupplier tableWriterSupplier)
     {
         this.writerContext = writerContext;
         this.columnNames = columnNames;
@@ -403,5 +402,24 @@ public class RecordWriter implements Serializable
         Range<BigInteger> tokenRange = getTokenRange(taskContext);
         LOGGER.info("[{}] Creating stream session for range={}", taskContext.partitionId(), tokenRange);
         return new StreamSession(writerContext, getStreamId(taskContext), tokenRange, failureHandler);
+    }
+
+    /**
+     * Functional interface that helps with {@link SSTableWriter} supplier.
+     */
+    public interface SSTableWriterSupplier
+    {
+        /**
+         * Returns a new {@link SSTableWriter} with the provided {@code writerContext}, {@code outDir}, and
+         * {@code digestProvider}
+         *
+         * @param writerContext  the context for the bulk writer job
+         * @param outDir         an output directory where SSTables components will be written to
+         * @param digestProvider a digest provider to calculate digests for every SSTable component
+         * @return a new {@link SSTableWriter}
+         */
+        SSTableWriter apply(BulkWriterContext writerContext,
+                            Path outDir,
+                            DigestProvider digestProvider);
     }
 }

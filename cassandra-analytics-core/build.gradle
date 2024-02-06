@@ -58,6 +58,7 @@ project(':cassandra-analytics-core') {
 
         // This dependency must be built by running `scripts/build-dependencies.sh`
         implementation(group: "${sidecarClientGroup}", name: "${sidecarClientName}", version: "${sidecarVersion}")
+        implementation(group: 'commons-codec', name: 'commons-codec', version: '1.11') // xxhash is supported since 1.11
 
         if ("${scalaMajorVersion}" == "2.11") {
             implementation(group: 'org.scala-lang.modules', name: "scala-java8-compat_2.11", version: '1.0.1', transitive: false)

@@ -75,16 +75,15 @@ public class XXHash32DigestProvider implements DigestProvider
         {
             // might have shared hashers with ThreadLocal
             XXHashFactory factory = XXHashFactory.safeInstance();
-            try (StreamingXXHash32 hasher = factory.newStreamingHash32(seed))
+
+            StreamingXXHash32 hasher = factory.newStreamingHash32(seed);
+            int len;
+            byte[] buffer = new byte[KIB_512];
+            while ((len = inputStream.read(buffer)) != -1)
             {
-                int len;
-                byte[] buffer = new byte[KIB_512];
-                while ((len = inputStream.read(buffer)) != -1)
-                {
-                    hasher.update(buffer, 0, len);
-                }
-                return new XXHash32Digest(Long.toHexString(hasher.getValue()), seed);
+                hasher.update(buffer, 0, len);
             }
+            return new XXHash32Digest(Long.toHexString(hasher.getValue()), seed);
         }
     }
 }
