@@ -23,6 +23,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.Base64;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
@@ -46,7 +48,8 @@ public class MD5DigestProvider implements DigestProvider
     {
         try (InputStream is = Files.newInputStream(path))
         {
-            return new MD5Digest(DigestUtils.md5Hex(is));
+            MessageDigest computedMd5 = DigestUtils.updateDigest(DigestUtils.getMd5Digest(), is);
+            return new MD5Digest(Base64.getEncoder().encodeToString(computedMd5.digest()));
         }
     }
 }

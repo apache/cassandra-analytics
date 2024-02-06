@@ -202,7 +202,7 @@ public final class MapUtils
         String value = options.get(lowerCaseKey(key));
         try
         {
-            return value != null ? (T) Enum.valueOf(defaultValue.getClass(), value) : defaultValue;
+            return value != null ? (T) Enum.valueOf(defaultValue.getDeclaringClass(), value) : defaultValue;
         }
         catch (IllegalArgumentException exception)
         {

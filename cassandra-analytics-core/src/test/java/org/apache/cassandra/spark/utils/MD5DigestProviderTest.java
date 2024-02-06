@@ -41,15 +41,15 @@ class MD5DigestProviderTest
     // $ base64 -i /dev/urandom | head -c 524288 > file2.txt
     // $ base64 -i /dev/urandom | head -c 131072 > file3.txt
     // To calculate MD5 I used:
-    // $ md5 file1.txt # -> 56a4944588825e364880ff823bd2242d
-    // $ md5 file2.txt # -> bc5a154ea567830ec9463f3225f93750
-    // $ md5 file3.txt # -> 457012087b61492accb7b60e289e8e0d
+    // $ cat file1.txt | openssl dgst -md5 -binary | openssl enc -base64 # -> VqSURYiCXjZIgP+CO9IkLQ==
+    // $ cat file2.txt | openssl dgst -md5 -binary | openssl enc -base64 # -> vFoVTqVngw7JRj8yJfk3UA==
+    // $ cat file3.txt | openssl dgst -md5 -binary | openssl enc -base64 # -> RXASCHthSSrMt7YOKJ6ODQ==
 
     @ParameterizedTest(name = "{index} fileName={0} expectedMd5={1}")
     @CsvSource({
-    "file1.txt,56a4944588825e364880ff823bd2242d",
-    "file2.txt,bc5a154ea567830ec9463f3225f93750",
-    "file3.txt,457012087b61492accb7b60e289e8e0d",
+    "file1.txt,VqSURYiCXjZIgP+CO9IkLQ==",
+    "file2.txt,vFoVTqVngw7JRj8yJfk3UA==",
+    "file3.txt,RXASCHthSSrMt7YOKJ6ODQ==",
     })
     void testMD5Provider(String fileName, String expectedMd5) throws IOException
     {

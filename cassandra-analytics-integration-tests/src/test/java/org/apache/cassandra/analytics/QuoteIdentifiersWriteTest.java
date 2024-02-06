@@ -20,12 +20,9 @@
 package org.apache.cassandra.analytics;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.LongStream;
@@ -37,7 +34,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import com.vdurmont.semver4j.Semver;
 import org.apache.cassandra.distributed.UpgradeableCluster;
-import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.shared.Versions;
@@ -56,13 +52,13 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.StructType;
 
+import static org.apache.cassandra.analytics.SparkTestUtils.validateWrites;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.apache.cassandra.testing.TestUtils.uniqueTestTableFullName;
 import static org.apache.spark.sql.types.DataTypes.BinaryType;
 import static org.apache.spark.sql.types.DataTypes.LongType;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests the bulk writer behavior when requiring quoted identifiers for keyspace, table name, and column names.
@@ -93,37 +89,7 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
 
         bulkWriterDataFrameWriter(df, tableName).option(WriterOptions.QUOTE_IDENTIFIERS.name(), "true")
                                                 .save();
-        validateWrites(tableName, rows);
-    }
-
-    void validateWrites(QualifiedName tableName, JavaRDD<Row> rowsWritten)
-    {
-        // build a set of entries read from Cassandra into a set
-        Set<String> actualEntries = Arrays.stream(cluster.coordinator(1)
-                                                         .execute(String.format("SELECT * FROM %s;", tableName), ConsistencyLevel.LOCAL_QUORUM))
-                                          .map((Object[] columns) -> String.format("%s:%s:%s",
-                                                                                   new String(((ByteBuffer) columns[1]).array(), StandardCharsets.UTF_8),
-                                                                                   columns[0],
-                                                                                   columns[2]))
-                                          .collect(Collectors.toSet());
-
-        // Number of entries in Cassandra must match the original datasource
-        assertThat(actualEntries.size()).isEqualTo(rowsWritten.count());
-
-        // remove from actual entries to make sure that the data read is the same as the data written
-        rowsWritten.collect()
-                   .forEach(row -> {
-                       String key = String.format("%s:%d:%d",
-                                                  new String((byte[]) row.get(0), StandardCharsets.UTF_8),
-                                                  row.getLong(1),
-                                                  row.getLong(2));
-                       assertThat(actualEntries.remove(key)).as(key + " is expected to exist in the actual entries")
-                                                            .isTrue();
-                   });
-
-        // If this fails, it means there was more data in the database than we expected
-        assertThat(actualEntries).as("All entries are expected to be read from database")
-                                 .isEmpty();
+        validateWrites(cluster, tableName, df);
     }
 
     static Stream<Arguments> testInputs()
@@ -159,7 +125,7 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
     protected void initializeSchemaForTest()
     {
         String createTableStatement = "CREATE TABLE IF NOT EXISTS %s " +
-                                      "(\"IdEnTiFiEr\" bigint, course blob, \"limit\" bigint," +
+                                      "(\"IdEnTiFiEr\" int, course text, \"limit\" int," +
                                       " PRIMARY KEY(\"IdEnTiFiEr\"));";
 
         TABLE_NAMES.forEach(name -> {
