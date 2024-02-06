@@ -32,6 +32,11 @@ import static org.assertj.core.api.Assertions.fail;
  */
 public final class ResourceUtils
 {
+    private ResourceUtils()
+    {
+        throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
+
     /**
      * Writes a resource with {@code resourceName} loaded from the {@link ClassLoader classLoader} into the
      * {@code destinationPath}
