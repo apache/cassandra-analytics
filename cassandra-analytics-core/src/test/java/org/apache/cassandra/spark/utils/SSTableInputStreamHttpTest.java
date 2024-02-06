@@ -77,7 +77,7 @@ public class SSTableInputStreamHttpTest
     private static final Logger LOGGER = LoggerFactory.getLogger(SSTableInputStreamHttpTest.class);
 
     @TempDir
-    private static Path DIRECTORY;
+    private static Path directory;
     private static final String HOST = "localhost";
     private static final int PORT = 8001;
     private static final int HTTP_CLIENT_CHUNK_SIZE = 8192;
@@ -95,7 +95,7 @@ public class SSTableInputStreamHttpTest
             try
             {
                 String uri = exchange.getRequestURI().getPath().replaceFirst("/", "");
-                Path path = DIRECTORY.resolve(uri);
+                Path path = directory.resolve(uri);
 
                 // Extract Range from header
                 long size = Files.size(path);
@@ -266,7 +266,7 @@ public class SSTableInputStreamHttpTest
     {
         try
         {
-            Path path = Files.createTempFile(DIRECTORY, null, null);
+            Path path = Files.createTempFile(directory, null, null);
             MessageDigest digest = DigestUtils.getMd5Digest();
             try (BufferedOutputStream out = new BufferedOutputStream(Files.newOutputStream(path)))
             {

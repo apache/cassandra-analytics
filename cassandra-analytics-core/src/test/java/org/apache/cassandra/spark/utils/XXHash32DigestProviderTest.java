@@ -21,14 +21,15 @@ package org.apache.cassandra.spark.utils;
 
 import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.XXHash32Digest;
 
+import static org.apache.cassandra.spark.utils.ResourceUtils.writeResourceToPath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -36,6 +37,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class XXHash32DigestProviderTest
 {
+    @TempDir
+    private Path tempPath;
+
     // To generate test files I used:
     // $ base64 -i /dev/urandom | head -c 1048576 > file1.txt
     // $ base64 -i /dev/urandom | head -c 524288 > file2.txt
@@ -53,7 +57,8 @@ class XXHash32DigestProviderTest
     })
     void testXXHash32Provider(String fileName, String expectedXXHash32) throws IOException
     {
-        Path path = Paths.get("src", "test", "resources", "digest", fileName);
+        ClassLoader classLoader = MD5DigestProviderTest.class.getClassLoader();
+        Path path = writeResourceToPath(classLoader, tempPath, "digest/" + fileName);
         assertThat(path).exists();
 
         Digest digest = new XXHash32DigestProvider(0).calculateFileDigest(path);

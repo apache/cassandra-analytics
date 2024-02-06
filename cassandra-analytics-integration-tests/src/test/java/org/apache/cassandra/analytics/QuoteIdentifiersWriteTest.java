@@ -21,11 +21,7 @@ package org.apache.cassandra.analytics;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-import java.util.stream.LongStream;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -41,24 +37,15 @@ import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.TestVersion;
-import org.apache.spark.SparkContext;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function2;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.types.StructType;
 
 import static org.apache.cassandra.analytics.SparkTestUtils.validateWrites;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.apache.cassandra.testing.TestUtils.uniqueTestTableFullName;
-import static org.apache.spark.sql.types.DataTypes.BinaryType;
-import static org.apache.spark.sql.types.DataTypes.LongType;
 
 /**
  * Tests the bulk writer behavior when requiring quoted identifiers for keyspace, table name, and column names.
@@ -73,20 +60,12 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
                   uniqueTestTableFullName("keyspace"), // keyspace is a reserved word
                   uniqueTestTableFullName(TEST_KEYSPACE, "QuOtEd_TaBlE"),
                   new QualifiedName(TEST_KEYSPACE, "table"));  // table is a reserved word
+    Dataset<Row> df;
 
     @ParameterizedTest(name = "{index} => table={0}")
     @MethodSource("testInputs")
     void testQuoteIdentifiersBulkWrite(QualifiedName tableName)
     {
-        SparkSession spark = getOrCreateSparkSession();
-        SparkContext sc = spark.sparkContext();
-        JavaSparkContext javaSparkContext = JavaSparkContext.fromSparkContext(sc);
-        SQLContext sql = spark.sqlContext();
-
-        int parallelism = sc.defaultParallelism();
-        JavaRDD<Row> rows = genDataset(javaSparkContext, ROW_COUNT, parallelism);
-        Dataset<Row> df = sql.createDataFrame(rows, writeSchema());
-
         bulkWriterDataFrameWriter(df, tableName).option(WriterOptions.QUOTE_IDENTIFIERS.name(), "true")
                                                 .save();
         validateWrites(cluster, tableName, df);
@@ -95,6 +74,17 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
     static Stream<Arguments> testInputs()
     {
         return TABLE_NAMES.stream().map(Arguments::of);
+    }
+
+    @Override
+    protected void beforeTestStart()
+    {
+        SparkSession spark = getOrCreateSparkSession();
+        // Generates course data from and renames the dataframe columns to use case-sensitive and reserved
+        // words in the dataframe
+        df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT).toDF("IdEnTiFiEr", // case-sensitive struct
+                                                                           "course",
+                                                                           "limit"); // limit is a reserved word in Cassandra
     }
 
     @Override
@@ -132,29 +122,5 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
             createTestKeyspace(name, DC1_RF1);
             createTestTable(name, createTableStatement);
         });
-    }
-
-    static StructType writeSchema()
-    {
-        return new StructType()
-               .add("course", BinaryType, false)
-               .add("IdEnTiFiEr", LongType, false) // case-sensitive struct
-               .add("limit", LongType, false); // limit is a reserved word in Cassandra
-    }
-
-    static JavaRDD<Row> genDataset(JavaSparkContext sc, int recordCount, Integer parallelism)
-    {
-        long recordsPerPartition = recordCount / parallelism;
-        long remainder = recordCount - (recordsPerPartition * parallelism);
-        List<Integer> seq = IntStream.range(0, parallelism).boxed().collect(Collectors.toList());
-        return sc.parallelize(seq, parallelism).mapPartitionsWithIndex(
-        (Function2<Integer, Iterator<Integer>, Iterator<Row>>) (index, integerIterator) -> {
-            long firstRecordNumber = index * recordsPerPartition;
-            long recordsToGenerate = index.equals(parallelism) ? remainder : recordsPerPartition;
-            return LongStream.range(0, recordsToGenerate).mapToObj(offset -> {
-                long limit = firstRecordNumber + offset;
-                return RowFactory.create(("course-" + limit).getBytes(), limit, limit);
-            }).iterator();
-        }, false);
     }
 }
