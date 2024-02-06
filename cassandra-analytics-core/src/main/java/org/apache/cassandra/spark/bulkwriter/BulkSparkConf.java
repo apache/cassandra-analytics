@@ -130,7 +130,7 @@ public class BulkSparkConf implements Serializable
     protected boolean useOpenSsl;
     protected int ringRetryCount;
     protected final Set<String> blockedInstances;
-    protected DigestTypeOption digestTypeOption = DigestTypeOption.XXHASH32;
+    protected final DigestTypeOption digestTypeOption;
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {

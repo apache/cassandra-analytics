@@ -405,7 +405,7 @@ public class RecordWriter implements Serializable
     }
 
     /**
-     * Functional interface that helps with {@link SSTableWriter} supplier.
+     * Functional interface that helps with supplying {@link SSTableWriter} instances.
      */
     public interface SSTableWriterSupplier
     {
