@@ -130,13 +130,13 @@ public class BulkSparkConf implements Serializable
     protected boolean useOpenSsl;
     protected int ringRetryCount;
     protected final Set<String> blockedInstances;
-    protected final DigestTypeOption digestTypeOption;
+    protected final DigestTypeProvider digestTypeProvider;
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
         this.conf = conf;
         Optional<Integer> sidecarPortFromOptions = MapUtils.getOptionalInt(options, WriterOptions.SIDECAR_PORT.name(), "sidecar port");
-        this.userProvidedSidecarPort = sidecarPortFromOptions.orElseGet(() -> getOptionalInt(SIDECAR_PORT).orElse(-1));
+        this.userProvidedSidecarPort = sidecarPortFromOptions.isPresent() ? sidecarPortFromOptions.get() : getOptionalInt(SIDECAR_PORT).orElse(-1);
         this.effectiveSidecarPort = this.userProvidedSidecarPort == -1 ? DEFAULT_SIDECAR_PORT : this.userProvidedSidecarPort;
         this.sidecarInstances = buildSidecarInstances(options, effectiveSidecarPort);
         this.keyspace = MapUtils.getOrThrow(options, WriterOptions.KEYSPACE.name());
@@ -158,7 +158,7 @@ public class BulkSparkConf implements Serializable
         this.truststoreBase64Encoded = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_BASE64_ENCODED.name(), null);
         this.truststoreType = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_TYPE.name(), null);
         this.writeMode = MapUtils.getEnumOption(options, WriterOptions.WRITE_MODE.name(), WriteMode.INSERT, "write mode");
-        this.digestTypeOption = MapUtils.getEnumOption(options, WriterOptions.DIGEST_TYPE.name(), DigestTypeOption.XXHASH32, "digest type");
+        this.digestTypeProvider = digestTypeFromOptions(options);
         // For backwards-compatibility with port settings, use writer option if available,
         // else fall back to props, and then default if neither specified
         this.useOpenSsl = getBoolean(USE_OPENSSL, true);
@@ -170,7 +170,19 @@ public class BulkSparkConf implements Serializable
         validateEnvironment();
     }
 
-    private Set<String> buildBlockedInstances(Map<String, String> options)
+    /**
+     * Returns the digest type from the configured options.
+     *
+     * @param options a key-value map with options for the bulk write job
+     * @return the configured {@link DigestTypeOption}
+     */
+    @NotNull
+    protected DigestTypeProvider digestTypeFromOptions(Map<String, String> options)
+    {
+        return MapUtils.getEnumOption(options, WriterOptions.DIGEST_TYPE.name(), DigestTypeOption.XXHASH32, "digest type");
+    }
+
+    protected Set<String> buildBlockedInstances(Map<String, String> options)
     {
         String blockedInstances = MapUtils.getOrDefault(options, WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "");
         return Arrays.stream(blockedInstances.split(","))

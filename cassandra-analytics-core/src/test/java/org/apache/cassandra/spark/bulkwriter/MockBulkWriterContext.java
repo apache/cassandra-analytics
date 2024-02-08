@@ -248,7 +248,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
 
     @NotNull
     @Override
-    public DigestTypeOption getDigestTypeOption()
+    public DigestTypeProvider getDigestTypeProvider()
     {
         return DigestTypeOption.XXHASH32;
     }

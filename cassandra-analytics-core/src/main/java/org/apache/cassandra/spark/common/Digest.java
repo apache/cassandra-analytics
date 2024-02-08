@@ -20,7 +20,7 @@
 package org.apache.cassandra.spark.common;
 
 /**
- * Interface that represents a checksum digest
+ * Interface that represents the computed digest
  */
 public interface Digest
 {

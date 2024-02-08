@@ -20,36 +20,14 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import org.apache.cassandra.spark.utils.DigestProvider;
-import org.apache.cassandra.spark.utils.MD5DigestProvider;
-import org.apache.cassandra.spark.utils.XXHash32DigestProvider;
 
 /**
- * Represents the user-provided digest type configuration to be used to validate SSTable files during bulk writes
+ * An interface that defines a {@link DigestProvider} for a concrete digest type
  */
-public enum DigestTypeOption implements DigestTypeProvider
+public interface DigestTypeProvider
 {
     /**
-     * Represents an MD5 digest type option. This option is supported for legacy reasons, but its use
-     * is strongly discouraged.
+     * @return the provider for the configured digest type
      */
-    MD5
-    {
-        @Override
-        public DigestProvider provider()
-        {
-            return new MD5DigestProvider();
-        }
-    },
-
-    /**
-     * Represents an xxhash32 digest type option
-     */
-    XXHASH32
-    {
-        @Override
-        public DigestProvider provider()
-        {
-            return new XXHash32DigestProvider();
-        }
-    };
+    DigestProvider provider();
 }

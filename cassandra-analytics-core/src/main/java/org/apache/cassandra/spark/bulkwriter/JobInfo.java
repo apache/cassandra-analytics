@@ -62,8 +62,8 @@ public interface JobInfo extends Serializable
     boolean getSkipClean();
 
     /**
-     * @return the digest type option configured for the job, and used to calculate digests for SSTable components
+     * @return the digest type provider for the bulk job, and used to calculate digests for SSTable components
      */
     @NotNull
-    DigestTypeOption getDigestTypeOption();
+    DigestTypeProvider getDigestTypeProvider();
 }

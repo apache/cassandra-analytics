@@ -65,7 +65,7 @@ public class RecordWriter implements Serializable
     private static final long serialVersionUID = 3746578054834640428L;
     private final BulkWriterContext writerContext;
     private final String[] columnNames;
-    private final SSTableWriterSupplier tableWriterSupplier;
+    private final SSTableWriterFactory tableWriterFactory;
     private final DigestProvider digestProvider;
 
     private final BulkWriteValidator writeValidator;
@@ -84,15 +84,15 @@ public class RecordWriter implements Serializable
     RecordWriter(BulkWriterContext writerContext,
                  String[] columnNames,
                  Supplier<TaskContext> taskContextSupplier,
-                 SSTableWriterSupplier tableWriterSupplier)
+                 SSTableWriterFactory tableWriterFactory)
     {
         this.writerContext = writerContext;
         this.columnNames = columnNames;
         this.taskContextSupplier = taskContextSupplier;
-        this.tableWriterSupplier = tableWriterSupplier;
+        this.tableWriterFactory = tableWriterFactory;
         this.failureHandler = new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
-        this.digestProvider = this.writerContext.job().getDigestTypeOption().provider();
+        this.digestProvider = this.writerContext.job().getDigestTypeProvider().provider();
 
         writerContext.cluster().startupValidate();
     }
@@ -363,7 +363,7 @@ public class RecordWriter implements Serializable
             Path outDir = Paths.get(baseDir.toString(), Integer.toString(outputSequence++));
             Files.createDirectories(outDir);
 
-            sstableWriter = tableWriterSupplier.apply(writerContext, outDir, digestProvider);
+            sstableWriter = tableWriterFactory.create(writerContext, outDir, digestProvider);
             LOGGER.info("[{}] Created new SSTable writer", partitionId);
         }
     }
@@ -405,21 +405,21 @@ public class RecordWriter implements Serializable
     }
 
     /**
-     * Functional interface that helps with supplying {@link SSTableWriter} instances.
+     * Functional interface that helps with creating {@link SSTableWriter} instances.
      */
-    public interface SSTableWriterSupplier
+    public interface SSTableWriterFactory
     {
         /**
-         * Returns a new {@link SSTableWriter} with the provided {@code writerContext}, {@code outDir}, and
-         * {@code digestProvider}
+         * Creates a new instance of the {@link SSTableWriter} with the provided {@code writerContext},
+         * {@code outDir}, and {@code digestProvider} parameters.
          *
          * @param writerContext  the context for the bulk writer job
          * @param outDir         an output directory where SSTables components will be written to
          * @param digestProvider a digest provider to calculate digests for every SSTable component
          * @return a new {@link SSTableWriter}
          */
-        SSTableWriter apply(BulkWriterContext writerContext,
-                            Path outDir,
-                            DigestProvider digestProvider);
+        SSTableWriter create(BulkWriterContext writerContext,
+                             Path outDir,
+                             DigestProvider digestProvider);
     }
 }

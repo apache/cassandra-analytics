@@ -112,8 +112,8 @@ public class CassandraJobInfo implements JobInfo
 
     @NotNull
     @Override
-    public DigestTypeOption getDigestTypeOption()
+    public DigestTypeProvider getDigestTypeProvider()
     {
-        return conf.digestTypeOption;
+        return conf.digestTypeProvider;
     }
 }
