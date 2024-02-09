@@ -24,8 +24,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.vdurmont.semver4j.Semver;
 import org.apache.cassandra.distributed.UpgradeableCluster;
@@ -51,7 +49,6 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
  */
 class WriterDigestIntegrationTest extends SharedClusterSparkIntegrationTestBase
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(WriterDigestIntegrationTest.class);
     static final QualifiedName DEFAULT_DIGEST_TABLE = uniqueTestTableFullName("default_digest");
     static final QualifiedName MD5_DIGEST_TABLE = uniqueTestTableFullName("md5_digest");
     static final QualifiedName CORRUPT_SSTABLE_TABLE = uniqueTestTableFullName("corrupt_sstable");
@@ -81,7 +78,7 @@ class WriterDigestIntegrationTest extends SharedClusterSparkIntegrationTestBase
         assertThatIllegalArgumentException()
         .isThrownBy(() -> bulkWriterDataFrameWriter(df, DEFAULT_DIGEST_TABLE).option(WriterOptions.DIGEST_TYPE.name(), "invalid")
                                                                              .save())
-        .withMessageContaining("Key digest type with value invalid is not a valid Enum of type class org.apache.cassandra.spark.bulkwriter.DigestTypeOption");
+        .withMessageContaining("Key digest type with value invalid is not a valid Enum of type class org.apache.cassandra.spark.bulkwriter.DigestAlgorithms");
     }
 
     @Override
