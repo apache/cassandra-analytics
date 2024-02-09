@@ -57,7 +57,6 @@ import org.apache.cassandra.spark.bulkwriter.DecoratedKey;
 import org.apache.cassandra.spark.bulkwriter.Tokenizer;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
-import org.apache.cassandra.testing.CassandraDTestClassLoader;
 import org.apache.cassandra.testing.TestVersion;
 import scala.Tuple2;
 
@@ -92,13 +91,11 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
 
         TokenSupplier tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(nodesPerDc, newNodesPerDc, dcCount, 1);
 
-        ClassLoader sharedClassLoader = new CassandraDTestClassLoader(this.getClass().getClassLoader(), requestedVersion.classpath);
         UpgradeableCluster.Builder clusterBuilder =
         UpgradeableCluster.build(originalNodeCount)
                           .withDynamicPortAllocation(true) // to allow parallel test runs
                           .withVersion(requestedVersion)
                           .withDCs(dcCount)
-                          .withSharedClassLoader(sharedClassLoader)
                           .withDataDirCount(configuration.numDataDirsPerInstance)
                           .withConfig(config -> configuration.features.forEach(config::with))
                           .withTokenSupplier(tokenSupplier)
