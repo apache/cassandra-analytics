@@ -52,9 +52,9 @@ public class XXHash32DigestAlgorithm implements DigestAlgorithm
     {
         // might have shared hashers with ThreadLocal
         XXHashFactory factory = XXHashFactory.safeInstance();
-        try (InputStream inputStream = Files.newInputStream(path);
-             StreamingXXHash32 hasher = factory.newStreamingHash32(SEED))
+        try (InputStream inputStream = Files.newInputStream(path))
         {
+            StreamingXXHash32 hasher = factory.newStreamingHash32(SEED);
             int len;
             byte[] buffer = new byte[KIB_512];
             while ((len = inputStream.read(buffer)) != -1)
