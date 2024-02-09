@@ -42,7 +42,7 @@ import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.StreamScanner;
-import org.apache.cassandra.spark.utils.DigestProvider;
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings("WeakerAccess")
@@ -57,20 +57,20 @@ public class SSTableWriter
     private BigInteger minToken = null;
     private BigInteger maxToken = null;
     private final Map<Path, Digest> fileDigestMap = new HashMap<>();
-    private final DigestProvider digestProvider;
+    private final DigestAlgorithm digestAlgorithm;
 
     public SSTableWriter(org.apache.cassandra.bridge.SSTableWriter tableWriter, Path outDir,
-                         DigestProvider digestProvider)
+                         DigestAlgorithm digestAlgorithm)
     {
         cqlSSTableWriter = tableWriter;
         this.outDir = outDir;
-        this.digestProvider = digestProvider;
+        this.digestAlgorithm = digestAlgorithm;
     }
 
-    public SSTableWriter(BulkWriterContext writerContext, Path outDir, DigestProvider digestProvider)
+    public SSTableWriter(BulkWriterContext writerContext, Path outDir, DigestAlgorithm digestAlgorithm)
     {
         this.outDir = outDir;
-        this.digestProvider = digestProvider;
+        this.digestAlgorithm = digestAlgorithm;
 
         String lowestCassandraVersion = writerContext.cluster().getLowestCassandraVersion();
         String packageVersion = getPackageVersion(lowestCassandraVersion);
@@ -156,7 +156,7 @@ public class SSTableWriter
         {
             for (Path path : filesToHash)
             {
-                Digest digest = digestProvider.calculateFileDigest(path);
+                Digest digest = digestAlgorithm.calculateFileDigest(path);
                 fileHashes.put(path, digest);
                 LOGGER.debug("Calculated digest={} for path={}", digest, path);
             }

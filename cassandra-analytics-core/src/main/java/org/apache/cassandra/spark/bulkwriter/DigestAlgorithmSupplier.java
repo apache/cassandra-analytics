@@ -19,15 +19,13 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import org.apache.cassandra.spark.utils.DigestProvider;
+import java.util.function.Supplier;
+
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
 
 /**
- * An interface that defines a {@link DigestProvider} for a concrete digest type
+ * An interface that defines a {@link DigestAlgorithm} for a concrete digest type
  */
-public interface DigestTypeProvider
+public interface DigestAlgorithmSupplier extends Supplier<DigestAlgorithm>
 {
-    /**
-     * @return the provider for the configured digest type
-     */
-    DigestProvider provider();
 }

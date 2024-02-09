@@ -33,8 +33,6 @@ import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.request.ImportSSTableRequest;
 import org.apache.cassandra.sidecar.common.data.SSTableImportResponse;
 import org.apache.cassandra.spark.common.Digest;
-import org.apache.cassandra.spark.common.MD5Digest;
-import org.apache.cassandra.spark.common.XXHash32Digest;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 
@@ -81,7 +79,7 @@ public class SidecarDataTransferApi implements DataTransferApi
                                                maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.table),
                                                uploadId,
                                                componentName,
-                                               toSidecarDigest(digest),
+                                               digest.toSidecarDigest(),
                                                componentFile.toAbsolutePath().toString())
                          .get();
         }
@@ -164,20 +162,5 @@ public class SidecarDataTransferApi implements DataTransferApi
     protected SidecarInstanceImpl toSidecarInstance(CassandraInstance instance)
     {
         return new SidecarInstanceImpl(instance.nodeName(), sidecarPort);
-    }
-
-    protected org.apache.cassandra.sidecar.common.data.Digest toSidecarDigest(Digest digest)
-    {
-        if (digest instanceof XXHash32Digest)
-        {
-            XXHash32Digest xxHash32Digest = (XXHash32Digest) digest;
-            return new org.apache.cassandra.sidecar.common.data.XXHash32Digest(xxHash32Digest.value(),
-                                                                               xxHash32Digest.seedHex());
-        }
-        else if (digest instanceof MD5Digest)
-        {
-            return new org.apache.cassandra.sidecar.common.data.MD5Digest(digest.value());
-        }
-        throw new UnsupportedOperationException("Unsupported digest in Sidecar");
     }
 }

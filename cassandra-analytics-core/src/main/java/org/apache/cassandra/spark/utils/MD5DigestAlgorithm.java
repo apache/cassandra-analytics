@@ -20,14 +20,21 @@
 package org.apache.cassandra.spark.utils;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.util.Base64;
+
+import org.apache.commons.codec.digest.DigestUtils;
 
 import org.apache.cassandra.spark.common.Digest;
+import org.apache.cassandra.spark.common.MD5Digest;
 
 /**
- * Interface that provides a {@link Digest}
+ * A {@link DigestAlgorithm} implementation that computes MD5 digests
  */
-public interface DigestProvider
+public class MD5DigestAlgorithm implements DigestAlgorithm
 {
     /**
      * Calculates the {@link Digest} for the given file in the {@code path}.
@@ -36,5 +43,13 @@ public interface DigestProvider
      * @return the calculated digest for the given {@code path}
      * @throws IOException when an error occurs while reading the file or calculating the digest
      */
-    Digest calculateFileDigest(Path path) throws IOException;
+    @Override
+    public Digest calculateFileDigest(Path path) throws IOException
+    {
+        try (InputStream is = Files.newInputStream(path))
+        {
+            MessageDigest computedMd5 = DigestUtils.updateDigest(DigestUtils.getMd5Digest(), is);
+            return new MD5Digest(Base64.getEncoder().encodeToString(computedMd5.digest()));
+        }
+    }
 }

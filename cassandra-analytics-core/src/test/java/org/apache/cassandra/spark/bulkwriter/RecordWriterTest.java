@@ -47,8 +47,8 @@ import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.utils.DigestProvider;
-import org.apache.cassandra.spark.utils.XXHash32DigestProvider;
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
+import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
@@ -95,12 +95,12 @@ public class RecordWriterTest
     private Range<BigInteger> range;
     private MockBulkWriterContext writerContext;
     private TestTaskContext tc;
-    private DigestProvider digestProvider;
+    private DigestAlgorithm digestAlgorithm;
 
     @BeforeEach
     public void setUp()
     {
-        digestProvider = new XXHash32DigestProvider();
+        digestAlgorithm = new XXHash32DigestAlgorithm();
         tw = new MockTableWriter(folder.getRoot());
         tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(100000, ImmutableMap.of("DC1", 3), 12);
         writerContext = new MockBulkWriterContext(tokenRangeMapping);
@@ -388,7 +388,7 @@ public class RecordWriterTest
     @Test
     public void testCorruptSSTable()
     {
-        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path, dp) -> new SSTableWriter(tw.setOutDir(path), path, digestProvider));
+        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path, dp) -> new SSTableWriter(tw.setOutDir(path), path, digestAlgorithm));
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         // TODO: Add better error handling with human-readable exception messages in SSTableReader::new
         // That way we can assert on the exception thrown here
@@ -398,7 +398,7 @@ public class RecordWriterTest
     @Test
     public void testWriteWithOutOfRangeTokenFails()
     {
-        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path, dp) -> new SSTableWriter(tw, folder, digestProvider));
+        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path, dp) -> new SSTableWriter(tw, folder, digestAlgorithm));
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, Range.all(), false, false, false);
         RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
         String expectedErr = "java.lang.IllegalStateException: Received Token " +
@@ -409,7 +409,7 @@ public class RecordWriterTest
     @Test
     public void testAddRowThrowingFails()
     {
-        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path, dp) -> new SSTableWriter(tw, folder, digestProvider));
+        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path, dp) -> new SSTableWriter(tw, folder, digestAlgorithm));
         tw.setAddRowThrows(true);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
@@ -421,7 +421,7 @@ public class RecordWriterTest
     {
         // Mock context returns a 60-minute allowable time skew, so we use something just outside the limits
         long sixtyOneMinutesInMillis = TimeUnit.MINUTES.toMillis(61);
-        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path, dp) -> new SSTableWriter(tw, folder, digestProvider));
+        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, (wc, path, dp) -> new SSTableWriter(tw, folder, digestAlgorithm));
         writerContext.setTimeProvider(() -> System.currentTimeMillis() - sixtyOneMinutesInMillis);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));

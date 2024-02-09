@@ -50,6 +50,15 @@ public class MD5Digest implements Digest
         return value;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public org.apache.cassandra.sidecar.common.data.Digest toSidecarDigest()
+    {
+        return new org.apache.cassandra.sidecar.common.data.MD5Digest(value);
+    }
+
     @Override
     public String toString()
     {

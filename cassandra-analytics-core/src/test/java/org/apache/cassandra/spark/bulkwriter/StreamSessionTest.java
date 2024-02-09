@@ -40,8 +40,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
-import org.apache.cassandra.spark.utils.DigestProvider;
-import org.apache.cassandra.spark.utils.XXHash32DigestProvider;
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
+import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 import org.jetbrains.annotations.NotNull;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -71,12 +71,12 @@ public class StreamSessionTest
     private MockScheduledExecutorService executor;
     private MockTableWriter tableWriter;
     private Range<BigInteger> range;
-    private DigestProvider digestProvider;
+    private DigestAlgorithm digestAlgorithm;
 
     @BeforeEach
     public void setup()
     {
-        digestProvider = new XXHash32DigestProvider();
+        digestAlgorithm = new XXHash32DigestAlgorithm();
         range = Range.range(BigInteger.valueOf(101L), BoundType.CLOSED, BigInteger.valueOf(199L), BoundType.CLOSED);
         tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), 12);
         writerContext = getBulkWriterContext();
@@ -98,7 +98,7 @@ public class StreamSessionTest
     @Test
     public void testScheduleStreamSendsCorrectFilesToCorrectInstances() throws IOException, ExecutionException, InterruptedException
     {
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestProvider);
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestAlgorithm);
         tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);
@@ -113,7 +113,7 @@ public class StreamSessionTest
     @Test
     public void testMismatchedTokenRangeFails() throws IOException
     {
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestProvider);
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestAlgorithm);
         tr.addRow(BigInteger.valueOf(9999L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         IllegalStateException illegalStateException = assertThrows(IllegalStateException.class,
@@ -162,7 +162,7 @@ public class StreamSessionTest
     public void testOutDirCreationFailureCleansAllReplicas()
     {
         assertThrows(RuntimeException.class, () -> {
-            SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, tableWriter.getOutDir(), digestProvider);
+            SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, tableWriter.getOutDir(), digestAlgorithm);
             tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
             tr.close(writerContext, 1);
             tableWriter.removeOutDir();
@@ -212,7 +212,7 @@ public class StreamSessionTest
                 return new DataTransferApi.RemoteCommitResult(true, null, uuids, "");
             }
         });
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestProvider);
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestAlgorithm);
         tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);
@@ -240,7 +240,7 @@ public class StreamSessionTest
             }
         });
 
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestProvider);
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestAlgorithm);
         tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);
@@ -256,7 +256,7 @@ public class StreamSessionTest
     private void runFailedUpload() throws IOException, ExecutionException, InterruptedException
     {
         writerContext.setUploadSupplier(instance -> false);
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestProvider);
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestAlgorithm);
         tr.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         tr.close(writerContext, 1);
         ss.scheduleStream(tr);

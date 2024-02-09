@@ -45,8 +45,8 @@ import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
-import org.apache.cassandra.spark.utils.DigestProvider;
-import org.apache.cassandra.spark.utils.XXHash32DigestProvider;
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
+import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -71,7 +71,7 @@ public class StreamSessionConsistencyTest
     private StreamSession streamSession;
     private MockBulkWriterContext writerContext;
     private final MockScheduledExecutorService executor = new MockScheduledExecutorService();
-    private DigestProvider digestProvider;
+    private DigestAlgorithm digestAlgorithm;
 
     public static Collection<Object[]> data()
     {
@@ -84,7 +84,7 @@ public class StreamSessionConsistencyTest
 
     private void setup(ConsistencyLevel.CL consistencyLevel, List<Integer> failuresPerDc)
     {
-        digestProvider = new XXHash32DigestProvider();
+        digestAlgorithm = new XXHash32DigestAlgorithm();
         tableWriter = new MockTableWriter(folder);
         writerContext = new MockBulkWriterContext(TOKEN_RANGE_MAPPING, "cassandra-4.0.0", consistencyLevel);
         streamSession = new StreamSession(writerContext,
@@ -122,7 +122,7 @@ public class StreamSessionConsistencyTest
                 return new DataTransferApi.RemoteCommitResult(true, Collections.emptyList(), uuids, "");
             }
         });
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestProvider);
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestAlgorithm);
         tr.addRow(BigInteger.valueOf(102L), COLUMN_BIND_VALUES);
         tr.close(writerContext, 1);
         streamSession.scheduleStream(tr);
@@ -167,7 +167,7 @@ public class StreamSessionConsistencyTest
         ImmutableMap<String, AtomicInteger> dcFailures = ImmutableMap.of("DC1", dc1Failures, "DC2", dc2Failures);
         boolean shouldFail = calculateFailure(consistencyLevel, dc1Failures.get(), dc2Failures.get());
         writerContext.setUploadSupplier(instance -> dcFailures.get(instance.datacenter()).getAndDecrement() <= 0);
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestProvider);
+        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestAlgorithm);
         tr.addRow(BigInteger.valueOf(102L), COLUMN_BIND_VALUES);
         tr.close(writerContext, 1);
         streamSession.scheduleStream(tr);

@@ -28,4 +28,9 @@ public interface Digest
      * @return the string representation of the digest
      */
     String value();
+
+    /**
+     * @return the digest translated to Sidecar digest
+     */
+    org.apache.cassandra.sidecar.common.data.Digest toSidecarDigest();
 }

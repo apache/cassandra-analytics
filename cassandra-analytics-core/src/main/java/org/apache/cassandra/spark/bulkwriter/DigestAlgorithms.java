@@ -19,14 +19,14 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import org.apache.cassandra.spark.utils.DigestProvider;
-import org.apache.cassandra.spark.utils.MD5DigestProvider;
-import org.apache.cassandra.spark.utils.XXHash32DigestProvider;
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
+import org.apache.cassandra.spark.utils.MD5DigestAlgorithm;
+import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 
 /**
  * Represents the user-provided digest type configuration to be used to validate SSTable files during bulk writes
  */
-public enum DigestTypeOption implements DigestTypeProvider
+public enum DigestAlgorithms implements DigestAlgorithmSupplier
 {
     /**
      * Represents an MD5 digest type option. This option is supported for legacy reasons, but its use
@@ -35,9 +35,9 @@ public enum DigestTypeOption implements DigestTypeProvider
     MD5
     {
         @Override
-        public DigestProvider provider()
+        public DigestAlgorithm get()
         {
-            return new MD5DigestProvider();
+            return new MD5DigestAlgorithm();
         }
     },
 
@@ -47,9 +47,9 @@ public enum DigestTypeOption implements DigestTypeProvider
     XXHASH32
     {
         @Override
-        public DigestProvider provider()
+        public DigestAlgorithm get()
         {
-            return new XXHash32DigestProvider();
+            return new XXHash32DigestAlgorithm();
         }
     };
 }

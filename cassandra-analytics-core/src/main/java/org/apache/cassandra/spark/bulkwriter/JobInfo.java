@@ -65,5 +65,5 @@ public interface JobInfo extends Serializable
      * @return the digest type provider for the bulk job, and used to calculate digests for SSTable components
      */
     @NotNull
-    DigestTypeProvider getDigestTypeProvider();
+    DigestAlgorithmSupplier digestAlgorithmSupplier();
 }

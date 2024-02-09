@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.sidecar.common.data.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.utils.DigestProvider;
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.TaskContext;
 import scala.Tuple2;
@@ -66,7 +66,7 @@ public class RecordWriter implements Serializable
     private final BulkWriterContext writerContext;
     private final String[] columnNames;
     private final SSTableWriterFactory tableWriterFactory;
-    private final DigestProvider digestProvider;
+    private final DigestAlgorithm digestAlgorithm;
 
     private final BulkWriteValidator writeValidator;
     private final ReplicaAwareFailureHandler<RingInstance> failureHandler;
@@ -92,7 +92,7 @@ public class RecordWriter implements Serializable
         this.tableWriterFactory = tableWriterFactory;
         this.failureHandler = new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
-        this.digestProvider = this.writerContext.job().getDigestTypeProvider().provider();
+        this.digestAlgorithm = this.writerContext.job().digestAlgorithmSupplier().get();
 
         writerContext.cluster().startupValidate();
     }
@@ -363,7 +363,7 @@ public class RecordWriter implements Serializable
             Path outDir = Paths.get(baseDir.toString(), Integer.toString(outputSequence++));
             Files.createDirectories(outDir);
 
-            sstableWriter = tableWriterFactory.create(writerContext, outDir, digestProvider);
+            sstableWriter = tableWriterFactory.create(writerContext, outDir, digestAlgorithm);
             LOGGER.info("[{}] Created new SSTable writer", partitionId);
         }
     }
@@ -415,11 +415,11 @@ public class RecordWriter implements Serializable
          *
          * @param writerContext  the context for the bulk writer job
          * @param outDir         an output directory where SSTables components will be written to
-         * @param digestProvider a digest provider to calculate digests for every SSTable component
+         * @param digestAlgorithm a digest provider to calculate digests for every SSTable component
          * @return a new {@link SSTableWriter}
          */
         SSTableWriter create(BulkWriterContext writerContext,
                              Path outDir,
-                             DigestProvider digestProvider);
+                             DigestAlgorithm digestAlgorithm);
     }
 }

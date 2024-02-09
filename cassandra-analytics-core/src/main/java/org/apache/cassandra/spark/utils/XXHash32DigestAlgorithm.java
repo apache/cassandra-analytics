@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.concurrent.ThreadLocalRandom;
 
 import net.jpountz.xxhash.StreamingXXHash32;
 import net.jpountz.xxhash.XXHashFactory;
@@ -31,35 +30,15 @@ import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.XXHash32Digest;
 
 /**
- * A digest provider implementation that computes XXHash32 digests
+ * A {@link DigestAlgorithm} implementation that computes XXHash32 digests
  */
-public class XXHash32DigestProvider implements DigestProvider
+public class XXHash32DigestAlgorithm implements DigestAlgorithm
 {
     private static final int KIB_512 = 512 * 1024;
     /**
-     * A seed used to calculate the XXHash32 digest. We use the same seed in the JVM, so this variable is instantiated
-     * once.
+     * A seed used to calculate the XXHash32 digest
      */
-    private static final int SEED = ThreadLocalRandom.current().nextInt();
-    private final int seed;
-
-    /**
-     * Constructs a new instance of the {@link XXHash32DigestProvider}
-     */
-    public XXHash32DigestProvider()
-    {
-        this(SEED);
-    }
-
-    /**
-     * Constructs a new instance of the {@link XXHash32DigestProvider} with the provided {@code seed}.
-     *
-     * @param seed the seed to use while computing the digest
-     */
-    public XXHash32DigestProvider(int seed)
-    {
-        this.seed = seed;
-    }
+    private static final int SEED = 0;
 
     /**
      * Calculates the {@link org.apache.cassandra.spark.common.XXHash32Digest} for the given file in the {@code path}.
@@ -71,19 +50,18 @@ public class XXHash32DigestProvider implements DigestProvider
     @Override
     public Digest calculateFileDigest(Path path) throws IOException
     {
-        try (InputStream inputStream = Files.newInputStream(path))
+        // might have shared hashers with ThreadLocal
+        XXHashFactory factory = XXHashFactory.safeInstance();
+        try (InputStream inputStream = Files.newInputStream(path);
+             StreamingXXHash32 hasher = factory.newStreamingHash32(SEED))
         {
-            // might have shared hashers with ThreadLocal
-            XXHashFactory factory = XXHashFactory.safeInstance();
-
-            StreamingXXHash32 hasher = factory.newStreamingHash32(seed);
             int len;
             byte[] buffer = new byte[KIB_512];
             while ((len = inputStream.read(buffer)) != -1)
             {
                 hasher.update(buffer, 0, len);
             }
-            return new XXHash32Digest(Long.toHexString(hasher.getValue()), seed);
+            return new XXHash32Digest(Long.toHexString(hasher.getValue()), SEED);
         }
     }
 }

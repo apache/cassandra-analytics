@@ -21,14 +21,14 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.nio.file.Path;
 
-import org.apache.cassandra.spark.utils.DigestProvider;
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.jetbrains.annotations.NotNull;
 
 class NonValidatingTestSSTableWriter extends SSTableWriter
 {
-    NonValidatingTestSSTableWriter(MockTableWriter tableWriter, Path path, DigestProvider digestProvider)
+    NonValidatingTestSSTableWriter(MockTableWriter tableWriter, Path path, DigestAlgorithm digestAlgorithm)
     {
-        super(tableWriter, path, digestProvider);
+        super(tableWriter, path, digestAlgorithm);
     }
 
     @Override

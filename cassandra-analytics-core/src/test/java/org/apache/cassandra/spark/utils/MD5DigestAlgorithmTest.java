@@ -27,15 +27,15 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import org.apache.cassandra.spark.common.Digest;
-import org.apache.cassandra.spark.common.XXHash32Digest;
+import org.apache.cassandra.spark.common.MD5Digest;
 
 import static org.apache.cassandra.spark.utils.ResourceUtils.writeResourceToPath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for {@link XXHash32DigestProvider}
+ * Unit tests for {@link MD5DigestAlgorithm}
  */
-class XXHash32DigestProviderTest
+class MD5DigestAlgorithmTest
 {
     @TempDir
     private Path tempPath;
@@ -44,28 +44,25 @@ class XXHash32DigestProviderTest
     // $ base64 -i /dev/urandom | head -c 1048576 > file1.txt
     // $ base64 -i /dev/urandom | head -c 524288 > file2.txt
     // $ base64 -i /dev/urandom | head -c 131072 > file3.txt
-    // To calculate xxhash I installed xxhash (brew install xxhash):
-    // $ xxh32sum file1.txt # -> d76a44a5
-    // $ xxh32sum file2.txt # -> ef976cbe
-    // $ xxh32sum file3.txt # -> 08321e1e
+    // To calculate MD5 I used:
+    // $ cat file1.txt | openssl dgst -md5 -binary | openssl enc -base64 # -> VqSURYiCXjZIgP+CO9IkLQ==
+    // $ cat file2.txt | openssl dgst -md5 -binary | openssl enc -base64 # -> vFoVTqVngw7JRj8yJfk3UA==
+    // $ cat file3.txt | openssl dgst -md5 -binary | openssl enc -base64 # -> RXASCHthSSrMt7YOKJ6ODQ==
 
     @ParameterizedTest(name = "{index} fileName={0} expectedMd5={1}")
     @CsvSource({
-    "file1.txt,ffffffffd76a44a5",
-    "file2.txt,ffffffffef976cbe",
-    "file3.txt,8321e1e",
+    "file1.txt,VqSURYiCXjZIgP+CO9IkLQ==",
+    "file2.txt,vFoVTqVngw7JRj8yJfk3UA==",
+    "file3.txt,RXASCHthSSrMt7YOKJ6ODQ==",
     })
-    void testXXHash32Provider(String fileName, String expectedXXHash32) throws IOException
+    void testMD5Provider(String fileName, String expectedMd5) throws IOException
     {
-        ClassLoader classLoader = MD5DigestProviderTest.class.getClassLoader();
+        ClassLoader classLoader = MD5DigestAlgorithmTest.class.getClassLoader();
         Path path = writeResourceToPath(classLoader, tempPath, "digest/" + fileName);
         assertThat(path).exists();
 
-        Digest digest = new XXHash32DigestProvider(0).calculateFileDigest(path);
-        assertThat(digest).isInstanceOf(XXHash32Digest.class);
-
-        XXHash32Digest xxHash32Digest = (XXHash32Digest) digest;
-        assertThat(xxHash32Digest.value()).isEqualTo(expectedXXHash32);
-        assertThat(xxHash32Digest.seedHex()).isEqualTo("0");
+        Digest digest = new MD5DigestAlgorithm().calculateFileDigest(path);
+        assertThat(digest).isInstanceOf(MD5Digest.class);
+        assertThat(digest.value()).isEqualTo(expectedMd5);
     }
 }

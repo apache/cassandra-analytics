@@ -39,7 +39,7 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.utils.XXHash32DigestProvider;
+import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -86,7 +86,7 @@ public class SSTableWriterTest
     public void canCreateWriterForVersion(String version) throws IOException
     {
         MockBulkWriterContext writerContext = new MockBulkWriterContext(tokenRangeMapping, version, ConsistencyLevel.CL.LOCAL_QUORUM);
-        SSTableWriter tw = new SSTableWriter(writerContext, tmpDir, new XXHash32DigestProvider());
+        SSTableWriter tw = new SSTableWriter(writerContext, tmpDir, new XXHash32DigestAlgorithm());
         tw.addRow(BigInteger.ONE, ImmutableMap.of("id", 1, "date", 1, "course", "foo", "marks", 1));
         tw.close(writerContext, 1);
         try (DirectoryStream<Path> dataFileStream = Files.newDirectoryStream(tw.getOutDir(), "*Data.db"))
