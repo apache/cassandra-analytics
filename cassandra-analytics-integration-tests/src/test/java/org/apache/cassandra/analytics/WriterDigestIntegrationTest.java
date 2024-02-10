@@ -60,7 +60,7 @@ class WriterDigestIntegrationTest extends SharedClusterSparkIntegrationTestBase
     void testDefaultDigest()
     {
         bulkWriterDataFrameWriter(df, DEFAULT_DIGEST_TABLE).save();
-        validateWrites(cluster, DEFAULT_DIGEST_TABLE, df);
+        validateWrites(df.collectAsList(), queryAllData(DEFAULT_DIGEST_TABLE));
     }
 
     @Test
@@ -69,7 +69,7 @@ class WriterDigestIntegrationTest extends SharedClusterSparkIntegrationTestBase
         SparkSession spark = getOrCreateSparkSession();
         Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
         bulkWriterDataFrameWriter(df, MD5_DIGEST_TABLE).option(WriterOptions.DIGEST_TYPE.name(), "MD5").save();
-        validateWrites(cluster, DEFAULT_DIGEST_TABLE, df);
+        validateWrites(df.collectAsList(), queryAllData(MD5_DIGEST_TABLE));
     }
 
     @Test

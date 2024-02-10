@@ -53,6 +53,7 @@ import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import org.apache.cassandra.distributed.UpgradeableCluster;
+import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
 import org.apache.cassandra.distributed.impl.AbstractCluster;
@@ -320,6 +321,29 @@ public abstract class SharedClusterIntegrationTestBase
                  .stream()
                  .map(entry -> String.format("'%s':%d", entry.getKey(), entry.getValue()))
                  .collect(Collectors.joining(","));
+    }
+
+    /**
+     * Convenience method to query all data from the provided {@code table} at consistency level {@code LOCAL_QUORUM}.
+     *
+     * @param table the qualified Cassandra table name
+     * @return all the data queried from the table
+     */
+    protected Object[][] queryAllData(QualifiedName table)
+    {
+        return queryAllData(table, ConsistencyLevel.LOCAL_QUORUM);
+    }
+
+    /**
+     * Convenience method to query all data from the provided {@code table} at the specified consistency level.
+     *
+     * @param table            the qualified Cassandra table name
+     * @param consistencyLevel the consistency level to use for querying the data
+     * @return all the data queried from the table
+     */
+    protected Object[][] queryAllData(QualifiedName table, ConsistencyLevel consistencyLevel)
+    {
+        return cluster.coordinator(1).execute(String.format("SELECT * FROM %s;", table), consistencyLevel);
     }
 
     static class IntegrationTestModule extends AbstractModule
