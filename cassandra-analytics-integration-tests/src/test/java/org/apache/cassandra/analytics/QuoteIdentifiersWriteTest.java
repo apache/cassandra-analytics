@@ -41,6 +41,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
+import static org.apache.cassandra.analytics.DataGenerationUtils.generateCourseData;
 import static org.apache.cassandra.analytics.SparkTestUtils.validateWrites;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
@@ -60,31 +61,25 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
                   uniqueTestTableFullName("keyspace"), // keyspace is a reserved word
                   uniqueTestTableFullName(TEST_KEYSPACE, "QuOtEd_TaBlE"),
                   new QualifiedName(TEST_KEYSPACE, "table"));  // table is a reserved word
-    Dataset<Row> df;
 
     @ParameterizedTest(name = "{index} => table={0}")
     @MethodSource("testInputs")
     void testQuoteIdentifiersBulkWrite(QualifiedName tableName)
     {
+        SparkSession spark = getOrCreateSparkSession();
+        // Generates course data from and renames the dataframe columns to use case-sensitive and reserved
+        // words in the dataframe
+        Dataset<Row> df = generateCourseData(spark, ROW_COUNT).toDF("IdEnTiFiEr", // case-sensitive struct
+                                                                    "course",
+                                                                    "limit"); // limit is a reserved word in Cassandra
         bulkWriterDataFrameWriter(df, tableName).option(WriterOptions.QUOTE_IDENTIFIERS.name(), "true")
                                                 .save();
-        validateWrites(cluster, tableName, df);
+        validateWrites(df.collectAsList(), queryAllData(tableName));
     }
 
     static Stream<Arguments> testInputs()
     {
         return TABLE_NAMES.stream().map(Arguments::of);
-    }
-
-    @Override
-    protected void beforeTestStart()
-    {
-        SparkSession spark = getOrCreateSparkSession();
-        // Generates course data from and renames the dataframe columns to use case-sensitive and reserved
-        // words in the dataframe
-        df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT).toDF("IdEnTiFiEr", // case-sensitive struct
-                                                                           "course",
-                                                                           "limit"); // limit is a reserved word in Cassandra
     }
 
     @Override
