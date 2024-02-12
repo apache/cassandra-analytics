@@ -60,5 +60,5 @@ public enum WriterOptions implements WriterOption
      * Option that specifies the type of digest to compute when uploading SSTables for checksum validation.
      * If unspecified, it defaults to {@code XXHash32} digests. The legacy {@code MD5} digest is also supported.
      */
-    DIGEST_TYPE,
+    DIGEST,
 }

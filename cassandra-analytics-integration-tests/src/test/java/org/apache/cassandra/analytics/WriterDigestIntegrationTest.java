@@ -68,7 +68,7 @@ class WriterDigestIntegrationTest extends SharedClusterSparkIntegrationTestBase
     {
         SparkSession spark = getOrCreateSparkSession();
         Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
-        bulkWriterDataFrameWriter(df, MD5_DIGEST_TABLE).option(WriterOptions.DIGEST_TYPE.name(), "MD5").save();
+        bulkWriterDataFrameWriter(df, MD5_DIGEST_TABLE).option(WriterOptions.DIGEST.name(), "MD5").save();
         validateWrites(df.collectAsList(), queryAllData(MD5_DIGEST_TABLE));
     }
 
@@ -76,7 +76,7 @@ class WriterDigestIntegrationTest extends SharedClusterSparkIntegrationTestBase
     void failsOnInvalidDigestOption()
     {
         assertThatIllegalArgumentException()
-        .isThrownBy(() -> bulkWriterDataFrameWriter(df, DEFAULT_DIGEST_TABLE).option(WriterOptions.DIGEST_TYPE.name(), "invalid")
+        .isThrownBy(() -> bulkWriterDataFrameWriter(df, DEFAULT_DIGEST_TABLE).option(WriterOptions.DIGEST.name(), "invalid")
                                                                              .save())
         .withMessageContaining("Key digest type with value invalid is not a valid Enum of type class org.apache.cassandra.spark.bulkwriter.DigestAlgorithms");
     }

@@ -179,7 +179,7 @@ public class BulkSparkConf implements Serializable
     @NotNull
     protected DigestAlgorithmSupplier digestAlgorithmSupplierFromOptions(Map<String, String> options)
     {
-        return MapUtils.getEnumOption(options, WriterOptions.DIGEST_TYPE.name(), DigestAlgorithms.XXHASH32, "digest type");
+        return MapUtils.getEnumOption(options, WriterOptions.DIGEST.name(), DigestAlgorithms.XXHASH32, "digest type");
     }
 
     protected Set<String> buildBlockedInstances(Map<String, String> options)

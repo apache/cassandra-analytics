@@ -65,6 +65,7 @@ class HostReplacementMultiDCTest extends HostReplacementTestBase
     {
         QualifiedName table = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
         bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
+                                            .option(WriterOptions.DIGEST.name(), "MD5")
                                             .save();
     }
 
