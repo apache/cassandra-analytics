@@ -61,7 +61,6 @@ class HostReplacementMultiDCFailureTest extends HostReplacementTestBase
     void nodeReplacementFailureMultiDC()
     {
         bulkWriterDataFrameWriter(df, QUALIFIED_NAME).option(WriterOptions.BULK_WRITER_CL.name(), LOCAL_QUORUM.name())
-                                                     .option(WriterOptions.DIGEST.name(), "MD5")
                                                      .save();
     }
 

@@ -65,7 +65,6 @@ class HostReplacementMultiDCInsufficientReplicasTest extends HostReplacementTest
         Throwable thrown = catchThrowable(() ->
                                           bulkWriterDataFrameWriter(df, QUALIFIED_NAME)
                                           .option(WriterOptions.BULK_WRITER_CL.name(), EACH_QUORUM.name())
-                                          .option(WriterOptions.DIGEST.name(), "MD5")
                                           .save());
 
         assertThat(thrown).isInstanceOf(RuntimeException.class)
