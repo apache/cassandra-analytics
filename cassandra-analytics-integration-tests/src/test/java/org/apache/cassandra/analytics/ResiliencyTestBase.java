@@ -51,6 +51,7 @@ import org.apache.cassandra.distributed.api.SimpleQueryResult;
 import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.impl.AbstractCluster;
 import org.apache.cassandra.distributed.shared.Versions;
+import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.DecoratedKey;
 import org.apache.cassandra.spark.bulkwriter.Tokenizer;
@@ -97,7 +98,8 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
                           .withDCs(dcCount)
                           .withDataDirCount(configuration.numDataDirsPerInstance)
                           .withConfig(config -> configuration.features.forEach(config::with))
-                          .withTokenSupplier(tokenSupplier);
+                          .withTokenSupplier(tokenSupplier)
+                          .withSharedClasses(JvmDTestSharedClassesPredicate.INSTANCE);
 
         if (dcCount > 1)
         {

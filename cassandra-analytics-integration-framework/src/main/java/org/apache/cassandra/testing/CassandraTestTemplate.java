@@ -43,6 +43,7 @@ import org.apache.cassandra.distributed.api.IUpgradeableInstance;
 import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.shared.ClusterUtils;
 import org.apache.cassandra.distributed.shared.Versions;
+import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
 
 import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
@@ -175,6 +176,7 @@ public class CassandraTestTemplate implements TestTemplateInvocationContextProvi
                                   .withVersion(requestedVersion)
                                   .withDCs(dcCount)
                                   .withDataDirCount(annotation.numDataDirsPerInstance())
+                                  .withSharedClasses(JvmDTestSharedClassesPredicate.INSTANCE)
                                   .withConfig(config -> annotationToFeatureList(annotation).forEach(config::with));
                 TokenSupplier tokenSupplier = TokenSupplier.evenlyDistributedTokens(finalNodeCount,
                                                                                     clusterBuilder.getTokenCount());

@@ -32,6 +32,7 @@ import org.apache.cassandra.distributed.api.SimpleQueryResult;
 import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.shared.Uninterruptibles;
 import org.apache.cassandra.distributed.shared.Versions;
+import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.TTLOption;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
@@ -108,6 +109,7 @@ class BulkWriteTtlTest extends SharedClusterSparkIntegrationTestBase
                           .withVersion(requestedVersion)
                           .withDCs(1)
                           .withDataDirCount(1)
+                          .withSharedClasses(JvmDTestSharedClassesPredicate.INSTANCE)
                           .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
                                                       .with(Feature.GOSSIP)
                                                       .with(Feature.JMX));

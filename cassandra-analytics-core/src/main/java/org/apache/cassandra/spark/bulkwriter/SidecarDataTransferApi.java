@@ -31,6 +31,7 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.request.ImportSSTableRequest;
+import org.apache.cassandra.sidecar.common.data.MD5Digest;
 import org.apache.cassandra.sidecar.common.data.SSTableImportResponse;
 import org.apache.cassandra.spark.common.MD5Hash;
 import org.apache.cassandra.spark.common.client.ClientException;
@@ -79,7 +80,7 @@ public class SidecarDataTransferApi implements DataTransferApi
                                                maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.table),
                                                uploadId,
                                                componentName,
-                                               fileHash.toString(),
+                                               new MD5Digest(fileHash.toString()),
                                                componentFile.toAbsolutePath().toString())
                          .get();
         }
