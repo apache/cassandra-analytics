@@ -96,10 +96,11 @@ commands:
             # NOTE: This assumes all actual tests suites end in "Test.java"
             # AND NO OTHER FILES do, so "BaseTest" classes were renamed to
             # "TestBase"
-            CLASSNAMES=$(circleci tests glob "**/*Test.java" \
-            | cut -c 1- | sed 's@/@.@g' \
-            | sed 's/.\{5\}$//' \
-            | circleci tests split --split-by=timings --timings-type=classname)
+            # CLASSNAMES=$(circleci tests glob "**/*Test.java" \
+            # | cut -c 1- | sed 's@/@.@g' \
+            # | sed 's/.\{5\}$//' \
+            # | circleci tests split --split-by=timings --timings-type=classname)
+            REPEAT_CLASSNAME="org.apache.cassandra.analytics.replacement.HostReplacementMultiDCTest"
             cd ../../../..
             # Format the arguments to "./gradlew test"
             # GRADLE_ARGS=$(echo $CLASSNAMES | awk '{for (i=1; i<=NF; i++) print "--tests",$i}')
@@ -107,8 +108,11 @@ commands:
             # collect up exit statuses for all of the test classes and exit with that result at the end.
             # If no gradle processes exit with non-zero status, it will still be 0
             EXIT_STATUS=0
-            for TEST_NAME in $CLASSNAMES; do
-                ./gradlew cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
+            for i in {1..100}; do
+                ./gradlew cassandra-analytics-integration-tests:test --tests $REPEAT_CLASSNAME --no-daemon || EXIT_STATUS=$?;
+                if [ "${EXIT_STATUS}" != "0" ]; then
+                    exit $EXIT_STATUS
+                fi
             done;
             exit $EXIT_STATUS
 

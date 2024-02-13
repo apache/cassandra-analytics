@@ -34,6 +34,7 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.sources.BaseRelation;
 import org.apache.spark.sql.sources.InsertableRelation;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.util.SizeEstimator;
 import org.jetbrains.annotations.NotNull;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
@@ -51,6 +52,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     public CassandraBulkSourceRelation(BulkWriterContext writerContext, SQLContext sqlContext)
     {
         this.writerContext = writerContext;
+//        SizeEstimator.estimate(writerContext);
         this.sqlContext = sqlContext;
         this.sparkContext = JavaSparkContext.fromSparkContext(sqlContext.sparkContext());
         this.broadcastContext = sparkContext.<BulkWriterContext>broadcast(writerContext);

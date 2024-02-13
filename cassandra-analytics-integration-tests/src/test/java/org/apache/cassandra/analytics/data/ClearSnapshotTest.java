@@ -40,6 +40,7 @@ import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.shared.Uninterruptibles;
 import org.apache.cassandra.distributed.shared.Versions;
 import org.apache.cassandra.distributed.shared.WithProperties;
+import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.testing.TestVersion;
 import org.apache.spark.sql.DataFrameReader;
@@ -138,6 +139,7 @@ class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
                           .withVersion(requestedVersion)
                           .withDataDirCount(1)
                           .withDCs(1)
+                          .withSharedClasses(JvmDTestSharedClassesPredicate.INSTANCE)
                           .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
                                                       .with(Feature.GOSSIP)
                                                       .with(Feature.JMX));
