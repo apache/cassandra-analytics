@@ -1,4 +1,5 @@
 1.0.0
+ * Update access of ClearSnapshotStrategy (CASSANDRA-19442)
  * Bulk reader fails to produce a row when regular column values are null (CASSANDRA-19411)
  * Use XXHash32 for digest calculation of SSTables (CASSANDRA-19369)
  * Startup Validation Failures when Checking Sidecar Connectivity (CASSANDRA-19377)
