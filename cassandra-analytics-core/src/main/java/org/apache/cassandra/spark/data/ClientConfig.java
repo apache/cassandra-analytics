@@ -147,36 +147,7 @@ public final class ClientConfig
                 return clearSnapshot ? ClearSnapshotStrategy.defaultStrategy() : new ClearSnapshotStrategy.NoOp();
             }
         }
-        if (clearSnapshotStrategyOption == null)
-        {
-            LOGGER.debug("No clearSnapshotStrategy is set. Using the default strategy");
-            return ClearSnapshotStrategy.defaultStrategy();
-        }
-        String[] strategyParts = clearSnapshotStrategyOption.split(" ", 2);
-        String strategyName;
-        String snapshotTTL = null;
-        if (strategyParts.length == 1)
-        {
-            strategyName = strategyParts[0].trim();
-        }
-        else if (strategyParts.length == 2)
-        {
-            strategyName = strategyParts[0].trim();
-            snapshotTTL = strategyParts[1].trim();
-            if (!Pattern.matches(SNAPSHOT_TTL_PATTERN, snapshotTTL))
-            {
-                String msg = "Incorrect value set for clearSnapshotStrategy, expected format is " +
-                             "{strategy [snapshotTTLvalue]}. TTL value specified must contain unit along. " +
-                             "For e.g. 2d represents a TTL for 2 days. Allowed units are d, h, m and s.";
-                throw new IllegalArgumentException(msg);
-            }
-        }
-        else
-        {
-            LOGGER.error("Invalid value for ClearSnapshotStrategy: '{}'", clearSnapshotStrategyOption);
-            throw new IllegalArgumentException("Invalid value: " + clearSnapshotStrategyOption);
-        }
-        return ClearSnapshotStrategy.create(strategyName, snapshotTTL);
+        return ClearSnapshotStrategy.parse(clearSnapshotStrategyOption);
     }
 
     public String sidecarInstances()
@@ -313,11 +284,81 @@ public final class ClientConfig
         return requestedFeatures;
     }
 
-    abstract static class ClearSnapshotStrategy
+    public abstract static class ClearSnapshotStrategy
     {
+        private static final Logger LOGGER = LoggerFactory.getLogger(ClearSnapshotStrategy.class);
         private final String snapshotTTL;
 
-        static ClearSnapshotStrategy create(String name, String snapshotTTL)
+        public ClearSnapshotStrategy(String snapshotTTL)
+        {
+            this.snapshotTTL = snapshotTTL;
+        }
+
+        public abstract boolean shouldClearOnCompletion();
+
+        protected void validateTTLPresence(boolean expectTTL)
+        {
+            if (expectTTL && !hasTTL())
+            {
+                throw new IllegalArgumentException("Incorrect value set for clearSnapshotStrategy, expected format " +
+                                                   "is {strategy [snapshotTTLvalue]}. TTL value specified must " +
+                                                   "contain unit along. For e.g. 2d represents a TTL for 2 days. " +
+                                                   "Allowed units are d, h, m and s.");
+            }
+        }
+
+        public boolean hasTTL()
+        {
+            return snapshotTTL != null && !snapshotTTL.isEmpty();
+        }
+
+        @Nullable
+        public String ttl()
+        {
+            return snapshotTTL;
+        }
+
+        @Override
+        public String toString()
+        {
+            return this.getClass().getSimpleName() + (hasTTL() ? ' ' + ttl() : "");
+        }
+
+        public static ClearSnapshotStrategy parse(String clearSnapshotStrategyOption)
+        {
+            if (clearSnapshotStrategyOption == null)
+            {
+                LOGGER.debug("No clearSnapshotStrategy is set. Using the default strategy");
+                return ClearSnapshotStrategy.defaultStrategy();
+            }
+            String[] strategyParts = clearSnapshotStrategyOption.split(" ", 2);
+            String strategyName;
+            String snapshotTTL = null;
+            if (strategyParts.length == 1)
+            {
+                strategyName = strategyParts[0].trim();
+            }
+            else if (strategyParts.length == 2)
+            {
+                strategyName = strategyParts[0].trim();
+                snapshotTTL = strategyParts[1].trim();
+                if (!Pattern.matches(SNAPSHOT_TTL_PATTERN, snapshotTTL))
+                {
+                    String msg = "Incorrect value set for clearSnapshotStrategy, expected format is " +
+                                 "{strategy [snapshotTTLvalue]}. TTL value specified must contain unit along. " +
+                                 "For e.g. 2d represents a TTL for 2 days. Allowed units are d, h, m and s.";
+                    throw new IllegalArgumentException(msg);
+                }
+            }
+            else
+            {
+                LOGGER.error("Invalid value for ClearSnapshotStrategy: '{}'", clearSnapshotStrategyOption);
+                throw new IllegalArgumentException("Invalid value: " + clearSnapshotStrategyOption);
+            }
+            return ClearSnapshotStrategy.create(strategyName, snapshotTTL);
+        }
+
+        public static ClearSnapshotStrategy create(String name, String snapshotTTL)
         {
             String stripped = name.trim();
             if (stripped.equalsIgnoreCase(OnCompletion.class.getSimpleName()))
@@ -353,94 +394,59 @@ public final class ClientConfig
             return new OnCompletionOrTTL(DEFAULT_SNAPSHOT_TTL_VALUE);
         }
 
-        abstract boolean shouldClearOnCompletion();
-
-        void validateTTLPresence(boolean expectTTL)
+        public static class OnCompletion extends ClearSnapshotStrategy
         {
-            if (expectTTL && !hasTTL())
-            {
-                throw new IllegalArgumentException("Incorrect value set for clearSnapshotStrategy, expected format " +
-                                                   "is {strategy [snapshotTTLvalue]}. TTL value specified must " +
-                                                   "contain unit along. For e.g. 2d represents a TTL for 2 days. " +
-                                                   "Allowed units are d, h, m and s.");
-            }
-        }
-
-        boolean hasTTL()
-        {
-            return snapshotTTL != null && !snapshotTTL.isEmpty();
-        }
-
-        @Nullable
-        String ttl()
-        {
-            return snapshotTTL;
-        }
-
-        @Override
-        public String toString()
-        {
-            return this.getClass().getSimpleName() + (hasTTL() ? ' ' + ttl() : "");
-        }
-
-        protected ClearSnapshotStrategy(String snapshotTTL)
-        {
-            this.snapshotTTL = snapshotTTL;
-        }
-
-        static class OnCompletion extends ClearSnapshotStrategy
-        {
-            protected OnCompletion()
+            public OnCompletion()
             {
                 super(null);
             }
 
             @Override
-            boolean shouldClearOnCompletion()
+            public boolean shouldClearOnCompletion()
             {
                 return true;
             }
         }
 
-        static class NoOp extends ClearSnapshotStrategy
+        public static class NoOp extends ClearSnapshotStrategy
         {
-            protected NoOp()
+            public NoOp()
             {
                 super(null);
             }
 
             @Override
-            boolean shouldClearOnCompletion()
+            public boolean shouldClearOnCompletion()
             {
                 return false;
             }
         }
 
-        static class OnCompletionOrTTL extends ClearSnapshotStrategy
+        public static class OnCompletionOrTTL extends ClearSnapshotStrategy
         {
-            protected OnCompletionOrTTL(@NotNull String snapshotTTL)
+            public OnCompletionOrTTL(@NotNull String snapshotTTL)
             {
                 super(snapshotTTL);
                 validateTTLPresence(true);
             }
 
             @Override
-            boolean shouldClearOnCompletion()
+            public boolean shouldClearOnCompletion()
             {
                 return true;
             }
         }
 
-        static class TTL extends ClearSnapshotStrategy
+        public static class TTL extends ClearSnapshotStrategy
         {
-            protected TTL(@NotNull String snapshotTTL)
+            public TTL(@NotNull String snapshotTTL)
             {
                 super(snapshotTTL);
                 validateTTLPresence(true);
             }
 
             @Override
-            boolean shouldClearOnCompletion()
+            public boolean shouldClearOnCompletion()
             {
                 return false;
             }
