@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -57,7 +56,6 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
     private final Stats stats;
     private final CqlTable cqlTable;
     private final Object[] values;
-    private final boolean noValueColumns;
     @Nullable
     protected final PruneColumnFilter columnFilter;
     private final long startTimeNanos;
@@ -74,6 +72,8 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
     private long previousTimeNanos;
 
     protected final int partitionId;
+    protected final int firstProjectedValueColumnPositionOrZero;
+    protected final boolean hasProjectedValueColumns;
 
     public SparkCellIterator(int partitionId,
                              @NotNull DataLayer dataLayer,
@@ -88,19 +88,16 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         if (columnFilter != null)
         {
             LOGGER.info("Adding prune column filter columns='{}'", String.join(",", columnFilter.requiredColumns()));
+        }
 
-            // If we are reading only partition/clustering keys or static columns, no value columns
-            Set<String> valueColumns = cqlTable.valueColumns().stream().map(CqlField::name).collect(Collectors.toSet());
-            noValueColumns = columnFilter.requiredColumns().stream().noneMatch(valueColumns::contains);
-        }
-        else
-        {
-            noValueColumns = cqlTable.numValueColumns() == 0;
-        }
+        hasProjectedValueColumns = cqlTable.numValueColumns() > 0 &&
+                                   cqlTable.valueColumns()
+                                           .stream()
+                                           .anyMatch(field -> columnFilter == null || columnFilter.requiredColumns().contains(field.name()));
 
         // The value array copies across all the partition/clustering/static columns
         // and the single column value for this cell to the SparkRowIterator
-        values = new Object[cqlTable.numNonValueColumns() + (noValueColumns ? 0 : 1)];
+        values = new Object[cqlTable.numNonValueColumns() + (hasProjectedValueColumns ? 1 : 0)];
 
         // Open compaction scanner
         startTimeNanos = System.nanoTime();
@@ -111,6 +108,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         stats.openedCompactionScanner(openTimeNanos);
         rid = scanner.rid();
         stats.openedSparkCellIterator();
+        firstProjectedValueColumnPositionOrZero = maybeGetPositionOfFirstProjectedValueColumnOrZero();
     }
 
     protected StreamScanner<Rid> openScanner(int partitionId,
@@ -130,9 +128,9 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
                : null;
     }
 
-    public boolean noValueColumns()
+    public boolean hasProjectedValueColumns()
     {
-        return noValueColumns;
+        return hasProjectedValueColumns;
     }
 
     @Override
@@ -196,10 +194,18 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
             String columnName = component != null ? ByteBufferUtils.stringThrowRuntime(component) : null;
             if (columnName == null || columnName.isEmpty())
             {
-                if (noValueColumns)
+                if (!hasProjectedValueColumns || !scanner.hasMoreColumns())
                 {
-                    // Special case where schema consists only of partition keys, clustering keys or static columns, no value columns
-                    next = new Cell(values, 0, newRow, rid.getTimestamp());
+                    if (hasProjectedValueColumns)
+                    {
+                        // null out the value of the cell for the case where we have projected value columns
+                        values[values.length - 1] = null;
+                    }
+                    // We use the position of a cell for a value column that is projected, or zero if no value
+                    // columns are projected. The column we find is irrelevant because if we fall under this
+                    // condition it means that we are in a situation where the row has only PK + CK, but no
+                    // regular columns.
+                    next = new Cell(values, firstProjectedValueColumnPositionOrZero, newRow, rid.getTimestamp());
                     return true;
                 }
 
@@ -358,5 +364,18 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         Object value = buffer == null ? null : field.deserialize(buffer);
         stats.fieldDeserialization(field, System.nanoTime() - now);
         return value;
+    }
+
+    private int maybeGetPositionOfFirstProjectedValueColumnOrZero()
+    {
+        // find the position of the first value column that is projected
+        for (CqlField valueColumn : cqlTable.valueColumns())
+        {
+            if (columnFilter == null || columnFilter.includeColumn(valueColumn.name()))
+            {
+                return valueColumn.position();
+            }
+        }
+        return 0;
     }
 }

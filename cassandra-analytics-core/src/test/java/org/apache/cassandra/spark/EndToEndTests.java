@@ -2524,4 +2524,117 @@ public class EndToEndTests
               .withColumns("Partition_Key_0", "Column_1") // PK is required for lookup of the inserted data
               .run();
     }
+
+    // null values in regular columns
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testSinglePartitionKeyWithNullValueColumn(CassandraBridge bridge)
+    {
+        Tester.builder(TestSchema.builder(bridge).withPartitionKey("a", bridge.bigint())
+                                 .withColumn("c", bridge.text()))
+              .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
+              .withNullRegularColumns()
+              .run();
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMultiplePartitionKeysWithNullValueColumn(CassandraBridge bridge)
+    {
+        Tester.builder(TestSchema.builder(bridge)
+                                 .withPartitionKey("a", bridge.bigint())
+                                 .withPartitionKey("b", bridge.text())
+                                 .withPartitionKey("d", bridge.aDouble())
+                                 .withColumn("c", bridge.text()))
+              .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
+              .withNullRegularColumns()
+              .run();
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testSinglePartitionAndClusteringKeyWithNullValueColumn(CassandraBridge bridge)
+    {
+        qt().forAll(TestUtils.cql3Type(bridge))
+            .checkAssert(clusteringKeyType ->
+                         Tester.builder(TestSchema.builder(bridge).withPartitionKey("a", bridge.bigint())
+                                                  .withClusteringKey("b", clusteringKeyType)
+                                                  .withColumn("c", bridge.text()))
+                               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
+                               .withNullRegularColumns()
+                               .run());
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testMultipleValueColumnsWithNullValueColumn(CassandraBridge bridge)
+    {
+        qt().forAll(TestUtils.cql3Type(bridge))
+            .checkAssert(clusteringKeyType ->
+                         Tester.builder(TestSchema.builder(bridge).withPartitionKey("a", bridge.bigint())
+                                                  .withClusteringKey("b", clusteringKeyType)
+                                                  .withColumn("c", bridge.text())
+                                                  .withColumn("d", bridge.aInt())
+                                                  .withColumn("e", bridge.ascii())
+                                                  .withColumn("f", bridge.blob()))
+                               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
+                               .withNullRegularColumns()
+                               .run());
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testExcludeSomeColumnsWithNullValueColumn(CassandraBridge bridge)
+    {
+        Tester.builder(TestSchema.builder(bridge).withPartitionKey("a", bridge.bigint())
+                                 .withClusteringKey("b", bridge.aInt())
+                                 .withColumn("c", bridge.text())
+                                 .withColumn("d", bridge.aInt())
+                                 .withColumn("e", bridge.ascii())
+                                 .withColumn("f", bridge.blob()))
+              .withColumns("a", "b", "d")
+              .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
+              .withNullRegularColumns()
+              .run();
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testStaticColumnWithNullValueColumn(CassandraBridge bridge)
+    {
+        Tester.builder(TestSchema.builder(bridge)
+                                 .withPartitionKey("a", bridge.uuid())
+                                 .withClusteringKey("b", bridge.bigint())
+                                 .withStaticColumn("c", bridge.aInt())
+                                 .withColumn("d", bridge.text()))
+              .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
+              .withNullRegularColumns()
+              .run();
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testNullValueColumnWithPushDownFilter(CassandraBridge bridge)
+    {
+        int numRows = 10;
+        Tester.builder(TestSchema.builder(bridge).withPartitionKey("a", bridge.aInt()).withColumn("b", bridge.aInt()))
+              .dontWriteRandomData()
+              .withSSTableWriter(writer -> {
+                  for (int i = 0; i < numRows; i++)
+                  {
+                      writer.write(i, null);
+                  }
+              })
+              .withFilter("a=1")
+              .withCheck((ds) -> {
+                  for (Row row : ds.collectAsList())
+                  {
+                      int a = row.getInt(0);
+                      assertEquals(1, a);
+                      assertNull(row.get(1));
+                  }
+              })
+              .run();
+    }
 }

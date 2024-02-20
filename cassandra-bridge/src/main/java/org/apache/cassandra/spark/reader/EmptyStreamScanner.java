@@ -41,6 +41,12 @@ public class EmptyStreamScanner implements StreamScanner<Rid>
     }
 
     @Override
+    public boolean hasMoreColumns()
+    {
+        return false;
+    }
+
+    @Override
     public void close()
     {
     }

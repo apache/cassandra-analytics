@@ -91,46 +91,30 @@ public final class Tester
     private final int delayBetweenSSTablesInSecs;
     private final String statsClass;
     private final boolean upsert;
+    private final boolean nullifyValueColumn;
 
-    // CHECKSTYLE IGNORE: Constructor with many parameters
-    private Tester(@NotNull List<CassandraVersion> versions,
-                   @Nullable TestSchema.Builder schemaBuilder,
-                   @Nullable Function<String, TestSchema.Builder> schemaBuilderFunc,
-                   @NotNull List<Integer> numSSTables,
-                   @NotNull List<Consumer<TestSchema.TestRow>> writeListeners,
-                   @NotNull List<Consumer<TestSchema.TestRow>> readListeners,
-                   @NotNull List<Writer> writers,
-                   @NotNull List<Consumer<Dataset<Row>>> checks,
-                   @NotNull Set<String> sumFields,
-                   @Nullable Runnable reset,
-                   @Nullable String filterExpression,
-                   int numRandomRows, int expectedRowCount,
-                   boolean shouldCheckNumSSTables,
-                   @Nullable String[] columns,
-                   boolean addLastModifiedTimestamp,
-                   int delayBetweenSSTablesInSecs,
-                   @Nullable String statsClass,
-                   boolean upsert)
+    private Tester(Builder builder)
     {
-        this.versions = versions;
-        this.schemaBuilder = schemaBuilder;
-        this.schemaBuilderFunc = schemaBuilderFunc;
-        this.numSSTables = numSSTables;
-        this.writeListeners = writeListeners;
-        this.readListeners = readListeners;
-        this.writers = writers;
-        this.checks = checks;
-        this.sumFields = sumFields;
-        this.reset = reset;
-        this.filterExpression = filterExpression;
-        this.numRandomRows = numRandomRows;
-        this.expectedRowCount = expectedRowCount;
-        this.shouldCheckNumSSTables = shouldCheckNumSSTables;
-        this.columns = columns;
-        this.addLastModifiedTimestamp = addLastModifiedTimestamp;
-        this.delayBetweenSSTablesInSecs = delayBetweenSSTablesInSecs;
-        this.statsClass = statsClass;
-        this.upsert = upsert;
+        this.versions = builder.versions;
+        this.schemaBuilder = builder.schemaBuilder;
+        this.schemaBuilderFunc = builder.schemaBuilderFunc;
+        this.numSSTables = builder.numSSTables;
+        this.writeListeners = builder.writeListeners;
+        this.readListeners = builder.readListeners;
+        this.writers = builder.writers;
+        this.checks = builder.checks;
+        this.sumFields = builder.sumFields;
+        this.reset = builder.reset;
+        this.filterExpression = builder.filterExpression;
+        this.numRandomRows = builder.numRandomRows;
+        this.expectedRowCount = builder.expectedRowCount;
+        this.shouldCheckNumSSTables = builder.shouldCheckNumSSTables;
+        this.columns = builder.columns;
+        this.addLastModifiedTimestamp = builder.addLastModifiedTimestamp;
+        this.delayBetweenSSTablesInSecs = builder.delayBetweenSSTablesInSecs;
+        this.statsClass = builder.statsClass;
+        this.upsert = builder.upsert;
+        this.nullifyValueColumn = builder.nullRegularColumns;
     }
 
     static Builder builder(@NotNull TestSchema.Builder schemaBuilder)
@@ -194,6 +178,7 @@ public final class Tester
         private int delayBetweenSSTablesInSecs = 0;
         private String statsClass = null;
         private boolean upsert = false;
+        private boolean nullRegularColumns = false;
 
         private Builder(@NotNull TestSchema.Builder schemaBuilder)
         {
@@ -337,28 +322,16 @@ public final class Tester
             return this;
         }
 
+        public Builder withNullRegularColumns()
+        {
+            this.nullRegularColumns = true;
+            return this;
+        }
+
         void run()
         {
             Preconditions.checkArgument(schemaBuilder != null || schemaBuilderFunc != null);
-            new Tester(versions,
-                       schemaBuilder,
-                       schemaBuilderFunc,
-                       numSSTables,
-                       writeListeners,
-                       readListeners,
-                       writers,
-                       checks,
-                       sumFields,
-                       reset,
-                       filterExpression,
-                       numRandomRows,
-                       expectedRowCount,
-                       shouldCheckNumSSTables,
-                       columns,
-                       addLastModifiedTimestamp,
-                       delayBetweenSSTablesInSecs,
-                       statsClass,
-                       upsert).run();
+            new Tester(this).run();
         }
     }
 
@@ -392,34 +365,35 @@ public final class Tester
                                                     .collect(Collectors.toMap(Function.identity(),
                                                                               ignore -> new MutableLong()));
             Map<String, TestSchema.TestRow> rows = new HashMap<>(numRandomRows);
-            IntStream.range(0, numSSTables).forEach(ssTable ->
-                    schema.writeSSTable(directory, bridge, partitioner, upsert, writer ->
-                             IntStream.range(0, numRandomRows).forEach(row -> {
-                                 TestSchema.TestRow testRow;
-                                 do
-                                 {
-                                     testRow = schema.randomRow();
-                                 }
-                                 while (rows.containsKey(testRow.getKey()));  // Don't write duplicate rows
+            IntStream.range(0, numSSTables).forEach(ssTable -> schema.writeSSTable(directory, bridge, partitioner, upsert, writer ->
+            {
+                IntStream.range(0, numRandomRows).forEach(row -> {
+                    TestSchema.TestRow testRow;
+                    do
+                    {
+                        testRow = schema.randomRow(nullifyValueColumn);
+                    }
+                    while (rows.containsKey(testRow.getKey()));  // Don't write duplicate rows
 
-                                 for (Consumer<TestSchema.TestRow> writeListener : writeListeners)
-                                 {
-                                     writeListener.accept(testRow);
-                                 }
+                    for (Consumer<TestSchema.TestRow> writeListener : writeListeners)
+                    {
+                        writeListener.accept(testRow);
+                    }
 
-                                 for (String sumField : sumFields)
-                                 {
-                                     sum.get(sumField).add((Number) testRow.get(sumField));
-                                 }
-                                 rows.put(testRow.getKey(), testRow);
+                    for (String sumField : sumFields)
+                    {
+                        sum.get(sumField).add((Number) testRow.get(sumField));
+                    }
+                    rows.put(testRow.getKey(), testRow);
 
-                                 Object[] values = testRow.allValues();
-                                 if (upsert)
-                                 {
-                                     rotate(values, schema.partitionKeys.size() + schema.clusteringKeys.size());
-                                 }
-                                 writer.write(values);
-                             })));
+                    Object[] values = testRow.allValues();
+                    if (upsert)
+                    {
+                        rotate(values, schema.partitionKeys.size() + schema.clusteringKeys.size());
+                    }
+                    writer.write(values);
+                });
+            }));
             int sstableCount = numSSTables;
 
             // Write any custom SSTables e.g. overwriting existing data or tombstones

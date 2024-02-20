@@ -49,8 +49,8 @@ abstract class AbstractSparkRowIterator
 
     protected final List<SchemaFeature> requestedFeatures;
     protected final CqlTable cqlTable;
-    protected final boolean noValueColumns;
     protected final StructType columnFilter;
+    protected final boolean hasProjectedValueColumns;
 
     private Cell cell = null;
     private InternalRow row = null;
@@ -67,7 +67,7 @@ abstract class AbstractSparkRowIterator
         this.stats.openedSparkRowIterator();
         this.openTimeNanos = System.nanoTime();
         this.requestedFeatures = dataLayer.requestedFeatures();
-        this.noValueColumns = it.noValueColumns();
+        this.hasProjectedValueColumns = it.hasProjectedValueColumns();
         this.builder = newBuilder();
     }
 
@@ -132,7 +132,7 @@ abstract class AbstractSparkRowIterator
 
             builder.onCell(cell);
 
-            if (!noValueColumns)
+            if (hasProjectedValueColumns)
             {
                 // If schema has value column
                 builder.copyValue(cell);

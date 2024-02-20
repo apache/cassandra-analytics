@@ -67,12 +67,12 @@ public class SparkRowIterator extends AbstractSparkRowIterator implements Partit
         String[] fieldNames = null;
         if (columnFilter != null)
         {
-            builder = new PartialRowBuilder(columnFilter, cqlTable, noValueColumns);
+            builder = new PartialRowBuilder(columnFilter, cqlTable, hasProjectedValueColumns);
             fieldNames = columnFilter.fieldNames();
         }
         else
         {
-            builder = new FullRowBuilder(cqlTable, noValueColumns);
+            builder = new FullRowBuilder(cqlTable, hasProjectedValueColumns);
         }
 
         for (SchemaFeature feature : requestedFeatures)
@@ -102,17 +102,17 @@ public class SparkRowIterator extends AbstractSparkRowIterator implements Partit
 
         PartialRowBuilder(@NotNull StructType requiredSchema,
                           CqlTable table,
-                          boolean noValueColumns)
+                          boolean hasProjectedValueColumns)
         {
-            super(table, noValueColumns);
+            super(table, hasProjectedValueColumns);
             this.requiredSchema = requiredSchema;
             Set<String> requiredColumns = Arrays.stream(requiredSchema.fields())
                                                 .map(StructField::name)
                                                 .collect(Collectors.toSet());
             hasAllNonValueColumns = table.fields().stream()
-                                                   .filter(CqlField::isNonValueColumn)
-                                                   .map(CqlField::name)
-                                                   .allMatch(requiredColumns::contains);
+                                         .filter(CqlField::isNonValueColumn)
+                                         .map(CqlField::name)
+                                         .allMatch(requiredColumns::contains);
 
             // Map original column position to new position in requiredSchema
             positionsMap = IntStream.range(0, table.numFields())
@@ -161,7 +161,7 @@ public class SparkRowIterator extends AbstractSparkRowIterator implements Partit
             }
 
             // Otherwise we need to only return columns requested and map to new position in result array
-            int length = noValueColumns ? cell.values.length : cell.values.length - 1;
+            int length = !hasProjectedValueColumns ? cell.values.length : cell.values.length - 1;
             for (int index = 0; index < length; index++)
             {
                 int position = positionsMap[index];

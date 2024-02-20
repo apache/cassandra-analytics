@@ -35,18 +35,18 @@ class FullRowBuilder implements RowBuilder
     static final Object[] EMPTY_RESULT = new Object[0];
     final int numColumns;
     final int numCells;
-    final boolean noValueColumns;
+    final boolean hasProjectedValueColumns;
     int extraColumns;
     Object[] result;
     int count;
     private final CqlTable cqlTable;
 
-    FullRowBuilder(CqlTable cqlTable, boolean noValueColumns)
+    FullRowBuilder(CqlTable cqlTable, boolean hasProjectedValueColumns)
     {
         this.cqlTable = cqlTable;
         this.numColumns = cqlTable.numFields();
-        this.numCells = cqlTable.numNonValueColumns() + (noValueColumns ? 0 : 1);
-        this.noValueColumns = noValueColumns;
+        this.hasProjectedValueColumns = hasProjectedValueColumns;
+        this.numCells = cqlTable.numNonValueColumns() + (hasProjectedValueColumns ? 1 : 0);
     }
 
     @Override
@@ -80,7 +80,7 @@ class FullRowBuilder implements RowBuilder
     public void copyKeys(Cell cell)
     {
         // Need to handle special case where schema is only partition or clustering keys - i.e. no value columns
-        int length = noValueColumns ? cell.values.length : cell.values.length - 1;
+        int length = !hasProjectedValueColumns ? cell.values.length : cell.values.length - 1;
         System.arraycopy(cell.values, 0, result, 0, length);
         count += length;
     }
@@ -108,7 +108,7 @@ class FullRowBuilder implements RowBuilder
     @Override
     public boolean hasRegularValueColumn()
     {
-        return !noValueColumns;
+        return hasProjectedValueColumns;
     }
 
     @Override
