@@ -365,8 +365,7 @@ public final class Tester
                                                     .collect(Collectors.toMap(Function.identity(),
                                                                               ignore -> new MutableLong()));
             Map<String, TestSchema.TestRow> rows = new HashMap<>(numRandomRows);
-            IntStream.range(0, numSSTables).forEach(ssTable -> schema.writeSSTable(directory, bridge, partitioner, upsert, writer ->
-            {
+            IntStream.range(0, numSSTables).forEach(ssTable -> schema.writeSSTable(directory, bridge, partitioner, upsert, writer -> {
                 IntStream.range(0, numRandomRows).forEach(row -> {
                     TestSchema.TestRow testRow;
                     do
