@@ -56,7 +56,7 @@ public class SparkRowIterator extends AbstractSparkRowIterator implements InputP
     @NotNull
     RowBuilder newBuilder()
     {
-        RowBuilder builder = new FullRowBuilder(cqlTable, noValueColumns);
+        RowBuilder builder = new FullRowBuilder(cqlTable, hasProjectedValueColumns);
         for (SchemaFeature feature : requestedFeatures)
         {
             builder = feature.decorate(builder);
