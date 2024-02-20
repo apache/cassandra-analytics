@@ -125,6 +125,12 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
         columnData.consume();
     }
 
+    @Override
+    public boolean hasMoreColumns()
+    {
+        return columns != null && columns.hasNext();
+    }
+
     // CHECKSTYLE IGNORE: Long method
     @Override
     public boolean hasNext() throws IOException

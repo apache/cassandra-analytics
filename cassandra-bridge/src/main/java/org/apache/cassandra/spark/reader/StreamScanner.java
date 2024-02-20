@@ -77,4 +77,9 @@ public interface StreamScanner<Type> extends Closeable
      * @throws IOException
      */
     void advanceToNextColumn() throws IOException;
+
+    /**
+     * @return {@code true} if the scanner has more columns to consume, {@code false} otherwise
+     */
+    boolean hasMoreColumns();
 }

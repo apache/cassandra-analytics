@@ -137,6 +137,12 @@ public class IndexIterator<ReaderType extends IIndexReader> implements StreamSca
         return finished.get() == readers.size();
     }
 
+    @Override
+    public boolean hasMoreColumns()
+    {
+        return true;
+    }
+
     public void advanceToNextColumn()
     {
         if (closed.get())

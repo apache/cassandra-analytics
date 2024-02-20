@@ -35,6 +35,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -500,16 +501,33 @@ public final class TestSchema
 
     public TestRow randomRow()
     {
-        Object[] values = new Object[allFields.size()];
-        for (CqlField field : allFields)
+        return randomRow(false);
+    }
+
+    public TestRow randomRow(boolean nullifyValueColumn)
+    {
+        return randomRow(field -> nullifyValueColumn && field.isValueColumn());
+    }
+
+    private TestRow randomRow(Predicate<CqlField> nullifiedFields)
+    {
+        final Object[] values = new Object[allFields.size()];
+        for (final CqlField field : allFields)
         {
-            if (field.type().getClass().getSimpleName().equals("Blob") && blobSize != null)
+            if (nullifiedFields.test(field))
             {
-                values[field.position()] = RandomUtils.randomByteBuffer(blobSize);
+                values[field.position()] = null;
             }
             else
             {
-                values[field.position()] = field.type().randomValue(minCollectionSize);
+                if (field.type().getClass().getSimpleName().equals("Blob") && blobSize != null)
+                {
+                    values[field.position()] = RandomUtils.randomByteBuffer(blobSize);
+                }
+                else
+                {
+                    values[field.position()] = field.type().randomValue(minCollectionSize);
+                }
             }
         }
         return new TestRow(values);
