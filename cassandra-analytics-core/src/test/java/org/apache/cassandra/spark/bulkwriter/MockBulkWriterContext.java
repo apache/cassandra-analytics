@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -76,6 +77,23 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
     private int sstableWriteBatchSize = 2;
+
+    private final Map<String, String> jobStats = new HashMap<>();
+
+    public Map<String, String> jobStats()
+    {
+        return jobStats;
+    }
+    public void recordJobStats(Map<String, String> stats)
+    {
+        jobStats.putAll(stats);
+    }
+
+    public void publishJobStats()
+    {
+        System.out.println("Stats:" + jobStats);
+    }
+
 
     public interface CommitResultSupplier extends BiFunction<List<String>, String, RemoteCommitResult>
     {

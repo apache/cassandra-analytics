@@ -59,6 +59,9 @@ public class SSTableWriter
     private final Map<Path, Digest> fileDigestMap = new HashMap<>();
     private final DigestAlgorithm digestAlgorithm;
 
+    private long rowCount = 0;
+
+
     public SSTableWriter(org.apache.cassandra.bridge.SSTableWriter tableWriter, Path outDir,
                          DigestAlgorithm digestAlgorithm)
     {
@@ -100,6 +103,15 @@ public class SSTableWriter
         }
         maxToken = token;
         cqlSSTableWriter.addRow(boundValues);
+        rowCount += 1;
+    }
+
+    /**
+     * @return the total number of rows added
+     */
+    public long rowCount()
+    {
+        return rowCount;
     }
 
     public void close(BulkWriterContext writerContext, int partitionId) throws IOException

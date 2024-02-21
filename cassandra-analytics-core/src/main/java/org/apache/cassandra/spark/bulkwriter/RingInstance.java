@@ -49,6 +49,7 @@ public class RingInstance implements CassandraInstance, Serializable
                          .datacenter(replica.datacenter())
                          .state(replica.state())
                          .status(replica.status())
+                         .token("")
                          .build();
     }
 
@@ -125,14 +126,10 @@ public class RingInstance implements CassandraInstance, Serializable
         out.writeUTF(ringEntry.address());
         out.writeInt(ringEntry.port());
         out.writeUTF(ringEntry.datacenter());
-        out.writeUTF(ringEntry.load());
-        out.writeUTF(ringEntry.token());
+         out.writeUTF(ringEntry.token());
         out.writeUTF(ringEntry.fqdn());
-        out.writeUTF(ringEntry.rack());
-        out.writeUTF(ringEntry.hostId());
         out.writeUTF(ringEntry.status());
         out.writeUTF(ringEntry.state());
-        out.writeUTF(ringEntry.owns());
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
@@ -140,25 +137,17 @@ public class RingInstance implements CassandraInstance, Serializable
         String address = in.readUTF();
         int port = in.readInt();
         String datacenter = in.readUTF();
-        String load = in.readUTF();
         String token = in.readUTF();
         String fqdn = in.readUTF();
-        String rack = in.readUTF();
-        String hostId = in.readUTF();
         String status = in.readUTF();
         String state = in.readUTF();
-        String owns = in.readUTF();
         ringEntry = new RingEntry.Builder().datacenter(datacenter)
                                            .address(address)
                                            .port(port)
-                                           .rack(rack)
                                            .status(status)
                                            .state(state)
-                                           .load(load)
-                                           .owns(owns)
                                            .token(token)
                                            .fqdn(fqdn)
-                                           .hostId(hostId)
                                            .build();
     }
 }

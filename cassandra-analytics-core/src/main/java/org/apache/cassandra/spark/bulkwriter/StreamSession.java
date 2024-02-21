@@ -66,6 +66,7 @@ public class StreamSession
     private final ExecutorService executor;
     private final List<Future<?>> futures = new ArrayList<>();
     private final TokenRangeMapping<RingInstance> tokenRangeMapping;
+    private long rowCount = 0; // total number of rows written by the SSTableWriter
 
     public StreamSession(final BulkWriterContext writerContext,
                          final String sessionID,
@@ -103,7 +104,7 @@ public class StreamSession
         Preconditions.checkState(tokenRange.encloses(ssTableWriter.getTokenRange()),
                                  String.format("SSTable range %s should be enclosed in the partition range %s",
                                                ssTableWriter.getTokenRange(), tokenRange));
-
+        rowCount += ssTableWriter.rowCount();
         futures.add(executor.submit(() -> sendSSTables(writerContext, ssTableWriter)));
     }
 
@@ -129,12 +130,16 @@ public class StreamSession
         // No data written at all
         if (futures.isEmpty())
         {
-            return new StreamResult(sessionID, tokenRange, new ArrayList<>(), new ArrayList<>());
+            return new StreamResult(sessionID, tokenRange, new ArrayList<>(), new ArrayList<>(), rowCount);
         }
         else
         {
             // StreamResult has errors streaming to replicas
-            StreamResult streamResult = new StreamResult(sessionID, tokenRange, errors, new ArrayList<>(replicas));
+            StreamResult streamResult = new StreamResult(sessionID,
+                                                         tokenRange,
+                                                         errors,
+                                                         new ArrayList<>(replicas),
+                                                         rowCount);
             List<CommitResult> cr = commit(streamResult);
             streamResult.setCommitResults(cr);
             LOGGER.debug("StreamResult: {}", streamResult);

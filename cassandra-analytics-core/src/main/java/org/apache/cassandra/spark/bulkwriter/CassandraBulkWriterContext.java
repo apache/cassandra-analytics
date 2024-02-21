@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -56,7 +57,9 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     private final CassandraClusterInfo clusterInfo;
     private final SchemaInfo schemaInfo;
 
-    private CassandraBulkWriterContext(@NotNull BulkSparkConf conf,
+    private final Map<String, String> jobStats = new HashMap<>();
+
+    protected CassandraBulkWriterContext(@NotNull BulkSparkConf conf,
                                        @NotNull CassandraClusterInfo clusterInfo,
                                        @NotNull StructType dfSchema,
                                        SparkContext sparkContext)
@@ -108,9 +111,20 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         CassandraBulkWriterContext bulkWriterContext = new CassandraBulkWriterContext(conf, clusterInfo, dfSchema, sparkContext);
         ShutdownHookManager.addShutdownHook(org.apache.spark.util.ShutdownHookManager.TEMP_DIR_SHUTDOWN_PRIORITY(),
                                             ScalaFunctions.wrapLambda(bulkWriterContext::shutdown));
-        bulkWriterContext.dialHome(sparkContext.version());
-
+        bulkWriterContext.recordInitialJobStats(sparkContext.version());
         return bulkWriterContext;
+    }
+
+    private void recordInitialJobStats(String sparkVersion)
+    {
+        Map<String, String> jobStats = new HashMap<>()
+        {{
+            put("sparkVersion", sparkVersion);
+            put("jobId", jobInfo.getId().toString());
+            put("keyspace", jobInfo.getId().toString());
+            put("table", jobInfo.getId().toString());
+        }};
+        recordJobStats(jobStats);
     }
 
     @Override
@@ -209,5 +223,20 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
                                conf.getTimestampOptions(),
                                lowestCassandraVersion,
                                conf.quoteIdentifiers);
+    }
+
+
+    public Map<String, String> jobStats()
+    {
+        return jobStats;
+    }
+    public void recordJobStats(Map<String, String> stats)
+    {
+        jobStats.putAll(stats);
+    }
+
+    public void publishJobStats()
+    {
+        LOGGER.info("Job Stats:" + jobStats);
     }
 }

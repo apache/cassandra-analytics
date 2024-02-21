@@ -75,6 +75,8 @@ public class RecordWriter implements Serializable
     private SSTableWriter sstableWriter = null;
     private int outputSequence = 0; // sub-folder for possible subrange splits
 
+    private static final String STATS_KEY_RESIZE_DETECTED = "clusterResizeDetected";
+
     public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
     {
         this(writerContext, columnNames, TaskContext::get, SSTableWriter::new);
@@ -118,6 +120,7 @@ public class RecordWriter implements Serializable
                                  taskTokenRange);
 
         TokenRangeMapping<RingInstance> initialTokenRangeMapping = writerContext.cluster().getTokenRangeMapping(false);
+        recordTokenRangeStats(initialTokenRangeMapping);
         LOGGER.info("[{}]: Fetched token range mapping for keyspace: {} with write replicas: {} containing pending " +
                     "replicas: {}, blocked instances: {}, replacement instances: {}",
                     taskContext.partitionId(),
@@ -205,6 +208,21 @@ public class RecordWriter implements Serializable
                          taskContext.attemptNumber());
             throw new RuntimeException(exception);
         }
+    }
+
+    private void recordTokenRangeStats(TokenRangeMapping<RingInstance> tokenRangeMapping)
+    {
+        boolean resizeDetected = false;
+        if (writerContext.jobStats().containsKey(STATS_KEY_RESIZE_DETECTED))
+        {
+            resizeDetected = Boolean.getBoolean(writerContext.jobStats().get(STATS_KEY_RESIZE_DETECTED));
+        }
+
+        if (!tokenRangeMapping.getPendingReplicas().isEmpty() || !tokenRangeMapping.getReplacementInstances().isEmpty())
+        {
+            resizeDetected = true;
+        }
+        writerContext.recordJobStats(Collections.singletonMap(STATS_KEY_RESIZE_DETECTED, String.valueOf(resizeDetected)));
     }
 
     private Map<Range<BigInteger>, List<RingInstance>> taskTokenRangeMapping(TokenRangeMapping<RingInstance> tokenRange,
