@@ -60,9 +60,9 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     private final Map<String, String> jobStats = new HashMap<>();
 
     protected CassandraBulkWriterContext(@NotNull BulkSparkConf conf,
-                                       @NotNull CassandraClusterInfo clusterInfo,
-                                       @NotNull StructType dfSchema,
-                                       SparkContext sparkContext)
+                                         @NotNull CassandraClusterInfo clusterInfo,
+                                         @NotNull StructType dfSchema,
+                                         SparkContext sparkContext)
     {
         this.conf = conf;
         this.clusterInfo = clusterInfo;
@@ -77,8 +77,8 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
                                                             conf.getCores()));
         Preconditions.checkArgument(!conf.consistencyLevel.isLocal()
                                     || (conf.localDC != null && tokenRangeMapping.replicationFactor()
-                                                                    .getOptions()
-                                                                    .containsKey(conf.localDC)),
+                                                                                 .getOptions()
+                                                                                 .containsKey(conf.localDC)),
                                     String.format("Keyspace %s is not replicated on datacenter %s", conf.keyspace, conf.localDC));
 
         String keyspace = jobInfo.keyspace();
@@ -230,6 +230,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     {
         return jobStats;
     }
+
     public void recordJobStats(Map<String, String> stats)
     {
         jobStats.putAll(stats);

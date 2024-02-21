@@ -28,7 +28,20 @@ import java.util.Map;
  */
 public interface Reportable
 {
-    Map<String, String> jobStats();
+    /**
+     * Accumulates the Spark job attributes to be published at the end of the job.
+     * @param stats attributes to be accumulated
+     */
     void recordJobStats(Map<String, String> stats);
+
+    /**
+     * Publish the accumulated job attributes to be persisted and summarized
+     */
     void publishJobStats();
+
+    /**
+     * Fetch the accumulated job attributes that have been recorded
+     * @return job attributes recorded as a map
+     */
+    Map<String, String> jobStats();
 }

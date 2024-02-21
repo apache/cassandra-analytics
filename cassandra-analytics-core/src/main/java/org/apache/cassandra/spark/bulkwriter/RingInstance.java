@@ -126,7 +126,7 @@ public class RingInstance implements CassandraInstance, Serializable
         out.writeUTF(ringEntry.address());
         out.writeInt(ringEntry.port());
         out.writeUTF(ringEntry.datacenter());
-         out.writeUTF(ringEntry.token());
+        out.writeUTF(ringEntry.token());
         out.writeUTF(ringEntry.fqdn());
         out.writeUTF(ringEntry.status());
         out.writeUTF(ringEntry.state());

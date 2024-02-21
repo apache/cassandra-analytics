@@ -91,7 +91,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
 
     public void publishJobStats()
     {
-        System.out.println("Stats:" + jobStats);
+        // DO NOTHING
     }
 
 
