@@ -105,9 +105,9 @@ public class ClientConfig
 
     protected ClientConfig(Map<String, String> options)
     {
-        this.sidecarInstances = MapUtils.getOrThrow(options, SIDECAR_INSTANCES, "sidecar_instances");
-        this.keyspace = MapUtils.getOrThrow(options, KEYSPACE_KEY, "keyspace");
-        this.table = MapUtils.getOrThrow(options, TABLE_KEY, "table");
+        this.sidecarInstances = MapUtils.getOrDefault(options, SIDECAR_INSTANCES, null);
+        this.keyspace = MapUtils.getOrDefault(options, KEYSPACE_KEY, null);
+        this.table = MapUtils.getOrDefault(options, TABLE_KEY, null);
         this.snapshotName = MapUtils.getOrDefault(options, SNAPSHOT_NAME_KEY, "sbr_" + UUID.randomUUID().toString().replace("-", ""));
         this.datacenter = options.get(MapUtils.lowerCaseKey(DC_KEY));
         this.createSnapshot = MapUtils.getBoolean(options, CREATE_SNAPSHOT_KEY, true);
@@ -152,18 +152,28 @@ public class ClientConfig
 
     public String sidecarInstances()
     {
+        if (sidecarInstances == null)
+        {
+            throw new RuntimeException("sidecar_instances option is needed for analytics runs");
+        }
         return sidecarInstances;
     }
 
-    @Nullable
     public String keyspace()
     {
+        if (keyspace == null)
+        {
+            throw new RuntimeException("keyspace option is needed for analytics runs");
+        }
         return keyspace;
     }
 
-    @Nullable
     public String table()
     {
+        if (table == null)
+        {
+            throw new RuntimeException("table option is needed for analytics runs");
+        }
         return table;
     }
 
