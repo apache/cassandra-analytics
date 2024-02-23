@@ -41,7 +41,7 @@ import static org.apache.cassandra.spark.data.CassandraDataLayer.aliasLastModifi
 
 public class ClientConfig
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClientConfig.class);
+    protected static final Logger LOGGER = LoggerFactory.getLogger(ClientConfig.class);
 
     public static final String SIDECAR_INSTANCES = "sidecar_instances";
     public static final String KEYSPACE_KEY = "keyspace";
@@ -105,9 +105,9 @@ public class ClientConfig
 
     protected ClientConfig(Map<String, String> options)
     {
-        this.sidecarInstances = MapUtils.getOrDefault(options, SIDECAR_INSTANCES, null);
-        this.keyspace = MapUtils.getOrDefault(options, KEYSPACE_KEY, null);
-        this.table = MapUtils.getOrDefault(options, TABLE_KEY, null);
+        this.sidecarInstances = parseSidecarInstances(options);
+        this.keyspace = MapUtils.getOrThrow(options, KEYSPACE_KEY, "keyspace");
+        this.table = MapUtils.getOrThrow(options, TABLE_KEY, "table");
         this.snapshotName = MapUtils.getOrDefault(options, SNAPSHOT_NAME_KEY, "sbr_" + UUID.randomUUID().toString().replace("-", ""));
         this.datacenter = options.get(MapUtils.lowerCaseKey(DC_KEY));
         this.createSnapshot = MapUtils.getBoolean(options, CREATE_SNAPSHOT_KEY, true);
@@ -135,6 +135,11 @@ public class ClientConfig
         this.quoteIdentifiers = MapUtils.getBoolean(options, QUOTE_IDENTIFIERS, false);
     }
 
+    protected String parseSidecarInstances(Map<String, String> options)
+    {
+        return MapUtils.getOrThrow(options, SIDECAR_INSTANCES, "sidecar_instances");
+    }
+
     protected ClearSnapshotStrategy parseClearSnapshotStrategy(boolean hasDeprecatedOption,
                                                                boolean clearSnapshot,
                                                                String clearSnapshotStrategyOption)
@@ -152,28 +157,16 @@ public class ClientConfig
 
     public String sidecarInstances()
     {
-        if (sidecarInstances == null)
-        {
-            throw new RuntimeException("sidecar_instances option is needed for analytics runs");
-        }
         return sidecarInstances;
     }
 
     public String keyspace()
     {
-        if (keyspace == null)
-        {
-            throw new RuntimeException("keyspace option is needed for analytics runs");
-        }
         return keyspace;
     }
 
     public String table()
     {
-        if (table == null)
-        {
-            throw new RuntimeException("table option is needed for analytics runs");
-        }
         return table;
     }
 
