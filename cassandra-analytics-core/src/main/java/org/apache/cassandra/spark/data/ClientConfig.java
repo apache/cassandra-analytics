@@ -39,7 +39,7 @@ import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.data.CassandraDataLayer.aliasLastModifiedTimestamp;
 
-public final class ClientConfig
+public class ClientConfig
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientConfig.class);
 
@@ -78,32 +78,32 @@ public final class ClientConfig
     public static final String QUOTE_IDENTIFIERS = "quote_identifiers";
     public static final int DEFAULT_SIDECAR_PORT = 9043;
 
-    private final String sidecarInstances;
+    protected String sidecarInstances;
     @Nullable
-    private final String keyspace;
+    protected String keyspace;
     @Nullable
-    private final String table;
-    private final String snapshotName;
-    private final String datacenter;
-    private final boolean createSnapshot;
-    private final boolean clearSnapshot;
-    private final ClearSnapshotStrategy clearSnapshotStrategy;
-    private final int defaultParallelism;
-    private final int numCores;
-    private final ConsistencyLevel consistencyLevel;
-    private final Map<String, BigNumberConfigImpl> bigNumberConfigMap;
-    private final boolean enableStats;
-    private final boolean readIndexOffset;
-    private final String sizing;
-    private final int maxPartitionSize;
-    private final boolean useIncrementalRepair;
-    private final List<SchemaFeature> requestedFeatures;
-    private final String lastModifiedTimestampField;
-    private final Boolean enableExpansionShrinkCheck;
-    private final int sidecarPort;
-    private final boolean quoteIdentifiers;
+    protected String table;
+    protected String snapshotName;
+    protected String datacenter;
+    protected boolean createSnapshot;
+    protected boolean clearSnapshot;
+    protected ClearSnapshotStrategy clearSnapshotStrategy;
+    protected int defaultParallelism;
+    protected int numCores;
+    protected ConsistencyLevel consistencyLevel;
+    protected Map<String, BigNumberConfigImpl> bigNumberConfigMap;
+    protected boolean enableStats;
+    protected boolean readIndexOffset;
+    protected String sizing;
+    protected int maxPartitionSize;
+    protected boolean useIncrementalRepair;
+    protected List<SchemaFeature> requestedFeatures;
+    protected String lastModifiedTimestampField;
+    protected Boolean enableExpansionShrinkCheck;
+    protected int sidecarPort;
+    protected boolean quoteIdentifiers;
 
-    private ClientConfig(Map<String, String> options)
+    protected ClientConfig(Map<String, String> options)
     {
         this.sidecarInstances = MapUtils.getOrThrow(options, SIDECAR_INSTANCES, "sidecar_instances");
         this.keyspace = MapUtils.getOrThrow(options, KEYSPACE_KEY, "keyspace");
@@ -267,7 +267,7 @@ public final class ClientConfig
         return new ClientConfig(options);
     }
 
-    private List<SchemaFeature> initRequestedFeatures(Map<String, String> options)
+    protected List<SchemaFeature> initRequestedFeatures(Map<String, String> options)
     {
         Map<String, String> optionsCopy = new HashMap<>(options);
         String lastModifiedColumnName = MapUtils.getOrDefault(options, LAST_MODIFIED_COLUMN_NAME_KEY, null);
