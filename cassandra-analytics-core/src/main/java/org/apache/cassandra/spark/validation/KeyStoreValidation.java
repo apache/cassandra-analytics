@@ -25,9 +25,13 @@ import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyStore;
 import java.security.PrivateKey;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.function.Supplier;
 
+import o.a.c.sidecar.client.shaded.io.netty.handler.ssl.PemX509Certificate;
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.utils.Throwing;
@@ -83,6 +87,15 @@ public class KeyStoreValidation implements StartupValidation
 
             for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements();)
             {
+                Certificate cert = keyStore.getCertificate(aliases.nextElement());
+                if (cert instanceof X509Certificate && !(cert instanceof PemX509Certificate))
+                {
+                    ((X509Certificate) cert).checkValidity();
+                }
+            }
+
+            for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements();)
+            {
                 Key key = keyStore.getKey(aliases.nextElement(), password);
                 if (key != null && key instanceof PrivateKey)
                 {
@@ -90,6 +103,10 @@ public class KeyStoreValidation implements StartupValidation
                 }
             }
             throw new RuntimeException("KeyStore contains no private keys");
+        }
+        catch (CertificateExpiredException exception)
+        {
+            throw new RuntimeException("Certificate expired, valid " + exception.getMessage(), exception);
         }
         catch (IOException | GeneralSecurityException exception)
         {

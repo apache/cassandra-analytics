@@ -97,4 +97,15 @@ public class KeyStoreValidationTests
         Throwable throwable = validation.perform();
         assertNull(throwable);
     }
+
+    @Test
+    public void testExpiredKeyStore()
+    {
+        SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-expired.p12", "qwerty");
+        KeyStoreValidation validation = new KeyStoreValidation(secrets);
+
+        Throwable throwable = validation.perform();
+        assertInstanceOf(RuntimeException.class, throwable);
+        assertEquals("Certificate expired, valid NotAfter: Tue Jan 23 21:38:52 PST 2024", throwable.getMessage());
+    }
 }
