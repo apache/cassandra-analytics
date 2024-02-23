@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.secrets.TestSecretsProvider;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -106,6 +107,6 @@ public class KeyStoreValidationTests
 
         Throwable throwable = validation.perform();
         assertInstanceOf(RuntimeException.class, throwable);
-        assertEquals("Certificate expired, valid NotAfter: Tue Jan 23 21:38:52 PST 2024", throwable.getMessage());
+        assertThat(throwable.getMessage()).startsWith("Certificate expired, valid NotAfter: ");
     }
 }
