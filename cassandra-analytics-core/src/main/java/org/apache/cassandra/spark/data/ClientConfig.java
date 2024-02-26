@@ -41,7 +41,7 @@ import static org.apache.cassandra.spark.data.CassandraDataLayer.aliasLastModifi
 
 public class ClientConfig
 {
-    protected static final Logger LOGGER = LoggerFactory.getLogger(ClientConfig.class);
+    protected final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     public static final String SIDECAR_INSTANCES = "sidecar_instances";
     public static final String KEYSPACE_KEY = "keyspace";
