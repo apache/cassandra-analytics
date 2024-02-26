@@ -289,7 +289,7 @@ public class ClientConfig
 
     public abstract static class ClearSnapshotStrategy
     {
-        private static final Logger LOGGER = LoggerFactory.getLogger(ClearSnapshotStrategy.class);
+        private static final Logger logger = LoggerFactory.getLogger(ClearSnapshotStrategy.class);
         private final String snapshotTTL;
 
         public ClearSnapshotStrategy(String snapshotTTL)
@@ -331,7 +331,7 @@ public class ClientConfig
         {
             if (clearSnapshotStrategyOption == null)
             {
-                LOGGER.debug("No clearSnapshotStrategy is set. Using the default strategy");
+                logger.debug("No clearSnapshotStrategy is set. Using the default strategy");
                 return ClearSnapshotStrategy.defaultStrategy();
             }
             String[] strategyParts = clearSnapshotStrategyOption.split(" ", 2);
@@ -355,7 +355,7 @@ public class ClientConfig
             }
             else
             {
-                LOGGER.error("Invalid value for ClearSnapshotStrategy: '{}'", clearSnapshotStrategyOption);
+                logger.error("Invalid value for ClearSnapshotStrategy: '{}'", clearSnapshotStrategyOption);
                 throw new IllegalArgumentException("Invalid value: " + clearSnapshotStrategyOption);
             }
             return ClearSnapshotStrategy.create(strategyName, snapshotTTL);
@@ -383,7 +383,7 @@ public class ClientConfig
             else
             {
                 ClearSnapshotStrategy defaultStrategy = defaultStrategy();
-                LOGGER.warn("Unknown ClearSnapshotStrategy {} is passed. Fall back to default strategy {}.",
+                logger.warn("Unknown ClearSnapshotStrategy {} is passed. Fall back to default strategy {}.",
                             name, defaultStrategy);
                 throw new IllegalArgumentException("Invalid ClearSnapshotStrategy " + name + " passed");
             }
@@ -391,7 +391,7 @@ public class ClientConfig
 
         public static ClearSnapshotStrategy defaultStrategy()
         {
-            LOGGER.info("A default TTL value of {} is added to the snapshot. If the job takes longer than {}, " +
+            logger.info("A default TTL value of {} is added to the snapshot. If the job takes longer than {}, " +
                         "the snapshot will be cleared before job completion leading to errors.",
                         DEFAULT_SNAPSHOT_TTL_VALUE, DEFAULT_SNAPSHOT_TTL_VALUE);
             return new OnCompletionOrTTL(DEFAULT_SNAPSHOT_TTL_VALUE);
