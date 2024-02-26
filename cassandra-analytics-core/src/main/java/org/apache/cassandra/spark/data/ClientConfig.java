@@ -146,7 +146,7 @@ public class ClientConfig
     {
         if (hasDeprecatedOption)
         {
-            LOGGER.warn("The deprecated option 'clearSnapshot' is set. Please set 'clearSnapshotStrategy' instead.");
+            logger.warn("The deprecated option 'clearSnapshot' is set. Please set 'clearSnapshotStrategy' instead.");
             if (clearSnapshotStrategyOption == null)
             {
                 return clearSnapshot ? ClearSnapshotStrategy.defaultStrategy() : new ClearSnapshotStrategy.NoOp();
