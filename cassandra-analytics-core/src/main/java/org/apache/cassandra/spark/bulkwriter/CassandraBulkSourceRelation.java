@@ -22,7 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +49,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     private final SQLContext sqlContext;
     private final JavaSparkContext sparkContext;
     private final Broadcast<BulkWriterContext> broadcastContext;
+    private long startTimeNanos;
 
     @SuppressWarnings("RedundantTypeArguments")
     public CassandraBulkSourceRelation(BulkWriterContext writerContext, SQLContext sqlContext)
@@ -90,6 +91,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     @Override
     public void insert(@NotNull Dataset<Row> data, boolean overwrite)
     {
+        this.startTimeNanos = System.nanoTime();
         if (overwrite)
         {
             throw new LoadNotSupportedException("Overwriting existing data needs TRUNCATE on Cassandra, which is not supported");
@@ -146,22 +148,27 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
             {
                 put("rowsWritten", Long.toString(rowCount));
                 put("jobStatus", "Succeeded");
+                put("jobElapsedTimeMillis", Long.toString(getElapsedTimeMillis()));
             }
         });
-
     }
 
     private void recordFailureStats(String reason)
     {
-        Map<String, String> failureStats = new HashMap<>()
+        writerContext.recordJobStats(new HashMap<>()
         {
             {
                 put("jobStatus", "Failed");
                 put("failureReason", reason);
+                put("jobElapsedTimeMillis", Long.toString(getElapsedTimeMillis()));
             }
-        };
-        writerContext.recordJobStats(failureStats);
+        });
+    }
 
+    private long getElapsedTimeMillis()
+    {
+        long now = System.nanoTime();
+        return TimeUnit.NANOSECONDS.toMillis(now - this.startTimeNanos);
     }
 
     /**
