@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.util.Set;
+
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
@@ -36,6 +38,7 @@ public final class SSTableWriterFactory
                                                  String partitioner,
                                                  String createStatement,
                                                  String insertStatement,
+                                                 Set<String> userDefinedTypeStatements,
                                                  int bufferSizeMB)
     {
         CassandraBridge cassandraBridge = CassandraBridgeFactory.get(serverVersion);
@@ -43,6 +46,7 @@ public final class SSTableWriterFactory
                                                 partitioner,
                                                 createStatement,
                                                 insertStatement,
+                                                userDefinedTypeStatements,
                                                 bufferSizeMB);
     }
 }

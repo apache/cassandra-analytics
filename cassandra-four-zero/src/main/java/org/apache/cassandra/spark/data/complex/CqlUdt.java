@@ -162,6 +162,10 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     @Override
     public Object convertForCqlWriter(Object value, CassandraVersion version)
     {
+        if (value instanceof UDTValue)
+        {
+            return value;
+        }
         return toUserTypeValue(version, this, value);
     }
 

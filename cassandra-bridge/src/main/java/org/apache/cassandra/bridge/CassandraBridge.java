@@ -388,6 +388,7 @@ public abstract class CassandraBridge
                                                    String partitioner,
                                                    String createStatement,
                                                    String insertStatement,
+                                                   Set<String> userDefinedTypeStatements,
                                                    int bufferSizeMB);
 
     public interface IRow
