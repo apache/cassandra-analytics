@@ -54,6 +54,8 @@ import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
 import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
+import org.apache.cassandra.distributed.api.Feature;
+import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
 import org.apache.cassandra.distributed.impl.AbstractCluster;
@@ -81,6 +83,10 @@ import org.apache.cassandra.testing.TestUtils;
 import org.apache.cassandra.testing.TestVersion;
 import org.apache.cassandra.testing.TestVersionSupplier;
 import org.apache.cassandra.utils.Throwables;
+import shaded.com.datastax.driver.core.Cluster;
+import shaded.com.datastax.driver.core.ResultSet;
+import shaded.com.datastax.driver.core.Session;
+import shaded.com.datastax.driver.core.SimpleStatement;
 
 import static org.apache.cassandra.sidecar.testing.CassandraSidecarTestContext.tryGetIntConfig;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -130,6 +136,7 @@ public abstract class SharedClusterIntegrationTestBase
     protected AbstractCluster<? extends IInstance> cluster;
     protected Server server;
     protected Injector injector;
+    protected TestVersion testVersion;
 
     static
     {
@@ -140,10 +147,11 @@ public abstract class SharedClusterIntegrationTestBase
     @BeforeAll
     protected void setup() throws InterruptedException, IOException
     {
-        Optional<TestVersion> testVersion = TestVersionSupplier.testVersions().findFirst();
-        assertThat(testVersion).isPresent();
+        Optional<TestVersion> maybeTestVersion = TestVersionSupplier.testVersions().findFirst();
+        assertThat(maybeTestVersion).isPresent();
+        this.testVersion = maybeTestVersion.get();
         logger.info("Testing with version={}", testVersion);
-        cluster = provisionClusterWithRetries(testVersion.get());
+        cluster = provisionClusterWithRetries(this.testVersion);
         assertThat(cluster).isNotNull();
         initializeSchemaForTest();
         startSidecar(cluster);
@@ -344,6 +352,45 @@ public abstract class SharedClusterIntegrationTestBase
     protected Object[][] queryAllData(QualifiedName table, ConsistencyLevel consistencyLevel)
     {
         return cluster.coordinator(1).execute(String.format("SELECT * FROM %s;", table), consistencyLevel);
+    }
+
+    /**
+     * Convenience method to query all data from the provided {@code table} at the specified consistency level.
+     *
+     * @param table       the qualified Cassandra table name
+     * @param consistency
+     * @return all the data queried from the table
+     */
+    protected ResultSet queryAllDataWithDriver(ICluster cluster, QualifiedName table, shaded.com.datastax.driver.core.ConsistencyLevel consistency)
+    {
+        Cluster driverCluster = createDriverCluster(cluster);
+        Session session = driverCluster.connect();
+        SimpleStatement statement = new SimpleStatement(String.format("SELECT * FROM %s;", table));
+        statement.setConsistencyLevel(consistency);
+        return session.execute(statement);
+    }
+
+    public static Cluster createDriverCluster(ICluster<? extends IInstance> dtest)
+    {
+        if (dtest.size() == 0)
+        {
+            throw new IllegalArgumentException("Attempted to open java driver for empty cluster");
+        }
+        else
+        {
+            dtest.stream().forEach((i) -> {
+                if (!i.config().has(Feature.NATIVE_PROTOCOL) || !i.config().has(Feature.GOSSIP))
+                {
+                    throw new IllegalStateException("java driver requires Feature.NATIVE_PROTOCOL and Feature.GOSSIP; but one or more is missing");
+                }
+            });
+            Cluster.Builder builder = Cluster.builder();
+            dtest.stream().forEach((i) -> {
+                builder.addContactPointsWithPorts(new InetSocketAddress(i.broadcastAddress().getAddress(), i.config().getInt("native_transport_port")));
+            });
+
+            return builder.build();
+        }
     }
 
     static class IntegrationTestModule extends AbstractModule

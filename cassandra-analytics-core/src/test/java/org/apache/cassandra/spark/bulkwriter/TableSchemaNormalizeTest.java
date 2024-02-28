@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.net.InetAddresses;
 import org.junit.jupiter.api.Test;
 
@@ -42,8 +43,13 @@ import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.common.schema.ListType;
 import org.apache.cassandra.spark.common.schema.MapType;
 import org.apache.cassandra.spark.common.schema.SetType;
+import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 
 import static java.util.AbstractMap.SimpleEntry;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.ASCII;
@@ -73,6 +79,7 @@ import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCq
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockListCqlType;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockMapCqlType;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockSetCqlType;
+import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockUdtCqlType;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
@@ -296,6 +303,24 @@ public class TableSchemaNormalizeTest
                                                                    DataTypes.createArrayType(DataTypes.createArrayType(DataTypes.BinaryType))));
     }
 
+    @Test
+    public void testUdtNormalization()
+    {
+        StructType structType = new StructType()
+                                .add(new StructField("f1", DataTypes.IntegerType, false, Metadata.empty()))
+                                .add(new StructField("f2", DataTypes.StringType, false, Metadata.empty()));
+
+        GenericRowWithSchema source = new GenericRowWithSchema(new Object[]{1, "course"}, structType);
+        // NOTE: UDT Types carry their type name around, so the use of `udt_field` consistently here is a bit
+        // "wrong" for the real-world, but is tested by integration tests elsewhere and is correct for the way
+        // the asserts in this test work.
+        BridgeUdtValue udtValue = new BridgeUdtValue("udt_field", ImmutableMap.of("f1", 1, "f2", "course"));
+
+        CqlField.CqlUdt cqlType = mockUdtCqlType("udt_field", "f1", INT, "f2", TEXT);
+        assertNormalized("udt_field", cqlType, new MapType<>(ColumnTypes.STRING, new ListType<>(ColumnTypes.BYTES)),
+                         source, udtValue, structType);
+    }
+
     private void assertNormalized(String field,
                                   CqlField.CqlType cqlType,
                                   ColumnType<?> columnType,
@@ -309,6 +334,7 @@ public class TableSchemaNormalizeTest
         TableSchema schema = buildSchema(fieldNames, sparkTypes, new CqlField.CqlType[]{cqlType}, fieldNames, cqlTypes, fieldNames);
         Object[] source = new Object[]{sourceVal};
         Object[] expected = new Object[]{expectedVal};
-        assertThat(schema.normalize(source), is(equalTo(expected)));
+        Object[] normalized = schema.normalize(source);
+        assertThat(normalized, is(equalTo(expected)));
     }
 }

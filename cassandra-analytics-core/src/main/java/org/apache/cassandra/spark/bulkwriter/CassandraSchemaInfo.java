@@ -19,19 +19,31 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.util.Set;
+
+import org.apache.cassandra.spark.data.CqlTable;
+
 public class CassandraSchemaInfo implements SchemaInfo
 {
     private static final long serialVersionUID = -2327383232935001862L;
     private final TableSchema tableSchema;
+    private final Set<String> userDefinedTypeStatements;
 
-    public CassandraSchemaInfo(TableSchema tableSchema)
+    public CassandraSchemaInfo(TableSchema tableSchema, Set<String> userDefinedTypeStatements, CqlTable cqlTable)
     {
         this.tableSchema = tableSchema;
+        this.userDefinedTypeStatements = userDefinedTypeStatements;
     }
 
     @Override
     public TableSchema getTableSchema()
     {
         return tableSchema;
+    }
+
+    @Override
+    public Set<String> getUserDefinedTypeStatements()
+    {
+        return userDefinedTypeStatements;
     }
 }
