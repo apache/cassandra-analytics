@@ -21,7 +21,7 @@ project(':cassandra-analytics-integration-framework') {
     apply(plugin: 'java-library')
     apply(plugin: 'com.github.johnrengelman.shadow')
 
-    ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.4.jar" // latest supported Cassandra build is 4.1
+    ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.5.jar" // latest supported Cassandra build is 4.1
     def dtestJarFullPath = "${dependencyLocation}${ext.dtestJar}"
 
     test {

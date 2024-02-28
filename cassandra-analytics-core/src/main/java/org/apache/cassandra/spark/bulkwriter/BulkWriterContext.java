@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.io.Serializable;
 
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
+import org.apache.cassandra.bridge.CassandraBridge;
 
 public interface BulkWriterContext extends Serializable
 {
@@ -34,6 +35,8 @@ public interface BulkWriterContext extends Serializable
     SchemaInfo schema();
 
     DataTransferApi transfer();
+
+    CassandraBridge bridge();
 
     // NOTE: This interface intentionally does *not* implement AutoClosable as Spark can close Broadcast variables
     //       that implement AutoClosable while they are still in use, causing the underlying object to become unusable

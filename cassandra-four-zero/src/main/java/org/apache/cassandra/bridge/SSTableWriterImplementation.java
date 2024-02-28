@@ -21,6 +21,7 @@ package org.apache.cassandra.bridge;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -44,6 +45,7 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        String partitioner,
                                        String createStatement,
                                        String insertStatement,
+                                       Set<String> userDefinedTypeStatements,
                                        int bufferSizeMB)
     {
         IPartitioner cassPartitioner = partitioner.toLowerCase().contains("random") ? new RandomPartitioner()
@@ -53,6 +55,7 @@ public class SSTableWriterImplementation implements SSTableWriter
                                                             createStatement,
                                                             insertStatement,
                                                             bufferSizeMB,
+                                                            userDefinedTypeStatements,
                                                             cassPartitioner);
         writer = builder.build();
     }
@@ -81,17 +84,23 @@ public class SSTableWriterImplementation implements SSTableWriter
                                                      String createStatement,
                                                      String insertStatement,
                                                      int bufferSizeMB,
+                                                     Set<String> udts,
                                                      IPartitioner cassPartitioner)
     {
-        return CQLSSTableWriter
-               .builder()
-               .inDirectory(inDirectory)
-               .forTable(createStatement)
-               .withPartitioner(cassPartitioner)
-               .using(insertStatement)
-               // The data frame to write is always sorted,
-               // see org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation.insert
-               .sorted()
-               .withMaxSSTableSizeInMiB(bufferSizeMB);
+        CQLSSTableWriter.Builder builder = CQLSSTableWriter
+                                           .builder()
+                                           .inDirectory(inDirectory)
+                                           .forTable(createStatement)
+                                           .withPartitioner(cassPartitioner)
+                                           .using(insertStatement)
+                                           // The data frame to write is always sorted,
+                                           // see org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation.insert
+                                           .sorted()
+                                           .withMaxSSTableSizeInMiB(bufferSizeMB);
+        for (String udt : udts)
+        {
+            builder.withType(udt);
+        }
+        return builder;
     }
 }

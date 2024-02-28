@@ -20,8 +20,11 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
+import java.util.Set;
 
 public interface SchemaInfo extends Serializable
 {
     TableSchema getTableSchema();
+
+    Set<String> getUserDefinedTypeStatements();
 }

@@ -37,12 +37,17 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.net.InetAddresses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.CqlTable;
+import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.UUIDs;
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import scala.Tuple2;
 
 import static org.apache.cassandra.spark.utils.ScalaConversionUtils.asJavaIterable;
@@ -164,11 +169,13 @@ public final class SqlToCqlTypeConverter implements Serializable
                 return new MapConverter<>((CqlField.CqlMap) cqlType);
             case SET:
                 return new SetConverter<>((CqlField.CqlCollection) cqlType);
-            case UDT:
-                return NO_OP_CONVERTER;
             case TUPLE:
                 return NO_OP_CONVERTER;
             default:
+                if (cqlType.internalType() == CqlField.CqlType.InternalType.Udt) {
+                    assert cqlType instanceof CqlField.CqlUdt;
+                    return new UdtConverter((CqlField.CqlUdt) cqlType);
+                }
                 LOGGER.warn("Unable to match type={}. Defaulting to NoOp Converter", cqlName);
                 return NO_OP_CONVERTER;
         }
@@ -212,7 +219,7 @@ public final class SqlToCqlTypeConverter implements Serializable
 
     abstract static class Converter<T> implements Serializable
     {
-        public abstract T convertInternal(Object object) throws RuntimeException;
+        abstract T convertInternal(Object object);
 
         public T convert(Object object)
         {
@@ -441,7 +448,7 @@ public final class SqlToCqlTypeConverter implements Serializable
          * @throws RuntimeException when the object cannot be converted to timestamp
          */
         @Override
-        public Long convertInternal(Object object) throws RuntimeException
+        public Long convertInternal(Object object)
         {
             if (object instanceof Date)
             {
@@ -479,7 +486,7 @@ public final class SqlToCqlTypeConverter implements Serializable
          * @throws RuntimeException when the object cannot be converted to timestamp
          */
         @Override
-        public Date convertInternal(Object object) throws RuntimeException
+        public Date convertInternal(Object object)
         {
             if (object instanceof Date)
             {
@@ -793,6 +800,52 @@ public final class SqlToCqlTypeConverter implements Serializable
         public String toString()
         {
             return "Map";
+        }
+    }
+
+    public static class UdtConverter extends NullableConverter<Object>
+    {
+        private final String name;
+        private final HashMap<Object, Converter<?>> converters;
+        private CqlField.CqlUdt udt;
+
+        UdtConverter(CqlField.CqlUdt udt)
+        {
+            this.name = udt.cqlName();
+            this.converters = new HashMap<>();
+            for (CqlField f: udt.fields()) {
+                converters.put(f.name(), getConverter(f.type()));
+            }
+        }
+
+        @Override
+        public Object convertInternal(Object object)
+        {
+            if (object instanceof GenericRowWithSchema) {
+                Map<String, Object> udtMap = makeUdtMap((GenericRowWithSchema) object);
+                return new BridgeUdtValue(name, udtMap);
+            }
+            throw new RuntimeException("Unsupported conversion for UDT from " + object.getClass().getTypeName());
+        }
+
+        // Unfortunately, we don't have easy access to the bridge here.
+        // Rather than trying to create an actual UDTValue here, we will push
+        // that responsibility down to the SSTableWriter Implementation
+        private Map<String, Object> makeUdtMap(GenericRowWithSchema row)
+        {
+            Map<String, Object> result = new HashMap<>();
+            for (String fieldName: row.schema().fieldNames()) {
+                Converter<?> converter = converters.get(fieldName);
+                Object val = row.get(row.fieldIndex(fieldName));
+                result.put(fieldName, converter.convert(val));
+            }
+            return result;
+        }
+
+        @Override
+        public String toString()
+        {
+            return String.format("UDT[%s]", name);
         }
     }
 }

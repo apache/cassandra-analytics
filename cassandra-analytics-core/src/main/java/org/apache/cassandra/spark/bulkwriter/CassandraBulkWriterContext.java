@@ -54,6 +54,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     @NotNull
     private final BulkSparkConf conf;
     private final JobInfo jobInfo;
+    private transient CassandraBridge bridge;
     private transient DataTransferApi dataTransferApi;
     private final CassandraClusterInfo clusterInfo;
     private final SchemaInfo schemaInfo;
@@ -69,7 +70,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         this.clusterInfo = clusterInfo;
         this.jobStatsPublisher = new LogStatsPublisher();
         String lowestCassandraVersion = clusterInfo.getLowestCassandraVersion();
-        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
 
         TokenRangeMapping<RingInstance> tokenRangeMapping = clusterInfo.getTokenRangeMapping(true);
         jobInfo = new CassandraJobInfo(conf,
@@ -92,11 +92,21 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         Set<String> udts = CqlUtils.extractUdts(keyspaceSchema, keyspace);
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(keyspaceSchema, keyspace);
         int indexCount = CqlUtils.extractIndexCount(keyspaceSchema, keyspace, table);
-        CqlTable cqlTable = bridge.buildSchema(createTableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount);
+        CqlTable cqlTable = bridge().buildSchema(createTableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount);
 
         TableInfoProvider tableInfoProvider = new CqlTableInfoProvider(createTableSchema, cqlTable);
         TableSchema tableSchema = initializeTableSchema(conf, dfSchema, tableInfoProvider, lowestCassandraVersion);
-        schemaInfo = new CassandraSchemaInfo(tableSchema);
+        schemaInfo = new CassandraSchemaInfo(tableSchema, udts, cqlTable);
+    }
+
+    @Override
+    public synchronized CassandraBridge bridge()
+    {
+        if (this.bridge == null)
+        {
+            this.bridge = CassandraBridgeFactory.get(this.clusterInfo.getLowestCassandraVersion());
+        }
+        return this.bridge;
     }
 
     public static BulkWriterContext fromOptions(@NotNull SparkContext sparkContext,
@@ -204,9 +214,8 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     {
         if (dataTransferApi == null)
         {
-            CassandraBridge bridge = CassandraBridgeFactory.get(clusterInfo.getLowestCassandraVersion());
             dataTransferApi = new SidecarDataTransferApi(clusterInfo.getCassandraContext(),
-                                                         bridge,
+                                                         bridge(),
                                                          jobInfo,
                                                          conf);
         }

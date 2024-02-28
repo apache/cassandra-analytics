@@ -195,6 +195,23 @@ public class LocalDataLayer extends DataLayer implements Serializable
              paths);
     }
 
+    public LocalDataLayer(@NotNull CassandraVersion version,
+                          @NotNull String keyspace,
+                          @NotNull String createStatement,
+                          @NotNull Set<String> udtStatements,
+                          String... paths)
+    {
+        this(version,
+             Partitioner.Murmur3Partitioner,
+             keyspace,
+             createStatement,
+             udtStatements,
+             Collections.emptyList(),
+             false,
+             null,
+             paths);
+    }
+
     // CHECKSTYLE IGNORE: Constructor with many parameters
     public LocalDataLayer(@NotNull CassandraVersion version,
                           @NotNull Partitioner partitioner,
