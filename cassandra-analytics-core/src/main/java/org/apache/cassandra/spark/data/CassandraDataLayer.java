@@ -87,8 +87,10 @@ import org.apache.cassandra.spark.sparksql.LastModifiedTimestampDecorator;
 import org.apache.cassandra.spark.sparksql.RowBuilder;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.CqlUtils;
+import org.apache.cassandra.spark.utils.ReaderTimeProvider;
 import org.apache.cassandra.spark.utils.ScalaFunctions;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
+import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.validation.CassandraValidation;
 import org.apache.cassandra.spark.validation.SidecarValidation;
 import org.apache.cassandra.spark.validation.StartupValidatable;
@@ -122,7 +124,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected TokenPartitioner tokenPartitioner;
     protected Map<String, AvailabilityHint> availabilityHints;
     protected Sidecar.ClientConfig sidecarClientConfig;
-    private SslConfig sslConfig;
     protected Map<String, BigNumberConfigImpl> bigNumberConfigMap;
     protected boolean enableStats;
     protected boolean readIndexOffset;
@@ -133,7 +134,11 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected String lastModifiedTimestampField;
     // volatile in order to publish the reference for visibility
     protected volatile CqlTable cqlTable;
+    protected transient TimeProvider timeProvider;
     protected transient SidecarClient sidecar;
+
+    private SslConfig sslConfig;
+
     @VisibleForTesting
     transient Map<String, SidecarInstance> instanceMap;
 
@@ -178,7 +183,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                  boolean useIncrementalRepair,
                                  @Nullable String lastModifiedTimestampField,
                                  List<SchemaFeature> requestedFeatures,
-                                 @NotNull Map<String, ReplicationFactor> rfMap)
+                                 @NotNull Map<String, ReplicationFactor> rfMap,
+                                 TimeProvider timeProvider)
     {
         super(consistencyLevel, datacenter);
         this.snapshotName = snapshotName;
@@ -203,6 +209,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             aliasLastModifiedTimestamp(this.requestedFeatures, this.lastModifiedTimestampField);
         }
         this.rfMap = rfMap;
+        this.timeProvider = timeProvider;
         this.maybeQuoteKeyspaceAndTable();
         this.initInstanceMap();
         this.startupValidate();
@@ -212,8 +219,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     {
         dialHome(options);
 
-        LOGGER.info("Starting Cassandra Spark job snapshotName={} keyspace={} table={} dc={}",
-                    snapshotName, keyspace, table, datacenter);
+        timeProvider = new ReaderTimeProvider();
+        LOGGER.info("Starting Cassandra Spark job snapshotName={} keyspace={} table={} dc={} referenceEpoch={}",
+                    snapshotName, keyspace, table, datacenter, timeProvider.referenceEpochInSeconds());
 
         // Load cluster config from options
         clusterConfig = initializeClusterConfig(options);
@@ -379,6 +387,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected boolean isExhausted(@Nullable Throwable throwable)
     {
         return throwable != null && (throwable instanceof RetriesExhaustedException || isExhausted(throwable.getCause()));
+    }
+
+    @Override
+    public TimeProvider timeProvider()
+    {
+        return timeProvider;
     }
 
     @Override
@@ -701,6 +715,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             aliasLastModifiedTimestamp(this.requestedFeatures, this.lastModifiedTimestampField);
         }
         this.rfMap = (Map<String, ReplicationFactor>) in.readObject();
+        this.timeProvider = new ReaderTimeProvider(in.readInt());
         this.maybeQuoteKeyspaceAndTable();
         this.initInstanceMap();
         this.startupValidate();
@@ -742,6 +757,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             out.writeUTF(feature.optionName());
         }
         out.writeObject(this.rfMap);
+        out.writeInt(timeProvider.referenceEpochInSeconds());
     }
 
     private static void writeNullable(ObjectOutputStream out, @Nullable String string) throws IOException
@@ -814,6 +830,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                                                            .collect(Collectors.toList());
             kryo.writeObject(out, listWrapper);
             kryo.writeObject(out, dataLayer.rfMap);
+            out.writeInt(dataLayer.timeProvider.referenceEpochInSeconds());
         }
 
         @SuppressWarnings("unchecked")
@@ -852,7 +869,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             in.readBoolean(),
             in.readString(),
             kryo.readObject(in, SchemaFeaturesListWrapper.class).toList(),
-            kryo.readObject(in, HashMap.class));
+            kryo.readObject(in, HashMap.class),
+            new ReaderTimeProvider(in.readInt()));
         }
 
         // Wrapper only used internally for Kryo serialization/deserialization

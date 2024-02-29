@@ -48,6 +48,7 @@ import org.apache.cassandra.spark.data.PartitionedDataLayer;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.VersionRunner;
+import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.NotNull;
 
@@ -233,6 +234,12 @@ public class JDKSerializationTests extends VersionRunner
         public CqlTable cqlTable()
         {
             return cqlTable;
+        }
+
+        @Override
+        public TimeProvider timeProvider()
+        {
+            return TimeProvider.DEFAULT;
         }
 
         @Override

@@ -19,12 +19,15 @@
 
 package org.apache.cassandra.spark.reader;
 
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.LongPredicate;
 import java.util.stream.Collectors;
+
+import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.cassandra.db.AbstractCompactionController;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -54,11 +57,12 @@ public class CompactionStreamScanner extends AbstractStreamScanner
     private AbstractCompactionStrategy.ScannerList scanners;
     private CompactionIterator ci;
 
+    @VisibleForTesting
     CompactionStreamScanner(@NotNull TableMetadata cfMetaData,
                             @NotNull Partitioner partitionerType,
                             @NotNull Collection<? extends Scannable> toCompact)
     {
-        this(cfMetaData, partitionerType, TimeProvider.INSTANCE, toCompact);
+        this(cfMetaData, partitionerType, TimeProvider.DEFAULT, toCompact);
     }
 
     public CompactionStreamScanner(@NotNull TableMetadata cfMetaData,
@@ -79,33 +83,41 @@ public class CompactionStreamScanner extends AbstractStreamScanner
     }
 
     @Override
-    protected void handleRowTombstone(Row row)
+    protected void handleRowTombstone(BigInteger token, Row row)
     {
-        throw new IllegalStateException("Row tombstone found, it should have been purged in CompactionIterator");
+        throw new IllegalStateException("Row tombstone found. " +
+                                        "It should have been purged in CompactionIterator."  +
+                                        "Partition key token: " + token);
     }
 
     @Override
-    protected void handlePartitionTombstone(UnfilteredRowIterator partition)
+    protected void handlePartitionTombstone(BigInteger token, UnfilteredRowIterator partition)
     {
-        throw new IllegalStateException("Partition tombstone found, it should have been purged in CompactionIterator");
+        throw new IllegalStateException("Partition tombstone found. " +
+                                        "It should have been purged in CompactionIterator. " +
+                                        "Partition key token: " + token);
     }
 
     @Override
-    protected void handleCellTombstone()
+    protected void handleCellTombstone(BigInteger token)
     {
-        throw new IllegalStateException("Cell tombstone found, it should have been purged in CompactionIterator");
+        throw new IllegalStateException("Cell tombstone found. " +
+                                        "It should have been purged in CompactionIterator. " +
+                                        "Partition key token: " + token);
     }
 
     @Override
-    protected void handleCellTombstoneInComplex(Cell<?> cell)
+    protected void handleCellTombstoneInComplex(BigInteger token, Cell<?> cell)
     {
-        // Do nothing: to not introduce behavior change to the SBR code path
+        throw new IllegalStateException("Cell tombstone in complex type found. " +
+                                        "It should have been purged in CompactionIterator. " +
+                                        "Partition key token: " + token);
     }
 
     @Override
     UnfilteredPartitionIterator initializePartitions()
     {
-        int nowInSec = timeProvider.nowInTruncatedSeconds();
+        int nowInSec = timeProvider.referenceEpochInSeconds();
         Keyspace keyspace = Keyspace.openWithoutSSTables(metadata.keyspace);
         ColumnFamilyStore cfStore = keyspace.getColumnFamilyStore(metadata.name);
         controller = new PurgingCompactionController(cfStore, CompactionParams.TombstoneOption.NONE);

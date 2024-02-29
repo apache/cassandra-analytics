@@ -46,6 +46,7 @@ import org.apache.cassandra.spark.data.SSTablesSupplier;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
+import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -97,6 +98,12 @@ public class TestDataLayer extends DataLayer
     public boolean isInPartition(int partitionId, BigInteger token, ByteBuffer key)
     {
         return true;
+    }
+
+    @Override
+    public TimeProvider timeProvider()
+    {
+        return TimeProvider.DEFAULT;
     }
 
     @Override

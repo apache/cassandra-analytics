@@ -59,6 +59,7 @@ import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.Throwing;
+import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.parquet.Strings;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -268,6 +269,12 @@ public class LocalDataLayer extends DataLayer implements Serializable
     public boolean isInPartition(int partitionId, BigInteger token, ByteBuffer key)
     {
         return true;
+    }
+
+    @Override
+    public TimeProvider timeProvider()
+    {
+        return TimeProvider.DEFAULT;
     }
 
     @Override
