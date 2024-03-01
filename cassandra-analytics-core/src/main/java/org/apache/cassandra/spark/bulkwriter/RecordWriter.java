@@ -400,16 +400,14 @@ public class RecordWriter implements Serializable
      * Close the {@link RecordWriter#sstableWriter} if present. Schedule a stream session with the produced sstables.
      * And finally, nullify {@link RecordWriter#sstableWriter}
      */
-    private void finalizeSSTable(StreamSession streamSession,
-                                 int partitionId) throws IOException
+    private void finalizeSSTable(StreamSession streamSession, int partitionId) throws IOException
     {
         if (sstableWriter == null)
         {
             LOGGER.warn("SSTableWriter is null. Nothing to finalize");
             return;
         }
-        LOGGER.info("[{}] Closing writer and scheduling SStable stream",
-                    partitionId);
+        LOGGER.info("[{}] Closing writer and scheduling SStable stream", partitionId);
         sstableWriter.close(writerContext, partitionId);
         streamSession.scheduleStream(sstableWriter);
         sstableWriter = null;

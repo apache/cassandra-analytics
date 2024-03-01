@@ -170,11 +170,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         throw new RuntimeException(KRYO_REGISTRATION_WARNING);
     }
 
-    protected void dialHome(String sparkVersion)
-    {
-        LOGGER.info("Dial home. clientConfig={}, sparkVersion={}", conf, sparkVersion);
-    }
-
     @Override
     @NotNull
     public ClusterInfo cluster()

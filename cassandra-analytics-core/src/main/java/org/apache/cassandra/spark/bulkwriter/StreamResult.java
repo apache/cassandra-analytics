@@ -33,18 +33,21 @@ public class StreamResult implements Serializable
     public List<CommitResult> commitResults;  // CHECKSTYLE IGNORE: Public mutable field
     public final List<RingInstance> passed;
     public final long rowCount;
+    public final long bytesWritten;
 
     public StreamResult(String sessionID,
                         Range<BigInteger> tokenRange,
                         List<StreamError> failures,
                         List<RingInstance> passed,
-                        long rowCount)
+                        long rowCount,
+                        long bytesWritten)
     {
         this.sessionID = sessionID;
         this.tokenRange = tokenRange;
         this.failures = failures;
         this.passed = passed;
         this.rowCount = rowCount;
+        this.bytesWritten = bytesWritten;
     }
 
     public void setCommitResults(List<CommitResult> commitResult)
@@ -55,7 +58,8 @@ public class StreamResult implements Serializable
     @Override
     public String toString()
     {
-        return String.format("StreamResult{sessionID='%s', tokenRange=%s, failures=%s, commitResults=%s, passed=%s}",
-                             sessionID, tokenRange, failures, commitResults, passed);
+        return String.format("StreamResult{sessionID='%s', tokenRange=%s, failures=%s, commitResults=%s, passed=%s, " +
+                             "rowCount=%d, bytesWritten=%d}",
+                             sessionID, tokenRange, failures, commitResults, passed, rowCount, bytesWritten);
     }
 }

@@ -116,8 +116,9 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                                          .mapPartitions(partitionsFlatMapFunc(broadcastContext, columnNames))
                                          .collect();
             long rowCount = results.stream().mapToLong(res -> res.rowCount).sum();
-            LOGGER.info("Bulk writer has written {} rows", rowCount);
-            recordSuccessfulJobStats(rowCount);
+            long totalBytesWritten = results.stream().mapToLong(res -> res.bytesWritten).sum();
+            LOGGER.info("Bulk writer has written {} rows and {} bytes", rowCount, totalBytesWritten);
+            recordSuccessfulJobStats(rowCount, totalBytesWritten);
         }
         catch (Throwable throwable)
         {
@@ -141,12 +142,13 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         }
     }
 
-    private void recordSuccessfulJobStats(long rowCount)
+    private void recordSuccessfulJobStats(long rowCount, long totalBytesWritten)
     {
         writerContext.recordJobStats(new HashMap<>()
         {
             {
                 put("rowsWritten", Long.toString(rowCount));
+                put("bytesWritten", Long.toString(totalBytesWritten));
                 put("jobStatus", "Succeeded");
                 put("jobElapsedTimeMillis", Long.toString(getElapsedTimeMillis()));
             }
