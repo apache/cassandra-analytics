@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.reader;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -111,13 +112,33 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
     @Override
     public abstract void close() throws IOException;
 
-    protected abstract void handleRowTombstone(Row row);
+    /**
+     * Handles the row tombstone
+     * @param token token of the partition that the row belongs to
+     * @param row row tombstone
+     */
+    protected abstract void handleRowTombstone(BigInteger token, Row row);
 
-    protected abstract void handlePartitionTombstone(UnfilteredRowIterator partition);
+    /**
+     * Handles the partition tombstone
+     * @param token token of the partition
+     * @param partition partition tombstone
+     */
+    protected abstract void handlePartitionTombstone(BigInteger token, UnfilteredRowIterator partition);
 
-    protected abstract void handleCellTombstone();
 
-    protected abstract void handleCellTombstoneInComplex(Cell<?> cell);
+    /**
+     * Handle the cell tombstone
+     * @param token token of the partition that the cell belongs to
+     */
+    protected abstract void handleCellTombstone(BigInteger token);
+
+    /**
+     * Handle the cell tombstone in complex type, e.g. UDT and collections
+     * @param token token of the partition that the cell belongs to
+     * @param cell cell tombstone
+     */
+    protected abstract void handleCellTombstoneInComplex(BigInteger token, Cell<?> cell);
 
     @Override
     public void advanceToNextColumn()
@@ -152,16 +173,16 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                         // Advance to next partition
                         partition = allPartitions.next();
 
+                        BigInteger token = ReaderUtils.tokenToBigInteger(partition.partitionKey().getToken());
                         if (partition.partitionLevelDeletion().isLive())
                         {
                             // Reset rid with new partition key
-                            rid.setPartitionKeyCopy(partition.partitionKey().getKey(),
-                                                    ReaderUtils.tokenToBigInteger(partition.partitionKey().getToken()));
+                            rid.setPartitionKeyCopy(partition.partitionKey().getKey(), token);
                         }
                         else
                         {
                             // There's a partition-level delete
-                            handlePartitionTombstone(partition);
+                            handlePartitionTombstone(token, partition);
                             return true;
                         }
                     }
@@ -230,7 +251,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                     // There is a CQL row level delete
                     if (!row.deletion().isLive())
                     {
-                        handleRowTombstone(row);
+                        handleRowTombstone(rid.getToken(), row);
                         return true;
                     }
 
@@ -253,6 +274,11 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                     // iteration and move to the next unfiltered. So then only the row marker and/or row deletion (if
                     // either are present) will get emitted
                     columns = row.iterator();
+                }
+                else if (unfiltered.isRangeTombstoneMarker())
+                {
+                    throw new IllegalStateException("Encountered RangeTombstoneMarker. " +
+                                                    "It should have been purged in CompactionIterator");
                 }
                 else
                 {
@@ -370,7 +396,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                                                              null));
             if (cell.isTombstone())
             {
-                handleCellTombstone();
+                handleCellTombstone(rid.getToken());
             }
             else
             {
@@ -425,13 +451,13 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                     Cell<?> cell = cells.next();
                     // Re: isLive vs. isTombstone - isLive considers TTL so that if a cell is expiring soon,
                     // it is handled as tombstone
-                    if (cell.isLive(timeProvider.nowInTruncatedSeconds()))
+                    if (cell.isLive(timeProvider.referenceEpochInSeconds()))
                     {
                         buffer.addCell(cell);
                     }
                     else
                     {
-                        handleCellTombstoneInComplex(cell);
+                        handleCellTombstoneInComplex(rid.getToken(), cell);
                     }
                     // In the case the cell is deleted, the deletion time is also the cell's timestamp
                     maxTimestamp = Math.max(maxTimestamp, cell.timestamp());
@@ -443,7 +469,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
             else
             {
                 // The entire collection/UDT is deleted
-                handleCellTombstone();
+                handleCellTombstone(rid.getToken());
                 rid.setTimestamp(deletionTime.markedForDeleteAt());
             }
 

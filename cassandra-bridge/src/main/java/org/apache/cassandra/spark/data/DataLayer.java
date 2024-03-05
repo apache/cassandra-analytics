@@ -164,6 +164,11 @@ public abstract class DataLayer implements Serializable
 
     public abstract boolean isInPartition(int partitionId, BigInteger token, ByteBuffer key);
 
+    /**
+     * @return a TimeProvider
+     */
+    public abstract TimeProvider timeProvider();
+
     public List<PartitionKeyFilter> partitionKeyFiltersInRange(
     int partitionId,
     List<PartitionKeyFilter> partitionKeyFilters) throws NoMatchFoundException
@@ -280,14 +285,6 @@ public abstract class DataLayer implements Serializable
         SparkRangeFilter rangeFilter = sparkRangeFilter(partitionId);
         return bridge().getPartitionSizeIterator(cqlTable(), partitioner(), sstables(partitionId, rangeFilter, Collections.emptyList()),
                                                  rangeFilter, timeProvider(), stats(), executorService());
-    }
-
-    /**
-     * @return a TimeProvider that returns the time now in seconds. User can override with their own provider
-     */
-    public TimeProvider timeProvider()
-    {
-        return bridge().timeProvider();
     }
 
     /**

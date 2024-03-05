@@ -121,7 +121,6 @@ import org.apache.cassandra.spark.utils.SparkClassLoaderOverride;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.tools.JsonTransformer;
 import org.apache.cassandra.tools.Util;
-import org.apache.cassandra.utils.FBUtilities;
 import org.apache.cassandra.utils.UUIDGen;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -242,12 +241,6 @@ public class CassandraBridgeImplementation extends CassandraBridge
                     .map(type -> (CqlType) type)
                     .map(type -> type.dataType(true))
                     .collect(Collectors.toList());
-    }
-
-    @Override
-    public TimeProvider timeProvider()
-    {
-        return FBUtilities::nowInSeconds;
     }
 
     @Override

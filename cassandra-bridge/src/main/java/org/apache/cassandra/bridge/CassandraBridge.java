@@ -84,8 +84,6 @@ public abstract class CassandraBridge
                                                                                     @NotNull Partitioner partitioner,
                                                                                     @NotNull List<String> keys);
 
-    public abstract TimeProvider timeProvider();
-
     // Compaction Stream Scanner
     // CHECKSTYLE IGNORE: Method with many parameters
     public abstract StreamScanner<Rid> getCompactionScanner(@NotNull CqlTable table,

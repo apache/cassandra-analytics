@@ -78,6 +78,7 @@ public final class TestSchema
         private Integer blobSize = null;
         private boolean withCompression = true;
         private boolean quoteIdentifiers = false;
+        private int ttlSecs = 0;
 
         public Builder(CassandraBridge bridge)
         {
@@ -163,6 +164,12 @@ public final class TestSchema
             return this;
         }
 
+        public Builder withTTL(int ttlSecs)
+        {
+            this.ttlSecs = ttlSecs;
+            return this;
+        }
+
         public TestSchema build()
         {
             if (!partitionKeys.isEmpty())
@@ -192,7 +199,7 @@ public final class TestSchema
         }
     }
 
-        private final CassandraBridge bridge;
+    private final CassandraBridge bridge;
     @NotNull
     public final String keyspace;
     public final String table;
@@ -249,7 +256,10 @@ public final class TestSchema
         this.blobSize = builder.blobSize;
         this.allFields = buildAllFields(partitionKeys, clusteringKeys, columns);
         this.fieldPositions = calculateFieldPositions(allFields);
-        this.createStatement = buildCreateStatement(columns, builder.sortOrders, builder.withCompression);
+        this.createStatement = buildCreateStatement(columns,
+                                                    builder.sortOrders,
+                                                    builder.withCompression,
+                                                    builder.ttlSecs);
         this.insertStatement = buildInsertStatement(columns, builder.insertFields);
         this.updateStatement = buildUpdateStatement();
         this.deleteStatement = buildDeleteStatement(builder.deleteFields);
@@ -363,7 +373,8 @@ public final class TestSchema
 
     private String buildCreateStatement(List<CqlField> columns,
                                         List<CqlField.SortOrder> sortOrders,
-                                        boolean withCompression)
+                                        boolean withCompression,
+                                        int ttlSecs)
     {
         StringBuilder createStmtBuilder = new StringBuilder().append("CREATE TABLE ")
                                                              .append(maybeQuoteIdentifierIfRequested(keyspace))
@@ -398,9 +409,11 @@ public final class TestSchema
 
         createStmtBuilder.append("))");
 
+        createStmtBuilder.append(" WITH comment = 'test table'"); // take 'WITH', so the rest can append 'AND' safely
+
         if (!sortOrders.isEmpty())
         {
-            createStmtBuilder.append(" WITH CLUSTERING ORDER BY (");
+            createStmtBuilder.append(" AND CLUSTERING ORDER BY (");
             for (int sortOrder = 0; sortOrder < sortOrders.size(); sortOrder++)
             {
                 createStmtBuilder.append(maybeQuoteIdentifierIfRequested(clusteringKeys.get(sortOrder).name()))
@@ -414,9 +427,15 @@ public final class TestSchema
             createStmtBuilder.append(")");
         }
 
+
         if (!withCompression)
         {
-            createStmtBuilder.append(" WITH compression = {'enabled':'false'}");
+            createStmtBuilder.append(" AND compression = {'enabled':'false'}");
+        }
+
+        if (ttlSecs > 0)
+        {
+            createStmtBuilder.append(" AND default_time_to_live = " + ttlSecs);
         }
 
         return createStmtBuilder.append(";")
