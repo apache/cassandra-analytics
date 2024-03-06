@@ -107,6 +107,6 @@ public class KeyStoreValidationTests
 
         Throwable throwable = validation.perform();
         assertInstanceOf(RuntimeException.class, throwable);
-        assertThat(throwable.getMessage()).startsWith("Certificate expired, valid NotAfter: ");
+        assertThat(throwable.getMessage()).startsWith("Certificate expired. ");
     }
 }
