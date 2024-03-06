@@ -1,4 +1,5 @@
 1.0.0
+ * Add certificate expiry check to start up validations done in Cassandra Analytics library (CASSANDRA-19424)
  * Use constant reference time during bulk read process (CASSANDRA-19452)
  * Update access of ClearSnapshotStrategy (CASSANDRA-19442)
  * Bulk reader fails to produce a row when regular column values are null (CASSANDRA-19411)

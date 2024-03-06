@@ -25,6 +25,9 @@ import java.security.GeneralSecurityException;
 import java.security.Key;
 import java.security.KeyStore;
 import java.security.PrivateKey;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.X509Certificate;
 import java.util.Enumeration;
 import java.util.function.Supplier;
 
@@ -62,6 +65,7 @@ public class KeyStoreValidation implements StartupValidation
     @Override
     public void validate()
     {
+        String latestAlias = null;
         try
         {
             if (!configured)
@@ -83,6 +87,16 @@ public class KeyStoreValidation implements StartupValidation
 
             for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements();)
             {
+                latestAlias = aliases.nextElement();
+                Certificate cert = keyStore.getCertificate(latestAlias);
+                if (cert instanceof X509Certificate)
+                {
+                    ((X509Certificate) cert).checkValidity();
+                }
+            }
+
+            for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements();)
+            {
                 Key key = keyStore.getKey(aliases.nextElement(), password);
                 if (key != null && key instanceof PrivateKey)
                 {
@@ -90,6 +104,10 @@ public class KeyStoreValidation implements StartupValidation
                 }
             }
             throw new RuntimeException("KeyStore contains no private keys");
+        }
+        catch (CertificateExpiredException exception)
+        {
+            throw new RuntimeException(String.format("Certificate with alias '%s' is expired.", latestAlias), exception);
         }
         catch (IOException | GeneralSecurityException exception)
         {

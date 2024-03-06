@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.secrets.TestSecretsProvider;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -96,5 +97,16 @@ public class KeyStoreValidationTests
 
         Throwable throwable = validation.perform();
         assertNull(throwable);
+    }
+
+    @Test
+    public void testExpiredKeyStore()
+    {
+        SecretsProvider secrets = TestSecretsProvider.forKeyStore("PKCS12", "keystore-expired.p12", "qwerty");
+        KeyStoreValidation validation = new KeyStoreValidation(secrets);
+
+        Throwable throwable = validation.perform();
+        assertInstanceOf(RuntimeException.class, throwable);
+        assertThat(throwable.getMessage()).startsWith("Certificate with alias '1' is expired.");
     }
 }
