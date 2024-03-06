@@ -65,6 +65,7 @@ public class KeyStoreValidation implements StartupValidation
     @Override
     public void validate()
     {
+        String latestAlias = null;
         try
         {
             if (!configured)
@@ -86,7 +87,8 @@ public class KeyStoreValidation implements StartupValidation
 
             for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements();)
             {
-                Certificate cert = keyStore.getCertificate(aliases.nextElement());
+                latestAlias = aliases.nextElement();
+                Certificate cert = keyStore.getCertificate(latestAlias);
                 if (cert instanceof X509Certificate)
                 {
                     ((X509Certificate) cert).checkValidity();
@@ -105,7 +107,7 @@ public class KeyStoreValidation implements StartupValidation
         }
         catch (CertificateExpiredException exception)
         {
-            throw new RuntimeException("Certificate expired. " + exception.getMessage(), exception);
+            throw new RuntimeException(String.format("Certificate with alias '%s' is expired.", latestAlias), exception);
         }
         catch (IOException | GeneralSecurityException exception)
         {
