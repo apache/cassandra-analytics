@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.net.InetAddresses;
 import org.junit.jupiter.api.Test;
 
@@ -313,7 +314,7 @@ public class TableSchemaNormalizeTest
         // NOTE: UDT Types cary their type name around, so the use of `udt_field` consistently here is a bit
         // "wrong" for the real-world, but is tested by integration tests elsewhere and is correct for the way
         // the asserts in this test work.
-        BridgeUdtValue udtValue = new BridgeUdtValue("udt_field", Map.of("f1", 1, "f2", "course"));
+        BridgeUdtValue udtValue = new BridgeUdtValue("udt_field", ImmutableMap.of("f1", 1, "f2", "course"));
 
         CqlField.CqlUdt cqlType = mockUdtCqlType("udt_field", "f1", INT, "f2", TEXT);
         assertNormalized("udt_field", cqlType, new MapType<>(ColumnTypes.STRING, new ListType<>(ColumnTypes.BYTES)),
