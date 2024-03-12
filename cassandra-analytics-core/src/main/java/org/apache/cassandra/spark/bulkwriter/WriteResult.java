@@ -19,21 +19,36 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.io.Serializable;
+import java.util.List;
 
-import org.apache.cassandra.spark.common.JobStats;
+import scala.Serializable;
 
-public interface BulkWriterContext extends Serializable, JobStats
+public class WriteResult implements Serializable
 {
-    ClusterInfo cluster();
 
-    JobInfo job();
+    public final List<StreamResult> streamResults;
+    public final boolean clusterResizeDetected;
 
-    SchemaInfo schema();
+    public WriteResult(List<StreamResult> streamResults, boolean clusterResizeDetected)
+    {
+        this.streamResults = streamResults;
+        this.clusterResizeDetected = clusterResizeDetected;
+    }
 
-    DataTransferApi transfer();
+    public List<StreamResult> streamResults()
+    {
+        return streamResults;
+    }
 
-    // NOTE: This interface intentionally does *not* implement AutoClosable as Spark can close Broadcast variables
-    //       that implement AutoClosable while they are still in use, causing the underlying object to become unusable
-    void shutdown();
+    public boolean isClusterResizeDetected()
+    {
+        return clusterResizeDetected;
+    }
+
+    @Override
+    public String toString()
+    {
+        return String.format("WriteResult{streamResults='%s', clusterResizeDetected=%s}",
+                             streamResults, clusterResizeDetected);
+    }
 }

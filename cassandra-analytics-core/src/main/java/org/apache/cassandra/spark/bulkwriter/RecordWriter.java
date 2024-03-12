@@ -109,7 +109,7 @@ public class RecordWriter implements Serializable
         return String.format("%d-%s", taskContext.partitionId(), UUID.randomUUID());
     }
 
-    public List<StreamResult> write(Iterator<Tuple2<DecoratedKey, Object[]>> sourceIterator)
+    public WriteResult write(Iterator<Tuple2<DecoratedKey, Object[]>> sourceIterator)
     {
         TaskContext taskContext = taskContextSupplier.get();
         LOGGER.info("[{}]: Processing bulk writer partition", taskContext.partitionId());
@@ -120,7 +120,8 @@ public class RecordWriter implements Serializable
                                  taskTokenRange);
 
         TokenRangeMapping<RingInstance> initialTokenRangeMapping = writerContext.cluster().getTokenRangeMapping(false);
-        recordTokenRangeStats(initialTokenRangeMapping);
+        boolean isClusterBeingResized = (!initialTokenRangeMapping.getPendingReplicas().isEmpty() ||
+                                         !initialTokenRangeMapping.getReplacementInstances().isEmpty());
         LOGGER.info("[{}]: Fetched token range mapping for keyspace: {} with write replicas: {} containing pending " +
                     "replicas: {}, blocked instances: {}, replacement instances: {}",
                     taskContext.partitionId(),
@@ -197,7 +198,7 @@ public class RecordWriter implements Serializable
             // When instances for the partition's token range have changed within the scope of the task execution,
             // we fail the task for it to be retried
             validateTaskTokenRangeMappings(partitionId, initialTokenRangeMapping, taskTokenRange);
-            return results;
+            return new WriteResult(results, isClusterBeingResized);
         }
         catch (Exception exception)
         {
@@ -208,21 +209,6 @@ public class RecordWriter implements Serializable
                          taskContext.attemptNumber());
             throw new RuntimeException(exception);
         }
-    }
-
-    private void recordTokenRangeStats(TokenRangeMapping<RingInstance> tokenRangeMapping)
-    {
-        boolean resizeDetected = false;
-        if (writerContext.jobStats().containsKey(STATS_KEY_RESIZE_DETECTED))
-        {
-            resizeDetected = Boolean.getBoolean(writerContext.jobStats().get(STATS_KEY_RESIZE_DETECTED));
-        }
-
-        if (!tokenRangeMapping.getPendingReplicas().isEmpty() || !tokenRangeMapping.getReplacementInstances().isEmpty())
-        {
-            resizeDetected = true;
-        }
-        writerContext.recordJobStats(Collections.singletonMap(STATS_KEY_RESIZE_DETECTED, String.valueOf(resizeDetected)));
     }
 
     private Map<Range<BigInteger>, List<RingInstance>> taskTokenRangeMapping(TokenRangeMapping<RingInstance> tokenRange,

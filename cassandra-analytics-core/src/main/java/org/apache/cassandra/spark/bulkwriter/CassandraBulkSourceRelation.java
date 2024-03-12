@@ -19,10 +19,13 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,13 +115,11 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     {
         try
         {
-            List<StreamResult> results = sortedRDD
-                                         .mapPartitions(partitionsFlatMapFunc(broadcastContext, columnNames))
-                                         .collect();
-            long rowCount = results.stream().mapToLong(res -> res.rowCount).sum();
-            long totalBytesWritten = results.stream().mapToLong(res -> res.bytesWritten).sum();
-            LOGGER.info("Bulk writer has written {} rows and {} bytes", rowCount, totalBytesWritten);
-            recordSuccessfulJobStats(rowCount, totalBytesWritten);
+            List<WriteResult> writeResults = sortedRDD
+                                 .mapPartitions(partitionsFlatMapFunc(broadcastContext, columnNames))
+                                 .collect();
+
+            recordSuccessfulJobStats(writeResults);
         }
         catch (Throwable throwable)
         {
@@ -142,14 +143,29 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         }
     }
 
-    private void recordSuccessfulJobStats(long rowCount, long totalBytesWritten)
+    private void recordSuccessfulJobStats(List<WriteResult> writeResults)
     {
+        List<StreamResult> streamResults = writeResults.stream()
+                                                       .map(WriteResult::streamResults)
+                                                       .flatMap(Collection::stream)
+                                                       .collect(Collectors.toList());
+
+        long rowCount = streamResults.stream().mapToLong(res -> res.rowCount).sum();
+        long totalBytesWritten = streamResults.stream().mapToLong(res -> res.bytesWritten).sum();
+        boolean hasClusterTopologyChanged = writeResults.stream()
+                                                        .map(WriteResult::isClusterResizeDetected)
+                                                        .anyMatch(b -> b);
+        LOGGER.info("Bulk writer has written {} rows and {} bytes with cluster-resize status: {}",
+                    rowCount,
+                    totalBytesWritten,
+                    hasClusterTopologyChanged);
         writerContext.recordJobStats(new HashMap<>()
         {
             {
                 put("rowsWritten", Long.toString(rowCount));
                 put("bytesWritten", Long.toString(totalBytesWritten));
                 put("jobStatus", "Succeeded");
+                put("clusterResizeDetected", String.valueOf(hasClusterTopologyChanged));
                 put("jobElapsedTimeMillis", Long.toString(getElapsedTimeMillis()));
             }
         });
@@ -179,10 +195,10 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
      * @param ctx BulkWriterContext broadcast variable
      * @return FlatMapFunction
      */
-    private static FlatMapFunction<Iterator<Tuple2<DecoratedKey, Object[]>>, StreamResult>
+    private static FlatMapFunction<Iterator<Tuple2<DecoratedKey, Object[]>>, WriteResult>
     partitionsFlatMapFunc(Broadcast<BulkWriterContext> ctx, String[] columnNames)
     {
-        return iterator -> new RecordWriter(ctx.getValue(), columnNames).write(iterator).iterator();
+        return iterator -> Collections.singleton(new RecordWriter(ctx.getValue(), columnNames).write(iterator)).iterator();
     }
 
     /**
