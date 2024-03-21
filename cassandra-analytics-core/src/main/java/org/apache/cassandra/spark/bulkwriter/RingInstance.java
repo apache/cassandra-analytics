@@ -130,22 +130,11 @@ public class RingInstance implements CassandraInstance, Serializable
         out.writeUTF(ringEntry.fqdn());
         out.writeUTF(ringEntry.status());
         out.writeUTF(ringEntry.state());
-        if (ringEntry.rack() != null)
-        {
-            out.writeUTF(ringEntry.rack());
-        }
-        if (ringEntry.hostId() != null)
-        {
-            out.writeUTF(ringEntry.hostId());
-        }
-        if (ringEntry.load() != null)
-        {
-            out.writeUTF(ringEntry.load());
-        }
-        if (ringEntry.owns() != null)
-        {
-            out.writeUTF(ringEntry.owns());
-        }
+        // Nullable fields serialized with writeObject
+        out.writeObject(ringEntry.rack());
+        out.writeObject(ringEntry.hostId());
+        out.writeObject(ringEntry.load());
+        out.writeObject(ringEntry.owns());
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
@@ -157,6 +146,11 @@ public class RingInstance implements CassandraInstance, Serializable
         String fqdn = in.readUTF();
         String status = in.readUTF();
         String state = in.readUTF();
+        // Nullable fields deserialized with readObject
+        String rack = (String) in.readObject();
+        String hostId = (String) in.readObject();
+        String load = (String) in.readObject();
+        String owns = (String) in.readObject();
         ringEntry = new RingEntry.Builder().datacenter(datacenter)
                                            .address(address)
                                            .port(port)
@@ -164,6 +158,10 @@ public class RingInstance implements CassandraInstance, Serializable
                                            .state(state)
                                            .token(token)
                                            .fqdn(fqdn)
+                                           .rack(rack)
+                                           .hostId(hostId)
+                                           .load(load)
+                                           .owns(owns)
                                            .build();
     }
 }

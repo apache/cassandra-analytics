@@ -29,9 +29,9 @@ import org.slf4j.LoggerFactory;
  * Implementation of {@link JobStats} that is used to record stats through the course of the
  * Spark job execution and publish them. This implementation logs the stats when published.
  */
-public class JobStatsImpl implements JobStats
+public class LogBasedJobStats implements JobStats
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(JobStatsImpl.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LogBasedJobStats.class);
     private final transient Map<String, String> jobStats = new HashMap<>();
     public void recordJobStats(Map<String, String> stats)
     {

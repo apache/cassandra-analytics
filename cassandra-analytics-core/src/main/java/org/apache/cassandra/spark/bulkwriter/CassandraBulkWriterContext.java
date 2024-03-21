@@ -35,7 +35,7 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.stats.JobStats;
-import org.apache.cassandra.spark.common.stats.JobStatsImpl;
+import org.apache.cassandra.spark.common.stats.LogBasedJobStats;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -67,7 +67,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     {
         this.conf = conf;
         this.clusterInfo = clusterInfo;
-        this.jobStats = new JobStatsImpl();
+        this.jobStats = new LogBasedJobStats();
         String lowestCassandraVersion = clusterInfo.getLowestCassandraVersion();
         CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
 
