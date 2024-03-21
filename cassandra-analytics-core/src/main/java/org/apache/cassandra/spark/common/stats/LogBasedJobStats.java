@@ -39,7 +39,7 @@ public class LogBasedJobStats implements JobStats
     {
         jobStats.putAll(stats);
     }
-    
+
     @Override
     public void publishJobStats()
     {
