@@ -61,7 +61,6 @@ public class SSTableWriter
 
     private long rowCount = 0;
 
-
     public SSTableWriter(org.apache.cassandra.bridge.SSTableWriter tableWriter, Path outDir,
                          DigestAlgorithm digestAlgorithm)
     {
@@ -107,7 +106,7 @@ public class SSTableWriter
     }
 
     /**
-     * @return the total number of rows added
+     * @return the total number of rows written
      */
     public long rowCount()
     {

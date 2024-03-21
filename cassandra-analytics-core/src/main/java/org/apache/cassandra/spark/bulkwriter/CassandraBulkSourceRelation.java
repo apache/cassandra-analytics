@@ -153,9 +153,8 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         long rowCount = streamResults.stream().mapToLong(res -> res.rowCount).sum();
         long totalBytesWritten = streamResults.stream().mapToLong(res -> res.bytesWritten).sum();
         boolean hasClusterTopologyChanged = writeResults.stream()
-                                                        .map(WriteResult::isClusterResizeDetected)
-                                                        .anyMatch(b -> b);
-        LOGGER.info("Bulk writer has written {} rows and {} bytes with cluster-resize status: {}",
+                                                        .anyMatch(WriteResult::isClusterResizeDetected);
+        LOGGER.info("Bulk writer job complete. rows={} bytes={} cluster_resize={}",
                     rowCount,
                     totalBytesWritten,
                     hasClusterTopologyChanged);

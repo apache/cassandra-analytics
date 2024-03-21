@@ -75,7 +75,6 @@ public class RecordWriter implements Serializable
     private SSTableWriter sstableWriter = null;
     private int outputSequence = 0; // sub-folder for possible subrange splits
 
-    private static final String STATS_KEY_RESIZE_DETECTED = "clusterResizeDetected";
 
     public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
     {

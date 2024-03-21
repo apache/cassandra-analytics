@@ -84,6 +84,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     {
         return jobStats;
     }
+
     public void recordJobStats(Map<String, String> stats)
     {
         jobStats.putAll(stats);
