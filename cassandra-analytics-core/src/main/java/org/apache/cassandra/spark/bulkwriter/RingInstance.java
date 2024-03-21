@@ -49,7 +49,6 @@ public class RingInstance implements CassandraInstance, Serializable
                          .datacenter(replica.datacenter())
                          .state(replica.state())
                          .status(replica.status())
-                         .token("")
                          .build();
     }
 
@@ -126,11 +125,11 @@ public class RingInstance implements CassandraInstance, Serializable
         out.writeUTF(ringEntry.address());
         out.writeInt(ringEntry.port());
         out.writeUTF(ringEntry.datacenter());
-        out.writeUTF(ringEntry.token());
         out.writeUTF(ringEntry.fqdn());
         out.writeUTF(ringEntry.status());
         out.writeUTF(ringEntry.state());
         // Nullable fields serialized with writeObject
+        out.writeObject(ringEntry.token());
         out.writeObject(ringEntry.rack());
         out.writeObject(ringEntry.hostId());
         out.writeObject(ringEntry.load());
@@ -142,11 +141,11 @@ public class RingInstance implements CassandraInstance, Serializable
         String address = in.readUTF();
         int port = in.readInt();
         String datacenter = in.readUTF();
-        String token = in.readUTF();
         String fqdn = in.readUTF();
         String status = in.readUTF();
         String state = in.readUTF();
         // Nullable fields deserialized with readObject
+        String token = (String) in.readObject();
         String rack = (String) in.readObject();
         String hostId = (String) in.readObject();
         String load = (String) in.readObject();
