@@ -116,7 +116,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         try
         {
             List<WriteResult> writeResults = sortedRDD
-                                 .mapPartitions(partitionsFlatMapFunc(broadcastContext, columnNames))
+                                 .mapPartitions(writeRowsInPartition(broadcastContext, columnNames))
                                  .collect();
 
             recordSuccessfulJobStats(writeResults);
@@ -131,7 +131,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         {
             try
             {
-                writerContext.publishJobStats();
+                writerContext.jobStats().publishJobStats();
                 writerContext.shutdown();
                 sqlContext().sparkContext().clearJobGroup();
             }
@@ -158,7 +158,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                     rowCount,
                     totalBytesWritten,
                     hasClusterTopologyChanged);
-        writerContext.recordJobStats(new HashMap<>()
+        writerContext.jobStats().recordJobStats(new HashMap<>()
         {
             {
                 put("rowsWritten", Long.toString(rowCount));
@@ -172,7 +172,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
     private void recordFailureStats(String reason)
     {
-        writerContext.recordJobStats(new HashMap<>()
+        writerContext.jobStats().recordJobStats(new HashMap<>()
         {
             {
                 put("jobStatus", "Failed");
@@ -195,7 +195,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
      * @return FlatMapFunction
      */
     private static FlatMapFunction<Iterator<Tuple2<DecoratedKey, Object[]>>, WriteResult>
-    partitionsFlatMapFunc(Broadcast<BulkWriterContext> ctx, String[] columnNames)
+    writeRowsInPartition(Broadcast<BulkWriterContext> ctx, String[] columnNames)
     {
         return iterator -> Collections.singleton(new RecordWriter(ctx.getValue(), columnNames).write(iterator)).iterator();
     }

@@ -130,6 +130,22 @@ public class RingInstance implements CassandraInstance, Serializable
         out.writeUTF(ringEntry.fqdn());
         out.writeUTF(ringEntry.status());
         out.writeUTF(ringEntry.state());
+        if (ringEntry.rack() != null)
+        {
+            out.writeUTF(ringEntry.rack());
+        }
+        if (ringEntry.hostId() != null)
+        {
+            out.writeUTF(ringEntry.hostId());
+        }
+        if (ringEntry.load() != null)
+        {
+            out.writeUTF(ringEntry.load());
+        }
+        if (ringEntry.owns() != null)
+        {
+            out.writeUTF(ringEntry.owns());
+        }
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException

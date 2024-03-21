@@ -17,25 +17,29 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.common;
+package org.apache.cassandra.spark.common.stats;
 
+import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Interface to provide functionality to report Spark Job Statistics and/or properties
- * that can optionally be instrumented. The default implementation merely logs these
- * stats at the end of the job.
- */
-public interface JobStats
-{
-    /**
-     * Accumulates the Spark job attributes to be published at the end of the job.
-     * @param stats attributes to be accumulated
-     */
-    void recordJobStats(Map<String, String> stats);
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-    /**
-     * Publish the accumulated job attributes to be persisted and summarized
-     */
-    void publishJobStats();
+/**
+ * Implementation of {@link JobStats} that is used to record stats through the course of the
+ * Spark job execution and publish them. This implementation logs the stats when published.
+ */
+public class JobStatsImpl implements JobStats
+{
+    private static final Logger LOGGER = LoggerFactory.getLogger(JobStatsImpl.class);
+    private final transient Map<String, String> jobStats = new HashMap<>();
+    public void recordJobStats(Map<String, String> stats)
+    {
+        jobStats.putAll(stats);
+    }
+
+    public void publishJobStats()
+    {
+        LOGGER.info("Job Stats:" + jobStats);
+    }
 }

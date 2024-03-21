@@ -17,25 +17,25 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.bulkwriter;
+package org.apache.cassandra.spark.common.stats;
 
-import java.io.Serializable;
+import java.util.Map;
 
-import org.apache.cassandra.spark.common.stats.JobStats;
-
-public interface BulkWriterContext extends Serializable
+/**
+ * Interface to provide functionality to report Spark Job Statistics and/or properties
+ * that can optionally be instrumented. The default implementation merely logs these
+ * stats at the end of the job.
+ */
+public interface JobStats
 {
-    ClusterInfo cluster();
+    /**
+     * Accumulates the Spark job attributes to be published at the end of the job.
+     * @param stats attributes to be accumulated
+     */
+    void recordJobStats(Map<String, String> stats);
 
-    JobInfo job();
-
-    JobStats jobStats();
-
-    SchemaInfo schema();
-
-    DataTransferApi transfer();
-
-    // NOTE: This interface intentionally does *not* implement AutoClosable as Spark can close Broadcast variables
-    //       that implement AutoClosable while they are still in use, causing the underlying object to become unusable
-    void shutdown();
+    /**
+     * Publish the accumulated job attributes to be persisted and summarized
+     */
+    void publishJobStats();
 }

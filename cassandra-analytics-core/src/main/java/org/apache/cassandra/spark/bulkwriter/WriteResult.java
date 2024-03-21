@@ -19,10 +19,13 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.io.Serializable;
 import java.util.List;
 
-import scala.Serializable;
-
+/**
+ * A holder class for the results of a write operation executed by the bulk-write
+ * job Spark executors.
+ */
 public class WriteResult implements Serializable
 {
 
@@ -35,6 +38,11 @@ public class WriteResult implements Serializable
         this.clusterResizeDetected = clusterResizeDetected;
     }
 
+    /**
+     * Returns the results of the write operation as {@link StreamResult}
+     * representing the results of the sstables streaming operations to replicas
+     * @return list of streaming operation to write replicas
+     */
     public List<StreamResult> streamResults()
     {
         return streamResults;

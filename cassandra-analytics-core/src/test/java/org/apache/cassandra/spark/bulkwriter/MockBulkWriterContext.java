@@ -51,6 +51,7 @@ import org.apache.cassandra.spark.common.model.BulkFeatures;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
+import org.apache.cassandra.spark.common.stats.JobStats;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.validation.StartupValidator;
@@ -63,7 +64,7 @@ import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHAR;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCqlType;
 
-public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, JobInfo, SchemaInfo, DataTransferApi
+public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, JobInfo, SchemaInfo, DataTransferApi, JobStats
 {
     private static final long serialVersionUID = -2912371629236770646L;
     public static final String[] DEFAULT_PARTITION_KEY_COLUMNS = {"id", "date"};
@@ -79,11 +80,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private int sstableWriteBatchSize = 2;
 
     private final Map<String, String> jobStats = new HashMap<>();
-
-    public Map<String, String> jobStats()
-    {
-        return jobStats;
-    }
 
     public void recordJobStats(Map<String, String> stats)
     {
@@ -436,6 +432,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
 
     @Override
     public JobInfo job()
+    {
+        return this;
+    }
+
+    @Override
+    public JobStats jobStats()
     {
         return this;
     }
