@@ -33,11 +33,14 @@ public class LogBasedJobStats implements JobStats
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(LogBasedJobStats.class);
     private final transient Map<String, String> jobStats = new HashMap<>();
+
+    @Override
     public void recordJobStats(Map<String, String> stats)
     {
         jobStats.putAll(stats);
     }
-
+    
+    @Override
     public void publishJobStats()
     {
         LOGGER.info("Job Stats:" + jobStats);
