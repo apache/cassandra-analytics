@@ -158,7 +158,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                     rowCount,
                     totalBytesWritten,
                     hasClusterTopologyChanged);
-        writerContext.jobStats().recordJobStats(new HashMap<>()
+        writerContext.jobStats().recordJobStats(new HashMap<String, String>()
         {
             {
                 put("rowsWritten", Long.toString(rowCount));
@@ -172,7 +172,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
     private void recordFailureStats(String reason)
     {
-        writerContext.jobStats().recordJobStats(new HashMap<>()
+        writerContext.jobStats().recordJobStats(new HashMap<String, String>()
         {
             {
                 put("jobStatus", "Failed");
