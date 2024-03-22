@@ -75,6 +75,7 @@ public class RecordWriter implements Serializable
     private SSTableWriter sstableWriter = null;
     private int outputSequence = 0; // sub-folder for possible subrange splits
 
+
     public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
     {
         this(writerContext, columnNames, TaskContext::get, SSTableWriter::new);
@@ -107,7 +108,7 @@ public class RecordWriter implements Serializable
         return String.format("%d-%s", taskContext.partitionId(), UUID.randomUUID());
     }
 
-    public List<StreamResult> write(Iterator<Tuple2<DecoratedKey, Object[]>> sourceIterator)
+    public WriteResult write(Iterator<Tuple2<DecoratedKey, Object[]>> sourceIterator)
     {
         TaskContext taskContext = taskContextSupplier.get();
         LOGGER.info("[{}]: Processing bulk writer partition", taskContext.partitionId());
@@ -118,6 +119,8 @@ public class RecordWriter implements Serializable
                                  taskTokenRange);
 
         TokenRangeMapping<RingInstance> initialTokenRangeMapping = writerContext.cluster().getTokenRangeMapping(false);
+        boolean isClusterBeingResized = (!initialTokenRangeMapping.getPendingReplicas().isEmpty() ||
+                                         !initialTokenRangeMapping.getReplacementInstances().isEmpty());
         LOGGER.info("[{}]: Fetched token range mapping for keyspace: {} with write replicas: {} containing pending " +
                     "replicas: {}, blocked instances: {}, replacement instances: {}",
                     taskContext.partitionId(),
@@ -194,7 +197,7 @@ public class RecordWriter implements Serializable
             // When instances for the partition's token range have changed within the scope of the task execution,
             // we fail the task for it to be retried
             validateTaskTokenRangeMappings(partitionId, initialTokenRangeMapping, taskTokenRange);
-            return results;
+            return new WriteResult(results, isClusterBeingResized);
         }
         catch (Exception exception)
         {
@@ -382,16 +385,14 @@ public class RecordWriter implements Serializable
      * Close the {@link RecordWriter#sstableWriter} if present. Schedule a stream session with the produced sstables.
      * And finally, nullify {@link RecordWriter#sstableWriter}
      */
-    private void finalizeSSTable(StreamSession streamSession,
-                                 int partitionId) throws IOException
+    private void finalizeSSTable(StreamSession streamSession, int partitionId) throws IOException
     {
         if (sstableWriter == null)
         {
             LOGGER.warn("SSTableWriter is null. Nothing to finalize");
             return;
         }
-        LOGGER.info("[{}] Closing writer and scheduling SStable stream",
-                    partitionId);
+        LOGGER.info("[{}] Closing writer and scheduling SStable stream", partitionId);
         sstableWriter.close(writerContext, partitionId);
         streamSession.scheduleStream(sstableWriter);
         sstableWriter = null;

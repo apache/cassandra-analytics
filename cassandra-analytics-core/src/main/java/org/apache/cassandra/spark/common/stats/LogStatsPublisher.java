@@ -17,25 +17,24 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.bulkwriter;
+package org.apache.cassandra.spark.common.stats;
 
-import java.io.Serializable;
+import java.util.Map;
 
-import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public interface BulkWriterContext extends Serializable
+/**
+ * Implementation of {@link JobStatsPublisher} that is used to publish job statistics during the
+ * Spark job execution. This implementation logs the stats when published.
+ */
+public class LogStatsPublisher implements JobStatsPublisher
 {
-    ClusterInfo cluster();
+    private static final Logger LOGGER = LoggerFactory.getLogger(LogStatsPublisher.class);
 
-    JobInfo job();
-
-    JobStatsPublisher jobStats();
-
-    SchemaInfo schema();
-
-    DataTransferApi transfer();
-
-    // NOTE: This interface intentionally does *not* implement AutoClosable as Spark can close Broadcast variables
-    //       that implement AutoClosable while they are still in use, causing the underlying object to become unusable
-    void shutdown();
+    @Override
+    public void publish(Map<String, String> stats)
+    {
+        LOGGER.info("Job Stats:" + stats);
+    }
 }

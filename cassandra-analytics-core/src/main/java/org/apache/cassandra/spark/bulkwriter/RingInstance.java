@@ -125,14 +125,15 @@ public class RingInstance implements CassandraInstance, Serializable
         out.writeUTF(ringEntry.address());
         out.writeInt(ringEntry.port());
         out.writeUTF(ringEntry.datacenter());
-        out.writeUTF(ringEntry.load());
-        out.writeUTF(ringEntry.token());
         out.writeUTF(ringEntry.fqdn());
-        out.writeUTF(ringEntry.rack());
-        out.writeUTF(ringEntry.hostId());
         out.writeUTF(ringEntry.status());
         out.writeUTF(ringEntry.state());
-        out.writeUTF(ringEntry.owns());
+        // Nullable fields serialized with writeObject
+        out.writeObject(ringEntry.token());
+        out.writeObject(ringEntry.rack());
+        out.writeObject(ringEntry.hostId());
+        out.writeObject(ringEntry.load());
+        out.writeObject(ringEntry.owns());
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
@@ -140,25 +141,26 @@ public class RingInstance implements CassandraInstance, Serializable
         String address = in.readUTF();
         int port = in.readInt();
         String datacenter = in.readUTF();
-        String load = in.readUTF();
-        String token = in.readUTF();
         String fqdn = in.readUTF();
-        String rack = in.readUTF();
-        String hostId = in.readUTF();
         String status = in.readUTF();
         String state = in.readUTF();
-        String owns = in.readUTF();
+        // Nullable fields deserialized with readObject
+        String token = (String) in.readObject();
+        String rack = (String) in.readObject();
+        String hostId = (String) in.readObject();
+        String load = (String) in.readObject();
+        String owns = (String) in.readObject();
         ringEntry = new RingEntry.Builder().datacenter(datacenter)
                                            .address(address)
                                            .port(port)
-                                           .rack(rack)
                                            .status(status)
                                            .state(state)
-                                           .load(load)
-                                           .owns(owns)
                                            .token(token)
                                            .fqdn(fqdn)
+                                           .rack(rack)
                                            .hostId(hostId)
+                                           .load(load)
+                                           .owns(owns)
                                            .build();
     }
 }

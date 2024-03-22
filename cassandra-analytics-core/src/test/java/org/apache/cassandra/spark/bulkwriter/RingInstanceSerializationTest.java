@@ -22,7 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.sidecar.common.data.RingEntry;
-
+import org.apache.cassandra.sidecar.common.data.TokenRangeReplicasResponse.ReplicaMetadata;
 import static org.apache.cassandra.spark.utils.SerializationUtils.deserialize;
 import static org.apache.cassandra.spark.utils.SerializationUtils.serialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,6 +49,26 @@ public class RingInstanceSerializationTest
                                              .state("NORMAL")
                                              .owns("")
                                              .build());
+
+        byte[] bytes = serialize(ring);
+        RingInstance deserialized = deserialize(bytes, RingInstance.class);
+        assertEquals(ring, deserialized);
+    }
+
+    @Test
+    public void testRingSerializesFromReplicaMetadata()
+    {
+        int dcOffset = 0;
+        String dataCenter = "DC1";
+        int index = 0;
+        ReplicaMetadata metadata = new ReplicaMetadata("NORMAL",
+                                                       "UP",
+                                                       dataCenter + "-i" + index,
+                                                       "127.0." + dcOffset + "." + index,
+                                                       7000,
+                                                       dataCenter);
+
+        RingInstance ring = new RingInstance(metadata);
 
         byte[] bytes = serialize(ring);
         RingInstance deserialized = deserialize(bytes, RingInstance.class);

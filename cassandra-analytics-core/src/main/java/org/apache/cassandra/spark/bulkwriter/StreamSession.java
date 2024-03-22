@@ -66,6 +66,8 @@ public class StreamSession
     private final ExecutorService executor;
     private final List<Future<?>> futures = new ArrayList<>();
     private final TokenRangeMapping<RingInstance> tokenRangeMapping;
+    private long rowCount = 0; // total number of rows written by the SSTableWriter
+    private long bytesWritten = 0;
 
     public StreamSession(final BulkWriterContext writerContext,
                          final String sessionID,
@@ -103,7 +105,7 @@ public class StreamSession
         Preconditions.checkState(tokenRange.encloses(ssTableWriter.getTokenRange()),
                                  String.format("SSTable range %s should be enclosed in the partition range %s",
                                                ssTableWriter.getTokenRange(), tokenRange));
-
+        rowCount += ssTableWriter.rowCount();
         futures.add(executor.submit(() -> sendSSTables(writerContext, ssTableWriter)));
     }
 
@@ -129,12 +131,17 @@ public class StreamSession
         // No data written at all
         if (futures.isEmpty())
         {
-            return new StreamResult(sessionID, tokenRange, new ArrayList<>(), new ArrayList<>());
+            return new StreamResult(sessionID, tokenRange, new ArrayList<>(), new ArrayList<>(), rowCount, bytesWritten);
         }
         else
         {
             // StreamResult has errors streaming to replicas
-            StreamResult streamResult = new StreamResult(sessionID, tokenRange, errors, new ArrayList<>(replicas));
+            StreamResult streamResult = new StreamResult(sessionID,
+                                                         tokenRange,
+                                                         errors,
+                                                         new ArrayList<>(replicas),
+                                                         rowCount,
+                                                         bytesWritten);
             List<CommitResult> cr = commit(streamResult);
             streamResult.setCommitResults(cr);
             LOGGER.debug("StreamResult: {}", streamResult);
@@ -298,6 +305,7 @@ public class StreamSession
     {
         Preconditions.checkNotNull(digest, "All files must have a hash. SSTableWriter should have calculated these. This is a bug.");
         long fileSize = Files.size(componentFile);
+        bytesWritten += fileSize;
         LOGGER.info("[{}]: Uploading {} to {}: Size is {}", sessionID, componentFile, instance.nodeName(), fileSize);
         writerContext.transfer().uploadSSTableComponent(componentFile, ssTableIdx, instance, sessionID, digest);
     }

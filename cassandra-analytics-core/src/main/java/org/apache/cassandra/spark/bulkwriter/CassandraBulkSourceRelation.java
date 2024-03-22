@@ -19,14 +19,20 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.VoidFunction;
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -46,6 +52,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     private final SQLContext sqlContext;
     private final JavaSparkContext sparkContext;
     private final Broadcast<BulkWriterContext> broadcastContext;
+    private long startTimeNanos;
 
     @SuppressWarnings("RedundantTypeArguments")
     public CassandraBulkSourceRelation(BulkWriterContext writerContext, SQLContext sqlContext)
@@ -87,6 +94,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     @Override
     public void insert(@NotNull Dataset<Row> data, boolean overwrite)
     {
+        this.startTimeNanos = System.nanoTime();
         if (overwrite)
         {
             throw new LoadNotSupportedException("Overwriting existing data needs TRUNCATE on Cassandra, which is not supported");
@@ -107,10 +115,15 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     {
         try
         {
-            sortedRDD.foreachPartition(writeRowsInPartition(broadcastContext, columnNames));
+            List<WriteResult> writeResults = sortedRDD
+                                 .mapPartitions(writeRowsInPartition(broadcastContext, columnNames))
+                                 .collect();
+
+            publishSuccessfulJobStats(writeResults);
         }
         catch (Throwable throwable)
         {
+            publishFailureJobStats(throwable.getMessage());
             LOGGER.error("Bulk Write Failed", throwable);
             throw new RuntimeException("Bulk Write to Cassandra has failed", throwable);
         }
@@ -127,6 +140,65 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
             }
             unpersist();
         }
+    }
+
+    private void publishSuccessfulJobStats(List<WriteResult> writeResults)
+    {
+        List<StreamResult> streamResults = writeResults.stream()
+                                                       .map(WriteResult::streamResults)
+                                                       .flatMap(Collection::stream)
+                                                       .collect(Collectors.toList());
+
+        long rowCount = streamResults.stream().mapToLong(res -> res.rowCount).sum();
+        long totalBytesWritten = streamResults.stream().mapToLong(res -> res.bytesWritten).sum();
+        boolean hasClusterTopologyChanged = writeResults.stream()
+                                                        .anyMatch(WriteResult::isClusterResizeDetected);
+        LOGGER.info("Bulk writer job complete. rows={} bytes={} cluster_resize={}",
+                    rowCount,
+                    totalBytesWritten,
+                    hasClusterTopologyChanged);
+        writerContext.jobStats().publish(new HashMap<String, String>()
+        {
+            {
+                put("jobId", writerContext.job().getId().toString());
+                put("rowsWritten", Long.toString(rowCount));
+                put("bytesWritten", Long.toString(totalBytesWritten));
+                put("jobStatus", "Succeeded");
+                put("clusterResizeDetected", String.valueOf(hasClusterTopologyChanged));
+                put("jobElapsedTimeMillis", Long.toString(getElapsedTimeMillis()));
+            }
+        });
+    }
+
+    private void publishFailureJobStats(String reason)
+    {
+        writerContext.jobStats().publish(new HashMap<String, String>()
+        {
+            {
+                put("jobId", writerContext.job().getId().toString());
+                put("jobStatus", "Failed");
+                put("failureReason", reason);
+                put("jobElapsedTimeMillis", Long.toString(getElapsedTimeMillis()));
+            }
+        });
+    }
+
+    private long getElapsedTimeMillis()
+    {
+        long now = System.nanoTime();
+        return TimeUnit.NANOSECONDS.toMillis(now - this.startTimeNanos);
+    }
+
+    /**
+     * Get a ref copy of BulkWriterContext broadcast variable and compose a function to transform a partition into StreamResult
+     *
+     * @param ctx BulkWriterContext broadcast variable
+     * @return FlatMapFunction
+     */
+    private static FlatMapFunction<Iterator<Tuple2<DecoratedKey, Object[]>>, WriteResult>
+    writeRowsInPartition(Broadcast<BulkWriterContext> ctx, String[] columnNames)
+    {
+        return iterator -> Collections.singleton(new RecordWriter(ctx.getValue(), columnNames).write(iterator)).iterator();
     }
 
     /**
@@ -151,13 +223,5 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                 throw throwable;
             }
         }
-    }
-
-    // Made this function static to avoid capturing reference to CassandraBulkSourceRelation object which cannot be
-    // serialized.
-    private static VoidFunction<Iterator<Tuple2<DecoratedKey, Object[]>>> writeRowsInPartition(Broadcast<BulkWriterContext> broadcastContext,
-                                                                                               String[] columnNames)
-    {
-        return itr -> new RecordWriter(broadcastContext.getValue(), columnNames).write(itr);
     }
 }

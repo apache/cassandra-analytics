@@ -305,7 +305,7 @@ public class RecordWriterTest
 
         rw = new RecordWriter(m, COLUMN_NAMES, () -> tc, SSTableWriter::new);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateDataWithFakeToken(ROWS_COUNT, range);
-        List<StreamResult> res = rw.write(data);
+        List<StreamResult> res = rw.write(data).streamResults();
         assertEquals(1, res.size());
         assertNotEquals(overlapRange, res.get(0).tokenRange);
         assertEquals(range, res.get(0).tokenRange);
@@ -334,7 +334,7 @@ public class RecordWriterTest
 
         // Generate rows that belong to the first sub-range
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateDataWithFakeToken(ROWS_COUNT, firstSubrange);
-        List<StreamResult> res = rw.write(data);
+        List<StreamResult> res = rw.write(data).streamResults();
         assertEquals(1, res.size());
         assertNotEquals(overlapRange, res.get(0).tokenRange);
         assertEquals(firstSubrange, res.get(0).tokenRange);
@@ -367,7 +367,7 @@ public class RecordWriterTest
         Iterator<Tuple2<DecoratedKey, Object[]>> firstRangeData = generateDataWithFakeToken(numRows, firstSubrange);
         Iterator<Tuple2<DecoratedKey, Object[]>> secondRangeData = generateDataWithFakeToken(numRows, secondSubrange);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = Iterators.concat(firstRangeData, secondRangeData);
-        List<StreamResult> res = rw.write(data);
+        List<StreamResult> res = rw.write(data).streamResults();
         // We expect 2 streams since rows belong to different sub-ranges
         assertEquals(2, res.size());
         assertNotEquals(overlapRange, res.get(0).tokenRange);

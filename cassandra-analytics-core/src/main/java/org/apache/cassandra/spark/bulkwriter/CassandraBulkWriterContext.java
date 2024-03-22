@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
@@ -33,6 +34,8 @@ import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
+import org.apache.cassandra.spark.common.stats.LogStatsPublisher;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -48,7 +51,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
 {
     private static final long serialVersionUID = 8241993502687688783L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraBulkWriterContext.class);
-
     @NotNull
     private final BulkSparkConf conf;
     private final JobInfo jobInfo;
@@ -56,13 +58,16 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     private final CassandraClusterInfo clusterInfo;
     private final SchemaInfo schemaInfo;
 
-    private CassandraBulkWriterContext(@NotNull BulkSparkConf conf,
-                                       @NotNull CassandraClusterInfo clusterInfo,
-                                       @NotNull StructType dfSchema,
-                                       SparkContext sparkContext)
+    private transient JobStatsPublisher jobStatsPublisher;
+
+    protected CassandraBulkWriterContext(@NotNull BulkSparkConf conf,
+                                         @NotNull CassandraClusterInfo clusterInfo,
+                                         @NotNull StructType dfSchema,
+                                         SparkContext sparkContext)
     {
         this.conf = conf;
         this.clusterInfo = clusterInfo;
+        this.jobStatsPublisher = new LogStatsPublisher();
         String lowestCassandraVersion = clusterInfo.getLowestCassandraVersion();
         CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
 
@@ -74,8 +79,8 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
                                                             conf.getCores()));
         Preconditions.checkArgument(!conf.consistencyLevel.isLocal()
                                     || (conf.localDC != null && tokenRangeMapping.replicationFactor()
-                                                                    .getOptions()
-                                                                    .containsKey(conf.localDC)),
+                                                                                 .getOptions()
+                                                                                 .containsKey(conf.localDC)),
                                     String.format("Keyspace %s is not replicated on datacenter %s", conf.keyspace, conf.localDC));
 
         String keyspace = jobInfo.keyspace();
@@ -108,9 +113,20 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         CassandraBulkWriterContext bulkWriterContext = new CassandraBulkWriterContext(conf, clusterInfo, dfSchema, sparkContext);
         ShutdownHookManager.addShutdownHook(org.apache.spark.util.ShutdownHookManager.TEMP_DIR_SHUTDOWN_PRIORITY(),
                                             ScalaFunctions.wrapLambda(bulkWriterContext::shutdown));
-        bulkWriterContext.dialHome(sparkContext.version());
-
+        bulkWriterContext.publishInitialJobStats(sparkContext.version());
         return bulkWriterContext;
+    }
+
+    private void publishInitialJobStats(String sparkVersion)
+    {
+        Map<String, String> initialJobStats = new HashMap<String, String>()
+        {{
+            put("jobId", jobInfo.getId().toString());
+            put("sparkVersion", sparkVersion);
+            put("keyspace", jobInfo.getId().toString());
+            put("table", jobInfo.getId().toString());
+        }};
+        jobStatsPublisher.publish(initialJobStats);
     }
 
     @Override
@@ -156,11 +172,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         throw new RuntimeException(KRYO_REGISTRATION_WARNING);
     }
 
-    protected void dialHome(String sparkVersion)
-    {
-        LOGGER.info("Dial home. clientConfig={}, sparkVersion={}", conf, sparkVersion);
-    }
-
     @Override
     @NotNull
     public ClusterInfo cluster()
@@ -173,6 +184,12 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     public JobInfo job()
     {
         return jobInfo;
+    }
+
+    @NotNull
+    public JobStatsPublisher jobStats()
+    {
+        return jobStatsPublisher;
     }
 
     @Override
