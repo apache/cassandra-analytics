@@ -21,7 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 
-import org.apache.cassandra.spark.common.stats.JobStats;
+import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 
 public interface BulkWriterContext extends Serializable
 {
@@ -29,7 +29,7 @@ public interface BulkWriterContext extends Serializable
 
     JobInfo job();
 
-    JobStats jobStats();
+    JobStatsPublisher jobStats();
 
     SchemaInfo schema();
 

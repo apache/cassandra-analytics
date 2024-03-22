@@ -119,11 +119,11 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                                  .mapPartitions(writeRowsInPartition(broadcastContext, columnNames))
                                  .collect();
 
-            recordSuccessfulJobStats(writeResults);
+            publishSuccessfulJobStats(writeResults);
         }
         catch (Throwable throwable)
         {
-            recordFailureStats(throwable.getMessage());
+            publishFailureJobStats(throwable.getMessage());
             LOGGER.error("Bulk Write Failed", throwable);
             throw new RuntimeException("Bulk Write to Cassandra has failed", throwable);
         }
@@ -131,7 +131,6 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         {
             try
             {
-                writerContext.jobStats().publishJobStats();
                 writerContext.shutdown();
                 sqlContext().sparkContext().clearJobGroup();
             }
@@ -143,7 +142,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         }
     }
 
-    private void recordSuccessfulJobStats(List<WriteResult> writeResults)
+    private void publishSuccessfulJobStats(List<WriteResult> writeResults)
     {
         List<StreamResult> streamResults = writeResults.stream()
                                                        .map(WriteResult::streamResults)
@@ -158,9 +157,10 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                     rowCount,
                     totalBytesWritten,
                     hasClusterTopologyChanged);
-        writerContext.jobStats().recordJobStats(new HashMap<String, String>()
+        writerContext.jobStats().publish(new HashMap<String, String>()
         {
             {
+                put("jobId", writerContext.job().getId().toString());
                 put("rowsWritten", Long.toString(rowCount));
                 put("bytesWritten", Long.toString(totalBytesWritten));
                 put("jobStatus", "Succeeded");
@@ -170,11 +170,12 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         });
     }
 
-    private void recordFailureStats(String reason)
+    private void publishFailureJobStats(String reason)
     {
-        writerContext.jobStats().recordJobStats(new HashMap<String, String>()
+        writerContext.jobStats().publish(new HashMap<String, String>()
         {
             {
+                put("jobId", writerContext.job().getId().toString());
                 put("jobStatus", "Failed");
                 put("failureReason", reason);
                 put("jobElapsedTimeMillis", Long.toString(getElapsedTimeMillis()));

@@ -26,16 +26,10 @@ import java.util.Map;
  * that can optionally be instrumented. The default implementation merely logs these
  * stats at the end of the job.
  */
-public interface JobStats
+public interface JobStatsPublisher
 {
     /**
-     * Accumulates the Spark job attributes to be published at the end of the job.
-     * @param stats attributes to be accumulated
+     * Publish the job attributes to be persisted and summarized
      */
-    void recordJobStats(Map<String, String> stats);
-
-    /**
-     * Publish the accumulated job attributes to be persisted and summarized
-     */
-    void publishJobStats();
+    void publish(Map<String, String> stats);
 }

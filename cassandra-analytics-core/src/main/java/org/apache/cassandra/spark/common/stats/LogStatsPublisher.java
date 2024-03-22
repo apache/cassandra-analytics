@@ -19,30 +19,22 @@
 
 package org.apache.cassandra.spark.common.stats;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Implementation of {@link JobStats} that is used to record stats through the course of the
- * Spark job execution and publish them. This implementation logs the stats when published.
+ * Implementation of {@link JobStatsPublisher} that is used to publish job statistics during the
+ * Spark job execution. This implementation logs the stats when published.
  */
-public class LogBasedJobStats implements JobStats
+public class LogStatsPublisher implements JobStatsPublisher
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(LogBasedJobStats.class);
-    private final transient Map<String, String> jobStats = new HashMap<>();
+    private static final Logger LOGGER = LoggerFactory.getLogger(LogStatsPublisher.class);
 
     @Override
-    public void recordJobStats(Map<String, String> stats)
+    public void publish(Map<String, String> stats)
     {
-        jobStats.putAll(stats);
-    }
-
-    @Override
-    public void publishJobStats()
-    {
-        LOGGER.info("Job Stats:" + jobStats);
+        LOGGER.info("Job Stats:" + stats);
     }
 }
