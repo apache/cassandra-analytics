@@ -592,7 +592,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                           String partitioner,
                                           String createStatement,
                                           String insertStatement,
-                                          Set<String> userDefinedTypeStatements,
+                                          @NotNull Set<String> userDefinedTypeStatements,
                                           int bufferSizeMB)
     {
         return new SSTableWriterImplementation(inDirectory, partitioner, createStatement, insertStatement,

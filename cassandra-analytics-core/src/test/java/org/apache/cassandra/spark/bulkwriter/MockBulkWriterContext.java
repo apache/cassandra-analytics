@@ -298,9 +298,10 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         return schema;
     }
 
+    @Override
     public Set<String> getUserDefinedTypeStatements()
     {
-        return null;
+        return Collections.emptySet();
     }
 
     @Override

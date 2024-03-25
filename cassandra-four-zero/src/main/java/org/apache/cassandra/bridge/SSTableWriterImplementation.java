@@ -31,6 +31,7 @@ import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
+import org.jetbrains.annotations.NotNull;
 
 public class SSTableWriterImplementation implements SSTableWriter
 {
@@ -45,7 +46,7 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        String partitioner,
                                        String createStatement,
                                        String insertStatement,
-                                       Set<String> userDefinedTypeStatements,
+                                       @NotNull Set<String> userDefinedTypeStatements,
                                        int bufferSizeMB)
     {
         IPartitioner cassPartitioner = partitioner.toLowerCase().contains("random") ? new RandomPartitioner()
