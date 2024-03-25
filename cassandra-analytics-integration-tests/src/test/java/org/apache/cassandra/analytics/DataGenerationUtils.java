@@ -121,8 +121,8 @@ public final class DataGenerationUtils
     public static Dataset<Row> generateUdtData(SparkSession spark, int rowCount)
     {
         SQLContext sql = spark.sqlContext();
-        StructType udtType = createStructType(new StructField[]{ new StructField("f1", StringType, false, Metadata.empty()),
-                                                                 new StructField("f2", IntegerType, false, Metadata.empty())});
+        StructType udtType = createStructType(new StructField[]{new StructField("f1", StringType, false, Metadata.empty()),
+                                                                new StructField("f2", IntegerType, false, Metadata.empty())});
         StructType schema = new StructType()
                             .add("id", IntegerType, false)
                             .add("udtfield", udtType, false);
@@ -130,7 +130,7 @@ public final class DataGenerationUtils
         List<Row> rows = IntStream.range(0, rowCount)
                                   .mapToObj(id -> {
                                       String course = "course" + id;
-                                      Object[] values = { id, RowFactory.create(course, id) };
+                                      Object[] values = {id, RowFactory.create(course, id)};
                                       return RowFactory.create(values);
                                   }).collect(Collectors.toList());
         return sql.createDataFrame(rows, schema);
@@ -139,10 +139,10 @@ public final class DataGenerationUtils
     public static Dataset<Row> generateNestedUdtData(SparkSession spark, int rowCount)
     {
         SQLContext sql = spark.sqlContext();
-        StructType udtType = createStructType(new StructField[]{ new StructField("f1", StringType, false, Metadata.empty()),
-                                                                 new StructField("f2", IntegerType, false, Metadata.empty())});
-        StructType nestedType = createStructType(new StructField[] { new StructField("n1", IntegerType, false, Metadata.empty()),
-                                                                     new StructField("n2", udtType, false, Metadata.empty())});
+        StructType udtType = createStructType(new StructField[]{new StructField("f1", StringType, false, Metadata.empty()),
+                                                                new StructField("f2", IntegerType, false, Metadata.empty())});
+        StructType nestedType = createStructType(new StructField[] {new StructField("n1", IntegerType, false, Metadata.empty()),
+                                                                    new StructField("n2", udtType, false, Metadata.empty())});
         StructType schema = new StructType()
                             .add("id", IntegerType, false)
                             .add("nested", nestedType, false);
@@ -151,7 +151,7 @@ public final class DataGenerationUtils
                                   .mapToObj(id -> {
                                       String course = "course" + id;
                                       Row innerUdt = RowFactory.create(id, RowFactory.create(course, id));
-                                      Object[] values = { id, innerUdt };
+                                      Object[] values = {id, innerUdt};
                                       return RowFactory.create(values);
                                   }).collect(Collectors.toList());
         return sql.createDataFrame(rows, schema);

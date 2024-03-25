@@ -137,10 +137,10 @@ public final class TableSchemaTestCommon
         when(udtMock.internalType()).thenReturn(CqlField.CqlType.InternalType.Udt);
         when(udtMock.name()).thenReturn(UDT);
         List<CqlField> fields = new ArrayList<>();
-        for (int i = 0; i < namesAndTypes.length; i+=2)
+        for (int i = 0; i < namesAndTypes.length; i += 2)
         {
             String field = namesAndTypes[i];
-            String type = namesAndTypes[i+1];
+            String type = namesAndTypes[i + 1];
             CqlField mock = mock(CqlField.class);
             when(mock.name()).thenReturn(field);
             when(mock.cqlTypeName()).thenReturn(type);

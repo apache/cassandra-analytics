@@ -80,10 +80,10 @@ public class RecordWriter implements Serializable
     private final ReplicaAwareFailureHandler<RingInstance> failureHandler;
 
     private final Supplier<TaskContext> taskContextSupplier;
+    private final ConcurrentHashMap<String, CqlField.CqlUdt> udtCache = new ConcurrentHashMap<>();
     private SSTableWriter sstableWriter = null;
     private int outputSequence = 0; // sub-folder for possible subrange splits
-    private final ConcurrentHashMap<String, CqlField.CqlUdt> udtCache = new ConcurrentHashMap<>();
-    private volatile transient CqlTable cqlTable;
+    private transient volatile CqlTable cqlTable;
 
     public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
     {
@@ -240,6 +240,14 @@ public class RecordWriter implements Serializable
         }
     }
 
+    public static <T> Set<T> symmetricDifference(Set<T> set1, Set<T> set2)
+    {
+        return Stream.concat(
+                     set1.stream().filter(element -> !set2.contains(element)),
+                     set2.stream().filter(element -> !set1.contains(element)))
+                     .collect(Collectors.toSet());
+    }
+
     private Map<Range<BigInteger>, List<RingInstance>> taskTokenRangeMapping(TokenRangeMapping<RingInstance> tokenRange,
                                                                              Range<BigInteger> taskTokenRange)
     {
@@ -339,14 +347,6 @@ public class RecordWriter implements Serializable
         }
     }
 
-    public static <T> Set<T> symmetricDifference(Set<T> set1, Set<T> set2)
-    {
-        return Stream.concat(
-                     set1.stream().filter(element -> !set2.contains(element)),
-                     set2.stream().filter(element -> !set1.contains(element)))
-                     .collect(Collectors.toSet());
-    }
-
     private void validateAcceptableTimeSkewOrThrow(List<RingInstance> replicas)
     {
         if (replicas.isEmpty())
@@ -413,10 +413,11 @@ public class RecordWriter implements Serializable
 
     private Object maybeConvertUdt(Object value)
     {
-        if (value instanceof BridgeUdtValue) {
+        if (value instanceof BridgeUdtValue)
+        {
             BridgeUdtValue udtValue = (BridgeUdtValue) value;
             // Depth-first replacement of BridgeUdtValue instances to their appropriate Cql types
-            for(Map.Entry<String, Object> entry: udtValue.udtMap.entrySet())
+            for (Map.Entry<String, Object> entry : udtValue.udtMap.entrySet())
             {
                 if (entry.getValue() instanceof BridgeUdtValue)
                 {

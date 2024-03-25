@@ -172,14 +172,15 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
     {
         if (o instanceof Row)
         {
-            Row r = (Row)o;
+            Row r = (Row) o;
             sb.append("{");
             StructField[] fields = r.schema().fields();
-            for (int i=0;i<r.size();i++) {
+            for (int i = 0; i < r.size(); i++)
+            {
                 sb.append(fields[i].name());
                 sb.append(":");
                 maybeFormatSparkRow(sb, r.get(i));
-                if (i != r.size()-1)
+                if (i != r.size() - 1)
                 {
                     sb.append(',');
                 }
