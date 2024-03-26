@@ -122,7 +122,7 @@ public class RecordWriter implements Serializable
     {
         if (cqlTable == null)
         {
-            synchronized(this)
+            synchronized (this)
             {
                 if (cqlTable == null)
                 {
