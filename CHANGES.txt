@@ -1,5 +1,5 @@
 1.0.0
- * Mask hash value produced by lz4's xxhash implementation (CASSANDRA-19500)
+ * Fix XXHash32Digest calculated digest value (CASSANDRA-19500)
  * Report additional bulk analytics job stats for instrumentation (CASSANDRA-19418)
  * Add certificate expiry check to start up validations done in Cassandra Analytics library (CASSANDRA-19424)
  * Use constant reference time during bulk read process (CASSANDRA-19452)
