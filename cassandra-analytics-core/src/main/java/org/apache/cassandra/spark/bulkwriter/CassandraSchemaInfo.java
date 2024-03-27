@@ -28,13 +28,11 @@ public class CassandraSchemaInfo implements SchemaInfo
     private static final long serialVersionUID = -2327383232935001862L;
     private final TableSchema tableSchema;
     private final Set<String> userDefinedTypeStatements;
-    private final CqlTable cqlTable;
 
     public CassandraSchemaInfo(TableSchema tableSchema, Set<String> userDefinedTypeStatements, CqlTable cqlTable)
     {
         this.tableSchema = tableSchema;
         this.userDefinedTypeStatements = userDefinedTypeStatements;
-        this.cqlTable = cqlTable;
     }
 
     @Override

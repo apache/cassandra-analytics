@@ -104,7 +104,6 @@ public class RecordWriter implements Serializable
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
         this.digestAlgorithm = this.writerContext.job().digestAlgorithmSupplier().get();
 
-
         writerContext.cluster().startupValidate();
     }
 
@@ -122,19 +121,14 @@ public class RecordWriter implements Serializable
     {
         if (cqlTable == null)
         {
-            synchronized (this)
-            {
-                if (cqlTable == null)
-                {
-                    cqlTable = writerContext.bridge()
-                                            .buildSchema(writerContext.schema().getTableSchema().createStatement,
-                                                         writerContext.job().keyspace(),
-                                                         IGNORED_REPLICATION_FACTOR,
-                                                         writerContext.cluster().getPartitioner(),
-                                                         writerContext.schema().getUserDefinedTypeStatements());
-                }
-            }
+            cqlTable = writerContext.bridge()
+                                    .buildSchema(writerContext.schema().getTableSchema().createStatement,
+                                                 writerContext.job().keyspace(),
+                                                 IGNORED_REPLICATION_FACTOR,
+                                                 writerContext.cluster().getPartitioner(),
+                                                 writerContext.schema().getUserDefinedTypeStatements());
         }
+
         return cqlTable;
     }
 

@@ -74,7 +74,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
         assertThat(actualEntries.size()).isEqualTo(sourceData.size());
 
         // remove from actual entries to make sure that the data read is the same as the data written
-        Set<String> sourceEntries = sourceData.stream().map(this::getFormatedSourceEntry)
+        Set<String> sourceEntries = sourceData.stream().map(this::getFormattedSourceEntry)
                            .collect(Collectors.toSet());
         assertThat(actualEntries).as("All entries are expected to be read from database")
                                  .containsExactlyInAnyOrderElementsOf(sourceEntries);
@@ -161,7 +161,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
         return bridge;
     }
 
-    private String getFormatedSourceEntry(Row row)
+    private String getFormattedSourceEntry(Row row)
     {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < row.size(); i++)

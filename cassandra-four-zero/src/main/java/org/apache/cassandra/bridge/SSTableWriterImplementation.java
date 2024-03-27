@@ -88,20 +88,20 @@ public class SSTableWriterImplementation implements SSTableWriter
                                                      Set<String> udts,
                                                      IPartitioner cassPartitioner)
     {
-        CQLSSTableWriter.Builder builder = CQLSSTableWriter
-                                           .builder()
-                                           .inDirectory(inDirectory)
-                                           .forTable(createStatement)
-                                           .withPartitioner(cassPartitioner)
-                                           .using(insertStatement)
-                                           // The data frame to write is always sorted,
-                                           // see org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation.insert
-                                           .sorted()
-                                           .withMaxSSTableSizeInMiB(bufferSizeMB);
+        CQLSSTableWriter.Builder builder = CQLSSTableWriter.builder();
+
         for (String udt : udts)
         {
             builder.withType(udt);
         }
-        return builder;
+
+        return builder.inDirectory(inDirectory)
+                      .forTable(createStatement)
+                      .withPartitioner(cassPartitioner)
+                      .using(insertStatement)
+                      // The data frame to write is always sorted,
+                      // see org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation.insert
+                      .sorted()
+                      .withMaxSSTableSizeInMiB(bufferSizeMB);
     }
 }

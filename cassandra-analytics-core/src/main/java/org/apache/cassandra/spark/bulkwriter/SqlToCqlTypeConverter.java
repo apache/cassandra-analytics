@@ -769,7 +769,7 @@ public final class SqlToCqlTypeConverter implements Serializable
         @Override
         public String toString()
         {
-            return "Map";
+            return "Map<" + keyConverter.toString() + ", " + valConverter.toString() + '>';
         }
 
         private Map<K, V> makeMap(Iterable<?> iterable)
@@ -799,11 +799,10 @@ public final class SqlToCqlTypeConverter implements Serializable
         }
     }
 
-    public static class UdtConverter extends NullableConverter<Object>
+    public static class UdtConverter extends NullableConverter<BridgeUdtValue>
     {
         private final String name;
-        private final HashMap<Object, Converter<?>> converters;
-        private CqlField.CqlUdt udt;
+        private final HashMap<String, Converter<?>> converters;
 
         UdtConverter(CqlField.CqlUdt udt)
         {
@@ -816,7 +815,7 @@ public final class SqlToCqlTypeConverter implements Serializable
         }
 
         @Override
-        public Object convertInternal(Object object)
+        public BridgeUdtValue convertInternal(Object object)
         {
             if (object instanceof GenericRowWithSchema)
             {

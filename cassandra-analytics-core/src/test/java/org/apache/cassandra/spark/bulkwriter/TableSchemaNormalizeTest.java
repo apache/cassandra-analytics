@@ -311,7 +311,7 @@ public class TableSchemaNormalizeTest
                                 .add(new StructField("f2", DataTypes.StringType, false, Metadata.empty()));
 
         GenericRowWithSchema source = new GenericRowWithSchema(new Object[]{1, "course"}, structType);
-        // NOTE: UDT Types cary their type name around, so the use of `udt_field` consistently here is a bit
+        // NOTE: UDT Types carry their type name around, so the use of `udt_field` consistently here is a bit
         // "wrong" for the real-world, but is tested by integration tests elsewhere and is correct for the way
         // the asserts in this test work.
         BridgeUdtValue udtValue = new BridgeUdtValue("udt_field", ImmutableMap.of("f1", 1, "f2", "course"));
