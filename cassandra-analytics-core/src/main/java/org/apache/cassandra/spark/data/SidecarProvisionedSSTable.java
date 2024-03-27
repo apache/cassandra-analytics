@@ -31,12 +31,12 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.apache.commons.io.IOUtils;
 
+import o.a.c.sidecar.client.shaded.common.data.ListSnapshotFilesResponse;
+import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.clients.SidecarStreamConsumerAdapter;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.apache.cassandra.sidecar.common.data.ListSnapshotFilesResponse;
-import org.apache.cassandra.sidecar.common.utils.HttpRange;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.utils.streaming.SSTableInputStream;

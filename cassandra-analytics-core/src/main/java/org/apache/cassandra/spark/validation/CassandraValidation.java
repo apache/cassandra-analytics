@@ -21,8 +21,8 @@ package org.apache.cassandra.spark.validation;
 
 import java.util.concurrent.TimeUnit;
 
+import o.a.c.sidecar.client.shaded.common.data.HealthResponse;
 import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.common.data.HealthResponse;
 
 /**
  * A startup validation that checks the connectivity and health of Cassandra

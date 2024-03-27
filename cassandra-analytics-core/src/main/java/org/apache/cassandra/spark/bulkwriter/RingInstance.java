@@ -25,8 +25,8 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Objects;
 
-import org.apache.cassandra.sidecar.common.data.RingEntry;
-import org.apache.cassandra.sidecar.common.data.TokenRangeReplicasResponse.ReplicaMetadata;
+import o.a.c.sidecar.client.shaded.common.data.RingEntry;
+import o.a.c.sidecar.client.shaded.common.data.TokenRangeReplicasResponse.ReplicaMetadata;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.jetbrains.annotations.Nullable;
 

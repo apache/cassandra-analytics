@@ -39,7 +39,7 @@ import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.common.data.RingEntry;
+import o.a.c.sidecar.client.shaded.common.data.RingEntry;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;

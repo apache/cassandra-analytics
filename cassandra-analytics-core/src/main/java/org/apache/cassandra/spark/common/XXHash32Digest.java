@@ -63,9 +63,9 @@ public class XXHash32Digest implements Digest
     }
 
     @Override
-    public org.apache.cassandra.sidecar.common.data.Digest toSidecarDigest()
+    public o.a.c.sidecar.client.shaded.common.data.Digest toSidecarDigest()
     {
-        return new org.apache.cassandra.sidecar.common.data.XXHash32Digest(value, seedHex);
+        return new o.a.c.sidecar.client.shaded.common.data.XXHash32Digest(value, seedHex);
     }
 
     @Override
