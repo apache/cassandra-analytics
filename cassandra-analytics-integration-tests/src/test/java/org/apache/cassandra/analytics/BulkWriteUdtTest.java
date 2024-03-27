@@ -20,10 +20,6 @@
 package org.apache.cassandra.analytics;
 
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
@@ -40,8 +36,7 @@ import org.apache.cassandra.testing.TestVersion;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.types.StructField;
-import shaded.com.datastax.driver.core.ResultSet;
+import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.testing.CassandraTestTemplate.fixDistributedSchemas;
 import static org.apache.cassandra.testing.CassandraTestTemplate.waitForHealthyRing;
@@ -81,7 +76,10 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
 
         SimpleQueryResult result = cluster.coordinator(1).executeWithResult("SELECT * FROM " + UDT_TABLE_NAME, ConsistencyLevel.ALL);
         assertThat(result.hasNext()).isTrue();
-        validateWrites(df.collectAsList(), queryAllDataWithDriver(cluster, UDT_TABLE_NAME, shaded.com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM));
+        validateWritesWithDriverResultSet(df.collectAsList(),
+                                          queryAllDataWithDriver(cluster, UDT_TABLE_NAME,
+                                              shaded.com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM),
+                                          BulkWriteUdtTest::defaultRowFormatter);
     }
 
     @Test
@@ -94,7 +92,17 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
 
         SimpleQueryResult result = cluster.coordinator(1).executeWithResult("SELECT * FROM " + NESTED_TABLE_NAME, ConsistencyLevel.ALL);
         assertThat(result.hasNext()).isTrue();
-        validateWrites(df.collectAsList(), queryAllDataWithDriver(cluster, NESTED_TABLE_NAME, shaded.com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM));
+        validateWritesWithDriverResultSet(df.collectAsList(),
+                                          queryAllDataWithDriver(cluster, NESTED_TABLE_NAME, shaded.com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM),
+                                          BulkWriteUdtTest::defaultRowFormatter);
+    }
+
+    @NotNull
+    public static String defaultRowFormatter(shaded.com.datastax.driver.core.Row row)
+    {
+        return row.getLong(0) +
+               ":" +
+               row.getUDTValue(1); // Formats as field:value with no whitespaces, and strings quoted
     }
 
     @Override
@@ -133,76 +141,5 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         cluster.schemaChangeIgnoringStoppedInstances(NESTED_UDT_DEF);
         cluster.schemaChangeIgnoringStoppedInstances(UDT_TABLE_CREATE);
         cluster.schemaChangeIgnoringStoppedInstances(NESTED_TABLE_CREATE);
-    }
-
-
-    public static void validateWrites(List<Row> sourceData, ResultSet queriedData)
-    {
-        Set<String> actualEntries = new HashSet<>();
-        queriedData.forEach(row ->
-            actualEntries.add(getFormattedData(row)));
-
-        // Number of entries in Cassandra must match the original datasource
-        assertThat(actualEntries.size()).isEqualTo(sourceData.size());
-
-        // remove from actual entries to make sure that the data read is the same as the data written
-        Set<String> sourceEntries = sourceData.stream().map(BulkWriteUdtTest::getFormatedSourceEntry)
-                           .collect(Collectors.toSet());
-        assertThat(actualEntries).as("All entries are expected to be read from database")
-                                 .containsExactlyInAnyOrderElementsOf(sourceEntries);
-    }
-
-    private static String getFormatedSourceEntry(Row row)
-    {
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < row.size(); i++)
-        {
-            maybeFormatSparkRow(sb, row.get(i));
-            if (i != (row.size() - 1))
-            {
-                sb.append(":");
-            }
-        }
-        return sb.toString();
-    }
-
-    // Format a Spark row to look like what the toString on a UDT looks like
-    // Unfortunately not _quite_ json, so we need to do this manually.
-    private static void maybeFormatSparkRow(StringBuilder sb, Object o)
-    {
-        if (o instanceof Row)
-        {
-            Row r = (Row) o;
-            sb.append("{");
-            StructField[] fields = r.schema().fields();
-            for (int i = 0; i < r.size(); i++)
-            {
-                sb.append(fields[i].name());
-                sb.append(":");
-                maybeFormatSparkRow(sb, r.get(i));
-                if (i != r.size() - 1)
-                {
-                    sb.append(',');
-                }
-            }
-            sb.append("}");
-        }
-        else if (o instanceof String)
-        {
-            sb.append(String.format("'%s'", o));
-        }
-        else
-        {
-            sb.append(String.format("%s", o));
-        }
-    }
-
-    private static String getFormattedData(shaded.com.datastax.driver.core.Row row)
-    {
-        StringBuilder sb = new StringBuilder();
-        sb.append(row.getLong(0));
-        sb.append(":");
-        sb.append(row.getUDTValue(1)); // Formats as field:value with no whitespaces, and strings quoted
-        return sb.toString();
     }
 }

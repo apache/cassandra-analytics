@@ -52,6 +52,7 @@ public final class DataGenerationUtils
 
     /**
      * Generates course data with schema
+     * Does not generate a User Defined Field
      *
      * <pre>
      *     id integer,
@@ -65,17 +66,47 @@ public final class DataGenerationUtils
      */
     public static Dataset<Row> generateCourseData(SparkSession spark, int rowCount)
     {
+        return generateCourseData(spark, rowCount, false);
+    }
+
+    /**
+     * Generates course data with schema
+     *
+     * <pre>
+     *     id integer,
+     *     course string,
+     *     marks integer
+     * </pre>
+     *
+     * @param spark    the spark session to use
+     * @param rowCount the number of records to generate
+     * @param udfData  if a field representing a User Defined Type should be added
+     * @return a {@link Dataset} with generated data
+     */
+    public static Dataset<Row> generateCourseData(SparkSession spark, int rowCount, boolean udfData)
+    {
         SQLContext sql = spark.sqlContext();
         StructType schema = new StructType()
                             .add("id", IntegerType, false)
                             .add("course", StringType, false)
                             .add("marks", IntegerType, false);
+        if (udfData)
+        {
+            StructType udfType = new StructType()
+                                 .add("TimE", IntegerType, false)
+                                 .add("limit", IntegerType, false);
+            schema = schema.add("User_Defined_Type", udfType);
+        }
 
         List<Row> rows = IntStream.range(0, rowCount)
                                   .mapToObj(recordNum -> {
                                       String course = "course" + recordNum;
-                                      Object[] values = {recordNum, course, recordNum};
-                                      return RowFactory.create(values);
+                                      if (!udfData)
+                                      {
+                                          return RowFactory.create(recordNum, course, recordNum);
+                                      }
+                                      return RowFactory.create(recordNum, course, recordNum,
+                                                               RowFactory.create(recordNum, recordNum));
                                   }).collect(Collectors.toList());
         return sql.createDataFrame(rows, schema);
     }

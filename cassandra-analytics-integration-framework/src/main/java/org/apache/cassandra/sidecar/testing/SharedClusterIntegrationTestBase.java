@@ -136,6 +136,7 @@ public abstract class SharedClusterIntegrationTestBase
     protected AbstractCluster<? extends IInstance> cluster;
     protected Server server;
     protected Injector injector;
+    protected TestVersion testVersion;
 
     static
     {
@@ -146,10 +147,11 @@ public abstract class SharedClusterIntegrationTestBase
     @BeforeAll
     protected void setup() throws InterruptedException, IOException
     {
-        Optional<TestVersion> testVersion = TestVersionSupplier.testVersions().findFirst();
-        assertThat(testVersion).isPresent();
+        Optional<TestVersion> maybeTestVersion = TestVersionSupplier.testVersions().findFirst();
+        assertThat(maybeTestVersion).isPresent();
+        this.testVersion = maybeTestVersion.get();
         logger.info("Testing with version={}", testVersion);
-        cluster = provisionClusterWithRetries(testVersion.get());
+        cluster = provisionClusterWithRetries(this.testVersion);
         assertThat(cluster).isNotNull();
         initializeSchemaForTest();
         startSidecar(cluster);
