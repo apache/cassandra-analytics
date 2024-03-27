@@ -61,10 +61,7 @@ public class XXHash32DigestAlgorithm implements DigestAlgorithm
             {
                 hasher.update(buffer, 0, len);
             }
-            // lz4 library doesn't mask the hash value, so we need to mask it to
-            // prevent forwarding the negative sign bit when converting to a long value
-            long hash = hasher.getValue() & 0xffffffffL;
-            return new XXHash32Digest(Long.toHexString(hash), SEED);
+            return new XXHash32Digest(Integer.toHexString(hasher.getValue()), SEED);
         }
     }
 }
