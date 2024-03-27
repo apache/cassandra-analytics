@@ -51,8 +51,8 @@ class XXHash32DigestAlgorithmTest
 
     @ParameterizedTest(name = "{index} fileName={0} expectedMd5={1}")
     @CsvSource({
-    "file1.txt,ffffffffd76a44a5",
-    "file2.txt,ffffffffef976cbe",
+    "file1.txt,d76a44a5",
+    "file2.txt,ef976cbe",
     "file3.txt,8321e1e",
     })
     void testXXHash32Provider(String fileName, String expectedXXHash32) throws IOException

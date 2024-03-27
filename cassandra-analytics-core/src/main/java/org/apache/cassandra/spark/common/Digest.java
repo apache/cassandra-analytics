@@ -32,5 +32,5 @@ public interface Digest
     /**
      * @return the digest translated to Sidecar digest
      */
-    org.apache.cassandra.sidecar.common.data.Digest toSidecarDigest();
+    o.a.c.sidecar.client.shaded.common.data.Digest toSidecarDigest();
 }

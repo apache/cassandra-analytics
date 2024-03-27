@@ -48,7 +48,7 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.sidecar.common.data.TimeSkewResponse;
+import o.a.c.sidecar.client.shaded.common.data.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
@@ -74,7 +74,6 @@ public class RecordWriter implements Serializable
     private final Supplier<TaskContext> taskContextSupplier;
     private SSTableWriter sstableWriter = null;
     private int outputSequence = 0; // sub-folder for possible subrange splits
-
 
     public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
     {

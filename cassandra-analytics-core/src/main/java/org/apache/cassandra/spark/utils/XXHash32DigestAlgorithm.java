@@ -61,7 +61,7 @@ public class XXHash32DigestAlgorithm implements DigestAlgorithm
             {
                 hasher.update(buffer, 0, len);
             }
-            return new XXHash32Digest(Long.toHexString(hasher.getValue()), SEED);
+            return new XXHash32Digest(Integer.toHexString(hasher.getValue()), SEED);
         }
     }
 }

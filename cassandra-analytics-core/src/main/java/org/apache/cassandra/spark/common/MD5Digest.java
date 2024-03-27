@@ -54,9 +54,9 @@ public class MD5Digest implements Digest
      * {@inheritDoc}
      */
     @Override
-    public org.apache.cassandra.sidecar.common.data.Digest toSidecarDigest()
+    public o.a.c.sidecar.client.shaded.common.data.Digest toSidecarDigest()
     {
-        return new org.apache.cassandra.sidecar.common.data.MD5Digest(value);
+        return new o.a.c.sidecar.client.shaded.common.data.MD5Digest(value);
     }
 
     @Override

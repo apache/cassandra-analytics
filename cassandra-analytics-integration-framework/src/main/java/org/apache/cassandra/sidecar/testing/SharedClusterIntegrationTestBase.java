@@ -455,6 +455,7 @@ public abstract class SharedClusterIntegrationTestBase
                                        .dataDirs(Arrays.asList(dataDirectories))
                                        .stagingDir(stagingDir)
                                        .delegate(delegate)
+                                       .globalMetricRegistryName("test")
                                        .build();
         }
 

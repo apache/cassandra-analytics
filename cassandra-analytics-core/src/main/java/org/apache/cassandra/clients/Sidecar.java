@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import o.a.c.sidecar.client.shaded.io.vertx.core.Vertx;
 import o.a.c.sidecar.client.shaded.io.vertx.core.VertxOptions;
+import o.a.c.sidecar.client.shaded.common.NodeSettings;
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.sidecar.client.HttpClientConfig;
 import org.apache.cassandra.sidecar.client.SidecarClient;
@@ -45,7 +46,6 @@ import org.apache.cassandra.sidecar.client.VertxHttpClient;
 import org.apache.cassandra.sidecar.client.VertxRequestExecutor;
 import org.apache.cassandra.sidecar.client.retry.ExponentialBackoffRetryPolicy;
 import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
-import org.apache.cassandra.sidecar.common.NodeSettings;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.utils.BuildInfo;

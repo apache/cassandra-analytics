@@ -43,20 +43,20 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import o.a.c.sidecar.client.shaded.common.NodeSettings;
+import o.a.c.sidecar.client.shaded.common.data.GossipInfoResponse;
+import o.a.c.sidecar.client.shaded.common.data.RingEntry;
+import o.a.c.sidecar.client.shaded.common.data.SchemaResponse;
+import o.a.c.sidecar.client.shaded.common.data.TimeSkewResponse;
+import o.a.c.sidecar.client.shaded.common.data.TokenRangeReplicasResponse;
+import o.a.c.sidecar.client.shaded.common.data.TokenRangeReplicasResponse.ReplicaInfo;
+import o.a.c.sidecar.client.shaded.common.data.TokenRangeReplicasResponse.ReplicaMetadata;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
-import org.apache.cassandra.sidecar.common.NodeSettings;
-import org.apache.cassandra.sidecar.common.data.GossipInfoResponse;
-import org.apache.cassandra.sidecar.common.data.RingEntry;
-import org.apache.cassandra.sidecar.common.data.SchemaResponse;
-import org.apache.cassandra.sidecar.common.data.TimeSkewResponse;
-import org.apache.cassandra.sidecar.common.data.TokenRangeReplicasResponse;
-import org.apache.cassandra.sidecar.common.data.TokenRangeReplicasResponse.ReplicaInfo;
-import org.apache.cassandra.sidecar.common.data.TokenRangeReplicasResponse.ReplicaMetadata;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.client.InstanceState;
 import org.apache.cassandra.spark.common.client.InstanceStatus;
@@ -467,11 +467,11 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     {
 
         Set<String> pendingReplicas = response.replicaMetadata()
-                                                         .values()
-                                                         .stream()
-                                                         .filter(m -> InstanceState.isTransitioning(m.state()))
-                                                         .map(ReplicaMetadata::address)
-                                                         .collect(Collectors.toSet());
+                                              .values()
+                                              .stream()
+                                              .filter(m -> InstanceState.isTransitioning(m.state()))
+                                              .map(ReplicaMetadata::address)
+                                              .collect(Collectors.toSet());
 
         if (pendingReplicas.isEmpty())
         {
