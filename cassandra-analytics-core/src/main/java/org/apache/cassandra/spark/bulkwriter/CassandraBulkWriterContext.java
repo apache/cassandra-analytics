@@ -70,7 +70,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         this.clusterInfo = clusterInfo;
         this.jobStatsPublisher = new LogStatsPublisher();
         String lowestCassandraVersion = clusterInfo.getLowestCassandraVersion();
-
+        this.bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
         TokenRangeMapping<RingInstance> tokenRangeMapping = clusterInfo.getTokenRangeMapping(true);
         jobInfo = new CassandraJobInfo(conf,
                                        new TokenPartitioner(tokenRangeMapping,
@@ -100,12 +100,8 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     }
 
     @Override
-    public synchronized CassandraBridge bridge()
+    public CassandraBridge bridge()
     {
-        if (this.bridge == null)
-        {
-            this.bridge = CassandraBridgeFactory.get(this.clusterInfo.getLowestCassandraVersion());
-        }
         return this.bridge;
     }
 
