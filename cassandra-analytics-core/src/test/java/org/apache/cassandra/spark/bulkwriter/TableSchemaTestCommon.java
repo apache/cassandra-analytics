@@ -19,7 +19,9 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -43,6 +45,7 @@ import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.CUSTOM
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.LIST;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.MAP;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.SET;
+import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.UDT;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -122,6 +125,34 @@ public final class TableSchemaTestCommon
         when(mock.keyType()).thenReturn(keyType);
         when(mock.valueType()).thenReturn(valueType);
         return mock;
+    }
+
+    @NotNull
+    public static CqlField.CqlUdt mockUdtCqlType(String name, String... namesAndTypes)
+    {
+        assert namesAndTypes.length > 0 && (namesAndTypes.length % 2) == 0;
+        HashMap<String, CqlField> udtDef = new HashMap<>();
+        CqlField.CqlUdt udtMock = mock(CqlField.CqlUdt.class);
+        when(udtMock.cqlName()).thenReturn(name);
+        when(udtMock.internalType()).thenReturn(CqlField.CqlType.InternalType.Udt);
+        when(udtMock.name()).thenReturn(UDT);
+        List<CqlField> fields = new ArrayList<>();
+        for (int i = 0; i < namesAndTypes.length; i += 2)
+        {
+            String field = namesAndTypes[i];
+            String type = namesAndTypes[i + 1];
+            CqlField mock = mock(CqlField.class);
+            when(mock.name()).thenReturn(field);
+            when(mock.cqlTypeName()).thenReturn(type);
+            CqlField.CqlType fieldType = mockCqlType(type);
+            when(mock.type()).thenReturn(fieldType);
+            udtDef.put(field, mock);
+            when(udtMock.field(i / 2)).thenReturn(mock);
+            when(udtMock.field(field)).thenReturn(mock);
+            fields.add(mock);
+        }
+        when(udtMock.fields()).thenReturn(fields);
+        return udtMock;
     }
 
     public static TableSchema buildSchema(String[] fieldNames,

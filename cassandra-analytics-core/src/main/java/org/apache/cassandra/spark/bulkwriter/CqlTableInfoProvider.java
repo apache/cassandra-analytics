@@ -98,9 +98,20 @@ public class CqlTableInfoProvider implements TableInfoProvider
     @Override
     public List<ColumnType<?>> getPartitionKeyTypes()
     {
-        return cqlTable.partitionKeys().stream()
-                       .map(cqlField -> DATA_TYPES.get(cqlField.type().cqlName().toLowerCase()))
-                       .collect(Collectors.toList());
+        List<ColumnType<?>> types = cqlTable.partitionKeys().stream()
+                                              .map(cqlField -> {
+                                                  String typeName = cqlField.type().cqlName().toLowerCase();
+                                                  ColumnType<?> type = DATA_TYPES.get(typeName);
+                                                  if (type == null)
+                                                  {
+                                                      throw new RuntimeException(
+                                                      "Could not find ColumnType for type name" + typeName);
+                                                  }
+                                                  return type;
+                                              })
+                                              .collect(Collectors.toList());
+        return types;
+
     }
 
     @Override

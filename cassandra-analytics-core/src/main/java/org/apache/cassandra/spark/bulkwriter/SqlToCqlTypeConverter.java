@@ -41,8 +41,10 @@ import com.google.common.net.InetAddresses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.UUIDs;
+import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import scala.Tuple2;
 
 import static org.apache.cassandra.spark.utils.ScalaConversionUtils.asJavaIterable;
@@ -50,8 +52,6 @@ import static org.apache.cassandra.spark.utils.ScalaConversionUtils.asJavaIterab
 @SuppressWarnings("unchecked")
 public final class SqlToCqlTypeConverter implements Serializable
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SqlToCqlTypeConverter.class);
-
     public static final String ASCII = "ascii";
     public static final String BIGINT = "bigint";
     public static final String BLOB = "blob";
@@ -79,7 +79,7 @@ public final class SqlToCqlTypeConverter implements Serializable
     public static final String UDT = "udt";
     public static final String VARCHAR = "varchar";
     public static final String VARINT = "varint";
-
+    private static final Logger LOGGER = LoggerFactory.getLogger(SqlToCqlTypeConverter.class);
     private static final NoOp<Object> NO_OP_CONVERTER = new NoOp<>();
     private static final LongConverter LONG_CONVERTER = new LongConverter();
     private static final BytesConverter BYTES_CONVERTER = new BytesConverter();
@@ -164,11 +164,14 @@ public final class SqlToCqlTypeConverter implements Serializable
                 return new MapConverter<>((CqlField.CqlMap) cqlType);
             case SET:
                 return new SetConverter<>((CqlField.CqlCollection) cqlType);
-            case UDT:
-                return NO_OP_CONVERTER;
             case TUPLE:
                 return NO_OP_CONVERTER;
             default:
+                if (cqlType.internalType() == CqlField.CqlType.InternalType.Udt)
+                {
+                    assert cqlType instanceof CqlField.CqlUdt;
+                    return new UdtConverter((CqlField.CqlUdt) cqlType);
+                }
                 LOGGER.warn("Unable to match type={}. Defaulting to NoOp Converter", cqlName);
                 return NO_OP_CONVERTER;
         }
@@ -212,12 +215,12 @@ public final class SqlToCqlTypeConverter implements Serializable
 
     abstract static class Converter<T> implements Serializable
     {
-        public abstract T convertInternal(Object object) throws RuntimeException;
-
         public T convert(Object object)
         {
             return convertInternal(object);
         }
+
+        abstract T convertInternal(Object object);
     }
 
     private abstract static class NullableConverter<T> extends Converter<T>
@@ -441,7 +444,7 @@ public final class SqlToCqlTypeConverter implements Serializable
          * @throws RuntimeException when the object cannot be converted to timestamp
          */
         @Override
-        public Long convertInternal(Object object) throws RuntimeException
+        public Long convertInternal(Object object)
         {
             if (object instanceof Date)
             {
@@ -479,7 +482,7 @@ public final class SqlToCqlTypeConverter implements Serializable
          * @throws RuntimeException when the object cannot be converted to timestamp
          */
         @Override
-        public Date convertInternal(Object object) throws RuntimeException
+        public Date convertInternal(Object object)
         {
             if (object instanceof Date)
             {
@@ -510,22 +513,6 @@ public final class SqlToCqlTypeConverter implements Serializable
             return "Date";
         }
 
-        protected int fromDate(Date value)
-        {
-            long millisSinceEpoch = value.getTime();
-            return fromMillisSinceEpoch(millisSinceEpoch);
-        }
-
-        protected int fromMillisSinceEpoch(long millisSinceEpoch)
-        {
-            // NOTE: This code is lifted from org.apache.cassandra.serializers.SimpleDateSerializer#timeInMillisToDay.
-            //       Reproduced here due to the difficulties of referencing classes from specific versions of Cassandra
-            //       in the SBW.
-            int result = (int) TimeUnit.MILLISECONDS.toDays(millisSinceEpoch);
-            result -= Integer.MIN_VALUE;
-            return result;
-        }
-
         @Override
         public Integer convertInternal(Object object)
         {
@@ -541,6 +528,22 @@ public final class SqlToCqlTypeConverter implements Serializable
             {
                 throw new RuntimeException("Unsupported conversion for DATE from " + object.getClass().getTypeName());
             }
+        }
+
+        protected int fromDate(Date value)
+        {
+            long millisSinceEpoch = value.getTime();
+            return fromMillisSinceEpoch(millisSinceEpoch);
+        }
+
+        protected int fromMillisSinceEpoch(long millisSinceEpoch)
+        {
+            // NOTE: This code is lifted from org.apache.cassandra.serializers.SimpleDateSerializer#timeInMillisToDay.
+            //       Reproduced here due to the difficulties of referencing classes from specific versions of Cassandra
+            //       in the SBW.
+            int result = (int) TimeUnit.MILLISECONDS.toDays(millisSinceEpoch);
+            result -= Integer.MIN_VALUE;
+            return result;
         }
     }
 
@@ -674,6 +677,12 @@ public final class SqlToCqlTypeConverter implements Serializable
             }
         }
 
+        @Override
+        public String toString()
+        {
+            return "List";
+        }
+
         private List<E> makeList(Iterable<?> iterable)
         {
             List<E> list = new ArrayList<>();
@@ -682,12 +691,6 @@ public final class SqlToCqlTypeConverter implements Serializable
                 list.add((E) innerConverter.convert(object));
             }
             return list;
-        }
-
-        @Override
-        public String toString()
-        {
-            return "List";
         }
     }
 
@@ -717,6 +720,12 @@ public final class SqlToCqlTypeConverter implements Serializable
             }
         }
 
+        @Override
+        public String toString()
+        {
+            return "Set<" + innerConverter.toString() + ">";
+        }
+
         private Set<E> makeSet(Iterable<?> iterable)
         {
             Set<E> set = new HashSet<>();
@@ -725,12 +734,6 @@ public final class SqlToCqlTypeConverter implements Serializable
                 set.add((E) innerConverter.convert(object));
             }
             return set;
-        }
-
-        @Override
-        public String toString()
-        {
-            return "Set<" + innerConverter.toString() + ">";
         }
     }
 
@@ -763,6 +766,12 @@ public final class SqlToCqlTypeConverter implements Serializable
             throw new RuntimeException("Unsupported conversion for MAP from " + object.getClass().getTypeName());
         }
 
+        @Override
+        public String toString()
+        {
+            return "Map<" + keyConverter.toString() + ", " + valConverter.toString() + '>';
+        }
+
         private Map<K, V> makeMap(Iterable<?> iterable)
         {
             Object key;
@@ -788,11 +797,53 @@ public final class SqlToCqlTypeConverter implements Serializable
             }
             return map;
         }
+    }
+
+    public static class UdtConverter extends NullableConverter<BridgeUdtValue>
+    {
+        private final String name;
+        private final HashMap<String, Converter<?>> converters;
+
+        UdtConverter(CqlField.CqlUdt udt)
+        {
+            this.name = udt.cqlName();
+            this.converters = new HashMap<>();
+            for (CqlField f : udt.fields())
+            {
+                converters.put(f.name(), getConverter(f.type()));
+            }
+        }
+
+        @Override
+        public BridgeUdtValue convertInternal(Object object)
+        {
+            if (object instanceof GenericRowWithSchema)
+            {
+                Map<String, Object> udtMap = makeUdtMap((GenericRowWithSchema) object);
+                return new BridgeUdtValue(name, udtMap);
+            }
+            throw new RuntimeException("Unsupported conversion for UDT from " + object.getClass().getTypeName());
+        }
 
         @Override
         public String toString()
         {
-            return "Map";
+            return String.format("UDT[%s]", name);
+        }
+
+        // Unfortunately, we don't have easy access to the bridge here.
+        // Rather than trying to create an actual UDTValue here, we will push
+        // that responsibility down to the SSTableWriter Implementation
+        private Map<String, Object> makeUdtMap(GenericRowWithSchema row)
+        {
+            Map<String, Object> result = new HashMap<>();
+            for (String fieldName : row.schema().fieldNames())
+            {
+                Converter<?> converter = converters.get(fieldName);
+                Object val = row.get(row.fieldIndex(fieldName));
+                result.put(fieldName, converter.convert(val));
+            }
+            return result;
         }
     }
 }

@@ -31,11 +31,14 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.types.Metadata;
+import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 
 import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.apache.spark.sql.types.DataTypes.LongType;
 import static org.apache.spark.sql.types.DataTypes.StringType;
+import static org.apache.spark.sql.types.DataTypes.createStructType;
 
 /**
  * Utilities for data generation used for tests
@@ -49,6 +52,7 @@ public final class DataGenerationUtils
 
     /**
      * Generates course data with schema
+     * Does not generate a User Defined Field
      *
      * <pre>
      *     id integer,
@@ -62,17 +66,47 @@ public final class DataGenerationUtils
      */
     public static Dataset<Row> generateCourseData(SparkSession spark, int rowCount)
     {
+        return generateCourseData(spark, rowCount, false);
+    }
+
+    /**
+     * Generates course data with schema
+     *
+     * <pre>
+     *     id integer,
+     *     course string,
+     *     marks integer
+     * </pre>
+     *
+     * @param spark    the spark session to use
+     * @param rowCount the number of records to generate
+     * @param udfData  if a field representing a User Defined Type should be added
+     * @return a {@link Dataset} with generated data
+     */
+    public static Dataset<Row> generateCourseData(SparkSession spark, int rowCount, boolean udfData)
+    {
         SQLContext sql = spark.sqlContext();
         StructType schema = new StructType()
                             .add("id", IntegerType, false)
                             .add("course", StringType, false)
                             .add("marks", IntegerType, false);
+        if (udfData)
+        {
+            StructType udfType = new StructType()
+                                 .add("TimE", IntegerType, false)
+                                 .add("limit", IntegerType, false);
+            schema = schema.add("User_Defined_Type", udfType);
+        }
 
         List<Row> rows = IntStream.range(0, rowCount)
                                   .mapToObj(recordNum -> {
                                       String course = "course" + recordNum;
-                                      Object[] values = {recordNum, course, recordNum};
-                                      return RowFactory.create(values);
+                                      if (!udfData)
+                                      {
+                                          return RowFactory.create(recordNum, course, recordNum);
+                                      }
+                                      return RowFactory.create(recordNum, course, recordNum,
+                                                               RowFactory.create(recordNum, recordNum));
                                   }).collect(Collectors.toList());
         return sql.createDataFrame(rows, schema);
     }
@@ -111,6 +145,45 @@ public final class DataGenerationUtils
                                           values.add(timestamp);
                                       }
                                       return RowFactory.create(values.toArray());
+                                  }).collect(Collectors.toList());
+        return sql.createDataFrame(rows, schema);
+    }
+
+    public static Dataset<Row> generateUdtData(SparkSession spark, int rowCount)
+    {
+        SQLContext sql = spark.sqlContext();
+        StructType udtType = createStructType(new StructField[]{new StructField("f1", StringType, false, Metadata.empty()),
+                                                                new StructField("f2", IntegerType, false, Metadata.empty())});
+        StructType schema = new StructType()
+                            .add("id", IntegerType, false)
+                            .add("udtfield", udtType, false);
+
+        List<Row> rows = IntStream.range(0, rowCount)
+                                  .mapToObj(id -> {
+                                      String course = "course" + id;
+                                      Object[] values = {id, RowFactory.create(course, id)};
+                                      return RowFactory.create(values);
+                                  }).collect(Collectors.toList());
+        return sql.createDataFrame(rows, schema);
+    }
+
+    public static Dataset<Row> generateNestedUdtData(SparkSession spark, int rowCount)
+    {
+        SQLContext sql = spark.sqlContext();
+        StructType udtType = createStructType(new StructField[]{new StructField("f1", StringType, false, Metadata.empty()),
+                                                                new StructField("f2", IntegerType, false, Metadata.empty())});
+        StructType nestedType = createStructType(new StructField[] {new StructField("n1", IntegerType, false, Metadata.empty()),
+                                                                    new StructField("n2", udtType, false, Metadata.empty())});
+        StructType schema = new StructType()
+                            .add("id", IntegerType, false)
+                            .add("nested", nestedType, false);
+
+        List<Row> rows = IntStream.range(0, rowCount)
+                                  .mapToObj(id -> {
+                                      String course = "course" + id;
+                                      Row innerUdt = RowFactory.create(id, RowFactory.create(course, id));
+                                      Object[] values = {id, innerUdt};
+                                      return RowFactory.create(values);
                                   }).collect(Collectors.toList());
         return sql.createDataFrame(rows, schema);
     }
