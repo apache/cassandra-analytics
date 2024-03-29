@@ -22,7 +22,10 @@ package org.apache.cassandra.analytics;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -76,10 +79,11 @@ class QuoteIdentifiersReadTest extends SharedClusterSparkIntegrationTestBase
         List<Row> rowList = data.collectAsList().stream()
                                 .sorted(Comparator.comparing(row -> row.getString(0)))
                                 .collect(Collectors.toList());
+        int uniqueNumberForTest = nameToUniqueNumber.get(tableName);
         for (int i = 0; i < DATASET.size(); i++)
         {
-            assertThat(rowList.get(i).getString(0)).isEqualTo(DATASET.get(i));
-            assertThat(rowList.get(i).getInt(1)).isEqualTo(i);
+            assertThat(rowList.get(i).getString(0)).isEqualTo(DATASET.get(i) + "_" + uniqueNumberForTest);
+            assertThat(rowList.get(i).getInt(1)).isEqualTo((uniqueNumberForTest * 100) + i);
         }
     }
 
@@ -92,11 +96,12 @@ class QuoteIdentifiersReadTest extends SharedClusterSparkIntegrationTestBase
         List<Row> rowList = data.collectAsList().stream()
                                 .sorted(Comparator.comparing(row -> row.getString(0)))
                                 .collect(Collectors.toList());
+        int uniqueNumberForTest = nameToUniqueNumber.get(TABLE_NAME_FOR_UDT_TEST);
         for (int i = 0; i < DATASET.size(); i++)
         {
             Row row = rowList.get(i);
-            assertThat(row.getString(0)).isEqualTo(DATASET.get(i));
-            assertThat(row.getInt(1)).isEqualTo(i);
+            assertThat(rowList.get(i).getString(0)).isEqualTo(DATASET.get(i) + "_" + uniqueNumberForTest);
+            assertThat(rowList.get(i).getInt(1)).isEqualTo((uniqueNumberForTest * 100) + i);
             assertThat(row.getStruct(2).getLong(0)).isEqualTo(i); // from UdT1 TimE column
             assertThat(row.getStruct(2).getInt(1)).isEqualTo(i); // from UdT1 limit column (limit is a reserved word)
         }
@@ -134,6 +139,7 @@ class QuoteIdentifiersReadTest extends SharedClusterSparkIntegrationTestBase
     @Override
     protected void initializeSchemaForTest()
     {
+
         String createTableStatement = "CREATE TABLE IF NOT EXISTS %s " +
                                       "(\"IdEnTiFiEr\" text, IdEnTiFiEr int, PRIMARY KEY(\"IdEnTiFiEr\"));";
 
@@ -160,13 +166,19 @@ class QuoteIdentifiersReadTest extends SharedClusterSparkIntegrationTestBase
         populateTableWithUdt(TABLE_NAME_FOR_UDT_TEST, DATASET);
     }
 
+    static final AtomicInteger uniqueNumber = new AtomicInteger();
+    static final Map<QualifiedName, Integer> nameToUniqueNumber = new HashMap<>();
+
     void populateTable(QualifiedName tableName, List<String> values)
     {
+        int uniqueNumberForTest = uniqueNumber.incrementAndGet();
+        nameToUniqueNumber.put(tableName, uniqueNumberForTest);
         for (int i = 0; i < values.size(); i++)
         {
             String value = values.get(i);
             String query = String.format("INSERT INTO %s (\"IdEnTiFiEr\", IdEnTiFiEr) " +
-                                         "VALUES ('%s', %d);", tableName, value, i);
+                                         "VALUES ('%s', %d);", tableName, value + "_" + uniqueNumberForTest,
+                                         ((uniqueNumberForTest * 100) + i));
             cluster.getFirstRunningInstance()
                    .coordinator()
                    .execute(query, ConsistencyLevel.ALL);
@@ -175,12 +187,15 @@ class QuoteIdentifiersReadTest extends SharedClusterSparkIntegrationTestBase
 
     void populateTableWithUdt(QualifiedName tableName, List<String> dataset)
     {
+        int uniqueNumberForTest = uniqueNumber.incrementAndGet();
+        nameToUniqueNumber.put(tableName, uniqueNumberForTest);
         for (int i = 0; i < dataset.size(); i++)
         {
             String value = dataset.get(i);
             String query = String.format("INSERT INTO %s (\"IdEnTiFiEr\", IdEnTiFiEr, \"User_Defined_Type\") " +
                                          "VALUES ('%s', %d, { \"TimE\" : %d, \"limit\" : %d });",
-                                         tableName, value, i, i, i);
+                                         tableName, value + "_" + uniqueNumberForTest,
+                                         ((uniqueNumberForTest * 100) + i), i, i);
             cluster.getFirstRunningInstance()
                    .coordinator()
                    .execute(query, ConsistencyLevel.ALL);

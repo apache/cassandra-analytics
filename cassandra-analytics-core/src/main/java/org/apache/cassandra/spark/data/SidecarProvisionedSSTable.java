@@ -243,30 +243,44 @@ public class SidecarProvisionedSSTable extends SSTable
     @Override
     public String toString()
     {
-        return String.format("{\"hostname\"=\"%s\", \"port\"=\"%d\", \"dataFileName\"=\"%s\", \"partitionId\"=\"%d\"}",
-                             instance.hostname(), instance.port(), dataFileName, partitionId);
+        return String.format("{\"hostname\"=\"%s\", " +
+                             "\"port\"=\"%d\", " +
+                             "\"keyspace\"=\"%s\", " +
+                             "\"table\"=\"%s\", " +
+                             "\"snapshotName\"=\"%s\", " +
+                             "\"dataFileName\"=\"%s\", " +
+                             "\"partitionId\"=\"%d\"}",
+                             instance.hostname(),
+                             instance.port(),
+                             keyspace,
+                             table,
+                             snapshotName,
+                             dataFileName,
+                             partitionId);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(instance, dataFileName);
+        return Objects.hash(instance, keyspace, table, snapshotName, dataFileName);
     }
 
     @Override
-    public boolean equals(Object other)
+    public boolean equals(Object object)
     {
-        if (this == other)
+        if (this == object)
         {
             return true;
         }
-        if (other == null || this.getClass() != other.getClass())
+        if (object == null || getClass() != object.getClass())
         {
             return false;
         }
-
-        SidecarProvisionedSSTable that = (SidecarProvisionedSSTable) other;
-        return this.instance.equals(that.instance)
-            && this.dataFileName.equals(that.dataFileName);
+        SidecarProvisionedSSTable that = (SidecarProvisionedSSTable) object;
+        return Objects.equals(instance, that.instance)
+               && Objects.equals(keyspace, that.keyspace)
+               && Objects.equals(table, that.table)
+               && Objects.equals(snapshotName, that.snapshotName)
+               && Objects.equals(dataFileName, that.dataFileName);
     }
 }
