@@ -139,7 +139,6 @@ class QuoteIdentifiersReadTest extends SharedClusterSparkIntegrationTestBase
     @Override
     protected void initializeSchemaForTest()
     {
-
         String createTableStatement = "CREATE TABLE IF NOT EXISTS %s " +
                                       "(\"IdEnTiFiEr\" text, IdEnTiFiEr int, PRIMARY KEY(\"IdEnTiFiEr\"));";
 

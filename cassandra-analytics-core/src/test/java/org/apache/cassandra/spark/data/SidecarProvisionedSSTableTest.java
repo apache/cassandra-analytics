@@ -109,35 +109,29 @@ class SidecarProvisionedSSTableTest
         SSTable ssTable50 = prepareTable("localhost1", 9044, "keyspace1", "table2", "snapshot1", "na-1-big-Data.db");
         SSTable ssTable60 = prepareTable("localhost1", 9043, "keyspace1", "table1", "snapshot1", "na-2-big-Data.db");
 
-        assertThat(ssTable10.toString()).isEqualTo("{\"hostname\"=\"localhost1\", \"port\"=\"9043\", " +
-                                                   "\"keyspace\"=\"keyspace1\", \"table\"=\"table1\", " +
-                                                   "\"snapshotName\"=\"snapshot1\", " +
-                                                   "\"dataFileName\"=\"na-1-big-Data.db\", \"partitionId\"=\"1\"}");
+        assertThat(ssTable10.toString()).isEqualTo("SidecarProvisionedSSTable{hostname='localhost1', port=9043, " +
+                                                   "keyspace='keyspace1', table='table1', snapshotName='snapshot1', " +
+                                                   "dataFileName='na-1-big-Data.db', partitionId=1}");
 
-        assertThat(ssTable20.toString()).isEqualTo("{\"hostname\"=\"localhost1\", \"port\"=\"9043\", " +
-                                                   "\"keyspace\"=\"keyspace2\", \"table\"=\"table1\", " +
-                                                   "\"snapshotName\"=\"snapshot1\", " +
-                                                   "\"dataFileName\"=\"na-1-big-Data.db\", \"partitionId\"=\"1\"}");
+        assertThat(ssTable20.toString()).isEqualTo("SidecarProvisionedSSTable{hostname='localhost1', port=9043, " +
+                                                   "keyspace='keyspace2', table='table1', snapshotName='snapshot1', " +
+                                                   "dataFileName='na-1-big-Data.db', partitionId=1}");
 
-        assertThat(ssTable30.toString()).isEqualTo("{\"hostname\"=\"localhost1\", \"port\"=\"9043\", " +
-                                                   "\"keyspace\"=\"keyspace1\", \"table\"=\"table2\", " +
-                                                   "\"snapshotName\"=\"snapshot1\", " +
-                                                   "\"dataFileName\"=\"na-1-big-Data.db\", \"partitionId\"=\"1\"}");
+        assertThat(ssTable30.toString()).isEqualTo("SidecarProvisionedSSTable{hostname='localhost1', port=9043, " +
+                                                   "keyspace='keyspace1', table='table2', snapshotName='snapshot1', " +
+                                                   "dataFileName='na-1-big-Data.db', partitionId=1}");
 
-        assertThat(ssTable40.toString()).isEqualTo("{\"hostname\"=\"localhost2\", \"port\"=\"9043\", " +
-                                                   "\"keyspace\"=\"keyspace1\", \"table\"=\"table2\", " +
-                                                   "\"snapshotName\"=\"snapshot1\", " +
-                                                   "\"dataFileName\"=\"na-1-big-Data.db\", \"partitionId\"=\"1\"}");
+        assertThat(ssTable40.toString()).isEqualTo("SidecarProvisionedSSTable{hostname='localhost2', port=9043, " +
+                                                   "keyspace='keyspace1', table='table2', snapshotName='snapshot1', " +
+                                                   "dataFileName='na-1-big-Data.db', partitionId=1}");
 
-        assertThat(ssTable50.toString()).isEqualTo("{\"hostname\"=\"localhost1\", \"port\"=\"9044\", " +
-                                                   "\"keyspace\"=\"keyspace1\", \"table\"=\"table2\", " +
-                                                   "\"snapshotName\"=\"snapshot1\", " +
-                                                   "\"dataFileName\"=\"na-1-big-Data.db\", \"partitionId\"=\"1\"}");
+        assertThat(ssTable50.toString()).isEqualTo("SidecarProvisionedSSTable{hostname='localhost1', port=9044, " +
+                                                   "keyspace='keyspace1', table='table2', snapshotName='snapshot1', " +
+                                                   "dataFileName='na-1-big-Data.db', partitionId=1}");
 
-        assertThat(ssTable60.toString()).isEqualTo("{\"hostname\"=\"localhost1\", \"port\"=\"9043\", " +
-                                                   "\"keyspace\"=\"keyspace1\", \"table\"=\"table1\", " +
-                                                   "\"snapshotName\"=\"snapshot1\", " +
-                                                   "\"dataFileName\"=\"na-2-big-Data.db\", \"partitionId\"=\"1\"}");
+        assertThat(ssTable60.toString()).isEqualTo("SidecarProvisionedSSTable{hostname='localhost1', port=9043, " +
+                                                   "keyspace='keyspace1', table='table1', snapshotName='snapshot1', " +
+                                                   "dataFileName='na-2-big-Data.db', partitionId=1}");
     }
 
     @ParameterizedTest

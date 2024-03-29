@@ -243,20 +243,15 @@ public class SidecarProvisionedSSTable extends SSTable
     @Override
     public String toString()
     {
-        return String.format("{\"hostname\"=\"%s\", " +
-                             "\"port\"=\"%d\", " +
-                             "\"keyspace\"=\"%s\", " +
-                             "\"table\"=\"%s\", " +
-                             "\"snapshotName\"=\"%s\", " +
-                             "\"dataFileName\"=\"%s\", " +
-                             "\"partitionId\"=\"%d\"}",
-                             instance.hostname(),
-                             instance.port(),
-                             keyspace,
-                             table,
-                             snapshotName,
-                             dataFileName,
-                             partitionId);
+        return "SidecarProvisionedSSTable{" +
+               "hostname='" + instance.hostname() + '\'' +
+               ", port=" + instance.port() +
+               ", keyspace='" + keyspace + '\'' +
+               ", table='" + table + '\'' +
+               ", snapshotName='" + snapshotName + '\'' +
+               ", dataFileName='" + dataFileName + '\'' +
+               ", partitionId=" + partitionId +
+               '}';
     }
 
     @Override
