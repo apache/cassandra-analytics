@@ -86,6 +86,27 @@ public class SidecarInstanceImpl implements Serializable, SidecarInstance
         return String.format("SidecarInstanceImpl{hostname='%s', port=%d}", hostname, port);
     }
 
+    @Override
+    public boolean equals(Object object)
+    {
+        if (this == object)
+        {
+            return true;
+        }
+        if (object == null || getClass() != object.getClass())
+        {
+            return false;
+        }
+        SidecarInstanceImpl that = (SidecarInstanceImpl) object;
+        return port == that.port && Objects.equals(hostname, that.hostname);
+    }
+
+    @Override
+    public int hashCode()
+    {
+        return Objects.hash(port, hostname);
+    }
+
     // JDK Serialization
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
