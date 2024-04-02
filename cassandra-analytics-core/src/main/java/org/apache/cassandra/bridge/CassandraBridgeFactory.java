@@ -30,7 +30,9 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import org.apache.commons.io.FileUtils;
 
@@ -57,8 +59,8 @@ public final class CassandraBridgeFactory
     public static CassandraVersion getCassandraVersion(@NotNull CassandraVersionFeatures features)
     {
         Optional<CassandraVersion> version = Arrays.stream(CassandraVersion.values())
-                .filter(value -> value.versionNumber() == features.getMajorVersion())
-                .findAny();
+                                                   .filter(value -> value.versionNumber() == features.getMajorVersion())
+                                                   .findAny();
         Preconditions.checkArgument(version.isPresent(), "Cassandra features " + features + " are not supported");
         return version.get();
     }
@@ -87,15 +89,24 @@ public final class CassandraBridgeFactory
      * Ensures that every supported Cassandra version has a corresponding Cassandra bridge implementation embedded
      * into this library's binary as a separate JAR file in the {@code bridges} directory, fails fast otherwise
      *
+     * @param expectedCassandraVersions the expected cassandra versions
      * @throws IllegalStateException If a Cassandra bridge implementation is missing for a supported Cassandra version
      */
-    public static void validateBridges()
+    public static void validateBridges(CassandraVersion[] expectedCassandraVersions)
     {
-        for (CassandraVersion version : CassandraVersion.implementedVersions())
+        for (CassandraVersion version : expectedCassandraVersions)
         {
             String jarBaseName = version.jarBaseName();
-            String name = resourceName(jarBaseName);
-            URL locator = CassandraBridgeFactory.class.getResource(name);
+            String cassandraResourceName = cassandraResourceName(jarBaseName);
+            URL locator = CassandraBridgeFactory.class.getResource(cassandraResourceName);
+            if (locator == null)
+            {
+                throw new IllegalStateException("Missing Cassandra implementation for version " + version);
+            }
+
+            String bridgeResourceName = bridgeResourceName(jarBaseName);
+            locator = CassandraBridgeFactory.class.getResource(bridgeResourceName);
+
             if (locator == null)
             {
                 throw new IllegalStateException("Missing Cassandra bridge implementation for version " + version);
@@ -104,9 +115,20 @@ public final class CassandraBridgeFactory
     }
 
     @NotNull
-    private static String resourceName(@NotNull String label)
+    private static String cassandraResourceName(@NotNull String label)
     {
         return "/bridges/" + label + ".jar";
+    }
+
+    @NotNull
+    private static String bridgeResourceName(@NotNull String label)
+    {
+        return "/bridges/" + label + "-bridge.jar";
+    }
+
+    private static Stream<Function<String, String>> resources()
+    {
+        return Stream.of(CassandraBridgeFactory::cassandraResourceName, CassandraBridgeFactory::bridgeResourceName);
     }
 
     @NotNull
@@ -115,18 +137,25 @@ public final class CassandraBridgeFactory
     {
         try
         {
-            String name = resourceName(label);
-            InputStream contents = CassandraBridgeFactory.class.getResourceAsStream(name);
-            File jar = Files.createTempFile(null, ".jar").toFile();
-            FileUtils.copyInputStreamToFile(contents, jar);
 
-            ClassLoader loader = new PostDelegationClassLoader(jar, Thread.currentThread().getContextClassLoader());
+            String name = cassandraResourceName(label);
+            InputStream contents = CassandraBridgeFactory.class.getResourceAsStream(name);
+            File casandraJar = Files.createTempFile(null, ".jar").toFile();
+            FileUtils.copyInputStreamToFile(contents, casandraJar);
+
+            name = bridgeResourceName(label);
+            contents = CassandraBridgeFactory.class.getResourceAsStream(name);
+            File bridgeJar = Files.createTempFile(null, ".jar").toFile();
+            FileUtils.copyInputStreamToFile(contents, bridgeJar);
+
+            URL[] urls = { casandraJar.toURI().toURL(), bridgeJar.toURI().toURL() };
+            ClassLoader loader = new PostDelegationClassLoader(urls, Thread.currentThread().getContextClassLoader());
             Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass("org.apache.cassandra.bridge.CassandraBridgeImplementation");
             Constructor<CassandraBridge> constructor = bridge.getConstructor();
             return constructor.newInstance();
         }
         catch (IOException | ClassNotFoundException | NoSuchMethodException | InstantiationException
-             | IllegalAccessException | InvocationTargetException exception)
+               | IllegalAccessException | InvocationTargetException exception)
         {
             throw new RuntimeException("Failed to create Cassandra bridge for label " + label, exception);
         }

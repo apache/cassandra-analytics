@@ -19,10 +19,10 @@
 
 package org.apache.cassandra.spark.utils;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -54,6 +55,9 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class CqlUtilsTest extends VersionRunner
 {
     static String fullSchemaSample;
+
+    @TempDir
+    private static Path tempPath;
 
     @BeforeAll
     public static void setup() throws URISyntaxException, IOException
@@ -780,10 +784,9 @@ public class CqlUtilsTest extends VersionRunner
                                                       Collections.singletonList("max_index_interval")).contains("max_index_interval = 6"));
     }
 
-    private static String loadFullSchemaSample() throws URISyntaxException, IOException
+    private static String loadFullSchemaSample() throws IOException
     {
-        File fullSchemaSampleFile =
-                new File(CqlUtilsTest.class.getClassLoader().getResource("cql/fullSchema.cql").toURI());
-        return FileUtils.readFileToString(fullSchemaSampleFile, StandardCharsets.UTF_8);
+        Path fullSchemaSampleFile = ResourceUtils.writeResourceToPath(CqlUtilsTest.class.getClassLoader(), tempPath, "cql/fullSchema.cql");
+        return FileUtils.readFileToString(fullSchemaSampleFile.toFile(), StandardCharsets.UTF_8);
     }
 }

@@ -19,94 +19,44 @@ import java.nio.file.Paths
  * under the License.
  */
 
-project(':cassandra-four-zero') {
-    apply(plugin: 'java-library')
-    apply(plugin: 'com.github.johnrengelman.shadow')
+plugins {
+    id('java-library')
+    id('com.github.johnrengelman.shadow')
+}
 
-    dependencies {
-        compileOnly(project(':cassandra-bridge'))
+dependencies {
+    implementation(group: 'org.apache.cassandra', name: 'cassandra-all', version: '4.0.12') {
+        // Exclude JNA libraries from the cassandra-all dependency tree because Spark has its own version
+        // and trying to load two different versions causes issues with the native libraries
+        exclude(group: 'net.java.dev.jna')
+        exclude(group: 'org.xerial.snappy', module: 'snappy-java')
 
-        compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-        compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-
-        implementation(group: 'org.apache.cassandra', name: 'cassandra-all', version: '4.0.12') {
-            // Exclude JNA libraries from the cassandra-all dependency tree because Spark has its own version
-            // and trying to load two different versions causes issues with the native libraries
-            exclude(group: 'net.java.dev.jna')
-            exclude(group: 'org.xerial.snappy', module: 'snappy-java')
-
-            // zstd causes dependency/classpath issues running in Spark if e.g. a user is using zstd to write compressed output file
-            // Spark already pulls in zstd so we can exclude here
-            exclude(group: 'com.github.luben', module: 'zstd-jni')
-        }
-
-        testImplementation(project(':cassandra-bridge'))
-
-        testImplementation project(path: ':cassandra-analytics-core', configuration: 'testArtifacts')
-        testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
-        testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
-        testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
-        testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
-        testImplementation("org.mockito:mockito-core:${project.rootProject.mockitoVersion}")
-        testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-        testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-        testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
-
-        testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
-        testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
+        // zstd causes dependency/classpath issues running in Spark if e.g. a user is using zstd to write compressed output file
+        // Spark already pulls in zstd so we can exclude here
+        exclude(group: 'com.github.luben', module: 'zstd-jni')
     }
+}
 
-    jar {
-        enabled = false
-    }
+jar {
+    enabled = false
+}
 
-    test {
-        useJUnitPlatform()
-    }
+shadowJar {
+    archiveFileName = 'four-zero.jar'  // Must match label in CassandraVersion (without extension)
+    zip64 = true
 
-    shadowJar {
-        archiveFileName = 'four-zero.jar'  // Must match label in CassandraVersion (without extension)
-        zip64 = true
+    exclude('META-INF/maven/org/apache/logging/**')
+    exclude('META-INF/maven/org.apache.logging.log4j/**')
+    exclude('META-INF/maven/org.slf4j/**')
+    exclude('com/fasterxml/jackson/**')
+    exclude('net/openhft/chronicle/wire/**')
+    exclude('org/jboss/byteman/**')
+    exclude('org/junit/**')
+    exclude('org/quicktheories/**')
+    exclude('org/slf4j/**')
+    exclude('org/apache/commons/lang3/**')
 
-        exclude('META-INF/maven/org/apache/logging/**')
-        exclude('META-INF/maven/org.apache.logging.log4j/**')
-        exclude('META-INF/maven/org.slf4j/**')
-        exclude('com/fasterxml/jackson/**')
-        exclude('net/openhft/chronicle/wire/**')
-        exclude('org/jboss/byteman/**')
-        exclude('org/junit/**')
-        exclude('org/quicktheories/**')
-        exclude('org/slf4j/**')
-        exclude('org/apache/commons/lang3/**')
-
-        // Exclude Google Guava's implementation of the Range<BigInteger> and related classes from the JAr,
-        // this way all implementations of Cassandra Bridge will fall back to using the exact same version.
-        exclude('com/google/common/collect/Range*')
-    }
-
-    tasks.register('javadocJar', Jar) {
-        dependsOn javadoc
-        archiveClassifier.set('javadoc')
-        from javadoc.destinationDir
-    }
-
-    test {
-        useJUnitPlatform()
-        reports {
-            def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "four-zero").toFile()
-            junitXml {
-                enabled true
-                destination = destDir
-            }
-            html{
-                enabled true
-                destination = destDir
-            }
-        }
-    }
-
-    artifacts {
-        javadocJar
-        shadowJar
-    }
+    // Exclude Google Guava's implementation of the Range<BigInteger> and related classes from the JAr,
+    // this way all implementations of Cassandra Bridge will fall back to using the exact same version.
+    exclude('com/google/common/collect/Range*')
 }

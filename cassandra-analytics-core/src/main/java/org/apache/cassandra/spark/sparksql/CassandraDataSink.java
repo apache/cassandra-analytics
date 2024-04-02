@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.spark.sparksql;
 
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.BulkWriterContext;
 import org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation;
 import org.apache.cassandra.spark.bulkwriter.CassandraBulkWriterContext;
@@ -39,6 +41,11 @@ import scala.collection.immutable.Map;
 
 public class CassandraDataSink implements DataSourceRegister, CreatableRelationProvider
 {
+    public CassandraDataSink()
+    {
+        CassandraBridgeFactory.validateBridges(CassandraVersion.implementedVersions());
+    }
+
     @Override
     @NotNull
     public String shortName()

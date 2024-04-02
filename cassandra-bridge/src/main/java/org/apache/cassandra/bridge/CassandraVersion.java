@@ -19,6 +19,10 @@
 
 package org.apache.cassandra.bridge;
 
+import java.util.Arrays;
+
+import com.google.common.annotations.VisibleForTesting;
+
 /*
  * An enum that describes all possible Cassandra versions that can potentially be supported, even if the bridge is not yet implemented.
  * Customers of this library looking to implement additional bridges or replace existing ones with proprietary implementations
@@ -56,13 +60,31 @@ public enum CassandraVersion
         return jarBaseName;
     }
 
-    public static CassandraVersion[] implementedVersions()
+    private static final CassandraVersion[] implementedVersions;
+    private static final String[] supportedVersions;
+
+    static
     {
-        return new CassandraVersion[]{FOURZERO};
+        String providedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.implemented_versions",
+                                                              FOURZERO.name());
+        implementedVersions = Arrays.stream(providedVersionsOrDefault.split(","))
+                                    .map(CassandraVersion::valueOf)
+                                    .toArray(CassandraVersion[]::new);
+
+        String providedSupportedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.supported_versions",
+                                                                       "cassandra-4.0.12");
+        supportedVersions = Arrays.stream(providedSupportedVersionsOrDefault.split(","))
+                                  .toArray(String[]::new);
     }
 
+    public static CassandraVersion[] implementedVersions()
+    {
+        return implementedVersions;
+    }
+
+    @VisibleForTesting
     public static String[] supportedVersions()
     {
-        return new String[]{"cassandra-4.0.2"};
+        return supportedVersions;
     }
 }

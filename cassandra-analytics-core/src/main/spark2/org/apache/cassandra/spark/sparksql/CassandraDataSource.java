@@ -70,7 +70,7 @@ public class CassandraDataSource implements DataSourceV2, ReadSupport, DataSourc
 
     public CassandraDataSource()
     {
-        CassandraBridgeFactory.validateBridges();
+        CassandraBridgeFactory.validateBridges(CassandraVersion.implementedVersions());
     }
 
     @Override

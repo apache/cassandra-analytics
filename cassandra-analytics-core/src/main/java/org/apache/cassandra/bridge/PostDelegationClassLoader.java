@@ -19,8 +19,6 @@
 
 package org.apache.cassandra.bridge;
 
-import java.io.File;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 
@@ -35,9 +33,9 @@ import org.jetbrains.annotations.Nullable;
  */
 public class PostDelegationClassLoader extends URLClassLoader
 {
-    public PostDelegationClassLoader(@NotNull File jar, @Nullable ClassLoader parent) throws MalformedURLException
+    public PostDelegationClassLoader(@NotNull URL[] urls, @Nullable ClassLoader parent)
     {
-        super(new URL[]{jar.toURI().toURL()}, parent);
+        super(urls, parent);
     }
 
     @Override
@@ -50,7 +48,7 @@ public class PostDelegationClassLoader extends URLClassLoader
         {
             try
             {
-               type = findClass(name);
+                type = findClass(name);
             }
             catch (ClassNotFoundException | SecurityException | LinkageError exception)
             {

@@ -33,6 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.junit.jupiter.api.Test;
@@ -55,7 +56,6 @@ import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
-import static org.apache.cassandra.spark.TestUtils.getFileType;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -208,7 +208,12 @@ public class IndexReaderTests
                     assertFalse(expected.isEmpty());
                     assertTrue(expected.size() < numPartitions);
 
-                    TestDataLayer dataLayer = new TestDataLayer(BRIDGE, getFileType(dir, FileType.DATA).collect(Collectors.toList()), table);
+                    List<Path> pathList;
+                    try (Stream<Path> stream = TestUtils.getFileType(dir, FileType.DATA))
+                    {
+                        pathList = stream.collect(Collectors.toList());
+                    }
+                    TestDataLayer dataLayer = new TestDataLayer(pathList, table);
                     List<SSTable> ssTables = dataLayer.listSSTables().collect(Collectors.toList());
                     assertFalse(ssTables.isEmpty());
                     AtomicReference<Throwable> error = new AtomicReference<>();

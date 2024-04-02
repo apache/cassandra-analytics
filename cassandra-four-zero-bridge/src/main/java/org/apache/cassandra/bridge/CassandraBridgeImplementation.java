@@ -244,7 +244,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public StreamScanner<Rid> getCompactionScanner(@NotNull CqlTable table,
+        public StreamScanner<Rid> getCompactionScanner(@NotNull CqlTable table,
                                                    @NotNull Partitioner partitioner,
                                                    @NotNull SSTablesSupplier ssTables,
                                                    @Nullable SparkRangeFilter sparkRangeFilter,

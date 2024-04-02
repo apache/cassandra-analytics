@@ -51,7 +51,7 @@ public class KeyStoreValidation implements StartupValidation
         configured = secrets.hasKeyStoreSecrets();
         type = secrets.keyStoreType();
         password = secrets.keyStorePassword();
-        stream = Throwing.supplier(() -> secrets.keyStoreInputStream());
+        stream = Throwing.supplier(secrets::keyStoreInputStream);
     }
 
     public KeyStoreValidation(@NotNull BulkSparkConf configuration)
@@ -59,7 +59,7 @@ public class KeyStoreValidation implements StartupValidation
         configured = configuration.hasKeystoreAndKeystorePassword();
         type = configuration.getKeyStoreTypeOrDefault();
         password = configuration.getKeyStorePassword() == null ? null : configuration.getKeyStorePassword().toCharArray();
-        stream = () -> configuration.getKeyStore();
+        stream = configuration::getKeyStore;
     }
 
     @Override
