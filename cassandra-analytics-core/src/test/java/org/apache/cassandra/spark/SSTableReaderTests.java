@@ -92,8 +92,6 @@ public class SSTableReaderTests
             assertEquals(1, countSSTables(dir));
 
             // open CompactionStreamScanner over SSTables
-//            ReplicationFactor replicationFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
-//                                                                        ImmutableMap.of("replication_factor", 1));
             CqlTable table = schema.buildTable();
             TestDataLayer dataLayer = new TestDataLayer(bridge, getFileType(dir, FileType.DATA).collect(Collectors.toList()), table);
             BasicSupplier ssTableSupplier = new BasicSupplier(dataLayer.listSSTables().collect(Collectors.toSet()));
