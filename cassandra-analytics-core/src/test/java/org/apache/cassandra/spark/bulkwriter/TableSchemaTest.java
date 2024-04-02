@@ -159,8 +159,7 @@ public class TableSchemaTest
         TableSchema schema = getValidSchemaBuilder()
                 .build();
 
-        assertThat(schema.normalize(new Object[]{1, 1L, "foo", 2}),
-                   is(equalTo(new Object[]{1, -2147483648, "foo", 2})));
+        assertThat(schema.normalize(new Object[]{1, 1L, "foo", 2}), is(equalTo(new Object[]{1, -2147483648, "foo", 2})));
     }
 
     @Test

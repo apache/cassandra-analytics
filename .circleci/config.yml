@@ -147,7 +147,7 @@ jobs:
             - "*.jar"
             - "org/**/*"
 
-  spark2-2_11-jdk8:
+  cassandra-analytics-core-spark2-2_11-jdk8:
     docker:
       - image: cimg/openjdk:8.0
     resource_class: large
@@ -172,7 +172,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  int-spark2-2_11-jdk8:
+  cassandra-analytics-core-int-spark2-2_11-jdk8:
     parallelism: 8
     docker:
       - image: cimg/openjdk:8.0
@@ -198,7 +198,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  spark2-2_12-jdk8:
+  cassandra-analytics-core-spark2-2_12-jdk8:
     docker:
       - image: cimg/openjdk:8.0
     resource_class: large
@@ -223,7 +223,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  int-spark2-2_12-jdk8:
+  cassandra-analytics-core-int-spark2-2_12-jdk8:
     parallelism: 8
     docker:
       - image: cimg/openjdk:8.0
@@ -249,7 +249,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  spark3-2_12-jdk11:
+  cassandra-analytics-core-spark3-2_12-jdk11:
     docker:
       - image: cimg/openjdk:11.0
     resource_class: large
@@ -275,7 +275,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  int-spark3-2_12-jdk11:
+  cassandra-analytics-core-int-spark3-2_12-jdk11:
     parallelism: 8
     docker:
       - image: cimg/openjdk:11.0
@@ -302,7 +302,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  spark3-2_13-jdk11:
+  cassandra-analytics-core-spark3-2_13-jdk11:
     docker:
       - image: cimg/openjdk:11.0
     resource_class: large
@@ -328,7 +328,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  int-spark3-2_13-jdk11:
+  cassandra-analytics-core-int-spark3-2_13-jdk11:
     parallelism: 8
     docker:
       - image: cimg/openjdk:11.0
@@ -361,27 +361,27 @@ workflows:
     jobs:
       - build-dependencies-jdk8
       - build-dependencies-jdk11
-      - spark2-2_11-jdk8:
+      - cassandra-analytics-core-spark2-2_11-jdk8:
           requires:
             - build-dependencies-jdk8
-      - spark2-2_12-jdk8:
+      - cassandra-analytics-core-spark2-2_12-jdk8:
           requires:
             - build-dependencies-jdk8
-      - spark3-2_12-jdk11:
+      - cassandra-analytics-core-spark3-2_12-jdk11:
           requires:
             - build-dependencies-jdk11
-      - spark3-2_13-jdk11:
+      - cassandra-analytics-core-spark3-2_13-jdk11:
           requires:
             - build-dependencies-jdk11
-      - int-spark2-2_11-jdk8:
+      - cassandra-analytics-core-int-spark2-2_11-jdk8:
           requires:
             - build-dependencies-jdk8
-      - int-spark2-2_12-jdk8:
+      - cassandra-analytics-core-int-spark2-2_12-jdk8:
           requires:
             - build-dependencies-jdk8
-      - int-spark3-2_12-jdk11:
+      - cassandra-analytics-core-int-spark3-2_12-jdk11:
           requires:
             - build-dependencies-jdk11
-      - int-spark3-2_13-jdk11:
+      - cassandra-analytics-core-int-spark3-2_13-jdk11:
           requires:
             - build-dependencies-jdk11

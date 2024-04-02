@@ -52,7 +52,6 @@ import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCq
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockListCqlType;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockMapCqlType;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockSetCqlType;
-import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockUdtCqlType;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -74,7 +73,6 @@ public final class SqlToCqlTypeConverterTest
                              na(mockCqlType(DATE), SqlToCqlTypeConverter.DateConverter.class),
                              na(mockMapCqlType(INT, INT), SqlToCqlTypeConverter.MapConverter.class),
                              na(mockSetCqlType(INET), SqlToCqlTypeConverter.SetConverter.class),
-                             na(mockUdtCqlType("udtType", "f1", TEXT, "f2", INT, "f3", TIMEUUID), SqlToCqlTypeConverter.UdtConverter.class),
                              // Special Cassandra 1.2 Timestamp type should use TimestampConverter
                              na(mockCqlCustom("org.apache.cassandra.db.marshal.DateType"), SqlToCqlTypeConverter.TimestampConverter.class));
     }

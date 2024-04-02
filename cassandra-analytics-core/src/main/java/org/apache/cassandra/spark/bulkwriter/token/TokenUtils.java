@@ -38,7 +38,7 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
  * This reduces number of SSTables that get created in Cassandra by the bulk writing job.
  * Fewer SSTables will result in lower read latencies and lower compaction overhead.
  */
-@SuppressWarnings({"WeakerAccess", "rawtypes", "unchecked"})
+@SuppressWarnings("WeakerAccess")
 public class TokenUtils implements Serializable
 {
     private final String[] partitionKeyColumns;
@@ -54,6 +54,7 @@ public class TokenUtils implements Serializable
         this.isMurmur3Partitioner = isMurmur3Partitioner;
     }
 
+    // noinspection unchecked
     private ByteBuffer getByteBuffer(Object columnValue, int partitionKeyColumnIdx)
     {
         ColumnType columnType = partitionKeyColumnTypes[partitionKeyColumnIdx];

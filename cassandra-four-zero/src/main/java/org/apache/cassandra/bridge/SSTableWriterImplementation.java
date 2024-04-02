@@ -21,7 +21,6 @@ package org.apache.cassandra.bridge;
 
 import java.io.IOException;
 import java.util.Map;
-import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -31,7 +30,6 @@ import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
-import org.jetbrains.annotations.NotNull;
 
 public class SSTableWriterImplementation implements SSTableWriter
 {
@@ -46,7 +44,6 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        String partitioner,
                                        String createStatement,
                                        String insertStatement,
-                                       @NotNull Set<String> userDefinedTypeStatements,
                                        int bufferSizeMB)
     {
         IPartitioner cassPartitioner = partitioner.toLowerCase().contains("random") ? new RandomPartitioner()
@@ -56,7 +53,6 @@ public class SSTableWriterImplementation implements SSTableWriter
                                                             createStatement,
                                                             insertStatement,
                                                             bufferSizeMB,
-                                                            userDefinedTypeStatements,
                                                             cassPartitioner);
         writer = builder.build();
     }
@@ -85,23 +81,17 @@ public class SSTableWriterImplementation implements SSTableWriter
                                                      String createStatement,
                                                      String insertStatement,
                                                      int bufferSizeMB,
-                                                     Set<String> udts,
                                                      IPartitioner cassPartitioner)
     {
-        CQLSSTableWriter.Builder builder = CQLSSTableWriter.builder();
-
-        for (String udt : udts)
-        {
-            builder.withType(udt);
-        }
-
-        return builder.inDirectory(inDirectory)
-                      .forTable(createStatement)
-                      .withPartitioner(cassPartitioner)
-                      .using(insertStatement)
-                      // The data frame to write is always sorted,
-                      // see org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation.insert
-                      .sorted()
-                      .withMaxSSTableSizeInMiB(bufferSizeMB);
+        return CQLSSTableWriter
+               .builder()
+               .inDirectory(inDirectory)
+               .forTable(createStatement)
+               .withPartitioner(cassPartitioner)
+               .using(insertStatement)
+               // The data frame to write is always sorted,
+               // see org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation.insert
+               .sorted()
+               .withMaxSSTableSizeInMiB(bufferSizeMB);
     }
 }

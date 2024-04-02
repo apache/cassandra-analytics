@@ -27,7 +27,6 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
@@ -79,15 +78,13 @@ public class SSTableWriter
         String packageVersion = getPackageVersion(lowestCassandraVersion);
         LOGGER.info("Running with version " + packageVersion);
 
-        SchemaInfo schema = writerContext.schema();
-        TableSchema tableSchema = schema.getTableSchema();
+        TableSchema tableSchema = writerContext.schema().getTableSchema();
         this.cqlSSTableWriter = SSTableWriterFactory.getSSTableWriter(
         CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(packageVersion),
         this.outDir.toString(),
         writerContext.cluster().getPartitioner().toString(),
         tableSchema.createStatement,
         tableSchema.modificationStatement,
-        schema.getUserDefinedTypeStatements(),
         writerContext.job().sstableDataSizeInMiB());
     }
 
@@ -140,9 +137,8 @@ public class SSTableWriter
             CassandraVersion version = CassandraBridgeFactory.getCassandraVersion(writerContext.cluster().getLowestCassandraVersion());
             String keyspace = writerContext.job().keyspace();
             String schema = writerContext.schema().getTableSchema().createStatement;
-            Set<String> udtStatements = writerContext.schema().getUserDefinedTypeStatements();
             String directory = getOutDir().toString();
-            DataLayer layer = new LocalDataLayer(version, keyspace, schema, udtStatements, directory);
+            DataLayer layer = new LocalDataLayer(version, keyspace, schema, directory);
             try (StreamScanner<Rid> scanner = layer.openCompactionScanner(partitionId, Collections.emptyList(), null))
             {
                 while (scanner.hasNext())

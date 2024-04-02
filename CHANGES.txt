@@ -1,5 +1,4 @@
 1.0.0
- * Support UDTs in the Bulk Writer (CASSANDRA-19340)
  * Fix bulk reads of multiple tables that potentially have the same data file name (CASSANDRA-19507)
  * Fix XXHash32Digest calculated digest value (CASSANDRA-19500)
  * Report additional bulk analytics job stats for instrumentation (CASSANDRA-19418)

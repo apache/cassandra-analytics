@@ -40,9 +40,7 @@ import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.tuple.Pair;
 
 import o.a.c.sidecar.client.shaded.common.data.TimeSkewResponse;
-import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.Digest;
@@ -79,7 +77,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
     private int sstableWriteBatchSize = 2;
-    private CassandraBridge bridge = CassandraBridgeFactory.get(CassandraVersion.FOURZERO);
 
     @Override
     public void publish(Map<String, String> stats)
@@ -299,12 +296,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public Set<String> getUserDefinedTypeStatements()
-    {
-        return Collections.emptySet();
-    }
-
-    @Override
     public Partitioner getPartitioner()
     {
         return Partitioner.Murmur3Partitioner;
@@ -453,11 +444,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public DataTransferApi transfer()
     {
         return this;
-    }
-
-    public CassandraBridge bridge()
-    {
-        return bridge;
     }
 
     @Override

@@ -34,7 +34,6 @@ project(':cassandra-analytics-integration-tests') {
     }
     dependencies {
 
-        testImplementation(project(':cassandra-bridge'))
         testImplementation(project(':cassandra-analytics-core'))
         testImplementation(group: 'net.java.dev.jna', name: 'jna', version: '5.9.0')
 

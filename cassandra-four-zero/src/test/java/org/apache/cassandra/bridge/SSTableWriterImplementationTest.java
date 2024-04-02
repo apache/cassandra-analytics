@@ -22,7 +22,6 @@ package org.apache.cassandra.bridge;
 import java.io.File;
 import java.lang.reflect.Field;
 import java.util.Arrays;
-import java.util.HashSet;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -52,7 +51,6 @@ class SSTableWriterImplementationTest
                                                                                         CREATE_STATEMENT,
                                                                                         INSERT_STATEMENT,
                                                                                         250,
-                                                                                        new HashSet<>(),
                                                                                         new Murmur3Partitioner());
 
 

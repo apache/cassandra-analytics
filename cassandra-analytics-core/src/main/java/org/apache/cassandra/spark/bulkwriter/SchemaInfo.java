@@ -20,14 +20,8 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
-import java.util.Set;
-
-import org.jetbrains.annotations.NotNull;
 
 public interface SchemaInfo extends Serializable
 {
     TableSchema getTableSchema();
-
-    @NotNull
-    Set<String> getUserDefinedTypeStatements();
 }

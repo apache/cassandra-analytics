@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -45,7 +44,6 @@ import java.util.stream.Stream;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,10 +51,6 @@ import org.slf4j.LoggerFactory;
 import o.a.c.sidecar.client.shaded.common.data.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.data.BridgeUdtValue;
-import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.data.CqlTable;
-import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.TaskContext;
@@ -67,8 +61,6 @@ import static org.apache.cassandra.spark.utils.ScalaConversionUtils.asScalaItera
 @SuppressWarnings({ "ConstantConditions" })
 public class RecordWriter implements Serializable
 {
-    public static final ReplicationFactor IGNORED_REPLICATION_FACTOR = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
-                                                                                             ImmutableMap.of("replication_factor", 1));
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordWriter.class);
     private static final long serialVersionUID = 3746578054834640428L;
     private final BulkWriterContext writerContext;
@@ -80,10 +72,8 @@ public class RecordWriter implements Serializable
     private final ReplicaAwareFailureHandler<RingInstance> failureHandler;
 
     private final Supplier<TaskContext> taskContextSupplier;
-    private final ConcurrentHashMap<String, CqlField.CqlUdt> udtCache = new ConcurrentHashMap<>();
     private SSTableWriter sstableWriter = null;
     private int outputSequence = 0; // sub-folder for possible subrange splits
-    private transient volatile CqlTable cqlTable;
 
     public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
     {
@@ -115,21 +105,6 @@ public class RecordWriter implements Serializable
     private String getStreamId(TaskContext taskContext)
     {
         return String.format("%d-%s", taskContext.partitionId(), UUID.randomUUID());
-    }
-
-    private CqlTable cqlTable()
-    {
-        if (cqlTable == null)
-        {
-            cqlTable = writerContext.bridge()
-                                    .buildSchema(writerContext.schema().getTableSchema().createStatement,
-                                                 writerContext.job().keyspace(),
-                                                 IGNORED_REPLICATION_FACTOR,
-                                                 writerContext.cluster().getPartitioner(),
-                                                 writerContext.schema().getUserDefinedTypeStatements());
-        }
-
-        return cqlTable;
     }
 
     public WriteResult write(Iterator<Tuple2<DecoratedKey, Object[]>> sourceIterator)
@@ -234,14 +209,6 @@ public class RecordWriter implements Serializable
         }
     }
 
-    public static <T> Set<T> symmetricDifference(Set<T> set1, Set<T> set2)
-    {
-        return Stream.concat(
-                     set1.stream().filter(element -> !set2.contains(element)),
-                     set2.stream().filter(element -> !set1.contains(element)))
-                     .collect(Collectors.toSet());
-    }
-
     private Map<Range<BigInteger>, List<RingInstance>> taskTokenRangeMapping(TokenRangeMapping<RingInstance> tokenRange,
                                                                              Range<BigInteger> taskTokenRange)
     {
@@ -341,6 +308,14 @@ public class RecordWriter implements Serializable
         }
     }
 
+    public static <T> Set<T> symmetricDifference(Set<T> set1, Set<T> set2)
+    {
+        return Stream.concat(
+                     set1.stream().filter(element -> !set2.contains(element)),
+                     set2.stream().filter(element -> !set1.contains(element)))
+                     .collect(Collectors.toSet());
+    }
+
     private void validateAcceptableTimeSkewOrThrow(List<RingInstance> replicas)
     {
         if (replicas.isEmpty())
@@ -395,46 +370,14 @@ public class RecordWriter implements Serializable
         }
     }
 
-    private Map<String, Object> getBindValuesForColumns(Map<String, Object> map, String[] columnNames, Object[] values)
+    private static Map<String, Object> getBindValuesForColumns(Map<String, Object> map, String[] columnNames, Object[] values)
     {
         assert values.length == columnNames.length : "Number of values does not match the number of columns " + values.length + ", " + columnNames.length;
         for (int i = 0; i < columnNames.length; i++)
         {
-            map.put(columnNames[i], maybeConvertUdt(values[i]));
+            map.put(columnNames[i], values[i]);
         }
         return map;
-    }
-
-    private Object maybeConvertUdt(Object value)
-    {
-        if (value instanceof BridgeUdtValue)
-        {
-            BridgeUdtValue udtValue = (BridgeUdtValue) value;
-            // Depth-first replacement of BridgeUdtValue instances to their appropriate Cql types
-            for (Map.Entry<String, Object> entry : udtValue.udtMap.entrySet())
-            {
-                if (entry.getValue() instanceof BridgeUdtValue)
-                {
-                    udtValue.udtMap.put(entry.getKey(), maybeConvertUdt(entry.getValue()));
-                }
-            }
-            return getUdt(udtValue.name).convertForCqlWriter(udtValue.udtMap, writerContext.bridge().getVersion());
-        }
-        return value;
-    }
-
-    private synchronized CqlField.CqlType getUdt(String udtName)
-    {
-        return udtCache.computeIfAbsent(udtName, name -> {
-            for (CqlField.CqlUdt udt1 : cqlTable().udts())
-            {
-                if (udt1.cqlName().equals(name))
-                {
-                    return udt1;
-                }
-            }
-            throw new IllegalArgumentException("Could not find udt with name " + name);
-        });
     }
 
     /**
