@@ -19,171 +19,152 @@ import java.nio.file.Paths
  * under the License.
  */
 
-project(':cassandra-analytics-core') {
-    apply(plugin: 'java-library')
-    apply(plugin: 'jacoco')
-    apply(plugin: 'maven-publish')
+plugins {
+    id('java-library')
+    id('jacoco')
+    id('maven-publish')
+}
 
-    java {
-        withJavadocJar()
-        withSourcesJar()
-    }
+java {
+    withJavadocJar()
+    withSourcesJar()
 
-    publishing {
-        publications {
-            maven(MavenPublication) {
-                from components.java
-                groupId project.group
-                artifactId "${archivesBaseName}"
-                version System.getenv("CODE_VERSION") ?: "${version}"
-            }
-        }
-    }
-
-    configurations {
-        fourzero {
-            description = 'Bridge to Cassandra 4.0 with all of its dependencies'
-        }
-    }
-
-    dependencies {
-        compileOnly(project(':cassandra-bridge'))
-
-        fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
-
-        // Including newer JNA which works with "Modern" Linux/GLIBC.
-        // End users can exclude this and include their own if necessary.
-        runtimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
-        runtimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
-
-        // This dependency must be built by running `scripts/build-dependencies.sh`
-        implementation(group: "${sidecarClientGroup}", name: "${sidecarClientName}", version: "${sidecarVersion}")
-        implementation(group: 'org.lz4', name: 'lz4-java', version: '1.8.0')
-
-        if ("${scalaMajorVersion}" == "2.11") {
-            implementation(group: 'org.scala-lang.modules', name: "scala-java8-compat_2.11", version: '1.0.1', transitive: false)
-        }
-
-        compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-        compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-
-        testImplementation(group: 'com.google.guava', name: 'guava', version: '19.0')
-        testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
-        testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
-        testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
-        testImplementation("org.assertj:assertj-core:3.24.2")
-        testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
-        testImplementation(group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.26')
-        testImplementation(group: 'org.mockito', name: 'mockito-core', version: "${project.rootProject.mockitoVersion}")
-        testImplementation(group: 'org.mockito', name: 'mockito-inline', version: "${project.rootProject.mockitoVersion}")
-        testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-        testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-        testImplementation(group: 'org.hamcrest', name: 'hamcrest', version: '2.2')
-        testImplementation(group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.33')
-        testImplementation(group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.13')
-        testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
-        testImplementation(group: 'org.xerial.snappy', name: 'snappy-java', version: '1.1.8.4')
-
-        testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
-        testCompileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-        testCompileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-
-        testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
-        testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
-
-        testImplementation(project(':cassandra-bridge'))
-    }
-
-    def utils = ['org/apache/cassandra/spark/bulkwriter/MockBulkWriterContext.class',
-                 'org/apache/cassandra/spark/bulkwriter/MockBulkWriterContext$CommitResultSupplier.class',
-                 'org/apache/cassandra/spark/bulkwriter/RingUtils.class',
-                 'org/apache/cassandra/spark/bulkwriter/TableSchemaTestCommon.class',
-                 'org/apache/cassandra/spark/bulkwriter/TableSchemaTestCommon$MockTableInfoProvider.class',
-                 'org/apache/cassandra/spark/bulkwriter/TableSchemaTestCommon$MockTableSchemaBuilder.class']
-
-    jar {
-        dependsOn(configurations.fourzero)
-
-        writeBuildVersion(version, project.projectDir)
-
-        exclude('META-INF/*')
-        from(project(':cassandra-bridge').sourceSets.main.output)
-        from(project(':cassandra-analytics-core').sourceSets.test.output) {
-            include(utils)
-        }
-        from(project(':cassandra-analytics-core').sourceSets.test.output) {
-            exclude(utils)
-            into('tests')
-        }
-        into('bridges') {
-            from(configurations.fourzero.singleFile)
-        }
-    }
-
-    test {
-        minHeapSize = '1024m'
-        maxHeapSize = '3072m'
-        maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
-        forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
-
-        // Make it so unit tests run on a JAr with Cassandra bridge implementations built in
-        dependsOn(tasks.jar)
-        classpath = project.sourceSets.test.output + configurations.testRuntimeClasspath + files(jar.archiveFile)
-        useJUnitPlatform()
-        reports {
-            def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "core").toFile()
-            junitXml {
-                enabled true
-                destination = destDir
-            }
-            html{
-                enabled true
-                destination = destDir
-            }
-        }
-    }
-
-    /* Start: JaCoCo check */
-    jacoco {
-        toolVersion = '0.8.4'
-    }
-
-    jacocoTestReport {
-        executionData(files("$buildDir/jacoco/test.exec"))
-        reports {
-            html.required = true
-            html.destination(file("$buildDir/reports/jacocoHtml"))
-            xml.required = true
-            xml.destination(file("$buildDir/reports/jacocoXml"))
-        }
-    }
-    jacocoTestCoverageVerification {
-        executionData(tasks.jacocoTestReport.executionData)
-        violationRules {
-            rule {
-                limit {
-                    minimum = 0.5
-                }
-            }
-        }
-    }
-    check {
-        dependsOn(tasks.jacocoTestCoverageVerification)
-        finalizedBy(tasks.jacocoTestReport)
-    }
-    /* End: JaCoCo check */
-
-    configurations {
-        testArtifacts
-    }
-    task testJar(type: Jar) {
-        archiveBaseName = "${project.name}-test"
-        from sourceSets.test.output
-    }
-    artifacts {
-        testArtifacts testJar
+    // Allows publishing the test jar
+    registerFeature("test") {
+        usingSourceSet(sourceSets.test)
     }
 }
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            groupId project.group
+            artifactId "${archivesBaseName}"
+            version System.getenv("CODE_VERSION") ?: "${version}"
+        }
+    }
+}
+
+configurations {
+    fourzero {
+        description = 'Cassandra 4.0 dependency'
+    }
+    fourzerobridge {
+        description = 'Bridge to Cassandra 4.0'
+    }
+}
+
+dependencies {
+    api(project(':cassandra-bridge'))
+
+    fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
+    fourzerobridge(project(path: ':cassandra-four-zero-bridge'))
+
+    // Including newer JNA which works with "Modern" Linux/GLIBC.
+    // End users can exclude this and include their own if necessary.
+    runtimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
+    runtimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
+
+    // This dependency must be built by running `scripts/build-dependencies.sh`
+    api(group: "${sidecarClientGroup}", name: "${sidecarClientName}", version: "${sidecarVersion}")
+    implementation(group: 'org.lz4', name: 'lz4-java', version: '1.8.0')
+
+    if ("${scalaMajorVersion}" == "2.11") {
+        implementation(group: 'org.scala-lang.modules', name: "scala-java8-compat_2.11", version: '1.0.1', transitive: false)
+    }
+
+    compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+    compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+
+    testImplementation(group: 'com.google.guava', name: 'guava', version: '19.0')
+
+    testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
+    testImplementation("org.assertj:assertj-core:3.24.2")
+    testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
+    testImplementation(group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.26')
+    testImplementation(group: 'org.mockito', name: 'mockito-core', version: "${project.rootProject.mockitoVersion}")
+    testImplementation(group: 'org.mockito', name: 'mockito-inline', version: "${project.rootProject.mockitoVersion}")
+    testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+    testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+    testImplementation(group: 'org.hamcrest', name: 'hamcrest', version: '2.2')
+    testImplementation(group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.33')
+    testImplementation(group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.13')
+    testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
+    testImplementation(group: 'org.xerial.snappy', name: 'snappy-java', version: '1.1.8.4')
+
+    testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
+    testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
+}
+
+jar {
+    dependsOn(configurations.fourzero)
+    dependsOn(configurations.fourzerobridge)
+
+    writeBuildVersion(version, project.projectDir)
+
+    exclude('META-INF/*')
+    into('bridges') {
+        from(configurations.fourzero.singleFile)
+        from(configurations.fourzerobridge.singleFile)
+    }
+}
+
+test {
+    minHeapSize = '1024m'
+    maxHeapSize = '3072m'
+    maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
+    forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+
+    // Make it so unit tests run on a JAr with Cassandra bridge implementations built in
+    dependsOn(tasks.jar)
+    classpath += files(jar.archiveFile)
+    useJUnitPlatform()
+    reports {
+        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "core").toFile()
+        junitXml {
+            enabled true
+            destination = destDir
+        }
+        html {
+            enabled true
+            destination = destDir
+        }
+    }
+}
+
+/* Start: JaCoCo check */
+jacoco {
+    toolVersion = '0.8.4'
+}
+
+jacocoTestReport {
+    executionData(files("$buildDir/jacoco/test.exec"))
+    reports {
+        html.required = true
+        html.destination(file("$buildDir/reports/jacocoHtml"))
+        xml.required = true
+        xml.destination(file("$buildDir/reports/jacocoXml"))
+    }
+}
+jacocoTestCoverageVerification {
+    executionData(tasks.jacocoTestReport.executionData)
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.5
+            }
+        }
+    }
+}
+
+check {
+    dependsOn(tasks.jacocoTestCoverageVerification)
+    finalizedBy(tasks.jacocoTestReport)
+}
+/* End: JaCoCo check */
 
 private void writeBuildVersion(version, projectDir) {
     def prop = new Properties()

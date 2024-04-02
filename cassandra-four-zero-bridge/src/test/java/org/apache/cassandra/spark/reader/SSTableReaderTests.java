@@ -39,7 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
@@ -47,10 +46,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.util.concurrent.Uninterruptibles;
 import org.apache.commons.lang.StringUtils;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,9 +67,6 @@ import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.util.DataInputPlus;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.serializers.UTF8Serializer;
-import org.apache.cassandra.spark.TestDataLayer;
-import org.apache.cassandra.spark.TestRunnable;
-import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -84,17 +78,12 @@ import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.Throwing;
-import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.cassandra.utils.Pair;
-import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static org.apache.cassandra.spark.TestUtils.countSSTables;
-import static org.apache.cassandra.spark.TestUtils.getFileType;
-import static org.apache.cassandra.spark.TestUtils.runTest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -109,9 +98,6 @@ public class SSTableReaderTests
     private static final CassandraBridgeImplementation BRIDGE = new CassandraBridgeImplementation();
     private static final int ROWS = 50;
     private static final int COLUMNS = 25;
-
-    @TempDir
-    private Path tempDir;
 
     @Test
     public void testOpenCompressedRawInputStream()
@@ -136,7 +122,7 @@ public class SSTableReaderTests
                     // Verify we can open the CompressedRawInputStream and read through the Data.db file
                     Path dataFile = TestSSTable.firstIn(directory.path(), FileType.DATA);
                     Descriptor descriptor = Descriptor.fromFilename(
-                            new File(String.format("./%s/%s", schema.keyspace, schema.table), dataFile.getFileName().toString()));
+                    new File(String.format("./%s/%s", schema.keyspace, schema.table), dataFile.getFileName().toString()));
                     long size = Files.size(dataFile);
                     assertTrue(size > 0);
                     Path compressionFile = TestSSTable.firstIn(directory.path(), FileType.COMPRESSION_INFO);
@@ -144,7 +130,7 @@ public class SSTableReaderTests
                     try (InputStream dis = new BufferedInputStream(Files.newInputStream(dataFile));
                          InputStream cis = new BufferedInputStream(Files.newInputStream(compressionFile));
                          DataInputPlus.DataInputStreamPlus in = new DataInputPlus.DataInputStreamPlus(new DataInputStream(
-                             CompressedRawInputStream.fromInputStream(dis, cis, descriptor.version.hasMaxCompressedLength()))))
+                         CompressedRawInputStream.fromInputStream(dis, cis, descriptor.version.hasMaxCompressedLength()))))
                     {
                         while (in.read() >= 0)
                         {
@@ -208,10 +194,14 @@ public class SSTableReaderTests
                     schema.writeSSTable(directory, BRIDGE, partitioner, writer -> writer.write(42, 43, 44));
 
                     String prefix = schema.keyspace + "-" + schema.table + "-";
-                    Files.list(directory.path())
-                         .filter(file -> file.getFileName().toString().startsWith(prefix))
-                         .forEach(Throwing.consumer(file -> Files.move(file,
-                             Paths.get(file.getParent().toString(), file.getFileName().toString().replaceFirst("^" + prefix, "")))));
+                    try (Stream<Path> list = Files.list(directory.path()))
+                    {
+                        list.filter(file -> file.getFileName().toString().startsWith(prefix))
+                            .forEach(Throwing.consumer(file -> Files.move(file, Paths.get(file.getParent().toString(),
+                                                                                          file.getFileName().toString()
+                                                                                              .replaceFirst("^" + prefix, "")))));
+                    }
+
 
                     TableMetadata metadata = tableMetadata(schema, partitioner);
                     SSTable table = TestSSTable.firstIn(directory.path());
@@ -235,10 +225,13 @@ public class SSTableReaderTests
                     schema.writeSSTable(directory, BRIDGE, partitioner, writer -> writer.write(42, 43, 44));
 
                     String prefix = schema.keyspace + "-" + schema.table + "-";
-                    Files.list(directory.path())
-                         .filter(file -> !file.getFileName().toString().startsWith(prefix))
-                         .forEach(Throwing.consumer(file -> Files.move(file,
-                             Paths.get(file.getParent().toString(), prefix + file.getFileName().toString()))));
+                    try (Stream<Path> list = Files.list(directory.path()))
+                    {
+                        list
+                        .filter(file -> !file.getFileName().toString().startsWith(prefix))
+                        .forEach(Throwing.consumer(file -> Files.move(file,
+                                                                      Paths.get(file.getParent().toString(), prefix + file.getFileName().toString()))));
+                    }
 
                     TableMetadata metadata = tableMetadata(schema, partitioner);
                     SSTable table = TestSSTable.firstIn(directory.path());
@@ -608,7 +601,7 @@ public class SSTableReaderTests
                                                    @NotNull BigInteger lastToken)
                         {
                             skipCount.incrementAndGet();
-                            if (sparkRangeFilter == null || partitionKeyFilters.size() != 0)
+                            if (sparkRangeFilter == null || !partitionKeyFilters.isEmpty())
                             {
                                 pass.set(false);
                             }
@@ -1033,19 +1026,21 @@ public class SSTableReaderTests
                             continue;
                         }
 
-                        ISSTableScanner scanner = reader.scanner();
                         int colCount = 0;
-                        while (scanner.hasNext())
+                        try (ISSTableScanner scanner = reader.scanner())
                         {
-                            UnfilteredRowIterator it = scanner.next();
-                            it.partitionKey().getKey().mark();
-                            String key = UTF8Serializer.instance.deserialize(it.partitionKey().getKey());
-                            it.partitionKey().getKey().reset();
-                            keys.add(key);
-                            while (it.hasNext())
+                            while (scanner.hasNext())
                             {
-                                it.next();
-                                colCount++;
+                                UnfilteredRowIterator it = scanner.next();
+                                it.partitionKey().getKey().mark();
+                                String key = UTF8Serializer.instance.deserialize(it.partitionKey().getKey());
+                                it.partitionKey().getKey().reset();
+                                keys.add(key);
+                                while (it.hasNext())
+                                {
+                                    it.next();
+                                    colCount++;
+                                }
                             }
                         }
                         assertEquals(COLUMNS, colCount);
@@ -1062,112 +1057,6 @@ public class SSTableReaderTests
             });
     }
 
-    @Test
-    public void testCollectionWithTtlUsingConstantReferenceTime()
-    {
-        // offset is 0, column values in all rows should be unexpired; thus, reading 10 values
-        testTtlUsingConstantReferenceTimeHelper(50, 0, 10, 10);
-        // ensure all rows expires by advancing enough time in the future; thus, reading 0 values
-        testTtlUsingConstantReferenceTimeHelper(50, 100, 10, 0);
-    }
-
-    // helper that write rows with ttl, and assert on the compaction result by changing the reference time
-    private void testTtlUsingConstantReferenceTimeHelper(int ttlSecs,
-                                                         int timeOffsetSecs,
-                                                         int rows,
-                                                         int expectedValues)
-    {
-        AtomicInteger referenceEpoch = new AtomicInteger(0);
-        TimeProvider navigatableTimeProvider = new TimeProvider()
-        {
-            @Override
-            public int referenceEpochInSeconds()
-            {
-                return referenceEpoch.get();
-            }
-        };
-
-        Set<Integer> expectedColValue = new HashSet<>(Arrays.asList(1, 2, 3));
-        TestRunnable test = (partitioner, dir, bridge) -> {
-            TestSchema schema = TestSchema.builder(BRIDGE)
-                                          .withPartitionKey("a", BRIDGE.aInt())
-                                          .withColumn("b", BRIDGE.set(BRIDGE.aInt()))
-                                          .withTTL(ttlSecs)
-                                          .build();
-            schema.writeSSTable(dir, BRIDGE, partitioner, (writer) -> {
-                for (int i = 0; i < rows; i++)
-                {
-                    writer.write(i, expectedColValue);
-                }
-                Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
-            });
-            int t1 = navigatableTimeProvider.nowInSeconds();
-            assertEquals(1, countSSTables(dir));
-
-            // open CompactionStreamScanner over SSTables
-            TableMetadata metaData = new SchemaBuilder(schema.createStatement,
-                                                       schema.keyspace,
-                                                       new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
-                                                                             ImmutableMap.of("replication_factor", 1)),
-                                                       partitioner)
-                                     .tableMetaData();
-
-            CqlTable table = schema.buildTable();
-            TestDataLayer dataLayer = new TestDataLayer(BRIDGE,
-                                                        getFileType(dir, FileType.DATA).collect(Collectors.toList()),
-                                                        table);
-            Set<SSTableReader> toCompact = dataLayer.listSSTables()
-                                                    .map(ssTable -> {
-                                                        try
-                                                        {
-                                                            return openReader(metaData, ssTable);
-                                                        }
-                                                        catch (IOException e)
-                                                        {
-                                                            throw new RuntimeException(e);
-                                                        }
-                                                    })
-                                                    .collect(Collectors.toSet());
-
-            int count = 0;
-            referenceEpoch.set(t1 + timeOffsetSecs);
-            try (CompactionStreamScanner scanner = new CompactionStreamScanner(metaData, partitioner, navigatableTimeProvider, toCompact))
-            {
-                // iterate through CompactionStreamScanner verifying it correctly compacts data together
-                Rid rid = scanner.rid();
-                while (scanner.hasNext())
-                {
-                    scanner.advanceToNextColumn();
-
-                    // extract column name
-                    ByteBuffer colBuf = rid.getColumnName();
-                    String colName = ByteBufferUtils.string(ByteBufferUtils.readBytesWithShortLength(colBuf));
-                    colBuf.get();
-                    if (StringUtils.isEmpty(colName))
-                    {
-                        continue;
-                    }
-                    assertEquals("b", colName);
-
-                    // extract value column
-                    ByteBuffer b = rid.getValue();
-                    Set set = new HashSet(Arrays.asList(((GenericArrayData) BRIDGE.set(BRIDGE.aInt())
-                                                                                     .deserialize(b))
-                                                           .array()));
-                    assertEquals(expectedColValue, set);
-                    count++;
-                }
-            }
-            assertEquals(expectedValues, count);
-        };
-
-        qt()
-        .forAll(TestUtils.partitioners())
-        .checkAssert(partitioner -> {
-            runTest(partitioner, BRIDGE, test);
-        });
-    }
-
     private static TableMetadata tableMetadata(TestSchema schema, Partitioner partitioner)
     {
         return new SchemaBuilder(schema.createStatement,
@@ -1180,13 +1069,6 @@ public class SSTableReaderTests
     private static SSTableReader openReader(TableMetadata metadata, SSTable ssTable) throws IOException
     {
         return openReader(metadata, ssTable, null, Collections.emptyList(), true, Stats.DoNothingStats.INSTANCE);
-    }
-
-    private static SSTableReader openReader(TableMetadata metadata,
-                                            SSTable ssTable,
-                                            SparkRangeFilter sparkRangeFilter) throws IOException
-    {
-        return openReader(metadata, ssTable, sparkRangeFilter, Collections.emptyList(), true, Stats.DoNothingStats.INSTANCE);
     }
 
     private static SSTableReader openReader(TableMetadata metadata,
@@ -1255,25 +1137,27 @@ public class SSTableReaderTests
 
     private static int countAndValidateRows(@NotNull SSTableReader reader)
     {
-        ISSTableScanner scanner = reader.scanner();
         int count = 0;
-        while (scanner.hasNext())
+        try (ISSTableScanner scanner = reader.scanner())
         {
-            UnfilteredRowIterator it = scanner.next();
-            while (it.hasNext())
+            while (scanner.hasNext())
             {
-                BufferDecoratedKey key = (BufferDecoratedKey) it.partitionKey();
-                int a = key.getKey().asIntBuffer().get();
-                Unfiltered unfiltered = it.next();
-                assertTrue(unfiltered.isRow());
-                AbstractRow row = (AbstractRow) unfiltered;
-                int b = row.clustering().bufferAt(0).asIntBuffer().get();
-                for (ColumnData data : row)
+                UnfilteredRowIterator it = scanner.next();
+                while (it.hasNext())
                 {
-                    Cell<?> cell = (Cell<?>) data;
-                    int c = cell.buffer().getInt();
-                    assertEquals(c, a + b);
-                    count++;
+                    BufferDecoratedKey key = (BufferDecoratedKey) it.partitionKey();
+                    int a = key.getKey().asIntBuffer().get();
+                    Unfiltered unfiltered = it.next();
+                    assertTrue(unfiltered.isRow());
+                    AbstractRow row = (AbstractRow) unfiltered;
+                    int b = row.clustering().bufferAt(0).asIntBuffer().get();
+                    for (ColumnData data : row)
+                    {
+                        Cell<?> cell = (Cell<?>) data;
+                        int c = cell.buffer().getInt();
+                        assertEquals(c, a + b);
+                        count++;
+                    }
                 }
             }
         }

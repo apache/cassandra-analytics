@@ -38,7 +38,6 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.clients.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
@@ -226,7 +225,6 @@ public class BulkSparkConf implements Serializable
         Preconditions.checkNotNull(table);
         Preconditions.checkArgument(getHttpResponseTimeoutMs() > 0, HTTP_RESPONSE_TIMEOUT + " must be > 0");
         validateSslConfiguration();
-        CassandraBridgeFactory.validateBridges();
     }
 
     /**

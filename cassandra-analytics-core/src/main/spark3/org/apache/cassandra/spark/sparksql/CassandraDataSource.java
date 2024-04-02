@@ -21,6 +21,8 @@ package org.apache.cassandra.spark.sparksql;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.CassandraDataLayer;
 import org.apache.cassandra.spark.data.CassandraDataSourceHelper;
 import org.apache.cassandra.spark.data.ClientConfig;
@@ -28,6 +30,11 @@ import org.apache.cassandra.spark.data.DataLayer;
 
 public class CassandraDataSource extends CassandraTableProvider
 {
+    public CassandraDataSource()
+    {
+        CassandraBridgeFactory.validateBridges(CassandraVersion.implementedVersions());
+    }
+
     @Override
     public String shortName()
     {

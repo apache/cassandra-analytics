@@ -21,7 +21,6 @@ package org.apache.cassandra.spark.sparksql;
 
 import java.util.Map;
 
-import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.spark.sql.connector.catalog.Table;
 import org.apache.spark.sql.connector.catalog.TableProvider;
@@ -33,11 +32,6 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 public abstract class CassandraTableProvider implements TableProvider, DataSourceRegister
 {
     private DataLayer dataLayer;
-
-    public CassandraTableProvider()
-    {
-        CassandraBridgeFactory.validateBridges();
-    }
 
     public abstract DataLayer getDataLayer(CaseInsensitiveStringMap options);
 

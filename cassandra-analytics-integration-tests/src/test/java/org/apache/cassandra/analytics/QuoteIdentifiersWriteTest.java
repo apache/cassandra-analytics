@@ -41,7 +41,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.jetbrains.annotations.NotNull;
-import shaded.com.datastax.driver.core.ConsistencyLevel;
+import relocated.shaded.com.datastax.driver.core.ConsistencyLevel;
 
 import static org.apache.cassandra.analytics.DataGenerationUtils.generateCourseData;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
@@ -98,7 +98,7 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
                        QuoteIdentifiersWriteTest::defaultRowFormatter);
     }
 
-    public static String defaultRowFormatter(shaded.com.datastax.driver.core.Row row)
+    public static String defaultRowFormatter(relocated.shaded.com.datastax.driver.core.Row row)
     {
         return row.getInt("IdEnTiFiEr") +
                     ":'" +
@@ -108,7 +108,7 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
     }
 
     @NotNull
-    private static String rowWithUdtFormatter(shaded.com.datastax.driver.core.Row row)
+    private static String rowWithUdtFormatter(relocated.shaded.com.datastax.driver.core.Row row)
     {
         return row.getInt("IdEnTiFiEr") +
                ":'" +

@@ -117,12 +117,12 @@ public final class Tester
         this.nullifyValueColumn = builder.nullRegularColumns;
     }
 
-    static Builder builder(@NotNull TestSchema.Builder schemaBuilder)
+    public static Builder builder(@NotNull TestSchema.Builder schemaBuilder)
     {
         return new Builder(schemaBuilder);
     }
 
-    static Builder builder(@NotNull Function<String, TestSchema.Builder> schemaBuilderFunc)
+    public static Builder builder(@NotNull Function<String, TestSchema.Builder> schemaBuilderFunc)
     {
         return new Builder(schemaBuilderFunc);
     }
@@ -328,7 +328,7 @@ public final class Tester
             return this;
         }
 
-        void run()
+        public void run()
         {
             Preconditions.checkArgument(schemaBuilder != null || schemaBuilderFunc != null);
             new Tester(this).run();

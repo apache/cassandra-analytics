@@ -83,10 +83,10 @@ import org.apache.cassandra.testing.TestUtils;
 import org.apache.cassandra.testing.TestVersion;
 import org.apache.cassandra.testing.TestVersionSupplier;
 import org.apache.cassandra.utils.Throwables;
-import shaded.com.datastax.driver.core.Cluster;
-import shaded.com.datastax.driver.core.ResultSet;
-import shaded.com.datastax.driver.core.Session;
-import shaded.com.datastax.driver.core.SimpleStatement;
+import relocated.shaded.com.datastax.driver.core.Cluster;
+import relocated.shaded.com.datastax.driver.core.ResultSet;
+import relocated.shaded.com.datastax.driver.core.Session;
+import relocated.shaded.com.datastax.driver.core.SimpleStatement;
 
 import static org.apache.cassandra.sidecar.testing.CassandraSidecarTestContext.tryGetIntConfig;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -358,10 +358,11 @@ public abstract class SharedClusterIntegrationTestBase
      * Convenience method to query all data from the provided {@code table} at the specified consistency level.
      *
      * @param table       the qualified Cassandra table name
-     * @param consistency
+     * @param consistency the consistency level to use for querying the data
      * @return all the data queried from the table
      */
-    protected ResultSet queryAllDataWithDriver(ICluster cluster, QualifiedName table, shaded.com.datastax.driver.core.ConsistencyLevel consistency)
+    protected ResultSet queryAllDataWithDriver(ICluster<?> cluster, QualifiedName table,
+                                               relocated.shaded.com.datastax.driver.core.ConsistencyLevel consistency)
     {
         Cluster driverCluster = createDriverCluster(cluster);
         Session session = driverCluster.connect();
@@ -381,12 +382,15 @@ public abstract class SharedClusterIntegrationTestBase
             dtest.stream().forEach((i) -> {
                 if (!i.config().has(Feature.NATIVE_PROTOCOL) || !i.config().has(Feature.GOSSIP))
                 {
-                    throw new IllegalStateException("java driver requires Feature.NATIVE_PROTOCOL and Feature.GOSSIP; but one or more is missing");
+                    throw new IllegalStateException("Java driver requires Feature.NATIVE_PROTOCOL and Feature.GOSSIP; " +
+                                                    "but one or more is missing");
                 }
             });
             Cluster.Builder builder = Cluster.builder();
             dtest.stream().forEach((i) -> {
-                builder.addContactPointsWithPorts(new InetSocketAddress(i.broadcastAddress().getAddress(), i.config().getInt("native_transport_port")));
+                InetSocketAddress address = new InetSocketAddress(i.broadcastAddress().getAddress(),
+                                                                  i.config().getInt("native_transport_port"));
+                builder.addContactPointsWithPorts(address);
             });
 
             return builder.build();

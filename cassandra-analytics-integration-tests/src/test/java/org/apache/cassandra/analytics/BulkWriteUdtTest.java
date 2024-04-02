@@ -66,6 +66,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
     public static final String NESTED_TABLE_CREATE = "CREATE TABLE " + NESTED_TABLE_NAME + "(\n"
                                                      + "           id BIGINT PRIMARY KEY,\n"
                                                      + "           nested " + NESTED_FIELD_UDT_NAME + ");";
+
     @Test
     void testWriteWithUdt()
     {
@@ -78,7 +79,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         assertThat(result.hasNext()).isTrue();
         validateWritesWithDriverResultSet(df.collectAsList(),
                                           queryAllDataWithDriver(cluster, UDT_TABLE_NAME,
-                                              shaded.com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM),
+                                                                 relocated.shaded.com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM),
                                           BulkWriteUdtTest::defaultRowFormatter);
     }
 
@@ -93,12 +94,13 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         SimpleQueryResult result = cluster.coordinator(1).executeWithResult("SELECT * FROM " + NESTED_TABLE_NAME, ConsistencyLevel.ALL);
         assertThat(result.hasNext()).isTrue();
         validateWritesWithDriverResultSet(df.collectAsList(),
-                                          queryAllDataWithDriver(cluster, NESTED_TABLE_NAME, shaded.com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM),
+                                          queryAllDataWithDriver(cluster, NESTED_TABLE_NAME,
+                                                                 relocated.shaded.com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM),
                                           BulkWriteUdtTest::defaultRowFormatter);
     }
 
     @NotNull
-    public static String defaultRowFormatter(shaded.com.datastax.driver.core.Row row)
+    public static String defaultRowFormatter(relocated.shaded.com.datastax.driver.core.Row row)
     {
         return row.getLong(0) +
                ":" +

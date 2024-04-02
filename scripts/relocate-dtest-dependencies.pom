@@ -114,12 +114,12 @@
                             <relocations>
                                 <relocation>
                                     <pattern>io.netty</pattern>
-                                    <shadedPattern>shaded.io.netty</shadedPattern>
+                                    <shadedPattern>relocated.shaded.io.netty</shadedPattern>
                                 </relocation>
 
                                 <relocation>
                                     <pattern>com.google</pattern>
-                                    <shadedPattern>shaded.com.google</shadedPattern>
+                                    <shadedPattern>relocated.shaded.com.google</shadedPattern>
                                     <!-- ImmutableMaps and other items in com.google.common are shipped across the
                                     network, so we need to keep them un-relocated -->
                                     <excludes>
@@ -129,17 +129,22 @@
 
                                 <relocation>
                                     <pattern>com.github.benmanes.caffeine</pattern>
-                                    <shadedPattern>shaded.com.github.benmanes.caffeine</shadedPattern>
+                                    <shadedPattern>relocated.shaded.com.github.benmanes.caffeine</shadedPattern>
                                 </relocation>
 
                                 <relocation>
                                     <pattern>com.datastax</pattern>
-                                    <shadedPattern>shaded.com.datastax</shadedPattern>
+                                    <shadedPattern>relocated.shaded.com.datastax</shadedPattern>
                                 </relocation>
 
                                 <relocation>
                                     <pattern>com.fasterxml.jackson</pattern>
-                                    <shadedPattern>shaded.com.fasterxml.jackson</shadedPattern>
+                                    <shadedPattern>relocated.shaded.com.fasterxml.jackson</shadedPattern>
+                                </relocation>
+
+                                <relocation>
+                                    <pattern>org.yaml</pattern>
+                                    <shadedPattern>relocated.shaded.org.yaml</shadedPattern>
                                 </relocation>
                             </relocations>
 

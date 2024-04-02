@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.io.Serializable;
 import java.util.function.Supplier;
 
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
@@ -26,6 +27,6 @@ import org.apache.cassandra.spark.utils.DigestAlgorithm;
 /**
  * An interface that defines a {@link DigestAlgorithm} for a concrete digest type
  */
-public interface DigestAlgorithmSupplier extends Supplier<DigestAlgorithm>
+public interface DigestAlgorithmSupplier extends Supplier<DigestAlgorithm>, Serializable
 {
 }

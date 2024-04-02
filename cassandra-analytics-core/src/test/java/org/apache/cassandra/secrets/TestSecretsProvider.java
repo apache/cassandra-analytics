@@ -59,7 +59,7 @@ public final class TestSecretsProvider implements SecretsProvider
     {
         this.kind = kind;
         this.type = type;
-        this.resource = "/tests/validation/" + resource;
+        this.resource = "/validation/" + resource;
         this.password = password;
     }
 
