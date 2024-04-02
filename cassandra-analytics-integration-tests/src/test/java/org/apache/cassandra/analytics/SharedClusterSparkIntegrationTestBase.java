@@ -45,7 +45,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.StructField;
-import shaded.com.datastax.driver.core.ResultSet;
+import relocated.shaded.com.datastax.driver.core.ResultSet;
 
 import static org.apache.cassandra.analytics.SparkTestUtils.defaultBulkReaderDataFrame;
 import static org.apache.cassandra.analytics.SparkTestUtils.defaultBulkWriterDataFrameWriter;
@@ -65,7 +65,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
     protected CassandraBridge bridge;
 
     public void validateWritesWithDriverResultSet(List<Row> sourceData, ResultSet queriedData,
-                                                  Function<shaded.com.datastax.driver.core.Row, String> rowFormatter)
+                                                  Function<relocated.shaded.com.datastax.driver.core.Row, String> rowFormatter)
     {
         Set<String> actualEntries = new HashSet<>();
         queriedData.forEach(row -> actualEntries.add(rowFormatter.apply(row)));
@@ -75,7 +75,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
 
         // remove from actual entries to make sure that the data read is the same as the data written
         Set<String> sourceEntries = sourceData.stream().map(this::getFormattedSourceEntry)
-                           .collect(Collectors.toSet());
+                                              .collect(Collectors.toSet());
         assertThat(actualEntries).as("All entries are expected to be read from database")
                                  .containsExactlyInAnyOrderElementsOf(sourceEntries);
     }
@@ -154,8 +154,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
     {
         if (bridge == null)
         {
-            Semver semVer = new Semver(testVersion.version(),
-                                       Semver.SemverType.LOOSE);
+            Semver semVer = new Semver(testVersion.version(), Semver.SemverType.LOOSE);
             bridge = CassandraBridgeFactory.get(semVer.toStrict().toString());
         }
         return bridge;
