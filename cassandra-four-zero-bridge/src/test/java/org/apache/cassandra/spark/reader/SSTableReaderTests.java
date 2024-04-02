@@ -196,10 +196,10 @@ public class SSTableReaderTests
                     String prefix = schema.keyspace + "-" + schema.table + "-";
                     try (Stream<Path> list = Files.list(directory.path()))
                     {
-                        list
-                        .filter(file -> file.getFileName().toString().startsWith(prefix))
-                        .forEach(Throwing.consumer(file -> Files.move(file,
-                                                                      Paths.get(file.getParent().toString(), file.getFileName().toString().replaceFirst("^" + prefix, "")))));
+                        list.filter(file -> file.getFileName().toString().startsWith(prefix))
+                            .forEach(Throwing.consumer(file -> Files.move(file, Paths.get(file.getParent().toString(),
+                                                                                          file.getFileName().toString()
+                                                                                              .replaceFirst("^" + prefix, "")))));
                     }
 
 
