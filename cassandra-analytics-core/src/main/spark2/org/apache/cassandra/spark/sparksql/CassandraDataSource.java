@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.CassandraDataLayer;
 import org.apache.cassandra.spark.data.CassandraDataSourceHelper;
 import org.apache.cassandra.spark.data.ClientConfig;
@@ -125,8 +126,8 @@ public class CassandraDataSource implements DataSourceV2, ReadSupport, DataSourc
             List<PartitionKeyFilter> partitionKeyFilters = new ArrayList<>();
 
             List<String> partitionKeyColumnNames = dataLayer.cqlTable().partitionKeys().stream()
-                                                                                       .map(CqlField::name)
-                                                                                       .collect(Collectors.toList());
+                                                            .map(CqlField::name)
+                                                            .collect(Collectors.toList());
             Map<String, List<String>> partitionKeyValues =
                     FilterUtils.extractPartitionKeyValues(pushedFilters, new HashSet<>(partitionKeyColumnNames));
             if (partitionKeyValues.size() > 0)
