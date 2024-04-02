@@ -30,9 +30,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Stream;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import org.apache.commons.io.FileUtils;
 
@@ -126,18 +124,12 @@ public final class CassandraBridgeFactory
         return "/bridges/" + label + "-bridge.jar";
     }
 
-    private static Stream<Function<String, String>> resources()
-    {
-        return Stream.of(CassandraBridgeFactory::cassandraResourceName, CassandraBridgeFactory::bridgeResourceName);
-    }
-
     @NotNull
     @SuppressWarnings("unchecked")
     private static CassandraBridge create(@NotNull String label)
     {
         try
         {
-
             String name = cassandraResourceName(label);
             InputStream contents = CassandraBridgeFactory.class.getResourceAsStream(name);
             File casandraJar = Files.createTempFile(null, ".jar").toFile();
@@ -148,7 +140,7 @@ public final class CassandraBridgeFactory
             File bridgeJar = Files.createTempFile(null, ".jar").toFile();
             FileUtils.copyInputStreamToFile(contents, bridgeJar);
 
-            URL[] urls = { casandraJar.toURI().toURL(), bridgeJar.toURI().toURL() };
+            URL[] urls = {casandraJar.toURI().toURL(), bridgeJar.toURI().toURL()};
             ClassLoader loader = new PostDelegationClassLoader(urls, Thread.currentThread().getContextClassLoader());
             Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass("org.apache.cassandra.bridge.CassandraBridgeImplementation");
             Constructor<CassandraBridge> constructor = bridge.getConstructor();
