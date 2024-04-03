@@ -29,7 +29,7 @@ class LocalhostResolverTest
     @Test
     void testResolve() throws UnknownHostException
     {
-        IntegrationTestBase.LocalhostResolver resolver = new IntegrationTestBase.LocalhostResolver();
+        LocalhostResolver resolver = new LocalhostResolver();
         assertThat(resolver.resolve("localhost")).isEqualTo("127.0.0.1");
         assertThat(resolver.resolve("localhost2")).isEqualTo("127.0.0.2");
         assertThat(resolver.resolve("localhost20")).isEqualTo("127.0.0.20");
@@ -39,7 +39,7 @@ class LocalhostResolverTest
     @Test
     void testReverseResolve() throws UnknownHostException
     {
-        IntegrationTestBase.LocalhostResolver resolver = new IntegrationTestBase.LocalhostResolver();
+        LocalhostResolver resolver = new LocalhostResolver();
         assertThat(resolver.reverseResolve("127.0.0.1")).isEqualTo("localhost");
         assertThat(resolver.reverseResolve("127.0.0.2")).isEqualTo("localhost2");
         assertThat(resolver.reverseResolve("127.0.0.20")).isEqualTo("localhost20");

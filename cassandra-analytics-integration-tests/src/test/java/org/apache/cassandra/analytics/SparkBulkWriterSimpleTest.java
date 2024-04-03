@@ -19,66 +19,107 @@
 
 package org.apache.cassandra.analytics;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+import com.vdurmont.semver4j.Semver;
 import org.apache.cassandra.distributed.UpgradeableCluster;
-import org.apache.cassandra.sidecar.testing.IntegrationTestBase;
-import org.apache.cassandra.testing.CassandraIntegrationTest;
+import org.apache.cassandra.distributed.api.Feature;
+import org.apache.cassandra.distributed.api.TokenSupplier;
+import org.apache.cassandra.distributed.shared.Versions;
+import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
+import org.apache.cassandra.sidecar.testing.QualifiedName;
+import org.apache.cassandra.spark.bulkwriter.WriterOptions;
+import org.apache.cassandra.testing.TestVersion;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
+import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
+import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.apache.spark.sql.types.DataTypes.BinaryType;
 import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.apache.spark.sql.types.DataTypes.LongType;
 
-public class SparkBulkWriterSimpleTest extends IntegrationTestBase
+class SparkBulkWriterSimpleTest extends SharedClusterSparkIntegrationTestBase
 {
+    static final String CREATE_TABLE_STATEMENT = "CREATE TABLE %s (id BIGINT PRIMARY KEY, course BLOB, marks BIGINT)";
 
-    @CassandraIntegrationTest(nodesPerDc = 3, gossip = true)
-    public void runSampleJob()
+    @ParameterizedTest
+    @MethodSource("options")
+    void runSampleJob(Integer ttl, Long timestamp)
     {
-        UpgradeableCluster cluster = sidecarTestContext.cluster();
-        String keyspace = "spark_test";
-        String table = "test";
-        cluster.schemaChange(
-        "  CREATE KEYSPACE " + keyspace + " WITH replication = "
-        + "{'class': 'NetworkTopologyStrategy', 'datacenter1': '3'}\n"
-        + "      AND durable_writes = true;",
-        true,
-        cluster.getFirstRunningInstance());
-        cluster.schemaChange("CREATE TABLE " + keyspace + "." + table + " (\n"
-                             + "          id BIGINT PRIMARY KEY,\n"
-                             + "          course BLOB,\n"
-                             + "          marks BIGINT\n"
-                             + "     );",
-                             true,
-                             cluster.getFirstRunningInstance());
-        waitUntilSidecarPicksUpSchemaChange(keyspace);
         Map<String, String> writerOptions = new HashMap<>();
-        // A constant timestamp and TTL can be used by adding the following options to the writerOptions map
-        // writerOptions.put(WriterOptions.TTL.name(), TTLOption.constant(20));
-        // writerOptions.put(WriterOptions.TIMESTAMP.name(), TimestampOption.constant(System.currentTimeMillis() * 1000));
-        // Then, set ttl or timestamp to non-null values.
-        Integer ttl = null;
-        Long timestamp = null;
-        @SuppressWarnings("ConstantValue")
+
         boolean addTTLColumn = ttl != null;
-        @SuppressWarnings("ConstantValue")
         boolean addTimestampColumn = timestamp != null;
+        if (addTTLColumn)
+        {
+            writerOptions.put(WriterOptions.TTL.name(), "ttl");
+        }
+
+        if (addTimestampColumn)
+        {
+            writerOptions.put(WriterOptions.TIMESTAMP.name(), "timestamp");
+        }
+
         IntegrationTestJob.builder((recordNum) -> generateCourse(recordNum, ttl, timestamp),
                                    getWriteSchema(addTTLColumn, addTimestampColumn))
                           .withSidecarPort(server.actualPort())
                           .withExtraWriterOptions(writerOptions)
                           .withPostWriteDatasetModifier(writeToReadDfFunc(addTTLColumn, addTimestampColumn))
                           .run();
+    }
+
+    static Stream<Arguments> options()
+    {
+        return Stream.of(
+        Arguments.of(null, null),
+        Arguments.of(1000, null),
+        Arguments.of(null, 1432815430948567L),
+        Arguments.of(1000, 1432815430948567L)
+        );
+    }
+
+    @Override
+    protected void initializeSchemaForTest()
+    {
+        createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
+        createTestTable(new QualifiedName(TEST_KEYSPACE, "test"), CREATE_TABLE_STATEMENT);
+    }
+
+    @Override
+    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
+    {
+        // spin up a C* cluster using the in-jvm dtest
+        Versions versions = Versions.find();
+        Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(), Semver.SemverType.LOOSE));
+
+        UpgradeableCluster.Builder clusterBuilder =
+        UpgradeableCluster.build(3)
+                          .withDynamicPortAllocation(true)
+                          .withVersion(requestedVersion)
+                          .withDCs(1)
+                          .withDataDirCount(1)
+                          .withSharedClasses(JvmDTestSharedClassesPredicate.INSTANCE)
+                          .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
+                                                      .with(Feature.GOSSIP)
+                                                      .with(Feature.JMX));
+        TokenSupplier tokenSupplier = TokenSupplier.evenlyDistributedTokens(3, clusterBuilder.getTokenCount());
+        clusterBuilder.withTokenSupplier(tokenSupplier);
+        return clusterBuilder.start();
     }
 
     // Because the read part of the integration test job doesn't read ttl and timestamp columns, we need to remove them

@@ -132,8 +132,8 @@ public final class IntegrationTestJob implements Serializable
                                           .option("local_dc", "datacenter1")
                                           .option("bulk_writer_cl", "LOCAL_QUORUM")
                                           .option("number_splits", "-1")
+                                          .options(extraWriterOptions)
                                           .mode("append");
-        dfWriter.options(extraWriterOptions);
         dfWriter.save();
         return df;
     }
@@ -353,7 +353,7 @@ public final class IntegrationTestJob implements Serializable
     }
 
     /**
-     * An exmaple of a postWriteDatasetModifier.
+     * An example of a postWriteDatasetModifier.
      * This function will remove `ttl` and `timestamp` columns from the dataframe after write, as
      * the read part of the integration test job doesn't read ttl and timestamp columns, we need to remove them
      * from the Dataset after it's saved so the final comparison works.

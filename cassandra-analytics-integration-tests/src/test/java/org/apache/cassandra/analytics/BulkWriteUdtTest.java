@@ -38,8 +38,8 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.jetbrains.annotations.NotNull;
 
-import static org.apache.cassandra.testing.CassandraTestTemplate.fixDistributedSchemas;
-import static org.apache.cassandra.testing.CassandraTestTemplate.waitForHealthyRing;
+import static org.apache.cassandra.analytics.ResiliencyTestBase.fixDistributedSchemas;
+import static org.apache.cassandra.analytics.ResiliencyTestBase.waitForHealthyRing;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
