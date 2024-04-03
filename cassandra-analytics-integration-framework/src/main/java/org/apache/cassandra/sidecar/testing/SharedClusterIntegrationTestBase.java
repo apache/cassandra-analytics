@@ -88,7 +88,6 @@ import relocated.shaded.com.datastax.driver.core.ResultSet;
 import relocated.shaded.com.datastax.driver.core.Session;
 import relocated.shaded.com.datastax.driver.core.SimpleStatement;
 
-import static org.apache.cassandra.sidecar.testing.CassandraSidecarTestContext.tryGetIntConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -450,7 +449,7 @@ public abstract class SharedClusterIntegrationTestBase
         @Singleton
         public DnsResolver dnsResolver()
         {
-            return new IntegrationTestBase.LocalhostResolver();
+            return new LocalhostResolver();
         }
 
         private List<InetSocketAddress> buildContactPoints()
@@ -459,6 +458,18 @@ public abstract class SharedClusterIntegrationTestBase
                           .map(instance -> new InetSocketAddress(instance.config().broadcastAddress().getAddress(),
                                                                  tryGetIntConfig(instance.config(), "native_transport_port", 9042)))
                           .collect(Collectors.toList());
+        }
+
+        static int tryGetIntConfig(IInstanceConfig config, String configName, int defaultValue)
+        {
+            try
+            {
+                return config.getInt(configName);
+            }
+            catch (NullPointerException npe)
+            {
+                return defaultValue;
+            }
         }
 
         static InstanceMetadata buildInstanceMetadata(Vertx vertx,

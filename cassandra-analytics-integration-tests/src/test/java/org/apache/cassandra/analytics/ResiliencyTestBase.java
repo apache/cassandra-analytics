@@ -46,10 +46,12 @@ import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
+import org.apache.cassandra.distributed.api.IUpgradeableInstance;
 import org.apache.cassandra.distributed.api.Row;
 import org.apache.cassandra.distributed.api.SimpleQueryResult;
 import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.impl.AbstractCluster;
+import org.apache.cassandra.distributed.shared.ClusterUtils;
 import org.apache.cassandra.distributed.shared.Versions;
 import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
@@ -62,8 +64,6 @@ import scala.Tuple2;
 
 import static org.apache.cassandra.distributed.shared.NetworkTopology.dcAndRack;
 import static org.apache.cassandra.distributed.shared.NetworkTopology.networkTopology;
-import static org.apache.cassandra.testing.CassandraTestTemplate.fixDistributedSchemas;
-import static org.apache.cassandra.testing.CassandraTestTemplate.waitForHealthyRing;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -429,6 +429,31 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
         public String toString()
         {
             return "readCL=" + readCL + ", writeCL=" + writeCL;
+        }
+    }
+
+    public static void fixDistributedSchemas(UpgradeableCluster cluster)
+    {
+        // These keyspaces are under replicated by default, so must be updated when doing a multi-node cluster;
+        // else bootstrap will fail with 'Unable to find sufficient sources for streaming range <range> in keyspace <name>'
+        for (String ks : Arrays.asList("system_auth", "system_traces"))
+        {
+            cluster.schemaChange("ALTER KEYSPACE " + ks +
+                                 " WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': "
+                                 + Math.min(cluster.size(), 3) + "}",
+                                 true,
+                                 cluster.getFirstRunningInstance());
+        }
+
+        // in real live repair is needed in this case, but in the test case it doesn't matter if the tables loose
+        // anything, so ignoring repair to speed up the tests.
+    }
+
+    public static void waitForHealthyRing(UpgradeableCluster cluster)
+    {
+        for (IUpgradeableInstance inst : cluster)
+        {
+            ClusterUtils.awaitRingHealthy(inst);
         }
     }
 }
