@@ -20,8 +20,6 @@ package org.apache.cassandra.sidecar.testing;
 
 import java.util.Objects;
 
-import org.apache.cassandra.cql3.ColumnIdentifier;
-
 /**
  * Simple class representing a Cassandra table, used for integration testing
  */
@@ -29,11 +27,21 @@ public class QualifiedName
 {
     private final String keyspace;
     private final String table;
+    private final String maybeQuotedKeyspace;
+    private final String maybeQuotedTable;
 
     public QualifiedName(String keyspace, String table)
     {
+        this(keyspace, table, false, false);
+    }
+
+    public QualifiedName(String keyspace, String table,
+                         boolean quoteKeyspace, boolean quoteTable)
+    {
         this.keyspace = keyspace;
         this.table = table;
+        this.maybeQuotedKeyspace = quoteKeyspace ? "\"" + keyspace + "\"" : keyspace;
+        this.maybeQuotedTable = quoteTable ? "\"" + table + "\"" : table;
     }
 
     public String keyspace()
@@ -43,7 +51,7 @@ public class QualifiedName
 
     public String maybeQuotedKeyspace()
     {
-        return ColumnIdentifier.maybeQuote(keyspace);
+        return maybeQuotedKeyspace;
     }
 
     public String table()
@@ -53,7 +61,7 @@ public class QualifiedName
 
     public String maybeQuotedTable()
     {
-        return ColumnIdentifier.maybeQuote(table);
+        return maybeQuotedTable;
     }
 
     @Override

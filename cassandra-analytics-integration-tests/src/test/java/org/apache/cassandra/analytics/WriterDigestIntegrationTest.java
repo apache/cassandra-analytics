@@ -19,25 +19,17 @@
 
 package org.apache.cassandra.analytics;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import com.vdurmont.semver4j.Semver;
-import org.apache.cassandra.distributed.UpgradeableCluster;
-import org.apache.cassandra.distributed.api.Feature;
-import org.apache.cassandra.distributed.api.TokenSupplier;
-import org.apache.cassandra.distributed.shared.Versions;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
-import org.apache.cassandra.testing.TestVersion;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
-import static org.apache.cassandra.analytics.SparkTestUtils.validateWrites;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
@@ -60,7 +52,7 @@ class WriterDigestIntegrationTest extends SharedClusterSparkIntegrationTestBase
     void testDefaultDigest()
     {
         bulkWriterDataFrameWriter(df, DEFAULT_DIGEST_TABLE).save();
-        validateWrites(df.collectAsList(), queryAllData(DEFAULT_DIGEST_TABLE));
+        sparkTestUtils.validateWrites(df.collectAsList(), queryAllData(DEFAULT_DIGEST_TABLE));
     }
 
     @Test
@@ -69,7 +61,7 @@ class WriterDigestIntegrationTest extends SharedClusterSparkIntegrationTestBase
         SparkSession spark = getOrCreateSparkSession();
         Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
         bulkWriterDataFrameWriter(df, MD5_DIGEST_TABLE).option(WriterOptions.DIGEST.name(), "MD5").save();
-        validateWrites(df.collectAsList(), queryAllData(MD5_DIGEST_TABLE));
+        sparkTestUtils.validateWrites(df.collectAsList(), queryAllData(MD5_DIGEST_TABLE));
     }
 
     @Test
@@ -84,31 +76,9 @@ class WriterDigestIntegrationTest extends SharedClusterSparkIntegrationTestBase
     @Override
     protected void beforeTestStart()
     {
+        super.beforeTestStart();
         SparkSession spark = getOrCreateSparkSession();
         df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
-    }
-
-    @Override
-    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
-    {
-        // spin up a C* cluster using the in-jvm dtest
-        Versions versions = Versions.find();
-        Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(), Semver.SemverType.LOOSE));
-
-        UpgradeableCluster.Builder clusterBuilder =
-        UpgradeableCluster.build(1)
-                          .withDynamicPortAllocation(true)
-                          .withVersion(requestedVersion)
-                          .withDCs(1)
-                          .withDataDirCount(1)
-                          .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
-                                                      .with(Feature.GOSSIP)
-                                                      .with(Feature.JMX));
-        TokenSupplier tokenSupplier = TokenSupplier.evenlyDistributedTokens(1, clusterBuilder.getTokenCount());
-        clusterBuilder.withTokenSupplier(tokenSupplier);
-        UpgradeableCluster cluster = clusterBuilder.createWithoutStarting();
-        cluster.startup();
-        return cluster;
     }
 
     @Override

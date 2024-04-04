@@ -18,7 +18,6 @@
 
 package org.apache.cassandra.analytics.shrink;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -35,13 +34,13 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.ResiliencyTestBase;
 import org.apache.cassandra.analytics.TestUninterruptibles;
-import org.apache.cassandra.distributed.UpgradeableCluster;
+import org.apache.cassandra.testing.utils.ClusterUtils;
+import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.NodeToolResult;
-import org.apache.cassandra.distributed.shared.ClusterUtils;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
-import org.apache.cassandra.testing.TestVersion;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -74,6 +73,7 @@ abstract class LeavingTestBase extends ResiliencyTestBase
     @Override
     protected void beforeTestStart()
     {
+        super.beforeTestStart();
         SparkSession spark = getOrCreateSparkSession();
         // Generate some artificial data for the test
         df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
@@ -82,18 +82,15 @@ abstract class LeavingTestBase extends ResiliencyTestBase
     }
 
     @Override
-    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
+    protected void afterClusterProvisioned()
     {
         ClusterBuilderConfiguration configuration = testClusterConfiguration();
-        UpgradeableCluster provisionedCluster = clusterBuilder(configuration, testVersion);
-        IInstance seed = provisionedCluster.getFirstRunningInstance();
-        leavingNodes = decommissionNodes(provisionedCluster, leavingNodesPerDc(), configuration.dcCount);
+        IInstance seed = cluster.getFirstRunningInstance();
+        leavingNodes = decommissionNodes(cluster, leavingNodesPerDc(), configuration.dcCount);
 
         // Wait until nodes have reached expected state
         TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart(), 4, TimeUnit.MINUTES);
-        leavingNodes.forEach(instance -> ClusterUtils.awaitRingState(seed, instance, "Leaving"));
-
-        return provisionedCluster;
+        leavingNodes.forEach(instance -> cluster.awaitRingState(seed, instance, "Leaving"));
     }
 
     protected void completeTransitionsAndValidateWrites(CountDownLatch transitionalStateEnd, Stream<Arguments> testInputs)
@@ -122,11 +119,6 @@ abstract class LeavingTestBase extends ResiliencyTestBase
      */
     protected abstract int leavingNodesPerDc();
 
-    /**
-     * @return the configuration for the test cluster
-     */
-    protected abstract ClusterBuilderConfiguration testClusterConfiguration();
-
     protected static Stream<Arguments> singleDCTestInputs()
     {
         return Stream.of(
@@ -146,7 +138,7 @@ abstract class LeavingTestBase extends ResiliencyTestBase
         );
     }
 
-    protected List<IInstance> decommissionNodes(UpgradeableCluster cluster,
+    protected List<IInstance> decommissionNodes(ICluster<? extends IInstance> cluster,
                                                 int leavingNodesPerDC,
                                                 int numDcs)
     {

@@ -70,6 +70,35 @@ public final class TestUtils
     }
 
     /**
+     * @param keyspace    the name of the keyspace
+     * @param tablePrefix the prefix for the table
+     * @return a {@link QualifiedName} with quoted keyspace and quoted table
+     */
+    public static QualifiedName uniqueTestQuotedKeyspaceQuotedTableFullName(String keyspace, String tablePrefix)
+    {
+        return new QualifiedName(keyspace, tablePrefix + TEST_TABLE_ID.getAndIncrement(), true, true);
+    }
+
+    /**
+     * @param keyspace    the name of the keyspace
+     * @param tablePrefix the prefix for the table
+     * @return a {@link QualifiedName} with unquoted keyspace and quoted table
+     */
+    public static QualifiedName uniqueTestKeyspaceQuotedTableFullName(String keyspace, String tablePrefix)
+    {
+        return new QualifiedName(keyspace, tablePrefix + TEST_TABLE_ID.getAndIncrement(), false, true);
+    }
+
+    /**
+     * @param keyspace    the name of the keyspace
+     * @return a {@link QualifiedName} with quoted keyspace and unquoted table
+     */
+    public static QualifiedName uniqueTestQuotedKeyspaceTableFullName(String keyspace)
+    {
+        return new QualifiedName(keyspace, TEST_TABLE_PREFIX + TEST_TABLE_ID.getAndIncrement(), true, false);
+    }
+
+    /**
      * Defaults to run in-jvm dtest
      */
     public static void configureDefaultDTestJarProperties()
@@ -98,5 +127,7 @@ public final class TestUtils
         // this property is used to allow non-members of the ring to exist in gossip without breaking RF changes
         // it would be nice not to rely on this, but hopefully we'll have consistent range movements before it matters
         System.setProperty("cassandra.allow_alter_rf_during_range_movement", "true");
+
+        System.setProperty("cassandra.minimum_replication_factor", "1");
     }
 }

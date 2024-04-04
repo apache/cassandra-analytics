@@ -18,7 +18,6 @@
 
 package org.apache.cassandra.analytics.replacement;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -37,17 +36,13 @@ import org.junit.jupiter.params.provider.Arguments;
 
 import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.ResiliencyTestBase;
-import org.apache.cassandra.config.CassandraRelevantProperties;
-import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
-import org.apache.cassandra.distributed.impl.AbstractCluster;
-import org.apache.cassandra.distributed.impl.InstanceConfig;
-import org.apache.cassandra.distributed.shared.ClusterUtils;
 import org.apache.cassandra.distributed.shared.NetworkTopology;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.testing.TestVersion;
+import org.apache.cassandra.testing.IClusterExtension;
+import org.apache.cassandra.testing.utils.ClusterUtils;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -67,18 +62,15 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
     List<String> removedNodeAddresses;
 
     @Override
-    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
+    protected void afterClusterProvisioned()
     {
-        ClusterBuilderConfiguration configuration = testClusterConfiguration();
-        UpgradeableCluster provisionedCluster = clusterBuilder(configuration, testVersion);
+        assertThat(additionalNodesToStop()).isLessThan(cluster.size() - 1);
 
-        assertThat(additionalNodesToStop()).isLessThan(provisionedCluster.size() - 1);
-
-        IInstance seed = provisionedCluster.get(1);
+        IInstance seed = cluster.get(1);
         List<ClusterUtils.RingInstanceDetails> ring = ClusterUtils.ring(seed);
 
         // Remove the last node
-        List<IInstance> nodesToRemove = Collections.singletonList(provisionedCluster.get(provisionedCluster.size()));
+        List<IInstance> nodesToRemove = Collections.singletonList(cluster.get(cluster.size()));
         removedNodeAddresses = nodesToRemove.stream()
                                             .map(n -> n.config()
                                                        .broadcastAddress()
@@ -94,9 +86,9 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
         List<IInstance> additionalRemovalNodes = new ArrayList<>();
         for (int i = 1; i <= additionalNodesToStop(); i++)
         {
-            additionalRemovalNodes.add(provisionedCluster.get(provisionedCluster.size() - i));
+            additionalRemovalNodes.add(cluster.get(cluster.size() - i));
         }
-        newNodes = startReplacementNodes(nodeStart(), provisionedCluster, nodesToRemove);
+        newNodes = startReplacementNodes(nodeStart(), cluster, nodesToRemove);
         stopNodes(seed, additionalRemovalNodes);
 
         // Wait until replacement nodes are in JOINING state
@@ -106,8 +98,8 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
         // Verify state of replacement nodes
         for (IInstance newInstance : newNodes)
         {
-            ClusterUtils.awaitRingState(newInstance, newInstance, "Joining");
-            ClusterUtils.awaitGossipStatus(newInstance, newInstance, "BOOT_REPLACE");
+            cluster.awaitRingState(newInstance, newInstance, "Joining");
+            cluster.awaitGossipStatus(newInstance, newInstance, "BOOT_REPLACE");
 
             String newAddress = newInstance.config().broadcastAddress().getAddress().getHostAddress();
             Optional<ClusterUtils.RingInstanceDetails> replacementInstance = getMatchingInstanceFromRing(newInstance, newAddress);
@@ -115,8 +107,6 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
             // Verify that replacement node tokens match the removed nodes
             assertThat(removedNodeTokens).contains(replacementInstance.get().getToken());
         }
-
-        return provisionedCluster;
     }
 
     protected void completeTransitionsAndValidateWrites(CountDownLatch transitionalStateEnd,
@@ -135,7 +125,7 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
         // It is only in successful REPLACE operation that we validate that the node has reached NORMAL state
         if (!expectFailure)
         {
-            ClusterUtils.awaitRingState(newNodes.get(0), newNodes.get(0), "Normal");
+            cluster.awaitRingState(newNodes.get(0), newNodes.get(0), "Normal");
 
             // Validate if data was written to the new transitioning nodes only when bootstrap succeeded
             testInputs.forEach(arguments -> {
@@ -176,6 +166,7 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
     @Override
     protected void beforeTestStart()
     {
+        super.beforeTestStart();
         SparkSession spark = getOrCreateSparkSession();
         // Generate some artificial data for the test
         df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
@@ -192,11 +183,6 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
     }
 
     /**
-     * @return the configuration for the test cluster
-     */
-    protected abstract ClusterBuilderConfiguration testClusterConfiguration();
-
-    /**
      * @return a latch that will wait until the node starts
      */
     protected abstract CountDownLatch nodeStart();
@@ -209,7 +195,7 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
         );
     }
 
-    public static <I extends IInstance> I addInstanceLocal(AbstractCluster<I> cluster,
+    public static <I extends IInstance> I addInstanceLocal(IClusterExtension<I> cluster,
                                                            String dc,
                                                            String rack,
                                                            Consumer<IInstanceConfig> fn,
@@ -217,14 +203,14 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
     {
         Objects.requireNonNull(dc, "dc");
         Objects.requireNonNull(rack, "rack");
-        InstanceConfig config = cluster.newInstanceConfig();
+        IInstanceConfig config = cluster.newInstanceConfig();
         config.set("storage_port", remPort);
         config.networkTopology().put(config.broadcastAddress(), NetworkTopology.dcAndRack(dc, rack));
         fn.accept(config);
         return cluster.bootstrap(config);
     }
 
-    private List<IInstance> startReplacementNodes(CountDownLatch nodeStart, UpgradeableCluster cluster,
+    private List<IInstance> startReplacementNodes(CountDownLatch nodeStart, IClusterExtension<?> cluster,
                                                   List<IInstance> nodesToRemove)
     {
         List<IInstance> newNodes = new ArrayList<>();
@@ -252,9 +238,8 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
 
             new Thread(() -> ClusterUtils.start(replacement, (properties) -> {
                 replacement.config().set("storage_port", remPort);
-                properties.set(CassandraRelevantProperties.BOOTSTRAP_SKIP_SCHEMA_CHECK, true);
-                properties.set(CassandraRelevantProperties.BOOTSTRAP_SCHEMA_DELAY_MS,
-                               TimeUnit.SECONDS.toMillis(10L));
+                properties.with("cassandra.skip_schema_check", "true");
+                properties.with("cassandra.schema_delay_ms", String.valueOf(TimeUnit.SECONDS.toMillis(10L)));
                 properties.with("cassandra.broadcast_interval_ms",
                                 Long.toString(TimeUnit.SECONDS.toMillis(30L)));
                 properties.with("cassandra.ring_delay_ms",
@@ -274,7 +259,7 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
     {
         for (IInstance node : nodesToRemove)
         {
-            ClusterUtils.stopUnchecked(node);
+            cluster.stopUnchecked(node);
             String remAddress = node.config().broadcastAddress().getAddress().getHostAddress();
 
             List<ClusterUtils.RingInstanceDetails> ring = ClusterUtils.ring(seed);

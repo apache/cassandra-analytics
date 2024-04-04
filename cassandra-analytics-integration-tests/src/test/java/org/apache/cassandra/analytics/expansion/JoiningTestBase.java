@@ -18,7 +18,6 @@
 
 package org.apache.cassandra.analytics.expansion;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,13 +32,13 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.ResiliencyTestBase;
 import org.apache.cassandra.analytics.TestUninterruptibles;
-import org.apache.cassandra.distributed.UpgradeableCluster;
+import org.apache.cassandra.testing.utils.ClusterUtils;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.IInstance;
-import org.apache.cassandra.distributed.shared.ClusterUtils;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
-import org.apache.cassandra.testing.TestVersion;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
+import org.apache.cassandra.testing.IClusterExtension;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -67,6 +66,7 @@ abstract class JoiningTestBase extends ResiliencyTestBase
     @Override
     protected void beforeTestStart()
     {
+        super.beforeTestStart();
         SparkSession spark = getOrCreateSparkSession();
         // Generate some artificial data for the test
         df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
@@ -75,16 +75,12 @@ abstract class JoiningTestBase extends ResiliencyTestBase
     }
 
     @Override
-    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
+    protected void afterClusterProvisioned()
     {
         ClusterBuilderConfiguration configuration = testClusterConfiguration();
-        UpgradeableCluster provisionedCluster = clusterBuilder(configuration, testVersion);
-
-        newInstances = addNewInstances(provisionedCluster, configuration.newNodesPerDc, configuration.dcCount);
+        newInstances = addNewInstances(cluster, configuration.newNodesPerDc, configuration.dcCount);
         TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart(), 2, TimeUnit.MINUTES);
-        newInstances.forEach(instance -> ClusterUtils.awaitRingState(instance, instance, "Joining"));
-
-        return provisionedCluster;
+        newInstances.forEach(instance -> cluster.awaitRingState(instance, instance, "Joining"));
     }
 
     protected void completeTransitionsAndValidateWrites(CountDownLatch transitionalStateEnd,
@@ -124,12 +120,7 @@ abstract class JoiningTestBase extends ResiliencyTestBase
      */
     protected abstract CountDownLatch transitioningStateStart();
 
-    /**
-     * @return the configuration for the test cluster
-     */
-    protected abstract ClusterBuilderConfiguration testClusterConfiguration();
-
-    private static List<IInstance> addNewInstances(UpgradeableCluster cluster, int newNodesPerDc, int numDcs)
+    private static List<IInstance> addNewInstances(IClusterExtension<? extends IInstance> cluster, int newNodesPerDc, int numDcs)
     {
         List<IInstance> newInstances = new ArrayList<>();
         // Go over new nodes and add them once for each DC
@@ -139,16 +130,15 @@ abstract class JoiningTestBase extends ResiliencyTestBase
             for (int dc = 1; dc <= numDcs; dc++)
             {
                 IInstance dcNode = cluster.get(dcNodeIdx++);
-                IInstance newInstance = ClusterUtils.addInstance(cluster,
-                                                                 dcNode.config().localDatacenter(),
-                                                                 dcNode.config().localRack(),
-                                                                 inst -> {
-                                                                     inst.set("auto_bootstrap", true);
-                                                                     inst.with(Feature.GOSSIP,
-                                                                               Feature.JMX,
-                                                                               Feature.NATIVE_PROTOCOL);
-                                                                 });
-                new Thread(() -> newInstance.startup(cluster)).start();
+                IInstance newInstance = cluster.addInstance(dcNode.config().localDatacenter(),
+                                                            dcNode.config().localRack(),
+                                                            inst -> {
+                                                                inst.set("auto_bootstrap", true);
+                                                                inst.with(Feature.GOSSIP,
+                                                                          Feature.JMX,
+                                                                          Feature.NATIVE_PROTOCOL);
+                                                            });
+                new Thread(() -> newInstance.startup(cluster.delegate())).start();
                 newInstances.add(newInstance);
             }
         }

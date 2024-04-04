@@ -31,18 +31,10 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
-import com.vdurmont.semver4j.Semver;
 import org.apache.cassandra.analytics.SharedClusterSparkIntegrationTestBase;
-import org.apache.cassandra.config.CassandraRelevantProperties;
-import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
-import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.shared.Uninterruptibles;
-import org.apache.cassandra.distributed.shared.Versions;
-import org.apache.cassandra.distributed.shared.WithProperties;
-import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.testing.TestVersion;
 import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.Row;
 
@@ -52,7 +44,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
 {
-    private static final WithProperties properties = new WithProperties();
     static final QualifiedName TABLE_NAME_FOR_TTL_CLEAR_SNAPSHOT_STRATEGY
     = new QualifiedName(TEST_KEYSPACE, "test_ttl_clear_snapshot_strategy");
     static final QualifiedName TABLE_NAME_FOR_NO_OP_CLEAR_SNAPSHOT_STRATEGY
@@ -68,7 +59,7 @@ class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
         List<Row> rows = readDf.load().collectAsList();
         assertThat(rows.size()).isEqualTo(8);
 
-        String[] dataDirs = (String[]) cluster.getFirstRunningInstance()
+        String[] dataDirs = (String[]) cluster.get(1)
                                               .config()
                                               .getParams()
                                               .get("data_file_directories");
@@ -96,7 +87,7 @@ class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
         List<Row> rows = readDf.load().collectAsList();
         assertThat(rows.size()).isEqualTo(8);
 
-        String[] dataDirs = (String[]) cluster.getFirstRunningInstance()
+        String[] dataDirs = (String[]) cluster.get(1)
                                               .config()
                                               .getParams()
                                               .get("data_file_directories");
@@ -124,33 +115,19 @@ class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
     }
 
     @Override
-    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
+    protected void beforeClusterProvisioning()
     {
-        properties.set(CassandraRelevantProperties.SNAPSHOT_CLEANUP_INITIAL_DELAY_SECONDS, 0);
-        properties.set(CassandraRelevantProperties.SNAPSHOT_CLEANUP_PERIOD_SECONDS, 1);
-        properties.set(CassandraRelevantProperties.SNAPSHOT_MIN_ALLOWED_TTL_SECONDS, 5);
-
-        Versions versions = Versions.find();
-        Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(),
-                                                                          Semver.SemverType.LOOSE));
-        UpgradeableCluster.Builder clusterBuilder =
-        UpgradeableCluster.build(1)
-                          .withDynamicPortAllocation(true)
-                          .withVersion(requestedVersion)
-                          .withDataDirCount(1)
-                          .withDCs(1)
-                          .withSharedClasses(JvmDTestSharedClassesPredicate.INSTANCE)
-                          .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
-                                                      .with(Feature.GOSSIP)
-                                                      .with(Feature.JMX));
-
-        return clusterBuilder.start();
+        System.setProperty("cassandra.snapshot.ttl_cleanup_initial_delay_seconds", "0");
+        System.setProperty("cassandra.snapshot.ttl_cleanup_period_seconds", "1");
+        System.setProperty("cassandra.snapshot.min_allowed_ttl_seconds", "5");
     }
 
     @Override
     protected void afterClusterShutdown()
     {
-        properties.close();
+        System.clearProperty("cassandra.snapshot.ttl_cleanup_initial_delay_seconds");
+        System.clearProperty("cassandra.snapshot.ttl_cleanup_period_seconds");
+        System.clearProperty("cassandra.snapshot.min_allowed_ttl_seconds");
     }
 
     @Override
@@ -170,7 +147,7 @@ class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
         {
             String value = DATASET.get(i);
             String query = String.format("INSERT INTO %s (c1, c2) VALUES (%d, '%s');", tableName, i, value);
-            cluster.getFirstRunningInstance()
+            cluster.get(1)
                    .coordinator()
                    .execute(query, ConsistencyLevel.ALL);
         }

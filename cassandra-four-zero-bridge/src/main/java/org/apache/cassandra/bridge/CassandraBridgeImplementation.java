@@ -554,7 +554,10 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                                            .forTable(createStatement)
                                                            .withPartitioner(getPartitioner(partitioner))
                                                            .using(upsert ? updateStatement : insertStatement)
-                                                           .withBufferSizeInMB(128);
+                                                           // The data frame to write is always sorted,
+                                                           // see org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation.insert
+                                                           .sorted()
+                                                           .withMaxSSTableSizeInMiB(128);
 
         for (CqlField.CqlUdt udt : udts)
         {

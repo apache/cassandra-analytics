@@ -19,12 +19,19 @@
 
 package org.apache.cassandra.analytics;
 
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
+import org.apache.cassandra.distributed.api.ICluster;
+import org.apache.cassandra.distributed.api.IInstance;
+import org.apache.cassandra.distributed.shared.JMXUtil;
+import org.apache.cassandra.sidecar.common.dns.DnsResolver;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.KryoRegister;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
@@ -42,29 +49,43 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Helper methods for Spark tests
  */
-public final class SparkTestUtils
+public class SparkTestUtils
 {
-    private SparkTestUtils()
+    protected ICluster<? extends IInstance> cluster;
+
+    /**
+     * Runs any initialization code required for the tests
+     *
+     * @param cluster the cassandra cluster
+     */
+    public void initialize(ICluster<? extends IInstance> cluster)
     {
-        throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+        this.cluster = Objects.requireNonNull(cluster, "cluster is required");
+    }
+
+    /**
+     * Runs any tear down code required for tests, currently empty
+     */
+    public void tearDown()
+    {
     }
 
     /**
      * Returns a {@link DataFrameReader} with default options for performing a bulk read test, including
      * required parameters.
      *
-     * @param sparkConf              the spark configuration to use
-     * @param spark                  the spark session to use
-     * @param tableName              the qualified name of the table
-     * @param sidecarInstancesOption the comma-separated list of sidecar instances
-     * @param sidecarPort            the sidecar port
+     * @param sparkConf   the spark configuration to use
+     * @param spark       the spark session to use
+     * @param tableName   the qualified name of the table
+     * @param dnsResolver the DNS resolver used to lookup replicas
+     * @param sidecarPort the sidecar port
      * @return a {@link DataFrameReader} with default options for performing a bulk read test
      */
-    public static DataFrameReader defaultBulkReaderDataFrame(SparkConf sparkConf,
-                                                             SparkSession spark,
-                                                             QualifiedName tableName,
-                                                             String sidecarInstancesOption,
-                                                             int sidecarPort)
+    public DataFrameReader defaultBulkReaderDataFrame(SparkConf sparkConf,
+                                                      SparkSession spark,
+                                                      QualifiedName tableName,
+                                                      DnsResolver dnsResolver,
+                                                      int sidecarPort)
     {
         SQLContext sql = spark.sqlContext();
         SparkContext sc = spark.sparkContext();
@@ -74,7 +95,7 @@ public final class SparkTestUtils
         int numCores = coresPerExecutor * numExecutors;
 
         return sql.read().format("org.apache.cassandra.spark.sparksql.CassandraDataSource")
-                  .option("sidecar_instances", sidecarInstancesOption)
+                  .option("sidecar_instances", sidecarInstancesOption(cluster, dnsResolver))
                   .option("keyspace", tableName.keyspace()) // unquoted
                   .option("table", tableName.table()) // unquoted
                   .option("DC", "datacenter1")
@@ -94,20 +115,20 @@ public final class SparkTestUtils
      * Returns a {@link DataFrameWriter<Row>} with default options for performing a bulk write test, including
      * required parameters.
      *
-     * @param df                     the source data frame
-     * @param tableName              the qualified name of the table
-     * @param sidecarInstancesOption the comma-separated list of sidecar instances
-     * @param sidecarPort            the sidecar port
+     * @param df          the source data frame
+     * @param tableName   the qualified name of the table
+     * @param dnsResolver the DNS resolver used to lookup replicas
+     * @param sidecarPort the sidecar port
      * @return a {@link DataFrameWriter<Row>} with default options for performing a bulk write test
      */
-    public static DataFrameWriter<Row> defaultBulkWriterDataFrameWriter(Dataset<Row> df,
-                                                                        QualifiedName tableName,
-                                                                        String sidecarInstancesOption,
-                                                                        int sidecarPort)
+    public DataFrameWriter<Row> defaultBulkWriterDataFrameWriter(Dataset<Row> df,
+                                                                 QualifiedName tableName,
+                                                                 DnsResolver dnsResolver,
+                                                                 int sidecarPort)
     {
         return df.write()
                  .format("org.apache.cassandra.spark.sparksql.CassandraDataSink")
-                 .option("sidecar_instances", sidecarInstancesOption)
+                 .option("sidecar_instances", sidecarInstancesOption(cluster, dnsResolver))
                  .option("keyspace", tableName.keyspace())
                  .option("table", tableName.table())
                  .option("local_dc", "datacenter1")
@@ -117,7 +138,7 @@ public final class SparkTestUtils
                  .mode("append");
     }
 
-    public static SparkConf defaultSparkConf()
+    public SparkConf defaultSparkConf()
     {
         SparkConf sparkConf = new SparkConf()
                               .setAppName("Integration test Spark Cassandra Bulk Analytics Job")
@@ -134,7 +155,7 @@ public final class SparkTestUtils
         return sparkConf;
     }
 
-    public static void validateWrites(List<Row> sourceData, Object[][] queriedData)
+    public void validateWrites(List<Row> sourceData, Object[][] queriedData)
     {
         // build a set of entries read from Cassandra into a set
         Set<String> actualEntries = Arrays.stream(queriedData)
@@ -160,5 +181,25 @@ public final class SparkTestUtils
         // If this fails, it means there was more data in the database than we expected
         assertThat(actualEntries).as("All entries are expected to be read from database")
                                  .isEmpty();
+    }
+
+    /**
+     * @return a comma-separated string with a list of all the hosts in the in-jvm dtest cluster
+     */
+    protected String sidecarInstancesOption(ICluster<? extends IInstance> cluster, DnsResolver dnsResolver)
+    {
+        return IntStream.rangeClosed(1, cluster.size())
+                        .mapToObj(i -> {
+                            String ipAddress = JMXUtil.getJmxHost(cluster.get(i).config());
+                            try
+                            {
+                                return dnsResolver.reverseResolve(ipAddress);
+                            }
+                            catch (UnknownHostException e)
+                            {
+                                return ipAddress;
+                            }
+                        })
+                        .collect(Collectors.joining(","));
     }
 }

@@ -39,6 +39,7 @@ import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.cassandra.utils.Shared;
 
 import static com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM;

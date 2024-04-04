@@ -18,25 +18,25 @@
 
 package org.apache.cassandra.analytics;
 
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
 
-import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
-import org.apache.cassandra.testing.TestVersion;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.jetbrains.annotations.NotNull;
 
 import static com.datastax.driver.core.ConsistencyLevel.ALL;
 import static com.datastax.driver.core.ConsistencyLevel.ONE;
@@ -51,7 +51,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 /**
  * Collection of in-jvm-dtest based integration tests to validate the bulk write path when blocked instances
  * are configured.
- *
+ * <p>
  * Note: Since these tests are derived from {@link SharedClusterSparkIntegrationTestBase}, the tests reuse the same
  * cluster with a unique table per test case. The implicit mapping from the test case to the table is made by
  * creating the tables using the method name in {@link BlockedInstancesTest#initializeSchemaForTest()}.
@@ -65,7 +65,7 @@ public class BlockedInstancesTest extends ResiliencyTestBase
     void testSingleBlockedNodeSucceeds(TestInfo testInfo)
     {
         TestConsistencyLevel cl = TestConsistencyLevel.of(QUORUM, QUORUM);
-        QualifiedName table = new QualifiedName(TEST_KEYSPACE, testInfo.getTestMethod().get().getName().toLowerCase());
+        QualifiedName table = new QualifiedName(TEST_KEYSPACE, tableName(testInfo));
         bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
                                             .option(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2")
                                             .save();
@@ -81,7 +81,7 @@ public class BlockedInstancesTest extends ResiliencyTestBase
     void testSingleBlockedNodeWithWriteFailure(TestInfo testInfo)
     {
         TestConsistencyLevel cl = TestConsistencyLevel.of(ONE, ALL);
-        QualifiedName table = new QualifiedName(TEST_KEYSPACE, testInfo.getTestMethod().get().getName().toLowerCase());
+        QualifiedName table = new QualifiedName(TEST_KEYSPACE, tableName(testInfo));
         Throwable thrown = catchThrowable(() ->
                                           bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
                                                                               .option(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2")
@@ -93,7 +93,7 @@ public class BlockedInstancesTest extends ResiliencyTestBase
     void testMultipleBlockedNodesWithWriteFailure(TestInfo testInfo)
     {
         TestConsistencyLevel cl = TestConsistencyLevel.of(QUORUM, QUORUM);
-        QualifiedName table = new QualifiedName(TEST_KEYSPACE, testInfo.getTestMethod().get().getName().toLowerCase());
+        QualifiedName table = new QualifiedName(TEST_KEYSPACE, tableName(testInfo));
         Throwable thrown = catchThrowable(() ->
                                           bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
                                                                               .option(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2,127.0.0.3")
@@ -114,17 +114,15 @@ public class BlockedInstancesTest extends ResiliencyTestBase
 
         assertThat(cause).isNotNull()
                          .hasMessageFindingMatch(String.format("Failed to load (\\d+) ranges with %s for " +
-                                                 "job ([a-zA-Z0-9-]+) in phase Environment Validation.", cl.writeCL));
+                                                               "job ([a-zA-Z0-9-]+) in phase Environment Validation.", cl.writeCL));
 
         expectedInstanceData.entrySet()
-                            .stream()
                             .forEach(e -> e.setValue(Collections.emptySet()));
         validateNodeSpecificData(table, expectedInstanceData);
         validateData(table, cl.readCL, 0);
-
     }
 
-
+    @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
         return clusterConfig().nodesPerDc(3)
@@ -134,17 +132,12 @@ public class BlockedInstancesTest extends ResiliencyTestBase
     @Override
     protected void beforeTestStart()
     {
+        super.beforeTestStart();
         SparkSession spark = getOrCreateSparkSession();
         // Generate some artificial data for the test
         df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
         // Generate the expected data for the new instances
         expectedInstanceData = generateExpectedInstanceData(cluster, Collections.emptyList(), ROW_COUNT);
-    }
-
-    @Override
-    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
-    {
-        return clusterBuilder(testClusterConfiguration(), testVersion);
     }
 
     @Override
@@ -159,5 +152,13 @@ public class BlockedInstancesTest extends ResiliencyTestBase
                 createTestTable(new QualifiedName(TEST_KEYSPACE, method.getName().toLowerCase()), CREATE_TEST_TABLE_STATEMENT);
             }
         }
+    }
+
+    @NotNull
+    private String tableName(TestInfo testInfo)
+    {
+        Optional<Method> testMethod = testInfo.getTestMethod();
+        assertThat(testMethod).isPresent();
+        return testMethod.get().getName().toLowerCase();
     }
 }

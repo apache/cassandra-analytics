@@ -19,14 +19,6 @@
 
 package org.apache.cassandra.analytics;
 
-import java.net.UnknownHostException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
-
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,7 +27,6 @@ import com.vdurmont.semver4j.Semver;
 import io.vertx.junit5.VertxExtension;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
-import org.apache.cassandra.distributed.shared.JMXUtil;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.sidecar.testing.SharedClusterIntegrationTestBase;
 import org.apache.spark.SparkConf;
@@ -45,12 +36,6 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.StructField;
-import relocated.shaded.com.datastax.driver.core.ResultSet;
-
-import static org.apache.cassandra.analytics.SparkTestUtils.defaultBulkReaderDataFrame;
-import static org.apache.cassandra.analytics.SparkTestUtils.defaultBulkWriterDataFrameWriter;
-import static org.apache.cassandra.analytics.SparkTestUtils.defaultSparkConf;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Extends functionality from {@link SharedClusterIntegrationTestBase} and provides additional functionality for running
@@ -62,22 +47,26 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
 {
     protected SparkConf sparkConf;
     protected SparkSession sparkSession;
+    protected SparkTestUtils sparkTestUtils;
     protected CassandraBridge bridge;
 
-    public void validateWritesWithDriverResultSet(List<Row> sourceData, ResultSet queriedData,
-                                                  Function<relocated.shaded.com.datastax.driver.core.Row, String> rowFormatter)
+    public SharedClusterSparkIntegrationTestBase()
     {
-        Set<String> actualEntries = new HashSet<>();
-        queriedData.forEach(row -> actualEntries.add(rowFormatter.apply(row)));
+        sparkTestUtils = SparkTestUtilsProvider.utils();
+    }
 
-        // Number of entries in Cassandra must match the original datasource
-        assertThat(actualEntries.size()).isEqualTo(sourceData.size());
+    @Override
+    protected void beforeTestStart()
+    {
+        super.beforeTestStart();
+        sparkTestUtils.initialize(cluster.delegate());
+    }
 
-        // remove from actual entries to make sure that the data read is the same as the data written
-        Set<String> sourceEntries = sourceData.stream().map(this::getFormattedSourceEntry)
-                                              .collect(Collectors.toSet());
-        assertThat(actualEntries).as("All entries are expected to be read from database")
-                                 .containsExactlyInAnyOrderElementsOf(sourceEntries);
+    @Override
+    protected void afterClusterShutdown()
+    {
+        super.afterClusterShutdown();
+        sparkTestUtils.tearDown();
     }
 
     /**
@@ -89,11 +78,11 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
      */
     protected DataFrameReader bulkReaderDataFrame(QualifiedName tableName)
     {
-        return defaultBulkReaderDataFrame(getOrCreateSparkConf(),
-                                          getOrCreateSparkSession(),
-                                          tableName,
-                                          sidecarInstancesOption(),
-                                          server.actualPort());
+        return sparkTestUtils.defaultBulkReaderDataFrame(getOrCreateSparkConf(),
+                                                         getOrCreateSparkSession(),
+                                                         tableName,
+                                                         dnsResolver,
+                                                         server.actualPort());
     }
 
     /**
@@ -106,34 +95,17 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
      */
     protected DataFrameWriter<Row> bulkWriterDataFrameWriter(Dataset<Row> df, QualifiedName tableName)
     {
-        return defaultBulkWriterDataFrameWriter(df, tableName, sidecarInstancesOption(), server.actualPort());
-    }
-
-    /**
-     * @return a comma-separated string with a list of all the hosts in the in-jvm dtest cluster
-     */
-    protected String sidecarInstancesOption()
-    {
-        return IntStream.rangeClosed(1, cluster.size())
-                        .mapToObj(i -> {
-                            String ipAddress = JMXUtil.getJmxHost(cluster.get(i).config());
-                            try
-                            {
-                                return dnsResolver.reverseResolve(ipAddress);
-                            }
-                            catch (UnknownHostException e)
-                            {
-                                return ipAddress;
-                            }
-                        })
-                        .collect(Collectors.joining(","));
+        return sparkTestUtils.defaultBulkWriterDataFrameWriter(df,
+                                                               tableName,
+                                                               dnsResolver,
+                                                               server.actualPort());
     }
 
     protected SparkConf getOrCreateSparkConf()
     {
         if (sparkConf == null)
         {
-            sparkConf = defaultSparkConf();
+            sparkConf = sparkTestUtils.defaultSparkConf();
         }
         return sparkConf;
     }

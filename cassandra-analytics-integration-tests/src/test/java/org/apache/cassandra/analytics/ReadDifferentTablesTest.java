@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.analytics;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -27,16 +26,9 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
-import com.vdurmont.semver4j.Semver;
-import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
-import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.IInstance;
-import org.apache.cassandra.distributed.api.TokenSupplier;
-import org.apache.cassandra.distributed.shared.Versions;
-import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.testing.TestVersion;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
@@ -97,27 +89,5 @@ class ReadDifferentTablesTest extends SharedClusterSparkIntegrationTestBase
             firstRunningInstance.coordinator().execute(query1, ConsistencyLevel.ALL);
             firstRunningInstance.coordinator().execute(query2, ConsistencyLevel.ALL);
         }
-    }
-
-    @Override
-    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
-    {
-        // spin up a C* cluster using the in-jvm dtest
-        Versions versions = Versions.find();
-        Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(), Semver.SemverType.LOOSE));
-
-        UpgradeableCluster.Builder clusterBuilder =
-        UpgradeableCluster.build(1)
-                          .withDynamicPortAllocation(true)
-                          .withVersion(requestedVersion)
-                          .withDCs(1)
-                          .withDataDirCount(1)
-                          .withSharedClasses(JvmDTestSharedClassesPredicate.INSTANCE)
-                          .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
-                                                      .with(Feature.GOSSIP)
-                                                      .with(Feature.JMX));
-        TokenSupplier tokenSupplier = TokenSupplier.evenlyDistributedTokens(1, clusterBuilder.getTokenCount());
-        clusterBuilder.withTokenSupplier(tokenSupplier);
-        return clusterBuilder.start();
     }
 }

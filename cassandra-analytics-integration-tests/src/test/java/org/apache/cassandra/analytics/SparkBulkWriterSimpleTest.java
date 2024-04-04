@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.analytics;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -32,15 +31,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.vdurmont.semver4j.Semver;
-import org.apache.cassandra.distributed.UpgradeableCluster;
-import org.apache.cassandra.distributed.api.Feature;
-import org.apache.cassandra.distributed.api.TokenSupplier;
-import org.apache.cassandra.distributed.shared.Versions;
-import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
-import org.apache.cassandra.testing.TestVersion;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
@@ -101,25 +94,10 @@ class SparkBulkWriterSimpleTest extends SharedClusterSparkIntegrationTestBase
     }
 
     @Override
-    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
+    protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        // spin up a C* cluster using the in-jvm dtest
-        Versions versions = Versions.find();
-        Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(), Semver.SemverType.LOOSE));
-
-        UpgradeableCluster.Builder clusterBuilder =
-        UpgradeableCluster.build(3)
-                          .withDynamicPortAllocation(true)
-                          .withVersion(requestedVersion)
-                          .withDCs(1)
-                          .withDataDirCount(1)
-                          .withSharedClasses(JvmDTestSharedClassesPredicate.INSTANCE)
-                          .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
-                                                      .with(Feature.GOSSIP)
-                                                      .with(Feature.JMX));
-        TokenSupplier tokenSupplier = TokenSupplier.evenlyDistributedTokens(3, clusterBuilder.getTokenCount());
-        clusterBuilder.withTokenSupplier(tokenSupplier);
-        return clusterBuilder.start();
+        return super.testClusterConfiguration()
+                    .nodesPerDc(3);
     }
 
     // Because the read part of the integration test job doesn't read ttl and timestamp columns, we need to remove them
