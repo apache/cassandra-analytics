@@ -148,21 +148,54 @@ public abstract class SharedClusterIntegrationTestBase
     @BeforeAll
     protected void setup() throws InterruptedException
     {
-        Optional<TestVersion> testVersionGet = TestVersionSupplier.testVersions().findFirst();
-        assertThat(testVersionGet).isPresent();
-        testVersion = testVersionGet.get();
+        Optional<TestVersion> maybeTestVersion = TestVersionSupplier.testVersions().findFirst();
+        assertThat(maybeTestVersion).isPresent();
+        this.testVersion = maybeTestVersion.get();
         logger.info("Testing with version={}", testVersion);
 
         classLoaderWrapper = new IsolatedDTestClassLoaderWrapper();
         classLoaderWrapper.initializeDTestJarClassLoader(testVersion, SharedClusterIntegrationTestBase.class);
 
         beforeClusterProvisioning();
-        cluster = provisionClusterWithRetries(testVersion);
+        cluster = provisionClusterWithRetries(this.testVersion);
         assertThat(cluster).isNotNull();
         afterClusterProvisioned();
         initializeSchemaForTest();
-        startSidecar(cluster, classLoaderWrapper);
+        startSidecar(cluster);
         beforeTestStart();
+    }
+
+    /**
+     * Provisions a cluster with the provided {@link TestVersion}. Up to {@link #MAX_CLUSTER_PROVISION_RETRIES}
+     * attempts will be made to provision a cluster when it fails to provision.
+     *
+     * @param testVersion the version for the test
+     * @return the provisioned cluster
+     */
+    private IClusterExtension<? extends IInstance> provisionClusterWithRetries(TestVersion testVersion)
+    {
+        for (int retry = 0; retry < MAX_CLUSTER_PROVISION_RETRIES; retry++)
+        {
+            try
+            {
+                return classLoaderWrapper.loadCluster(testVersion.version(), testClusterConfiguration());
+            }
+            catch (RuntimeException runtimeException)
+            {
+                boolean addressAlreadyInUse = ThrowableUtils.getCause(runtimeException, ex -> ex instanceof BindException &&
+                                                                                              ex.getMessage() != null &&
+                                                                                              ex.getMessage().contains("Address already in use")) != null;
+                if (addressAlreadyInUse)
+                {
+                    logger.warn("Failed to provision cluster after {} retries", retry, runtimeException);
+                }
+                else
+                {
+                    throw runtimeException;
+                }
+            }
+        }
+        throw new RuntimeException("Unable to provision cluster after " + MAX_CLUSTER_PROVISION_RETRIES + " retries");
     }
 
     @AfterAll
@@ -205,44 +238,6 @@ public abstract class SharedClusterIntegrationTestBase
      */
     protected void beforeClusterProvisioning()
     {
-    }
-
-    /**
-     * Provisions a cluster with the provided {@link TestVersion}. Up to {@link #MAX_CLUSTER_PROVISION_RETRIES}
-     * attempts will be made to provision a cluster when it fails to provision.
-     *
-     * @param testVersion the version for the test
-     * @return the provisioned cluster
-     */
-    private IClusterExtension<? extends IInstance> provisionClusterWithRetries(TestVersion testVersion)
-    {
-        for (int retry = 0; retry < MAX_CLUSTER_PROVISION_RETRIES; retry++)
-        {
-            try
-            {
-                return classLoaderWrapper.loadCluster(testVersion.version(), testClusterConfiguration());
-            }
-            catch (Exception exception)
-            {
-                boolean addressAlreadyInUse =
-                ThrowableUtils.getCause(exception, ex -> ex instanceof BindException &&
-                                                         ex.getMessage() != null &&
-                                                         ex.getMessage().contains("Address already in use")) != null;
-                if (addressAlreadyInUse)
-                {
-                    logger.warn("Failed to provision cluster after {} retries", retry, exception);
-                }
-                else if (exception instanceof RuntimeException)
-                {
-                    throw (RuntimeException) exception;
-                }
-                else
-                {
-                    throw new RuntimeException(exception);
-                }
-            }
-        }
-        throw new RuntimeException("Unable to provision cluster after " + MAX_CLUSTER_PROVISION_RETRIES + " retries");
     }
 
     /**
@@ -306,14 +301,12 @@ public abstract class SharedClusterIntegrationTestBase
      * Starts Sidecar configured to run against the provided Cassandra {@code cluster}.
      *
      * @param cluster the cluster to use
-     * @param wrapper the classloader helper class
-     * @throws InterruptedException when the time exceeds to start Sidecar
+     * @throws InterruptedException when the startup times out
      */
-    protected void startSidecar(ICluster<? extends IInstance> cluster,
-                                IsolatedDTestClassLoaderWrapper wrapper) throws InterruptedException
+    protected void startSidecar(ICluster<? extends IInstance> cluster) throws InterruptedException
     {
         VertxTestContext context = new VertxTestContext();
-        injector = Guice.createInjector(Modules.override(new MainModule()).with(new IntegrationTestModule(cluster, wrapper)));
+        injector = Guice.createInjector(Modules.override(new MainModule()).with(new IntegrationTestModule(cluster, classLoaderWrapper)));
         dnsResolver = injector.getInstance(DnsResolver.class);
         vertx = injector.getInstance(Vertx.class);
         server = injector.getInstance(Server.class);

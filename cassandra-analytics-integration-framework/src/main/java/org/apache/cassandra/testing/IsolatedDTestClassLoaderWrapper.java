@@ -69,7 +69,6 @@ public class IsolatedDTestClassLoaderWrapper
         }
     }
 
-    // TODO : is this used?
     public <T> T executeActionOnDTestClassLoader(ExecutableAction<T> action)
     {
         Thread currentThread = Thread.currentThread();
@@ -85,7 +84,7 @@ public class IsolatedDTestClassLoaderWrapper
         }
     }
 
-    public <T> T executeExceptionableActionOnDTestClassLoader(ExecutableExceptionableAction<T> action) throws IOException
+    public <T> void executeExceptionableActionOnDTestClassLoader(ExecutableExceptionableAction<T> action) throws IOException
     {
         Thread currentThread = Thread.currentThread();
         ClassLoader originalClassLoader = currentThread.getContextClassLoader();
@@ -93,7 +92,7 @@ public class IsolatedDTestClassLoaderWrapper
         try
         {
             currentThread.setContextClassLoader(dtestJarClassLoader);
-            return action.run();
+            action.run();
         }
         finally
         {
@@ -103,9 +102,9 @@ public class IsolatedDTestClassLoaderWrapper
 
     @SuppressWarnings("unchecked")
     public IClusterExtension<? extends IInstance> loadCluster(String versionString,
-                                                              ClusterBuilderConfiguration builderConfiguration) throws Exception
+                                                              ClusterBuilderConfiguration builderConfiguration)
     {
-        return executeExceptionableActionOnDTestClassLoader(() -> {
+        return executeActionOnDTestClassLoader(() -> {
             try
             {
                 Class<?> launcherClass = Class.forName("org.apache.cassandra.distributed.impl.CassandraCluster", true, dtestJarClassLoader);
@@ -119,36 +118,6 @@ public class IsolatedDTestClassLoaderWrapper
                 throw new RuntimeException("Unable to provision cluster for version " + versionString, e);
             }
         });
-    }
-
-    /**
-     * Encapsulates action to be executed.
-     *
-     * @param <T> return type
-     */
-    public interface ExecutableAction<T>
-    {
-        /**
-         * Execute the operation.
-         *
-         * @return Optional value returned by this operation;
-         * implementations should document what, if anything,
-         * is returned by implementations of this method.
-         */
-        T run();
-    }
-
-    public interface ExecutableExceptionableAction<T>
-    {
-        /**
-         * Execute the operation.
-         *
-         * @return Optional value returned by this operation;
-         * implementations should document what, if anything,
-         * is returned by implementations of this method.
-         * @throws IOException that might be possibly thrown by this operation.
-         */
-        T run() throws IOException;
     }
 
     /**
@@ -210,5 +179,32 @@ public class IsolatedDTestClassLoaderWrapper
         {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Encapsulates action to be executed inside the classloader
+     *
+     * @param <T> return type
+     */
+    public interface ExecutableAction<T>
+    {
+        /**
+         * @return (optional) result from the operation that runs inside the classloader
+         */
+        T run();
+    }
+
+    /**
+     * Encapsulates an action that can throw an {@link IOException} while executing inside the classloader
+     *
+     * @param <T> return type
+     */
+    public interface ExecutableExceptionableAction<T>
+    {
+        /**
+         * @return (optional) result from the operation that runs inside the classloader
+         * @throws IOException when an IO exception occurs while running this operation
+         */
+        T run() throws IOException;
     }
 }
