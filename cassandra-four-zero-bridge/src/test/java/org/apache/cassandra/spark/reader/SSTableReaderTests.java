@@ -289,61 +289,61 @@ public class SSTableReaderTests
                     {
                         case Murmur3Partitioner:
                             assertFalse(SparkSSTableReader.overlaps(reader,
-                                                                    TokenRange.closed(Partitioner.Murmur3Partitioner.minToken(),
-                                                                                      Partitioner.Murmur3Partitioner.minToken())));
+                                    TokenRange.closed(Partitioner.Murmur3Partitioner.minToken(),
+                                                      Partitioner.Murmur3Partitioner.minToken())));
                             assertFalse(SparkSSTableReader.overlaps(reader,
-                                                                    TokenRange.closed(Partitioner.Murmur3Partitioner.minToken(),
-                                                                                      Partitioner.Murmur3Partitioner.minToken())));
+                                    TokenRange.closed(Partitioner.Murmur3Partitioner.minToken(),
+                                                      Partitioner.Murmur3Partitioner.minToken())));
                             assertFalse(SparkSSTableReader.overlaps(reader,
-                                                                    TokenRange.closed(BigInteger.valueOf(-8710962479251732708L),
-                                                                                      BigInteger.valueOf(-7686143364045646507L))));
+                                    TokenRange.closed(BigInteger.valueOf(-8710962479251732708L),
+                                                      BigInteger.valueOf(-7686143364045646507L))));
                             assertTrue(SparkSSTableReader.overlaps(reader,
-                                                                   TokenRange.closed(BigInteger.valueOf(-7509452495886106294L),
-                                                                                     BigInteger.valueOf(-7509452495886106293L))));
+                                    TokenRange.closed(BigInteger.valueOf(-7509452495886106294L),
+                                                     BigInteger.valueOf(-7509452495886106293L))));
                             assertTrue(SparkSSTableReader.overlaps(reader,
-                                                                   TokenRange.closed(BigInteger.valueOf(-7509452495886106293L),
-                                                                                     BigInteger.valueOf(-7509452495886106293L))));
+                                    TokenRange.closed(BigInteger.valueOf(-7509452495886106293L),
+                                                     BigInteger.valueOf(-7509452495886106293L))));
                             assertTrue(SparkSSTableReader.overlaps(reader,
-                                                                   TokenRange.closed(BigInteger.valueOf(-7509452495886106293L),
-                                                                                     BigInteger.valueOf(2562047788015215502L))));
+                                    TokenRange.closed(BigInteger.valueOf(-7509452495886106293L),
+                                                     BigInteger.valueOf(2562047788015215502L))));
                             assertTrue(SparkSSTableReader.overlaps(reader,
-                                                                   TokenRange.closed(BigInteger.valueOf(-7509452495886106293L),
-                                                                                     BigInteger.valueOf(9010454139840013625L))));
+                                    TokenRange.closed(BigInteger.valueOf(-7509452495886106293L),
+                                                     BigInteger.valueOf(9010454139840013625L))));
                             assertTrue(SparkSSTableReader.overlaps(reader,
-                                                                   TokenRange.closed(BigInteger.valueOf(9010454139840013625L),
-                                                                                     BigInteger.valueOf(9010454139840013625L))));
+                                    TokenRange.closed(BigInteger.valueOf(9010454139840013625L),
+                                                     BigInteger.valueOf(9010454139840013625L))));
                             assertFalse(SparkSSTableReader.overlaps(reader,
-                                                                    TokenRange.closed(Partitioner.Murmur3Partitioner.maxToken(),
-                                                                                      Partitioner.Murmur3Partitioner.maxToken())));
+                                    TokenRange.closed(Partitioner.Murmur3Partitioner.maxToken(),
+                                                      Partitioner.Murmur3Partitioner.maxToken())));
                             return;
                         case RandomPartitioner:
                             assertFalse(SparkSSTableReader.overlaps(reader,
-                                                                    TokenRange.closed(Partitioner.RandomPartitioner.minToken(),
-                                                                                      Partitioner.RandomPartitioner.minToken())));
+                                    TokenRange.closed(Partitioner.RandomPartitioner.minToken(),
+                                                      Partitioner.RandomPartitioner.minToken())));
                             assertFalse(SparkSSTableReader.overlaps(reader,
-                                                                    TokenRange.closed(BigInteger.valueOf(0L),
-                                                                                      BigInteger.valueOf(500L))));
+                                    TokenRange.closed(BigInteger.valueOf(0L),
+                                                      BigInteger.valueOf(500L))));
                             assertFalse(SparkSSTableReader.overlaps(reader,
-                                                                    TokenRange.closed(new BigInteger("18837662806270881894834867523173387677"),
-                                                                                      new BigInteger("18837662806270881894834867523173387677"))));
+                                    TokenRange.closed(new BigInteger("18837662806270881894834867523173387677"),
+                                                      new BigInteger("18837662806270881894834867523173387677"))));
                             assertTrue(SparkSSTableReader.overlaps(reader,
-                                                                   TokenRange.closed(new BigInteger("18837662806270881894834867523173387678"),
-                                                                                     new BigInteger("18837662806270881894834867523173387678"))));
+                                    TokenRange.closed(new BigInteger("18837662806270881894834867523173387678"),
+                                                      new BigInteger("18837662806270881894834867523173387678"))));
                             assertTrue(SparkSSTableReader.overlaps(reader,
-                                                                   TokenRange.closed(new BigInteger("18837662806270881894834867523173387679"),
-                                                                                     new BigInteger("18837662806270881894834867523173387679"))));
+                                    TokenRange.closed(new BigInteger("18837662806270881894834867523173387679"),
+                                                      new BigInteger("18837662806270881894834867523173387679"))));
                             assertTrue(SparkSSTableReader.overlaps(reader,
-                                                                   TokenRange.closed(new BigInteger("18837662806270881894834867523173387679"),
-                                                                                     new BigInteger("137731376325982006772573399291321493164"))));
+                                    TokenRange.closed(new BigInteger("18837662806270881894834867523173387679"),
+                                                      new BigInteger("137731376325982006772573399291321493164"))));
                             assertTrue(SparkSSTableReader.overlaps(reader,
-                                                                   TokenRange.closed(new BigInteger("137731376325982006772573399291321493164"),
-                                                                                     new BigInteger("137731376325982006772573399291321493164"))));
+                                    TokenRange.closed(new BigInteger("137731376325982006772573399291321493164"),
+                                                      new BigInteger("137731376325982006772573399291321493164"))));
                             assertFalse(SparkSSTableReader.overlaps(reader,
-                                                                    TokenRange.closed(new BigInteger("137731376325982006772573399291321493165"),
-                                                                                      new BigInteger("137731376325982006772573399291321493165"))));
+                                    TokenRange.closed(new BigInteger("137731376325982006772573399291321493165"),
+                                                      new BigInteger("137731376325982006772573399291321493165"))));
                             assertFalse(SparkSSTableReader.overlaps(reader,
-                                                                    TokenRange.closed(Partitioner.RandomPartitioner.maxToken(),
-                                                                                      Partitioner.RandomPartitioner.maxToken())));
+                                    TokenRange.closed(Partitioner.RandomPartitioner.maxToken(),
+                                                      Partitioner.RandomPartitioner.maxToken())));
                             return;
                         default:
                             throw new RuntimeException("Unexpected partitioner: " + partitioner);
@@ -753,40 +753,40 @@ public class SSTableReaderTests
     {
         // Standard SSTable data file name
         assertEquals(new File("./keyspace/table/na-1-big-Data.db"),
-                     SSTableReader.constructFilename("keyspace", "table", "na-1-big-Data.db"));
+                              SSTableReader.constructFilename("keyspace", "table", "na-1-big-Data.db"));
 
         // Non-standard SSTable data file name
         assertEquals(new File("./keyspace/table/na-1-big-Data.db"),
-                     SSTableReader.constructFilename("keyspace", "table", "keyspace-table-na-1-big-Data.db"));
+                              SSTableReader.constructFilename("keyspace", "table", "keyspace-table-na-1-big-Data.db"));
 
         // Malformed SSTable data file names
         assertEquals(new File("./keyspace/table/keyspace-table-qwerty-na-1-big-Data.db"),
-                     SSTableReader.constructFilename("keyspace", "table", "keyspace-table-qwerty-na-1-big-Data.db"));
+                              SSTableReader.constructFilename("keyspace", "table", "keyspace-table-qwerty-na-1-big-Data.db"));
         assertEquals(new File("./keyspace/table/keyspace-qwerty-na-1-big-Data.db"),
-                     SSTableReader.constructFilename("keyspace", "table", "keyspace-qwerty-na-1-big-Data.db"));
+                              SSTableReader.constructFilename("keyspace", "table", "keyspace-qwerty-na-1-big-Data.db"));
         assertEquals(new File("./keyspace/table/qwerty-table-na-1-big-Data.db"),
-                     SSTableReader.constructFilename("keyspace", "table", "qwerty-table-na-1-big-Data.db"));
+                              SSTableReader.constructFilename("keyspace", "table", "qwerty-table-na-1-big-Data.db"));
         assertEquals(new File("./keyspace/table/keyspace-na-1-big-Data.db"),
-                     SSTableReader.constructFilename("keyspace", "table", "keyspace-na-1-big-Data.db"));
+                              SSTableReader.constructFilename("keyspace", "table", "keyspace-na-1-big-Data.db"));
         assertEquals(new File("./keyspace/table/table-na-1-big-Data.db"),
-                     SSTableReader.constructFilename("keyspace", "table", "table-na-1-big-Data.db"));
+                              SSTableReader.constructFilename("keyspace", "table", "table-na-1-big-Data.db"));
         assertEquals(new File("./keyspace/table/qwerty.db"),
-                     SSTableReader.constructFilename("keyspace", "table", "qwerty.db"));
+                              SSTableReader.constructFilename("keyspace", "table", "qwerty.db"));
     }
 
     @Test
     public void testExtractRangeSparkFilter()
     {
         Optional<TokenRange> range1 = SSTableReader.extractRange(
-        SparkRangeFilter.create(TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(500L))),
-        Collections.emptyList());
+                SparkRangeFilter.create(TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(500L))),
+                Collections.emptyList());
         assertTrue(range1.isPresent());
         assertEquals(BigInteger.valueOf(5L), range1.get().firstEnclosedValue());
         assertEquals(BigInteger.valueOf(500L), range1.get().upperEndpoint());
 
         Optional<TokenRange> range2 = SSTableReader.extractRange(
-        SparkRangeFilter.create(TokenRange.closed(BigInteger.valueOf(-10000L), BigInteger.valueOf(29593L))),
-        Collections.emptyList());
+                SparkRangeFilter.create(TokenRange.closed(BigInteger.valueOf(-10000L), BigInteger.valueOf(29593L))),
+                Collections.emptyList());
         assertTrue(range2.isPresent());
         assertEquals(BigInteger.valueOf(-10000L), range2.get().firstEnclosedValue());
         assertEquals(BigInteger.valueOf(29593L), range2.get().upperEndpoint());
@@ -812,8 +812,8 @@ public class SSTableReaderTests
         TokenRange sparkRange = TokenRange.closed(new BigInteger("0"), new BigInteger("2305843009213693952"));
         SparkRangeFilter sparkRangeFilter = SparkRangeFilter.create(sparkRange);
         List<PartitionKeyFilter> inRangePartitionKeyFilters = partitionKeyFilters.stream()
-                                                                                 .filter(filter -> sparkRange.contains(filter.token()))
-                                                                                 .collect(Collectors.toList());
+                .filter(filter -> sparkRange.contains(filter.token()))
+                .collect(Collectors.toList());
         assertTrue(inRangePartitionKeyFilters.size() > 1);
 
         Optional<TokenRange> range = SSTableReader.extractRange(sparkRangeFilter, inRangePartitionKeyFilters);
@@ -867,7 +867,7 @@ public class SSTableReaderTests
 
                     // Mark some SSTables as repaired
                     Map<SSTable, Boolean> isRepaired = TestSSTable.allIn(directory.path()).stream()
-                                                                  .collect(Collectors.toMap(Function.identity(), ssTable -> false));
+                            .collect(Collectors.toMap(Function.identity(), ssTable -> false));
                     int count = 0;
                     for (SSTable ssTable : isRepaired.keySet())
                     {
@@ -879,13 +879,13 @@ public class SSTableReaderTests
                     }
 
                     List<SSTableReader> primaryReaders = TestSSTable.allIn(directory.path()).stream()
-                                                                    .map(ssTable -> openIncrementalReader(metadata, ssTable, stats, true, isRepaired.get(ssTable)))
-                                                                    .filter(reader -> !reader.ignore())
-                                                                    .collect(Collectors.toList());
+                            .map(ssTable -> openIncrementalReader(metadata, ssTable, stats, true, isRepaired.get(ssTable)))
+                            .filter(reader -> !reader.ignore())
+                            .collect(Collectors.toList());
                     List<SSTableReader> nonPrimaryReaders = TestSSTable.allIn(directory.path()).stream()
-                                                                       .map(ssTable -> openIncrementalReader(metadata, ssTable, stats, false, isRepaired.get(ssTable)))
-                                                                       .filter(reader -> !reader.ignore())
-                                                                       .collect(Collectors.toList());
+                            .map(ssTable -> openIncrementalReader(metadata, ssTable, stats, false, isRepaired.get(ssTable)))
+                            .filter(reader -> !reader.ignore())
+                            .collect(Collectors.toList());
 
                     // Primary repair replica should read all SSTables
                     assertEquals(numSSTables, primaryReaders.size());
@@ -899,8 +899,8 @@ public class SSTableReaderTests
                     assertEquals(numUnRepaired, skipCount.get());
 
                     Set<SSTableReader> toCompact = Stream.concat(
-                    primaryReaders.stream().filter(reader -> isRepaired.get(reader.sstable())),
-                    nonPrimaryReaders.stream()).collect(Collectors.toSet());
+                            primaryReaders.stream().filter(reader -> isRepaired.get(reader.sstable())),
+                            nonPrimaryReaders.stream()).collect(Collectors.toSet());
                     assertEquals(numSSTables, toCompact.size());
 
                     int rowCount = 0;
@@ -964,7 +964,7 @@ public class SSTableReaderTests
                     int numSSTables = 24;
                     String partitionKeyStr = (String) BRIDGE.text().randomValue(1024);
                     AbstractMap.SimpleEntry<ByteBuffer, BigInteger> partitionKey =
-                    BRIDGE.getPartitionKey(cqlTable, partitioner, Collections.singletonList(partitionKeyStr));
+                            BRIDGE.getPartitionKey(cqlTable, partitioner, Collections.singletonList(partitionKeyStr));
                     PartitionKeyFilter partitionKeyFilter = PartitionKeyFilter.create(partitionKey.getKey(),
                                                                                       partitionKey.getValue());
                     SparkRangeFilter sparkRangeFilter = SparkRangeFilter.create(TokenRange.closed(partitioner.minToken(),
@@ -1018,9 +1018,9 @@ public class SSTableReaderTests
                     for (SSTable ssTable : ssTables)
                     {
                         SSTableReader reader = readerBuilder(metadata, ssTable, Stats.DoNothingStats.INSTANCE, true, false)
-                                               .withPartitionKeyFilter(partitionKeyFilter)
-                                               .withSparkRangeFilter(sparkRangeFilter)
-                                               .build();
+                                .withPartitionKeyFilter(partitionKeyFilter)
+                                .withSparkRangeFilter(sparkRangeFilter)
+                                .build();
                         if (reader.ignore())
                         {
                             continue;
@@ -1126,8 +1126,8 @@ public class SSTableReaderTests
         try
         {
             return readerBuilder(metadata, ssTable, stats, isRepairPrimary, isRepaired)
-                   .useIncrementalRepair(true)
-                   .build();
+                    .useIncrementalRepair(true)
+                    .build();
         }
         catch (IOException exception)
         {

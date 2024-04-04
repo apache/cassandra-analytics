@@ -51,7 +51,7 @@ public class IsolatedDTestClassLoaderWrapper
         List<URL> urlList = new ArrayList<>(Arrays.asList(Versions.find().getLatest(version).classpath));
         URL classUrl = urlOfClass(clazz);
         urlList.add(classUrl);
-        dtestJarClassLoader = new DTestJarClassLoader(urlList.toArray(URL[]::new), parent);
+        dtestJarClassLoader = new DTestJarClassLoader(urlList.toArray(new URL[0]), parent);
     }
 
     public void closeDTestJarClassLoader()
