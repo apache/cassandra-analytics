@@ -52,15 +52,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class SparkTestUtils
 {
     protected ICluster<? extends IInstance> cluster;
+    private DnsResolver dnsResolver;
+    private int sidecarPort;
 
     /**
      * Runs any initialization code required for the tests
      *
-     * @param cluster the cassandra cluster
+     * @param cluster     the cassandra cluster
+     * @param dnsResolver the DNS resolver used to lookup replicas
+     * @param sidecarPort the port where Sidecar is running
      */
-    public void initialize(ICluster<? extends IInstance> cluster)
+    public void initialize(ICluster<? extends IInstance> cluster, DnsResolver dnsResolver, int sidecarPort)
     {
         this.cluster = Objects.requireNonNull(cluster, "cluster is required");
+        this.dnsResolver = Objects.requireNonNull(dnsResolver, "dnsResolver is required");
+        this.sidecarPort = sidecarPort;
     }
 
     /**
@@ -74,18 +80,14 @@ public class SparkTestUtils
      * Returns a {@link DataFrameReader} with default options for performing a bulk read test, including
      * required parameters.
      *
-     * @param sparkConf   the spark configuration to use
-     * @param spark       the spark session to use
-     * @param tableName   the qualified name of the table
-     * @param dnsResolver the DNS resolver used to lookup replicas
-     * @param sidecarPort the sidecar port
+     * @param sparkConf the spark configuration to use
+     * @param spark     the spark session to use
+     * @param tableName the qualified name of the table
      * @return a {@link DataFrameReader} with default options for performing a bulk read test
      */
     public DataFrameReader defaultBulkReaderDataFrame(SparkConf sparkConf,
                                                       SparkSession spark,
-                                                      QualifiedName tableName,
-                                                      DnsResolver dnsResolver,
-                                                      int sidecarPort)
+                                                      QualifiedName tableName)
     {
         SQLContext sql = spark.sqlContext();
         SparkContext sc = spark.sparkContext();
@@ -115,16 +117,12 @@ public class SparkTestUtils
      * Returns a {@link DataFrameWriter<Row>} with default options for performing a bulk write test, including
      * required parameters.
      *
-     * @param df          the source data frame
-     * @param tableName   the qualified name of the table
-     * @param dnsResolver the DNS resolver used to lookup replicas
-     * @param sidecarPort the sidecar port
+     * @param df        the source data frame
+     * @param tableName the qualified name of the table
      * @return a {@link DataFrameWriter<Row>} with default options for performing a bulk write test
      */
     public DataFrameWriter<Row> defaultBulkWriterDataFrameWriter(Dataset<Row> df,
-                                                                 QualifiedName tableName,
-                                                                 DnsResolver dnsResolver,
-                                                                 int sidecarPort)
+                                                                 QualifiedName tableName)
     {
         return df.write()
                  .format("org.apache.cassandra.spark.sparksql.CassandraDataSink")

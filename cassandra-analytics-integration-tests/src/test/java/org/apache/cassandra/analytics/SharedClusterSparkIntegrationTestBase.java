@@ -68,7 +68,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
     protected void beforeTestStart()
     {
         super.beforeTestStart();
-        sparkTestUtils.initialize(cluster.delegate());
+        sparkTestUtils.initialize(cluster.delegate(), dnsResolver, server.actualPort());
     }
 
     @Override
@@ -87,11 +87,8 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
      */
     protected DataFrameReader bulkReaderDataFrame(QualifiedName tableName)
     {
-        return sparkTestUtils.defaultBulkReaderDataFrame(getOrCreateSparkConf(),
-                                                         getOrCreateSparkSession(),
-                                                         tableName,
-                                                         dnsResolver,
-                                                         server.actualPort());
+        return sparkTestUtils.defaultBulkReaderDataFrame(getOrCreateSparkConf(), getOrCreateSparkSession(),
+                                                         tableName);
     }
 
     /**
@@ -104,10 +101,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
      */
     protected DataFrameWriter<Row> bulkWriterDataFrameWriter(Dataset<Row> df, QualifiedName tableName)
     {
-        return sparkTestUtils.defaultBulkWriterDataFrameWriter(df,
-                                                               tableName,
-                                                               dnsResolver,
-                                                               server.actualPort());
+        return sparkTestUtils.defaultBulkWriterDataFrameWriter(df, tableName);
     }
 
     protected SparkConf getOrCreateSparkConf()
