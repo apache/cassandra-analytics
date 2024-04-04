@@ -36,7 +36,7 @@ import net.bytebuddy.pool.TypePool;
 import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.utils.Shared;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
@@ -95,7 +95,6 @@ class LeavingHalfTest extends LeavingTestBase
     /**
      * ByteBuddy helper for shrinking cluster by half its size
      */
-    @Shared
     public static class BBHelperHalveClusterSize
     {
         static final CountDownLatch transitionalStateStart = new CountDownLatch(3);

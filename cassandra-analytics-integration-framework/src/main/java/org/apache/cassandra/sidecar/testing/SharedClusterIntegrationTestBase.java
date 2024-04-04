@@ -35,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
@@ -43,6 +42,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.datastax.driver.core.Cluster;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Session;
+import com.datastax.driver.core.SimpleStatement;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -52,15 +55,12 @@ import com.google.inject.util.Modules;
 import io.vertx.core.Vertx;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
-import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
-import org.apache.cassandra.distributed.impl.AbstractCluster;
 import org.apache.cassandra.distributed.shared.JMXUtil;
-import org.apache.cassandra.distributed.shared.ShutdownException;
 import org.apache.cassandra.sidecar.cluster.CassandraAdapterDelegate;
 import org.apache.cassandra.sidecar.cluster.InstancesConfig;
 import org.apache.cassandra.sidecar.cluster.InstancesConfigImpl;
@@ -76,17 +76,16 @@ import org.apache.cassandra.sidecar.config.ServiceConfiguration;
 import org.apache.cassandra.sidecar.config.SidecarConfiguration;
 import org.apache.cassandra.sidecar.config.yaml.ServiceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
+import org.apache.cassandra.sidecar.exceptions.ThrowableUtils;
 import org.apache.cassandra.sidecar.server.MainModule;
 import org.apache.cassandra.sidecar.server.Server;
 import org.apache.cassandra.sidecar.utils.CassandraVersionProvider;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
+import org.apache.cassandra.testing.IClusterExtension;
+import org.apache.cassandra.testing.IsolatedDTestClassLoaderWrapper;
 import org.apache.cassandra.testing.TestUtils;
 import org.apache.cassandra.testing.TestVersion;
 import org.apache.cassandra.testing.TestVersionSupplier;
-import org.apache.cassandra.utils.Throwables;
-import relocated.shaded.com.datastax.driver.core.Cluster;
-import relocated.shaded.com.datastax.driver.core.ResultSet;
-import relocated.shaded.com.datastax.driver.core.Session;
-import relocated.shaded.com.datastax.driver.core.SimpleStatement;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -102,7 +101,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <ol>
  *     <li>Find the first version from the {@link TestVersionSupplier#testVersions()}
+ *     <li>(Optional) Before cluster provisioning (implementer can supply)
  *     <li>Provision a cluster for the test using the version from the previous step (implementer must supply)
+ *     <li>(Optional) After cluster provisioned (implementer can supply)
  *     <li>Initialize schemas required for the test (implementer must supply)
  *     <li>Start sidecar that talks to the provisioned cluster
  *     <li>(Optional) Run the before test start method (implementer can supply)
@@ -132,10 +133,11 @@ public abstract class SharedClusterIntegrationTestBase
 
     protected Vertx vertx;
     protected DnsResolver dnsResolver;
-    protected AbstractCluster<? extends IInstance> cluster;
+    protected IClusterExtension<? extends IInstance> cluster;
     protected Server server;
     protected Injector injector;
     protected TestVersion testVersion;
+    private IsolatedDTestClassLoaderWrapper classLoaderWrapper;
 
     static
     {
@@ -144,32 +146,45 @@ public abstract class SharedClusterIntegrationTestBase
     }
 
     @BeforeAll
-    protected void setup() throws InterruptedException, IOException
+    protected void setup() throws InterruptedException
     {
         Optional<TestVersion> maybeTestVersion = TestVersionSupplier.testVersions().findFirst();
         assertThat(maybeTestVersion).isPresent();
         this.testVersion = maybeTestVersion.get();
         logger.info("Testing with version={}", testVersion);
+
+        classLoaderWrapper = new IsolatedDTestClassLoaderWrapper();
+        classLoaderWrapper.initializeDTestJarClassLoader(testVersion, SharedClusterIntegrationTestBase.class);
+
+        beforeClusterProvisioning();
         cluster = provisionClusterWithRetries(this.testVersion);
         assertThat(cluster).isNotNull();
+        afterClusterProvisioned();
         initializeSchemaForTest();
         startSidecar(cluster);
         beforeTestStart();
     }
 
-    protected AbstractCluster<? extends IInstance> provisionClusterWithRetries(TestVersion testVersion) throws IOException
+    /**
+     * Provisions a cluster with the provided {@link TestVersion}. Up to {@link #MAX_CLUSTER_PROVISION_RETRIES}
+     * attempts will be made to provision a cluster when it fails to provision.
+     *
+     * @param testVersion the version for the test
+     * @return the provisioned cluster
+     */
+    private IClusterExtension<? extends IInstance> provisionClusterWithRetries(TestVersion testVersion)
     {
         for (int retry = 0; retry < MAX_CLUSTER_PROVISION_RETRIES; retry++)
         {
             try
             {
-                return provisionCluster(testVersion);
+                return classLoaderWrapper.loadCluster(testVersion.version(), testClusterConfiguration());
             }
             catch (RuntimeException runtimeException)
             {
-                boolean addressAlreadyInUse = Throwables.anyCauseMatches(runtimeException,
-                                                                         ex -> ex instanceof BindException &&
-                                                                               StringUtils.contains(ex.getMessage(), "Address already in use"));
+                boolean addressAlreadyInUse = ThrowableUtils.getCause(runtimeException, ex -> ex instanceof BindException &&
+                                                                                              ex.getMessage() != null &&
+                                                                                              ex.getMessage().contains("Address already in use")) != null;
                 if (addressAlreadyInUse)
                 {
                     logger.warn("Failed to provision cluster after {} retries", retry, runtimeException);
@@ -180,25 +195,57 @@ public abstract class SharedClusterIntegrationTestBase
                 }
             }
         }
-        throw new RuntimeException("Unable to provision cluster");
+        throw new RuntimeException("Unable to provision cluster after " + MAX_CLUSTER_PROVISION_RETRIES + " retries");
     }
 
     @AfterAll
-    protected void tearDown() throws InterruptedException
+    protected void tearDown() throws Exception
     {
-        beforeSidecarStop();
-        stopSidecar();
-        beforeClusterShutdown();
-        closeCluster();
-        afterClusterShutdown();
+        try
+        {
+            beforeSidecarStop();
+            stopSidecar();
+            beforeClusterShutdown();
+            closeCluster();
+            afterClusterShutdown();
+        }
+        finally
+        {
+            if (classLoaderWrapper != null)
+            {
+                classLoaderWrapper.closeDTestJarClassLoader();
+            }
+        }
     }
 
     /**
-     * @param testVersion the Cassandra version to use for the test
-     * @return a provisioned cluster to use for tests
-     * @throws IOException when provisioning a cluster fails
+     * Returns the configuration for the test cluster. The default configuration for the cluster has 1
+     * node, 1 DC, 1 data directory per node, with the {@link org.apache.cassandra.distributed.api.Feature#GOSSIP},
+     * {@link org.apache.cassandra.distributed.api.Feature#JMX}, and
+     * {@link org.apache.cassandra.distributed.api.Feature#NATIVE_PROTOCOL} features enabled. It uses dynamic port
+     * allocation for the Cassandra service ports. This method can be overridden to provide a different configuration
+     * for the cluster.
+     *
+     * @return the configuration for the test cluster
      */
-    protected abstract UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException;
+    protected ClusterBuilderConfiguration testClusterConfiguration()
+    {
+        return new ClusterBuilderConfiguration();
+    }
+
+    /**
+     * Override to perform an action before the cluster provisioning
+     */
+    protected void beforeClusterProvisioning()
+    {
+    }
+
+    /**
+     * Override to perform an action after the cluster has been successfully provisioned
+     */
+    protected void afterClusterProvisioned()
+    {
+    }
 
     /**
      * Initialize required schemas for the tests upfront before the test starts
@@ -256,10 +303,10 @@ public abstract class SharedClusterIntegrationTestBase
      * @param cluster the cluster to use
      * @throws InterruptedException when the startup times out
      */
-    protected void startSidecar(AbstractCluster<? extends IInstance> cluster) throws InterruptedException
+    protected void startSidecar(ICluster<? extends IInstance> cluster) throws InterruptedException
     {
         VertxTestContext context = new VertxTestContext();
-        injector = Guice.createInjector(Modules.override(new MainModule()).with(new IntegrationTestModule(cluster)));
+        injector = Guice.createInjector(Modules.override(new MainModule()).with(new IntegrationTestModule(cluster, classLoaderWrapper)));
         dnsResolver = injector.getInstance(DnsResolver.class);
         vertx = injector.getInstance(Vertx.class);
         server = injector.getInstance(Server.class);
@@ -295,8 +342,10 @@ public abstract class SharedClusterIntegrationTestBase
 
     /**
      * Closes the cluster and its resources
+     *
+     * @throws Exception on an exception generated during cluster shutdown
      */
-    protected void closeCluster()
+    protected void closeCluster() throws Exception
     {
         if (cluster == null)
         {
@@ -311,7 +360,8 @@ public abstract class SharedClusterIntegrationTestBase
         // `catch (ShutdownException)` won't always work - compare the canonical names instead.
         catch (Throwable t)
         {
-            if (Objects.equals(t.getClass().getCanonicalName(), ShutdownException.class.getCanonicalName()))
+            if (Objects.equals(t.getClass().getCanonicalName(),
+                               "org.apache.cassandra.distributed.shared.ShutdownException"))
             {
                 logger.debug("Encountered shutdown exception which closing the cluster", t);
             }
@@ -354,55 +404,64 @@ public abstract class SharedClusterIntegrationTestBase
     }
 
     /**
+     * Convenience method to query all data from the provided {@code table} at consistency level ALL.
+     *
+     * @param table the qualified Cassandra table name
+     * @return all the data queried from the table
+     */
+    protected ResultSet queryAllDataWithDriver(QualifiedName table)
+    {
+        return queryAllDataWithDriver(table, com.datastax.driver.core.ConsistencyLevel.ALL);
+    }
+
+    /**
      * Convenience method to query all data from the provided {@code table} at the specified consistency level.
      *
      * @param table       the qualified Cassandra table name
      * @param consistency the consistency level to use for querying the data
      * @return all the data queried from the table
      */
-    protected ResultSet queryAllDataWithDriver(ICluster<?> cluster, QualifiedName table,
-                                               relocated.shaded.com.datastax.driver.core.ConsistencyLevel consistency)
+    protected ResultSet queryAllDataWithDriver(QualifiedName table,
+                                               com.datastax.driver.core.ConsistencyLevel consistency)
     {
-        Cluster driverCluster = createDriverCluster(cluster);
+        Cluster driverCluster = createDriverCluster(cluster.delegate());
         Session session = driverCluster.connect();
         SimpleStatement statement = new SimpleStatement(String.format("SELECT * FROM %s;", table));
         statement.setConsistencyLevel(consistency);
         return session.execute(statement);
     }
 
+    // Utility methods
+
     public static Cluster createDriverCluster(ICluster<? extends IInstance> dtest)
     {
-        if (dtest.size() == 0)
-        {
-            throw new IllegalArgumentException("Attempted to open java driver for empty cluster");
-        }
-        else
-        {
-            dtest.stream().forEach((i) -> {
-                if (!i.config().has(Feature.NATIVE_PROTOCOL) || !i.config().has(Feature.GOSSIP))
-                {
-                    throw new IllegalStateException("Java driver requires Feature.NATIVE_PROTOCOL and Feature.GOSSIP; " +
-                                                    "but one or more is missing");
-                }
-            });
-            Cluster.Builder builder = Cluster.builder();
-            dtest.stream().forEach((i) -> {
-                InetSocketAddress address = new InetSocketAddress(i.broadcastAddress().getAddress(),
-                                                                  i.config().getInt("native_transport_port"));
-                builder.addContactPointsWithPorts(address);
-            });
+        dtest.stream().forEach((i) -> {
+            if (!i.config().has(Feature.NATIVE_PROTOCOL) || !i.config().has(Feature.GOSSIP))
+            {
+                throw new IllegalStateException("Java driver requires Feature.NATIVE_PROTOCOL and Feature.GOSSIP; " +
+                                                "but one or more is missing");
+            }
+        });
+        Cluster.Builder builder = Cluster.builder()
+                                         .withoutMetrics();
+        dtest.stream().forEach((i) -> {
+            InetSocketAddress address = new InetSocketAddress(i.broadcastAddress().getAddress(),
+                                                              i.config().getInt("native_transport_port"));
+            builder.addContactPointsWithPorts(address);
+        });
 
-            return builder.build();
-        }
+        return builder.build();
     }
 
     static class IntegrationTestModule extends AbstractModule
     {
-        private final AbstractCluster<? extends IInstance> cluster;
+        private final ICluster<? extends IInstance> cluster;
+        private final IsolatedDTestClassLoaderWrapper wrapper;
 
-        IntegrationTestModule(AbstractCluster<? extends IInstance> cluster)
+        IntegrationTestModule(ICluster<? extends IInstance> cluster, IsolatedDTestClassLoaderWrapper wrapper)
         {
             this.cluster = cluster;
+            this.wrapper = wrapper;
         }
 
         @Provides
@@ -420,14 +479,15 @@ public abstract class SharedClusterIntegrationTestBase
                                                                                     SharedExecutorNettyOptions.INSTANCE);
 
             List<InstanceMetadata> instanceMetadataList =
-            IntStream.range(0, cluster.size())
+            IntStream.rangeClosed(1, cluster.size())
                      .mapToObj(i -> buildInstanceMetadata(vertx,
-                                                          cluster.get(i + 1),
+                                                          cluster.get(i),
                                                           cassandraVersionProvider,
                                                           sidecarVersionProvider.sidecarVersion(),
                                                           jmxConfiguration,
                                                           cqlSessionProvider,
-                                                          dnsResolver))
+                                                          dnsResolver,
+                                                          wrapper))
                      .collect(Collectors.toList());
             return new InstancesConfigImpl(instanceMetadataList, dnsResolver);
         }
@@ -478,7 +538,8 @@ public abstract class SharedClusterIntegrationTestBase
                                                       String sidecarVersion,
                                                       JmxConfiguration jmxConfiguration,
                                                       CQLSessionProvider session,
-                                                      DnsResolver dnsResolver)
+                                                      DnsResolver dnsResolver,
+                                                      IsolatedDTestClassLoaderWrapper wrapper)
         {
             IInstanceConfig config = cassandraInstance.config();
             String ipAddress = JMXUtil.getJmxHost(config);
@@ -495,12 +556,12 @@ public abstract class SharedClusterIntegrationTestBase
             String[] dataDirectories = (String[]) config.get("data_file_directories");
             String stagingDir = stagingDir(dataDirectories);
 
-            JmxClient jmxClient = JmxClient.builder()
-                                           .host(ipAddress)
-                                           .port(config.jmxPort())
-                                           .connectionMaxRetries(jmxConfiguration.maxRetries())
-                                           .connectionRetryDelayMillis(jmxConfiguration.retryDelayMillis())
-                                           .build();
+            JmxClient jmxClient = new JmxClientProxy(wrapper,
+                                                     JmxClient.builder()
+                                                              .host(ipAddress)
+                                                              .port(config.jmxPort())
+                                                              .connectionMaxRetries(jmxConfiguration.maxRetries())
+                                                              .connectionRetryDelayMillis(jmxConfiguration.retryDelayMillis()));
             CassandraAdapterDelegate delegate = new CassandraAdapterDelegate(vertx,
                                                                              config.num(),
                                                                              versionProvider,
@@ -529,6 +590,41 @@ public abstract class SharedClusterIntegrationTestBase
             assertThat(dataDirParentPath).isNotNull();
             Path stagingPath = dataDirParentPath.resolve("staging");
             return stagingPath.toFile().getAbsolutePath();
+        }
+    }
+
+    protected JmxClient wrapJmxClient(JmxClient.Builder builder)
+    {
+        return new JmxClientProxy(classLoaderWrapper, builder);
+    }
+
+    /**
+     * Runs JMXClient calls with the dtest classloader
+     */
+    static class JmxClientProxy extends JmxClient
+    {
+        private final IsolatedDTestClassLoaderWrapper wrapper;
+
+        protected JmxClientProxy(IsolatedDTestClassLoaderWrapper wrapper, Builder builder)
+        {
+            super(Objects.requireNonNull(builder, "builder must be provided"));
+            this.wrapper = wrapper;
+        }
+
+        /**
+         * Connects to JMX by running inside the wrapped classloader. The connection to JMX must be established in the
+         * dtest classloader to be able to communicate to Cassandra's JMX.
+         *
+         * @param currentAttempt the current attempt to connect
+         * @throws IOException if the underlying operation throws an IOException
+         */
+        @Override
+        protected void connectInternal(int currentAttempt) throws IOException
+        {
+            wrapper.executeExceptionableActionOnDTestClassLoader(() -> {
+                super.connectInternal(currentAttempt);
+                return null;
+            });
         }
     }
 }

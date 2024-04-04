@@ -33,7 +33,7 @@ import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
-import org.apache.cassandra.utils.Shared;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -66,7 +66,6 @@ class HostReplacementFailureTest extends HostReplacementTest
     /**
      * ByteBuddy helper for a single node replacement
      */
-    @Shared
     public static class BBHelperReplacementsNodeFailure
     {
         // Additional latch used here to sequentially start the 2 new nodes to isolate the loading

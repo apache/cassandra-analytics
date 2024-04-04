@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.analytics;
+package org.apache.cassandra.testing;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -39,8 +39,10 @@ public class TestTokenSupplier
      * Tokens are allocation used in tests to simulate token allocation nodes for an approx even distribution
      * in a multiDC environment with neighboring nodes different DCs allocated adjacent tokens.
      * Allocations for new nodes are interleaved among existing tokens.
-     * @param numNodesPerDC no. nodes from a single DC
-     * @param numDcs no. of datacenters
+     *
+     * @param numNodesPerDC    number of nodes from a single DC
+     * @param newNodesPerDC    number of additional nodes for a DC
+     * @param numDcs           no. of datacenters
      * @param numTokensPerNode no. tokens allocated to each node (this is always 1 if there are no vnodes)
      * @return The token supplier that vends the tokens
      */
@@ -60,7 +62,7 @@ public class TestTokenSupplier
 
 
         // Initial value of the first new node
-        BigInteger value  = new BigInteger(tokens[0 + (numDcs - 1)].get(0));
+        BigInteger value  = new BigInteger(tokens[(numDcs - 1)].get(0));
         BigInteger subIncrement = increment.divide(BigInteger.valueOf(2));
 
         int nodeId = (int) totalTokens + 1;

@@ -33,7 +33,7 @@ import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
-import org.apache.cassandra.utils.Shared;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -67,7 +67,6 @@ class JoiningSingleNodeFailureTest extends JoiningSingleNodeTest
     /**
      * ByteBuddy helper for a single joining node failure case
      */
-    @Shared
     public static class BBHelperSingleJoiningNodeFailure
     {
         static final CountDownLatch transitioningStateStart = new CountDownLatch(1);

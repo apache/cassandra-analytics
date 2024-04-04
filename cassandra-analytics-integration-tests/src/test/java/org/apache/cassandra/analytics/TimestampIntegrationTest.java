@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.analytics;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -30,23 +29,15 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
-import com.vdurmont.semver4j.Semver;
-import org.apache.cassandra.distributed.UpgradeableCluster;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
-import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.ICoordinator;
-import org.apache.cassandra.distributed.api.TokenSupplier;
-import org.apache.cassandra.distributed.shared.Versions;
-import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.TimestampOption;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
-import org.apache.cassandra.testing.TestVersion;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
-import static org.apache.cassandra.analytics.ResiliencyTestBase.fixDistributedSchemas;
-import static org.apache.cassandra.analytics.ResiliencyTestBase.waitForHealthyRing;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
@@ -94,29 +85,10 @@ class TimestampIntegrationTest extends SharedClusterSparkIntegrationTestBase
     }
 
     @Override
-    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
+    protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        // spin up a C* cluster using the in-jvm dtest
-        Versions versions = Versions.find();
-        Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(), Semver.SemverType.LOOSE));
-
-        UpgradeableCluster.Builder clusterBuilder =
-        UpgradeableCluster.build(3)
-                          .withDynamicPortAllocation(true)
-                          .withVersion(requestedVersion)
-                          .withDCs(1)
-                          .withDataDirCount(1)
-                          .withSharedClasses(JvmDTestSharedClassesPredicate.INSTANCE)
-                          .withConfig(config -> config.with(Feature.NATIVE_PROTOCOL)
-                                                      .with(Feature.GOSSIP)
-                                                      .with(Feature.JMX));
-        TokenSupplier tokenSupplier = TokenSupplier.evenlyDistributedTokens(3, clusterBuilder.getTokenCount());
-        clusterBuilder.withTokenSupplier(tokenSupplier);
-        UpgradeableCluster cluster = clusterBuilder.start();
-
-        waitForHealthyRing(cluster);
-        fixDistributedSchemas(cluster);
-        return cluster;
+        return super.testClusterConfiguration()
+                    .nodesPerDc(3);
     }
 
     void validateWrites(QualifiedName tableName, List<Row> sourceData)

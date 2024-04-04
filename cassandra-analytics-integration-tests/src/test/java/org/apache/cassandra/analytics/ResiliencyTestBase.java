@@ -24,46 +24,32 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 
 import com.datastax.driver.core.ConsistencyLevel;
-import com.vdurmont.semver4j.Semver;
-import o.a.c.analytics.sidecar.shaded.testing.adapters.base.StorageJmxOperations;
-import o.a.c.analytics.sidecar.shaded.testing.common.JmxClient;
-import org.apache.cassandra.distributed.UpgradeableCluster;
-import org.apache.cassandra.distributed.api.Feature;
+import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
-import org.apache.cassandra.distributed.api.IUpgradeableInstance;
 import org.apache.cassandra.distributed.api.Row;
 import org.apache.cassandra.distributed.api.SimpleQueryResult;
-import org.apache.cassandra.distributed.api.TokenSupplier;
-import org.apache.cassandra.distributed.impl.AbstractCluster;
-import org.apache.cassandra.distributed.shared.ClusterUtils;
-import org.apache.cassandra.distributed.shared.Versions;
-import org.apache.cassandra.sidecar.testing.JvmDTestSharedClassesPredicate;
+import org.apache.cassandra.sidecar.common.JmxClient;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.DecoratedKey;
 import org.apache.cassandra.spark.bulkwriter.Tokenizer;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
-import org.apache.cassandra.testing.TestVersion;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import scala.Tuple2;
 
-import static org.apache.cassandra.distributed.shared.NetworkTopology.dcAndRack;
-import static org.apache.cassandra.distributed.shared.NetworkTopology.networkTopology;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -73,55 +59,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTestBase
 {
     public static final String QUERY_ALL_ROWS = "SELECT * FROM %s";
-
-    public UpgradeableCluster clusterBuilder(ClusterBuilderConfiguration configuration, TestVersion testVersion)
-    throws IOException
-    {
-        // spin up a C* cluster using the in-jvm dtest
-        Versions versions = Versions.find();
-        int nodesPerDc = configuration.nodesPerDc;
-        int dcCount = configuration.dcCount;
-        int newNodesPerDc = configuration.newNodesPerDc;
-        Preconditions.checkArgument(newNodesPerDc >= 0,
-                                    "newNodesPerDc cannot be a negative number");
-        int originalNodeCount = nodesPerDc * dcCount;
-        int finalNodeCount = dcCount * (nodesPerDc + newNodesPerDc);
-        Versions.Version requestedVersion = versions.getLatest(new Semver(testVersion.version(),
-                                                                          Semver.SemverType.LOOSE));
-
-        TokenSupplier tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(nodesPerDc, newNodesPerDc, dcCount, 1);
-
-        UpgradeableCluster.Builder clusterBuilder =
-        UpgradeableCluster.build(originalNodeCount)
-                          .withDynamicPortAllocation(true) // to allow parallel test runs
-                          .withVersion(requestedVersion)
-                          .withDCs(dcCount)
-                          .withDataDirCount(configuration.numDataDirsPerInstance)
-                          .withConfig(config -> configuration.features.forEach(config::with))
-                          .withTokenSupplier(tokenSupplier)
-                          .withSharedClasses(JvmDTestSharedClassesPredicate.INSTANCE);
-
-        if (dcCount > 1)
-        {
-            clusterBuilder.withNodeIdTopology(networkTopology(finalNodeCount,
-                                                              (nodeId) -> nodeId % 2 != 0 ?
-                                                                          dcAndRack("datacenter1", "rack1") :
-                                                                          dcAndRack("datacenter2", "rack2")));
-        }
-
-        if (configuration.instanceInitializer != null)
-        {
-            clusterBuilder.withInstanceInitializer(configuration.instanceInitializer);
-        }
-
-        UpgradeableCluster cluster = clusterBuilder.start();
-        if (cluster.size() > 1)
-        {
-            waitForHealthyRing(cluster);
-            fixDistributedSchemas(cluster);
-        }
-        return cluster;
-    }
 
     public Set<String> getDataForRange(Range<BigInteger> range, int rowCount)
     {
@@ -168,7 +105,7 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
     /**
      * Returns the expected set of rows as strings for each instance in the cluster
      */
-    public Map<IInstance, Set<String>> generateExpectedInstanceData(AbstractCluster<? extends IInstance> cluster,
+    public Map<IInstance, Set<String>> generateExpectedInstanceData(ICluster<? extends IInstance> cluster,
                                                                     List<? extends IInstance> pendingNodes,
                                                                     int rowCount)
     {
@@ -252,13 +189,11 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
     {
         IInstanceConfig config = instance.config();
         Map<List<String>, List<String>> ranges = null;
-        try (JmxClient client = JmxClient.builder()
-                                         .host(config.broadcastAddress().getAddress().getHostAddress())
-                                         .port(config.jmxPort())
-                                         .build())
+        try (JmxClient client = wrapJmxClient(JmxClient.builder()
+                                                       .host(config.broadcastAddress().getAddress().getHostAddress())
+                                                       .port(config.jmxPort())))
         {
-            StorageJmxOperations ss = client.proxy(StorageJmxOperations.class,
-                                                   "org.apache.cassandra.db:type=StorageService");
+            SSProxy ss = client.proxy(SSProxy.class, "org.apache.cassandra.db:type=StorageService");
 
             ranges = isPending ? ss.getPendingRangeToEndpointWithPortMap(TEST_KEYSPACE)
                                : ss.getRangeToEndpointWithPortMap(TEST_KEYSPACE);
@@ -306,109 +241,6 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
         return new ClusterBuilderConfiguration();
     }
 
-    /**
-     * {@code ClusterBuilder} static inner class.
-     */
-    public static class ClusterBuilderConfiguration
-    {
-        public int nodesPerDc = 1;
-        public int dcCount = 1;
-        public int newNodesPerDc = 0;
-        public int numDataDirsPerInstance = 1;
-        private final EnumSet<Feature> features = EnumSet.of(Feature.GOSSIP, Feature.JMX, Feature.NATIVE_PROTOCOL);
-        public BiConsumer<ClassLoader, Integer> instanceInitializer = null;
-
-        private ClusterBuilderConfiguration()
-        {
-        }
-
-        /**
-         * Adds a features to the list of default features.
-         *
-         * @param feature the {@code feature} to add
-         * @return a reference to this Builder
-         */
-        public ClusterBuilderConfiguration requestFeature(Feature feature)
-        {
-            features.add(feature);
-            return this;
-        }
-
-        /**
-         * Removes a feature to the list of requested features for the cluster.
-         *
-         * @param feature the {@code feature} to add
-         * @return a reference to this Builder
-         */
-        public ClusterBuilderConfiguration removeFeature(Feature feature)
-        {
-            features.remove(feature);
-            return this;
-        }
-
-        /**
-         * Sets the {@code nodesPerDc} and returns a reference to this Builder enabling method chaining.
-         *
-         * @param nodesPerDc the {@code nodesPerDc} to set
-         * @return a reference to this Builder
-         */
-        public ClusterBuilderConfiguration nodesPerDc(int nodesPerDc)
-        {
-            this.nodesPerDc = nodesPerDc;
-            return this;
-        }
-
-        /**
-         * Sets the {@code dcCount} and returns a reference to this Builder enabling method chaining.
-         *
-         * @param dcCount the {@code dcCount} to set
-         * @return a reference to this Builder
-         */
-        public ClusterBuilderConfiguration dcCount(int dcCount)
-        {
-            this.dcCount = dcCount;
-            return this;
-        }
-
-        /**
-         * Sets the {@code newNodesPerDc} and returns a reference to this Builder enabling method chaining.
-         *
-         * @param newNodesPerDc the {@code newNodesPerDc} to set
-         * @return a reference to this Builder
-         */
-        public ClusterBuilderConfiguration newNodesPerDc(int newNodesPerDc)
-        {
-            Preconditions.checkArgument(newNodesPerDc >= 0,
-                                        "newNodesPerDc cannot be a negative number");
-            this.newNodesPerDc = newNodesPerDc;
-            return this;
-        }
-
-        /**
-         * Sets the {@code numDataDirsPerInstance} and returns a reference to this Builder enabling method chaining.
-         *
-         * @param numDataDirsPerInstance the {@code numDataDirsPerInstance} to set
-         * @return a reference to this Builder
-         */
-        public ClusterBuilderConfiguration numDataDirsPerInstance(int numDataDirsPerInstance)
-        {
-            this.numDataDirsPerInstance = numDataDirsPerInstance;
-            return this;
-        }
-
-        /**
-         * Sets the {@code instanceInitializer} and returns a reference to this Builder enabling method chaining.
-         *
-         * @param instanceInitializer the {@code instanceInitializer} to set
-         * @return a reference to this Builder
-         */
-        public ClusterBuilderConfiguration instanceInitializer(BiConsumer<ClassLoader, Integer> instanceInitializer)
-        {
-            this.instanceInitializer = instanceInitializer;
-            return this;
-        }
-    }
-
     public static class TestConsistencyLevel
     {
         public final ConsistencyLevel readCL;
@@ -432,28 +264,13 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
         }
     }
 
-    public static void fixDistributedSchemas(UpgradeableCluster cluster)
+    /**
+     * An interface that pulls a method from the Cassandra Storage Service Proxy
+     */
+    public interface SSProxy
     {
-        // These keyspaces are under replicated by default, so must be updated when doing a multi-node cluster;
-        // else bootstrap will fail with 'Unable to find sufficient sources for streaming range <range> in keyspace <name>'
-        for (String ks : Arrays.asList("system_auth", "system_traces"))
-        {
-            cluster.schemaChange("ALTER KEYSPACE " + ks +
-                                 " WITH REPLICATION = {'class': 'SimpleStrategy', 'replication_factor': "
-                                 + Math.min(cluster.size(), 3) + "}",
-                                 true,
-                                 cluster.getFirstRunningInstance());
-        }
+        Map<List<String>, List<String>> getRangeToEndpointWithPortMap(String keyspace);
 
-        // in real live repair is needed in this case, but in the test case it doesn't matter if the tables loose
-        // anything, so ignoring repair to speed up the tests.
-    }
-
-    public static void waitForHealthyRing(UpgradeableCluster cluster)
-    {
-        for (IUpgradeableInstance inst : cluster)
-        {
-            ClusterUtils.awaitRingHealthy(inst);
-        }
+        Map<List<String>, List<String>> getPendingRangeToEndpointWithPortMap(String keyspace);
     }
 }

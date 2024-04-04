@@ -34,7 +34,7 @@ import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
 import org.apache.cassandra.distributed.api.Feature;
-import org.apache.cassandra.utils.Shared;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -68,7 +68,6 @@ class JoiningMultiDCSingleReplicatedFailureTest extends JoiningMultiDCSingleRepl
     /**
      * ByteBuddy helper for multiple joining nodes failure
      */
-    @Shared
     public static class BBHelperMultiDCFailure
     {
         static final CountDownLatch transitioningStateStart = new CountDownLatch(2);

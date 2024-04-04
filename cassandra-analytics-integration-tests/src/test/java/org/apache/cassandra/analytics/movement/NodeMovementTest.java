@@ -39,7 +39,7 @@ import net.bytebuddy.pool.TypePool;
 import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.utils.Shared;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
 import static com.datastax.driver.core.ConsistencyLevel.ALL;
 import static com.datastax.driver.core.ConsistencyLevel.ONE;
@@ -104,7 +104,6 @@ class NodeMovementTest extends NodeMovementTestBase
     /**
      * ByteBuddy Helper for a single moving node
      */
-    @Shared
     public static class BBHelperMovingNode
     {
         static final CountDownLatch transitioningStateStart = new CountDownLatch(1);

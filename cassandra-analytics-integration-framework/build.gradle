@@ -17,76 +17,77 @@
  * under the License.
  */
 
-project(':cassandra-analytics-integration-framework') {
-    apply(plugin: 'java-library')
-    apply(plugin: 'com.github.johnrengelman.shadow')
+plugins {
+    id('java-library')
+    id('maven-publish')
+}
 
-    ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.4.jar" // latest supported Cassandra build is 4.1
-    def dtestJarFullPath = "${dependencyLocation}${ext.dtestJar}"
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
 
-    test {
-        useJUnitPlatform()
-    }
-
-    configurations {
-        configureEach {
-            resolutionStrategy {
-                // Force set the vertx versions that do not depend on a newer jackson version
-                force("io.vertx:vertx-web:${vertxVersion}")
-                force("io.vertx:vertx-core:${vertxVersion}")
-                force("io.vertx:vertx-auth-common:${vertxVersion}")
-                force("io.vertx:vertx-dropwizard-metrics:${vertxVersion}")
-                force("io.vertx:vertx-web-client:${vertxVersion}")
-            }
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            groupId project.group
+            artifactId "${archivesBaseName}"
+            version System.getenv("CODE_VERSION") ?: "${version}"
         }
     }
+}
 
-    dependencies {
+ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.4.jar" // latest supported Cassandra build is 4.1
+def dtestJarFullPath = "${dependencyLocation}${ext.dtestJar}"
 
-        // These dependencies (sidecar + dtest jars) must be built by running `scripts/build-dependencies.sh`
-        implementation(group: 'org.apache.cassandra.sidecar', name: 'common', version: "${sidecarVersion}")
-        implementation(group: 'org.apache.cassandra.sidecar', name: 'adapters-base', version: "${sidecarVersion}")
-        // The server itself
-        implementation (group: "org.apache.cassandra", name: "cassandra-sidecar", version: "${sidecarVersion}") {
-            exclude(group: 'org.apache.logging.log4j')
-            exclude(group: 'org.slf4j')
-            exclude(group: 'ch.qos.logback')
-        }
+test {
+    useJUnitPlatform()
+}
 
-        File dtestJarFile = new File(dtestJarFullPath)
-        assert dtestJarFile.exists()
-        println("Using DTest jar: " + dtestJarFullPath)
-        shadow(files("${dtestJarFullPath}"))
-        shadow("org.apache.cassandra:dtest-api:0.0.16")
-        // Needed by the Cassandra dtest framework
-        // JUnit
-        implementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
-        implementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
-        implementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
+dependencies {
+    // These dependencies (sidecar + dtest jars) must be built by running `scripts/build-dependencies.sh`
+    implementation(group: 'org.apache.cassandra.sidecar', name: 'adapters-base', version: "${sidecarVersion}")
+    implementation(group: 'org.apache.cassandra.sidecar', name: 'adapters-cassandra41', version: "${sidecarVersion}")
 
-        implementation("org.junit.vintage:junit-vintage-engine:${junitVersion}")
-        implementation('org.mockito:mockito-inline:4.10.0')
-        implementation("org.assertj:assertj-core:3.24.2")
+    File dtestJarFile = new File(dtestJarFullPath)
+    println("Using DTest jar: " + dtestJarFullPath + "; present? " + dtestJarFile.exists())
+    // The dtest jar must be a compile only dependency. We want to avoid having this jar in the
+    // classpath while running integration tests. Instead, a dedicated classloader will load the
+    // dtest jar while provisioning the in-jvm dtest Cassandra cluster
+    compileOnly(files("${dtestJarFullPath}"))
+    api("org.apache.cassandra:dtest-api:0.0.16")
+    // Needed by the Cassandra dtest framework
+    // JUnit
+    api("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
+    api("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
+    api("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
 
-        shadow('com.datastax.cassandra:cassandra-driver-core:3.9.0')
+    api("org.junit.vintage:junit-vintage-engine:${junitVersion}")
+    api('org.mockito:mockito-inline:4.10.0')
+    api("org.assertj:assertj-core:3.24.2")
 
-        shadow("com.google.guava:guava:27.0.1-jre")
-        shadow('com.google.inject:guice:4.2.2')
-        shadow("io.vertx:vertx-web:${project.vertxVersion}") {
-            exclude group: 'junit', module: 'junit'
-        }
-        shadow("io.vertx:vertx-web-client:${project.vertxVersion}")
-        shadow("io.vertx:vertx-junit5:${project.vertxVersion}")
+    api('com.datastax.cassandra:cassandra-driver-core:3.11.3')
+    implementation('com.google.inject:guice:4.2.2')
 
-        testImplementation(platform('org.junit:junit-bom:5.9.2'))
-        testImplementation('org.junit.jupiter:junit-jupiter')
-        testImplementation("org.assertj:assertj-core:3.24.2")
+    implementation("com.google.guava:guava:27.0.1-jre")
+    api("io.vertx:vertx-web:${project.vertxVersion}") {
+        exclude group: 'junit', module: 'junit'
     }
+    implementation("io.vertx:vertx-web-client:${project.vertxVersion}")
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.14.3'
 
-    shadowJar {
-        zip64 true
-        relocate('org.apache.cassandra.sidecar', 'o.a.c.analytics.sidecar.shaded.testing') {
-            exclude '%regex[org.apache.cassandra.sidecar.testing.*]'
-        }
+    testImplementation(platform("org.junit:junit-bom:${project.junitVersion}"))
+    testImplementation('org.junit.jupiter:junit-jupiter')
+    testImplementation("org.assertj:assertj-core:3.24.2")
+
+    // Exposed to the test project
+    api("io.vertx:vertx-junit5:${project.vertxVersion}")
+    // The server itself
+    api(group: "org.apache.cassandra", name: "cassandra-sidecar", version: "${sidecarVersion}") {
+        exclude(group: 'org.apache.logging.log4j')
+        exclude(group: 'org.slf4j')
+        exclude(group: 'ch.qos.logback')
     }
+    api(group: 'org.apache.cassandra.sidecar', name: 'common', version: "${sidecarVersion}")
 }

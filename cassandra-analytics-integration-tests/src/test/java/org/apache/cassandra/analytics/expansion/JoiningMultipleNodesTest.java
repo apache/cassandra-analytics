@@ -33,7 +33,7 @@ import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
 import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
-import org.apache.cassandra.utils.Shared;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -69,7 +69,6 @@ class JoiningMultipleNodesTest extends JoiningSingleNodeTest
     /**
      * ByteBuddy helper for multiple joining nodes
      */
-    @Shared
     public static class BBHelperMultipleJoiningNodes
     {
         static final CountDownLatch transitioningStateStart = new CountDownLatch(2);

@@ -19,93 +19,117 @@ import java.nio.file.Paths
  * under the License.
  */
 
-project(':cassandra-analytics-integration-tests') {
-    apply(plugin: 'java-library')
+plugins {
+    id('idea')
+    // A Java library
+    id('java-library')
+    // which is published
+    id('maven-publish')
+}
 
-    def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "3000M"
-    println("Using ${integrationMaxHeapSize} maxHeapSize")
-
-    def integrationMaxParallelForks = (System.getenv("INTEGRATION_MAX_PARALLEL_FORKS") ?: "4") as int
-    println("Using ${integrationMaxParallelForks} maxParallelForks")
-
-    configurations {
-        all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
-        all*.exclude(group: 'log4j', module: 'log4j')
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            groupId project.group
+            artifactId "${archivesBaseName}"
+            version System.getenv("CODE_VERSION") ?: "${version}"
+        }
     }
-    dependencies {
+}
 
-        testImplementation(project(':cassandra-bridge'))
-        testImplementation(project(':cassandra-analytics-core'))
-        testImplementation(group: 'net.java.dev.jna', name: 'jna', version: '5.9.0')
+def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "3000M"
+println("Using ${integrationMaxHeapSize} maxHeapSize")
 
-        testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${sparkVersion}")
-        testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${sparkVersion}")
+def integrationMaxParallelForks = (System.getenv("INTEGRATION_MAX_PARALLEL_FORKS") ?: "4") as int
+println("Using ${integrationMaxParallelForks} maxParallelForks")
 
-        testImplementation(group: "${sidecarClientGroup}", name: "${sidecarClientName}", version: "${sidecarVersion}")
+configurations {
+    // remove netty-all dependency coming from spark
+    all*.exclude(group: 'io.netty', module: 'netty-all')
+    configureEach {
+        resolutionStrategy {
+            // Force set the vertx versions that do not depend on a newer jackson version
+            force("io.vertx:vertx-web:${vertxVersion}")
+            force("io.vertx:vertx-core:${vertxVersion}")
+            force("io.vertx:vertx-auth-common:${vertxVersion}")
+            force("io.vertx:vertx-dropwizard-metrics:${vertxVersion}")
+            force("io.vertx:vertx-web-client:${vertxVersion}")
+        }
+    }
+}
 
-        // JUnit
-        testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
-        testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
-        testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
-        testImplementation("org.assertj:assertj-core:3.24.2")
-        testImplementation(project(path: ":cassandra-analytics-integration-framework", configuration: "shadow"))
-        ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.4.jar" // latest supported Cassandra build is 4.1
-        def dtestJarFullPath = "${dependencyLocation}${ext.dtestJar}"
-        println("Using DTest jar: " + dtestJarFullPath)
-        testCompileOnly(files("${dtestJarFullPath}"))
-        testImplementation("org.apache.cassandra:dtest-api:0.0.16")
-        // Needed by the Cassandra dtest framework
-        testImplementation("org.junit.vintage:junit-vintage-engine:${junitVersion}")
-        testImplementation('com.datastax.cassandra:cassandra-driver-core:3.9.0')
+dependencies {
+    testImplementation(project(':cassandra-analytics-core'))
+    testImplementation(group: 'net.java.dev.jna', name: 'jna', version: '5.9.0')
 
-        testImplementation('org.mockito:mockito-inline:4.10.0')
-        testImplementation("org.assertj:assertj-core:3.24.2")
+    testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${sparkVersion}")
+    testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${sparkVersion}")
 
-        // Logging
-        testImplementation(group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.22.0')
-        testImplementation(group: 'org.apache.logging.log4j', name: 'log4j-api', version: '2.22.0')
-        testImplementation(group: 'org.apache.logging.log4j', name: 'log4j-slf4j-impl', version: '2.22.0')
-        testImplementation(group: 'org.apache.logging.log4j', name: 'log4j-1.2-api', version: '2.22.0')
+    testImplementation(project(path: ":cassandra-analytics-integration-framework"))
+}
+
+test {
+    // Because system properties aren't passed from the command line through to tests, we need to specifically
+    // set them again here.
+    systemProperty "cassandra.test.dtest_jar_path", dependencyLocation
+    systemProperty "cassandra.sidecar.versions_to_test",
+            System.getProperty("cassandra.sidecar.versions_to_test", "4.1")
+    systemProperty "SKIP_STARTUP_VALIDATIONS", "true"
+    systemProperty "logback.configurationFile", "src/test/resources/logback-test.xml"
+    minHeapSize = '1g'
+    maxHeapSize = integrationMaxHeapSize
+    maxParallelForks = integrationMaxParallelForks
+    forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+
+    beforeTest { descriptor ->
+        // println("Setting test tags to ${descriptor.className}-${descriptor.name}")
+        systemProperty "cassandra.testtag", "${descriptor.className}"
+        systemProperty "suitename", "${descriptor.name}"
     }
 
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
 
-    test {
-        // Because system properties aren't passed from the command line through to tests, we need to specifically
-        // set them again here.
-        systemProperty "cassandra.test.dtest_jar_path", dependencyLocation
-        systemProperty "cassandra.sidecar.versions_to_test",
-                System.getProperty("cassandra.sidecar.versions_to_test", "4.1")
-        systemProperty "SKIP_STARTUP_VALIDATIONS", "true"
-        systemProperty "logback.configurationFile", "src/test/resources/logback-test.xml"
-        minHeapSize = '1g'
-        maxHeapSize = integrationMaxHeapSize
-        maxParallelForks = integrationMaxParallelForks
-        forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+    if (JavaVersion.current().isJava11Compatible()) {
+        def JDK11_OPTIONS = ['-Djdk.attach.allowAttachSelf=true',
+                             '--add-exports', 'java.base/jdk.internal.misc=ALL-UNNAMED',
+                             '--add-exports', 'java.base/jdk.internal.ref=ALL-UNNAMED',
+                             '--add-exports', 'java.base/sun.nio.ch=ALL-UNNAMED',
+                             '--add-exports', 'java.management.rmi/com.sun.jmx.remote.internal.rmi=ALL-UNNAMED',
+                             '--add-exports', 'java.rmi/sun.rmi.registry=ALL-UNNAMED',
+                             '--add-exports', 'java.rmi/sun.rmi.server=ALL-UNNAMED',
+                             '--add-exports', 'java.sql/java.sql=ALL-UNNAMED',
+                             '--add-opens', 'java.base/java.lang.module=ALL-UNNAMED',
+                             '--add-opens', 'java.base/jdk.internal.loader=ALL-UNNAMED',
+                             '--add-opens', 'java.base/jdk.internal.ref=ALL-UNNAMED',
+                             '--add-opens', 'java.base/jdk.internal.reflect=ALL-UNNAMED',
+                             '--add-opens', 'java.base/jdk.internal.math=ALL-UNNAMED',
+                             '--add-opens', 'java.base/jdk.internal.module=ALL-UNNAMED',
+                             '--add-opens', 'java.base/jdk.internal.util.jar=ALL-UNNAMED',
+                             '--add-opens', 'jdk.management/com.sun.management.internal=ALL-UNNAMED']
+        jvmArgs(JDK11_OPTIONS)
+        println("JVM arguments for $project.name are $allJvmArgs")
+    }
 
-        beforeTest {descriptor ->
-            // println("Setting test tags to ${descriptor.className}-${descriptor.name}")
-            systemProperty "cassandra.testtag", "${descriptor.className}"
-            systemProperty "suitename", "${descriptor.name}"
+    useJUnitPlatform()
+    def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "integration").toFile()
+    reports {
+        junitXml {
+            enabled true
+            destination = destDir
         }
-
-        testLogging {
-            events "passed", "skipped", "failed"
+        html {
+            enabled true
+            destination = destDir
         }
+    }
+}
 
-        // Make it so unit tests run on a jar with Cassandra bridge implementations built in
-        dependsOn(tasks.jar)
-        classpath = project.sourceSets.test.output + configurations.testRuntimeClasspath + files(jar.archiveFile)
-        useJUnitPlatform()
-        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "integration").toFile()
-        reports {
-            junitXml {
-                enabled true
-                destination = destDir
-            }
-            html {
-                enabled true
-                destination = destDir
-            }
-        }
+java {
+    // Allows publishing the test jar
+    registerFeature("test") {
+        usingSourceSet(sourceSets.test)
     }
 }

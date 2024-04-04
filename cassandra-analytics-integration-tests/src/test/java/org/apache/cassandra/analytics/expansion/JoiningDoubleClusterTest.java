@@ -33,7 +33,7 @@ import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
 import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
-import org.apache.cassandra.utils.Shared;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -70,7 +70,6 @@ class JoiningDoubleClusterTest extends JoiningSingleNodeTest
     /**
      * ByteBuddy helper for doubling cluster size
      */
-    @Shared
     public static class BBHelperDoubleClusterSize
     {
         static final CountDownLatch transitionalStateStart = new CountDownLatch(5);

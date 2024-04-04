@@ -38,8 +38,8 @@ import net.bytebuddy.pool.TypePool;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.cassandra.testing.TestUtils;
-import org.apache.cassandra.utils.Shared;
 
 import static com.datastax.driver.core.ConsistencyLevel.EACH_QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -121,7 +121,6 @@ class HostReplacementMultiDCInsufficientReplicasTest extends HostReplacementTest
     /**
      * ByteBuddy helper for multi DC node replacement failure resulting in insufficient nodes
      */
-    @Shared
     public static class BBHelperNodeReplacementMultiDCInsufficientReplicas
     {
         // Additional latch used here to sequentially start the 2 new nodes to isolate the loading

@@ -18,7 +18,6 @@
 
 package org.apache.cassandra.analytics.movement;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Optional;
@@ -32,13 +31,12 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.ResiliencyTestBase;
 import org.apache.cassandra.analytics.TestUninterruptibles;
-import org.apache.cassandra.distributed.UpgradeableCluster;
+import org.apache.cassandra.testing.utils.ClusterUtils;
+import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
-import org.apache.cassandra.distributed.impl.AbstractCluster;
-import org.apache.cassandra.distributed.shared.ClusterUtils;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
-import org.apache.cassandra.testing.TestVersion;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -69,6 +67,7 @@ abstract class NodeMovementTestBase extends ResiliencyTestBase
     @Override
     protected void beforeTestStart()
     {
+        super.beforeTestStart();
         SparkSession spark = getOrCreateSparkSession();
         // Generate some artificial data for the test
         df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
@@ -77,25 +76,21 @@ abstract class NodeMovementTestBase extends ResiliencyTestBase
     }
 
     @Override
-    protected UpgradeableCluster provisionCluster(TestVersion testVersion) throws IOException
+    protected void afterClusterProvisioned()
     {
         ClusterBuilderConfiguration configuration = testClusterConfiguration();
-        UpgradeableCluster provisionedCluster = clusterBuilder(configuration, testVersion);
-
         int movingNodeIndex = configuration.dcCount > 1 ? MULTI_DC_MOVING_NODE_IDX : SINGLE_DC_MOVING_NODE_IDX;
-        movingNode = provisionedCluster.get(movingNodeIndex);
+        movingNode = cluster.get(movingNodeIndex);
 
-        IInstance seed = provisionedCluster.get(1);
+        IInstance seed = cluster.get(1);
         new Thread(() -> {
-            long moveTarget = calculateMoveTargetToken(provisionedCluster, configuration.dcCount);
+            long moveTarget = calculateMoveTargetToken(cluster, configuration.dcCount);
             movingNode.nodetoolResult("move", "--", Long.toString(moveTarget)).asserts().success();
         }).start();
 
         // Wait until nodes have reached expected state
         TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateStart(), 2, TimeUnit.MINUTES);
-        ClusterUtils.awaitRingState(seed, movingNode, "Moving");
-
-        return provisionedCluster;
+        cluster.awaitRingState(seed, movingNode, "Moving");
     }
 
     /**
@@ -114,7 +109,7 @@ abstract class NodeMovementTestBase extends ResiliencyTestBase
         // It is only in successful MOVE operation that we validate that the node has reached NORMAL state
         if (!expectFailure)
         {
-            ClusterUtils.awaitRingState(cluster.get(1), movingNode, "Normal");
+            cluster.awaitRingState(cluster.get(1), movingNode, "Normal");
         }
 
         testInputs.forEach(arguments -> {
@@ -143,12 +138,7 @@ abstract class NodeMovementTestBase extends ResiliencyTestBase
         }
     }
 
-    /**
-     * @return the configuration for the test cluster
-     */
-    protected abstract ClusterBuilderConfiguration testClusterConfiguration();
-
-    static long calculateMoveTargetToken(AbstractCluster<? extends IInstance> cluster, int dcCount)
+    static long calculateMoveTargetToken(ICluster<? extends IInstance> cluster, int dcCount)
     {
         IInstance seed = cluster.get(1);
         // The target token to move the node to is calculated by adding an offset to the seed node token which

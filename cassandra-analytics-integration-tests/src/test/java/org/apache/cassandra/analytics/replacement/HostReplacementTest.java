@@ -38,7 +38,7 @@ import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
-import org.apache.cassandra.utils.Shared;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -95,7 +95,6 @@ class HostReplacementTest extends HostReplacementTestBase
     /**
      * ByteBuddy helper for a single node replacement
      */
-    @Shared
     public static class BBHelperReplacementsNode
     {
         // Additional latch used here to sequentially start the 2 new nodes to isolate the loading
