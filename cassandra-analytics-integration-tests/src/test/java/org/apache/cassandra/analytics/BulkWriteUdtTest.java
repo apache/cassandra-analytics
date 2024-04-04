@@ -67,9 +67,9 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
 
         SimpleQueryResult result = cluster.coordinator(1).executeWithResult("SELECT * FROM " + UDT_TABLE_NAME, ConsistencyLevel.ALL);
         assertThat(result.hasNext()).isTrue();
-//        validateWritesWithDriverResultSet(df.collectAsList(),
-//                                          queryAllDataWithDriver(cluster, UDT_TABLE_NAME),
-//                                          BulkWriteUdtTest::defaultRowFormatter);
+        validateWritesWithDriverResultSet(df.collectAsList(),
+                                          queryAllDataWithDriver(UDT_TABLE_NAME),
+                                          BulkWriteUdtTest::defaultRowFormatter);
     }
 
     @Test
@@ -82,9 +82,9 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
 
         SimpleQueryResult result = cluster.coordinator(1).executeWithResult("SELECT * FROM " + NESTED_TABLE_NAME, ConsistencyLevel.ALL);
         assertThat(result.hasNext()).isTrue();
-//        validateWritesWithDriverResultSet(df.collectAsList(),
-//                                          queryAllDataWithDriver(cluster, NESTED_TABLE_NAME),
-//                                          BulkWriteUdtTest::defaultRowFormatter);
+        validateWritesWithDriverResultSet(df.collectAsList(),
+                                          queryAllDataWithDriver(NESTED_TABLE_NAME),
+                                          BulkWriteUdtTest::defaultRowFormatter);
     }
 
     @NotNull

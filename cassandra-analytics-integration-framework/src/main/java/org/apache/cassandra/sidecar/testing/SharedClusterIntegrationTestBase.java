@@ -442,7 +442,8 @@ public abstract class SharedClusterIntegrationTestBase
                                                 "but one or more is missing");
             }
         });
-        Cluster.Builder builder = Cluster.builder();
+        Cluster.Builder builder = Cluster.builder()
+                                         .withoutMetrics();
         dtest.stream().forEach((i) -> {
             InetSocketAddress address = new InetSocketAddress(i.broadcastAddress().getAddress(),
                                                               i.config().getInt("native_transport_port"));

@@ -39,6 +39,7 @@ import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.apache.cassandra.testing.TestUtils.uniqueTestKeyspaceQuotedTableFullName;
+import static org.apache.cassandra.testing.TestUtils.uniqueTestQuotedKeyspaceQuotedTableFullName;
 import static org.apache.cassandra.testing.TestUtils.uniqueTestQuotedKeyspaceTableFullName;
 
 /**
@@ -49,11 +50,13 @@ import static org.apache.cassandra.testing.TestUtils.uniqueTestQuotedKeyspaceTab
  */
 class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
 {
+    static final QualifiedName TABLE_NAME_FOR_UDT_TEST = uniqueTestQuotedKeyspaceQuotedTableFullName("QuOtEd_KeYsPaCe", "QuOtEd_TaBlE");
     static final List<QualifiedName> TABLE_NAMES =
     Arrays.asList(uniqueTestQuotedKeyspaceTableFullName("QuOtEd_KeYsPaCe"),
                   uniqueTestQuotedKeyspaceTableFullName("keyspace"), // keyspace is a reserved word
                   uniqueTestKeyspaceQuotedTableFullName(TEST_KEYSPACE, "QuOtEd_TaBlE"),
-                  new QualifiedName(TEST_KEYSPACE, "table", false, true)); // table is a reserved word
+                  new QualifiedName(TEST_KEYSPACE, "table", false, true), // table is a reserved word
+                  TABLE_NAME_FOR_UDT_TEST);
 
     @ParameterizedTest(name = "{index} => table={0}")
     @MethodSource("testInputs")
@@ -62,16 +65,29 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
         SparkSession spark = getOrCreateSparkSession();
         // Generates course data from and renames the dataframe columns to use case-sensitive and reserved
         // words in the dataframe
-        Dataset<Row> df = generateCourseData(spark, ROW_COUNT).toDF("IdEnTiFiEr", // case-sensitive struct
-                                                                    "course",
-                                                                    "limit"); // limit is a reserved word in Cassandra
+        boolean udfData = tableName.equals(TABLE_NAME_FOR_UDT_TEST);
+        Dataset<Row> df;
+        Dataset<Row> generatedDf = generateCourseData(spark, ROW_COUNT, udfData);
+        if (!udfData)
+        {
+            df = generatedDf.toDF("IdEnTiFiEr", // case-sensitive struct
+                                  "course",
+                                  "limit"); // limit is a reserved word in Cassandra
+        }
+        else
+        {
+            df = generatedDf.toDF("IdEnTiFiEr", // case-sensitive struct
+                                  "course",
+                                  "limit", // limit is a reserved word in Cassandra
+                                  "User_Defined_Type");
+        }
         bulkWriterDataFrameWriter(df, tableName).option(WriterOptions.QUOTE_IDENTIFIERS.name(), "true")
                                                 .save();
-//        validateWritesWithDriverResultSet(df.collectAsList(),
-//                                          queryAllDataWithDriver(cluster, tableName),
-//                                          udfData ?
-//                                          QuoteIdentifiersWriteTest::rowWithUdtFormatter :
-//                                          QuoteIdentifiersWriteTest::defaultRowFormatter);
+        validateWritesWithDriverResultSet(df.collectAsList(),
+                                          queryAllDataWithDriver(tableName),
+                                          udfData ?
+                                          QuoteIdentifiersWriteTest::rowWithUdtFormatter :
+                                          QuoteIdentifiersWriteTest::defaultRowFormatter);
     }
 
     public static String defaultRowFormatter(com.datastax.driver.core.Row row)
@@ -109,7 +125,22 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
 
         TABLE_NAMES.forEach(name -> {
             createTestKeyspace(name, DC1_RF1);
-            createTestTable(name, createTableStatement);
+            if (!name.equals(TABLE_NAME_FOR_UDT_TEST))
+            {
+                createTestTable(name, createTableStatement);
+            }
         });
+
+        // Create UDT
+        String createUdtQuery = "CREATE TYPE " + TABLE_NAME_FOR_UDT_TEST.maybeQuotedKeyspace()
+                                + ".\"UdT1\" (\"TimE\" bigint, \"limit\" int);";
+        cluster.schemaChangeIgnoringStoppedInstances(createUdtQuery);
+
+        createTestTable(TABLE_NAME_FOR_UDT_TEST, "CREATE TABLE IF NOT EXISTS %s (" +
+                                                 "\"IdEnTiFiEr\" int, " +
+                                                 "course text, " +
+                                                 "\"limit\" int," +
+                                                 "\"User_Defined_Type\" frozen<\"UdT1\">, " +
+                                                 "PRIMARY KEY(\"IdEnTiFiEr\"));");
     }
 }

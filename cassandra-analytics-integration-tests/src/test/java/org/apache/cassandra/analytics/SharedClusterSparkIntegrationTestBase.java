@@ -19,10 +19,17 @@
 
 package org.apache.cassandra.analytics;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import com.datastax.driver.core.ResultSet;
 import com.vdurmont.semver4j.Semver;
 import io.vertx.junit5.VertxExtension;
 import org.apache.cassandra.bridge.CassandraBridge;
@@ -36,6 +43,8 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.StructField;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Extends functionality from {@link SharedClusterIntegrationTestBase} and provides additional functionality for running
@@ -132,7 +141,23 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
         return bridge;
     }
 
-    private String getFormattedSourceEntry(Row row)
+    public void validateWritesWithDriverResultSet(List<Row> sourceData, ResultSet queriedData,
+                                                  Function<com.datastax.driver.core.Row, String> rowFormatter)
+    {
+        Set<String> actualEntries = new HashSet<>();
+        queriedData.forEach(row -> actualEntries.add(rowFormatter.apply(row)));
+
+        // Number of entries in Cassandra must match the original datasource
+        assertThat(actualEntries.size()).isEqualTo(sourceData.size());
+
+        // remove from actual entries to make sure that the data read is the same as the data written
+        Set<String> sourceEntries = sourceData.stream().map(this::formattedSourceEntry)
+                                              .collect(Collectors.toSet());
+        assertThat(actualEntries).as("All entries are expected to be read from database")
+                                 .containsExactlyInAnyOrderElementsOf(sourceEntries);
+    }
+
+    private String formattedSourceEntry(Row row)
     {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < row.size(); i++)

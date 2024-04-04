@@ -52,6 +52,9 @@ dependencies {
 
     File dtestJarFile = new File(dtestJarFullPath)
     println("Using DTest jar: " + dtestJarFullPath + "; present? " + dtestJarFile.exists())
+    // The dtest jar must be a compile only dependency. We want to avoid having this jar in the
+    // classpath while running integration tests. Instead, a dedicated classloader will load the
+    // dtest jar while provisioning the in-jvm dtest Cassandra cluster
     compileOnly(files("${dtestJarFullPath}"))
     api("org.apache.cassandra:dtest-api:0.0.16")
     // Needed by the Cassandra dtest framework
