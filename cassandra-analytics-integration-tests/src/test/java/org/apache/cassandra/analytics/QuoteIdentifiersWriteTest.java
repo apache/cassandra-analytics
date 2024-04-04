@@ -27,7 +27,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import com.datastax.driver.core.ConsistencyLevel;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.spark.sql.Dataset;
