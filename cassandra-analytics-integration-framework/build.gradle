@@ -45,19 +45,6 @@ test {
     useJUnitPlatform()
 }
 
-configurations {
-    configureEach {
-        resolutionStrategy {
-            // Force set the vertx versions that do not depend on a newer jackson version
-            force("io.vertx:vertx-web:${vertxVersion}")
-            force("io.vertx:vertx-core:${vertxVersion}")
-            force("io.vertx:vertx-auth-common:${vertxVersion}")
-            force("io.vertx:vertx-dropwizard-metrics:${vertxVersion}")
-            force("io.vertx:vertx-web-client:${vertxVersion}")
-        }
-    }
-}
-
 dependencies {
     // These dependencies (sidecar + dtest jars) must be built by running `scripts/build-dependencies.sh`
     implementation(group: 'org.apache.cassandra.sidecar', name: 'adapters-base', version: "${sidecarVersion}")

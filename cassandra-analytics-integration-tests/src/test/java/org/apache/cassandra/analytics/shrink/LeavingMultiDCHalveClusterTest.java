@@ -42,7 +42,6 @@ import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
-import org.apache.cassandra.utils.Shared;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
@@ -110,7 +109,6 @@ class LeavingMultiDCHalveClusterTest extends LeavingTestBase
     /**
      * ByteBuddy helper for halve cluster size with multi-DC
      */
-    @Shared
     public static class BBHelperHalveClusterMultiDC
     {
         static final CountDownLatch transitionalStateStart = new CountDownLatch(6);

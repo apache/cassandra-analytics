@@ -40,7 +40,6 @@ import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
-import org.apache.cassandra.utils.Shared;
 
 import static com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -100,7 +99,6 @@ class HostReplacementMultiDCFailureTest extends HostReplacementTestBase
     /**
      * ByteBuddy helper for multi DC node replacement failure
      */
-    @Shared
     public static class BBHelperReplacementFailureMultiDC
     {
         // Additional latch used here to sequentially start the 2 new nodes to isolate the loading

@@ -68,7 +68,7 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
         // java.lang.IllegalStateException: Can't load <CLASS>. Instance class loader is already closed.
         return className.equals("org.apache.cassandra.utils.concurrent.Ref$OnLeak")
                || className.startsWith("org.apache.cassandra.metrics.RestorableMeter")
-               || className.equals("org.apache.cassandra.utils.Shared");
+               || (className.startsWith("org.apache.cassandra.analytics.") && className.contains("BBHelper"));
     };
 
     public CassandraCluster(String versionString, ClusterBuilderConfiguration configuration) throws IOException

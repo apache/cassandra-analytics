@@ -35,7 +35,6 @@ import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
-import org.apache.cassandra.utils.Shared;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -72,7 +71,6 @@ class JoiningDoubleClusterFailureTest extends JoiningSingleNodeTest
     /**
      * ByteBuddy helper for doubling cluster size failure scenario
      */
-    @Shared
     public static class BBHelperDoubleClusterSizeFailure
     {
         static final CountDownLatch transitionalStateStart = new CountDownLatch(5);

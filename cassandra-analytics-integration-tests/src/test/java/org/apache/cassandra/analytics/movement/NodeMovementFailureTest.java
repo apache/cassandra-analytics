@@ -35,7 +35,6 @@ import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
-import org.apache.cassandra.utils.Shared;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
@@ -67,7 +66,6 @@ class NodeMovementFailureTest extends NodeMovementTest
     /**
      * ByteBuddy Helper for a single moving node simulating a move failure
      */
-    @Shared
     public static class BBHelperMovingNodeFailure
     {
         static final CountDownLatch transitioningStateStart = new CountDownLatch(1);

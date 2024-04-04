@@ -38,7 +38,6 @@ import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
-import org.apache.cassandra.utils.Shared;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
@@ -105,7 +104,6 @@ class LeavingMultiDCFailureTest extends LeavingTestBase
     /**
      * ByteBuddy helper for multiple leaving nodes multi-DC failure scenario
      */
-    @Shared
     public static class BBHelperLeavingNodesMultiDCFailure
     {
         static final CountDownLatch transitionalStateStart = new CountDownLatch(2);

@@ -35,7 +35,6 @@ import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
-import org.apache.cassandra.utils.Shared;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -82,7 +81,6 @@ class JoiningMultiDCSingleReplicatedTest extends JoiningMultiDCTest
     /**
      * ByteBuddy helper for multiple joining nodes
      */
-    @Shared
     public static class BBHelperMultiDC
     {
         static final CountDownLatch transitioningStateStart = new CountDownLatch(2);

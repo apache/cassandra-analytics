@@ -37,7 +37,6 @@ import net.bytebuddy.pool.TypePool;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
-import org.apache.cassandra.utils.Shared;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
@@ -101,7 +100,6 @@ class LeavingSingleFailureTest extends LeavingTestBase
     /**
      * ByteBuddy Helper for a single leaving node failure scenario
      */
-    @Shared
     public static class BBHelperSingleLeavingNodeFailure
     {
         static final CountDownLatch transitionalStateStart = new CountDownLatch(1);
