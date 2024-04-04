@@ -65,6 +65,18 @@ public class StartupValidatorTests
         assertEquals("Failed some of startup validations", exception.getMessage());
     }
 
+    @Test
+    public void testSkipValidations()
+    {
+        System.setProperty("SKIP_STARTUP_VALIDATIONS", "true");
+        StartupValidator.instance().register(TestValidation.succeeding());
+        StartupValidator.instance().register(TestValidation.failing());
+        StartupValidator.instance().register(TestValidation.succeeding());
+
+        StartupValidator.instance().perform();
+        System.clearProperty("SKIP_STARTUP_VALIDATIONS");
+    }
+
     @AfterAll
     public static void afterAll()
     {

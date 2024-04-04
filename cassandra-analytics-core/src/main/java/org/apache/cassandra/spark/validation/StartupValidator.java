@@ -105,6 +105,6 @@ public final class StartupValidator
 
     public boolean enabled()
     {
-        return "false".equalsIgnoreCase(System.getProperty(DISABLE));
+        return !"true".equalsIgnoreCase(System.getProperty(DISABLE));
     }
 }
