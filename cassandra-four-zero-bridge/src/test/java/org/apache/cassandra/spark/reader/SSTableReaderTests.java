@@ -519,8 +519,8 @@ public class SSTableReaderTests
                     // Open CompactionStreamScanner over 3 SSTables
                     TableMetadata metadata = tableMetadata(schema, partitioner);
                     Set<SSTableReader> toCompact = TestSSTable.allIn(directory.path()).stream()
-                                                              .map(Throwing.function(table -> openReader(metadata, table)))
-                                                              .collect(Collectors.toSet());
+                            .map(Throwing.function(table -> openReader(metadata, table)))
+                            .collect(Collectors.toSet());
 
                     int count = 0;
                     try (CompactionStreamScanner scanner = new CompactionStreamScanner(metadata, partitioner, toCompact))
