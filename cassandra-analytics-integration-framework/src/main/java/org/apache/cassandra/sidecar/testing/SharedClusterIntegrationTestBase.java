@@ -39,6 +39,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,10 +73,14 @@ import org.apache.cassandra.sidecar.common.dns.DnsResolver;
 import org.apache.cassandra.sidecar.common.utils.DriverUtils;
 import org.apache.cassandra.sidecar.common.utils.SidecarVersionProvider;
 import org.apache.cassandra.sidecar.config.JmxConfiguration;
+import org.apache.cassandra.sidecar.config.KeyStoreConfiguration;
 import org.apache.cassandra.sidecar.config.ServiceConfiguration;
 import org.apache.cassandra.sidecar.config.SidecarConfiguration;
+import org.apache.cassandra.sidecar.config.SslConfiguration;
+import org.apache.cassandra.sidecar.config.yaml.KeyStoreConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.ServiceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
+import org.apache.cassandra.sidecar.config.yaml.SslConfigurationImpl;
 import org.apache.cassandra.sidecar.exceptions.ThrowableUtils;
 import org.apache.cassandra.sidecar.server.MainModule;
 import org.apache.cassandra.sidecar.server.Server;
@@ -87,6 +92,7 @@ import org.apache.cassandra.testing.TestUtils;
 import org.apache.cassandra.testing.TestVersion;
 import org.apache.cassandra.testing.TestVersionSupplier;
 
+import static org.apache.cassandra.sidecar.testing.MtlsTestHelper.CASSANDRA_INTEGRATION_TEST_ENABLE_MTLS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -131,12 +137,16 @@ public abstract class SharedClusterIntegrationTestBase
     protected final Logger logger = LoggerFactory.getLogger(SharedClusterIntegrationTestBase.class);
     private static final int MAX_CLUSTER_PROVISION_RETRIES = 5;
 
+    @TempDir
+    static Path secretsPath;
+
     protected Vertx vertx;
     protected DnsResolver dnsResolver;
     protected IClusterExtension<? extends IInstance> cluster;
     protected Server server;
     protected Injector injector;
     protected TestVersion testVersion;
+    protected MtlsTestHelper mtlsTestHelper;
     private IsolatedDTestClassLoaderWrapper classLoaderWrapper;
 
     static
@@ -146,7 +156,7 @@ public abstract class SharedClusterIntegrationTestBase
     }
 
     @BeforeAll
-    protected void setup() throws InterruptedException
+    protected void setup() throws Exception
     {
         Optional<TestVersion> maybeTestVersion = TestVersionSupplier.testVersions().findFirst();
         assertThat(maybeTestVersion).isPresent();
@@ -161,6 +171,7 @@ public abstract class SharedClusterIntegrationTestBase
         assertThat(cluster).isNotNull();
         afterClusterProvisioned();
         initializeSchemaForTest();
+        mtlsTestHelper = new MtlsTestHelper(secretsPath);
         startSidecar(cluster);
         beforeTestStart();
     }
@@ -306,7 +317,8 @@ public abstract class SharedClusterIntegrationTestBase
     protected void startSidecar(ICluster<? extends IInstance> cluster) throws InterruptedException
     {
         VertxTestContext context = new VertxTestContext();
-        injector = Guice.createInjector(Modules.override(new MainModule()).with(new IntegrationTestModule(cluster, classLoaderWrapper)));
+        AbstractModule testModule = new IntegrationTestModule(cluster, classLoaderWrapper, mtlsTestHelper);
+        injector = Guice.createInjector(Modules.override(new MainModule()).with(testModule));
         dnsResolver = injector.getInstance(DnsResolver.class);
         vertx = injector.getInstance(Vertx.class);
         server = injector.getInstance(Server.class);
@@ -455,13 +467,18 @@ public abstract class SharedClusterIntegrationTestBase
 
     static class IntegrationTestModule extends AbstractModule
     {
+        private static final Logger LOGGER = LoggerFactory.getLogger(IntegrationTestModule.class);
         private final ICluster<? extends IInstance> cluster;
         private final IsolatedDTestClassLoaderWrapper wrapper;
+        private final MtlsTestHelper mtlsTestHelper;
 
-        IntegrationTestModule(ICluster<? extends IInstance> cluster, IsolatedDTestClassLoaderWrapper wrapper)
+        IntegrationTestModule(ICluster<? extends IInstance> cluster,
+                              IsolatedDTestClassLoaderWrapper wrapper,
+                              MtlsTestHelper mtlsTestHelper)
         {
             this.cluster = cluster;
             this.wrapper = wrapper;
+            this.mtlsTestHelper = mtlsTestHelper;
         }
 
         @Provides
@@ -500,8 +517,39 @@ public abstract class SharedClusterIntegrationTestBase
                                                                 .host("0.0.0.0") // binds to all interfaces, potential security issue if left running for long
                                                                 .port(0) // let the test find an available port
                                                                 .build();
+
+
+            SslConfiguration sslConfiguration = null;
+            if (mtlsTestHelper.isEnabled())
+            {
+                LOGGER.info("Enabling test mTLS certificate/keystore.");
+
+                KeyStoreConfiguration truststoreConfiguration =
+                new KeyStoreConfigurationImpl(mtlsTestHelper.trustStorePath(),
+                                              mtlsTestHelper.trustStorePassword(),
+                                              mtlsTestHelper.trustStoreType(),
+                                              -1);
+
+                KeyStoreConfiguration keyStoreConfiguration =
+                new KeyStoreConfigurationImpl(mtlsTestHelper.serverKeyStorePath(),
+                                              mtlsTestHelper.serverKeyStorePassword(),
+                                              mtlsTestHelper.serverKeyStoreType(),
+                                              -1);
+
+                sslConfiguration = SslConfigurationImpl.builder()
+                                                       .enabled(true)
+                                                       .keystore(keyStoreConfiguration)
+                                                       .truststore(truststoreConfiguration)
+                                                       .build();
+            }
+            else
+            {
+                LOGGER.info("Not enabling mTLS for testing purposes. Set '{}' to 'true' if you would " +
+                            "like mTLS enabled.", CASSANDRA_INTEGRATION_TEST_ENABLE_MTLS);
+            }
             return SidecarConfigurationImpl.builder()
                                            .serviceConfiguration(conf)
+                                           .sslConfiguration(sslConfiguration)
                                            .build();
         }
 

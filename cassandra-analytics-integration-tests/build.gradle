@@ -44,6 +44,9 @@ println("Using ${integrationMaxHeapSize} maxHeapSize")
 def integrationMaxParallelForks = (System.getenv("INTEGRATION_MAX_PARALLEL_FORKS") ?: "4") as int
 println("Using ${integrationMaxParallelForks} maxParallelForks")
 
+def integrationEnableMtls = (System.getenv("INTEGRATION_ENABLE_MTLS") ?: "true") as boolean
+println("Using mTLS for tests? ${integrationEnableMtls}")
+
 configurations {
     // remove netty-all dependency coming from spark
     all*.exclude(group: 'io.netty', module: 'netty-all')
@@ -77,6 +80,7 @@ test {
             System.getProperty("cassandra.sidecar.versions_to_test", "4.1")
     systemProperty "SKIP_STARTUP_VALIDATIONS", "true"
     systemProperty "logback.configurationFile", "src/test/resources/logback-test.xml"
+    systemProperty "cassandra.integration.sidecar.test.enable_mtls", integrationEnableMtls
     minHeapSize = '1g'
     maxHeapSize = integrationMaxHeapSize
     maxParallelForks = integrationMaxParallelForks

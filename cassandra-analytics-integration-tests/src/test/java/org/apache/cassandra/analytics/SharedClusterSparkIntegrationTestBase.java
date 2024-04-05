@@ -19,8 +19,10 @@
 
 package org.apache.cassandra.analytics;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -68,7 +70,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
     protected void beforeTestStart()
     {
         super.beforeTestStart();
-        sparkTestUtils.initialize(cluster.delegate(), dnsResolver, server.actualPort());
+        sparkTestUtils.initialize(cluster.delegate(), dnsResolver, server.actualPort(), mtlsTestHelper);
     }
 
     @Override
@@ -101,7 +103,22 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
      */
     protected DataFrameWriter<Row> bulkWriterDataFrameWriter(Dataset<Row> df, QualifiedName tableName)
     {
-        return sparkTestUtils.defaultBulkWriterDataFrameWriter(df, tableName);
+        return sparkTestUtils.defaultBulkWriterDataFrameWriter(df, tableName, Collections.emptyMap());
+    }
+
+    /**
+     * A preconfigured {@link DataFrameWriter} with pre-populated required options that can be overridden
+     * with additional options for every specific test.
+     *
+     * @param df                the source dataframe to write
+     * @param tableName         the qualified name for the Cassandra table
+     * @param additionalOptions additional options for the data frame
+     * @return a {@link DataFrameWriter} for Cassandra bulk writes
+     */
+    protected DataFrameWriter<Row> bulkWriterDataFrameWriter(Dataset<Row> df, QualifiedName tableName,
+                                                             Map<String, String> additionalOptions)
+    {
+        return sparkTestUtils.defaultBulkWriterDataFrameWriter(df, tableName, additionalOptions);
     }
 
     protected SparkConf getOrCreateSparkConf()
@@ -133,6 +150,25 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
             bridge = CassandraBridgeFactory.get(semVer.toStrict().toString());
         }
         return bridge;
+    }
+
+    public void checkSmallDataFrameEquality(Dataset<Row> expected, Dataset<Row> actual)
+    {
+        if (actual == null)
+        {
+            throw new NullPointerException("actual dataframe is null");
+        }
+        if (expected == null)
+        {
+            throw new NullPointerException("expected dataframe is null");
+        }
+        // Simulate `actual` having fewer rows, but all match rows in `expected`.
+        // The previous implementation would consider these equal
+        // actual = actual.limit(1000);
+        if (!actual.exceptAll(expected).isEmpty() || !expected.exceptAll(actual).isEmpty())
+        {
+            throw new IllegalStateException("The content of the dataframes differs");
+        }
     }
 
     public void validateWritesWithDriverResultSet(List<Row> sourceData, ResultSet queriedData,

@@ -30,6 +30,8 @@ public interface JobStatsPublisher
 {
     /**
      * Publish the job attributes to be persisted and summarized
+     *
+     * @param stats the stats to publish
      */
     void publish(Map<String, String> stats);
 }

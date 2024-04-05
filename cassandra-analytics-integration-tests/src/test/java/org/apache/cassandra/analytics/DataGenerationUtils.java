@@ -66,7 +66,7 @@ public final class DataGenerationUtils
      */
     public static Dataset<Row> generateCourseData(SparkSession spark, int rowCount)
     {
-        return generateCourseData(spark, rowCount, false);
+        return generateCourseData(spark, rowCount, false, null, null);
     }
 
     /**
@@ -85,6 +85,28 @@ public final class DataGenerationUtils
      */
     public static Dataset<Row> generateCourseData(SparkSession spark, int rowCount, boolean udfData)
     {
+        return generateCourseData(spark, rowCount, udfData, null, null);
+    }
+
+    /**
+     * Generates course data with schema
+     *
+     * <pre>
+     *     id integer,
+     *     course string,
+     *     marks integer
+     * </pre>
+     *
+     * @param spark     the spark session to use
+     * @param rowCount  the number of records to generate
+     * @param udfData   if a field representing a User Defined Type should be added
+     * @param ttl       (optional) a TTL value for the data frame
+     * @param timestamp (optional) a timestamp value for the data frame
+     * @return a {@link Dataset} with generated data
+     */
+    public static Dataset<Row> generateCourseData(SparkSession spark, int rowCount, boolean udfData,
+                                                  Integer ttl, Long timestamp)
+    {
         SQLContext sql = spark.sqlContext();
         StructType schema = new StructType()
                             .add("id", IntegerType, false)
@@ -98,15 +120,33 @@ public final class DataGenerationUtils
             schema = schema.add("User_Defined_Type", udfType);
         }
 
+        if (ttl != null)
+        {
+            schema = schema.add("ttl", IntegerType, false);
+        }
+
+        if (timestamp != null)
+        {
+            schema = schema.add("timestamp", LongType, false);
+        }
+
         List<Row> rows = IntStream.range(0, rowCount)
                                   .mapToObj(recordNum -> {
                                       String course = "course" + recordNum;
-                                      if (!udfData)
+                                      List<Object> values = new ArrayList<>(Arrays.asList(recordNum, course, recordNum));
+                                      if (udfData)
                                       {
-                                          return RowFactory.create(recordNum, course, recordNum);
+                                          values.add(RowFactory.create(recordNum, recordNum));
                                       }
-                                      return RowFactory.create(recordNum, course, recordNum,
-                                                               RowFactory.create(recordNum, recordNum));
+                                      if (ttl != null)
+                                      {
+                                          values.add(ttl);
+                                      }
+                                      if (timestamp != null)
+                                      {
+                                          values.add(timestamp);
+                                      }
+                                      return RowFactory.create(values.toArray());
                                   }).collect(Collectors.toList());
         return sql.createDataFrame(rows, schema);
     }
