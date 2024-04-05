@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.UUID;
@@ -65,6 +66,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     private final SQLContext sqlContext;
     private final JavaSparkContext sparkContext;
     private final Broadcast<BulkWriterContext> broadcastContext;
+    private final JobStatsListener jobStatsListener;
     private final BulkWriteValidator writeValidator;
     private HeartbeatReporter heartbeatReporter;
     private long startTimeNanos;
@@ -79,6 +81,14 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         ReplicaAwareFailureHandler<RingInstance> failureHandler = new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
         onCloudStorageTransport(ignored -> this.heartbeatReporter = new HeartbeatReporter());
+        this.jobStatsListener = new JobStatsListener((jobEventDetail) -> {
+            if (writerContext.job().getId().toString().equals(jobEventDetail.internalJobID()))
+            {
+                writerContext.jobStats().publish(jobEventDetail.jobStats());
+            }
+        });
+
+        this.sparkContext.sc().addSparkListener(jobStatsListener);
     }
 
     @Override
@@ -114,7 +124,6 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     {
         validateJob(overwrite);
         this.startTimeNanos = System.nanoTime();
-
         maybeEnableTransportExtension();
         Tokenizer tokenizer = new Tokenizer(writerContext);
         TableSchema tableSchema = writerContext.schema().getTableSchema();
@@ -186,7 +195,8 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
             long rowCount = streamResults.stream().mapToLong(res -> res.rowCount).sum();
             long totalBytesWritten = streamResults.stream().mapToLong(res -> res.bytesWritten).sum();
-            boolean hasClusterTopologyChanged = writeResults.stream().anyMatch(WriteResult::isClusterResizeDetected);
+            boolean hasClusterTopologyChanged = writeResults.stream()
+                                                            .anyMatch(WriteResult::isClusterResizeDetected);
 
             onCloudStorageTransport(context -> {
                 LOGGER.info("Waiting for Cassandra to complete import slices. rows={} bytes={} cluster_resized={}",
@@ -217,7 +227,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                 markRestoreJobAsSucceeded(context);
             });
 
-            LOGGER.info("Bulk writer job complete. rows={} bytes={} cluster_resized={}",
+            LOGGER.info("Bulk writer job complete. rows={} bytes={} cluster_resize={}",
                         rowCount,
                         totalBytesWritten,
                         hasClusterTopologyChanged);
@@ -225,8 +235,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         }
         catch (Throwable throwable)
         {
-            publishFailureJobStats(throwable.getMessage());
-            LOGGER.error("Bulk Write Failed.", throwable);
+            LOGGER.error("Bulk Write Failed", throwable);
             RuntimeException failure = new RuntimeException("Bulk Write to Cassandra has failed", throwable);
             try
             {
@@ -258,28 +267,17 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
     private void publishSuccessfulJobStats(long rowCount, long totalBytesWritten, boolean hasClusterTopologyChanged)
     {
-        writerContext.jobStats().publish(new HashMap<String, String>() // type declaration required to compile with java8
-        {{
+        Map<String, String> stats = new HashMap<>()
+        {
+            {
                 put("jobId", writerContext.job().getId().toString());
                 put("transportInfo", writerContext.job().transportInfo().toString());
                 put("rowsWritten", Long.toString(rowCount));
                 put("bytesWritten", Long.toString(totalBytesWritten));
-                put("jobStatus", "Succeeded");
                 put("clusterResizeDetected", String.valueOf(hasClusterTopologyChanged));
-                put("jobElapsedTimeMillis", Long.toString(elapsedTimeMillis()));
-        }});
-    }
-
-    private void publishFailureJobStats(String reason)
-    {
-        writerContext.jobStats().publish(new HashMap<String, String>() // type declaration required to compile with java8
-        {{
-                put("jobId", writerContext.job().getId().toString());
-                put("transportInfo", writerContext.job().transportInfo().toString());
-                put("jobStatus", "Failed");
-                put("failureReason", reason);
-                put("jobElapsedTimeMillis", Long.toString(elapsedTimeMillis()));
-        }});
+            }
+        };
+        writerContext.jobStats().publish(stats);
     }
 
     /**

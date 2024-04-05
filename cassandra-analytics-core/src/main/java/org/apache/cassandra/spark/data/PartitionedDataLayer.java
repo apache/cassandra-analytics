@@ -285,6 +285,7 @@ public abstract class PartitionedDataLayer extends DataLayer
         int minReplicas = consistencyLevel.blockFor(replicationFactor, datacenter);
         ReplicaSet replicaSet = PartitionedDataLayer.splitReplicas(
                 consistencyLevel, datacenter, instRanges, replicas, this::getAvailability, minReplicas, partitionId);
+
         if (replicaSet.primary().size() < minReplicas)
         {
             // Could not find enough primary replicas to meet consistency level
