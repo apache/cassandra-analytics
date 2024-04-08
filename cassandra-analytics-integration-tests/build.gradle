@@ -44,7 +44,7 @@ println("Using ${integrationMaxHeapSize} maxHeapSize")
 def integrationMaxParallelForks = (System.getenv("INTEGRATION_MAX_PARALLEL_FORKS") ?: "4") as int
 println("Using ${integrationMaxParallelForks} maxParallelForks")
 
-def integrationEnableMtls = (System.getenv("INTEGRATION_ENABLE_MTLS") ?: "true") as boolean
+def integrationEnableMtls = (System.getenv("INTEGRATION_MTLS_ENABLED") ?: "true") as boolean
 println("Using mTLS for tests? ${integrationEnableMtls}")
 
 configurations {
