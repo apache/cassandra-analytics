@@ -22,6 +22,7 @@ package org.apache.cassandra.analytics;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -32,6 +33,7 @@ import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.shared.JMXUtil;
 import org.apache.cassandra.sidecar.common.dns.DnsResolver;
+import org.apache.cassandra.sidecar.testing.MtlsTestHelper;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.KryoRegister;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
@@ -52,8 +54,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class SparkTestUtils
 {
     protected ICluster<? extends IInstance> cluster;
-    private DnsResolver dnsResolver;
-    private int sidecarPort;
+    protected DnsResolver dnsResolver;
+    protected int sidecarPort;
+    protected MtlsTestHelper mtlsTestHelper;
 
     /**
      * Runs any initialization code required for the tests
@@ -62,10 +65,12 @@ public class SparkTestUtils
      * @param dnsResolver the DNS resolver used to lookup replicas
      * @param sidecarPort the port where Sidecar is running
      */
-    public void initialize(ICluster<? extends IInstance> cluster, DnsResolver dnsResolver, int sidecarPort)
+    public void initialize(ICluster<? extends IInstance> cluster, DnsResolver dnsResolver, int sidecarPort,
+                           MtlsTestHelper mtlsTestHelper)
     {
         this.cluster = Objects.requireNonNull(cluster, "cluster is required");
         this.dnsResolver = Objects.requireNonNull(dnsResolver, "dnsResolver is required");
+        this.mtlsTestHelper = Objects.requireNonNull(mtlsTestHelper, "mtlsTestHelper is required");
         this.sidecarPort = sidecarPort;
     }
 
@@ -110,6 +115,7 @@ public class SparkTestUtils
                   .option("defaultParallelism", sc.defaultParallelism())
                   .option("numCores", numCores)
                   .option("sizing", "default")
+                  .options(mtlsTestHelper.mtlOptionMap())
                   .option("sidecar_port", sidecarPort);
     }
 
@@ -117,12 +123,13 @@ public class SparkTestUtils
      * Returns a {@link DataFrameWriter<Row>} with default options for performing a bulk write test, including
      * required parameters.
      *
-     * @param df        the source data frame
-     * @param tableName the qualified name of the table
+     * @param df                the source data frame
+     * @param tableName         the qualified name of the table
+     * @param additionalOptions additional options for the data frame
      * @return a {@link DataFrameWriter<Row>} with default options for performing a bulk write test
      */
-    public DataFrameWriter<Row> defaultBulkWriterDataFrameWriter(Dataset<Row> df,
-                                                                 QualifiedName tableName)
+    public DataFrameWriter<Row> defaultBulkWriterDataFrameWriter(Dataset<Row> df, QualifiedName tableName,
+                                                                 Map<String, String> additionalOptions)
     {
         return df.write()
                  .format("org.apache.cassandra.spark.sparksql.CassandraDataSink")
@@ -133,6 +140,8 @@ public class SparkTestUtils
                  .option("bulk_writer_cl", "LOCAL_QUORUM")
                  .option("number_splits", "-1")
                  .option("sidecar_port", sidecarPort)
+                 .options(additionalOptions)
+                 .options(mtlsTestHelper.mtlOptionMap())
                  .mode("append");
     }
 

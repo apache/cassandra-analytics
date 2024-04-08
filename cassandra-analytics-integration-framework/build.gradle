@@ -75,7 +75,11 @@ dependencies {
         exclude group: 'junit', module: 'junit'
     }
     implementation("io.vertx:vertx-web-client:${project.vertxVersion}")
-    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.14.3'
+    implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: '2.14.3')
+
+    // Bouncycastle dependencies for test certificate provisioning
+    implementation(group: 'org.bouncycastle', name: 'bcprov-jdk18on', version: '1.78')
+    implementation(group: 'org.bouncycastle', name: 'bcpkix-jdk18on', version: '1.78')
 
     testImplementation(platform("org.junit:junit-bom:${project.junitVersion}"))
     testImplementation('org.junit.jupiter:junit-jupiter')

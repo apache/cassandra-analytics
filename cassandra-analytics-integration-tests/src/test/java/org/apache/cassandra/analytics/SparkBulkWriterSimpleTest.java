@@ -19,9 +19,6 @@
 
 package org.apache.cassandra.analytics;
 
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
@@ -36,44 +33,64 @@ import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
+import org.apache.spark.sql.SparkSession;
 
+import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
+import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
-import static org.apache.spark.sql.types.DataTypes.BinaryType;
-import static org.apache.spark.sql.types.DataTypes.IntegerType;
-import static org.apache.spark.sql.types.DataTypes.LongType;
 
 class SparkBulkWriterSimpleTest extends SharedClusterSparkIntegrationTestBase
 {
-    static final String CREATE_TABLE_STATEMENT = "CREATE TABLE %s (id BIGINT PRIMARY KEY, course BLOB, marks BIGINT)";
+    static final QualifiedName QUALIFIED_NAME = new QualifiedName(TEST_KEYSPACE, "test");
 
     @ParameterizedTest
     @MethodSource("options")
     void runSampleJob(Integer ttl, Long timestamp)
     {
         Map<String, String> writerOptions = new HashMap<>();
-
-        boolean addTTLColumn = ttl != null;
-        boolean addTimestampColumn = timestamp != null;
-        if (addTTLColumn)
+        if (ttl != null)
         {
             writerOptions.put(WriterOptions.TTL.name(), "ttl");
         }
-
-        if (addTimestampColumn)
+        if (timestamp != null)
         {
             writerOptions.put(WriterOptions.TIMESTAMP.name(), "timestamp");
         }
 
-        IntegrationTestJob.builder((recordNum) -> generateCourse(recordNum, ttl, timestamp),
-                                   getWriteSchema(addTTLColumn, addTimestampColumn))
-                          .withSidecarPort(server.actualPort())
-                          .withExtraWriterOptions(writerOptions)
-                          .withPostWriteDatasetModifier(writeToReadDfFunc(addTTLColumn, addTimestampColumn))
-                          .run();
+        SparkSession spark = getOrCreateSparkSession();
+
+        // Generate some data
+        Dataset<Row> dfWrite = DataGenerationUtils.generateCourseData(spark, ROW_COUNT, false, ttl, timestamp);
+
+        // Write the data using Bulk Writer
+        bulkWriterDataFrameWriter(dfWrite, QUALIFIED_NAME, writerOptions).save();
+
+        // Validate using CQL
+        sparkTestUtils.validateWrites(dfWrite.collectAsList(), queryAllData(QUALIFIED_NAME));
+
+        // Remove columns from write DF to perform validations
+        Dataset<Row> written = writeToReadDfFunc(ttl != null, timestamp != null).apply(dfWrite);
+
+        // Read data back using Bulk Reader
+        Dataset<Row> read = bulkReaderDataFrame(QUALIFIED_NAME).load();
+
+        // Validate that written and read dataframes are the same
+        checkSmallDataFrameEquality(written, read);
+    }
+
+    @Override
+    protected void initializeSchemaForTest()
+    {
+        createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
+        createTestTable(QUALIFIED_NAME, CREATE_TEST_TABLE_STATEMENT);
+    }
+
+    @Override
+    protected ClusterBuilderConfiguration testClusterConfiguration()
+    {
+        return super.testClusterConfiguration()
+                    .nodesPerDc(3);
     }
 
     static Stream<Arguments> options()
@@ -86,23 +103,9 @@ class SparkBulkWriterSimpleTest extends SharedClusterSparkIntegrationTestBase
         );
     }
 
-    @Override
-    protected void initializeSchemaForTest()
-    {
-        createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
-        createTestTable(new QualifiedName(TEST_KEYSPACE, "test"), CREATE_TABLE_STATEMENT);
-    }
-
-    @Override
-    protected ClusterBuilderConfiguration testClusterConfiguration()
-    {
-        return super.testClusterConfiguration()
-                    .nodesPerDc(3);
-    }
-
     // Because the read part of the integration test job doesn't read ttl and timestamp columns, we need to remove them
     // from the Dataset after it's saved.
-    private Function<Dataset<Row>, Dataset<Row>> writeToReadDfFunc(boolean addedTTLColumn, boolean addedTimestampColumn)
+    static Function<Dataset<Row>, Dataset<Row>> writeToReadDfFunc(boolean addedTTLColumn, boolean addedTimestampColumn)
     {
         return (Dataset<Row> df) -> {
             if (addedTTLColumn)
@@ -115,54 +118,5 @@ class SparkBulkWriterSimpleTest extends SharedClusterSparkIntegrationTestBase
             }
             return df;
         };
-    }
-
-    @SuppressWarnings("SameParameterValue")
-    private static StructType getWriteSchema(boolean addTTLColumn, boolean addTimestampColumn)
-    {
-        StructType schema = new StructType()
-                            .add("id", LongType, false)
-                            .add("course", BinaryType, false)
-                            .add("marks", LongType, false);
-        if (addTTLColumn)
-        {
-            schema = schema.add("ttl", IntegerType, false);
-        }
-        if (addTimestampColumn)
-        {
-            schema = schema.add("timestamp", LongType, false);
-        }
-        return schema;
-    }
-
-    @NotNull
-    @SuppressWarnings("SameParameterValue")
-    private static Row generateCourse(long recordNumber, Integer ttl, Long timestamp)
-    {
-        String courseNameString = String.valueOf(recordNumber);
-        int courseNameStringLen = courseNameString.length();
-        int courseNameMultiplier = 1000 / courseNameStringLen;
-        byte[] courseName = dupStringAsBytes(courseNameString, courseNameMultiplier);
-        ArrayList<Object> values = new ArrayList<>(Arrays.asList(recordNumber, courseName, recordNumber));
-        if (ttl != null)
-        {
-            values.add(ttl);
-        }
-        if (timestamp != null)
-        {
-            values.add(timestamp);
-        }
-        return RowFactory.create(values.toArray());
-    }
-
-    private static byte[] dupStringAsBytes(String string, Integer times)
-    {
-        byte[] stringBytes = string.getBytes();
-        ByteBuffer buffer = ByteBuffer.allocate(stringBytes.length * times);
-        for (int time = 0; time < times; time++)
-        {
-            buffer.put(stringBytes);
-        }
-        return buffer.array();
     }
 }

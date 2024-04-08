@@ -20,6 +20,7 @@ package org.apache.cassandra.analytics;
 
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -66,9 +67,11 @@ public class BlockedInstancesTest extends ResiliencyTestBase
     {
         TestConsistencyLevel cl = TestConsistencyLevel.of(QUORUM, QUORUM);
         QualifiedName table = new QualifiedName(TEST_KEYSPACE, tableName(testInfo));
-        bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
-                                            .option(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2")
-                                            .save();
+        Map<String, String> additionalOptions = new HashMap<>();
+        additionalOptions.put(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name());
+        additionalOptions.put(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2");
+
+        bulkWriterDataFrameWriter(df, table, additionalOptions).save();
         expectedInstanceData.entrySet()
                             .stream()
                             .filter(e -> e.getKey().broadcastAddress().getAddress().getHostAddress().equals("127.0.0.2"))
@@ -82,10 +85,12 @@ public class BlockedInstancesTest extends ResiliencyTestBase
     {
         TestConsistencyLevel cl = TestConsistencyLevel.of(ONE, ALL);
         QualifiedName table = new QualifiedName(TEST_KEYSPACE, tableName(testInfo));
-        Throwable thrown = catchThrowable(() ->
-                                          bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
-                                                                              .option(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2")
-                                                                              .save());
+        Throwable thrown = catchThrowable(() -> {
+            Map<String, String> additionalOptions = new HashMap<>();
+            additionalOptions.put(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name());
+            additionalOptions.put(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2");
+            bulkWriterDataFrameWriter(df, table, additionalOptions).save();
+        });
         validateFailedJob(table, cl, thrown);
     }
 
@@ -94,10 +99,12 @@ public class BlockedInstancesTest extends ResiliencyTestBase
     {
         TestConsistencyLevel cl = TestConsistencyLevel.of(QUORUM, QUORUM);
         QualifiedName table = new QualifiedName(TEST_KEYSPACE, tableName(testInfo));
-        Throwable thrown = catchThrowable(() ->
-                                          bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())
-                                                                              .option(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2,127.0.0.3")
-                                                                              .save());
+        Throwable thrown = catchThrowable(() -> {
+            Map<String, String> additionalOptions = new HashMap<>();
+            additionalOptions.put(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name());
+            additionalOptions.put(WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "127.0.0.2,127.0.0.3");
+            bulkWriterDataFrameWriter(df, table, additionalOptions).save();
+        });
         validateFailedJob(table, cl, thrown);
     }
 
