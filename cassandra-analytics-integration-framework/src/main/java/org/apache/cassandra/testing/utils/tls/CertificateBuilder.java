@@ -166,7 +166,7 @@ public class CertificateBuilder
         ContentSigner signer = new JcaContentSignerBuilder(signatureAlgorithm).build(keyPair.getPrivate());
         X509CertificateHolder holder = builder.build(signer);
         X509Certificate root = new JcaX509CertificateConverter().getCertificate(holder);
-        return new CertificateBundle(signatureAlgorithm, new X509Certificate[]{ root }, root, keyPair, alias);
+        return new CertificateBundle(signatureAlgorithm, new X509Certificate[]{root}, root, keyPair, alias);
     }
 
     public CertificateBundle buildIssuedBy(CertificateBundle issuer) throws Exception

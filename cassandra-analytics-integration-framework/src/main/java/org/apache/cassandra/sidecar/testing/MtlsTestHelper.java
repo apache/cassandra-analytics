@@ -43,7 +43,7 @@ public class MtlsTestHelper
      */
     public static final String CASSANDRA_INTEGRATION_TEST_ENABLE_MTLS = "cassandra.integration.sidecar.test.enable_mtls";
     private final boolean enableMtlsForTesting;
-    CertificateBundle CA;
+    CertificateBundle certificateAuthority;
     Path truststorePath;
     Path serverKeyStorePath;
     Path clientKeyStorePath;
@@ -66,25 +66,27 @@ public class MtlsTestHelper
             return;
         }
 
-        CA = new CertificateBuilder().subject("CN=Apache Cassandra Root CA, OU=Certification Authority, O=Unknown, C=Unknown")
-                                     .alias("fakerootca")
-                                     .isCertificateAuthority(true)
-                                     .buildSelfSigned();
-        truststorePath = CA.toTempKeyStorePath(secretsPath, EMPTY_PASSWORD, EMPTY_PASSWORD);
+        certificateAuthority =
+        new CertificateBuilder().subject("CN=Apache Cassandra Root CA, OU=Certification Authority, O=Unknown, C=Unknown")
+                                .alias("fakerootca")
+                                .isCertificateAuthority(true)
+                                .buildSelfSigned();
+        truststorePath = certificateAuthority.toTempKeyStorePath(secretsPath, EMPTY_PASSWORD, EMPTY_PASSWORD);
 
-        CertificateBuilder serverKeyStoreBuilder = new CertificateBuilder().subject("CN=Apache Cassandra, OU=mtls_test, O=Unknown, L=Unknown, ST=Unknown, C=Unknown")
-                                                                           .addSanDnsName("localhost");
+        CertificateBuilder serverKeyStoreBuilder =
+        new CertificateBuilder().subject("CN=Apache Cassandra, OU=mtls_test, O=Unknown, L=Unknown, ST=Unknown, C=Unknown")
+                                .addSanDnsName("localhost");
         // Add SANs for every potential hostname Sidecar will serve
         for (int i = 1; i <= 20; i++)
         {
             serverKeyStoreBuilder.addSanDnsName("localhost" + i);
         }
 
-        CertificateBundle serverKeyStore = serverKeyStoreBuilder.buildIssuedBy(CA);
+        CertificateBundle serverKeyStore = serverKeyStoreBuilder.buildIssuedBy(certificateAuthority);
         serverKeyStorePath = serverKeyStore.toTempKeyStorePath(secretsPath, EMPTY_PASSWORD, EMPTY_PASSWORD);
         CertificateBundle clientKeyStore = new CertificateBuilder().subject("CN=Apache Cassandra, OU=mtls_test, O=Unknown, L=Unknown, ST=Unknown, C=Unknown")
                                                                    .addSanDnsName("localhost")
-                                                                   .buildIssuedBy(CA);
+                                                                   .buildIssuedBy(certificateAuthority);
         clientKeyStorePath = clientKeyStore.toTempKeyStorePath(secretsPath, EMPTY_PASSWORD, EMPTY_PASSWORD);
     }
 
