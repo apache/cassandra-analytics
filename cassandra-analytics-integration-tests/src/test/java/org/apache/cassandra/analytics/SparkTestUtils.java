@@ -56,7 +56,7 @@ public class SparkTestUtils
     protected ICluster<? extends IInstance> cluster;
     protected DnsResolver dnsResolver;
     protected int sidecarPort;
-    private MtlsTestHelper mtlsTestHelper;
+    protected MtlsTestHelper mtlsTestHelper;
 
     /**
      * Runs any initialization code required for the tests
