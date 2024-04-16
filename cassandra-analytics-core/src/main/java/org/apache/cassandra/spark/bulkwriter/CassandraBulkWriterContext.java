@@ -133,7 +133,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
 
     private void publishInitialJobStats(String sparkVersion)
     {
-        Map<String, String> initialJobStats = new HashMap<>()
+        Map<String, String> initialJobStats = new HashMap<String, String>() // type declaration required to compile with java8
         {{
             put("jobId", jobInfo.getId().toString());
             put("sparkVersion", sparkVersion);

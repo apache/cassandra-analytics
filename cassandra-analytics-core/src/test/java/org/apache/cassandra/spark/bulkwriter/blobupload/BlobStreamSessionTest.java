@@ -150,28 +150,28 @@ class BlobStreamSessionTest
             assertEquals(bundles.size(), ss.createdRestoreSlices().size(),
                          "It should create 1 slice per bundle");
             Bundle actualBundle1 = blobDataTransferApi.uploadedBundleManifest.get(BigInteger.valueOf(1L));
-            BundleManifest.Entry actualBundle1Entry = actualBundle1.manifestEntry("nc-1-big-");
+            BundleManifest.Entry actualBundle1Entry = actualBundle1.manifestEntry("na-1-big-");
             assertEquals(BigInteger.valueOf(1L), actualBundle1Entry.startToken());
             assertEquals(BigInteger.valueOf(3L), actualBundle1Entry.endToken());
             Map<String, String> bundle1ComponentsChecksum = actualBundle1Entry.componentsChecksum();
-            assertEquals("f48b39a3", bundle1ComponentsChecksum.get("nc-1-big-Data.db"));
-            assertEquals("ee128018", bundle1ComponentsChecksum.get("nc-1-big-Index.db"));
-            assertEquals("e2c32c23", bundle1ComponentsChecksum.get("nc-1-big-Summary.db"));
-            assertEquals("f773fcc6", bundle1ComponentsChecksum.get("nc-1-big-Statistics.db"));
-            assertEquals("7c8ef1f5", bundle1ComponentsChecksum.get("nc-1-big-TOC.txt"));
-            assertEquals("72fc4f9c", bundle1ComponentsChecksum.get("nc-1-big-Filter.db"));
+            assertEquals("f48b39a3", bundle1ComponentsChecksum.get("na-1-big-Data.db"));
+            assertEquals("ee128018", bundle1ComponentsChecksum.get("na-1-big-Index.db"));
+            assertEquals("e2c32c23", bundle1ComponentsChecksum.get("na-1-big-Summary.db"));
+            assertEquals("f773fcc6", bundle1ComponentsChecksum.get("na-1-big-Statistics.db"));
+            assertEquals("7c8ef1f5", bundle1ComponentsChecksum.get("na-1-big-TOC.txt"));
+            assertEquals("72fc4f9c", bundle1ComponentsChecksum.get("na-1-big-Filter.db"));
 
             Bundle actualBundle2 = blobDataTransferApi.uploadedBundleManifest.get(BigInteger.valueOf(3L));
-            BundleManifest.Entry actualBundle2Entry = actualBundle2.manifestEntry("nc-2-big-");
+            BundleManifest.Entry actualBundle2Entry = actualBundle2.manifestEntry("na-2-big-");
             assertEquals(BigInteger.valueOf(3L), actualBundle2Entry.startToken());
             assertEquals(BigInteger.valueOf(6L), actualBundle2Entry.endToken());
             Map<String, String> bundle2ComponentsChecksum = actualBundle2Entry.componentsChecksum();
-            assertEquals("f48b39a3", bundle2ComponentsChecksum.get("nc-2-big-Data.db"));
-            assertEquals("ee128018", bundle2ComponentsChecksum.get("nc-2-big-Index.db"));
-            assertEquals("e2c32c23", bundle2ComponentsChecksum.get("nc-2-big-Summary.db"));
-            assertEquals("f773fcc6", bundle2ComponentsChecksum.get("nc-2-big-Statistics.db"));
-            assertEquals("7c8ef1f5", bundle2ComponentsChecksum.get("nc-2-big-TOC.txt"));
-            assertEquals("72fc4f9c", bundle2ComponentsChecksum.get("nc-2-big-Filter.db"));
+            assertEquals("f48b39a3", bundle2ComponentsChecksum.get("na-2-big-Data.db"));
+            assertEquals("ee128018", bundle2ComponentsChecksum.get("na-2-big-Index.db"));
+            assertEquals("e2c32c23", bundle2ComponentsChecksum.get("na-2-big-Summary.db"));
+            assertEquals("f773fcc6", bundle2ComponentsChecksum.get("na-2-big-Statistics.db"));
+            assertEquals("7c8ef1f5", bundle2ComponentsChecksum.get("na-2-big-TOC.txt"));
+            assertEquals("72fc4f9c", bundle2ComponentsChecksum.get("na-2-big-Filter.db"));
         }
     }
 
@@ -179,11 +179,11 @@ class BlobStreamSessionTest
     {
         CassandraBridge bridge = mock(CassandraBridge.class);
 
-        SSTableSummary summary1 = new SSTableSummary(BigInteger.valueOf(1L), BigInteger.valueOf(3L), "nc-1-big-");
-        SSTableSummary summary2 = new SSTableSummary(BigInteger.valueOf(3L), BigInteger.valueOf(6L), "nc-2-big-");
+        SSTableSummary summary1 = new SSTableSummary(BigInteger.valueOf(1L), BigInteger.valueOf(3L), "na-1-big-");
+        SSTableSummary summary2 = new SSTableSummary(BigInteger.valueOf(3L), BigInteger.valueOf(6L), "na-2-big-");
 
-        FileSystemSSTable ssTable1 = new FileSystemSSTable(outputDir.resolve("nc-1-big-Data.db"), false, null);
-        FileSystemSSTable ssTable2 = new FileSystemSSTable(outputDir.resolve("nc-2-big-Data.db"), false, null);
+        FileSystemSSTable ssTable1 = new FileSystemSSTable(outputDir.resolve("na-1-big-Data.db"), false, null);
+        FileSystemSSTable ssTable2 = new FileSystemSSTable(outputDir.resolve("na-2-big-Data.db"), false, null);
         when(bridge.getSSTableSummary("ks", "table1", ssTable1)).thenReturn(summary1);
         when(bridge.getSSTableSummary("ks", "table1", ssTable2)).thenReturn(summary2);
         return bridge;

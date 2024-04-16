@@ -51,7 +51,7 @@ class CreatedRestoreSliceTest
                          .hasSameHashCodeAs(new CreatedRestoreSlice(req));
 
         CreateSliceRequestPayload differentReq = new CreateSliceRequestPayload("newId", 0, "bucket", "key", "checksum",
-                                                                               BigInteger.ZERO, BigInteger.TWO, 234L, 123L);
+                                                                               BigInteger.ZERO, BigInteger.valueOf(2L), 234L, 123L);
         assertThat(slice).isNotEqualTo(new CreatedRestoreSlice(differentReq))
                          .doesNotHaveSameHashCodeAs(new CreatedRestoreSlice(differentReq));
     }

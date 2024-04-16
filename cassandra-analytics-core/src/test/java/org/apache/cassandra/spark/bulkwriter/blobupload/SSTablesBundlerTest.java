@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -36,6 +37,8 @@ import org.apache.commons.io.FileUtils;
 
 import org.junit.jupiter.api.Test;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
@@ -106,31 +109,31 @@ class SSTablesBundlerTest
                 ssTablesBundler.next();
             }
 
-            String expectedBundle0Manifest = "{\n"
-                                             + "  \"nc-1-big-\" : {\n"
-                                             + "    \"components_checksum\" : {\n"
-                                             + "      \"nc-1-big-Statistics.db\" : \"f773fcc6\",\n"
-                                             + "      \"nc-1-big-TOC.txt\" : \"7c8ef1f5\",\n"
-                                             + "      \"nc-1-big-Filter.db\" : \"72fc4f9c\",\n"
-                                             + "      \"nc-1-big-Data.db\" : \"f48b39a3\",\n"
-                                             + "      \"nc-1-big-Summary.db\" : \"e2c32c23\",\n"
-                                             + "      \"nc-1-big-Index.db\" : \"ee128018\"\n"
-                                             + "    },\n"
-                                             + "    \"start_token\" : 1,\n"
-                                             + "    \"end_token\" : 3\n"
-                                             + "  }\n"
-                                             + "}";
+            String expectedBundle0Manifest = "{\n" +
+                                             "  \"na-1-big-\" : {\n" +
+                                             "    \"components_checksum\" : {\n" +
+                                             "      \"na-1-big-Summary.db\" : \"e2c32c23\",\n" +
+                                             "      \"na-1-big-TOC.txt\" : \"7c8ef1f5\",\n" +
+                                             "      \"na-1-big-Filter.db\" : \"72fc4f9c\",\n" +
+                                             "      \"na-1-big-Index.db\" : \"ee128018\",\n" +
+                                             "      \"na-1-big-Data.db\" : \"f48b39a3\",\n" +
+                                             "      \"na-1-big-Statistics.db\" : \"f773fcc6\"\n" +
+                                             "    },\n" +
+                                             "    \"start_token\" : 1,\n" +
+                                             "    \"end_token\" : 3\n" +
+                                             "  }\n" +
+                                             "}";
             String expectedBundle1Manifest = "{\n"
-                                             + "  \"nc-2-big-\" : {\n"
+                                             + "  \"na-2-big-\" : {\n"
                                              + "    \"components_checksum\" : {\n"
-                                             + "      \"nc-2-big-Filter.db\" : \"72fc4f9c\",\n"
-                                             + "      \"nc-2-big-TOC.txt\" : \"7c8ef1f5\",\n"
-                                             + "      \"nc-2-big-Index.db\" : \"ee128018\",\n"
-                                             + "      \"nc-2-big-Data.db\" : \"f48b39a3\",\n"
-                                             + "      \"nc-2-big-Summary.db\" : \"e2c32c23\",\n"
-                                             + "      \"nc-2-big-Statistics.db\" : \"f773fcc6\"\n"
+                                             + "      \"na-2-big-Filter.db\" : \"72fc4f9c\",\n"
+                                             + "      \"na-2-big-TOC.txt\" : \"7c8ef1f5\",\n"
+                                             + "      \"na-2-big-Index.db\" : \"ee128018\",\n"
+                                             + "      \"na-2-big-Data.db\" : \"f48b39a3\",\n"
+                                             + "      \"na-2-big-Summary.db\" : \"e2c32c23\",\n"
+                                             + "      \"na-2-big-Statistics.db\" : \"f773fcc6\"\n"
                                              + "    },\n"
-                                             + "    \"start_token\" : 3,\n"
+                                             + "    \"start_token\" : 4,\n"
                                              + "    \"end_token\" : 6\n"
                                              + "  }\n"
                                              + "}";
@@ -138,16 +141,14 @@ class SSTablesBundlerTest
             Path bundle1Manifest = outputDir.resolve("1").resolve("manifest.json");
             assertTrue(Files.exists(bundle0Manifest));
             assertTrue(Files.exists(bundle1Manifest));
-            List<String> actualBundle0ManifestLines = Files.readAllLines(bundle0Manifest);
-            List<String> actualBundle1ManifestLines = Files.readAllLines(bundle1Manifest);
-            assertEquals(actualBundle0ManifestLines.size(),
-                         CollectionUtils.intersection(actualBundle0ManifestLines,
-                                                      Arrays.asList(expectedBundle0Manifest.split("\n")))
-                                        .size());
-            assertEquals(actualBundle1ManifestLines.size(),
-                         CollectionUtils.intersection(actualBundle1ManifestLines,
-                                                      Arrays.asList(expectedBundle1Manifest.split("\n")))
-                                        .size());
+            ObjectMapper mapper = new ObjectMapper();
+            TypeReference<Map<String, Object>> mapTypeRef = new TypeReference<Map<String,Object>>() {};
+            Map<String, Object> actualBundle0 = mapper.readValue(bundle0Manifest.toFile(), mapTypeRef);
+            Map<String, Object> expectedBundle0 = mapper.readValue(expectedBundle0Manifest, mapTypeRef);
+            assertEquals(expectedBundle0, actualBundle0);
+            Map<String, Object> actualBundle1 = mapper.readValue(bundle1Manifest.toFile(), mapTypeRef);
+            Map<String, Object> expectedBundle1 = mapper.readValue(expectedBundle1Manifest, mapTypeRef);
+            assertEquals(expectedBundle1, actualBundle1);
         }
     }
 
@@ -156,12 +157,6 @@ class SSTablesBundlerTest
     {
         try (TemporaryDirectory tempDir = new TemporaryDirectory())
         {
-            BundleNameGenerator nameGenerator = new BundleNameGenerator(jobId, sessionId);
-
-            CassandraBridge bridge = mockCassandraBridge(tempDir.path());
-            SSTableLister ssTableLister = new SSTableLister(new QualifiedTableName("ks", "table1"), bridge);
-            SSTablesBundler ssTablesBundler = new SSTablesBundler(tempDir.path(), ssTableLister, nameGenerator, 200);
-
             Path empty = Files.createFile(tempDir.path().resolve("empty"));
             assertEquals("2cc5d05", IOUtils.xxhash32(empty));
         }
@@ -186,11 +181,11 @@ class SSTablesBundlerTest
     {
         CassandraBridge bridge = mock(CassandraBridge.class);
 
-        SSTableSummary summary1 = new SSTableSummary(BigInteger.valueOf(1L), BigInteger.valueOf(3L), "nc-1-big-");
-        SSTableSummary summary2 = new SSTableSummary(BigInteger.valueOf(3L), BigInteger.valueOf(6L), "nc-2-big-");
+        SSTableSummary summary1 = new SSTableSummary(BigInteger.valueOf(1L), BigInteger.valueOf(3L), "na-1-big-");
+        SSTableSummary summary2 = new SSTableSummary(BigInteger.valueOf(4L), BigInteger.valueOf(6L), "na-2-big-");
 
-        FileSystemSSTable ssTable1 = new FileSystemSSTable(outputDir.resolve("nc-1-big-Data.db"), false, null);
-        FileSystemSSTable ssTable2 = new FileSystemSSTable(outputDir.resolve("nc-2-big-Data.db"), false, null);
+        FileSystemSSTable ssTable1 = new FileSystemSSTable(outputDir.resolve("na-1-big-Data.db"), false, null);
+        FileSystemSSTable ssTable2 = new FileSystemSSTable(outputDir.resolve("na-2-big-Data.db"), false, null);
         when(bridge.getSSTableSummary("ks", "table1", ssTable1)).thenReturn(summary1);
         when(bridge.getSSTableSummary("ks", "table1", ssTable2)).thenReturn(summary2);
         return bridge;
