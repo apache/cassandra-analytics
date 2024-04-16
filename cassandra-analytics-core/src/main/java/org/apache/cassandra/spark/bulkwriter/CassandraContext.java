@@ -88,7 +88,7 @@ public class CassandraContext implements StartupValidatable, Closeable
 
     protected Set<? extends SidecarInstance> createClusterConfig()
     {
-        return conf.sidecarInstances;
+        return conf.sidecarInstances();
     }
 
     public SidecarClient getSidecarClient()

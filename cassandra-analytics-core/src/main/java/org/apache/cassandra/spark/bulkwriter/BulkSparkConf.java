@@ -109,7 +109,6 @@ public class BulkSparkConf implements Serializable
     public static final String IMPORT_COORDINATOR_TIMEOUT_MULTIPLIER   = SETTING_PREFIX + "importCoordinatorTimeoutMultiplier";
     public static final int MINIMUM_JOB_KEEP_ALIVE_MINUTES             = 10;
 
-    public final transient Set<? extends SidecarInstance> sidecarInstances;
     public final String keyspace;
     public final String table;
     public final ConsistencyLevel.CL consistencyLevel;
@@ -145,6 +144,10 @@ public class BulkSparkConf implements Serializable
     protected final String configuredJobId;
     protected boolean useOpenSsl;
     protected int ringRetryCount;
+    // create sidecarInstances from sidecarInstancesValue and effectiveSidecarPort
+    private final String sidecarInstancesValue;
+    private transient Set<? extends SidecarInstance> sidecarInstances; // not serialized
+
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
@@ -152,7 +155,8 @@ public class BulkSparkConf implements Serializable
         Optional<Integer> sidecarPortFromOptions = MapUtils.getOptionalInt(options, WriterOptions.SIDECAR_PORT.name(), "sidecar port");
         this.userProvidedSidecarPort = sidecarPortFromOptions.isPresent() ? sidecarPortFromOptions.get() : getOptionalInt(SIDECAR_PORT).orElse(-1);
         this.effectiveSidecarPort = this.userProvidedSidecarPort == -1 ? DEFAULT_SIDECAR_PORT : this.userProvidedSidecarPort;
-        this.sidecarInstances = buildSidecarInstances(options, effectiveSidecarPort);
+        this.sidecarInstancesValue = MapUtils.getOrThrow(options, WriterOptions.SIDECAR_INSTANCES.name(), "sidecar_instances");
+        this.sidecarInstances = sidecarInstances();
         this.keyspace = MapUtils.getOrThrow(options, WriterOptions.KEYSPACE.name());
         this.table = MapUtils.getOrThrow(options, WriterOptions.TABLE.name());
         this.skipExtendedVerify = MapUtils.getBoolean(options, WriterOptions.SKIP_EXTENDED_VERIFY.name(), true,
@@ -258,12 +262,20 @@ public class BulkSparkConf implements Serializable
         return legacyOptionValue == -1 ? DEFAULT_SSTABLE_DATA_SIZE_IN_MIB : legacyOptionValue;
     }
 
-    protected Set<? extends SidecarInstance> buildSidecarInstances(Map<String, String> options, int sidecarPort)
+    protected Set<? extends SidecarInstance> buildSidecarInstances()
     {
-        String sidecarInstances = MapUtils.getOrThrow(options, WriterOptions.SIDECAR_INSTANCES.name(), "sidecar_instances");
-        return Arrays.stream(sidecarInstances.split(","))
-                     .map(hostname -> new SidecarInstanceImpl(hostname, sidecarPort))
+        return Arrays.stream(sidecarInstancesValue.split(","))
+                     .map(hostname -> new SidecarInstanceImpl(hostname, effectiveSidecarPort))
                      .collect(Collectors.toSet());
+    }
+
+    Set<? extends SidecarInstance> sidecarInstances()
+    {
+        if (sidecarInstances == null)
+        {
+            sidecarInstances = buildSidecarInstances();
+        }
+        return sidecarInstances;
     }
 
     protected void validateEnvironment() throws RuntimeException

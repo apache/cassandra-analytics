@@ -25,19 +25,15 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
 import com.google.common.collect.ImmutableList;
-import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.io.FileUtils;
-
 import org.junit.jupiter.api.Test;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import org.apache.cassandra.bridge.CassandraBridge;
@@ -81,7 +77,7 @@ class SSTablesBundlerTest
             assertTrue(Files.exists(bundle0) && Files.isDirectory(bundle0));
             assertTrue(Files.exists(bundle1) && Files.isDirectory(bundle1));
             String expectedZippedBundlePath1 = "b_" + jobId + "_" + sessionId + "_1_3";
-            String expectedZippedBundlePath2 = "d_" + jobId + "_" + sessionId + "_3_6";
+            String expectedZippedBundlePath2 = "e_" + jobId + "_" + sessionId + "_4_6";
             assertTrue(Files.exists(outputDir.resolve(expectedZippedBundlePath1)));
             assertTrue(Files.exists(outputDir.resolve(expectedZippedBundlePath2)));
         }
@@ -142,12 +138,11 @@ class SSTablesBundlerTest
             assertTrue(Files.exists(bundle0Manifest));
             assertTrue(Files.exists(bundle1Manifest));
             ObjectMapper mapper = new ObjectMapper();
-            TypeReference<Map<String, Object>> mapTypeRef = new TypeReference<Map<String,Object>>() {};
-            Map<String, Object> actualBundle0 = mapper.readValue(bundle0Manifest.toFile(), mapTypeRef);
-            Map<String, Object> expectedBundle0 = mapper.readValue(expectedBundle0Manifest, mapTypeRef);
+            Map actualBundle0 = mapper.readValue(bundle0Manifest.toFile(), Map.class);
+            Map expectedBundle0 = mapper.readValue(expectedBundle0Manifest, Map.class);
             assertEquals(expectedBundle0, actualBundle0);
-            Map<String, Object> actualBundle1 = mapper.readValue(bundle1Manifest.toFile(), mapTypeRef);
-            Map<String, Object> expectedBundle1 = mapper.readValue(expectedBundle1Manifest, mapTypeRef);
+            Map actualBundle1 = mapper.readValue(bundle1Manifest.toFile(), Map.class);
+            Map expectedBundle1 = mapper.readValue(expectedBundle1Manifest, Map.class);
             assertEquals(expectedBundle1, actualBundle1);
         }
     }

@@ -28,8 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.esotericsoftware.kryo.Kryo;
-import org.apache.cassandra.clients.SidecarInstanceSerializer;
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.bulkwriter.CassandraBulkWriterContext;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
 import org.apache.cassandra.spark.bulkwriter.TokenPartitioner;
@@ -63,7 +61,6 @@ public class SbwKryoRegistrator implements KryoRegistrator
         kryo.register(StorageTransportConfiguration.class, new StorageTransportConfiguration.Serializer());
         kryo.register(StorageCredentialPair.class, new StorageCredentialPair.Serializer());
         kryo.register(StorageCredentials.class, new StorageCredentials.Serializer());
-        kryo.register(SidecarInstanceImpl.class, new SidecarInstanceSerializer());
     }
 
     public static void addJavaSerializableClass(@NotNull Class<? extends Serializable> javaSerializableClass)

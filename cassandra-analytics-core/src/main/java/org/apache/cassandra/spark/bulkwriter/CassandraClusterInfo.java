@@ -84,8 +84,6 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     protected final transient AtomicReference<NodeSettings> nodeSettings;
     protected final transient List<CompletableFuture<NodeSettings>> allNodeSettingFutures;
 
-    private volatile boolean isClosed = false;
-
     public CassandraClusterInfo(BulkSparkConf conf)
     {
         this.conf = conf;
@@ -155,7 +153,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         synchronized (this)
         {
             LOGGER.info("Closing {}", this);
-            isClosed = true;
+            getCassandraContext().close();
         }
     }
 
