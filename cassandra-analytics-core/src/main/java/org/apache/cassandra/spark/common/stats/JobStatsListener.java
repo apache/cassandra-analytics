@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.bulkwriter;
+package org.apache.cassandra.spark.common.stats;
 
 import java.util.HashMap;
 import java.util.HashSet;

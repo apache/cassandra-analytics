@@ -78,8 +78,9 @@ import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
-import org.apache.cassandra.spark.bulkwriter.JobStatsListener;
-import org.apache.cassandra.spark.common.JobStats;
+import org.apache.cassandra.spark.common.stats.JobStatsListener;
+import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
+import org.apache.cassandra.spark.common.stats.LogStatsPublisher;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
@@ -108,7 +109,7 @@ import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.utils.Properties.NODE_STATUS_NOT_CONSIDERED;
 
-public class CassandraDataLayer extends PartitionedDataLayer implements StartupValidatable, Serializable, JobStats
+public class CassandraDataLayer extends PartitionedDataLayer implements StartupValidatable, Serializable
 {
     private static final long serialVersionUID = -9038926850642710787L;
 
@@ -148,6 +149,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected volatile CqlTable cqlTable;
     protected transient TimeProvider timeProvider;
     protected transient SidecarClient sidecar;
+    private transient JobStatsPublisher jobStatsPublisher;
 
     private SslConfig sslConfig;
 
@@ -176,6 +178,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.lastModifiedTimestampField = options.lastModifiedTimestampField();
         this.requestedFeatures = options.requestedFeatures();
         this.jobId = new AtomicReference<>();
+        this.jobStatsPublisher = new LogStatsPublisher();
 
         // Note: Consumers are called for all jobs and task. We ONLY have to publish for existing job
         this.jobStatsListener = new JobStatsListener((jobEventDetail) -> {
@@ -184,7 +187,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 Map<String, String> stats = new HashMap<>();
                 stats.put("jobId", StringUtils.defaultString(internalJobId, "null"));
                 stats.putAll(jobEventDetail.jobStats());
-                publish(stats);
+                jobStatsPublisher.publish(stats);
             }
         });
     }
@@ -234,13 +237,14 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.lastModifiedTimestampField = lastModifiedTimestampField;
         this.requestedFeatures = requestedFeatures;
         this.jobId = new AtomicReference<>();
+        this.jobStatsPublisher = new LogStatsPublisher();
         this.jobStatsListener = new JobStatsListener((jobEventDetail) -> {
             if (!internalJobId.isEmpty() && internalJobId.equals(jobEventDetail.internalJobID()))
             {
                 Map<String, String> stats = new HashMap<>();
                 stats.put("jobId", StringUtils.defaultString(internalJobId, "null"));
                 stats.putAll(jobEventDetail.jobStats());
-                publish(stats);
+                jobStatsPublisher.publish(stats);
             }
         });
 
@@ -858,12 +862,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 put("dataTransport", "DIRECT");
             }
         };
-        publish(jobStats);
-    }
-
-    public void publish(Map<String, String> stats)
-    {
-        LOGGER.info("Job Stats:" + stats);
+        jobStatsPublisher.publish(jobStats);
     }
 
     // Kryo Serialization

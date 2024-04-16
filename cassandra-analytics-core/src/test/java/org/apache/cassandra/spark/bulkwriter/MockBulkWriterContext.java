@@ -23,6 +23,7 @@ import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -81,12 +82,19 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     new CqlField.CqlType[]{mockCqlType(INT), mockCqlType(DATE), mockCqlType(VARCHAR), mockCqlType(INT)});
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
+    private int sstableWriteBatchSize = 2;
+    private Map<String, String> jobStats = new HashMap<>();
     private CassandraBridge bridge = CassandraBridgeFactory.get(CassandraVersion.FOURZERO);
 
     @Override
     public void publish(Map<String, String> stats)
     {
-        // DO NOTHING
+        jobStats.putAll(stats);
+    }
+
+    public Map<String, String> stats()
+    {
+        return jobStats;
     }
 
     public interface CommitResultSupplier extends BiFunction<List<String>, String, DirectDataTransferApi.RemoteCommitResult>

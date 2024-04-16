@@ -41,6 +41,7 @@ import o.a.c.sidecar.client.shaded.common.data.UpdateRestoreJobRequestPayload;
 import org.apache.cassandra.spark.bulkwriter.blobupload.BlobStreamResult;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.common.client.ClientException;
+import org.apache.cassandra.spark.common.stats.JobStatsListener;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportHandler;
