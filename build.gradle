@@ -38,10 +38,10 @@ repositories {
 ext.scalaLabel = System.getenv("SCALA_VERSION") ?: "${scala}"
 println("Scala version: ${ext.scalaLabel}")
 
-ext.sparkLabel = "2"// (System.getenv("SPARK_VERSION") ?: "${spark}").split(/\./)[0]
+ext.sparkLabel = (System.getenv("SPARK_VERSION") ?: "${spark}").split(/\./)[0]
 println("Spark version: ${ext.sparkLabel}")
 
-ext.jdkLabel = "1.8" // System.getenv("JDK_VERSION") ?: "${analyticsJDKLevel}"
+ext.jdkLabel = System.getenv("JDK_VERSION") ?: "${analyticsJDKLevel}"
 println("Java source/target compatibility level: ${ext.jdkLabel}")
 
 ext.dependencyLocation = (System.getenv("CASSANDRA_DEP_DIR") ?: "${rootDir}/dependencies") + "/"
