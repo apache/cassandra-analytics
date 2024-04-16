@@ -51,26 +51,32 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
     private static final Logger LOGGER = LoggerFactory.getLogger(CommitCoordinator.class);
 
     private final HashMap<RingInstance, ListeningExecutorService> executors = new HashMap<>();
-    private final List<StreamResult> successfulUploads;
-    private final DataTransferApi transferApi;
+    private final List<DirectStreamResult> successfulUploads;
+    private final DirectDataTransferApi directDataTransferApi;
     private final ClusterInfo cluster;
     private final JobInfo job;
     private ListenableFuture<List<CommitResult>> allCommits;
-    private final String jobSufix;
+    private final String jobSuffix;
 
-    public static CommitCoordinator commit(BulkWriterContext bulkWriterContext, StreamResult[] uploadResults)
+    public static CommitCoordinator commit(BulkWriterContext writerContext,
+                                           TransportContext.DirectDataBulkWriterContext
+                                           transportContext,
+                                           DirectStreamResult... uploadResults)
     {
-        CommitCoordinator coordinator = new CommitCoordinator(bulkWriterContext, uploadResults);
+        CommitCoordinator coordinator = new CommitCoordinator(writerContext.cluster(),
+                                                              writerContext.job(),
+                                                              transportContext.dataTransferApi(),
+                                                              uploadResults);
         coordinator.commit();
         return coordinator;
     }
 
-    private CommitCoordinator(BulkWriterContext writerContext, StreamResult[] uploadResults)
+    private CommitCoordinator(ClusterInfo cluster, JobInfo job, DirectDataTransferApi dataTransferApi, DirectStreamResult[] uploadResults)
     {
-        this.transferApi = writerContext.transfer();
-        this.cluster = writerContext.cluster();
-        this.job = writerContext.job();
-        this.jobSufix = "-" + job.getId();
+        this.directDataTransferApi = dataTransferApi;
+        this.cluster = cluster;
+        this.job = job;
+        this.jobSuffix = "-" + job.getRestoreJobId();
         successfulUploads = Arrays.stream(uploadResults)
                                   .filter(result -> !result.passed.isEmpty())
                                   .collect(Collectors.toList());
@@ -87,9 +93,9 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
     {
         // We may have already committed - we should never get here if we did, but if somehow we do we should
         // simply return the commit results we already collected
-        if (successfulUploads.size() > 0 && successfulUploads.stream()
+        if (!successfulUploads.isEmpty() && successfulUploads.stream()
                                                              .allMatch(result -> result.commitResults != null
-                                                                                 && result.commitResults.size() > 0))
+                                                                                 && !result.commitResults.isEmpty()))
         {
             List<CommitResult> collect = successfulUploads.stream()
                                                           .flatMap(streamResult -> streamResult.commitResults.stream())
@@ -142,7 +148,7 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
                 CommitResult commitResult = new CommitResult(migrationId, instance, uploadRanges);
                 try
                 {
-                    DataTransferApi.RemoteCommitResult result = transferApi.commitSSTables(instance, migrationId, uuids);
+                    DirectDataTransferApi.RemoteCommitResult result = directDataTransferApi.commitSSTables(instance, migrationId, uuids);
                     if (result.isSuccess)
                     {
                         LOGGER.info("[{}]: Commit succeeded on {} for {}", migrationId, instance.nodeName(), uploadRanges);
@@ -154,7 +160,7 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
                                      uploadRanges.entrySet(),
                                      result.failedUuids,
                                      result.stdErr);
-                        if (result.failedUuids.size() > 0)
+                        if (!result.failedUuids.isEmpty())
                         {
                             addFailures(result.failedUuids, uploadRanges, commitResult, result.stdErr);
                         }
@@ -181,7 +187,7 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
                              String error)
     {
         failedRanges.forEach(uuid -> {
-            String shortUuid = uuid.replace(jobSufix, "");
+            String shortUuid = uuid.replace(jobSuffix, "");
             commitResult.addFailedCommit(shortUuid, uploadRanges.get(shortUuid), error != null ? error : "Unknown Commit Failure");
         });
     }
@@ -192,7 +198,7 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
         LOGGER.debug("Added failures to commitResult by Range: {}", commitResult);
     }
 
-    private Map<RingInstance, Map<String, Range<BigInteger>>> getResultsByInstance(List<StreamResult> successfulUploads)
+    private Map<RingInstance, Map<String, Range<BigInteger>>> getResultsByInstance(List<DirectStreamResult> successfulUploads)
     {
         return successfulUploads
                .stream()

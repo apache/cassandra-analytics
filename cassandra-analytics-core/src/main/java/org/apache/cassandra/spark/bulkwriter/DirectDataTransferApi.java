@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.io.Serializable;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -28,8 +27,22 @@ import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.jetbrains.annotations.Nullable;
 
-public interface DataTransferApi extends Serializable
+public interface DirectDataTransferApi
 {
+    RemoteCommitResult commitSSTables(CassandraInstance instance,
+                                      String migrationId,
+                                      List<String> uuids) throws ClientException;
+
+    void cleanUploadSession(CassandraInstance instance,
+                            String sessionID,
+                            String jobID) throws ClientException;
+
+    void uploadSSTableComponent(Path componentFile,
+                                int ssTableIdx,
+                                CassandraInstance instance,
+                                String sessionID,
+                                Digest digest) throws ClientException;
+
     class RemoteCommitResult
     {
         public final boolean isSuccess;
@@ -48,16 +61,4 @@ public interface DataTransferApi extends Serializable
             this.stdErr = stdErr;
         }
     }
-
-    RemoteCommitResult commitSSTables(CassandraInstance instance,
-                                      String migrationId,
-                                      List<String> uuids) throws ClientException;
-
-    void cleanUploadSession(CassandraInstance instance, String sessionID, String jobID) throws ClientException;
-
-    void uploadSSTableComponent(Path componentFile,
-                                int ssTableIdx,
-                                CassandraInstance instance,
-                                String sessionID,
-                                Digest digest) throws ClientException;
 }

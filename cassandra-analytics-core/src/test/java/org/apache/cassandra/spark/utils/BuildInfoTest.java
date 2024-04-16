@@ -40,6 +40,9 @@ public class BuildInfoTest
     {
         assertTrue(BuildInfo.WRITER_USER_AGENT.endsWith(" writer"));
         assertNotEquals("unknown", BuildInfo.getBuildVersion());
+
+        assertTrue(BuildInfo.WRITER_S3_USER_AGENT.endsWith(" writer-s3"));
+        assertNotEquals("unknown", BuildInfo.getBuildVersion());
     }
 
     @Test

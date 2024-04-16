@@ -24,12 +24,11 @@ import org.junit.jupiter.api.Test;
 
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 
-import static org.apache.cassandra.spark.utils.SerializationUtils.deserialize;
 import static org.apache.cassandra.spark.utils.SerializationUtils.kryoDeserialize;
 import static org.apache.cassandra.spark.utils.SerializationUtils.kryoSerialize;
 import static org.apache.cassandra.spark.utils.SerializationUtils.register;
-import static org.apache.cassandra.spark.utils.SerializationUtils.serialize;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -41,24 +40,13 @@ public class SidecarInstanceImplTest extends SidecarInstanceTest
     @BeforeAll
     public static void setupKryo()
     {
-        register(SidecarInstanceImpl.class, new SidecarInstanceImpl.Serializer());
+        register(SidecarInstanceImpl.class, new SidecarInstanceSerializer());
     }
 
     @Override
     protected SidecarInstance newInstance(String hostname, int port)
     {
         return new SidecarInstanceImpl(hostname, port);
-    }
-
-    @Test
-    public void testJdkSerDe()
-    {
-        SidecarInstance instance = newInstance("localhost", 9043);
-        byte[] bytes = serialize(instance);
-        SidecarInstance deserialized = deserialize(bytes, SidecarInstanceImpl.class);
-        assertNotNull(deserialized);
-        assertEquals("localhost", deserialized.hostname());
-        assertEquals(9043, deserialized.port());
     }
 
     @Test

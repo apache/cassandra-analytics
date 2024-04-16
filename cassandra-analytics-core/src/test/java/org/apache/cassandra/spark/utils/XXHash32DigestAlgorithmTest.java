@@ -49,7 +49,7 @@ class XXHash32DigestAlgorithmTest
     // $ xxh32sum file2.txt # -> ef976cbe
     // $ xxh32sum file3.txt # -> 08321e1e
 
-    @ParameterizedTest(name = "{index} fileName={0} expectedMd5={1}")
+    @ParameterizedTest(name = "{index} fileName={0} expectedDigest={1}")
     @CsvSource({
     "file1.txt,d76a44a5",
     "file2.txt,ef976cbe",

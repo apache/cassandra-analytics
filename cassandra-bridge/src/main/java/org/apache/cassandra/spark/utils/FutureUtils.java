@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.utils;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
@@ -78,19 +79,19 @@ public final class FutureUtils
      * Await all futures and combine into single result
      *
      * @param <T>                 result type returned by this method
-     * @param futures             list of futures
+     * @param futures             collection of futures
      * @param acceptPartialResult if false, fail the entire request if a single failure occurs, if true just log partial failures
-     * @param logger              consumer to log errors
+     * @param onFailure           consumer of errors
      * @return result of all combined futures
      */
-    public static <T> List<T> awaitAll(List<CompletableFuture<T>> futures,
+    public static <T> List<T> awaitAll(Collection<CompletableFuture<T>> futures,
                                        boolean acceptPartialResult,
-                                       Consumer<Throwable> logger)
+                                       Consumer<Throwable> onFailure)
     {
-        List<T> result = new ArrayList<>(futures.size() * 10);  // TODO: Comment on why allocate tenfold
+        List<T> result = new ArrayList<>(futures.size());
         for (CompletableFuture<T> future : futures)
         {
-            FutureResult<T> futureResult = await(future, logger);
+            FutureResult<T> futureResult = await(future, onFailure);
             if (futureResult.throwable != null)
             {
                 // Failed

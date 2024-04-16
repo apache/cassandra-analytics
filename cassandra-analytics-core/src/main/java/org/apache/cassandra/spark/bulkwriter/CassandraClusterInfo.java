@@ -84,6 +84,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     protected final transient AtomicReference<NodeSettings> nodeSettings;
     protected final transient List<CompletableFuture<NodeSettings>> allNodeSettingFutures;
 
+    private volatile boolean isClosed = false;
+
     public CassandraClusterInfo(BulkSparkConf conf)
     {
         this.conf = conf;
@@ -106,19 +108,12 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     @Override
-    public boolean instanceIsAvailable(RingInstance ringInstance)
-    {
-        return instanceIsUp(ringInstance.ringInstance())
-               && instanceIsNormal(ringInstance.ringInstance())
-               && !instanceIsBlocked(ringInstance);
-    }
-
-    @Override
     public InstanceState getInstanceState(RingInstance ringInstance)
     {
         return InstanceState.valueOf(ringInstance.ringInstance().state().toUpperCase());
     }
 
+    @Override
     public CassandraContext getCassandraContext()
     {
         CassandraContext currentCassandraContext = cassandraContext;
@@ -160,7 +155,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         synchronized (this)
         {
             LOGGER.info("Closing {}", this);
-            getCassandraContext().close();
+            isClosed = true;
         }
     }
 

@@ -34,8 +34,9 @@ import com.esotericsoftware.kryo.Serializer;
 import org.apache.cassandra.bridge.BigNumberConfigImpl;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.clients.SidecarInstanceImpl;
+import org.apache.cassandra.clients.SidecarInstanceSerializer;
 import org.apache.cassandra.secrets.SslConfig;
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.data.CassandraDataLayer;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -66,7 +67,7 @@ public class KryoRegister implements KryoRegistrator
         KRYO_SERIALIZERS.put(TokenPartitioner.class, new TokenPartitioner.Serializer());
         KRYO_SERIALIZERS.put(CassandraDataLayer.class, new CassandraDataLayer.Serializer());
         KRYO_SERIALIZERS.put(BigNumberConfigImpl.class, new BigNumberConfigImpl.Serializer());
-        KRYO_SERIALIZERS.put(SidecarInstanceImpl.class, new SidecarInstanceImpl.Serializer());
+        KRYO_SERIALIZERS.put(SidecarInstanceImpl.class, new SidecarInstanceSerializer());
         KRYO_SERIALIZERS.put(SslConfig.class, new SslConfig.Serializer());
     }
 

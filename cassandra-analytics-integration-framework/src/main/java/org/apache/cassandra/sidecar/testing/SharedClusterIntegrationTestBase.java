@@ -43,6 +43,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.codahale.metrics.MetricRegistry;
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
@@ -626,7 +627,7 @@ public abstract class SharedClusterIntegrationTestBase
                                        .dataDirs(Arrays.asList(dataDirectories))
                                        .stagingDir(stagingDir)
                                        .delegate(delegate)
-                                       .globalMetricRegistryName("test")
+                                       .metricRegistry(new MetricRegistry())
                                        .build();
         }
 

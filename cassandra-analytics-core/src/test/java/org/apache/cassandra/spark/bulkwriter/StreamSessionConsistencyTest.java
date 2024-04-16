@@ -24,10 +24,10 @@ import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -68,8 +68,8 @@ public class StreamSessionConsistencyTest
     @TempDir
     private Path folder;
     private MockTableWriter tableWriter;
-    private StreamSession streamSession;
     private MockBulkWriterContext writerContext;
+    private TransportContext.DirectDataBulkWriterContext transportContext;
     private final MockScheduledExecutorService executor = new MockScheduledExecutorService();
     private DigestAlgorithm digestAlgorithm;
 
@@ -87,11 +87,7 @@ public class StreamSessionConsistencyTest
         digestAlgorithm = new XXHash32DigestAlgorithm();
         tableWriter = new MockTableWriter(folder);
         writerContext = new MockBulkWriterContext(TOKEN_RANGE_MAPPING, "cassandra-4.0.0", consistencyLevel);
-        streamSession = new StreamSession(writerContext,
-                                          "sessionId",
-                                          RANGE,
-                                          executor,
-                                          new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()));
+        transportContext = (TransportContext.DirectDataBulkWriterContext) writerContext.transportContext();
     }
 
     @ParameterizedTest(name = "CL: {0}, numFailures: {1}")
@@ -101,12 +97,6 @@ public class StreamSessionConsistencyTest
     throws IOException, ExecutionException, InterruptedException
     {
         setup(consistencyLevel, failuresPerDc);
-        streamSession = new StreamSession(writerContext,
-                                          "sessionId",
-                                          RANGE,
-                                          executor,
-                                          new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()));
-
         AtomicInteger dc1Failures = new AtomicInteger(failuresPerDc.get(0));
         AtomicInteger dc2Failures = new AtomicInteger(failuresPerDc.get(1));
         ImmutableMap<String, AtomicInteger> dcFailures = ImmutableMap.of("DC1", dc1Failures, "DC2", dc2Failures);
@@ -115,28 +105,26 @@ public class StreamSessionConsistencyTest
         writerContext.setCommitResultSupplier((uuids, dc) -> {
             if (dcFailures.get(dc).getAndDecrement() > 0)
             {
-                return new DataTransferApi.RemoteCommitResult(false, uuids, Collections.emptyList(), "");
+                return new DirectDataTransferApi.RemoteCommitResult(false, null, uuids, "");
             }
             else
             {
-                return new DataTransferApi.RemoteCommitResult(true, Collections.emptyList(), uuids, "");
+                return new DirectDataTransferApi.RemoteCommitResult(true, uuids, null, "");
             }
         });
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestAlgorithm);
-        tr.addRow(BigInteger.valueOf(102L), COLUMN_BIND_VALUES);
-        tr.close(writerContext, 1);
-        streamSession.scheduleStream(tr);
+        StreamSession<?> streamSession = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
+        streamSession.addRow(BigInteger.valueOf(102L), COLUMN_BIND_VALUES);
+        Future<?> fut = streamSession.scheduleStreamAsync(1, executor);
         if (shouldFail)
         {
-            RuntimeException exception = assertThrows(RuntimeException.class,
-                                                      () -> streamSession.close());  // Force "execution" of futures
+            ExecutionException exception = assertThrows(ExecutionException.class, fut::get);
             assertEquals("Failed to load 1 ranges with " + consistencyLevel
                          + " for job " + writerContext.job().getId()
-                         + " in phase UploadAndCommit.", exception.getMessage());
+                         + " in phase UploadAndCommit.", exception.getCause().getMessage());
         }
         else
         {
-            streamSession.close();  // Force "execution" of futures
+            fut.get();
         }
         executor.assertFuturesCalled();
         assertThat(writerContext.getUploads().values().stream()
@@ -156,32 +144,25 @@ public class StreamSessionConsistencyTest
     throws IOException, ExecutionException, InterruptedException
     {
         setup(consistencyLevel, failuresPerDc);
-        streamSession = new StreamSession(writerContext,
-                                          "sessionId",
-                                          RANGE,
-                                          executor,
-                                          new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()));
         AtomicInteger dc1Failures = new AtomicInteger(failuresPerDc.get(0));
         AtomicInteger dc2Failures = new AtomicInteger(failuresPerDc.get(1));
         int numFailures = dc1Failures.get() + dc2Failures.get();
         ImmutableMap<String, AtomicInteger> dcFailures = ImmutableMap.of("DC1", dc1Failures, "DC2", dc2Failures);
         boolean shouldFail = calculateFailure(consistencyLevel, dc1Failures.get(), dc2Failures.get());
         writerContext.setUploadSupplier(instance -> dcFailures.get(instance.datacenter()).getAndDecrement() <= 0);
-        SSTableWriter tr = new NonValidatingTestSSTableWriter(tableWriter, folder, digestAlgorithm);
-        tr.addRow(BigInteger.valueOf(102L), COLUMN_BIND_VALUES);
-        tr.close(writerContext, 1);
-        streamSession.scheduleStream(tr);
+        StreamSession<?> streamSession = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
+        streamSession.addRow(BigInteger.valueOf(102L), COLUMN_BIND_VALUES);
+        Future<?> fut =  streamSession.scheduleStreamAsync(1, executor);
         if (shouldFail)
         {
-            RuntimeException exception = assertThrows(RuntimeException.class,
-                                                      () -> streamSession.close());  // Force "execution" of futures
+            ExecutionException exception = assertThrows(ExecutionException.class, fut::get);
             assertEquals("Failed to load 1 ranges with " + consistencyLevel
                          + " for job " + writerContext.job().getId()
-                         + " in phase UploadAndCommit.", exception.getMessage());
+                         + " in phase UploadAndCommit.", exception.getCause().getMessage());
         }
         else
         {
-            streamSession.close();  // Force "execution" of futures
+            fut.get();  // Force "execution" of futures
         }
         executor.assertFuturesCalled();
         int totalFilesToUpload = REPLICATION_FACTOR * NUMBER_DCS * FILES_PER_SSTABLE;
@@ -223,5 +204,15 @@ public class StreamSessionConsistencyTest
             default:
                 throw new IllegalArgumentException("CL: " + consistencyLevel + " not supported");
         }
+    }
+
+    private StreamSession<?> createStreamSession(MockTableWriter.Creator writerCreator)
+    {
+        return new DirectStreamSession(writerContext,
+                                       writerCreator.create(tableWriter, folder, digestAlgorithm),
+                                       transportContext,
+                                       "sessionId",
+                                       RANGE,
+                                       new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()));
     }
 }

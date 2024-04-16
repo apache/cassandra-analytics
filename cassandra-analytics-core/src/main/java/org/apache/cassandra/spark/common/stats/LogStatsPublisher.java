@@ -35,6 +35,6 @@ public class LogStatsPublisher implements JobStatsPublisher
     @Override
     public void publish(Map<String, String> stats)
     {
-        LOGGER.info("Job Stats:" + stats);
+        LOGGER.info("Job Stats: {}", stats);
     }
 }

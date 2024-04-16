@@ -36,21 +36,21 @@ public final class ScalaConversionUtils
 
     public static <A> java.lang.Iterable<A> asJavaIterable(scala.collection.Iterable<A> iterable)
     {
-        return JavaConverters.asJavaIterable(iterable);
+        return JavaConverters.<A>asJavaIterable(iterable);
     }
 
     public static <A> scala.collection.Iterator<A> asScalaIterator(java.util.Iterator<A> iterator)
     {
-        return JavaConverters.asScalaIterator(iterator);
+        return JavaConverters.<A>asScalaIterator(iterator);
     }
 
     public static <A, B> java.util.Map<A, B> mapAsJavaMap(scala.collection.Map<A, B> map)
     {
-        return JavaConverters.mapAsJavaMap(map);
+        return JavaConverters.<A, B>mapAsJavaMap(map);
     }
 
     public static <A> List<A> mutableSeqAsJavaList(Seq<A> seq)
     {
-        return JavaConverters.mutableSeqAsJavaList(seq);
+        return JavaConverters.<A>mutableSeqAsJavaList(seq);
     }
 }

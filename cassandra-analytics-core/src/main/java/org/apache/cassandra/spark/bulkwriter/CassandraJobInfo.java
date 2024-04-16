@@ -21,19 +21,20 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.util.UUID;
 
+import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.jetbrains.annotations.NotNull;
 
 public class CassandraJobInfo implements JobInfo
 {
     private static final long serialVersionUID = 6140098484732683759L;
-    private final BulkSparkConf conf;
-    @NotNull
-    private final UUID jobId = UUID.randomUUID();
-    private final TokenPartitioner tokenPartitioner;
+    protected final BulkSparkConf conf;
+    protected final UUID restoreJobId;
+    protected final TokenPartitioner tokenPartitioner;
 
-    CassandraJobInfo(BulkSparkConf conf, TokenPartitioner tokenPartitioner)
+    public CassandraJobInfo(BulkSparkConf conf, UUID restoreJobId, TokenPartitioner tokenPartitioner)
     {
+        this.restoreJobId = restoreJobId;
         this.conf = conf;
         this.tokenPartitioner = tokenPartitioner;
     }
@@ -75,15 +76,27 @@ public class CassandraJobInfo implements JobInfo
     }
 
     @Override
+    public DataTransportInfo getTransportInfo()
+    {
+        return conf.getTransportInfo();
+    }
+
+    @Override
     public int getCommitThreadsPerInstance()
     {
         return conf.commitThreadsPerInstance;
     }
 
     @Override
-    public UUID getId()
+    public UUID getRestoreJobId()
     {
-        return jobId;
+        return restoreJobId;
+    }
+
+    @Override
+    public String getConfiguredJobId()
+    {
+        return conf.configuredJobId;
     }
 
     @Override
@@ -115,5 +128,11 @@ public class CassandraJobInfo implements JobInfo
     public DigestAlgorithmSupplier digestAlgorithmSupplier()
     {
         return conf.digestAlgorithmSupplier;
+    }
+
+    @NotNull
+    public QualifiedTableName getQualifiedTableName()
+    {
+        return new QualifiedTableName(conf.keyspace, conf.table);
     }
 }

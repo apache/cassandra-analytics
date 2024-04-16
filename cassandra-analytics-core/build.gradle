@@ -68,11 +68,16 @@ dependencies {
 
     // This dependency must be built by running `scripts/build-dependencies.sh`
     api(group: "${sidecarClientGroup}", name: "${sidecarClientName}", version: "${sidecarVersion}")
-    implementation(group: 'org.lz4', name: 'lz4-java', version: '1.8.0')
+    implementation(group: 'org.lz4', name: 'lz4-java', version: '1.8.0') // for xxhash
 
     if ("${scalaMajorVersion}" == "2.11") {
         implementation(group: 'org.scala-lang.modules', name: "scala-java8-compat_2.11", version: '1.0.1', transitive: false)
     }
+
+    // aws sdk BOM + s3
+    implementation 'software.amazon.awssdk:s3'
+    implementation 'software.amazon.awssdk:netty-nio-client'
+    implementation platform(group: 'software.amazon.awssdk', name:'bom', version:"${project.aswSdkVersion}")
 
     compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
     compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")

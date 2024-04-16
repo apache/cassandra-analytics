@@ -189,20 +189,23 @@ public final class MapUtils
         return value != null ? Long.parseLong(value) : defaultValue;
     }
 
-    public static <T extends Enum<T>> T getEnumOption(Map<String, String> options, String key, T defaultValue)
-    {
-        return getEnumOption(options, key, defaultValue, null);
-    }
-
-    @SuppressWarnings("unchecked")
-    public static <T extends Enum<T>> T getEnumOption(Map<String, String> options,
-                                                      String key, T defaultValue,
-                                                      String displayName)
+    /**
+     * Returns the enum variant for the given {@code key} and the {@code enumClass}. The {@code defaultValue} is returned
+     * when the lookup misses.
+     *
+     * @param options       the map
+     * @param key           the key to lookup
+     * @param defaultValue  the default value
+     * @param displayName   an optional name to display in the error message
+     * @return the enum variant or the default value if the lookup misses
+     * @param <T> enum type
+     */
+    public static <T extends Enum<T>> T getEnumOption(Map<String, String> options, String key, T defaultValue, String displayName)
     {
         String value = options.get(lowerCaseKey(key));
         try
         {
-            return value != null ? (T) Enum.valueOf(defaultValue.getDeclaringClass(), value) : defaultValue;
+            return value != null ? Enum.valueOf(defaultValue.getDeclaringClass(), value) : defaultValue;
         }
         catch (IllegalArgumentException exception)
         {
@@ -219,7 +222,7 @@ public final class MapUtils
      * @param options      the map
      * @param key          the key to the map
      * @param defaultValue the default value
-     * @return the long value
+     * @return String value
      */
     public static String getOrDefault(Map<String, String> options, String key, String defaultValue)
     {

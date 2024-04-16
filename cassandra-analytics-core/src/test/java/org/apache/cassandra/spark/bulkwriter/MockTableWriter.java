@@ -30,6 +30,7 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.io.FileUtils;
 
 import org.apache.cassandra.bridge.SSTableWriter;
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
 
 public class MockTableWriter implements SSTableWriter
 {
@@ -99,5 +100,13 @@ public class MockTableWriter implements SSTableWriter
     public void removeOutDir() throws IOException
     {
         FileUtils.deleteDirectory(outDir.toFile());
+    }
+
+    public interface Creator
+    {
+        // to match with SortedSSTableWriter's constructor
+        SortedSSTableWriter create(MockTableWriter tableWriter,
+                                   Path outDir,
+                                   DigestAlgorithm digestAlgorithm);
     }
 }

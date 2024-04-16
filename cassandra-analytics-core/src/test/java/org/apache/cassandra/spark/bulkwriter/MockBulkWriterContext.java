@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,13 +38,16 @@ import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Range;
 import org.apache.commons.lang3.tuple.Pair;
 
+import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import o.a.c.sidecar.client.shaded.common.data.TimeSkewResponse;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
+import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.client.ClientException;
@@ -65,7 +69,7 @@ import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHAR;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCqlType;
 
-public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, JobInfo, SchemaInfo, DataTransferApi, JobStatsPublisher
+public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, JobInfo, SchemaInfo, JobStatsPublisher
 {
     private static final long serialVersionUID = -2912371629236770646L;
     public static final String[] DEFAULT_PARTITION_KEY_COLUMNS = {"id", "date"};
@@ -78,7 +82,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private final boolean quoteIdentifiers;
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
-    private int sstableWriteBatchSize = 2;
     private CassandraBridge bridge = CassandraBridgeFactory.get(CassandraVersion.FOURZERO);
 
     @Override
@@ -87,7 +90,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         // DO NOTHING
     }
 
-    public interface CommitResultSupplier extends BiFunction<List<String>, String, RemoteCommitResult>
+    public interface CommitResultSupplier extends BiFunction<List<String>, String, DirectDataTransferApi.RemoteCommitResult>
     {
     }
 
@@ -105,11 +108,10 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private final TableSchema schema;
     private final TokenRangeMapping<RingInstance> tokenRangeMapping;
     private final Set<CassandraInstance> cleanCalledForInstance = Collections.synchronizedSet(new HashSet<>());
-    private boolean instancesAreAvailable = true;
     private boolean cleanShouldThrow = false;
     private final TokenPartitioner tokenPartitioner;
     private final String cassandraVersion;
-    private CommitResultSupplier crSupplier = (uuids, dc) -> new RemoteCommitResult(true, Collections.emptyList(), uuids, null);
+    private CommitResultSupplier crSupplier = (uuids, dc) -> new DirectDataTransferApi.RemoteCommitResult(true, Collections.emptyList(), uuids, null);
 
     private Predicate<CassandraInstance> uploadRequestConsumer = instance -> true;
 
@@ -192,6 +194,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
+    public BulkSparkConf conf()
+    {
+        return null;
+    }
+
+    @Override
     public TimeSkewResponse getTimeSkew(List<RingInstance> replicas)
     {
         return new TimeSkewResponse(timeProvider.get(), 60);
@@ -202,6 +210,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     {
         // TODO: Fix me
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CassandraContext getCassandraContext()
+    {
+        return null;
     }
 
     @Override
@@ -263,6 +277,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         return DigestAlgorithms.XXHASH32;
     }
 
+    @Override
+    public DataTransportInfo getTransportInfo()
+    {
+        return new DataTransportInfo(DataTransport.DIRECT, null, 0);
+    }
+
     public void setSkipCleanOnFailures(boolean skipClean)
     {
         this.skipClean = skipClean;
@@ -281,9 +301,15 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public UUID getId()
+    public UUID getRestoreJobId()
     {
         return jobId;
+    }
+
+    @Override
+    public String getConfiguredJobId()
+    {
+        return null;
     }
 
     @Override
@@ -323,49 +349,9 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         return cassandraVersion;
     }
 
-    @Override
-    public RemoteCommitResult commitSSTables(CassandraInstance instance, String migrationId, List<String> uuids)
-    {
-        commits.computeIfAbsent(instance, k -> new ArrayList<>()).add(migrationId);
-        return crSupplier.apply(buildCompleteBatchIds(uuids), instance.datacenter());
-    }
-
     private List<String> buildCompleteBatchIds(List<String> uuids)
     {
         return uuids.stream().map(uuid -> uuid + "-" + jobId).collect(Collectors.toList());
-    }
-
-    @Override
-    public void cleanUploadSession(CassandraInstance instance, String sessionID, String jobID) throws ClientException
-    {
-        cleanCalledForInstance.add(instance);
-        if (cleanShouldThrow)
-        {
-            throw new ClientException("Clean was called but was set to throw");
-        }
-    }
-
-    @Override
-    public void uploadSSTableComponent(Path componentFile,
-                                       int ssTableIdx,
-                                       CassandraInstance instance,
-                                       String sessionID,
-                                       Digest digest) throws ClientException
-    {
-        boolean uploadSucceeded = uploadRequestConsumer.test(instance);
-        uploads.compute(instance, (k, pathList) -> {
-            if (pathList == null)
-            {
-                pathList = new ArrayList<>();
-            }
-            pathList.add(new UploadRequest(componentFile, ssTableIdx, instance, sessionID, digest, uploadSucceeded));
-            return pathList;
-        });
-        if (!uploadSucceeded)
-        {
-            throw new ClientException("Failed upload");
-        }
-        uploadsLatch.countDown();
     }
 
     @Override
@@ -377,12 +363,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public boolean instanceIsAvailable(RingInstance ringInstance)
-    {
-        return instancesAreAvailable;
-    }
-
-    @Override
     public InstanceState getInstanceState(RingInstance ringInstance)
     {
         return InstanceState.NORMAL;
@@ -391,11 +371,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public void setUploadSupplier(Predicate<CassandraInstance> uploadRequestConsumer)
     {
         this.uploadRequestConsumer = uploadRequestConsumer;
-    }
-
-    public void setInstancesAreAvailable(boolean instancesAreAvailable)
-    {
-        this.instancesAreAvailable = instancesAreAvailable;
     }
 
     public int refreshClusterInfoCallCount()
@@ -450,9 +425,79 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public DataTransferApi transfer()
+    public TransportContext transportContext()
     {
-        return this;
+        MockBulkWriterContext mockBulkWriterContext = this;
+        return new TransportContext.DirectDataBulkWriterContext()
+        {
+            @Override
+            public DirectDataTransferApi dataTransferApi()
+            {
+                return new DirectDataTransferApi()
+                {
+                    @Override
+                    public DirectDataTransferApi.RemoteCommitResult commitSSTables(CassandraInstance instance, String migrationId, List<String> uuids)
+                    {
+                        commits.compute(instance, (ignored, commitList) -> {
+                            if (commitList == null)
+                            {
+                                commitList = new ArrayList<>();
+                            }
+                            commitList.add(migrationId);
+                            return commitList;
+                        });
+                        return crSupplier.apply(buildCompleteBatchIds(uuids), instance.datacenter());
+                    }
+
+                    @Override
+                    public void cleanUploadSession(CassandraInstance instance, String sessionID, String jobID) throws ClientException
+                    {
+                        cleanCalledForInstance.add(instance);
+                        if (cleanShouldThrow)
+                        {
+                            throw new ClientException("Clean was called but was set to throw");
+                        }
+                    }
+
+                    @Override
+                    public void uploadSSTableComponent(Path componentFile,
+                                                       int ssTableIdx,
+                                                       CassandraInstance instance,
+                                                       String sessionID,
+                                                       Digest digest) throws ClientException
+                    {
+                        boolean uploadSucceeded = uploadRequestConsumer.test(instance);
+                        uploads.compute(instance, (k, pathList) -> {
+                            if (pathList == null)
+                            {
+                                pathList = new ArrayList<>();
+                            }
+                            pathList.add(new UploadRequest(componentFile, ssTableIdx, instance, sessionID, digest, uploadSucceeded));
+                            return pathList;
+                        });
+                        if (!uploadSucceeded)
+                        {
+                            throw new ClientException("Failed upload");
+                        }
+                    }
+                };
+            }
+
+            @Override
+            public StreamSession<?> createStreamSession(BulkWriterContext writerContext,
+                                                        String sessionId,
+                                                        SortedSSTableWriter sstableWriter,
+                                                        Range<BigInteger> range,
+                                                        ReplicaAwareFailureHandler<RingInstance> failureHandler)
+            {
+                return new DirectStreamSession(mockBulkWriterContext,
+                                               sstableWriter,
+                                               this,
+                                               sessionId,
+                                               range,
+                                               failureHandler);
+            }
+        };
     }
 
     public CassandraBridge bridge()
@@ -476,6 +521,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public String tableName()
     {
         return "table";
+    }
+
+    @Override
+    public QualifiedTableName getQualifiedTableName()
+    {
+        return new QualifiedTableName("keyspace", "table");
     }
 
     // Startup Validation

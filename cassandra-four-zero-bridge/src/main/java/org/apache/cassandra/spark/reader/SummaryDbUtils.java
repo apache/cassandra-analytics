@@ -36,9 +36,9 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Helper methods for reading the Summary.db SSTable file component
  */
-final class SummaryDbUtils
+public final class SummaryDbUtils
 {
-    static class Summary
+    public static class Summary
     {
         private final IndexSummary indexSummary;
         private final DecoratedKey firstKey;
@@ -74,7 +74,7 @@ final class SummaryDbUtils
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    static Summary readSummary(@NotNull TableMetadata metadata, @NotNull SSTable ssTable) throws IOException
+    public static Summary readSummary(@NotNull TableMetadata metadata, @NotNull SSTable ssTable) throws IOException
     {
         try (InputStream in = ssTable.openSummaryStream())
         {

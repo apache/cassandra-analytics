@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.function.Supplier;
+import javax.validation.constraints.NotNull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,15 +37,16 @@ import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.utils.streaming.SSTableInputStream;
 import org.jetbrains.annotations.Nullable;
 
-class FileSystemSSTable extends SSTable
+public class FileSystemSSTable extends SSTable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileSystemSSTable.class);
+    private static final long serialVersionUID = -7545780596504602254L;
 
-    private final Path dataFilePath;
-    private final boolean useSSTableInputStream;
-    private final Supplier<Stats> stats;
+    private final transient Path dataFilePath;
+    private final transient boolean useSSTableInputStream;
+    private final transient Supplier<Stats> stats;
 
-    FileSystemSSTable(Path dataFilePath, boolean useSSTableInputStream, Supplier<Stats> stats)
+    public FileSystemSSTable(@NotNull Path dataFilePath, boolean useSSTableInputStream, @NotNull Supplier<Stats> stats)
     {
         this.dataFilePath = dataFilePath;
         this.useSSTableInputStream = useSSTableInputStream;
@@ -62,8 +64,8 @@ class FileSystemSSTable extends SSTable
         try
         {
             return useSSTableInputStream
-                    ? new SSTableInputStream<>(new FileSystemSource(this, fileType, filePath), stats.get())
-                    : new BufferedInputStream(new FileInputStream(filePath.toFile()));
+                   ? new SSTableInputStream<>(new FileSystemSource(this, fileType, filePath), stats.get())
+                   : new BufferedInputStream(new FileInputStream(filePath.toFile()));
         }
         catch (FileNotFoundException exception)
         {
@@ -110,6 +112,6 @@ class FileSystemSSTable extends SSTable
     public boolean equals(Object other)
     {
         return other instanceof FileSystemSSTable
-            && this.dataFilePath.equals(((FileSystemSSTable) other).dataFilePath);
+               && this.dataFilePath.equals(((FileSystemSSTable) other).dataFilePath);
     }
 }

@@ -34,6 +34,7 @@ import org.apache.spark.SparkConf;
 import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.DEFAULT_SIDECAR_PORT;
+import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.MINIMUM_JOB_KEEP_ALIVE_MINUTES;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.emptyString;
 import static org.hamcrest.core.Is.is;
@@ -223,6 +224,33 @@ public class BulkSparkConfTest
         BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
         assertNotNull(bulkSparkConf);
         assertTrue(bulkSparkConf.quoteIdentifiers);
+    }
+
+    @Test
+    public void testInvalidJobKeepAliveMinutes()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.JOB_KEEP_ALIVE_MINUTES.name(), "-100");
+        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> new BulkSparkConf(sparkConf, options));
+        assertEquals("Invalid value for the 'JOB_KEEP_ALIVE_MINUTES' Bulk Writer option (-100). It cannot be less than the minimum 10",
+                     iae.getMessage());
+    }
+
+    @Test
+    public void testDefaultJobKeepAliveMinutes()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertEquals(MINIMUM_JOB_KEEP_ALIVE_MINUTES, conf.getJobKeepAliveMinutes());
+    }
+
+    @Test
+    public void testJobKeepAliveMinutes()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.JOB_KEEP_ALIVE_MINUTES.name(), "30");
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertEquals(30, conf.getJobKeepAliveMinutes());
     }
 
     private Map<String, String> copyDefaultOptions()

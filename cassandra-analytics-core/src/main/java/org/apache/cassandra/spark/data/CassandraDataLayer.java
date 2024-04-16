@@ -29,7 +29,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,11 +68,11 @@ import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.clients.ExecutorHolder;
 import org.apache.cassandra.clients.Sidecar;
-import org.apache.cassandra.clients.SidecarInstanceImpl;
 import org.apache.cassandra.secrets.SslConfig;
 import org.apache.cassandra.secrets.SslConfigSecretsProvider;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
 import org.apache.cassandra.spark.config.SchemaFeature;
@@ -120,7 +119,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected String maybeQuotedKeyspace;
     protected String maybeQuotedTable;
     protected CassandraBridge bridge;
-    protected Set<? extends SidecarInstance> clusterConfig;
+    // create clusterConfig from sidecarInstances and sidecarPort, see initializeClusterConfig
+    protected String sidecarInstances;
+    protected int sidecarPort;
+    protected transient Set<? extends SidecarInstance> clusterConfig;
     protected TokenPartitioner tokenPartitioner;
     protected Map<String, AvailabilityHint> availabilityHints;
     protected Sidecar.ClientConfig sidecarClientConfig;
@@ -152,6 +154,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.table = options.table();
         this.quoteIdentifiers = options.quoteIdentifiers();
         this.sidecarClientConfig = sidecarClientConfig;
+        this.sidecarInstances = options.sidecarInstances;
+        this.sidecarPort = options.sidecarPort;
         this.sslConfig = sslConfig;
         this.bigNumberConfigMap = options.bigNumberConfigMap();
         this.enableStats = options.enableStats();
@@ -175,7 +179,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                  @NotNull TokenPartitioner tokenPartitioner,
                                  @NotNull CassandraVersion version,
                                  @NotNull ConsistencyLevel consistencyLevel,
-                                 @NotNull Set<SidecarInstanceImpl> clusterConfig,
+                                 @NotNull String sidecarInstances,
+                                 @NotNull int sidecarPort,
                                  @NotNull Map<String, PartitionedDataLayer.AvailabilityHint> availabilityHints,
                                  @NotNull Map<String, BigNumberConfigImpl> bigNumberConfigMap,
                                  boolean enableStats,
@@ -194,7 +199,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.quoteIdentifiers = quoteIdentifiers;
         this.cqlTable = cqlTable;
         this.tokenPartitioner = tokenPartitioner;
-        this.clusterConfig = clusterConfig;
+        this.clusterConfig = initializeClusterConfig(sidecarInstances, sidecarPort);
         this.availabilityHints = availabilityHints;
         this.sidecarClientConfig = sidecarClientConfig;
         this.sslConfig = sslConfig;
@@ -694,7 +699,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         this.cqlTable = bridge.javaDeserialize(in, CqlTable.class);  // Delegate (de-)serialization of version-specific objects to the Cassandra Bridge
         this.tokenPartitioner = (TokenPartitioner) in.readObject();
-        this.clusterConfig = (Set<SidecarInstanceImpl>) in.readObject();
+        this.sidecarInstances = in.readUTF();
+        this.sidecarPort = in.readInt();
+        this.clusterConfig = initializeClusterConfig(sidecarInstances, sidecarPort);
         this.availabilityHints = (Map<String, AvailabilityHint>) in.readObject();
         this.bigNumberConfigMap = (Map<String, BigNumberConfigImpl>) in.readObject();
         this.enableStats = in.readBoolean();
@@ -742,7 +749,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         out.writeObject(this.sslConfig);
         bridge.javaSerialize(out, this.cqlTable);  // Delegate (de-)serialization of version-specific objects to the Cassandra Bridge
         out.writeObject(this.tokenPartitioner);
-        out.writeObject(this.clusterConfig);
+        out.writeUTF(this.sidecarInstances);
+        out.writeInt(this.sidecarPort);
         out.writeObject(this.availabilityHints);
         out.writeObject(this.bigNumberConfigMap);
         out.writeBoolean(this.enableStats);
@@ -811,7 +819,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             kryo.writeObject(out, dataLayer.tokenPartitioner);
             kryo.writeObject(out, dataLayer.version());
             kryo.writeObject(out, dataLayer.consistencyLevel);
-            kryo.writeObject(out, dataLayer.clusterConfig);
+            out.writeString(dataLayer.sidecarInstances);
+            out.writeInt(dataLayer.sidecarPort);
             kryo.writeObject(out, dataLayer.availabilityHints);
             out.writeBoolean(dataLayer.bigNumberConfigMap.isEmpty());  // Kryo fails to deserialize bigNumberConfigMap map if empty
             if (!dataLayer.bigNumberConfigMap.isEmpty())
@@ -860,7 +869,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             kryo.readObject(in, TokenPartitioner.class),
             kryo.readObject(in, CassandraVersion.class),
             kryo.readObject(in, ConsistencyLevel.class),
-            kryo.readObject(in, HashSet.class),
+            in.readString(), // sidecarInstances
+            in.readInt(), // sidecarPort
             (Map<String, PartitionedDataLayer.AvailabilityHint>) kryo.readObject(in, HashMap.class),
             in.readBoolean() ? Collections.emptyMap()
                              : (Map<String, BigNumberConfigImpl>) kryo.readObject(in, HashMap.class),
@@ -889,8 +899,14 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
     protected Set<? extends SidecarInstance> initializeClusterConfig(ClientConfig options)
     {
-        return Arrays.stream(options.sidecarInstances().split(","))
-                     .map(hostname -> new SidecarInstanceImpl(hostname, options.sidecarPort()))
+        return initializeClusterConfig(options.sidecarInstances, options.sidecarPort());
+    }
+
+    // not intended to be overridden
+    private Set<? extends SidecarInstance> initializeClusterConfig(String sidecarInstances, int sidecarPort)
+    {
+        return Arrays.stream(sidecarInstances.split(","))
+                     .map(hostname -> new SidecarInstanceImpl(hostname, sidecarPort))
                      .collect(Collectors.toSet());
     }
 

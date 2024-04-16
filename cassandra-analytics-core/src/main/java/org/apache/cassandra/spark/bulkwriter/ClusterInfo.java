@@ -39,8 +39,6 @@ public interface ClusterInfo extends StartupValidatable, Serializable
 
     Map<RingInstance, InstanceAvailability> getInstanceAvailability();
 
-    boolean instanceIsAvailable(RingInstance ringInstance);
-
     InstanceState getInstanceState(RingInstance instance);
 
     Partitioner getPartitioner();
@@ -50,4 +48,10 @@ public interface ClusterInfo extends StartupValidatable, Serializable
     TimeSkewResponse getTimeSkew(List<RingInstance> replicas);
 
     String getKeyspaceSchema(boolean cached);
+
+    CassandraContext getCassandraContext();
+
+    default void close()
+    {
+    }
 }

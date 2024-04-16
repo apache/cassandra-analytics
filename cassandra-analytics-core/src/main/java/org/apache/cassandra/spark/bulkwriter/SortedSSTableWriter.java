@@ -24,6 +24,7 @@ import java.math.BigInteger;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,10 +47,21 @@ import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * SSTableWriter that expects sorted data
+ * <br>
+ * Note for implementor: the bulk writer always sort the data in entire spark partition before writing. One of the
+ * benefit is that the output sstables are sorted and non-overlapping. It allows Cassandra to perform optimization
+ * when importing those sstables, as they can be considered as a single large SSTable technically.
+ * You might want to introduce a SSTableWriter for unsorted data, say UnsortedSSTableWriter, and stop sorting the
+ * entire partition, i.e. repartitionAndSortWithinPartitions. By doing so, it eliminates the nice property of the
+ * output sstable being globally sorted and non-overlapping.
+ * Unless you can think of a better use case, we should stick with this SortedSSTableWriter
+ */
 @SuppressWarnings("WeakerAccess")
-public class SSTableWriter
+public class SortedSSTableWriter
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(SSTableWriter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SortedSSTableWriter.class);
 
     public static final String CASSANDRA_VERSION_PREFIX = "cassandra-";
 
@@ -60,17 +72,19 @@ public class SSTableWriter
     private final Map<Path, Digest> fileDigestMap = new HashMap<>();
     private final DigestAlgorithm digestAlgorithm;
 
+    private int sstableCount = 0;
     private long rowCount = 0;
+    private long bytesWritten = 0;
 
-    public SSTableWriter(org.apache.cassandra.bridge.SSTableWriter tableWriter, Path outDir,
-                         DigestAlgorithm digestAlgorithm)
+    public SortedSSTableWriter(org.apache.cassandra.bridge.SSTableWriter tableWriter, Path outDir,
+                               DigestAlgorithm digestAlgorithm)
     {
         cqlSSTableWriter = tableWriter;
         this.outDir = outDir;
         this.digestAlgorithm = digestAlgorithm;
     }
 
-    public SSTableWriter(BulkWriterContext writerContext, Path outDir, DigestAlgorithm digestAlgorithm)
+    public SortedSSTableWriter(BulkWriterContext writerContext, Path outDir, DigestAlgorithm digestAlgorithm)
     {
         this.outDir = outDir;
         this.digestAlgorithm = digestAlgorithm;
@@ -97,13 +111,26 @@ public class SSTableWriter
         return CASSANDRA_VERSION_PREFIX + lowestCassandraVersion;
     }
 
+    /**
+     * Add a row to be written.
+     * @param token the hashed token of the row's partition key.
+     *              The value must be monotonically increasing in the subsequent calls.
+     * @param boundValues bound values of the columns in the row
+     * @throws IOException I/O exception when adding the row
+     */
     public void addRow(BigInteger token, Map<String, Object> boundValues) throws IOException
     {
-        if (minToken == null)
+        // first row
+        if (rowCount == 0)
         {
             minToken = token;
+            maxToken = token;
         }
-        maxToken = token;
+        else
+        {
+            // rows are sorted. Therefore, only update the maxToken
+            maxToken = token;
+        }
         cqlSSTableWriter.addRow(boundValues);
         rowCount += 1;
     }
@@ -116,16 +143,35 @@ public class SSTableWriter
         return rowCount;
     }
 
+    /**
+     * @return the total number of bytes written
+     */
+    public long bytesWritten()
+    {
+        return bytesWritten;
+    }
+
+    /**
+     * @return the total number of sstables written
+     */
+    public int sstableCount()
+    {
+        return sstableCount;
+    }
+
     public void close(BulkWriterContext writerContext, int partitionId) throws IOException
     {
         cqlSSTableWriter.close();
+        sstableCount = 0;
         for (Path dataFile : getDataFileStream())
         {
             // NOTE: We calculate file hashes before re-reading so that we know what we hashed
             //       is what we validated. Then we send these along with the files and the
             //       receiving end re-hashes the files to make sure they still match.
             fileDigestMap.putAll(calculateFileDigestMap(dataFile));
+            sstableCount += 1;
         }
+        bytesWritten = calculatedTotalSize(fileDigestMap.keySet());
         validateSSTables(writerContext, partitionId);
     }
 
@@ -177,6 +223,16 @@ public class SSTableWriter
             }
         }
         return fileHashes;
+    }
+
+    private long calculatedTotalSize(Collection<Path> paths) throws IOException
+    {
+        long totalSize = 0;
+        for (Path path : paths)
+        {
+            totalSize += Files.size(path);
+        }
+        return totalSize;
     }
 
     public Range<BigInteger> getTokenRange()

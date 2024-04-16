@@ -35,6 +35,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.secrets.SslConfig;
+import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.LocalDataLayer;
@@ -42,6 +43,9 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
+import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
+import org.apache.cassandra.spark.transports.storage.StorageCredentials;
+import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -237,7 +241,7 @@ public class KryoSerializationTests
         CqlTable table = new CqlTable("test_keyspace",
                                       "test_table",
                                       "create table test_keyspace.test_table"
-                                    + " (a bigint, b bigint, c bigint, d bigint, e bigint, primary key((a, b), c));",
+                                      + " (a bigint, b bigint, c bigint, d bigint, e bigint, primary key((a, b), c));",
                                       replicationFactor,
                                       fields);
 
@@ -283,7 +287,7 @@ public class KryoSerializationTests
         LocalDataLayer localDataLayer = new LocalDataLayer(bridge.getVersion(),
                                                            "test_keyspace",
                                                            "create table test_keyspace.test_table"
-                                                         + " (a int, b int, c int, primary key(a, b));",
+                                                           + " (a int, b int, c int, primary key(a, b));",
                                                            path1,
                                                            path2,
                                                            path3);
@@ -342,15 +346,15 @@ public class KryoSerializationTests
     public void testSslConfig()
     {
         SslConfig config = new SslConfig.Builder<>()
-                                     .keyStorePath("keyStorePath")
-                                     .base64EncodedKeyStore("encodedKeyStore")
-                                     .keyStorePassword("keyStorePassword")
-                                     .keyStoreType("keyStoreType")
-                                     .trustStorePath("trustStorePath")
-                                     .base64EncodedTrustStore("encodedTrustStore")
-                                     .trustStorePassword("trustStorePassword")
-                                     .trustStoreType("trustStoreType")
-                                     .build();
+                           .keyStorePath("keyStorePath")
+                           .base64EncodedKeyStore("encodedKeyStore")
+                           .keyStorePassword("keyStorePassword")
+                           .keyStoreType("keyStoreType")
+                           .trustStorePath("trustStorePath")
+                           .base64EncodedTrustStore("encodedTrustStore")
+                           .trustStorePassword("trustStorePassword")
+                           .trustStoreType("trustStoreType")
+                           .build();
         Output out = serialize(config);
         SslConfig deserialized = deserialize(out, SslConfig.class);
 
@@ -362,5 +366,35 @@ public class KryoSerializationTests
         assertEquals(config.base64EncodedTrustStore(), deserialized.base64EncodedTrustStore());
         assertEquals(config.trustStorePassword(), deserialized.trustStorePassword());
         assertEquals(config.trustStoreType(), deserialized.trustStoreType());
+    }
+
+    @Test
+    public void testStorageTransportConfiguration()
+    {
+        final StorageTransportConfiguration config = new StorageTransportConfiguration(
+        "writeBucket",
+        "writeRegion",
+        "readBucket",
+        "readRegion",
+        "prefix",
+        new StorageCredentialPair(
+        new StorageCredentials("keyId1", "secret1", "sessionToken1"),
+        new StorageCredentials("keyId2", "secret2", "sessionToken2")
+        ),
+        ImmutableMap.of("tag1", "tagVal1", "tag2", "tagVal2")
+        );
+
+        StorageTransportConfiguration deserialized;
+        try (Output out = serialize(config))
+        {
+            deserialized = deserialize(out, StorageTransportConfiguration.class);
+        }
+        assertEquals(config, deserialized);
+    }
+
+    static
+    {
+        new KryoRegister().registerClasses(KRYO);
+        new SbwKryoRegistrator().registerClasses(KRYO);
     }
 }

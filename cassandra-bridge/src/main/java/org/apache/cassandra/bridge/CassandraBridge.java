@@ -45,6 +45,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.annotation.Nullable;
+import javax.validation.constraints.NotNull;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
@@ -54,6 +56,7 @@ import com.esotericsoftware.kryo.io.Input;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
+import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.IndexEntry;
@@ -64,8 +67,6 @@ import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.TimeProvider;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Provides an abstract interface for all calls to the Cassandra code of a specific version
@@ -390,6 +391,10 @@ public abstract class CassandraBridge
                                                    String insertStatement,
                                                    Set<String> userDefinedTypeStatements,
                                                    int bufferSizeMB);
+
+    public abstract SSTableSummary getSSTableSummary(@NotNull String keyspace,
+                                                     @NotNull String table,
+                                                     @NotNull SSTable ssTable);
 
     public interface IRow
     {
