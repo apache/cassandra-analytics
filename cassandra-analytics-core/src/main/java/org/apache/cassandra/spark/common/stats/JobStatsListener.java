@@ -62,57 +62,83 @@ public class JobStatsListener extends SparkListener
     @Override
     public synchronized void onTaskEnd(SparkListenerTaskEnd taskEnd)
     {
-        // Calculate max task retries across all tasks in job
-        int attempt = taskEnd.taskInfo().attemptNumber();
-        jobIdToTaskRetryStats.compute(jobId, (k, v) -> (v == null || attempt > v) ? attempt : v);
-        // Persist all task metrics for the job - across all stages
-        jobIdToTaskMetrics.computeIfAbsent(jobId, k -> new HashSet<>()).add(taskEnd.taskMetrics());
-        LOGGER.debug("Task END for jobId:{} task:{} task attempt:{}} Reason:{}",
-                    jobId,
-                    taskEnd.taskInfo().taskId(),
-                    taskEnd.taskInfo().attemptNumber(),
-                    taskEnd.reason());
+        try
+        {
+            // Calculate max task retries across all tasks in job
+            int attempt = taskEnd.taskInfo().attemptNumber();
+            jobIdToTaskRetryStats.compute(jobId, (k, v) -> (v == null || attempt > v) ? attempt : v);
+            // Persist all task metrics for the job - across all stages
+            jobIdToTaskMetrics.computeIfAbsent(jobId, k -> new HashSet<>()).add(taskEnd.taskMetrics());
+            LOGGER.debug("Task END for jobId:{} task:{} task attempt:{}} Reason:{}",
+                         jobId,
+                         taskEnd.taskInfo().taskId(),
+                         taskEnd.taskInfo().attemptNumber(),
+                         taskEnd.reason());
+
+        }
+        catch (Exception e)
+        {
+            LOGGER.warn("Failed to process job stats for the task completion event with jobId: {}",
+                        internalJobIdMapping.get(jobId), e);
+        }
     }
 
     @Override
     public void onJobStart(SparkListenerJobStart jobStart)
     {
         String internalJobId = (String) jobStart.properties().get("spark.jobGroup.id");
-        jobId = Integer.valueOf(jobStart.jobId());
-        internalJobIdMapping.put(jobId, internalJobId);
-        jobIdToStartTimes.put(jobId, System.nanoTime());
+        try
+        {
+
+            jobId = Integer.valueOf(jobStart.jobId());
+            internalJobIdMapping.put(jobId, internalJobId);
+            jobIdToStartTimes.put(jobId, System.nanoTime());
+        }
+        catch (Exception e)
+        {
+            LOGGER.warn("Failed to process job stats for the job start event with jobId: {}", internalJobId, e);
+        }
     }
 
     @Override
     public void onJobEnd(SparkListenerJobEnd jobEnd)
     {
-        boolean jobFailed = false;
-        String reason = "null";
-        if (jobEnd.jobResult() instanceof JobFailed)
+        try
         {
-            jobFailed = true;
-            JobFailed result = (JobFailed) jobEnd.jobResult();
-            reason = result.exception().getCause().getMessage();
+            boolean jobFailed = false;
+            String reason = "null";
+            if (jobEnd.jobResult() instanceof JobFailed)
+            {
+                jobFailed = true;
+                JobFailed result = (JobFailed) jobEnd.jobResult();
+                reason = result.exception().getCause().getMessage();
+            }
+
+            long elapsedTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - jobIdToStartTimes.get(jobId));
+            String internalJobId = internalJobIdMapping.get(jobId);
+            String jobStatus = (jobFailed) ? "Failed" : "Succeeded";
+            Map<String, String> jobStats = new HashMap<>();
+            jobStats.put("jobId", internalJobId);
+            jobStats.put("jobStatus", jobStatus);
+            jobStats.put("failureReason", reason);
+            jobStats.put("jobElapsedTimeMillis", String.valueOf(elapsedTimeMillis));
+
+            LOGGER.debug("Job END for jobId:{} status:{} Reason:{} ElapsedTime: {}",
+                         jobId,
+                         jobStatus,
+                         reason,
+                         elapsedTimeMillis);
+
+            jobStats.putAll(getJobMetrics(jobId));
+            jobCompletionConsumer.accept(new JobEventDetail(internalJobId, jobStats));
+            cleanup(jobId);
+        }
+        catch (Exception e)
+        {
+            LOGGER.warn("Failed to process job stats for the job completion event with jobId: {}",
+                        internalJobIdMapping.get(jobId), e);
         }
 
-        long elapsedTimeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - jobIdToStartTimes.get(jobId));
-        String internalJobId = internalJobIdMapping.get(jobId);
-        String jobStatus = (jobFailed) ? "Failed" : "Succeeded";
-        Map<String, String> jobStats = new HashMap<>();
-        jobStats.put("jobId", internalJobId);
-        jobStats.put("jobStatus", jobStatus);
-        jobStats.put("failureReason", reason);
-        jobStats.put("jobElapsedTimeMillis", String.valueOf(elapsedTimeMillis));
-
-        LOGGER.debug("Job END for jobId:{} status:{} Reason:{} ElapsedTime: {}",
-                    jobId,
-                    jobStatus,
-                    reason,
-                    elapsedTimeMillis);
-
-        jobStats.putAll(getJobMetrics(jobId));
-        jobCompletionConsumer.accept(new JobEventDetail(internalJobId, jobStats));
-        cleanup(jobId);
     }
 
     public synchronized Map<String, String> getJobMetrics(int jobId)
