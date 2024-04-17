@@ -128,9 +128,7 @@ public class ExampleStorageTransportExtension implements StorageTransportExtensi
     public void onJobFailed(long elapsedMillis, Throwable throwable)
     {
         LOGGER.error("Job {} failed after {}ms", jobId, elapsedMillis, throwable);
-
     }
-
 
     private void startFakeTokenRefresh()
     {

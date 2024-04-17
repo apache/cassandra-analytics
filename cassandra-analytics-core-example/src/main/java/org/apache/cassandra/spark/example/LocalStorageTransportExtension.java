@@ -103,7 +103,6 @@ public class LocalStorageTransportExtension implements StorageTransportExtension
     public void onJobFailed(long elapsedMillis, Throwable throwable)
     {
         LOGGER.error("Job {} failed after {}ms", jobId, elapsedMillis, throwable);
-
     }
 
     private StorageCredentialPair generateTokens()

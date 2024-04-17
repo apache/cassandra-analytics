@@ -30,11 +30,12 @@ import org.apache.spark.SparkContext;
  * A sample cassandra spark job that writes directly to Cassandra via Sidecar,
  * then reads from Cassandra
  */
-public class SampleCassandraJob extends AbstractCassandraJob
+public class DirectWriteAndReadJob extends AbstractCassandraJob
 {
     public static void main(String[] args)
     {
-        new SampleCassandraJob().start(args);
+        System.setProperty("SKIP_STARTUP_VALIDATIONS", "true");
+        new DirectWriteAndReadJob().start(args);
     }
 
     protected JobConfiguration configureJob(SparkContext sc, SparkConf sparkConf)

@@ -423,7 +423,6 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     {
         // Prioritize the call to extension, so onJobFailed is always invoked.
         context.transportExtensionImplementation().onJobFailed(elapsedTimeMillis(), cause);
-        // TODO: it should wait for all individual slices to be cancelled after aborting the job?
         UUID jobId = writerContext.job().getRestoreJobId();
         try
         {

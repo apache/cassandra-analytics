@@ -157,7 +157,6 @@ public class StorageClient implements AutoCloseable
 
         String key = calculateStorageKeyForBundle(storageTransportConfiguration.getPrefix(),
                                                   bundle.bundleFile);
-        // todo: add retry policy to multi part requests
         CreateMultipartUploadRequest multipartUploadRequest = CreateMultipartUploadRequest.builder()
                                                                                           .overrideConfiguration(credentialsOverride(credentials))
                                                                                           .bucket(storageTransportConfiguration.getWriteBucket())

@@ -65,7 +65,6 @@ public class SSTablesBundler implements Iterator<Bundle>
         this.bundleStagingDir = bundleStagingDir;
         this.collector = collector;
         this.bundleNameGenerator = bundleNameGenerator;
-        // todo: check maxSizePerBundleInBytes is not set to a very low value
         this.maxSizePerBundleInBytes = maxSizePerBundleInBytes;
     }
 
@@ -179,8 +178,7 @@ public class SSTablesBundler implements Iterator<Bundle>
                       }
                       catch (IOException e)
                       {
-                          LOGGER.error("Unexpected error while zipping SSTable components, path = {} not zipped, ",
-                                       path, e);
+                          LOGGER.error("Unexpected error while zipping file. path={}", path, e);
                           throw new RuntimeException(e);
                       }
                   });

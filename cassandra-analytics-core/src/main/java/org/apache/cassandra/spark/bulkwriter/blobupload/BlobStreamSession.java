@@ -219,8 +219,6 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
         return object;
     }
 
-    // todo: we will modify this to send to one replica when we persist slice information on sidecar side. Currently
-    //  since the information is maintained in memory, we are sending to individual replicas
     private boolean tryCreateRestoreSlicePerReplica(RingInstance replica, CreateSliceRequestPayload slicePayload)
     {
         try

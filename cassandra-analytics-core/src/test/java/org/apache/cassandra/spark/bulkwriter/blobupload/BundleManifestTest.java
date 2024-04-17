@@ -76,14 +76,14 @@ class BundleManifestTest
         Entry manifestEntry1 = new Entry("prefix1",
                                          BigInteger.valueOf(1L),
                                          BigInteger.valueOf(3L));
-        manifestEntry1.addComponentChecksum("/path/prefix1-data.db", "checksumVal");
-        manifestEntry1.addComponentChecksum("/path/prefix1-statistics.db", "checksumVal");
+        manifestEntry1.addComponentChecksum("prefix1-data.db", "checksumVal");
+        manifestEntry1.addComponentChecksum("prefix1-statistics.db", "checksumVal");
 
         Entry manifestEntry2 = new Entry("prefix2",
-                                         BigInteger.valueOf(3L),
+                                         BigInteger.valueOf(4L),
                                          BigInteger.valueOf(6L));
-        manifestEntry2.addComponentChecksum("/path/prefix2-data.db", "checksumVal");
-        manifestEntry2.addComponentChecksum("/path/prefix2-statistics.db", "checksumVal");
+        manifestEntry2.addComponentChecksum("prefix2-data.db", "checksumVal");
+        manifestEntry2.addComponentChecksum("prefix2-statistics.db", "checksumVal");
 
         bundleManifest.addEntry(manifestEntry1);
         bundleManifest.addEntry(manifestEntry2);
@@ -94,16 +94,16 @@ class BundleManifestTest
     private static final String EXPECTED_JSON = "{\n"
                                                 + "  \"prefix2\" : {\n"
                                                 + "    \"components_checksum\" : {\n"
-                                                + "      \"/path/prefix2-data.db\" : \"checksumVal\",\n"
-                                                + "      \"/path/prefix2-statistics.db\" : \"checksumVal\"\n"
+                                                + "      \"prefix2-data.db\" : \"checksumVal\",\n"
+                                                + "      \"prefix2-statistics.db\" : \"checksumVal\"\n"
                                                 + "    },\n"
-                                                + "    \"start_token\" : 3,\n"
+                                                + "    \"start_token\" : 4,\n"
                                                 + "    \"end_token\" : 6\n"
                                                 + "  },\n"
                                                 + "  \"prefix1\" : {\n"
                                                 + "    \"components_checksum\" : {\n"
-                                                + "      \"/path/prefix1-statistics.db\" : \"checksumVal\",\n"
-                                                + "      \"/path/prefix1-data.db\" : \"checksumVal\"\n"
+                                                + "      \"prefix1-data.db\" : \"checksumVal\",\n"
+                                                + "      \"prefix1-statistics.db\" : \"checksumVal\"\n"
                                                 + "    },\n"
                                                 + "    \"start_token\" : 1,\n"
                                                 + "    \"end_token\" : 3\n"

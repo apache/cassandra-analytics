@@ -34,11 +34,11 @@ dependencies {
 }
 
 application {
-    // Optionally allow to start with a different mainClass, rather than the default 'SampleCassandraJob'
+    // Optionally allow to start with a different mainClass, rather than the default 'DirectWriteAndReadJob'
     // For example,
-    // ./gradlew :cassandra-analytics-core-example:run --args='SampleCassandraJob'
+    // ./gradlew :cassandra-analytics-core-example:run --args='DirectWriteAndReadJob'
     // or
-    // ./gradlew :cassandra-analytics-core-example:run --args='LocalS3CassandraWriteJob'
+    // ./gradlew :cassandra-analytics-core-example:run --args='LocalS3WriteAndReadJob'
     mainClass = 'org.apache.cassandra.spark.example.JobSelector'
     applicationDefaultJvmArgs = ["-Dfile.encoding=UTF-8",
                                  "-Djdk.attach.allowAttachSelf=true",

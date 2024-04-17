@@ -31,12 +31,12 @@ import static org.apache.cassandra.spark.example.LocalStorageTransportExtension.
 /**
  * A sample Cassandra spark job that writes to (local) s3 first and imports into Cassandra via Sidecar
  */
-public class LocalS3CassandraWriteJob extends AbstractCassandraJob
+public class LocalS3WriteAndReadJob extends AbstractCassandraJob
 {
     private String dataCenter = "datacenter1";
     private String sidecarInstances = "localhost,localhost2,localhost3";
 
-    LocalS3CassandraWriteJob(String[] args)
+    LocalS3WriteAndReadJob(String[] args)
     {
         if (args.length == 2)
         {
@@ -47,6 +47,7 @@ public class LocalS3CassandraWriteJob extends AbstractCassandraJob
 
     public static void main(String[] args)
     {
+        System.setProperty("SKIP_STARTUP_VALIDATIONS", "true");
         // It expects to have mocks3 running locally on 9090
         ProcessBuilder pb = new ProcessBuilder();
         pb.command("curl", "-X", "PUT", "localhost:9090/" + BUCKET_NAME);
@@ -59,7 +60,7 @@ public class LocalS3CassandraWriteJob extends AbstractCassandraJob
             // ignore when the bucket is already created
         }
 
-        new LocalS3CassandraWriteJob(args).start(args);
+        new LocalS3WriteAndReadJob(args).start(args);
     }
 
     protected JobConfiguration configureJob(SparkContext sc, SparkConf sparkConf)

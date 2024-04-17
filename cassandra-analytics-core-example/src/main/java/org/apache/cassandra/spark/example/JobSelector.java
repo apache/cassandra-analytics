@@ -28,26 +28,26 @@ public final class JobSelector
 
     public static void main(String[] args)
     {
-        String jobClassName = "SampleCassandraJob";
+        String jobClassName = "DirectCassandraWriteJob";
         if (args.length != 1)
         {
-            System.out.println("Invalid number of arguments supplied. Fall back to run SampleCassandraJob");
+            System.out.println("Invalid number of arguments supplied. Fall back to run " + jobClassName);
         }
         else
         {
             jobClassName = args[0];
         }
 
-        if (jobClassName.equalsIgnoreCase(SampleCassandraJob.class.getSimpleName()))
+        if (jobClassName.equalsIgnoreCase(DirectWriteAndReadJob.class.getSimpleName()))
         {
-            SampleCassandraJob.main(args);
+            DirectWriteAndReadJob.main(args);
         }
-        else if (jobClassName.equalsIgnoreCase(LocalS3CassandraWriteJob.class.getSimpleName()))
+        else if (jobClassName.equalsIgnoreCase(LocalS3WriteAndReadJob.class.getSimpleName()))
         {
             // shift by 1
             String[] newArgs = new String[args.length - 1];
             System.arraycopy(args, 1, newArgs, 0, newArgs.length);
-            LocalS3CassandraWriteJob.main(newArgs);
+            LocalS3WriteAndReadJob.main(newArgs);
         }
         else
         {
