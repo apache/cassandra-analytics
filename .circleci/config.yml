@@ -111,6 +111,7 @@ commands:
                 ./gradlew cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
             done;
             exit $EXIT_STATUS
+          no_output_timeout: 30m
 
 jobs:
   build-dependencies-jdk8:
