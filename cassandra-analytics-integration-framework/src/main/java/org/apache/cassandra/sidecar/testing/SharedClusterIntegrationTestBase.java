@@ -83,6 +83,7 @@ import org.apache.cassandra.sidecar.config.yaml.ServiceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SslConfigurationImpl;
 import org.apache.cassandra.sidecar.exceptions.ThrowableUtils;
+import org.apache.cassandra.sidecar.metrics.instance.InstanceHealthMetrics;
 import org.apache.cassandra.sidecar.server.MainModule;
 import org.apache.cassandra.sidecar.server.Server;
 import org.apache.cassandra.sidecar.utils.CassandraVersionProvider;
@@ -611,6 +612,7 @@ public abstract class SharedClusterIntegrationTestBase
                                                               .port(config.jmxPort())
                                                               .connectionMaxRetries(jmxConfiguration.maxRetries())
                                                               .connectionRetryDelayMillis(jmxConfiguration.retryDelayMillis()));
+            MetricRegistry metricRegistry = new MetricRegistry();
             CassandraAdapterDelegate delegate = new CassandraAdapterDelegate(vertx,
                                                                              config.num(),
                                                                              versionProvider,
@@ -619,7 +621,8 @@ public abstract class SharedClusterIntegrationTestBase
                                                                              new DriverUtils(),
                                                                              sidecarVersion,
                                                                              ipAddress,
-                                                                             port);
+                                                                             port,
+                                                                             new InstanceHealthMetrics(metricRegistry));
             return InstanceMetadataImpl.builder()
                                        .id(config.num())
                                        .host(hostName)
@@ -627,7 +630,7 @@ public abstract class SharedClusterIntegrationTestBase
                                        .dataDirs(Arrays.asList(dataDirectories))
                                        .stagingDir(stagingDir)
                                        .delegate(delegate)
-                                       .metricRegistry(new MetricRegistry())
+                                       .metricRegistry(metricRegistry)
                                        .build();
         }
 
