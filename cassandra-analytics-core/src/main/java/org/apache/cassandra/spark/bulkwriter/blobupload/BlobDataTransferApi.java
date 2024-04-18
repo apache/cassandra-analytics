@@ -85,7 +85,7 @@ public class BlobDataTransferApi
     {
         try
         {
-            QualifiedTableName qualifiedTableName = jobInfo.getQualifiedTableName();
+            QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
             return sidecarClient.createRestoreJob(qualifiedTableName.keyspace(),
                                                   qualifiedTableName.tableName(),
                                                   createRestoreJobRequestPayload).get();
@@ -102,7 +102,7 @@ public class BlobDataTransferApi
     {
         try
         {
-            QualifiedTableName qualifiedTableName = jobInfo.getQualifiedTableName();
+            QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
             return sidecarClient.restoreJobSummary(qualifiedTableName.keyspace(),
                                                    qualifiedTableName.tableName(),
                                                    jobInfo.getRestoreJobId()).get();
@@ -160,7 +160,7 @@ public class BlobDataTransferApi
                                                        CreateSliceRequestPayload createSliceRequestPayload,
                                                        RetryPolicy retryPolicy)
     {
-        QualifiedTableName qualifiedTableName = jobInfo.getQualifiedTableName();
+        QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
         CreateRestoreJobSliceRequest request = new CreateRestoreJobSliceRequest(qualifiedTableName.keyspace(),
                                                                                 qualifiedTableName.tableName(),
                                                                                 jobInfo.getRestoreJobId(),
@@ -176,7 +176,7 @@ public class BlobDataTransferApi
     {
         try
         {
-            QualifiedTableName qualifiedTableName = jobInfo.getQualifiedTableName();
+            QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
             sidecarClient.updateRestoreJob(qualifiedTableName.keyspace(),
                                            qualifiedTableName.tableName(),
                                            jobInfo.getRestoreJobId(),
@@ -193,7 +193,7 @@ public class BlobDataTransferApi
     {
         try
         {
-            QualifiedTableName qualifiedTableName = jobInfo.getQualifiedTableName();
+            QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
             sidecarClient.abortRestoreJob(qualifiedTableName.keyspace(),
                                           qualifiedTableName.tableName(),
                                           jobInfo.getRestoreJobId()).get();

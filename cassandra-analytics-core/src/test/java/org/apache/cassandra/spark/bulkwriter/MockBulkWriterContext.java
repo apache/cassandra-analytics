@@ -194,12 +194,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public BulkSparkConf conf()
-    {
-        return null;
-    }
-
-    @Override
     public TimeSkewResponse getTimeSkew(List<RingInstance> replicas)
     {
         return new TimeSkewResponse(timeProvider.get(), 60);
@@ -278,9 +272,27 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public DataTransportInfo getTransportInfo()
+    public DataTransportInfo transportInfo()
     {
         return new DataTransportInfo(DataTransport.DIRECT, null, 0);
+    }
+
+    @Override
+    public int jobKeepAliveMinutes()
+    {
+        return 1;
+    }
+
+    @Override
+    public int effectiveSidecarPort()
+    {
+        return 9043;
+    }
+
+    @Override
+    public int importCoordinatorTimeoutMultiplier()
+    {
+        return 2;
     }
 
     public void setSkipCleanOnFailures(boolean skipClean)
@@ -524,7 +536,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public QualifiedTableName getQualifiedTableName()
+    public QualifiedTableName qualifiedTableName()
     {
         return new QualifiedTableName("keyspace", "table");
     }

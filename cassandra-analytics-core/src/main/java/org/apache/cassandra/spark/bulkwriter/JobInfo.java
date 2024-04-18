@@ -81,7 +81,22 @@ public interface JobInfo extends Serializable
     @NotNull
     DigestAlgorithmSupplier digestAlgorithmSupplier();
 
-    QualifiedTableName getQualifiedTableName();
+    QualifiedTableName qualifiedTableName();
 
-    DataTransportInfo getTransportInfo();
+    DataTransportInfo transportInfo();
+
+    /**
+     * @return job keep alive time in minutes
+     */
+    int jobKeepAliveMinutes();
+
+    /**
+     * @return sidecar service port
+     */
+    int effectiveSidecarPort();
+
+    /**
+     * @return multiplier to calculate the final timeout for import coordinator
+     */
+    int importCoordinatorTimeoutMultiplier();
 }

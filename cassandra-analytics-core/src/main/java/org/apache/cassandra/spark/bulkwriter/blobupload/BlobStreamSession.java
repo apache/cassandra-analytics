@@ -82,11 +82,11 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
         super(bulkWriterContext, sstableWriter, transportContext, sessionID, tokenRange, failureHandler);
 
         JobInfo job = bulkWriterContext.job();
-        long maxSizePerBundleInBytes = job.getTransportInfo().getMaxSizePerBundleInBytes();
+        long maxSizePerBundleInBytes = job.transportInfo().getMaxSizePerBundleInBytes();
         this.bundleNameGenerator = new BundleNameGenerator(job.getRestoreJobId().toString(), sessionID);
         this.blobDataTransferApi = transportContext.dataTransferApi();
         this.bridge = bridge;
-        QualifiedTableName qualifiedTableName = job.getQualifiedTableName();
+        QualifiedTableName qualifiedTableName = job.qualifiedTableName();
         SSTableLister sstableLister = new SSTableLister(qualifiedTableName, bridge);
         Path bundleStagingDir = sstableWriter.getOutDir().resolve("bundle_staging");
         this.sstablesBundler = new SSTablesBundler(bundleStagingDir, sstableLister,
@@ -223,7 +223,7 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
     {
         try
         {
-            SidecarInstance sidecarInstance = Sidecar.toSidecarInstance(replica, writerContext.conf());
+            SidecarInstance sidecarInstance = Sidecar.toSidecarInstance(replica, writerContext.job().effectiveSidecarPort());
             blobDataTransferApi.createRestoreSliceFromExecutor(sidecarInstance, slicePayload);
             return true;
         }

@@ -261,7 +261,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         writerContext.jobStats().publish(new HashMap<String, String>() // type declaration required to compile with java8
         {{
                 put("jobId", writerContext.job().getId().toString());
-                put("transportInfo", writerContext.job().getTransportInfo().toString());
+                put("transportInfo", writerContext.job().transportInfo().toString());
                 put("rowsWritten", Long.toString(rowCount));
                 put("bytesWritten", Long.toString(totalBytesWritten));
                 put("jobStatus", "Succeeded");
@@ -275,7 +275,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         writerContext.jobStats().publish(new HashMap<String, String>() // type declaration required to compile with java8
         {{
                 put("jobId", writerContext.job().getId().toString());
-                put("transportInfo", writerContext.job().getTransportInfo().toString());
+                put("transportInfo", writerContext.job().transportInfo().toString());
                 put("jobStatus", "Failed");
                 put("failureReason", reason);
                 put("jobElapsedTimeMillis", Long.toString(elapsedTimeMillis()));
@@ -348,7 +348,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
     private long updatedLeaseTime()
     {
-        return System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(writerContext.conf().getJobKeepAliveMinutes());
+        return System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(writerContext.job().jobKeepAliveMinutes());
     }
 
     private long elapsedTimeMillis()

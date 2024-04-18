@@ -19,6 +19,10 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+/**
+ * A simple data structure to describe an event that leads to job cancellation.
+ * It contains the reason of cancellation and optionally the cause
+ */
 public class CancelJobEvent
 {
     public final Throwable exception;

@@ -76,9 +76,27 @@ public class CassandraJobInfo implements JobInfo
     }
 
     @Override
-    public DataTransportInfo getTransportInfo()
+    public DataTransportInfo transportInfo()
     {
         return conf.getTransportInfo();
+    }
+
+    @Override
+    public int jobKeepAliveMinutes()
+    {
+        return conf.getJobKeepAliveMinutes();
+    }
+
+    @Override
+    public int effectiveSidecarPort()
+    {
+        return conf.getEffectiveSidecarPort();
+    }
+
+    @Override
+    public int importCoordinatorTimeoutMultiplier()
+    {
+        return conf.importCoordinatorTimeoutMultiplier;
     }
 
     @Override
@@ -131,7 +149,7 @@ public class CassandraJobInfo implements JobInfo
     }
 
     @NotNull
-    public QualifiedTableName getQualifiedTableName()
+    public QualifiedTableName qualifiedTableName()
     {
         return new QualifiedTableName(conf.keyspace, conf.table);
     }

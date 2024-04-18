@@ -195,9 +195,9 @@ public final class Sidecar
                         .collect(Collectors.toList());
     }
 
-    public static SidecarInstance toSidecarInstance(CassandraInstance instance, BulkSparkConf conf)
+    public static SidecarInstance toSidecarInstance(CassandraInstance instance, int sidecarPort)
     {
-        return new SidecarInstanceImpl(instance.nodeName(), conf.getEffectiveSidecarPort());
+        return new SidecarInstanceImpl(instance.nodeName(), sidecarPort);
     }
 
     public static final class ClientConfig

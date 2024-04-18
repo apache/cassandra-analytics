@@ -193,13 +193,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
 
     @Override
     @NotNull
-    public BulkSparkConf conf()
-    {
-        return conf;
-    }
-
-    @Override
-    @NotNull
     public ClusterInfo cluster()
     {
         return clusterInfo;

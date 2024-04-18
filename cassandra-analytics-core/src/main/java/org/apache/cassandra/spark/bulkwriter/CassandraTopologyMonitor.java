@@ -90,7 +90,9 @@ public class CassandraTopologyMonitor
             if (retryCount++ > MAX_CHECK_ATTEMPTS)
             {
                 LOGGER.error("Could not retrieve current topology. All hosts exhausted. The retrieval has failed consecutive for {} times", retryCount);
-                onCancelJob.accept(new CancelJobEvent("Could not retrieve current cassandra topology. All hosts and retry have exhausted.", exception));
+                onCancelJob.accept(new CancelJobEvent("Could not retrieve current cassandra topology. " +
+                                                      "All hosts and retries have been exhausted.",
+                                                      exception));
             }
             else
             {

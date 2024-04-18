@@ -45,7 +45,6 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.BulkWriterContext;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.DataTransport;
@@ -94,19 +93,16 @@ class BlobStreamSessionTest
         Range<BigInteger> range = Range.range(BigInteger.valueOf(100L), BoundType.OPEN, BigInteger.valueOf(199L), BoundType.CLOSED);
         JobInfo job = mock(JobInfo.class);
         when(job.getRestoreJobId()).thenReturn(jobId);
-        when(job.getQualifiedTableName()).thenReturn(new QualifiedTableName("ks", "table1"));
+        when(job.qualifiedTableName()).thenReturn(new QualifiedTableName("ks", "table1"));
         MockTableWriter tableWriter = new MockTableWriter(folder);
         SortedSSTableWriter sstableWriter = new NonValidatingTestSortedSSTableWriter(tableWriter, folder, new XXHash32DigestAlgorithm());
 
         DataTransportInfo transportInfo = mock(DataTransportInfo.class);
         when(transportInfo.getTransport()).thenReturn(DataTransport.S3_COMPAT);
         when(transportInfo.getMaxSizePerBundleInBytes()).thenReturn(5 * 1024L);
-        when(job.getTransportInfo()).thenReturn(transportInfo);
+        when(job.transportInfo()).thenReturn(transportInfo);
         when(spiedWriterContext.job()).thenReturn(job);
-
-        BulkSparkConf conf = mock(BulkSparkConf.class);
-        when(spiedWriterContext.conf()).thenReturn(conf);
-        when(conf.getEffectiveSidecarPort()).thenReturn(65055);
+        when(job.effectiveSidecarPort()).thenReturn(65055);
 
         ClusterInfo clusterInfo = mock(ClusterInfo.class);
         when(clusterInfo.getTokenRangeMapping(anyBoolean())).thenReturn(topology);

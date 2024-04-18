@@ -67,17 +67,15 @@ public class StorageClientConfig implements Serializable
         {
             return null;
         }
-        else
+
+        try
         {
-            try
-            {
-                return new URI(uriString);
-            }
-            catch (URISyntaxException e)
-            {
-                LOGGER.error("{} is specified, but the value is invalid. input={}", hint, uriString);
-                throw new RuntimeException("Unable to resolve " + uriString, e);
-            }
+            return new URI(uriString);
+        }
+        catch (URISyntaxException e)
+        {
+            LOGGER.error("{} is specified, but the value is invalid. input={}", hint, uriString);
+            throw new RuntimeException("Unable to resolve " + uriString, e);
         }
     }
 }

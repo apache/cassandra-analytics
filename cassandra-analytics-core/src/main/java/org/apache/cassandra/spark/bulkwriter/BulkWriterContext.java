@@ -26,8 +26,6 @@ import org.apache.cassandra.bridge.CassandraBridge;
 
 public interface BulkWriterContext extends Serializable
 {
-    BulkSparkConf conf();
-
     ClusterInfo cluster();
 
     JobInfo job();

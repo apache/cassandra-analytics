@@ -89,7 +89,6 @@ class ImportCompletionCoordinatorTest
     BulkWriteValidator writerValidator;
     TokenRangeMapping<RingInstance> topology;
     JobInfo mockJobInfo;
-    BulkSparkConf mockConf;
     BlobDataTransferApi dataTransferApi;
     UUID jobId;
     StorageTransportExtension mockExtension;
@@ -103,10 +102,10 @@ class ImportCompletionCoordinatorTest
         jobId = UUID.randomUUID();
         when(mockJobInfo.getId()).thenReturn(jobId.toString());
         when(mockJobInfo.getRestoreJobId()).thenReturn(jobId);
-        when(mockJobInfo.getQualifiedTableName()).thenReturn(new QualifiedTableName("testkeyspace", "testtable"));
+        when(mockJobInfo.qualifiedTableName()).thenReturn(new QualifiedTableName("testkeyspace", "testtable"));
         when(mockJobInfo.getConsistencyLevel()).thenReturn(ConsistencyLevel.CL.QUORUM);
-        mockConf = mock(BulkSparkConf.class);
-        when(mockConf.getEffectiveSidecarPort()).thenReturn(9043);
+        when(mockJobInfo.effectiveSidecarPort()).thenReturn(9043);
+        when(mockJobInfo.jobKeepAliveMinutes()).thenReturn(-1);
 
         mockWriterContext = mock(BulkWriterContext.class);
         ClusterInfo mockClusterInfo = mock(ClusterInfo.class);
@@ -117,8 +116,6 @@ class ImportCompletionCoordinatorTest
         topology = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), TOTAL_INSTANCES);
         when(mockClusterInfo.getTokenRangeMapping(anyBoolean())).thenReturn(topology);
         when(mockWriterContext.job()).thenReturn(mockJobInfo);
-        when(mockWriterContext.conf()).thenReturn(mockConf);
-        when(mockConf.getJobKeepAliveMinutes()).thenReturn(-1);
 
         writerValidator = new BulkWriteValidator(mockWriterContext, new ReplicaAwareFailureHandler<>(Partitioner.Murmur3Partitioner));
 

@@ -80,7 +80,7 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
                 try
                 {
                     JobInfo jobInfo = writerContext.job();
-                    String description = "Cassandra Bulk Load for table " + jobInfo.getQualifiedTableName();
+                    String description = "Cassandra Bulk Load for table " + jobInfo.qualifiedTableName();
                     CassandraBulkSourceRelation relation = new CassandraBulkSourceRelation(writerContext, sqlContext);
                     sqlContext.sparkContext().setJobGroup(jobInfo.getId(), description, false);
                     relation.insert(data, false);

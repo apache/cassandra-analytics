@@ -58,7 +58,6 @@ public final class ImportCompletionCoordinator
     private static final Logger LOGGER = LoggerFactory.getLogger(ImportCompletionCoordinator.class);
 
     private final long startTimeNanos;
-    private final BulkSparkConf conf;
     private final BlobDataTransferApi dataTransferApi;
     private final BulkWriteValidator writeValidator;
     private final List<BlobStreamResult> blobStreamResultList;
@@ -101,7 +100,6 @@ public final class ImportCompletionCoordinator
                                 BiFunction<ClusterInfo, Consumer<CancelJobEvent>, CassandraTopologyMonitor> monitorCreator)
     {
         this.startTimeNanos = startTimeNanos;
-        this.conf = writerContext.conf();
         this.job = writerContext.job();
         this.dataTransferApi = dataTransferApi;
         this.writeValidator = writeValidator;
@@ -210,7 +208,7 @@ public final class ImportCompletionCoordinator
             {
                 for (RingInstance instance : blobStreamResult.passed)
                 {
-                    createSliceInstanceFuture(createdRestoreSlice, instance, conf);
+                    createSliceInstanceFuture(createdRestoreSlice, instance);
                 }
             }
         }
@@ -270,7 +268,7 @@ public final class ImportCompletionCoordinator
         double estimatedRateFloor = ((double) minSliceSize) / timeToAllSatisfiedNanos;
         double timeEstimateBasedOnRate = ((double) maxSliceSize) / estimatedRateFloor;
         timeout = Math.max((long) timeEstimateBasedOnRate, timeout);
-        timeout = conf.importCoordinatorTimeoutMultiplier * timeout;
+        timeout = job.importCoordinatorTimeoutMultiplier() * timeout;
         if (TimeUnit.NANOSECONDS.toHours(timeout) > 1)
         {
             LOGGER.warn("The estimated additional timeout is more than 1 hour. timeout={} seconds",
@@ -280,8 +278,7 @@ public final class ImportCompletionCoordinator
     }
 
     private void createSliceInstanceFuture(CreatedRestoreSlice createdRestoreSlice,
-                                           RingInstance instance,
-                                           BulkSparkConf conf)
+                                           RingInstance instance)
     {
         if (firstFailure.isCompletedExceptionally())
         {
@@ -289,7 +286,7 @@ public final class ImportCompletionCoordinator
                         instance.nodeName(), createdRestoreSlice.sliceRequestPayload());
             return;
         }
-        SidecarInstance sidecarInstance = toSidecarInstance(instance, conf);
+        SidecarInstance sidecarInstance = toSidecarInstance(instance, job.effectiveSidecarPort());
         CreateSliceRequestPayload createSliceRequestPayload = createdRestoreSlice.sliceRequestPayload();
         CompletableFuture<Void> fut = dataTransferApi.createRestoreSliceFromDriver(sidecarInstance,
                                                                                    createSliceRequestPayload);

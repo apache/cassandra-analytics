@@ -120,17 +120,12 @@ public class SortedSSTableWriter
      */
     public void addRow(BigInteger token, Map<String, Object> boundValues) throws IOException
     {
-        // first row
         if (rowCount == 0)
         {
             minToken = token;
-            maxToken = token;
         }
-        else
-        {
-            // rows are sorted. Therefore, only update the maxToken
-            maxToken = token;
-        }
+        // rows are sorted. Therefore, only update the maxToken
+        maxToken = token;
         cqlSSTableWriter.addRow(boundValues);
         rowCount += 1;
     }
