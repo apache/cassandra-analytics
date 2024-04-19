@@ -22,10 +22,12 @@ package org.apache.cassandra.sidecar.testing;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -75,10 +77,14 @@ import org.apache.cassandra.sidecar.common.utils.DriverUtils;
 import org.apache.cassandra.sidecar.common.utils.SidecarVersionProvider;
 import org.apache.cassandra.sidecar.config.JmxConfiguration;
 import org.apache.cassandra.sidecar.config.KeyStoreConfiguration;
+import org.apache.cassandra.sidecar.config.S3ClientConfiguration;
+import org.apache.cassandra.sidecar.config.S3ProxyConfiguration;
 import org.apache.cassandra.sidecar.config.ServiceConfiguration;
 import org.apache.cassandra.sidecar.config.SidecarConfiguration;
 import org.apache.cassandra.sidecar.config.SslConfiguration;
 import org.apache.cassandra.sidecar.config.yaml.KeyStoreConfigurationImpl;
+import org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl;
+import org.apache.cassandra.sidecar.config.yaml.SchemaKeyspaceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.ServiceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SslConfigurationImpl;
@@ -136,6 +142,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(VertxExtension.class)
 public abstract class SharedClusterIntegrationTestBase
 {
+    public static final String SIDECAR_S3_ENDPOINT_OVERRIDE_OPT = "S3_ENDPOINT_OVERRIDE";
+
     protected final Logger logger = LoggerFactory.getLogger(SharedClusterIntegrationTestBase.class);
     private static final int MAX_CLUSTER_PROVISION_RETRIES = 5;
 
@@ -311,6 +319,14 @@ public abstract class SharedClusterIntegrationTestBase
     }
 
     /**
+     * Override to provide additional options to configure sidecar
+     */
+    protected Map<String, String> sidecarAdditionalOptions()
+    {
+        return Collections.emptyMap();
+    }
+
+    /**
      * Starts Sidecar configured to run against the provided Cassandra {@code cluster}.
      *
      * @param cluster the cluster to use
@@ -319,7 +335,7 @@ public abstract class SharedClusterIntegrationTestBase
     protected void startSidecar(ICluster<? extends IInstance> cluster) throws InterruptedException
     {
         VertxTestContext context = new VertxTestContext();
-        AbstractModule testModule = new IntegrationTestModule(cluster, classLoaderWrapper, mtlsTestHelper);
+        AbstractModule testModule = new IntegrationTestModule(cluster, classLoaderWrapper, mtlsTestHelper, sidecarAdditionalOptions());
         injector = Guice.createInjector(Modules.override(new MainModule()).with(testModule));
         dnsResolver = injector.getInstance(DnsResolver.class);
         vertx = injector.getInstance(Vertx.class);
@@ -473,14 +489,26 @@ public abstract class SharedClusterIntegrationTestBase
         private final ICluster<? extends IInstance> cluster;
         private final IsolatedDTestClassLoaderWrapper wrapper;
         private final MtlsTestHelper mtlsTestHelper;
+        private final Map<String, String> additioanlOptions;
 
         IntegrationTestModule(ICluster<? extends IInstance> cluster,
                               IsolatedDTestClassLoaderWrapper wrapper,
-                              MtlsTestHelper mtlsTestHelper)
+                              MtlsTestHelper mtlsTestHelper,
+                              Map<String, String> additionalOptions)
         {
             this.cluster = cluster;
             this.wrapper = wrapper;
             this.mtlsTestHelper = mtlsTestHelper;
+            this.additioanlOptions = additionalOptions;
+        }
+
+        @Provides
+        @Singleton
+        public CQLSessionProvider cqlSessionProvider()
+        {
+            List<InetSocketAddress> contactPoints = buildContactPoints();
+            return new TemporaryCqlSessionProvider(contactPoints,
+                                                   SharedExecutorNettyOptions.INSTANCE);
         }
 
         @Provides
@@ -489,14 +517,10 @@ public abstract class SharedClusterIntegrationTestBase
                                                SidecarConfiguration configuration,
                                                CassandraVersionProvider cassandraVersionProvider,
                                                SidecarVersionProvider sidecarVersionProvider,
+                                               CQLSessionProvider cqlSessionProvider,
                                                DnsResolver dnsResolver)
         {
             JmxConfiguration jmxConfiguration = configuration.serviceConfiguration().jmxConfiguration();
-
-            List<InetSocketAddress> contactPoints = buildContactPoints();
-            CQLSessionProvider cqlSessionProvider = new TemporaryCqlSessionProvider(contactPoints,
-                                                                                    SharedExecutorNettyOptions.INSTANCE);
-
             List<InstanceMetadata> instanceMetadataList =
             IntStream.rangeClosed(1, cluster.size())
                      .mapToObj(i -> buildInstanceMetadata(vertx,
@@ -518,6 +542,9 @@ public abstract class SharedClusterIntegrationTestBase
             ServiceConfiguration conf = ServiceConfigurationImpl.builder()
                                                                 .host("0.0.0.0") // binds to all interfaces, potential security issue if left running for long
                                                                 .port(0) // let the test find an available port
+                                                                .schemaKeyspaceConfiguration(SchemaKeyspaceConfigurationImpl.builder()
+                                                                                                                            .isEnabled(true)
+                                                                                                                            .build())
                                                                 .build();
 
 
@@ -549,9 +576,11 @@ public abstract class SharedClusterIntegrationTestBase
                 LOGGER.info("Not enabling mTLS for testing purposes. Set '{}' to 'true' if you would " +
                             "like mTLS enabled.", CASSANDRA_INTEGRATION_TEST_ENABLE_MTLS);
             }
+            S3ClientConfiguration s3ClientConfig = new S3ClientConfigurationImpl("s3-client", 4, 60L, buildTestS3ProxyConfig());
             return SidecarConfigurationImpl.builder()
                                            .serviceConfiguration(conf)
                                            .sslConfiguration(sslConfiguration)
+                                           .s3ClientConfiguration(s3ClientConfig)
                                            .build();
         }
 
@@ -568,6 +597,36 @@ public abstract class SharedClusterIntegrationTestBase
                           .map(instance -> new InetSocketAddress(instance.config().broadcastAddress().getAddress(),
                                                                  tryGetIntConfig(instance.config(), "native_transport_port", 9042)))
                           .collect(Collectors.toList());
+        }
+
+        private S3ProxyConfiguration buildTestS3ProxyConfig()
+        {
+            return new S3ProxyConfiguration()
+            {
+                @Override
+                public URI proxy()
+                {
+                    return null;
+                }
+
+                @Override
+                public String username()
+                {
+                    return null;
+                }
+
+                @Override
+                public String password()
+                {
+                    return null;
+                }
+
+                @Override
+                public URI endpointOverride()
+                {
+                    return URI.create(additioanlOptions.getOrDefault(SIDECAR_S3_ENDPOINT_OVERRIDE_OPT, "http://localhost:9090"));
+                }
+            };
         }
 
         static int tryGetIntConfig(IInstanceConfig config, String configName, int defaultValue)

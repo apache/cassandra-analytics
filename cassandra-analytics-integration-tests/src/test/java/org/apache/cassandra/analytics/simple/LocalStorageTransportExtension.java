@@ -17,11 +17,9 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.example;
+package org.apache.cassandra.analytics.simple;
 
 import com.google.common.collect.ImmutableMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
@@ -31,37 +29,30 @@ import org.apache.cassandra.spark.transports.storage.extensions.StorageTransport
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
 import org.apache.spark.SparkConf;
 
+import static org.apache.cassandra.analytics.simple.BulkWriteS3CompatModeSimpleTest.BUCKET_NAME;
+
 public class LocalStorageTransportExtension implements StorageTransportExtension
 {
-    public static final String BUCKET_NAME = "sbw-bucket";
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(LocalStorageTransportExtension.class);
-
-    private String jobId;
-
     @Override
     public void initialize(String jobId, SparkConf conf, boolean isOnDriver)
     {
-        this.jobId = jobId;
     }
 
     @Override
     public StorageTransportConfiguration getStorageConfiguration()
     {
-        ImmutableMap<String, String> additionalTags = ImmutableMap.of("additional-key", "additional-value");
         return new StorageTransportConfiguration(BUCKET_NAME,
                                                  "us-west-1",
                                                  BUCKET_NAME,
                                                  "eu-west-1",
                                                  "key-prefix",
                                                  generateTokens(),
-                                                 additionalTags);
+                                                 ImmutableMap.of());
     }
 
     @Override
     public void onTransportStart(long elapsedMillis)
     {
-
     }
 
     @Override
@@ -77,32 +68,26 @@ public class LocalStorageTransportExtension implements StorageTransportExtension
     @Override
     public void onObjectPersisted(String bucket, String key, long sizeInBytes)
     {
-        LOGGER.info("Object {}/{} for job {} persisted with size {} bytes", bucket, key, jobId, sizeInBytes);
     }
 
     @Override
     public void onAllObjectsPersisted(long objectsCount, long rowCount, long elapsedMillis)
     {
-        LOGGER.info("All {} objects, totaling {} rows, are persisted with elapsed time {}ms",
-                    objectsCount, rowCount, elapsedMillis);
     }
 
     @Override
     public void onObjectApplied(String bucket, String key, long sizeInBytes, long elapsedMillis)
     {
-
     }
 
     @Override
     public void onJobSucceeded(long elapsedMillis)
     {
-        LOGGER.info("Job {} succeeded with elapsed time {}ms", jobId, elapsedMillis);
     }
 
     @Override
     public void onJobFailed(long elapsedMillis, Throwable throwable)
     {
-        LOGGER.error("Job {} failed after {}ms", jobId, elapsedMillis, throwable);
     }
 
     private StorageCredentialPair generateTokens()

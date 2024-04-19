@@ -60,7 +60,7 @@ public class ExampleStorageTransportExtension implements StorageTransportExtensi
     @Override
     public StorageTransportConfiguration getStorageConfiguration()
     {
-        ImmutableMap<String, String> additionalTags = ImmutableMap.of("destination_region", "pv");
+        ImmutableMap<String, String> additionalTags = ImmutableMap.of("additional-key", "additional-value");
         return new StorageTransportConfiguration("writebucket-name",
                                                  "us-west-2",
                                                  "readbucket-name",
