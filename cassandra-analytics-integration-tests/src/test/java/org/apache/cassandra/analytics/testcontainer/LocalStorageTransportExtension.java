@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.cassandra.analytics.simple;
+package org.apache.cassandra.analytics.testcontainer;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -29,7 +29,7 @@ import org.apache.cassandra.spark.transports.storage.extensions.StorageTransport
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
 import org.apache.spark.SparkConf;
 
-import static org.apache.cassandra.analytics.simple.BulkWriteS3CompatModeSimpleTest.BUCKET_NAME;
+import static org.apache.cassandra.analytics.testcontainer.BulkWriteS3CompatModeSimpleTest.BUCKET_NAME;
 
 public class LocalStorageTransportExtension implements StorageTransportExtension
 {

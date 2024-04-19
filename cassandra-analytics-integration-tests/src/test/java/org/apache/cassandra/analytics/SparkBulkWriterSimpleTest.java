@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.cassandra.analytics.simple;
+package org.apache.cassandra.analytics;
 
 import java.util.HashMap;
 import java.util.Map;

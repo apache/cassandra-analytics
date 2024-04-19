@@ -122,6 +122,11 @@ test {
         println("JVM arguments for $project.name are $allJvmArgs")
     }
 
+    if ("true" == System.getenv("skipContainerTest"))
+    {
+        exclude("**/testcontainer/**")
+    }
+
     useJUnitPlatform()
     def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "integration").toFile()
     reports {
