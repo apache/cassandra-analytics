@@ -82,7 +82,7 @@ public interface ConsistencyLevel
                              Set<String> replacementInstances,
                              Set<String> blockedInstances,
                              Set<String> failedInstanceIps,
-                             String localDC);
+                             String localDC); // todo: simplify the parameter list. not all are required in impl
 
     // Check if successful writes forms quorum of non-replacing nodes - N/A as quorum is if there are no failures/blocked
     enum CL implements ConsistencyLevel

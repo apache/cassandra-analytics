@@ -22,6 +22,9 @@ package org.apache.cassandra.spark.bulkwriter.token;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.BeforeAll;
@@ -45,6 +48,11 @@ class BulkWriterConsistencyLevelTest
     private static List<CassandraInstance> succeededOne;
     private static List<CassandraInstance> succeededTwo;
     private static List<CassandraInstance> succeededThree;
+
+    private static Set<String> ZERO = Collections.emptySet();
+    private static Set<String> ONE = intToSet(1);
+    private static Set<String> TWO = intToSet(2);
+    private static Set<String> THREE = intToSet(3);
 
     @BeforeAll
     static void setup()
@@ -107,9 +115,70 @@ class BulkWriterConsistencyLevelTest
         testCanBeSatisfied(CL.ALL, succeededTwo, false);
     }
 
+    @Test
+    void testCheckConsistencyReturnsTrue()
+    {
+        testCheckConsistency(CL.ONE, /* total */ THREE, /* failed */ ZERO, ZERO, true);
+        testCheckConsistency(CL.ONE, /* total */ THREE, /* failed */ ONE, ZERO, true);
+        testCheckConsistency(CL.ONE, /* total */ THREE, /* failed */ TWO, ZERO, true);
+
+        testCheckConsistency(CL.TWO, /* total */ THREE, /* failed */ ZERO, ZERO, true);
+        testCheckConsistency(CL.TWO, /* total */ THREE, /* failed */ ONE, ZERO, true);
+
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ ZERO, /* pending */ ZERO, true);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ ZERO, /* pending */ ONE, true);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ ZERO, /* pending */ TWO, true);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ ONE, /* pending */ ONE, true);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ TWO, /* pending */ ZERO, true);
+
+        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ THREE, /* failed */ ZERO, ZERO, true);
+        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ THREE, /* failed */ ONE, ZERO, true);
+
+        testCheckConsistency(CL.EACH_QUORUM, /* total */ THREE, /* failed */ ZERO, ZERO, true);
+        testCheckConsistency(CL.EACH_QUORUM, /* total */ THREE, /* failed */ ONE, ZERO, true);
+
+        testCheckConsistency(CL.QUORUM, /* total */ THREE, /* failed */ ZERO, ZERO, true);
+        testCheckConsistency(CL.QUORUM, /* total */ THREE, /* failed */ ONE, ZERO, true);
+
+        testCheckConsistency(CL.ALL, /* total */ THREE, /* failed */ ZERO, ZERO, true);
+    }
+
+    @Test
+    void testCheckConsistencyReturnsFalse()
+    {
+        testCheckConsistency(CL.ONE, /* total */ THREE, /* failed */ THREE, ZERO, false);
+
+        testCheckConsistency(CL.TWO, /* total */ THREE, /* failed */ THREE, ZERO, false);
+        testCheckConsistency(CL.TWO, /* total */ THREE, /* failed */ TWO, ZERO, false);
+
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ THREE, /* pending */ ZERO, false);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ TWO, /* pending */ ONE, false);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ ONE, /* pending */ TWO, false);
+
+        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ THREE, /* failed */ THREE, ZERO, false);
+        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ THREE, /* failed */ TWO, ZERO, false);
+
+        testCheckConsistency(CL.EACH_QUORUM, /* total */ THREE, /* failed */ THREE, ZERO, false);
+        testCheckConsistency(CL.EACH_QUORUM, /* total */ THREE, /* failed */ TWO, ZERO, false);
+
+        testCheckConsistency(CL.QUORUM, /* total */ THREE, /* failed */ THREE, ZERO, false);
+        testCheckConsistency(CL.QUORUM, /* total */ THREE, /* failed */ TWO, ZERO, false);
+
+        testCheckConsistency(CL.ALL, /* total */ THREE, /* failed */ ONE, ZERO, false);
+        testCheckConsistency(CL.ALL, /* total */ THREE, /* failed */ TWO, ZERO, false);
+        testCheckConsistency(CL.ALL, /* total */ THREE, /* failed */ THREE, ZERO, false);
+    }
+
     private void testCanBeSatisfied(ConsistencyLevel cl, List<CassandraInstance> succeeded, boolean expectedResult)
     {
         assertThat(cl.canBeSatisfied(succeeded, replicationFactor, "dc1")).isEqualTo(expectedResult);
+    }
+
+    private void testCheckConsistency(ConsistencyLevel cl, Set<String> total, Set<String> failed, Set<String> pending, boolean expectedResult)
+    {
+        assertThat(cl.checkConsistency(total, pending, ZERO, // replacement is not used
+                                       ZERO, // include blocking instance set in failed set
+                                       failed, "dc1")).isEqualTo(expectedResult);
     }
 
     private static CassandraInstance mockInstance(String dc)
@@ -117,5 +186,10 @@ class BulkWriterConsistencyLevelTest
         CassandraInstance i = mock(CassandraInstance.class);
         when(i.datacenter()).thenReturn(dc);
         return i;
+    }
+
+    private static Set<String> intToSet(int i)
+    {
+        return IntStream.range(0, i).mapToObj(String::valueOf).collect(Collectors.toSet());
     }
 }
