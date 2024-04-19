@@ -49,10 +49,10 @@ class BulkWriterConsistencyLevelTest
     private static List<CassandraInstance> succeededTwo;
     private static List<CassandraInstance> succeededThree;
 
-    private static Set<String> ZERO = Collections.emptySet();
-    private static Set<String> ONE = intToSet(1);
-    private static Set<String> TWO = intToSet(2);
-    private static Set<String> THREE = intToSet(3);
+    private static Set<String> zero = Collections.emptySet();
+    private static Set<String> one = intToSet(1);
+    private static Set<String> two = intToSet(2);
+    private static Set<String> three = intToSet(3);
 
     @BeforeAll
     static void setup()
@@ -118,55 +118,55 @@ class BulkWriterConsistencyLevelTest
     @Test
     void testCheckConsistencyReturnsTrue()
     {
-        testCheckConsistency(CL.ONE, /* total */ THREE, /* failed */ ZERO, ZERO, true);
-        testCheckConsistency(CL.ONE, /* total */ THREE, /* failed */ ONE, ZERO, true);
-        testCheckConsistency(CL.ONE, /* total */ THREE, /* failed */ TWO, ZERO, true);
+        testCheckConsistency(CL.ONE, /* total */ three, /* failed */ zero, zero, true);
+        testCheckConsistency(CL.ONE, /* total */ three, /* failed */ one, zero, true);
+        testCheckConsistency(CL.ONE, /* total */ three, /* failed */ two, zero, true);
 
-        testCheckConsistency(CL.TWO, /* total */ THREE, /* failed */ ZERO, ZERO, true);
-        testCheckConsistency(CL.TWO, /* total */ THREE, /* failed */ ONE, ZERO, true);
+        testCheckConsistency(CL.TWO, /* total */ three, /* failed */ zero, zero, true);
+        testCheckConsistency(CL.TWO, /* total */ three, /* failed */ one, zero, true);
 
-        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ ZERO, /* pending */ ZERO, true);
-        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ ZERO, /* pending */ ONE, true);
-        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ ZERO, /* pending */ TWO, true);
-        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ ONE, /* pending */ ONE, true);
-        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ TWO, /* pending */ ZERO, true);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ three, /* failed */ zero, /* pending */ zero, true);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ three, /* failed */ zero, /* pending */ one, true);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ three, /* failed */ zero, /* pending */ two, true);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ three, /* failed */ one, /* pending */ one, true);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ three, /* failed */ two, /* pending */ zero, true);
 
-        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ THREE, /* failed */ ZERO, ZERO, true);
-        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ THREE, /* failed */ ONE, ZERO, true);
+        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ three, /* failed */ zero, zero, true);
+        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ three, /* failed */ one, zero, true);
 
-        testCheckConsistency(CL.EACH_QUORUM, /* total */ THREE, /* failed */ ZERO, ZERO, true);
-        testCheckConsistency(CL.EACH_QUORUM, /* total */ THREE, /* failed */ ONE, ZERO, true);
+        testCheckConsistency(CL.EACH_QUORUM, /* total */ three, /* failed */ zero, zero, true);
+        testCheckConsistency(CL.EACH_QUORUM, /* total */ three, /* failed */ one, zero, true);
 
-        testCheckConsistency(CL.QUORUM, /* total */ THREE, /* failed */ ZERO, ZERO, true);
-        testCheckConsistency(CL.QUORUM, /* total */ THREE, /* failed */ ONE, ZERO, true);
+        testCheckConsistency(CL.QUORUM, /* total */ three, /* failed */ zero, zero, true);
+        testCheckConsistency(CL.QUORUM, /* total */ three, /* failed */ one, zero, true);
 
-        testCheckConsistency(CL.ALL, /* total */ THREE, /* failed */ ZERO, ZERO, true);
+        testCheckConsistency(CL.ALL, /* total */ three, /* failed */ zero, zero, true);
     }
 
     @Test
     void testCheckConsistencyReturnsFalse()
     {
-        testCheckConsistency(CL.ONE, /* total */ THREE, /* failed */ THREE, ZERO, false);
+        testCheckConsistency(CL.ONE, /* total */ three, /* failed */ three, zero, false);
 
-        testCheckConsistency(CL.TWO, /* total */ THREE, /* failed */ THREE, ZERO, false);
-        testCheckConsistency(CL.TWO, /* total */ THREE, /* failed */ TWO, ZERO, false);
+        testCheckConsistency(CL.TWO, /* total */ three, /* failed */ three, zero, false);
+        testCheckConsistency(CL.TWO, /* total */ three, /* failed */ two, zero, false);
 
-        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ THREE, /* pending */ ZERO, false);
-        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ TWO, /* pending */ ONE, false);
-        testCheckConsistency(CL.LOCAL_ONE, /* total */ THREE, /* failed */ ONE, /* pending */ TWO, false);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ three, /* failed */ three, /* pending */ zero, false);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ three, /* failed */ two, /* pending */ one, false);
+        testCheckConsistency(CL.LOCAL_ONE, /* total */ three, /* failed */ one, /* pending */ two, false);
 
-        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ THREE, /* failed */ THREE, ZERO, false);
-        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ THREE, /* failed */ TWO, ZERO, false);
+        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ three, /* failed */ three, zero, false);
+        testCheckConsistency(CL.LOCAL_QUORUM, /* total */ three, /* failed */ two, zero, false);
 
-        testCheckConsistency(CL.EACH_QUORUM, /* total */ THREE, /* failed */ THREE, ZERO, false);
-        testCheckConsistency(CL.EACH_QUORUM, /* total */ THREE, /* failed */ TWO, ZERO, false);
+        testCheckConsistency(CL.EACH_QUORUM, /* total */ three, /* failed */ three, zero, false);
+        testCheckConsistency(CL.EACH_QUORUM, /* total */ three, /* failed */ two, zero, false);
 
-        testCheckConsistency(CL.QUORUM, /* total */ THREE, /* failed */ THREE, ZERO, false);
-        testCheckConsistency(CL.QUORUM, /* total */ THREE, /* failed */ TWO, ZERO, false);
+        testCheckConsistency(CL.QUORUM, /* total */ three, /* failed */ three, zero, false);
+        testCheckConsistency(CL.QUORUM, /* total */ three, /* failed */ two, zero, false);
 
-        testCheckConsistency(CL.ALL, /* total */ THREE, /* failed */ ONE, ZERO, false);
-        testCheckConsistency(CL.ALL, /* total */ THREE, /* failed */ TWO, ZERO, false);
-        testCheckConsistency(CL.ALL, /* total */ THREE, /* failed */ THREE, ZERO, false);
+        testCheckConsistency(CL.ALL, /* total */ three, /* failed */ one, zero, false);
+        testCheckConsistency(CL.ALL, /* total */ three, /* failed */ two, zero, false);
+        testCheckConsistency(CL.ALL, /* total */ three, /* failed */ three, zero, false);
     }
 
     private void testCanBeSatisfied(ConsistencyLevel cl, List<CassandraInstance> succeeded, boolean expectedResult)
@@ -176,8 +176,8 @@ class BulkWriterConsistencyLevelTest
 
     private void testCheckConsistency(ConsistencyLevel cl, Set<String> total, Set<String> failed, Set<String> pending, boolean expectedResult)
     {
-        assertThat(cl.checkConsistency(total, pending, ZERO, // replacement is not used
-                                       ZERO, // include blocking instance set in failed set
+        assertThat(cl.checkConsistency(total, pending, zero, // replacement is not used
+                                       zero, // include blocking instance set in failed set
                                        failed, "dc1")).isEqualTo(expectedResult);
     }
 
