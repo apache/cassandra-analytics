@@ -150,11 +150,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     @Override
     public void close()
     {
-        synchronized (this)
-        {
-            LOGGER.info("Closing {}", this);
-            getCassandraContext().close();
-        }
+        LOGGER.info("Closing {}", this);
+        getCassandraContext().close();
     }
 
     @Override

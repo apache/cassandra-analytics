@@ -147,17 +147,14 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     public void shutdown()
     {
         LOGGER.info("Shutting down {}", this);
-        synchronized (this)
+        if (clusterInfo != null)
         {
-            if (clusterInfo != null)
-            {
-                clusterInfo.close();
-            }
+            clusterInfo.close();
+        }
 
-            if (transportContext != null)
-            {
-                transportContext.close();
-            }
+        if (transportContext != null)
+        {
+            transportContext.close();
         }
     }
 
