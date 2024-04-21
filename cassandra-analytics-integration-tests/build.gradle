@@ -74,7 +74,9 @@ dependencies {
     testImplementation 'software.amazon.awssdk:s3'
     testImplementation 'software.amazon.awssdk:netty-nio-client'
     testImplementation platform(group: 'software.amazon.awssdk', name:'bom', version:"${project.aswSdkVersion}")
-    testImplementation('com.adobe.testing:s3mock-testcontainers:2.17.0') // 3.x version do not support java 11
+    testImplementation 'com.adobe.testing:s3mock-testcontainers:2.17.0' // 3.x version do not support java 11
+
+    testRuntimeOnly 'com.fasterxml.jackson.core:jackson-annotations:2.14.2'
 }
 
 test {
