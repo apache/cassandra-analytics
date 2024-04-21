@@ -179,6 +179,7 @@ jobs:
       - image: cimg/openjdk:8.0
     resource_class: large
     steps:
+      - setup_remote_docker
       - install_common
       - checkout
       - attach_workspace:
@@ -230,6 +231,7 @@ jobs:
       - image: cimg/openjdk:8.0
     resource_class: large
     steps:
+      - setup_remote_docker
       - install_common
       - checkout
       - attach_workspace:
@@ -282,6 +284,7 @@ jobs:
       - image: cimg/openjdk:11.0
     resource_class: large
     steps:
+      - setup_remote_docker
       - install_common
       - checkout
       - attach_workspace:
@@ -335,6 +338,7 @@ jobs:
       - image: cimg/openjdk:11.0
     resource_class: large
     steps:
+      - setup_remote_docker
       - install_common
       - checkout
       - attach_workspace:
@@ -360,29 +364,29 @@ workflows:
   version: 2
   build-and-test:
     jobs:
-      - build-dependencies-jdk8
-      - build-dependencies-jdk11
+      - build-w-jdk8
+      - build-w-jdk11
       - spark2-2_11-jdk8:
           requires:
-            - build-dependencies-jdk8
+            - build-w-jdk8
       - spark2-2_12-jdk8:
           requires:
-            - build-dependencies-jdk8
+            - build-w-jdk8
       - spark3-2_12-jdk11:
           requires:
-            - build-dependencies-jdk11
+            - build-w-jdk11
       - spark3-2_13-jdk11:
           requires:
-            - build-dependencies-jdk11
+            - build-w-jdk11
       - int-spark2-2_11-jdk8:
           requires:
-            - build-dependencies-jdk8
+            - build-w-jdk8
       - int-spark2-2_12-jdk8:
           requires:
-            - build-dependencies-jdk8
+            - build-w-jdk8
       - int-spark3-2_12-jdk11:
           requires:
-            - build-dependencies-jdk11
+            - build-w-jdk11
       - int-spark3-2_13-jdk11:
           requires:
-            - build-dependencies-jdk11
+            - build-w-jdk11
