@@ -20,15 +20,31 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
+import java.math.BigInteger;
+
+import com.google.common.collect.Range;
 
 public class StreamError implements Serializable
 {
+    private static final long serialVersionUID = 8897970306271012424L;
     public final RingInstance instance;
     public final String errMsg;
+    public final Range<BigInteger> failedRange;
 
-    public StreamError(RingInstance instance, String errMsg)
+    public StreamError(Range<BigInteger> failedRange, RingInstance instance, String errMsg)
     {
+        // todo: range should be all open-closed, but it is not consistent in the project yet. Enable the check later
+//        Preconditions.checkArgument(RangeUtils.isOpenClosedRange(failedRange), "Token range is not open-closed");
+        this.failedRange = failedRange;
         this.instance = instance;
         this.errMsg = errMsg;
+    }
+
+    @Override
+    public String toString()
+    {
+        return "StreamError{instance:'" + instance
+               + "',failedRange:'" + failedRange
+               + "',errMsg:'" + errMsg + "'}";
     }
 }

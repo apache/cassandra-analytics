@@ -41,6 +41,7 @@ public final class BuildInfo
     public static final String BUILD_VERSION_AND_REVISION = getBuildVersionAndRevision();
     public static final String READER_USER_AGENT = getUserAgent("reader");
     public static final String WRITER_USER_AGENT = getUserAgent("writer");
+    public static final String WRITER_S3_USER_AGENT = getUserAgent("writer-s3");
 
     private BuildInfo()
     {

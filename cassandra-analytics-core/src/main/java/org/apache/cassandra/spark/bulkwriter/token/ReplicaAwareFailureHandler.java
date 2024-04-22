@@ -64,7 +64,7 @@ public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
      * @param casInstance the instance on which the range failed
      * @param errMessage  the error that occurred for this particular range/instance pair
      */
-    public void addFailure(Range<BigInteger> tokenRange, Instance casInstance, String errMessage)
+    public synchronized void addFailure(Range<BigInteger> tokenRange, Instance casInstance, String errMessage)
     {
         RangeMap<BigInteger, Multimap<Instance, String>> overlappingFailures = failedRangesMap.subRangeMap(tokenRange);
         RangeMap<BigInteger, Multimap<Instance, String>> mappingsToAdd = TreeRangeMap.create();
@@ -97,7 +97,7 @@ public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
      * @return list of failed entries for token ranges that break consistency. This should ideally be empty for a
      * successful operation.
      */
-    public Collection<AbstractMap.SimpleEntry<Range<BigInteger>, Multimap<Instance, String>>>
+    public synchronized Collection<AbstractMap.SimpleEntry<Range<BigInteger>, Multimap<Instance, String>>>
     getFailedEntries(TokenRangeMapping<? extends CassandraInstance> tokenRangeMapping,
                      ConsistencyLevel cl,
                      String localDC)

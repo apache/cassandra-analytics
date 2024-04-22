@@ -106,19 +106,12 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     @Override
-    public boolean instanceIsAvailable(RingInstance ringInstance)
-    {
-        return instanceIsUp(ringInstance.ringInstance())
-               && instanceIsNormal(ringInstance.ringInstance())
-               && !instanceIsBlocked(ringInstance);
-    }
-
-    @Override
     public InstanceState getInstanceState(RingInstance ringInstance)
     {
         return InstanceState.valueOf(ringInstance.ringInstance().state().toUpperCase());
     }
 
+    @Override
     public CassandraContext getCassandraContext()
     {
         CassandraContext currentCassandraContext = cassandraContext;
@@ -157,11 +150,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     @Override
     public void close()
     {
-        synchronized (this)
-        {
-            LOGGER.info("Closing {}", this);
-            getCassandraContext().close();
-        }
+        LOGGER.info("Closing {}", this);
+        getCassandraContext().close();
     }
 
     @Override
@@ -292,24 +282,31 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     @Override
     public TokenRangeMapping<RingInstance> getTokenRangeMapping(boolean cached)
     {
-        TokenRangeMapping<RingInstance> tokenRangeReplicas = this.tokenRangeReplicas;
-        if (cached && tokenRangeReplicas != null)
+        TokenRangeMapping<RingInstance> topology = this.tokenRangeReplicas;
+        if (cached && topology != null)
         {
-            return tokenRangeReplicas;
+            return topology;
         }
 
+        // Block for the call-sites requesting the latest view of the ring; but it is OK to serve the other call-sites that request for the cached view
+        // We can avoid synchronization here
+        if (topology != null)
+        {
+            topology = getTokenRangeReplicas();
+            this.tokenRangeReplicas = topology;
+            return topology;
+        }
+
+        // Only synchronize when it is the first time fetching the ring information
         synchronized (this)
         {
-            if (!cached || this.tokenRangeReplicas == null)
+            try
             {
-                try
-                {
-                    this.tokenRangeReplicas = getTokenRangeReplicas();
-                }
-                catch (Exception exception)
-                {
-                    throw new RuntimeException("Unable to initialize ring information", exception);
-                }
+                this.tokenRangeReplicas = getTokenRangeReplicas();
+            }
+            catch (Exception exception)
+            {
+                throw new RuntimeException("Unable to initialize ring information", exception);
             }
             return this.tokenRangeReplicas;
         }

@@ -49,7 +49,7 @@ public abstract class SidecarInstanceTest
             }
             catch (IllegalArgumentException illegalArgumentException)
             {
-                assertEquals("The Sidecar port number must be in the range 1-65535: " + invalidPortNumber,
+                assertEquals("Invalid port number for the Sidecar service: " + invalidPortNumber,
                              illegalArgumentException.getMessage());
             }
         }

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Delayed;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -46,10 +47,10 @@ public class MockScheduledExecutorService extends ScheduledThreadPoolExecutor
 
     @NotNull
     @Override
-    public ScheduledFuture<?> scheduleAtFixedRate(@NotNull Runnable command,
-                                                  long initialDelay,
-                                                  long period,
-                                                  @NotNull TimeUnit unit)
+    public ScheduledFuture<?> scheduleWithFixedDelay(@NotNull Runnable command,
+                                                     long initialDelay,
+                                                     long period,
+                                                     @NotNull TimeUnit unit)
     {
         this.period = period;
         this.timeUnit = unit;
@@ -61,6 +62,15 @@ public class MockScheduledExecutorService extends ScheduledThreadPoolExecutor
     public ScheduledFuture<?> submit(Runnable command)
     {
         MockScheduledFuture<?> future = new MockScheduledFuture<>(command);
+        futures.add(future);
+        return future;
+    }
+
+    @NotNull
+    @Override
+    public <T> Future<T> submit(@NotNull Callable<T> task)
+    {
+        MockScheduledFuture<T> future = new MockScheduledFuture<>(task);
         futures.add(future);
         return future;
     }

@@ -111,9 +111,10 @@ commands:
                 ./gradlew cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
             done;
             exit $EXIT_STATUS
+          no_output_timeout: 30m
 
 jobs:
-  build-dependencies-jdk8:
+  build-deps-jdk8:
     docker:
       - image: cimg/openjdk:8.0
     resource_class: large
@@ -130,7 +131,7 @@ jobs:
             - "*.jar"
             - "org/**/*"
 
-  build-dependencies-jdk11:
+  build-deps-jdk11:
     docker:
       - image: cimg/openjdk:11.0
     resource_class: large
@@ -178,6 +179,7 @@ jobs:
       - image: cimg/openjdk:8.0
     resource_class: large
     steps:
+      - setup_remote_docker
       - install_common
       - checkout
       - attach_workspace:
@@ -229,6 +231,7 @@ jobs:
       - image: cimg/openjdk:8.0
     resource_class: large
     steps:
+      - setup_remote_docker
       - install_common
       - checkout
       - attach_workspace:
@@ -281,6 +284,7 @@ jobs:
       - image: cimg/openjdk:11.0
     resource_class: large
     steps:
+      - setup_remote_docker
       - install_common
       - checkout
       - attach_workspace:
@@ -334,6 +338,7 @@ jobs:
       - image: cimg/openjdk:11.0
     resource_class: large
     steps:
+      - setup_remote_docker
       - install_common
       - checkout
       - attach_workspace:
@@ -359,29 +364,29 @@ workflows:
   version: 2
   build-and-test:
     jobs:
-      - build-dependencies-jdk8
-      - build-dependencies-jdk11
+      - build-deps-jdk8
+      - build-deps-jdk11
       - spark2-2_11-jdk8:
           requires:
-            - build-dependencies-jdk8
+            - build-deps-jdk8
       - spark2-2_12-jdk8:
           requires:
-            - build-dependencies-jdk8
+            - build-deps-jdk8
       - spark3-2_12-jdk11:
           requires:
-            - build-dependencies-jdk11
+            - build-deps-jdk11
       - spark3-2_13-jdk11:
           requires:
-            - build-dependencies-jdk11
+            - build-deps-jdk11
       - int-spark2-2_11-jdk8:
           requires:
-            - build-dependencies-jdk8
+            - build-deps-jdk8
       - int-spark2-2_12-jdk8:
           requires:
-            - build-dependencies-jdk8
+            - build-deps-jdk8
       - int-spark3-2_12-jdk11:
           requires:
-            - build-dependencies-jdk11
+            - build-deps-jdk11
       - int-spark3-2_13-jdk11:
           requires:
-            - build-dependencies-jdk11
+            - build-deps-jdk11

@@ -70,6 +70,13 @@ dependencies {
     testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${sparkVersion}")
 
     testImplementation(project(path: ":cassandra-analytics-integration-framework"))
+
+    testImplementation 'software.amazon.awssdk:s3'
+    testImplementation 'software.amazon.awssdk:netty-nio-client'
+    testImplementation platform(group: 'software.amazon.awssdk', name:'bom', version:"${project.aswSdkVersion}")
+    testImplementation 'com.adobe.testing:s3mock-testcontainers:2.17.0' // 3.x version do not support java 11
+
+    testRuntimeOnly 'com.fasterxml.jackson.core:jackson-annotations:2.14.2'
 }
 
 test {
@@ -115,6 +122,15 @@ test {
                              '--add-opens', 'jdk.management/com.sun.management.internal=ALL-UNNAMED']
         jvmArgs(JDK11_OPTIONS)
         println("JVM arguments for $project.name are $allJvmArgs")
+    }
+
+    // container test does not run on java 8
+    if ("true" == System.getenv("skipContainerTest") || JavaVersion.current().isJava8()) {
+        exclude("**/testcontainer/**")
+
+        filter {
+            setFailOnNoMatchingTests(false) // do not fail the build if no matching test found, since in CI we run individual test class
+        }
     }
 
     useJUnitPlatform()

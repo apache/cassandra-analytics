@@ -80,10 +80,10 @@ public final class ReaderUtils
 {
     private static final int CHECKSUM_LENGTH = 4;  // CRC32
     private static final Constructor<?> SERIALIZATION_HEADER =
-            Arrays.stream(SerializationHeader.Component.class.getDeclaredConstructors())
-                  .filter(constructor -> constructor.getParameterCount() == 5)
-                  .findFirst()
-                  .orElseThrow(() -> new RuntimeException("Could not find SerializationHeader.Component constructor"));
+    Arrays.stream(SerializationHeader.Component.class.getDeclaredConstructors())
+          .filter(constructor -> constructor.getParameterCount() == 5)
+          .findFirst()
+          .orElseThrow(() -> new RuntimeException("Could not find SerializationHeader.Component constructor"));
     public static final ByteBuffer SUPER_COLUMN_MAP_COLUMN = ByteBufferUtil.EMPTY_BYTE_BUFFER;
 
     static
@@ -145,7 +145,7 @@ public final class ReaderUtils
         // We use comparator.size() rather than clustering.size() because of static clusterings
         int clusteringSize = metadata.comparator.size();
         int size = clusteringSize + (TableMetadata.Flag.isDense(metadata.flags) ? 0 : 1)
-                                  + (collectionElement == null ? 0 : 1);
+                   + (collectionElement == null ? 0 : 1);
         if (TableMetadata.Flag.isSuper(metadata.flags))
         {
             size = clusteringSize + 1;
@@ -196,8 +196,8 @@ public final class ReaderUtils
         return CompositeType.build(ByteBufferAccessor.instance, isStatic, values);
     }
 
-    static Pair<DecoratedKey, DecoratedKey> keysFromIndex(@NotNull TableMetadata metadata,
-                                                          @NotNull SSTable ssTable) throws IOException
+    public static Pair<DecoratedKey, DecoratedKey> keysFromIndex(@NotNull TableMetadata metadata,
+                                                                 @NotNull SSTable ssTable) throws IOException
     {
         try (InputStream primaryIndex = ssTable.openPrimaryIndexStream())
         {
@@ -513,10 +513,10 @@ public final class ReaderUtils
     }
 
     static List<PartitionKeyFilter> filterKeyInBloomFilter(
-            @NotNull SSTable ssTable,
-            @NotNull IPartitioner partitioner,
-            Descriptor descriptor,
-            @NotNull List<PartitionKeyFilter> partitionKeyFilters) throws IOException
+    @NotNull SSTable ssTable,
+    @NotNull IPartitioner partitioner,
+    Descriptor descriptor,
+    @NotNull List<PartitionKeyFilter> partitionKeyFilters) throws IOException
     {
         try
         {

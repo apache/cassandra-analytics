@@ -17,23 +17,22 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.bulkwriter;
+package org.apache.cassandra.spark.transports.storage.extensions;
 
-import java.nio.file.Path;
-
-import org.apache.cassandra.spark.utils.DigestAlgorithm;
-import org.jetbrains.annotations.NotNull;
-
-class NonValidatingTestSSTableWriter extends SSTableWriter
+/**
+ * A listener interface that is notified on failures processing an object
+ */
+public interface ObjectFailureListener
 {
-    NonValidatingTestSSTableWriter(MockTableWriter tableWriter, Path path, DigestAlgorithm digestAlgorithm)
-    {
-        super(tableWriter, path, digestAlgorithm);
-    }
-
-    @Override
-    public void validateSSTables(@NotNull BulkWriterContext writerContext, int partitionId)
-    {
-        // Skip validation for these tests
-    }
+    /**
+     * Method to call when an unrecoverable error has been encountered for the given {@code jobId}, {@code objectURI},
+     * with {@code errorMessage}.
+     *
+     * @param jobId        the unique identifier for the job. It could be customer-supplied
+     *                     or self-generated (when not supplied)
+     * @param bucket       the object storage bucket
+     * @param key          the key in the object storage
+     * @param errorMessage a description of the error
+     */
+    void onObjectFailed(String jobId, String bucket, String key, String errorMessage);
 }

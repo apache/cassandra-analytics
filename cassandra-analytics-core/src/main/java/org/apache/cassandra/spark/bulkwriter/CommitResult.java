@@ -33,7 +33,8 @@ import org.jetbrains.annotations.NotNull;
 
 public class CommitResult implements Serializable
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(StreamResult.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CommitResult.class);
+    private static final long serialVersionUID = 773475991511158249L;
 
     public final String migrationId;
     protected RingInstance instance;

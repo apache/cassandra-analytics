@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.math.BigInteger;
 import java.util.AbstractMap;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.Multimap;
@@ -45,8 +46,8 @@ public class BulkWriteValidator
     public BulkWriteValidator(BulkWriterContext bulkWriterContext,
                               ReplicaAwareFailureHandler<RingInstance> failureHandler)
     {
-        cluster = bulkWriterContext.cluster();
-        job = bulkWriterContext.job();
+        this.cluster = bulkWriterContext.cluster();
+        this.job = bulkWriterContext.job();
         this.failureHandler = failureHandler;
     }
 
@@ -87,7 +88,18 @@ public class BulkWriteValidator
 
     public void setPhase(String phase)
     {
+        LOGGER.info("Updating write phase from {} to {}", this.phase, phase);
         this.phase = phase;
+    }
+
+    public synchronized void updateFailureHandler(List<? extends StreamResult> results)
+    {
+        results.stream()
+               .flatMap(res -> res.failures.stream())
+               .forEach(err -> {
+                   LOGGER.info("Populate stream error from tasks. {}", err);
+                   failureHandler.addFailure(err.failedRange, err.instance, err.errMsg);
+               });
     }
 
     public static void updateFailureHandler(CommitResult commitResult,
@@ -103,6 +115,11 @@ public class BulkWriteValidator
                         err.errMsg);
             failureHandler.addFailure(err.tokenRange, commitResult.instance, err.errMsg);
         });
+    }
+
+    public void updateFailureHandler(Range<BigInteger> failedRange, RingInstance instance, String reason)
+    {
+        failureHandler.addFailure(failedRange, instance, reason);
     }
 
     public void validateClOrFail(TokenRangeMapping<RingInstance> tokenRangeMapping)
@@ -130,7 +147,6 @@ public class BulkWriteValidator
                                                     + "Please rerun import once topology changes are complete.",
                                                     instance.nodeName(), cluster.getInstanceState(instance));
                 throw new RuntimeException(errorMessage);
-
             // Check for blocked instances and ranges for the purpose of logging only.
             // We check for blocked instances while validating consistency level requirements
             case UNAVAILABLE_BLOCKED:

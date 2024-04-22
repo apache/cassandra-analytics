@@ -24,7 +24,7 @@ else
   SCRIPT_DIR=$( dirname -- "$( readlink -f -- "$0"; )"; )
   SIDECAR_REPO="${SIDECAR_REPO:-https://github.com/apache/cassandra-sidecar.git}"
   SIDECAR_BRANCH="${SIDECAR_BRANCH:-trunk}"
-  SIDECAR_COMMIT="${SIDECAR_COMMIT:-20795db4d708b9287e0a2281695923bfb6fa9138}"
+  SIDECAR_COMMIT="${SIDECAR_COMMIT:-fd6f7ac5f9f19dbbeeb9e7f80ca1fcbf60d5a4c6}"
   SIDECAR_JAR_DIR="$(dirname "${SCRIPT_DIR}/")/dependencies"
   SIDECAR_JAR_DIR=${CASSANDRA_DEP_DIR:-$SIDECAR_JAR_DIR}
   SIDECAR_BUILD_DIR="${SIDECAR_JAR_DIR}/sidecar-build"
@@ -47,7 +47,9 @@ else
   cd "${SIDECAR_BUILD_DIR}"
   echo "branch ${SIDECAR_BRANCH} sha ${SIDECAR_COMMIT}"
   # check out the correct cassandra version:
+  # if the SIDECAR_BRANCH directory does not exist; we initialize from the scratch
   if [ ! -d "${SIDECAR_BRANCH}" ] ; then
+    # if SIDECAR_COMMIT is defined; we pull the specified commit
     if [ -n "${SIDECAR_COMMIT}" ] ; then
       mkdir -p "${SIDECAR_BRANCH}"
       cd "${SIDECAR_BRANCH}"
@@ -55,14 +57,17 @@ else
       git remote add upstream "${SIDECAR_REPO}"
       git fetch --depth=1 upstream "${SIDECAR_COMMIT}"
       git reset --hard FETCH_HEAD
-    else
+    else # we pull/clone the branch instead
       git clone --depth 1 --single-branch --branch "${SIDECAR_BRANCH}" "${SIDECAR_REPO}" "${SIDECAR_BRANCH}"
       cd "${SIDECAR_BRANCH}"
     fi
-  else
+  else # SIDECAR_BRANCH already exists; we are doing delta builds
     cd "${SIDECAR_BRANCH}"
+    # no SIDECAR_COMMIT defined; we pull any new commits in the branch
     if [ -z "${SIDECAR_COMMIT}" ] ; then
-      git pull
+      git pull upstream "${SIDECAR_BRANCH}"
+    else # we pull the specified commit from upstream
+      git pull upstream "${SIDECAR_COMMIT}"
     fi
   fi
   if [ -z "${SIDECAR_COMMIT}" ] ; then

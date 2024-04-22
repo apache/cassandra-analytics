@@ -72,7 +72,7 @@ Note that when building the main project, you should have run the `./scripts/bui
 which would have cloned and built the sidecar into `./dependencies/sidecar-build`. Use that build to run the sidecar.
 
 ```shell
-cd ./dependencies/sidecar-build
+cd ./dependencies/sidecar-build/trunk
 ```
 
 Configure the `src/main/dist/sidecar.yaml` file for your local environment. You will most likely only need to configure
@@ -114,56 +114,8 @@ Finally, run Cassandra Sidecar. We skip running integration tests because the in
 You can, of course, choose to run them (and should when working on the sidecar the project itself).
 
 ```shell
-user:~$ ./gradlew run -x integrationTest
-> Task :common:compileJava UP-TO-DATE
-> Task :cassandra40:compileJava UP-TO-DATE
-> Task :compileJava UP-TO-DATE
-> Task :processResources UP-TO-DATE
-> Task :classes UP-TO-DATE
-> Task :jar UP-TO-DATE
-> Task :startScripts UP-TO-DATE
-> Task :cassandra40:processResources NO-SOURCE
-> Task :cassandra40:classes UP-TO-DATE
-> Task :cassandra40:jar UP-TO-DATE
-> Task :common:processResources NO-SOURCE
-> Task :common:classes UP-TO-DATE
-> Task :common:jar UP-TO-DATE
-> Task :distTar
-> Task :distZip
-> Task :assemble
-> Task :common:compileTestFixturesJava UP-TO-DATE
-> Task :compileTestFixturesJava UP-TO-DATE
-> Task :compileTestJava UP-TO-DATE
-> Task :processTestResources UP-TO-DATE
-> Task :testClasses UP-TO-DATE
-> Task :compileIntegrationTestJava UP-TO-DATE
-> Task :processIntegrationTestResources NO-SOURCE
-> Task :integrationTestClasses UP-TO-DATE
-> Task :checkstyleIntegrationTest UP-TO-DATE
-> Task :checkstyleMain UP-TO-DATE
-> Task :checkstyleTest UP-TO-DATE
-> Task :processTestFixturesResources NO-SOURCE
-> Task :testFixturesClasses UP-TO-DATE
-> Task :checkstyleTestFixtures UP-TO-DATE
-> Task :testFixturesJar UP-TO-DATE
-> Task :common:processTestFixturesResources NO-SOURCE
-> Task :common:testFixturesClasses UP-TO-DATE
-> Task :common:testFixturesJar UP-TO-DATE
-> Task :test UP-TO-DATE
-> Task :jacocoTestReport UP-TO-DATE
-> Task :spotbugsIntegrationTest UP-TO-DATE
-> Task :spotbugsMain UP-TO-DATE
-> Task :spotbugsTest UP-TO-DATE
-> Task :spotbugsTestFixtures UP-TO-DATE
-> Task :check
-> Task :copyJolokia UP-TO-DATE
-> Task :installDist
-> Task :copyDist
-> Task :docs:asciidoctor UP-TO-DATE
-> Task :copyDocs UP-TO-DATE
-> Task :generateReDoc NO-SOURCE
-> Task :generateSwaggerUI NO-SOURCE
-> Task :build
+user:~$ ./gradlew run -x test -x integrationTest -x containerTest
+...
 
 > Task :run
 Could not start Jolokia agent: java.net.BindException: Address already in use
@@ -191,7 +143,7 @@ There we have it, Cassandra Sidecar is now running and connected to all 3 Cassan
 
 ### Step 3: Run the Sample Job
 
-To be able to run the [Sample Job](./src/main/java/org/apache/cassandra/spark/example/SampleCassandraJob.java), you
+To be able to run the [Sample Job](./src/main/java/org/apache/cassandra/spark/example/DirectWriteAndReadJob.java), you
 need to create the keyspace and table used for the test.
 
 Connect to your local Cassandra cluster using CCM:
@@ -218,11 +170,46 @@ CREATE TABLE spark_test.test
 );
 ```
 
+#### Start DirectWriteAndReadJob
+
 Finally, we are ready to run the example spark job:
 
 ```shell
 cd ${ANALYTICS_REPOSITORY_HOME}
 ./gradlew :cassandra-analytics-core-example:run
+# or this command
+# ./gradlew :cassandra-analytics-core-example:run --args='DirectWriteAndReadJob'
+```
+
+#### Start LocalS3WriteAndReadJob
+
+Alternatively, we can run the [LocalS3CassandraWriteJob](./src/main/java/org/apache/cassandra/spark/example/LocalS3WriteAndReadJob.java), which bulk writes
+data via S3. In order to run such job, there is two additional prerequisite steps.
+
+Start S3Mock
+
+```shell
+docker run -p 127.0.0.1:9090:9090 -p 127.0.0.1:9191:9191 -t adobe/s3mock:2.17.0
+```
+
+Restart sidecar with the following edits for `sidecar.yaml`. 
+It is required to enable sidecar schema and point s3 client to the S3Mock with the endpoint_override.
+
+```yaml
+sidecar:
+  schema:
+    is_enabled: true
+...
+s3_client:
+  proxy_config:
+    endpoint_override: localhost:9090
+```
+
+Then, we can run the example spark job:
+
+```shell
+cd ${ANALYTICS_REPOSITORY_HOME}
+./gradlew :cassandra-analytics-core-example:run --args='LocalS3WriteAndReadJob'
 ```
 
 ## Tear down

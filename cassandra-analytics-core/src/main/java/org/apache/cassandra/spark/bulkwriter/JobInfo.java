@@ -23,10 +23,12 @@ import java.io.Serializable;
 import java.util.UUID;
 
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
+import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.jetbrains.annotations.NotNull;
 
 public interface JobInfo extends Serializable
 {
+    // ******************
     // Job Information API - should this really just move back to Config? Here to try to reduce the violations of the Law of Demeter more than anything else
     ConsistencyLevel getConsistencyLevel();
 
@@ -41,23 +43,29 @@ public interface JobInfo extends Serializable
 
     int getCommitThreadsPerInstance();
 
-    UUID getId();
+    /**
+     * return the identifier of the restore job created on Cassandra Sidecar
+     * @return time-based uuid
+     */
+    UUID getRestoreJobId();
+
+    /**
+     * An optional unique identified supplied in spark configuration
+     * @return a id string or null
+     */
+    String getConfiguredJobId();
+
+    // Convenient method to decide a unique identified used for the job.
+    // It prefers the configuredJobId if present; otherwise, fallback to the restoreJobId
+    default String getId()
+    {
+        String configuredJobId = getConfiguredJobId();
+        return configuredJobId == null ? getRestoreJobId().toString() : configuredJobId;
+    }
 
     TokenPartitioner getTokenPartitioner();
 
     boolean skipExtendedVerify();
-
-    boolean quoteIdentifiers();
-
-    String keyspace();
-
-    String tableName();
-
-    @NotNull
-    default String getFullTableName()
-    {
-        return keyspace() + "." + tableName();
-    }
 
     boolean getSkipClean();
 
@@ -66,4 +74,23 @@ public interface JobInfo extends Serializable
      */
     @NotNull
     DigestAlgorithmSupplier digestAlgorithmSupplier();
+
+    QualifiedTableName qualifiedTableName();
+
+    DataTransportInfo transportInfo();
+
+    /**
+     * @return job keep alive time in minutes
+     */
+    int jobKeepAliveMinutes();
+
+    /**
+     * @return sidecar service port
+     */
+    int effectiveSidecarPort();
+
+    /**
+     * @return multiplier to calculate the final timeout for import coordinator
+     */
+    int importCoordinatorTimeoutMultiplier();
 }

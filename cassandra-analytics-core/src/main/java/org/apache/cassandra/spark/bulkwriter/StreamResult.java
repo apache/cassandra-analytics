@@ -25,22 +25,22 @@ import java.util.List;
 
 import com.google.common.collect.Range;
 
-public class StreamResult implements Serializable
+public abstract class StreamResult implements Serializable
 {
+    private static final long serialVersionUID = -6533153391143872430L;
     public final String sessionID;
     public final Range<BigInteger> tokenRange;
-    public final List<StreamError> failures;
-    public List<CommitResult> commitResults;  // CHECKSTYLE IGNORE: Public mutable field
+    public final List<StreamError> failures; // CHECKSTYLE IGNORE: Public mutable field
     public final List<RingInstance> passed;
     public final long rowCount;
     public final long bytesWritten;
 
-    public StreamResult(String sessionID,
-                        Range<BigInteger> tokenRange,
-                        List<StreamError> failures,
-                        List<RingInstance> passed,
-                        long rowCount,
-                        long bytesWritten)
+    protected StreamResult(String sessionID,
+                           Range<BigInteger> tokenRange,
+                           List<StreamError> failures,
+                           List<RingInstance> passed,
+                           long rowCount,
+                           long bytesWritten)
     {
         this.sessionID = sessionID;
         this.tokenRange = tokenRange;
@@ -48,18 +48,5 @@ public class StreamResult implements Serializable
         this.passed = passed;
         this.rowCount = rowCount;
         this.bytesWritten = bytesWritten;
-    }
-
-    public void setCommitResults(List<CommitResult> commitResult)
-    {
-        this.commitResults = commitResult;
-    }
-
-    @Override
-    public String toString()
-    {
-        return String.format("StreamResult{sessionID='%s', tokenRange=%s, failures=%s, commitResults=%s, passed=%s, " +
-                             "rowCount=%d, bytesWritten=%d}",
-                             sessionID, tokenRange, failures, commitResults, passed, rowCount, bytesWritten);
     }
 }

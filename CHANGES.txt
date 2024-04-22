@@ -1,4 +1,5 @@
 1.0.0
+ * Support bulk write via S3 (CASSANDRA-19563)
  * Support UDTs in the Bulk Writer (CASSANDRA-19340)
  * Fix bulk reads of multiple tables that potentially have the same data file name (CASSANDRA-19507)
  * Fix XXHash32Digest calculated digest value (CASSANDRA-19500)

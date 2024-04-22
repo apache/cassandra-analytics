@@ -20,11 +20,9 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,9 +34,10 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -53,41 +52,42 @@ import org.slf4j.LoggerFactory;
 import o.a.c.sidecar.client.shaded.common.data.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.bulkwriter.util.TaskContextUtils;
+import org.apache.cassandra.spark.bulkwriter.util.ThreadUtil;
 import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
-import org.apache.spark.InterruptibleIterator;
 import org.apache.spark.TaskContext;
+import org.jetbrains.annotations.NotNull;
 import scala.Tuple2;
 
-import static org.apache.cassandra.spark.utils.ScalaConversionUtils.asScalaIterator;
-
 @SuppressWarnings({ "ConstantConditions" })
-public class RecordWriter implements Serializable
+public class RecordWriter
 {
     public static final ReplicationFactor IGNORED_REPLICATION_FACTOR = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
                                                                                              ImmutableMap.of("replication_factor", 1));
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordWriter.class);
-    private static final long serialVersionUID = 3746578054834640428L;
+
     private final BulkWriterContext writerContext;
     private final String[] columnNames;
     private final SSTableWriterFactory tableWriterFactory;
     private final DigestAlgorithm digestAlgorithm;
-
     private final BulkWriteValidator writeValidator;
     private final ReplicaAwareFailureHandler<RingInstance> failureHandler;
-
     private final Supplier<TaskContext> taskContextSupplier;
     private final ConcurrentHashMap<String, CqlField.CqlUdt> udtCache = new ConcurrentHashMap<>();
-    private SSTableWriter sstableWriter = null;
-    private int outputSequence = 0; // sub-folder for possible subrange splits
-    private transient volatile CqlTable cqlTable;
+    private final Map<String, Future<StreamResult>> streamFutures;
+    private final ExecutorService executorService;
+    private final Path baseDir;
+
+    private volatile CqlTable cqlTable;
+    private StreamSession<?> streamSession = null;
 
     public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
     {
-        this(writerContext, columnNames, TaskContext::get, SSTableWriter::new);
+        this(writerContext, columnNames, TaskContext::get, SortedSSTableWriter::new);
     }
 
     @VisibleForTesting
@@ -103,18 +103,13 @@ public class RecordWriter implements Serializable
         this.failureHandler = new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
         this.digestAlgorithm = this.writerContext.job().digestAlgorithmSupplier().get();
+        this.streamFutures = new HashMap<>();
+        this.executorService = Executors.newSingleThreadExecutor(ThreadUtil.threadFactory("RecordWriter-worker"));
+        this.baseDir = TaskContextUtils.getPartitionUniquePath(System.getProperty("java.io.tmpdir"),
+                                                               writerContext.job().getId(),
+                                                               taskContextSupplier.get());
 
         writerContext.cluster().startupValidate();
-    }
-
-    private Range<BigInteger> getTokenRange(TaskContext taskContext)
-    {
-        return writerContext.job().getTokenPartitioner().getTokenRange(taskContext.partitionId());
-    }
-
-    private String getStreamId(TaskContext taskContext)
-    {
-        return String.format("%d-%s", taskContext.partitionId(), UUID.randomUUID());
     }
 
     private CqlTable cqlTable()
@@ -123,7 +118,7 @@ public class RecordWriter implements Serializable
         {
             cqlTable = writerContext.bridge()
                                     .buildSchema(writerContext.schema().getTableSchema().createStatement,
-                                                 writerContext.job().keyspace(),
+                                                 writerContext.job().qualifiedTableName().keyspace(),
                                                  IGNORED_REPLICATION_FACTOR,
                                                  writerContext.cluster().getPartitioner(),
                                                  writerContext.schema().getUserDefinedTypeStatements());
@@ -132,6 +127,11 @@ public class RecordWriter implements Serializable
         return cqlTable;
     }
 
+    /**
+     * Write data into stream
+     * @param sourceIterator source data
+     * @return write result
+     */
     public WriteResult write(Iterator<Tuple2<DecoratedKey, Object[]>> sourceIterator)
     {
         TaskContext taskContext = taskContextSupplier.get();
@@ -148,7 +148,7 @@ public class RecordWriter implements Serializable
         LOGGER.info("[{}]: Fetched token range mapping for keyspace: {} with write replicas: {} containing pending " +
                     "replicas: {}, blocked instances: {}, replacement instances: {}",
                     taskContext.partitionId(),
-                    writerContext.job().keyspace(),
+                    writerContext.job().qualifiedTableName().keyspace(),
                     initialTokenRangeMapping.getWriteReplicas().size(),
                     initialTokenRangeMapping.getPendingReplicas().size(),
                     initialTokenRangeMapping.getBlockedInstances().size(),
@@ -156,7 +156,6 @@ public class RecordWriter implements Serializable
 
         Map<Range<BigInteger>, List<RingInstance>> initialTokenRangeInstances =
         taskTokenRangeMapping(initialTokenRangeMapping, taskTokenRange);
-        List<StreamResult> results = new ArrayList<>();
 
         writeValidator.setPhase("Environment Validation");
         writeValidator.validateClOrFail(initialTokenRangeMapping);
@@ -165,17 +164,11 @@ public class RecordWriter implements Serializable
         // for all replicas in this partition
         validateAcceptableTimeSkewOrThrow(new ArrayList<>(instancesFromMapping(initialTokenRangeInstances)));
 
-        scala.collection.Iterator<scala.Tuple2<DecoratedKey, Object[]>> dataIterator =
-        new InterruptibleIterator<>(taskContext, asScalaIterator(sourceIterator));
-        StreamSession streamSession = null;
+        Iterator<Tuple2<DecoratedKey, Object[]>> dataIterator = new JavaInterruptibleIterator<>(taskContext, sourceIterator);
         int partitionId = taskContext.partitionId();
         JobInfo job = writerContext.job();
-        Path baseDir = Paths.get(System.getProperty("java.io.tmpdir"),
-                                 job.getId().toString(),
-                                 Integer.toString(taskContext.stageAttemptNumber()),
-                                 Integer.toString(taskContext.attemptNumber()),
-                                 Integer.toString(partitionId));
         Map<String, Object> valueMap = new HashMap<>();
+
         try
         {
             // preserve the order of ranges
@@ -205,41 +198,61 @@ public class RecordWriter implements Serializable
                     }
                     currentRange = subRanges.get(currentRangeIndex);
                 }
-                streamSession = maybeCreateStreamSession(taskContext, streamSession, currentRange, failureHandler, results);
-                maybeCreateTableWriter(partitionId, baseDir);
+                maybeCreateStreamSession(taskContext, currentRange);
                 writeRow(rowData, valueMap, partitionId, streamSession.getTokenRange());
             }
 
             // Finalize SSTable for the last StreamSession
-            if (sstableWriter != null)
+            if (streamSession != null)
             {
-                finalizeSSTable(streamSession, partitionId);
-                results.add(streamSession.close());
+                flushAsync(partitionId);
             }
-            LOGGER.info("[{}] Done with all writers and waiting for stream to complete", partitionId);
 
-            // When instances for the partition's token range have changed within the scope of the task execution,
-            // we fail the task for it to be retried
-            validateTaskTokenRangeMappings(partitionId, initialTokenRangeMapping, taskTokenRange);
+            List<StreamResult> results = waitForStreamCompletionAndValidate(partitionId, initialTokenRangeMapping, taskTokenRange);
             return new WriteResult(results, isClusterBeingResized);
         }
         catch (Exception exception)
         {
             LOGGER.error("[{}] Failed to write job={}, taskStageAttemptNumber={}, taskAttemptNumber={}",
                          partitionId,
-                         job.getId().toString(),
+                         job.getId(),
                          taskContext.stageAttemptNumber(),
                          taskContext.attemptNumber());
+
+            if (exception instanceof InterruptedException)
+            {
+                Thread.currentThread().interrupt();
+            }
             throw new RuntimeException(exception);
         }
     }
 
-    public static <T> Set<T> symmetricDifference(Set<T> set1, Set<T> set2)
+    @NotNull
+    private List<StreamResult> waitForStreamCompletionAndValidate(int partitionId,
+                                                                  TokenRangeMapping<RingInstance> initialTokenRangeMapping,
+                                                                  Range<BigInteger> taskTokenRange)
     {
-        return Stream.concat(
-                     set1.stream().filter(element -> !set2.contains(element)),
-                     set2.stream().filter(element -> !set1.contains(element)))
-                     .collect(Collectors.toSet());
+        List<StreamResult> results = streamFutures.values().stream().map(f -> {
+            try
+            {
+                return f.get();
+            }
+            catch (Exception e)
+            {
+                if (e instanceof InterruptedException)
+                {
+                    Thread.currentThread().interrupt();
+                }
+                throw new RuntimeException(e);
+            }
+        }).collect(Collectors.toList());
+
+        LOGGER.info("[{}] Done with all writers and waiting for stream to complete", partitionId);
+
+        // When instances for the partition's token range have changed within the scope of the task execution,
+        // we fail the task for it to be retried
+        validateTaskTokenRangeMappings(partitionId, initialTokenRangeMapping, taskTokenRange);
+        return results;
     }
 
     private Map<Range<BigInteger>, List<RingInstance>> taskTokenRangeMapping(TokenRangeMapping<RingInstance> tokenRange,
@@ -261,17 +274,16 @@ public class RecordWriter implements Serializable
      * If we do find the need to split a range into sub-ranges, we create the corresponding session for the sub-range
      * if the token from the row data belongs to the range.
      */
-    private StreamSession maybeCreateStreamSession(TaskContext taskContext,
-                                                   StreamSession streamSession,
-                                                   Range<BigInteger> currentRange,
-                                                   ReplicaAwareFailureHandler<RingInstance> failureHandler,
-                                                   List<StreamResult> results)
-    throws IOException, ExecutionException, InterruptedException
+    private void maybeCreateStreamSession(TaskContext taskContext,
+                                          Range<BigInteger> currentRange) throws IOException
     {
-        streamSession = maybeCreateSubRangeSession(taskContext, streamSession, failureHandler, results, currentRange);
+        maybeCreateSubRangeSession(taskContext, currentRange);
 
         // If we do not have any stream session at this point, we create a session using the partition's token range
-        return (streamSession == null) ? createStreamSession(taskContext) : streamSession;
+        if (streamSession == null)
+        {
+            createStreamSessionWithAssignedRange(taskContext);
+        }
     }
 
     /**
@@ -279,26 +291,41 @@ public class RecordWriter implements Serializable
      * 1) we do not have an existing stream session, or 2) the existing stream session corresponds to a range that
      * does NOT match the sub-range the token belongs to.
      */
-    private StreamSession maybeCreateSubRangeSession(TaskContext taskContext,
-                                                     StreamSession streamSession,
-                                                     ReplicaAwareFailureHandler<RingInstance> failureHandler,
-                                                     List<StreamResult> results,
-                                                     Range<BigInteger> matchingSubRange)
-    throws IOException, ExecutionException, InterruptedException
+    private void maybeCreateSubRangeSession(TaskContext taskContext,
+                                            Range<BigInteger> matchingSubRange) throws IOException
     {
-        if (streamSession == null || streamSession.getTokenRange() != matchingSubRange)
+        if (streamSession != null && streamSession.getTokenRange().equals(matchingSubRange))
         {
-            LOGGER.debug("[{}] Creating stream session for range: {}", taskContext.partitionId(), matchingSubRange);
-            // Schedule data to be sent if we are processing a batch that has not been scheduled yet.
-            if (streamSession != null)
-            {
-                // Complete existing writes (if any) before the existing stream session is closed
-                finalizeSSTable(streamSession, taskContext.partitionId());
-                results.add(streamSession.close());
-            }
-            streamSession = new StreamSession(writerContext, getStreamId(taskContext), matchingSubRange, failureHandler);
+            return;
         }
-        return streamSession;
+
+        // Schedule data to be sent if we are processing a batch that has not been scheduled yet.
+        if (streamSession != null)
+        {
+            // Complete existing writes (if any) before the existing stream session is closed
+            flushAsync(taskContext.partitionId());
+        }
+
+        streamSession = createStreamSession(taskContext, matchingSubRange);
+    }
+
+    private void createStreamSessionWithAssignedRange(TaskContext taskContext) throws IOException
+    {
+        createStreamSession(taskContext, getTokenRange(taskContext));
+    }
+
+    private StreamSession<?> createStreamSession(TaskContext taskContext, Range<BigInteger> range) throws IOException
+    {
+        LOGGER.info("[{}] Creating new stream session. range={}", taskContext.partitionId(), range);
+
+        String sessionId = TaskContextUtils.createStreamSessionId(taskContext);
+        Path perSessionDirectory = baseDir.resolve(sessionId);
+        Files.createDirectories(perSessionDirectory);
+        SortedSSTableWriter sstableWriter = tableWriterFactory.create(writerContext, perSessionDirectory, digestAlgorithm);
+        LOGGER.info("[{}][{}] Created new SSTable writer with directory={}",
+                    taskContext.partitionId(), sessionId, perSessionDirectory);
+        return writerContext.transportContext()
+                            .createStreamSession(writerContext, sessionId, sstableWriter, range, failureHandler);
     }
 
     /**
@@ -341,6 +368,19 @@ public class RecordWriter implements Serializable
         }
     }
 
+    static <T> Set<T> symmetricDifference(Set<T> set1, Set<T> set2)
+    {
+        return Stream.concat(
+                     set1.stream().filter(element -> !set2.contains(element)),
+                     set2.stream().filter(element -> !set1.contains(element)))
+                     .collect(Collectors.toSet());
+    }
+
+    private Range<BigInteger> getTokenRange(TaskContext taskContext)
+    {
+        return writerContext.job().getTokenPartitioner().getTokenRange(taskContext.partitionId());
+    }
+
     private void validateAcceptableTimeSkewOrThrow(List<RingInstance> replicas)
     {
         if (replicas.isEmpty())
@@ -361,18 +401,18 @@ public class RecordWriter implements Serializable
         }
     }
 
-    private void writeRow(Tuple2<DecoratedKey, Object[]> rowData,
+    private void writeRow(Tuple2<DecoratedKey, Object[]> keyAndRowData,
                           Map<String, Object> valueMap,
                           int partitionId,
                           Range<BigInteger> range) throws IOException
     {
-        DecoratedKey key = rowData._1();
+        DecoratedKey key = keyAndRowData._1();
         BigInteger token = key.getToken();
         Preconditions.checkState(range.contains(token),
                                  String.format("Received Token %s outside of expected range %s", token, range));
         try
         {
-            sstableWriter.addRow(token, getBindValuesForColumns(valueMap, columnNames, rowData._2()));
+            streamSession.addRow(token, getBindValuesForColumns(valueMap, columnNames, keyAndRowData._2()));
         }
         catch (RuntimeException exception)
         {
@@ -383,21 +423,10 @@ public class RecordWriter implements Serializable
         }
     }
 
-    private void maybeCreateTableWriter(int partitionId, Path baseDir) throws IOException
-    {
-        if (sstableWriter == null)
-        {
-            Path outDir = Paths.get(baseDir.toString(), Integer.toString(outputSequence++));
-            Files.createDirectories(outDir);
-
-            sstableWriter = tableWriterFactory.create(writerContext, outDir, digestAlgorithm);
-            LOGGER.info("[{}] Created new SSTable writer", partitionId);
-        }
-    }
-
     private Map<String, Object> getBindValuesForColumns(Map<String, Object> map, String[] columnNames, Object[] values)
     {
-        assert values.length == columnNames.length : "Number of values does not match the number of columns " + values.length + ", " + columnNames.length;
+        Preconditions.checkArgument(values.length == columnNames.length,
+                                    "Number of values does not match the number of columns " + values.length + ", " + columnNames.length);
         for (int i = 0; i < columnNames.length; i++)
         {
             map.put(columnNames[i], maybeConvertUdt(values[i]));
@@ -438,45 +467,66 @@ public class RecordWriter implements Serializable
     }
 
     /**
-     * Close the {@link RecordWriter#sstableWriter} if present. Schedule a stream session with the produced sstables.
-     * And finally, nullify {@link RecordWriter#sstableWriter}
+     * Flushes the written rows and schedule a stream session with the produced sstable asynchronously.
+     * Finally, nullify {@link RecordWriter#streamSession}.
+     *
+     * @param partitionId partition id
+     * @throws IOException I/O exceptions during flush
      */
-    private void finalizeSSTable(StreamSession streamSession, int partitionId) throws IOException
+    private void flushAsync(int partitionId) throws IOException
     {
-        if (sstableWriter == null)
-        {
-            LOGGER.warn("SSTableWriter is null. Nothing to finalize");
-            return;
-        }
-        LOGGER.info("[{}] Closing writer and scheduling SStable stream", partitionId);
-        sstableWriter.close(writerContext, partitionId);
-        streamSession.scheduleStream(sstableWriter);
-        sstableWriter = null;
-    }
-
-    private StreamSession createStreamSession(TaskContext taskContext)
-    {
-        Range<BigInteger> tokenRange = getTokenRange(taskContext);
-        LOGGER.info("[{}] Creating stream session for range={}", taskContext.partitionId(), tokenRange);
-        return new StreamSession(writerContext, getStreamId(taskContext), tokenRange, failureHandler);
+        Preconditions.checkState(streamSession != null);
+        LOGGER.info("[{}][{}] Closing writer and scheduling SStable stream with {} rows",
+                    partitionId, streamSession.sessionID, streamSession.rowCount());
+        Future<StreamResult> future = streamSession.scheduleStreamAsync(partitionId, executorService);
+        streamFutures.put(streamSession.sessionID, future);
+        streamSession = null;
     }
 
     /**
-     * Functional interface that helps with creating {@link SSTableWriter} instances.
+     * Functional interface that helps with creating {@link SortedSSTableWriter} instances.
      */
     public interface SSTableWriterFactory
     {
         /**
-         * Creates a new instance of the {@link SSTableWriter} with the provided {@code writerContext},
+         * Creates a new instance of the {@link SortedSSTableWriter} with the provided {@code writerContext},
          * {@code outDir}, and {@code digestProvider} parameters.
          *
-         * @param writerContext  the context for the bulk writer job
-         * @param outDir         an output directory where SSTables components will be written to
+         * @param writerContext   the context for the bulk writer job
+         * @param outDir          an output directory where SSTables components will be written to
          * @param digestAlgorithm a digest provider to calculate digests for every SSTable component
-         * @return a new {@link SSTableWriter}
+         * @return a new {@link SortedSSTableWriter}
          */
-        SSTableWriter create(BulkWriterContext writerContext,
-                             Path outDir,
-                             DigestAlgorithm digestAlgorithm);
+        SortedSSTableWriter create(BulkWriterContext writerContext,
+                                   Path outDir,
+                                   DigestAlgorithm digestAlgorithm);
+    }
+
+    // The java version of org.apache.spark.InterruptibleIterator
+    // An iterator that wraps around an existing iterator to provide task killing functionality.
+    // It works by checking the interrupted flag in TaskContext.
+    private static class JavaInterruptibleIterator<T> implements Iterator<T>
+    {
+        private final TaskContext taskContext;
+        private final Iterator<T> delegate;
+
+        JavaInterruptibleIterator(TaskContext taskContext, Iterator<T> delegate)
+        {
+            this.taskContext = taskContext;
+            this.delegate = delegate;
+        }
+
+        @Override
+        public boolean hasNext()
+        {
+            taskContext.killTaskIfInterrupted();
+            return delegate.hasNext();
+        }
+
+        @Override
+        public T next()
+        {
+            return delegate.next();
+        }
     }
 }

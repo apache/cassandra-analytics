@@ -56,11 +56,10 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     private final JobInfo jobInfo;
     private final String lowestCassandraVersion;
     private transient CassandraBridge bridge;
-    private transient DataTransferApi dataTransferApi;
     private final CassandraClusterInfo clusterInfo;
     private final SchemaInfo schemaInfo;
-
-    private transient JobStatsPublisher jobStatsPublisher;
+    private final transient JobStatsPublisher jobStatsPublisher;
+    protected transient volatile TransportContext transportContext;
 
     protected CassandraBulkWriterContext(@NotNull BulkSparkConf conf,
                                          @NotNull CassandraClusterInfo clusterInfo,
@@ -69,11 +68,13 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     {
         this.conf = conf;
         this.clusterInfo = clusterInfo;
+        clusterInfo.startupValidate();
         this.jobStatsPublisher = new LogStatsPublisher();
         lowestCassandraVersion = clusterInfo.getLowestCassandraVersion();
         this.bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
         TokenRangeMapping<RingInstance> tokenRangeMapping = clusterInfo.getTokenRangeMapping(true);
         jobInfo = new CassandraJobInfo(conf,
+                                       bridge.getTimeUUID(), // used for creating restore job on sidecar
                                        new TokenPartitioner(tokenRangeMapping,
                                                             conf.numberSplits,
                                                             sparkContext.defaultParallelism(),
@@ -84,8 +85,10 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
                                                                                  .containsKey(conf.localDC)),
                                     String.format("Keyspace %s is not replicated on datacenter %s", conf.keyspace, conf.localDC));
 
-        String keyspace = jobInfo.keyspace();
-        String table = jobInfo.tableName();
+        transportContext = createTransportContext(true);
+
+        String keyspace = jobInfo.qualifiedTableName().keyspace();
+        String table = jobInfo.qualifiedTableName().table();
 
         String keyspaceSchema = clusterInfo.getKeyspaceSchema(true);
         Partitioner partitioner = clusterInfo.getPartitioner();
@@ -112,6 +115,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
         return bridge;
     }
 
+    // Static factory to create BulkWriterContext based on the requested Bulk Writer transport strategy
     public static BulkWriterContext fromOptions(@NotNull SparkContext sparkContext,
                                                 @NotNull Map<String, String> strOptions,
                                                 @NotNull StructType dfSchema)
@@ -120,9 +124,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
 
         BulkSparkConf conf = new BulkSparkConf(sparkContext.getConf(), strOptions);
         CassandraClusterInfo clusterInfo = new CassandraClusterInfo(conf);
-
-        clusterInfo.startupValidate();
-
         CassandraBulkWriterContext bulkWriterContext = new CassandraBulkWriterContext(conf, clusterInfo, dfSchema, sparkContext);
         ShutdownHookManager.addShutdownHook(org.apache.spark.util.ShutdownHookManager.TEMP_DIR_SHUTDOWN_PRIORITY(),
                                             ScalaFunctions.wrapLambda(bulkWriterContext::shutdown));
@@ -132,7 +133,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
 
     private void publishInitialJobStats(String sparkVersion)
     {
-        Map<String, String> initialJobStats = new HashMap<String, String>()
+        Map<String, String> initialJobStats = new HashMap<String, String>() // type declaration required to compile with java8
         {{
             put("jobId", jobInfo.getId().toString());
             put("sparkVersion", sparkVersion);
@@ -146,12 +147,14 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     public void shutdown()
     {
         LOGGER.info("Shutting down {}", this);
-        synchronized (this)
+        if (clusterInfo != null)
         {
-            if (clusterInfo != null)
-            {
-                clusterInfo.close();
-            }
+            clusterInfo.close();
+        }
+
+        if (transportContext != null)
+        {
+            transportContext.close();
         }
     }
 
@@ -212,17 +215,31 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     }
 
     @Override
-    @NotNull
-    public synchronized DataTransferApi transfer()
+    public TransportContext transportContext()
     {
-        if (dataTransferApi == null)
+        // When running on driver, transportContext is created at the constructor, and it is not null
+        if (transportContext != null)
         {
-            dataTransferApi = new SidecarDataTransferApi(clusterInfo.getCassandraContext(),
-                                                         bridge(),
-                                                         jobInfo,
-                                                         conf);
+            return transportContext;
         }
-        return dataTransferApi;
+
+        // When running on executor, transportContext is null. Synchronize to avoid multi-instantiation
+        synchronized (this)
+        {
+            if (transportContext == null)
+            {
+                transportContext = createTransportContext(false);
+            }
+        }
+        return transportContext;
+    }
+
+    @NotNull
+    protected TransportContext createTransportContext(boolean isOnDriver)
+    {
+        return conf.getTransportInfo()
+                   .getTransport()
+                   .createContext(this, conf, isOnDriver);
     }
 
     @NotNull
@@ -237,6 +254,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
                                conf.getTTLOptions(),
                                conf.getTimestampOptions(),
                                lowestCassandraVersion,
-                               conf.quoteIdentifiers);
+                               jobInfo.qualifiedTableName().quoteIdentifiers());
     }
 }

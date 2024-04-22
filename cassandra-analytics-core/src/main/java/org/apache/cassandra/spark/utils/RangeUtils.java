@@ -50,9 +50,7 @@ public final class RangeUtils
     {
         Preconditions.checkArgument(range.lowerEndpoint().compareTo(range.upperEndpoint()) <= 0,
                                     "RangeUtils assume ranges are not wrap-around");
-        Preconditions.checkArgument(range.lowerBoundType() == BoundType.OPEN
-                                    && range.upperBoundType() == BoundType.CLOSED,
-                                    "Input must be an open-closed range");
+        Preconditions.checkArgument(isOpenClosedRange(range), "Input must be an open-closed range");
 
         if (range.isEmpty())
         {
@@ -60,6 +58,16 @@ public final class RangeUtils
         }
 
         return range.upperEndpoint().subtract(range.lowerEndpoint());
+    }
+
+    /**
+     * Check whether a range is open (exclusive) on its lower end and closed (inclusive) on its upper end.
+     * @param range range
+     * @return true if the range is open closed.
+     */
+    public static boolean isOpenClosedRange(Range<?> range)
+    {
+        return range.lowerBoundType() == BoundType.OPEN && range.upperBoundType() == BoundType.CLOSED;
     }
 
     /**
@@ -79,9 +87,7 @@ public final class RangeUtils
     {
         Preconditions.checkArgument(range.lowerEndpoint().compareTo(range.upperEndpoint()) <= 0,
                                     "RangeUtils assume ranges are not wrap-around");
-        Preconditions.checkArgument(range.lowerBoundType() == BoundType.OPEN
-                                    && range.upperBoundType() == BoundType.CLOSED,
-                                    "Input must be an open-closed range");
+        Preconditions.checkArgument(isOpenClosedRange(range), "Input must be an open-closed range");
 
         if (range.isEmpty())
         {
@@ -175,9 +181,7 @@ public final class RangeUtils
     @NotNull
     public static TokenRange toTokenRange(@NotNull Range<BigInteger> range)
     {
-        Preconditions.checkArgument(range.lowerBoundType() == BoundType.OPEN
-                                    && range.upperBoundType() == BoundType.CLOSED,
-                                    "Input must be an open-closed range");
+        Preconditions.checkArgument(isOpenClosedRange(range), "Input must be an open-closed range");
         return TokenRange.openClosed(range.lowerEndpoint(), range.upperEndpoint());
     }
 

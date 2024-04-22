@@ -177,14 +177,6 @@ subprojects {
   }
   archivesBaseName = "${archivesBaseName}_${scalaMajorVersion}"
 
-  if ("${project.rootProject.ext.jdkLabel}" == '1.8') {
-    if ("${version}".contains('-SNAPSHOT')) {
-      version = "${version}".replace('-SNAPSHOT', '-jdk8-SNAPSHOT')
-    } else {
-      version = "${version}-jdk8"
-    }
-  }
-
   repositories {
     mavenCentral()
     mavenLocal {
@@ -252,5 +244,10 @@ subprojects {
     shouldRunAfter(codeCheckTasks)
     shouldRunAfter(tasks.withType(Checkstyle))
     shouldRunAfter(tasks.withType(RatTask))
+  }
+
+  tasks.register('printCodeVersion') {
+    println()
+    println(version)
   }
 }
