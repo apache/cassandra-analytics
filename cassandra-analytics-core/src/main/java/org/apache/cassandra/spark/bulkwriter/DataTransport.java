@@ -31,7 +31,8 @@ public enum DataTransport implements TransportContext.TransportContextProvider
                                               @NotNull BulkSparkConf conf,
                                               boolean isOnDriver)
         {
-            return new CassandraDirectDataTransportContext(bulkWriterContext, conf, isOnDriver);
+            // DIRECT mode does not need to distinguish driver and executor
+            return new CassandraDirectDataTransportContext(bulkWriterContext);
         }
     },
     S3_COMPAT

@@ -31,19 +31,14 @@ import org.jetbrains.annotations.NotNull;
 public class CassandraDirectDataTransportContext implements TransportContext.DirectDataBulkWriterContext
 {
     @NotNull
-    private final BulkSparkConf conf;
-    @NotNull
     private final JobInfo jobInfo;
     @NotNull
     private final ClusterInfo clusterInfo;
     @NotNull
     private final DirectDataTransferApi dataTransferApi;
 
-    public CassandraDirectDataTransportContext(@NotNull BulkWriterContext bulkWriterContext,
-                                               @NotNull BulkSparkConf conf,
-                                               boolean isOnDriver) // DIRECT mode does not need to distinguish driver and executor
+    public CassandraDirectDataTransportContext(@NotNull BulkWriterContext bulkWriterContext)
     {
-        this.conf = conf;
         this.jobInfo = bulkWriterContext.job();
         this.clusterInfo = bulkWriterContext.cluster();
         this.dataTransferApi = createDirectDataTransferApi();
@@ -74,6 +69,6 @@ public class CassandraDirectDataTransportContext implements TransportContext.Dir
     protected DirectDataTransferApi createDirectDataTransferApi()
     {
         CassandraBridge bridge = CassandraBridgeFactory.get(clusterInfo.getLowestCassandraVersion());
-        return new SidecarDataTransferApi(clusterInfo.getCassandraContext(), bridge, jobInfo, conf);
+        return new SidecarDataTransferApi(clusterInfo.getCassandraContext(), bridge, jobInfo);
     }
 }

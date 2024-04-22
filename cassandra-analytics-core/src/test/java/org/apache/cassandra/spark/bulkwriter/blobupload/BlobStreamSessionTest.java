@@ -38,7 +38,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import o.a.c.sidecar.client.shaded.common.data.CreateSliceRequestPayload;
-import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSecrets;
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSummaryResponsePayload;
 import org.apache.cassandra.bridge.CassandraBridge;
@@ -61,6 +60,7 @@ import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
+import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;

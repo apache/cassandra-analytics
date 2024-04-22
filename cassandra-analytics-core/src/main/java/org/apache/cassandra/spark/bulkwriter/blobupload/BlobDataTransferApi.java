@@ -30,7 +30,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import o.a.c.sidecar.client.shaded.common.data.CreateRestoreJobRequestPayload;
 import o.a.c.sidecar.client.shaded.common.data.CreateRestoreJobResponsePayload;
 import o.a.c.sidecar.client.shaded.common.data.CreateSliceRequestPayload;
-import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSummaryResponsePayload;
 import o.a.c.sidecar.client.shaded.common.data.UpdateRestoreJobRequestPayload;
 import org.apache.cassandra.sidecar.client.HttpResponse;
@@ -43,6 +42,7 @@ import org.apache.cassandra.sidecar.client.retry.RetryAction;
 import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.common.client.ClientException;
+import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 
 /**
@@ -87,7 +87,7 @@ public class BlobDataTransferApi
         {
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
             return sidecarClient.createRestoreJob(qualifiedTableName.keyspace(),
-                                                  qualifiedTableName.tableName(),
+                                                  qualifiedTableName.table(),
                                                   createRestoreJobRequestPayload).get();
         }
         catch (ExecutionException | InterruptedException exception)
@@ -104,7 +104,7 @@ public class BlobDataTransferApi
         {
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
             return sidecarClient.restoreJobSummary(qualifiedTableName.keyspace(),
-                                                   qualifiedTableName.tableName(),
+                                                   qualifiedTableName.table(),
                                                    jobInfo.getRestoreJobId()).get();
         }
         catch (ExecutionException | InterruptedException exception)
@@ -162,7 +162,7 @@ public class BlobDataTransferApi
     {
         QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
         CreateRestoreJobSliceRequest request = new CreateRestoreJobSliceRequest(qualifiedTableName.keyspace(),
-                                                                                qualifiedTableName.tableName(),
+                                                                                qualifiedTableName.table(),
                                                                                 jobInfo.getRestoreJobId(),
                                                                                 createSliceRequestPayload);
         return sidecarClient.executeRequestAsync(sidecarClient.requestBuilder()
@@ -178,7 +178,7 @@ public class BlobDataTransferApi
         {
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
             sidecarClient.updateRestoreJob(qualifiedTableName.keyspace(),
-                                           qualifiedTableName.tableName(),
+                                           qualifiedTableName.table(),
                                            jobInfo.getRestoreJobId(),
                                            updateRestoreJobRequestPayload).get();
         }
@@ -195,7 +195,7 @@ public class BlobDataTransferApi
         {
             QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
             sidecarClient.abortRestoreJob(qualifiedTableName.keyspace(),
-                                          qualifiedTableName.tableName(),
+                                          qualifiedTableName.table(),
                                           jobInfo.getRestoreJobId()).get();
         }
         catch (ExecutionException | InterruptedException exception)

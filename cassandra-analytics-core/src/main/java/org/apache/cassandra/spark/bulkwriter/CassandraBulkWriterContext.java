@@ -87,8 +87,8 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
 
         transportContext = createTransportContext(true);
 
-        String keyspace = jobInfo.keyspace();
-        String table = jobInfo.tableName();
+        String keyspace = jobInfo.qualifiedTableName().keyspace();
+        String table = jobInfo.qualifiedTableName().table();
 
         String keyspaceSchema = clusterInfo.getKeyspaceSchema(true);
         Partitioner partitioner = clusterInfo.getPartitioner();
@@ -254,6 +254,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
                                conf.getTTLOptions(),
                                conf.getTimestampOptions(),
                                lowestCassandraVersion,
-                               conf.quoteIdentifiers);
+                               jobInfo.qualifiedTableName().quoteIdentifiers());
     }
 }

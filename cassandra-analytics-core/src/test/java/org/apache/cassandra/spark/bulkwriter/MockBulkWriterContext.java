@@ -41,7 +41,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
 import org.apache.commons.lang3.tuple.Pair;
 
-import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import o.a.c.sidecar.client.shaded.common.data.TimeSkewResponse;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
@@ -58,6 +57,7 @@ import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.sql.types.DataTypes;
@@ -79,7 +79,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     new String[]{"id", "date", "course", "marks"},
     new org.apache.spark.sql.types.DataType[]{DataTypes.IntegerType, DataTypes.DateType, DataTypes.StringType, DataTypes.IntegerType},
     new CqlField.CqlType[]{mockCqlType(INT), mockCqlType(DATE), mockCqlType(VARCHAR), mockCqlType(INT)});
-    private final boolean quoteIdentifiers;
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
     private CassandraBridge bridge = CassandraBridgeFactory.get(CassandraVersion.FOURZERO);
@@ -141,7 +140,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
                                  String[] primaryKeyColumnNames,
                                  boolean quoteIdentifiers)
     {
-        this.quoteIdentifiers = quoteIdentifiers;
         this.tokenRangeMapping = tokenRangeMapping;
         this.tokenPartitioner = new TokenPartitioner(tokenRangeMapping, 1, 2, 2, false);
         this.cassandraVersion = cassandraVersion;
@@ -160,7 +158,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
                                                                .withWriteMode(WriteMode.INSERT)
                                                                .withDataFrameSchema(validDataFrameSchema)
                                                                .withTTLSetting(ttlOption);
-        if (quoteIdentifiers())
+        if (quoteIdentifiers)
         {
             builder.withQuotedIdentifiers();
         }
@@ -518,27 +516,9 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public boolean quoteIdentifiers()
-    {
-        return quoteIdentifiers;
-    }
-
-    @Override
-    public String keyspace()
-    {
-        return "keyspace";
-    }
-
-    @Override
-    public String tableName()
-    {
-        return "table";
-    }
-
-    @Override
     public QualifiedTableName qualifiedTableName()
     {
-        return new QualifiedTableName("keyspace", "table");
+        return new QualifiedTableName("keyspace", "table", false);
     }
 
     // Startup Validation

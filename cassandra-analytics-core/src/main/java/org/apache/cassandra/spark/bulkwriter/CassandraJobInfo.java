@@ -21,8 +21,8 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.util.UUID;
 
-import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
+import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.jetbrains.annotations.NotNull;
 
 public class CassandraJobInfo implements JobInfo
@@ -123,24 +123,6 @@ public class CassandraJobInfo implements JobInfo
         return tokenPartitioner;
     }
 
-    @Override
-    public boolean quoteIdentifiers()
-    {
-        return conf.quoteIdentifiers;
-    }
-
-    @Override
-    public String keyspace()
-    {
-        return conf.keyspace;
-    }
-
-    @Override
-    public String tableName()
-    {
-        return conf.table;
-    }
-
     @NotNull
     @Override
     public DigestAlgorithmSupplier digestAlgorithmSupplier()
@@ -151,6 +133,6 @@ public class CassandraJobInfo implements JobInfo
     @NotNull
     public QualifiedTableName qualifiedTableName()
     {
-        return new QualifiedTableName(conf.keyspace, conf.table);
+        return new QualifiedTableName(conf.keyspace, conf.table, conf.quoteIdentifiers);
     }
 }

@@ -118,7 +118,7 @@ public class RecordWriter
         {
             cqlTable = writerContext.bridge()
                                     .buildSchema(writerContext.schema().getTableSchema().createStatement,
-                                                 writerContext.job().keyspace(),
+                                                 writerContext.job().qualifiedTableName().keyspace(),
                                                  IGNORED_REPLICATION_FACTOR,
                                                  writerContext.cluster().getPartitioner(),
                                                  writerContext.schema().getUserDefinedTypeStatements());
@@ -148,7 +148,7 @@ public class RecordWriter
         LOGGER.info("[{}]: Fetched token range mapping for keyspace: {} with write replicas: {} containing pending " +
                     "replicas: {}, blocked instances: {}, replacement instances: {}",
                     taskContext.partitionId(),
-                    writerContext.job().keyspace(),
+                    writerContext.job().qualifiedTableName().keyspace(),
                     initialTokenRangeMapping.getWriteReplicas().size(),
                     initialTokenRangeMapping.getPendingReplicas().size(),
                     initialTokenRangeMapping.getBlockedInstances().size(),

@@ -22,8 +22,8 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.io.Serializable;
 import java.util.UUID;
 
-import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
+import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.jetbrains.annotations.NotNull;
 
 public interface JobInfo extends Serializable
@@ -66,12 +66,6 @@ public interface JobInfo extends Serializable
     TokenPartitioner getTokenPartitioner();
 
     boolean skipExtendedVerify();
-
-    boolean quoteIdentifiers();
-
-    String keyspace();
-
-    String tableName();
 
     boolean getSkipClean();
 

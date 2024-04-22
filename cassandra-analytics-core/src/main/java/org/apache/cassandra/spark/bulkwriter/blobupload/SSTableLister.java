@@ -40,10 +40,10 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
+import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.stats.Stats;
 
@@ -86,7 +86,7 @@ public class SSTableLister implements SSTableCollector
         .map(components -> {
             SSTable sstable = buildSSTable(components);
             SSTableSummary summary = bridge.getSSTableSummary(qualifiedTableName.keyspace(),
-                                                              qualifiedTableName.tableName(),
+                                                              qualifiedTableName.table(),
                                                               sstable);
             long size = sizeSum(components);
             totalSize += size;

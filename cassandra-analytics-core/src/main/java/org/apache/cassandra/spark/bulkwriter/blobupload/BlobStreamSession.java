@@ -30,7 +30,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import o.a.c.sidecar.client.shaded.common.data.CreateSliceRequestPayload;
-import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSummaryResponsePayload;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
@@ -47,6 +46,7 @@ import org.apache.cassandra.spark.bulkwriter.StreamSession;
 import org.apache.cassandra.spark.bulkwriter.TransportContext;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.common.client.ClientException;
+import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 
 /**

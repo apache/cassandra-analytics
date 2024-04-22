@@ -32,10 +32,10 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
-import o.a.c.sidecar.client.shaded.common.data.QualifiedTableName;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
+import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

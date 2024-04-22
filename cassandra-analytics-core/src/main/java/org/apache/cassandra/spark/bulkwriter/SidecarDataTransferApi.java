@@ -35,6 +35,7 @@ import org.apache.cassandra.sidecar.client.request.ImportSSTableRequest;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.data.QualifiedTableName;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
@@ -51,15 +52,13 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
     private final CassandraBridge bridge;
     private final int sidecarPort;
     private final JobInfo job;
-    private final BulkSparkConf conf;
 
-    public SidecarDataTransferApi(CassandraContext cassandraContext, CassandraBridge bridge, JobInfo job, BulkSparkConf conf)
+    public SidecarDataTransferApi(CassandraContext cassandraContext, CassandraBridge bridge, JobInfo job)
     {
         this.sidecarClient = cassandraContext.getSidecarClient();
         this.sidecarPort = cassandraContext.sidecarPort();
         this.bridge = bridge;
         this.job = job;
-        this.conf = conf;
     }
 
     @Override
@@ -71,11 +70,12 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
     {
         String componentName = updateComponentName(componentFile, ssTableIdx);
         String uploadId = getUploadId(sessionID, job.getRestoreJobId().toString());
+        QualifiedTableName qt = job.qualifiedTableName();
         try
         {
             sidecarClient.uploadSSTableRequest(toSidecarInstance(instance),
-                                               maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.keyspace),
-                                               maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.table),
+                                               maybeQuotedIdentifier(bridge, qt.quoteIdentifiers(), qt.keyspace()),
+                                               maybeQuotedIdentifier(bridge, qt.quoteIdentifiers(), qt.table()),
                                                uploadId,
                                                componentName,
                                                digest.toSidecarDigest(),
@@ -85,10 +85,10 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
         catch (ExecutionException | InterruptedException exception)
         {
             LOGGER.warn("Failed to upload file={}, keyspace={}, table={}, uploadId={}, componentName={}, instance={}",
-                        componentFile, conf.keyspace, conf.table, uploadId, componentName, instance);
+                        componentFile, qt.keyspace(), qt.table(), uploadId, componentName, instance);
             throw new ClientException(
             String.format("Failed to upload file=%s into keyspace=%s, table=%s, componentName=%s with uploadId=%s to instance=%s",
-                          componentFile, conf.keyspace, conf.table, componentName, uploadId, instance), exception);
+                          componentFile, qt.keyspace(), qt.table(), componentName, uploadId, instance), exception);
         }
     }
 
@@ -109,10 +109,11 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
 
         try
         {
+            QualifiedTableName qt = job.qualifiedTableName();
             SSTableImportResponse response =
             sidecarClient.importSSTableRequest(toSidecarInstance(instance),
-                                               maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.keyspace),
-                                               maybeQuotedIdentifier(bridge, conf.quoteIdentifiers, conf.table),
+                                               maybeQuotedIdentifier(bridge, qt.quoteIdentifiers(), qt.keyspace()),
+                                               maybeQuotedIdentifier(bridge, qt.quoteIdentifiers(), qt.table()),
                                                uploadId,
                                                importOptions).get();
             if (response.success())

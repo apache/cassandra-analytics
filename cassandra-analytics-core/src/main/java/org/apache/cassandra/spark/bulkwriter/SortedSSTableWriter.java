@@ -179,7 +179,7 @@ public class SortedSSTableWriter
         try
         {
             CassandraVersion version = CassandraBridgeFactory.getCassandraVersion(writerContext.cluster().getLowestCassandraVersion());
-            String keyspace = writerContext.job().keyspace();
+            String keyspace = writerContext.job().qualifiedTableName().keyspace();
             String schema = writerContext.schema().getTableSchema().createStatement;
             Set<String> udtStatements = writerContext.schema().getUserDefinedTypeStatements();
             String directory = getOutDir().toString();
