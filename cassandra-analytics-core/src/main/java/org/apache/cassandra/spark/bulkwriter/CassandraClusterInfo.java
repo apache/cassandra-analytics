@@ -292,8 +292,9 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         // We can avoid synchronization here
         if (topology != null)
         {
-            this.tokenRangeReplicas = getTokenRangeReplicas();
-            return this.tokenRangeReplicas;
+            topology = getTokenRangeReplicas();
+            this.tokenRangeReplicas = topology;
+            return topology;
         }
 
         // Only synchronize when it is the first time fetching the ring information
