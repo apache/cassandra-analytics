@@ -156,6 +156,7 @@ class SidecarProvisionedSSTableTest
                                                                                              snapshot,
                                                                                              keyspace,
                                                                                              table,
+                                                                                             "abc1234",
                                                                                              dataFileName);
         return new SidecarProvisionedSSTable(mockSidecarClient,
                                              sidecarClientConfig,
