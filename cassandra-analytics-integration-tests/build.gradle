@@ -124,9 +124,13 @@ test {
         println("JVM arguments for $project.name are $allJvmArgs")
     }
 
-    if ("true" == System.getenv("skipContainerTest"))
-    {
+    // container test does not run on java 8
+    if ("true" == System.getenv("skipContainerTest") || JavaVersion.current().isJava8()) {
         exclude("**/testcontainer/**")
+
+        filter {
+            setFailOnNoMatchingTests(false) // do not fail the build if no matching test found, since in CI we run individual test class
+        }
     }
 
     useJUnitPlatform()

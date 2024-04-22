@@ -114,7 +114,7 @@ commands:
           no_output_timeout: 30m
 
 jobs:
-  build-w-jdk8:
+  build-deps-jdk8:
     docker:
       - image: cimg/openjdk:8.0
     resource_class: large
@@ -131,7 +131,7 @@ jobs:
             - "*.jar"
             - "org/**/*"
 
-  build-w-jdk11:
+  build-deps-jdk11:
     docker:
       - image: cimg/openjdk:11.0
     resource_class: large
@@ -364,29 +364,29 @@ workflows:
   version: 2
   build-and-test:
     jobs:
-      - build-w-jdk8
-      - build-w-jdk11
+      - build-deps-jdk8
+      - build-deps-jdk11
       - spark2-2_11-jdk8:
           requires:
-            - build-w-jdk8
+            - build-deps-jdk8
       - spark2-2_12-jdk8:
           requires:
-            - build-w-jdk8
+            - build-deps-jdk8
       - spark3-2_12-jdk11:
           requires:
-            - build-w-jdk11
+            - build-deps-jdk11
       - spark3-2_13-jdk11:
           requires:
-            - build-w-jdk11
+            - build-deps-jdk11
       - int-spark2-2_11-jdk8:
           requires:
-            - build-w-jdk8
+            - build-deps-jdk8
       - int-spark2-2_12-jdk8:
           requires:
-            - build-w-jdk8
+            - build-deps-jdk8
       - int-spark3-2_12-jdk11:
           requires:
-            - build-w-jdk11
+            - build-deps-jdk11
       - int-spark3-2_13-jdk11:
           requires:
-            - build-w-jdk11
+            - build-deps-jdk11
