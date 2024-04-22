@@ -288,7 +288,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
             return topology;
         }
 
-        // Call-site requests the latest view of the ring; but it is OK to server other call-sites that request the cached view
+        // Block for the call-sites requesting the latest view of the ring; but it is OK to serve the other call-sites that request for the cached view
         // We can avoid synchronization here
         if (topology != null)
         {
