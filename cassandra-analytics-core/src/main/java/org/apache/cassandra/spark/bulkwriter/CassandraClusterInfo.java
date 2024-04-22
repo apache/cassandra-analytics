@@ -282,24 +282,30 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     @Override
     public TokenRangeMapping<RingInstance> getTokenRangeMapping(boolean cached)
     {
-        TokenRangeMapping<RingInstance> tokenRangeReplicas = this.tokenRangeReplicas;
-        if (cached && tokenRangeReplicas != null)
+        TokenRangeMapping<RingInstance> topology = this.tokenRangeReplicas;
+        if (cached && topology != null)
         {
-            return tokenRangeReplicas;
+            return topology;
         }
 
+        // Call-site requests the latest view of the ring; but it is OK to server other call-sites that request the cached view
+        // We can avoid synchronization here
+        if (topology != null)
+        {
+            this.tokenRangeReplicas = getTokenRangeReplicas();
+            return this.tokenRangeReplicas;
+        }
+
+        // Only synchronize when it is the first time fetching the ring information
         synchronized (this)
         {
-            if (!cached || this.tokenRangeReplicas == null)
+            try
             {
-                try
-                {
-                    this.tokenRangeReplicas = getTokenRangeReplicas();
-                }
-                catch (Exception exception)
-                {
-                    throw new RuntimeException("Unable to initialize ring information", exception);
-                }
+                this.tokenRangeReplicas = getTokenRangeReplicas();
+            }
+            catch (Exception exception)
+            {
+                throw new RuntimeException("Unable to initialize ring information", exception);
             }
             return this.tokenRangeReplicas;
         }

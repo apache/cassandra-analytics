@@ -46,11 +46,14 @@ public class CassandraTopologyMonitor
     private final ScheduledExecutorService executorService;
     private final Consumer<CancelJobEvent> onCancelJob;
     private int retryCount = 0;
+    // isStopped is set to true on job cancellation, the scheduled task should do no-op
+    private volatile boolean isStopped = false;
 
     public CassandraTopologyMonitor(ClusterInfo clusterInfo, Consumer<CancelJobEvent> onCancelJob)
     {
         this.clusterInfo = clusterInfo;
-        this.onCancelJob = onCancelJob;
+        // stop the monitor when job is cancelled
+        this.onCancelJob = onCancelJob.andThen(e -> isStopped = true);
         this.initialTopology = clusterInfo.getTokenRangeMapping(false);
         this.executorService = Executors.newSingleThreadScheduledExecutor(ThreadUtil.threadFactory("Cassandra Topology Monitor"));
         executorService.scheduleWithFixedDelay(this::checkTopology, PERIODIC_CHECK_DELAY_MS, PERIODIC_CHECK_DELAY_MS, TimeUnit.MILLISECONDS);
@@ -74,6 +77,12 @@ public class CassandraTopologyMonitor
 
     private void checkTopology()
     {
+        if (isStopped)
+        {
+            LOGGER.info("Already stopped. Skip checking topology");
+            return;
+        }
+
         LOGGER.debug("Checking topology");
         try
         {
