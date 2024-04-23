@@ -124,7 +124,7 @@ public class SidecarProvisionedSSTable extends SSTable
         {
             return null;
         }
-        return openStream(snapshotFile.fileName, snapshotFile.size, fileType);
+        return openStream(snapshotFile, fileType);
     }
 
     public long length(FileType fileType)
@@ -144,20 +144,20 @@ public class SidecarProvisionedSSTable extends SSTable
     }
 
     @Nullable
-    private InputStream openStream(String component, long size, FileType fileType)
+    private InputStream openStream(ListSnapshotFilesResponse.FileInfo snapshotFile, FileType fileType)
     {
-        if (component == null)
+        if (snapshotFile == null)
         {
             return null;
         }
 
         if (fileType == FileType.COMPRESSION_INFO)
         {
-            String key = String.format("%s/%s/%s/%s/%s", instance.hostname(), keyspace, table, snapshotName, component);
+            String key = String.format("%s/%s/%s/%s/%s", instance.hostname(), keyspace, table, snapshotName, snapshotFile.fileName);
             byte[] bytes;
             try
             {
-                bytes = COMPRESSION_CACHE.get(key, () -> IOUtils.toByteArray(open(component, fileType, size)));
+                bytes = COMPRESSION_CACHE.get(key, () -> IOUtils.toByteArray(open(snapshotFile, fileType)));
             }
             catch (ExecutionException exception)
             {
@@ -166,24 +166,23 @@ public class SidecarProvisionedSSTable extends SSTable
             return new ByteArrayInputStream(bytes);
         }
 
-        return open(component, fileType, size);
+        return open(snapshotFile, fileType);
     }
 
-    public InputStream open(String component, FileType fileType, long size)
+    public InputStream open(ListSnapshotFilesResponse.FileInfo fileInfo, FileType fileType)
     {
-        SSTableSource<SidecarProvisionedSSTable> ssTableSource = source(component, fileType, size);
+        SSTableSource<SidecarProvisionedSSTable> ssTableSource = source(fileInfo, fileType);
         return new SSTableInputStream<>(ssTableSource, stats);
     }
 
     /**
      * Build an SSTableSource to async provide the bytes
      *
-     * @param componentName the SSTable component to stream
-     * @param fileType      SSTable file type
-     * @param size          file size in bytes
+     * @param fileInfo contains information about the file to stream
+     * @param fileType SSTable file type
      * @return an SSTableSource implementation that uses Sidecar client to request bytes
      */
-    private SSTableSource<SidecarProvisionedSSTable> source(String componentName, FileType fileType, long size)
+    private SSTableSource<SidecarProvisionedSSTable> source(ListSnapshotFilesResponse.FileInfo fileInfo, FileType fileType)
     {
         SidecarProvisionedSSTable thisSSTable = this;
         return new SSTableSource<SidecarProvisionedSSTable>()
@@ -191,12 +190,7 @@ public class SidecarProvisionedSSTable extends SSTable
             @Override
             public void request(long start, long end, StreamConsumer consumer)
             {
-                sidecar.streamSSTableComponent(instance,
-                                               keyspace,
-                                               table,
-                                               snapshotName,
-                                               componentName,
-                                               HttpRange.of(start, end),
+                sidecar.streamSSTableComponent(instance, fileInfo, HttpRange.of(start, end),
                                                new SidecarStreamConsumerAdapter(consumer));
             }
 
@@ -235,7 +229,7 @@ public class SidecarProvisionedSSTable extends SSTable
             @Override
             public long size()
             {
-                return size;
+                return fileInfo.size;
             }
         };
     }
