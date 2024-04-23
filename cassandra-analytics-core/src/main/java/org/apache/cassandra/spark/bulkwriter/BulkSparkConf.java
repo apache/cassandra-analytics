@@ -29,6 +29,7 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -155,7 +156,7 @@ public class BulkSparkConf implements Serializable
         Optional<Integer> sidecarPortFromOptions = MapUtils.getOptionalInt(options, WriterOptions.SIDECAR_PORT.name(), "sidecar port");
         this.userProvidedSidecarPort = sidecarPortFromOptions.isPresent() ? sidecarPortFromOptions.get() : getOptionalInt(SIDECAR_PORT).orElse(-1);
         this.effectiveSidecarPort = this.userProvidedSidecarPort == -1 ? DEFAULT_SIDECAR_PORT : this.userProvidedSidecarPort;
-        this.sidecarInstancesValue = MapUtils.getOrThrow(options, WriterOptions.SIDECAR_INSTANCES.name(), "sidecar_instances");
+        this.sidecarInstancesValue = MapUtils.getOrDefault(options, WriterOptions.SIDECAR_INSTANCES.name(), null);
         this.sidecarInstances = sidecarInstances();
         this.keyspace = MapUtils.getOrThrow(options, WriterOptions.KEYSPACE.name());
         this.table = MapUtils.getOrThrow(options, WriterOptions.TABLE.name());
@@ -264,7 +265,9 @@ public class BulkSparkConf implements Serializable
 
     protected Set<? extends SidecarInstance> buildSidecarInstances()
     {
-        return Arrays.stream(sidecarInstancesValue.split(","))
+        String[] split = Objects.requireNonNull(sidecarInstancesValue, "Unable to build sidecar instances from null value")
+                                .split(",");
+        return Arrays.stream(split)
                      .map(hostname -> new SidecarInstanceImpl(hostname, effectiveSidecarPort))
                      .collect(Collectors.toSet());
     }
