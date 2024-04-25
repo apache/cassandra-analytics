@@ -268,7 +268,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
     private void publishSuccessfulJobStats(long rowCount, long totalBytesWritten, boolean hasClusterTopologyChanged)
     {
-        Map<String, String> stats = new HashMap<>()
+        Map<String, String> stats = new HashMap<String, String>()
         {
             {
                 put("jobId", writerContext.job().getId().toString());
