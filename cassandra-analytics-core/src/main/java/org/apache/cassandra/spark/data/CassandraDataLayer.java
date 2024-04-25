@@ -42,7 +42,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -140,8 +139,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected boolean useIncrementalRepair;
     protected List<SchemaFeature> requestedFeatures;
     protected Map<String, ReplicationFactor> rfMap;
-
-    private final AtomicReference<Integer> jobId;
     private final JobStatsListener jobStatsListener;
     @Nullable
     protected String lastModifiedTimestampField;
@@ -177,7 +174,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.useIncrementalRepair = options.useIncrementalRepair();
         this.lastModifiedTimestampField = options.lastModifiedTimestampField();
         this.requestedFeatures = options.requestedFeatures();
-        this.jobId = new AtomicReference<>();
         this.jobStatsPublisher = new LogStatsPublisher();
 
         // Note: Consumers are called for all jobs and task. We ONLY have to publish for existing job
@@ -236,7 +232,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.useIncrementalRepair = useIncrementalRepair;
         this.lastModifiedTimestampField = lastModifiedTimestampField;
         this.requestedFeatures = requestedFeatures;
-        this.jobId = new AtomicReference<>();
         this.jobStatsPublisher = new LogStatsPublisher();
         this.jobStatsListener = new JobStatsListener((jobEventDetail) -> {
             if (!internalJobId.isEmpty() && internalJobId.equals(jobEventDetail.internalJobID()))

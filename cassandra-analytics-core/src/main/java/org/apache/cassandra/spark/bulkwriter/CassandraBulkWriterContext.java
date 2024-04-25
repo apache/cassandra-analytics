@@ -68,7 +68,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     {
         this.conf = conf;
         this.clusterInfo = clusterInfo;
-        clusterInfo.startupValidate();
         this.jobStatsPublisher = new LogStatsPublisher();
         lowestCassandraVersion = clusterInfo.getLowestCassandraVersion();
         this.bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
@@ -124,9 +123,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
 
         BulkSparkConf conf = new BulkSparkConf(sparkContext.getConf(), strOptions);
         CassandraClusterInfo clusterInfo = new CassandraClusterInfo(conf);
-
         clusterInfo.startupValidate();
-
         CassandraBulkWriterContext bulkWriterContext = new CassandraBulkWriterContext(conf, clusterInfo, dfSchema, sparkContext);
         ShutdownHookManager.addShutdownHook(org.apache.spark.util.ShutdownHookManager.TEMP_DIR_SHUTDOWN_PRIORITY(),
                                             ScalaFunctions.wrapLambda(bulkWriterContext::shutdown));
