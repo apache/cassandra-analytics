@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -51,6 +52,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +77,9 @@ import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
+import org.apache.cassandra.spark.common.stats.JobStatsListener;
+import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
+import org.apache.cassandra.spark.common.stats.LogStatsPublisher;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
@@ -85,6 +90,7 @@ import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
 import org.apache.cassandra.spark.sparksql.LastModifiedTimestampDecorator;
 import org.apache.cassandra.spark.sparksql.RowBuilder;
 import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.ReaderTimeProvider;
 import org.apache.cassandra.spark.utils.ScalaFunctions;
@@ -94,6 +100,7 @@ import org.apache.cassandra.spark.validation.CassandraValidation;
 import org.apache.cassandra.spark.validation.SidecarValidation;
 import org.apache.cassandra.spark.validation.StartupValidatable;
 import org.apache.cassandra.spark.validation.StartupValidator;
+import org.apache.spark.SparkContext;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.util.ShutdownHookManager;
 import org.jetbrains.annotations.NotNull;
@@ -132,17 +139,21 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected boolean useIncrementalRepair;
     protected List<SchemaFeature> requestedFeatures;
     protected Map<String, ReplicationFactor> rfMap;
+    private final JobStatsListener jobStatsListener;
     @Nullable
     protected String lastModifiedTimestampField;
     // volatile in order to publish the reference for visibility
     protected volatile CqlTable cqlTable;
     protected transient TimeProvider timeProvider;
     protected transient SidecarClient sidecar;
+    private transient JobStatsPublisher jobStatsPublisher;
 
     private SslConfig sslConfig;
 
     @VisibleForTesting
     transient Map<String, SidecarInstance> instanceMap;
+
+    private String internalJobId;
 
     public CassandraDataLayer(@NotNull ClientConfig options,
                               @NotNull Sidecar.ClientConfig sidecarClientConfig,
@@ -163,6 +174,18 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.useIncrementalRepair = options.useIncrementalRepair();
         this.lastModifiedTimestampField = options.lastModifiedTimestampField();
         this.requestedFeatures = options.requestedFeatures();
+        this.jobStatsPublisher = new LogStatsPublisher();
+
+        // Note: Consumers are called for all jobs and tasks. We only publish for the existing job
+        this.jobStatsListener = new JobStatsListener((jobEventDetail) -> {
+            if (!internalJobId.isEmpty() && internalJobId.equals(jobEventDetail.internalJobID()))
+            {
+                Map<String, String> stats = new HashMap<>();
+                stats.put("jobId", StringUtils.defaultString(internalJobId, "null"));
+                stats.putAll(jobEventDetail.jobStats());
+                jobStatsPublisher.publish(stats);
+            }
+        });
     }
 
     // For serialization
@@ -209,6 +232,17 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.useIncrementalRepair = useIncrementalRepair;
         this.lastModifiedTimestampField = lastModifiedTimestampField;
         this.requestedFeatures = requestedFeatures;
+        this.jobStatsPublisher = new LogStatsPublisher();
+        this.jobStatsListener = new JobStatsListener((jobEventDetail) -> {
+            if (!internalJobId.isEmpty() && internalJobId.equals(jobEventDetail.internalJobID()))
+            {
+                Map<String, String> stats = new HashMap<>();
+                stats.put("jobId", StringUtils.defaultString(internalJobId, "null"));
+                stats.putAll(jobEventDetail.jobStats());
+                jobStatsPublisher.publish(stats);
+            }
+        });
+
         if (lastModifiedTimestampField != null)
         {
             aliasLastModifiedTimestamp(this.requestedFeatures, this.lastModifiedTimestampField);
@@ -222,7 +256,11 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
     public void initialize(@NotNull ClientConfig options)
     {
-        dialHome(options);
+        SparkContext.getOrCreate().addSparkListener(jobStatsListener);
+        String description = "Cassandra Bulk Read for table " + table;
+        internalJobId = UUID.randomUUID().toString();
+        SparkContext.getOrCreate().setJobGroup(internalJobId, description, false);
+        publishJobStats(internalJobId, options);
 
         timeProvider = new ReaderTimeProvider();
         LOGGER.info("Starting Cassandra Spark job snapshotName={} keyspace={} table={} dc={} referenceEpoch={}",
@@ -789,6 +827,37 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             return in.readUTF();
         }
         return null;
+    }
+
+    private void publishJobStats(String internalJobId, @NotNull ClientConfig options)
+    {
+        Map<String, String> jobStats = new HashMap<String, String>()
+        {
+            {
+                put("application", "Cassandra Spark Bulk Reader");
+                put("jobId", StringUtils.defaultString(internalJobId, "null"));
+                put("keyspace", StringUtils.defaultString(keyspace, "null"));
+                put("table", StringUtils.defaultString(table, "null"));
+                put("snapshotName", snapshotName);
+                put("datacenter", datacenter);
+                put("numCores", String.valueOf(options.numCores()));
+                put("defaultParallelism", String.valueOf(options.defaultParallelism()));
+                put("jvmVersion", System.getProperty("java.version"));
+                put("useMtls", String.valueOf(true));
+                put("maxRetries", String.valueOf(sidecarClientConfig.maxRetries()));
+                put("maxPoolSize", String.valueOf(sidecarClientConfig.maxPoolSize()));
+                put("timeoutSeconds", String.valueOf(sidecarClientConfig.timeoutSeconds()));
+                put("millisToSleep", String.valueOf(sidecarClientConfig.millisToSleep()));
+                put("maxBufferSize", String.valueOf(sidecarClientConfig.maxBufferSize()));
+                put("chunkSize", String.valueOf(sidecarClientConfig.chunkBufferSize()));
+                put("consistencyLevel", String.valueOf(consistencyLevel));
+                put("analyticsVersion", BuildInfo.BUILD_VERSION_AND_REVISION);
+                put("sparkVersion", SparkContext.getOrCreate().version());
+                put("quoteIdentifiers", String.valueOf(quoteIdentifiers));
+                put("dataTransport", "DIRECT");
+            }
+        };
+        jobStatsPublisher.publish(jobStats);
     }
 
     // Kryo Serialization

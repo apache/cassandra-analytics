@@ -68,7 +68,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     {
         this.conf = conf;
         this.clusterInfo = clusterInfo;
-        clusterInfo.startupValidate();
         this.jobStatsPublisher = new LogStatsPublisher();
         lowestCassandraVersion = clusterInfo.getLowestCassandraVersion();
         this.bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
@@ -124,6 +123,7 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
 
         BulkSparkConf conf = new BulkSparkConf(sparkContext.getConf(), strOptions);
         CassandraClusterInfo clusterInfo = new CassandraClusterInfo(conf);
+        clusterInfo.startupValidate();
         CassandraBulkWriterContext bulkWriterContext = new CassandraBulkWriterContext(conf, clusterInfo, dfSchema, sparkContext);
         ShutdownHookManager.addShutdownHook(org.apache.spark.util.ShutdownHookManager.TEMP_DIR_SHUTDOWN_PRIORITY(),
                                             ScalaFunctions.wrapLambda(bulkWriterContext::shutdown));
@@ -135,12 +135,11 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
     {
         Map<String, String> initialJobStats = new HashMap<String, String>() // type declaration required to compile with java8
         {{
-            put("jobId", jobInfo.getId().toString());
             put("sparkVersion", sparkVersion);
-            put("keyspace", jobInfo.getId().toString());
-            put("table", jobInfo.getId().toString());
+            put("keyspace", jobInfo.qualifiedTableName().keyspace());
+            put("table", jobInfo.qualifiedTableName().table());
         }};
-        jobStatsPublisher.publish(initialJobStats);
+        publish(initialJobStats);
     }
 
     @Override
@@ -255,5 +254,10 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
                                conf.getTimestampOptions(),
                                lowestCassandraVersion,
                                jobInfo.qualifiedTableName().quoteIdentifiers());
+    }
+
+    public void publish(Map<String, String> stats)
+    {
+        LOGGER.info("Job Stats:" + stats);
     }
 }

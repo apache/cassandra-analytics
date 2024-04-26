@@ -17,20 +17,31 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.common.stats;
+package org.apache.cassandra.spark;
 
 import java.util.Map;
 
 /**
- * Interface to provide functionality to report Spark Job Statistics and/or properties
- * that can optionally be instrumented. The default implementation merely logs these
- * stats at the end of the job.
+ * Container class for the job metadata associated with a spark listener event.
  */
-public interface JobStatsPublisher
+public class JobEventDetail
 {
-    /**
-     * Publish the job attributes to be persisted and summarized
-     * @param stats mapping of the metric names and their values
-     */
-    void publish(Map<String, String> stats);
+    private String internalJobID;
+    private Map<String, String> jobStats;
+
+    public JobEventDetail(String internalJobID, Map<String, String> jobStats)
+    {
+        this.internalJobID = internalJobID;
+        this.jobStats = jobStats;
+    }
+
+    public String internalJobID()
+    {
+        return internalJobID;
+    }
+
+    public Map<String, String> jobStats()
+    {
+        return jobStats;
+    }
 }
