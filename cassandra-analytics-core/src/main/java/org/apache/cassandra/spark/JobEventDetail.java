@@ -21,6 +21,9 @@ package org.apache.cassandra.spark;
 
 import java.util.Map;
 
+/**
+ * Container class for the job metadata associated with a spark listener event.
+ */
 public class JobEventDetail
 {
     private String internalJobID;

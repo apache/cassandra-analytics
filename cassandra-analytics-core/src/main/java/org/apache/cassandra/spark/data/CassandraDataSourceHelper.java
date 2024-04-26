@@ -129,7 +129,6 @@ public final class CassandraDataSourceHelper
 
         dataLayer.startupValidate();
 
-
         return dataLayer;
     }
 }

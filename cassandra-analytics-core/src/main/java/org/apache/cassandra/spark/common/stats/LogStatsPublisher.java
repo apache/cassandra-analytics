@@ -37,10 +37,4 @@ public class LogStatsPublisher implements JobStatsPublisher
     {
         LOGGER.info("Job Stats: {}", stats);
     }
-
-    @Override
-    public Map<String, String> stats()
-    {
-        throw new UnsupportedOperationException("Operation not supported for log publishing");
-    }
 }

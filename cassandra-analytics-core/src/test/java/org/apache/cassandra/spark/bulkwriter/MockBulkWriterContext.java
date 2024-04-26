@@ -92,11 +92,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         jobStats.putAll(stats);
     }
 
-    public Map<String, String> stats()
-    {
-        return jobStats;
-    }
-
     public interface CommitResultSupplier extends BiFunction<List<String>, String, DirectDataTransferApi.RemoteCommitResult>
     {
     }

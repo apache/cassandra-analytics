@@ -33,6 +33,4 @@ public interface JobStatsPublisher
      * @param stats mapping of the metric names and their values
      */
     void publish(Map<String, String> stats);
-
-    Map<String, String> stats();
 }

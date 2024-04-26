@@ -176,7 +176,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.requestedFeatures = options.requestedFeatures();
         this.jobStatsPublisher = new LogStatsPublisher();
 
-        // Note: Consumers are called for all jobs and task. We ONLY have to publish for existing job
+        // Note: Consumers are called for all jobs and tasks. We only publish for the existing job
         this.jobStatsListener = new JobStatsListener((jobEventDetail) -> {
             if (!internalJobId.isEmpty() && internalJobId.equals(jobEventDetail.internalJobID()))
             {

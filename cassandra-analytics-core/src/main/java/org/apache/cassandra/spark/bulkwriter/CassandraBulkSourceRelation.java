@@ -83,7 +83,8 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
         onCloudStorageTransport(ignored -> this.heartbeatReporter = new HeartbeatReporter());
         this.jobStatsListener = new JobStatsListener((jobEventDetail) -> {
-            if (writerContext.job().getId().toString().equals(jobEventDetail.internalJobID()))
+            // Note: Consumers are called for all jobs and tasks. We only publish for the existing job
+            if (writerContext.job().getId().equals(jobEventDetail.internalJobID()))
             {
                 writerContext.jobStats().publish(jobEventDetail.jobStats());
             }
