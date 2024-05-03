@@ -29,8 +29,8 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.data.CreateSliceRequestPayload;
-import o.a.c.sidecar.client.shaded.common.data.RestoreJobSummaryResponsePayload;
+import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload;
+import o.a.c.sidecar.client.shaded.common.request.data.RestoreJobSummaryResponsePayload;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.clients.Sidecar;

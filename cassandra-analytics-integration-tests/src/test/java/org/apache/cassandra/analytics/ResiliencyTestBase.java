@@ -41,7 +41,7 @@ import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
 import org.apache.cassandra.distributed.api.Row;
 import org.apache.cassandra.distributed.api.SimpleQueryResult;
-import org.apache.cassandra.sidecar.common.JmxClient;
+import org.apache.cassandra.sidecar.common.server.JmxClient;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.DecoratedKey;
 import org.apache.cassandra.spark.bulkwriter.Tokenizer;

@@ -23,7 +23,7 @@ import java.math.BigInteger;
 
 import org.junit.jupiter.api.Test;
 
-import o.a.c.sidecar.client.shaded.common.data.CreateSliceRequestPayload;
+import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

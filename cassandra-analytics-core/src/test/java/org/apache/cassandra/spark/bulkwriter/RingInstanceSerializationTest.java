@@ -21,8 +21,8 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import org.junit.jupiter.api.Test;
 
-import o.a.c.sidecar.client.shaded.common.data.RingEntry;
-import o.a.c.sidecar.client.shaded.common.data.TokenRangeReplicasResponse.ReplicaMetadata;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
+import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 
 import static org.apache.cassandra.spark.utils.SerializationUtils.deserialize;
 import static org.apache.cassandra.spark.utils.SerializationUtils.serialize;

@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 // Note: Must use the sidecar shaded jackson to ser/deser sidecar objects
 import o.a.c.sidecar.client.shaded.com.fasterxml.jackson.core.JsonProcessingException;
 import o.a.c.sidecar.client.shaded.com.fasterxml.jackson.databind.ObjectMapper;
-import o.a.c.sidecar.client.shaded.common.data.CreateSliceRequestPayload;
+import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.ReplicationFactor;

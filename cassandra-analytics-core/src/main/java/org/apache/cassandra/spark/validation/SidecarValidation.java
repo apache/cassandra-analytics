@@ -21,7 +21,7 @@ package org.apache.cassandra.spark.validation;
 
 import java.util.concurrent.TimeUnit;
 
-import o.a.c.sidecar.client.shaded.common.data.HealthResponse;
+import o.a.c.sidecar.client.shaded.common.response.HealthResponse;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 
 /**

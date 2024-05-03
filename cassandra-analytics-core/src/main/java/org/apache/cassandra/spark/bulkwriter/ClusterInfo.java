@@ -23,7 +23,7 @@ import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
-import o.a.c.sidecar.client.shaded.common.data.TimeSkewResponse;
+import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.client.InstanceState;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;

@@ -40,7 +40,7 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.data.CreateSliceRequestPayload;
+import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.blobupload.BlobDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.blobupload.BlobStreamResult;

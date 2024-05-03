@@ -24,19 +24,19 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.data.CreateRestoreJobRequestPayload;
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSecrets;
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobStatus;
-import o.a.c.sidecar.client.shaded.common.data.UpdateRestoreJobRequestPayload;
+import o.a.c.sidecar.client.shaded.common.request.data.CreateRestoreJobRequestPayload;
+import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPayload;
 import org.apache.cassandra.spark.bulkwriter.blobupload.BlobStreamResult;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.common.client.ClientException;

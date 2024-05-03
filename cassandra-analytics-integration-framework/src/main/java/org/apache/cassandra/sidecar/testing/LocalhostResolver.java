@@ -25,7 +25,8 @@ import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.sidecar.common.dns.DnsResolver;
+import org.apache.cassandra.sidecar.common.server.dns.DnsResolver;
+
 
 /**
  * A {@link DnsResolver} instance used for tests that provides fast DNS resolution, to avoid blocking
