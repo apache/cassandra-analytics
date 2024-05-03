@@ -63,9 +63,9 @@ public class XXHash32Digest implements Digest
     }
 
     @Override
-    public o.a.c.sidecar.client.shaded.common.data.Digest toSidecarDigest()
+    public o.a.c.sidecar.client.shaded.common.request.data.Digest toSidecarDigest()
     {
-        return new o.a.c.sidecar.client.shaded.common.data.XXHash32Digest(value, seedHex);
+        return new o.a.c.sidecar.client.shaded.common.request.data.XXHash32Digest(value, seedHex);
     }
 
     @Override

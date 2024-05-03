@@ -27,7 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSecrets;
-import o.a.c.sidecar.client.shaded.common.data.UpdateRestoreJobRequestPayload;
+import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPayload;
 import org.apache.cassandra.spark.bulkwriter.CancelJobEvent;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.TransportContext;

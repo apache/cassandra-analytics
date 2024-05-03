@@ -43,12 +43,12 @@ import com.google.common.collect.Range;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import o.a.c.sidecar.client.shaded.common.data.CreateSliceRequestPayload;
-import o.a.c.sidecar.client.shaded.common.data.RingEntry;
+import o.a.c.sidecar.client.shaded.common.request.Request;
+import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload;
+import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
-import org.apache.cassandra.sidecar.client.request.Request;
 import org.apache.cassandra.spark.bulkwriter.ImportCompletionCoordinator.RequestAndInstance;
 import org.apache.cassandra.spark.bulkwriter.blobupload.BlobDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.blobupload.BlobStreamResult;

@@ -31,7 +31,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.apache.commons.io.IOUtils;
 
-import o.a.c.sidecar.client.shaded.common.data.ListSnapshotFilesResponse;
+import o.a.c.sidecar.client.shaded.common.response.ListSnapshotFilesResponse;
 import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.clients.SidecarStreamConsumerAdapter;

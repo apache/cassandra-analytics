@@ -33,8 +33,8 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 
-import o.a.c.sidecar.client.shaded.common.data.RingEntry;
-import o.a.c.sidecar.client.shaded.common.data.TokenRangeReplicasResponse.ReplicaMetadata;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
+import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.client.InstanceStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;

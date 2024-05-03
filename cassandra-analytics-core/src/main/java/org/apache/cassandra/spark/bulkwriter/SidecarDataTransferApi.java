@@ -27,11 +27,11 @@ import java.util.concurrent.ExecutionException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.data.SSTableImportResponse;
+import o.a.c.sidecar.client.shaded.common.request.ImportSSTableRequest;
+import o.a.c.sidecar.client.shaded.common.response.SSTableImportResponse;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
-import org.apache.cassandra.sidecar.client.request.ImportSSTableRequest;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;

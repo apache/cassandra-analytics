@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.NodeSettings;
+import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.io.vertx.core.Vertx;
 import o.a.c.sidecar.client.shaded.io.vertx.core.VertxOptions;
 import org.apache.cassandra.secrets.SecretsProvider;

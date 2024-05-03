@@ -93,5 +93,5 @@ dependencies {
         exclude(group: 'org.slf4j')
         exclude(group: 'ch.qos.logback')
     }
-    api(group: 'org.apache.cassandra.sidecar', name: 'common', version: "${sidecarVersion}")
+    api(group: 'org.apache.cassandra.sidecar', name: 'server-common', version: "${sidecarVersion}")
 }
