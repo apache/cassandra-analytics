@@ -26,9 +26,8 @@ plugins {
   id 'java'
   id 'java-library'
   id 'com.github.johnrengelman.shadow' version '8.1.1'
-
-  // Release Audit Tool (RAT) plugin for checking project licenses
-  id("org.nosphere.apache.rat") version "0.8.1"
+  id 'org.nosphere.apache.rat' version "0.8.1"  // Release Audit Tool (RAT) plugin for checking project licenses
+  id 'org.sonarqube' version '3.5.0.2730'
 }
 
 repositories {
@@ -257,5 +256,20 @@ subprojects {
   tasks.register('printCodeVersion') {
     println()
     println(version)
+  }
+}
+
+sonar {
+  properties {
+    property('sonar.projectName', 'cassandra-analytics')
+    property('sonar.projectKey', 'cassandra-analytics')
+    property('sonar.pullrequest.key', System.getenv('GIT_PR_ID') ?: '')
+    property('sonar.pullrequest.branch', System.getenv('GIT_PR_SOURCE_BRANCH') ?: '')
+    property('sonar.pullrequest.base', System.getenv('GIT_PR_TARGET_BRANCH') ?: '')
+    property('sonar.projectBaseDir', rootDir)
+    property('sonar.inclusions', 'cassandra-bridge/src/main/**/*.java,cassandra-four-zero-bridge/src/main/**/*.java,cassandra-analytics-core/src/main/**/*.java')
+    property('sonar.test.inclusions', 'cassandra-bridge/src/test/**/*.java,cassandra-four-zero-bridge/src/test/**/*.java,cassandra-analytics-core/src/test/**/*.java,cassandra-analytics-integration-framework/src/test/**/*.java,cassandra-analytics-integration-tests/src/test/**/*.java')
+    property('sonar.sourceEncoding', 'UTF-8')
+    property('sonar.coverage.jacoco.xmlReportPaths', "${rootDir}/code-coverage-report/build/reports/jacoco/codeCoverageReport/codeCoverageReport.xml")
   }
 }

@@ -17,15 +17,6 @@
  * under the License.
  */
 
-rootProject.name = 'cassandra-analytics-core'
-
-include 'cassandra-analytics-common'
-include 'cassandra-bridge'
-include 'cassandra-four-zero'
-include 'cassandra-four-zero-bridge'
-include 'cassandra-four-zero-types'
-include 'cassandra-analytics-core'
-include 'cassandra-analytics-core-example'
-include 'cassandra-analytics-integration-framework'
-include 'cassandra-analytics-integration-tests'
-include 'code-coverage-report'
+plugins {
+  id('groovy-gradle-plugin')
+}

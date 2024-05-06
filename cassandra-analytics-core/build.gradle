@@ -23,6 +23,7 @@ plugins {
     id('java-library')
     id('jacoco')
     id('maven-publish')
+    id('cassandra-analytics.java-conventions')
 }
 
 java {

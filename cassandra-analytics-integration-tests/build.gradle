@@ -21,10 +21,9 @@ import java.nio.file.Paths
 
 plugins {
     id('idea')
-    // A Java library
-    id('java-library')
-    // which is published
-    id('maven-publish')
+    id('java-library')  // A Java library
+    id('maven-publish')  // Which is published
+    id('cassandra-analytics.java-conventions')
 }
 
 publishing {

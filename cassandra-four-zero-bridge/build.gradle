@@ -21,6 +21,7 @@ import java.nio.file.Paths
 
 plugins {
     id('java-library')
+    id('cassandra-analytics.java-conventions')
 }
 
 configurations {

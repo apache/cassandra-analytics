@@ -17,15 +17,16 @@
  * under the License.
  */
 
-rootProject.name = 'cassandra-analytics-core'
+plugins {
+  id('cassandra-analytics.jacoco-aggregations')
+}
 
-include 'cassandra-analytics-common'
-include 'cassandra-bridge'
-include 'cassandra-four-zero'
-include 'cassandra-four-zero-bridge'
-include 'cassandra-four-zero-types'
-include 'cassandra-analytics-core'
-include 'cassandra-analytics-core-example'
-include 'cassandra-analytics-integration-framework'
-include 'cassandra-analytics-integration-tests'
-include 'code-coverage-report'
+dependencies {
+  implementation(project(':cassandra-bridge'))
+  implementation(project(':cassandra-four-zero-bridge'))
+  implementation(project(':cassandra-analytics-core'))
+  implementation(project(':cassandra-analytics-integration-framework'))
+  implementation(project(':cassandra-analytics-integration-tests'))
+}
+
+tasks.withType(PublishToMavenRepository).configureEach { it.enabled = false }
