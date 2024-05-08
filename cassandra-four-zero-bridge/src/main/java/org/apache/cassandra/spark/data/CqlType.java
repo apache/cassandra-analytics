@@ -54,7 +54,8 @@ public abstract class CqlType implements CqlField.CqlType
     @Override
     public Object deserialize(ByteBuffer buffer, boolean isFrozen)
     {
-        return toSparkSqlType(serializer().deserialize(buffer));
+        Object value = serializer().deserialize(buffer);
+        return value != null ? toSparkSqlType(value) : null;
     }
 
     public abstract <T> TypeSerializer<T> serializer();
