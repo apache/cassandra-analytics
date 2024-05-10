@@ -88,7 +88,8 @@ public abstract class CqlCollection extends CqlType implements CqlField.CqlColle
     @Override
     public Object deserialize(ByteBuffer buffer, boolean isFrozen)
     {
-        return toSparkSqlType(serializer().deserialize(buffer));
+        Object value = serializer().deserialize(buffer);
+        return value != null ? toSparkSqlType(value) : null;
     }
 
     @Override

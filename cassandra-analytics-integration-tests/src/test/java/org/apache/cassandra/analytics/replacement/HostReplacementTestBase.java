@@ -260,13 +260,9 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
         for (IInstance node : nodesToRemove)
         {
             cluster.stopUnchecked(node);
-            String remAddress = node.config().broadcastAddress().getAddress().getHostAddress();
-
-            List<ClusterUtils.RingInstanceDetails> ring = ClusterUtils.ring(seed);
-            List<ClusterUtils.RingInstanceDetails> match = ring.stream()
-                                                               .filter((d) -> d.getAddress().equals(remAddress))
-                                                               .collect(Collectors.toList());
-            assertThat(match.stream().anyMatch(r -> r.getStatus().equals("Down"))).isTrue();
+            // awaitRingStatus will assert that the node status is down. It retries multiple times until a timeout
+            // is reached and fails if the expected status is not seen.
+            cluster.awaitRingStatus(seed, node, "Down");
         }
     }
 

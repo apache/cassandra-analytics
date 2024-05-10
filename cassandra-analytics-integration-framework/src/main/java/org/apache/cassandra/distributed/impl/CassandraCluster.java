@@ -171,6 +171,12 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
     }
 
     @Override
+    public void awaitRingStatus(IInstance instance, IInstance expectedInRing, String status)
+    {
+        ClusterUtils.awaitRingStatus(instance, expectedInRing, status);
+    }
+
+    @Override
     public void awaitGossipStatus(IInstance instance, IInstance expectedInGossip, String targetStatus)
     {
         ClusterUtils.awaitGossipStatus(instance, expectedInGossip, targetStatus);

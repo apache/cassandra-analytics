@@ -82,6 +82,15 @@ public interface IClusterExtension<I extends IInstance> extends ICluster<I>
     void awaitRingState(IInstance instance, IInstance expectedInRing, String state);
 
     /**
+     * Wait for the ring to have the target instance with the provided status.
+     *
+     * @param instance       instance to check on
+     * @param expectedInRing to look for
+     * @param status         expected
+     */
+    void awaitRingStatus(IInstance instance, IInstance expectedInRing, String status);
+
+    /**
      * Waits for the target instance to have the desired status. Target status is checked via string contains so works
      * with 'NORMAL' but also can check tokens or full state.
      *
