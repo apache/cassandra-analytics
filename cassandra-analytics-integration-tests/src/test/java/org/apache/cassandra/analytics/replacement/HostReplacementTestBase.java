@@ -262,7 +262,7 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
             cluster.stopUnchecked(node);
             // awaitRingState will assert that the node state is down. It retries multiple times until a timeout
             // is reached and fails if the expected state is not seen.
-            cluster.awaitRingState(seed, node, "Down");
+            cluster.awaitRingStatus(seed, node, "Down");
         }
     }
 
