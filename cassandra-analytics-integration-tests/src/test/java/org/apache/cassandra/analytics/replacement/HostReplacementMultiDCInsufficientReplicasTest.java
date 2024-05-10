@@ -40,6 +40,8 @@ import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.cassandra.testing.TestUtils;
+import org.apache.spark.sql.DataFrameWriter;
+import org.apache.spark.sql.Row;
 
 import static com.datastax.driver.core.ConsistencyLevel.EACH_QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
@@ -62,25 +64,10 @@ class HostReplacementMultiDCInsufficientReplicasTest extends HostReplacementTest
     @Test
     void nodeReplacementFailureMultiDCInsufficientNodes()
     {
-        Throwable thrown = catchThrowable(() ->
-                                          bulkWriterDataFrameWriter(df, QUALIFIED_NAME)
-                                          .option(WriterOptions.BULK_WRITER_CL.name(), EACH_QUORUM.name())
-                                          .save());
+        DataFrameWriter<Row> dfWriter = bulkWriterDataFrameWriter(df, QUALIFIED_NAME)
+                                      .option(WriterOptions.BULK_WRITER_CL.name(), EACH_QUORUM.name());
 
-        assertThat(thrown).isInstanceOf(RuntimeException.class)
-                          .hasMessageContaining("java.lang.RuntimeException: Bulk Write to Cassandra has failed");
-
-        Throwable cause = thrown;
-
-        // Find the cause
-        while (cause != null && !StringUtils.contains(cause.getMessage(), "Failed to load"))
-        {
-            cause = cause.getCause();
-        }
-
-        assertThat(cause).isNotNull()
-                         .hasMessageFindingMatch("Failed to load (\\d+) ranges with EACH_QUORUM for " +
-                                                 "job ([a-zA-Z0-9-]+) in phase Environment Validation.");
+        sparkTestUtils.assertExpectedBulkWriteFailure(EACH_QUORUM.name(), dfWriter);
     }
 
     @Override

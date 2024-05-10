@@ -27,15 +27,15 @@ import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -142,19 +142,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(VertxExtension.class)
 public abstract class SharedClusterIntegrationTestBase
 {
-    public static final String SIDECAR_S3_ENDPOINT_OVERRIDE_OPT = "S3_ENDPOINT_OVERRIDE";
-
     protected final Logger logger = LoggerFactory.getLogger(SharedClusterIntegrationTestBase.class);
     private static final int MAX_CLUSTER_PROVISION_RETRIES = 5;
 
     @TempDir
     static Path secretsPath;
 
-    protected Vertx vertx;
-    protected DnsResolver dnsResolver;
+    protected DnsResolver dnsResolver = new LocalhostResolver();
     protected IClusterExtension<? extends IInstance> cluster;
     protected Server server;
-    protected Injector injector;
     protected TestVersion testVersion;
     protected MtlsTestHelper mtlsTestHelper;
     private IsolatedDTestClassLoaderWrapper classLoaderWrapper;
@@ -321,9 +317,9 @@ public abstract class SharedClusterIntegrationTestBase
     /**
      * Override to provide additional options to configure sidecar
      */
-    protected Map<String, String> sidecarAdditionalOptions()
+    protected Function<SidecarConfigurationImpl.Builder, SidecarConfigurationImpl.Builder> configurationOverrides()
     {
-        return Collections.emptyMap();
+        return null;
     }
 
     /**
@@ -334,17 +330,29 @@ public abstract class SharedClusterIntegrationTestBase
      */
     protected void startSidecar(ICluster<? extends IInstance> cluster) throws InterruptedException
     {
+        server = startSidecarWithInstances(cluster);
+    }
+
+    /**
+     * Starts Sidecar configured to run with the provided {@link IInstance}s from the cluster.
+     *
+     * @param instances the Cassandra instances Sidecar will manage
+     * @return the started server
+     * @throws InterruptedException when the server start operation is interrupted
+     */
+    protected Server startSidecarWithInstances(Iterable<? extends IInstance> instances) throws InterruptedException
+    {
         VertxTestContext context = new VertxTestContext();
-        AbstractModule testModule = new IntegrationTestModule(cluster, classLoaderWrapper, mtlsTestHelper, sidecarAdditionalOptions());
-        injector = Guice.createInjector(Modules.override(new MainModule()).with(testModule));
-        dnsResolver = injector.getInstance(DnsResolver.class);
-        vertx = injector.getInstance(Vertx.class);
-        server = injector.getInstance(Server.class);
-        server.start()
-              .onSuccess(s -> context.completeNow())
-              .onFailure(context::failNow);
+        AbstractModule testModule = new IntegrationTestModule(instances, classLoaderWrapper, mtlsTestHelper,
+                                                              dnsResolver, configurationOverrides());
+        Injector injector = Guice.createInjector(Modules.override(new MainModule()).with(testModule));
+        Server sidecarServer = injector.getInstance(Server.class);
+        sidecarServer.start()
+                     .onSuccess(s -> context.completeNow())
+                     .onFailure(context::failNow);
 
         context.awaitCompletion(5, TimeUnit.SECONDS);
+        return sidecarServer;
     }
 
     /**
@@ -418,7 +426,7 @@ public abstract class SharedClusterIntegrationTestBase
      */
     protected Object[][] queryAllData(QualifiedName table)
     {
-        return queryAllData(table, ConsistencyLevel.LOCAL_QUORUM);
+        return queryAllData(table, "LOCAL_QUORUM");
     }
 
     /**
@@ -428,9 +436,11 @@ public abstract class SharedClusterIntegrationTestBase
      * @param consistencyLevel the consistency level to use for querying the data
      * @return all the data queried from the table
      */
-    protected Object[][] queryAllData(QualifiedName table, ConsistencyLevel consistencyLevel)
+    protected Object[][] queryAllData(QualifiedName table, String consistencyLevel)
     {
-        return cluster.coordinator(1).execute(String.format("SELECT * FROM %s;", table), consistencyLevel);
+        return cluster.getFirstRunningInstance()
+                      .coordinator()
+                      .execute(String.format("SELECT * FROM %s;", table), ConsistencyLevel.valueOf(consistencyLevel));
     }
 
     /**
@@ -486,20 +496,23 @@ public abstract class SharedClusterIntegrationTestBase
     static class IntegrationTestModule extends AbstractModule
     {
         private static final Logger LOGGER = LoggerFactory.getLogger(IntegrationTestModule.class);
-        private final ICluster<? extends IInstance> cluster;
+        private final Iterable<? extends IInstance> instances;
         private final IsolatedDTestClassLoaderWrapper wrapper;
         private final MtlsTestHelper mtlsTestHelper;
-        private final Map<String, String> additioanlOptions;
+        private final DnsResolver dnsResolver;
+        private final Function<SidecarConfigurationImpl.Builder, SidecarConfigurationImpl.Builder> configurationOverrides;
 
-        IntegrationTestModule(ICluster<? extends IInstance> cluster,
+        IntegrationTestModule(Iterable<? extends IInstance> instances,
                               IsolatedDTestClassLoaderWrapper wrapper,
                               MtlsTestHelper mtlsTestHelper,
-                              Map<String, String> additionalOptions)
+                              DnsResolver dnsResolver,
+                              Function<SidecarConfigurationImpl.Builder, SidecarConfigurationImpl.Builder> configurationOverrides)
         {
-            this.cluster = cluster;
+            this.instances = instances;
             this.wrapper = wrapper;
             this.mtlsTestHelper = mtlsTestHelper;
-            this.additioanlOptions = additionalOptions;
+            this.configurationOverrides = configurationOverrides;
+            this.dnsResolver = dnsResolver;
         }
 
         @Provides
@@ -522,16 +535,16 @@ public abstract class SharedClusterIntegrationTestBase
         {
             JmxConfiguration jmxConfiguration = configuration.serviceConfiguration().jmxConfiguration();
             List<InstanceMetadata> instanceMetadataList =
-            IntStream.rangeClosed(1, cluster.size())
-                     .mapToObj(i -> buildInstanceMetadata(vertx,
-                                                          cluster.get(i),
-                                                          cassandraVersionProvider,
-                                                          sidecarVersionProvider.sidecarVersion(),
-                                                          jmxConfiguration,
-                                                          cqlSessionProvider,
-                                                          dnsResolver,
-                                                          wrapper))
-                     .collect(Collectors.toList());
+            StreamSupport.stream(instances.spliterator(), false)
+                         .map(instance -> buildInstanceMetadata(vertx,
+                                                                instance,
+                                                                cassandraVersionProvider,
+                                                                sidecarVersionProvider.sidecarVersion(),
+                                                                jmxConfiguration,
+                                                                cqlSessionProvider,
+                                                                dnsResolver,
+                                                                wrapper))
+                         .collect(Collectors.toList());
             return new InstancesConfigImpl(instanceMetadataList, dnsResolver);
         }
 
@@ -577,26 +590,30 @@ public abstract class SharedClusterIntegrationTestBase
                             "like mTLS enabled.", CASSANDRA_INTEGRATION_TEST_ENABLE_MTLS);
             }
             S3ClientConfiguration s3ClientConfig = new S3ClientConfigurationImpl("s3-client", 4, 60L, buildTestS3ProxyConfig());
-            return SidecarConfigurationImpl.builder()
-                                           .serviceConfiguration(conf)
-                                           .sslConfiguration(sslConfiguration)
-                                           .s3ClientConfiguration(s3ClientConfig)
-                                           .build();
+            SidecarConfigurationImpl.Builder builder = SidecarConfigurationImpl.builder()
+                                                                               .serviceConfiguration(conf)
+                                                                               .sslConfiguration(sslConfiguration)
+                                                                               .s3ClientConfiguration(s3ClientConfig);
+            if (configurationOverrides != null)
+            {
+                builder = configurationOverrides.apply(builder);
+            }
+            return builder.build();
         }
 
         @Provides
         @Singleton
         public DnsResolver dnsResolver()
         {
-            return new LocalhostResolver();
+            return dnsResolver;
         }
 
         private List<InetSocketAddress> buildContactPoints()
         {
-            return cluster.stream()
-                          .map(instance -> new InetSocketAddress(instance.config().broadcastAddress().getAddress(),
-                                                                 tryGetIntConfig(instance.config(), "native_transport_port", 9042)))
-                          .collect(Collectors.toList());
+            return StreamSupport.stream(instances.spliterator(), false)
+                                .map(instance -> new InetSocketAddress(instance.config().broadcastAddress().getAddress(),
+                                                                       tryGetIntConfig(instance.config(), "native_transport_port", 9042)))
+                                .collect(Collectors.toList());
         }
 
         private S3ProxyConfiguration buildTestS3ProxyConfig()
@@ -624,7 +641,7 @@ public abstract class SharedClusterIntegrationTestBase
                 @Override
                 public URI endpointOverride()
                 {
-                    return URI.create(additioanlOptions.getOrDefault(SIDECAR_S3_ENDPOINT_OVERRIDE_OPT, "http://localhost:9090"));
+                    return URI.create("http://localhost:9090");
                 }
             };
         }

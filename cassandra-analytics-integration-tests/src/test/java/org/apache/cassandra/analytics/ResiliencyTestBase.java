@@ -27,7 +27,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -239,29 +238,6 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
     public static ClusterBuilderConfiguration clusterConfig()
     {
         return new ClusterBuilderConfiguration();
-    }
-
-    public static class TestConsistencyLevel
-    {
-        public final ConsistencyLevel readCL;
-        public final ConsistencyLevel writeCL;
-
-        private TestConsistencyLevel(ConsistencyLevel readCL, ConsistencyLevel writeCL)
-        {
-            this.readCL = Objects.requireNonNull(readCL, "readCL is required");
-            this.writeCL = Objects.requireNonNull(writeCL, "writeCL is required");
-        }
-
-        public static TestConsistencyLevel of(ConsistencyLevel readCL, ConsistencyLevel writeCL)
-        {
-            return new TestConsistencyLevel(readCL, writeCL);
-        }
-
-        @Override
-        public String toString()
-        {
-            return "readCL=" + readCL + ", writeCL=" + writeCL;
-        }
     }
 
     /**

@@ -36,6 +36,7 @@ import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
 import org.apache.cassandra.analytics.ResiliencyTestBase;
+import org.apache.cassandra.analytics.TestConsistencyLevel;
 import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.IInstance;
@@ -55,7 +56,7 @@ class LeavingMultiDCHalveClusterTest extends LeavingTestBase
 
     @ParameterizedTest(name = "{index} => {0}")
     @MethodSource("multiDCTestInputs")
-    void testLeavingScenario(ResiliencyTestBase.TestConsistencyLevel cl)
+    void testLeavingScenario(TestConsistencyLevel cl)
     {
         QualifiedName table = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
         bulkWriterDataFrameWriter(df, table).option(WriterOptions.BULK_WRITER_CL.name(), cl.writeCL.name())

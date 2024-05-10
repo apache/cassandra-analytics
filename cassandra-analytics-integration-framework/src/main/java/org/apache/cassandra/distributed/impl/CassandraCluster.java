@@ -153,12 +153,6 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
     }
 
     @Override
-    public IInstanceConfig createInstanceConfig(int nodeNum)
-    {
-        return delegate.createInstanceConfig(nodeNum);
-    }
-
-    @Override
     public ICluster<I> delegate()
     {
         return delegate;

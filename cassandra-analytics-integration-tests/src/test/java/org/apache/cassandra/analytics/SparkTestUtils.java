@@ -29,6 +29,8 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.shared.JMXUtil;
@@ -47,6 +49,7 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
  * Helper methods for Spark tests
@@ -154,9 +157,9 @@ public class SparkTestUtils
                               // the quoted identifiers tests where we test mixed case
                               .set("spark.sql.caseSensitive", "True")
                               .set("spark.master", "local[8,4]")
-                              .set("spark.cassandra_analytics.sidecar.request.retries", "5")
-                              .set("spark.cassandra_analytics.sidecar.request.retries.delay.milliseconds", "500")
-                              .set("spark.cassandra_analytics.sidecar.request.retries.max.delay.milliseconds", "500");
+                              .set("spark.cassandra_analytics.sidecar.request.retries", "4")
+                              .set("spark.cassandra_analytics.sidecar.request.retries.delay.milliseconds", "250")
+                              .set("spark.cassandra_analytics.sidecar.request.retries.max.delay.milliseconds", "250");
         BulkSparkConf.setupSparkConf(sparkConf, true);
         KryoRegister.setup(sparkConf);
         return sparkConf;
@@ -188,6 +191,26 @@ public class SparkTestUtils
         // If this fails, it means there was more data in the database than we expected
         assertThat(actualEntries).as("All entries are expected to be read from database")
                                  .isEmpty();
+    }
+
+    public void assertExpectedBulkWriteFailure(String writeCL, DataFrameWriter<Row> dfWriter)
+    {
+        Throwable thrown = catchThrowable(dfWriter::save);
+
+        assertThat(thrown).isInstanceOf(RuntimeException.class)
+                          .hasMessageContaining("java.lang.RuntimeException: Bulk Write to Cassandra has failed");
+
+        Throwable cause = thrown;
+
+        // Find the cause
+        while (cause != null && !StringUtils.contains(cause.getMessage(), "Failed to load"))
+        {
+            cause = cause.getCause();
+        }
+
+        assertThat(cause).isNotNull()
+                         .hasMessageFindingMatch("Failed to load (\\d+) ranges with " + writeCL +
+                                                 " for job ([a-zA-Z0-9-]+) in phase .*");
     }
 
     /**

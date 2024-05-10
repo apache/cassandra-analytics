@@ -20,6 +20,7 @@
 package org.apache.cassandra.analytics.testcontainer;
 
 import java.util.Map;
+import java.util.function.Function;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,11 @@ import org.junit.jupiter.api.Test;
 import com.adobe.testing.s3mock.testcontainers.S3MockContainer;
 import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.SharedClusterSparkIntegrationTestBase;
+import org.apache.cassandra.sidecar.config.S3ClientConfiguration;
+import org.apache.cassandra.sidecar.config.S3ProxyConfiguration;
+import org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl;
+import org.apache.cassandra.sidecar.config.yaml.S3ProxyConfigurationImpl;
+import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
@@ -77,9 +83,18 @@ class BulkWriteS3CompatModeSimpleTest extends SharedClusterSparkIntegrationTestB
     }
 
     @Override
-    protected Map<String, String> sidecarAdditionalOptions()
+    protected Function<SidecarConfigurationImpl.Builder, SidecarConfigurationImpl.Builder> configurationOverrides()
     {
-        return ImmutableMap.of(SIDECAR_S3_ENDPOINT_OVERRIDE_OPT, s3Mock.getHttpEndpoint());
+        return builder -> {
+            S3ClientConfiguration s3ClientConfig = new S3ClientConfigurationImpl("s3-client", 4, 60L, buildTestS3ProxyConfig());
+            builder.s3ClientConfiguration(s3ClientConfig);
+            return builder;
+        };
+    }
+
+    private S3ProxyConfiguration buildTestS3ProxyConfig()
+    {
+        return new S3MockProxyConfigurationImpl(s3Mock.getHttpEndpoint());
     }
 
     /**
@@ -97,5 +112,13 @@ class BulkWriteS3CompatModeSimpleTest extends SharedClusterSparkIntegrationTestB
         );
         bulkWriterDataFrameWriter(df, TABLE_NAME, s3CompatOptions).save();
         sparkTestUtils.validateWrites(df.collectAsList(), queryAllData(TABLE_NAME));
+    }
+
+    public static class S3MockProxyConfigurationImpl extends S3ProxyConfigurationImpl
+    {
+        public S3MockProxyConfigurationImpl(String endpointOverride)
+        {
+            super(null, null, null, endpointOverride);
+        }
     }
 }
