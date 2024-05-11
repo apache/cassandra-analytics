@@ -116,7 +116,7 @@ class BulkWriteS3CompatModeSimpleTest extends SharedClusterSparkIntegrationTestB
 
     public static class S3MockProxyConfigurationImpl extends S3ProxyConfigurationImpl
     {
-        public S3MockProxyConfigurationImpl(String endpointOverride)
+        S3MockProxyConfigurationImpl(String endpointOverride)
         {
             super(null, null, null, endpointOverride);
         }

@@ -47,7 +47,6 @@ import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
-import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests bulk writes in different scenarios when Cassandra instances are down
