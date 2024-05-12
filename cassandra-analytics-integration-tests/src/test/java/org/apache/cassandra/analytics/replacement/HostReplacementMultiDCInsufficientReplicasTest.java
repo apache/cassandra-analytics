@@ -42,7 +42,7 @@ import org.apache.cassandra.testing.TestUtils;
 import org.apache.spark.sql.DataFrameWriter;
 import org.apache.spark.sql.Row;
 
-import static com.datastax.driver.core.ConsistencyLevel.EACH_QUORUM;
+import static org.apache.cassandra.distributed.api.ConsistencyLevel.EACH_QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;

@@ -426,7 +426,7 @@ public abstract class SharedClusterIntegrationTestBase
      */
     protected Object[][] queryAllData(QualifiedName table)
     {
-        return queryAllData(table, ConsistencyLevel.LOCAL_QUORUM.name());
+        return queryAllData(table, ConsistencyLevel.LOCAL_QUORUM);
     }
 
     /**
@@ -436,11 +436,11 @@ public abstract class SharedClusterIntegrationTestBase
      * @param consistencyLevel the consistency level to use for querying the data
      * @return all the data queried from the table
      */
-    protected Object[][] queryAllData(QualifiedName table, String consistencyLevel)
+    protected Object[][] queryAllData(QualifiedName table, ConsistencyLevel consistencyLevel)
     {
         return cluster.getFirstRunningInstance()
                       .coordinator()
-                      .execute(String.format("SELECT * FROM %s;", table), ConsistencyLevel.valueOf(consistencyLevel));
+                      .execute(String.format("SELECT * FROM %s;", table), consistencyLevel);
     }
 
     /**
@@ -451,7 +451,7 @@ public abstract class SharedClusterIntegrationTestBase
      */
     protected ResultSet queryAllDataWithDriver(QualifiedName table)
     {
-        return queryAllDataWithDriver(table, com.datastax.driver.core.ConsistencyLevel.ALL);
+        return queryAllDataWithDriver(table, ConsistencyLevel.ALL);
     }
 
     /**
@@ -461,13 +461,12 @@ public abstract class SharedClusterIntegrationTestBase
      * @param consistency the consistency level to use for querying the data
      * @return all the data queried from the table
      */
-    protected ResultSet queryAllDataWithDriver(QualifiedName table,
-                                               com.datastax.driver.core.ConsistencyLevel consistency)
+    protected ResultSet queryAllDataWithDriver(QualifiedName table, ConsistencyLevel consistency)
     {
         Cluster driverCluster = createDriverCluster(cluster.delegate());
         Session session = driverCluster.connect();
         SimpleStatement statement = new SimpleStatement(String.format("SELECT * FROM %s;", table));
-        statement.setConsistencyLevel(consistency);
+        statement.setConsistencyLevel(com.datastax.driver.core.ConsistencyLevel.valueOf(consistency.name()));
         return session.execute(statement);
     }
 

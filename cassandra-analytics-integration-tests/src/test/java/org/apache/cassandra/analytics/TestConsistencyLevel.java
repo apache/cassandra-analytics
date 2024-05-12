@@ -20,7 +20,7 @@ package org.apache.cassandra.analytics;
 
 import java.util.Objects;
 
-import com.datastax.driver.core.ConsistencyLevel;
+import org.apache.cassandra.distributed.api.ConsistencyLevel;
 
 /**
  * Encompasses reads and writes consistency levels for testing

@@ -39,9 +39,9 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
-import static com.datastax.driver.core.ConsistencyLevel.ALL;
-import static com.datastax.driver.core.ConsistencyLevel.LOCAL_QUORUM;
-import static com.datastax.driver.core.ConsistencyLevel.ONE;
+import static org.apache.cassandra.distributed.api.ConsistencyLevel.ALL;
+import static org.apache.cassandra.distributed.api.ConsistencyLevel.LOCAL_QUORUM;
+import static org.apache.cassandra.distributed.api.ConsistencyLevel.ONE;
 import static org.apache.cassandra.analytics.ResiliencyTestBase.uniqueTestTableFullName;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
@@ -75,7 +75,7 @@ class BulkWriteDownInstanceTest extends SharedClusterSparkIntegrationTestBase
         {
             dfWriter.save();
             // Validate using CQL
-            sparkTestUtils.validateWrites(df.collectAsList(), queryAllData(tableName, cl.readCL.name()));
+            sparkTestUtils.validateWrites(df.collectAsList(), queryAllData(tableName, cl.readCL));
         }
     }
 

@@ -34,7 +34,7 @@ import java.util.stream.IntStream;
 
 import com.google.common.collect.Range;
 
-import com.datastax.driver.core.ConsistencyLevel;
+import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;

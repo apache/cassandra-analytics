@@ -89,7 +89,7 @@ class BulkWriteDownSidecarTest extends SharedClusterSparkIntegrationTestBase
         {
             dfWriter.save();
             // Validate using CQL
-            sparkTestUtils.validateWrites(df.collectAsList(), queryAllData(tableName, cl.readCL.name()));
+            sparkTestUtils.validateWrites(df.collectAsList(), queryAllData(tableName, cl.readCL));
         }
     }
 
