@@ -55,7 +55,7 @@ class BulkWriteDownInstanceTest extends SharedClusterSparkIntegrationTestBase
 {
     Set<IInstance> downInstances = new HashSet<>();
 
-    @ParameterizedTest(name = "{index} => instanceDownCount={0} {1}")
+    @ParameterizedTest(name = "{index} => instanceDownCount={0}, {1}")
     @MethodSource("testInputs")
     void testHandlingOfDownedCassandraInstances(int instanceDownCount, TestConsistencyLevel cl)
     {

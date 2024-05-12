@@ -426,7 +426,7 @@ public abstract class SharedClusterIntegrationTestBase
      */
     protected Object[][] queryAllData(QualifiedName table)
     {
-        return queryAllData(table, "LOCAL_QUORUM");
+        return queryAllData(table, ConsistencyLevel.LOCAL_QUORUM.name());
     }
 
     /**
