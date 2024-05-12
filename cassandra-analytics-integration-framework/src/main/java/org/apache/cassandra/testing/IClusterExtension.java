@@ -62,12 +62,6 @@ public interface IClusterExtension<I extends IInstance> extends ICluster<I>
     IInstanceConfig newInstanceConfig();
 
     /**
-     * @param nodeNum the node number
-     * @return a newly created instances configuration for the node {@code nodeNum}
-     */
-    IInstanceConfig createInstanceConfig(int nodeNum);
-
-    /**
      * @return a reference to the delegated {@link ICluster} instance
      */
     ICluster<I> delegate();

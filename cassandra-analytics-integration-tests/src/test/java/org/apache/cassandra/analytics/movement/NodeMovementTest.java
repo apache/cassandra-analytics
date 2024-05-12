@@ -36,14 +36,15 @@ import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
+import org.apache.cassandra.analytics.TestConsistencyLevel;
 import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
-import static com.datastax.driver.core.ConsistencyLevel.ALL;
-import static com.datastax.driver.core.ConsistencyLevel.ONE;
-import static com.datastax.driver.core.ConsistencyLevel.QUORUM;
+import static org.apache.cassandra.distributed.api.ConsistencyLevel.ALL;
+import static org.apache.cassandra.distributed.api.ConsistencyLevel.ONE;
+import static org.apache.cassandra.distributed.api.ConsistencyLevel.QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3;

@@ -24,7 +24,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.Uninterruptibles;
-import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.api.Test;
 
 import net.bytebuddy.ByteBuddy;
@@ -40,15 +39,15 @@ import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.cassandra.testing.TestUtils;
+import org.apache.spark.sql.DataFrameWriter;
+import org.apache.spark.sql.Row;
 
-import static com.datastax.driver.core.ConsistencyLevel.EACH_QUORUM;
+import static org.apache.cassandra.distributed.api.ConsistencyLevel.EACH_QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3_DC2_RF3;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
  * Validate failed write operation when host replacement fails resulting in insufficient nodes. This is simulated by
@@ -62,25 +61,10 @@ class HostReplacementMultiDCInsufficientReplicasTest extends HostReplacementTest
     @Test
     void nodeReplacementFailureMultiDCInsufficientNodes()
     {
-        Throwable thrown = catchThrowable(() ->
-                                          bulkWriterDataFrameWriter(df, QUALIFIED_NAME)
-                                          .option(WriterOptions.BULK_WRITER_CL.name(), EACH_QUORUM.name())
-                                          .save());
+        DataFrameWriter<Row> dfWriter = bulkWriterDataFrameWriter(df, QUALIFIED_NAME)
+                                      .option(WriterOptions.BULK_WRITER_CL.name(), EACH_QUORUM.name());
 
-        assertThat(thrown).isInstanceOf(RuntimeException.class)
-                          .hasMessageContaining("java.lang.RuntimeException: Bulk Write to Cassandra has failed");
-
-        Throwable cause = thrown;
-
-        // Find the cause
-        while (cause != null && !StringUtils.contains(cause.getMessage(), "Failed to load"))
-        {
-            cause = cause.getCause();
-        }
-
-        assertThat(cause).isNotNull()
-                         .hasMessageFindingMatch("Failed to load (\\d+) ranges with EACH_QUORUM for " +
-                                                 "job ([a-zA-Z0-9-]+) in phase Environment Validation.");
+        sparkTestUtils.assertExpectedBulkWriteFailure(EACH_QUORUM.name(), dfWriter);
     }
 
     @Override
