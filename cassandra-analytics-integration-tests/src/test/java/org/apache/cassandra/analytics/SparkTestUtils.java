@@ -157,9 +157,9 @@ public class SparkTestUtils
                               // the quoted identifiers tests where we test mixed case
                               .set("spark.sql.caseSensitive", "True")
                               .set("spark.master", "local[8,4]")
-                              .set("spark.cassandra_analytics.sidecar.request.retries", "4")
-                              .set("spark.cassandra_analytics.sidecar.request.retries.delay.milliseconds", "250")
-                              .set("spark.cassandra_analytics.sidecar.request.retries.max.delay.milliseconds", "250");
+                              .set("spark.cassandra_analytics.sidecar.request.retries", "5")
+                              .set("spark.cassandra_analytics.sidecar.request.retries.delay.milliseconds", "500")
+                              .set("spark.cassandra_analytics.sidecar.request.retries.max.delay.milliseconds", "500");
         BulkSparkConf.setupSparkConf(sparkConf, true);
         KryoRegister.setup(sparkConf);
         return sparkConf;
