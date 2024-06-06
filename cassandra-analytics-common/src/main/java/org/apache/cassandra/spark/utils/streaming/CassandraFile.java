@@ -17,13 +17,8 @@
  * under the License.
  */
 
-rootProject.name = 'cassandra-analytics-core'
+package org.apache.cassandra.spark.utils.streaming;
 
-include 'cassandra-analytics-common'
-include 'cassandra-bridge'
-include 'cassandra-four-zero'
-include 'cassandra-four-zero-bridge'
-include 'cassandra-analytics-core'
-include 'cassandra-analytics-core-example'
-include 'cassandra-analytics-integration-framework'
-include 'cassandra-analytics-integration-tests'
+public interface CassandraFile
+{
+}

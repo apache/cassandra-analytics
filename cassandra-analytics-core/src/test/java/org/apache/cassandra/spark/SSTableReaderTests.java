@@ -111,8 +111,8 @@ public class SSTableReaderTests
                                                                           Stats.DoNothingStats.INSTANCE))
             {
                 // iterate through CompactionStreamScanner verifying it correctly compacts data together
-                Rid rid = scanner.rid();
-                while (scanner.hasNext())
+                Rid rid = scanner.data();
+                while (scanner.next())
                 {
                     scanner.advanceToNextColumn();
 

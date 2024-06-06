@@ -17,13 +17,37 @@
  * under the License.
  */
 
-rootProject.name = 'cassandra-analytics-core'
+package org.apache.cassandra.spark.reader;
 
-include 'cassandra-analytics-common'
-include 'cassandra-bridge'
-include 'cassandra-four-zero'
-include 'cassandra-four-zero-bridge'
-include 'cassandra-analytics-core'
-include 'cassandra-analytics-core-example'
-include 'cassandra-analytics-integration-framework'
-include 'cassandra-analytics-integration-tests'
+public class EmptyStreamScanner implements StreamScanner<Rid>
+{
+    public static final EmptyStreamScanner INSTANCE = new EmptyStreamScanner();
+
+    @Override
+    public Rid data()
+    {
+        return null;
+    }
+
+    @Override
+    public boolean next()
+    {
+        return false;
+    }
+
+    @Override
+    public void advanceToNextColumn()
+    {
+    }
+
+    @Override
+    public boolean hasMoreColumns()
+    {
+        return false;
+    }
+
+    @Override
+    public void close()
+    {
+    }
+}

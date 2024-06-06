@@ -17,13 +17,12 @@
  * under the License.
  */
 
-rootProject.name = 'cassandra-analytics-core'
+package org.apache.cassandra.spark.reader;
 
-include 'cassandra-analytics-common'
-include 'cassandra-bridge'
-include 'cassandra-four-zero'
-include 'cassandra-four-zero-bridge'
-include 'cassandra-analytics-core'
-include 'cassandra-analytics-core-example'
-include 'cassandra-analytics-integration-framework'
-include 'cassandra-analytics-integration-tests'
+public class ListBuffer extends ComplexTypeBuffer
+{
+    ListBuffer(int cellCount)
+    {
+        super(cellCount, cellCount);
+    }
+}

@@ -17,13 +17,21 @@
  * under the License.
  */
 
-rootProject.name = 'cassandra-analytics-core'
+package org.apache.cassandra.spark.reader;
 
-include 'cassandra-analytics-common'
-include 'cassandra-bridge'
-include 'cassandra-four-zero'
-include 'cassandra-four-zero-bridge'
-include 'cassandra-analytics-core'
-include 'cassandra-analytics-core-example'
-include 'cassandra-analytics-integration-framework'
-include 'cassandra-analytics-integration-tests'
+import org.apache.cassandra.db.rows.Cell;
+
+public class MapBuffer extends ComplexTypeBuffer
+{
+    MapBuffer(int cellCount)
+    {
+        super(cellCount, cellCount * 2);
+    }
+
+    @Override
+    void addCell(Cell cell)
+    {
+        add(cell.path().get(0));  // Map - copy over key and value
+        super.addCell(cell);
+    }
+}

@@ -22,21 +22,13 @@ package org.apache.cassandra.spark.reader;
 import java.io.Closeable;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.List;
 
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.db.Clustering;
 import org.apache.cassandra.db.ClusteringPrefix;
 import org.apache.cassandra.db.DeletionTime;
-import org.apache.cassandra.db.marshal.AbstractType;
-import org.apache.cassandra.db.marshal.ListType;
-import org.apache.cassandra.db.marshal.MapType;
-import org.apache.cassandra.db.marshal.SetType;
-import org.apache.cassandra.db.marshal.UserType;
 import org.apache.cassandra.db.partitions.UnfilteredPartitionIterator;
 import org.apache.cassandra.db.rows.Cell;
 import org.apache.cassandra.db.rows.ColumnData;
@@ -100,7 +92,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
     }
 
     @Override
-    public Rid rid()
+    public Rid data()
     {
         return rid;
     }
@@ -154,7 +146,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
 
     // CHECKSTYLE IGNORE: Long method
     @Override
-    public boolean hasNext() throws IOException
+    public boolean next() throws IOException
     {
         if (allPartitions == null)
         {
@@ -475,115 +467,6 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
 
             // Null out clustering to indicate no data
             clustering = null;
-        }
-    }
-
-    private abstract static class ComplexTypeBuffer
-    {
-        private final List<ByteBuffer> buffers;
-        private final int cellCount;
-        private int length = 0;
-
-        ComplexTypeBuffer(int cellCount, int bufferSize)
-        {
-            this.cellCount = cellCount;
-            this.buffers = new ArrayList<>(bufferSize);
-        }
-
-        static ComplexTypeBuffer newBuffer(AbstractType<?> type, int cellCount)
-        {
-            ComplexTypeBuffer buffer;
-            if (type instanceof SetType)
-            {
-                buffer = new SetBuffer(cellCount);
-            }
-            else if (type instanceof ListType)
-            {
-                buffer = new ListBuffer(cellCount);
-            }
-            else if (type instanceof MapType)
-            {
-                buffer = new MapBuffer(cellCount);
-            }
-            else if (type instanceof UserType)
-            {
-                buffer = new UdtBuffer(cellCount);
-            }
-            else
-            {
-                throw new IllegalStateException("Unexpected type deserializing CQL Collection: " + type);
-            }
-            return buffer;
-        }
-
-        void addCell(Cell cell)
-        {
-            add(cell.buffer());  // Copy over value
-        }
-
-        void add(ByteBuffer buffer)
-        {
-            buffers.add(buffer);
-            length += buffer.remaining();
-        }
-
-        ByteBuffer build()
-        {
-            ByteBuffer result = ByteBuffer.allocate(4 + (buffers.size() * 4) + length);
-            result.putInt(cellCount);
-            for (ByteBuffer buffer : buffers)
-            {
-                result.putInt(buffer.remaining());
-                result.put(buffer);
-            }
-            // Cast to ByteBuffer required when compiling with Java 8
-            return (ByteBuffer) result.flip();
-        }
-    }
-
-    private static class SetBuffer extends ComplexTypeBuffer
-    {
-        SetBuffer(int cellCount)
-        {
-            super(cellCount, cellCount);
-        }
-
-        @Override
-        void addCell(Cell cell)
-        {
-            add(cell.path().get(0));  // Set - copy over key
-        }
-    }
-
-    private static class ListBuffer extends ComplexTypeBuffer
-    {
-        ListBuffer(int cellCount)
-        {
-            super(cellCount, cellCount);
-        }
-    }
-
-    private static class MapBuffer extends ComplexTypeBuffer
-    {
-
-        MapBuffer(int cellCount)
-        {
-            super(cellCount, cellCount * 2);
-        }
-
-        @Override
-        void addCell(Cell cell)
-        {
-            add(cell.path().get(0));  // Map - copy over key and value
-            super.addCell(cell);
-        }
-    }
-
-    private static class UdtBuffer extends ComplexTypeBuffer
-    {
-        UdtBuffer(int cellCount)
-        {
-            super(cellCount, cellCount);
         }
     }
 }

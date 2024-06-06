@@ -526,8 +526,8 @@ public class SSTableReaderTests
                     try (CompactionStreamScanner scanner = new CompactionStreamScanner(metadata, partitioner, toCompact))
                     {
                         // Iterate through CompactionStreamScanner verifying it correctly compacts data together
-                        Rid rid = scanner.rid();
-                        while (scanner.hasNext())
+                        Rid rid = scanner.data();
+                        while (scanner.next())
                         {
                             scanner.advanceToNextColumn();
 
@@ -592,7 +592,7 @@ public class SSTableReaderTests
 
                     AtomicBoolean pass = new AtomicBoolean(true);
                     AtomicInteger skipCount = new AtomicInteger(0);
-                    Stats stats = new Stats()
+                    Stats<SSTable> stats = new Stats<>()
                     {
                         @Override
                         public void skippedSSTable(@Nullable SparkRangeFilter sparkRangeFilter,
@@ -652,7 +652,7 @@ public class SSTableReaderTests
 
                     AtomicBoolean pass = new AtomicBoolean(true);
                     AtomicInteger skipCount = new AtomicInteger(0);
-                    Stats stats = new Stats()
+                    Stats<SSTable> stats = new Stats<>()
                     {
                         @Override
                         public void skippedSSTable(@Nullable SparkRangeFilter sparkRangeFilter,
@@ -908,8 +908,8 @@ public class SSTableReaderTests
                     try (CompactionStreamScanner scanner = new CompactionStreamScanner(metadata, partitioner, toCompact))
                     {
                         // Iterate through CompactionScanner and verify we have all the partition keys we are looking for
-                        Rid rid = scanner.rid();
-                        while (scanner.hasNext())
+                        Rid rid = scanner.data();
+                        while (scanner.next())
                         {
                             scanner.advanceToNextColumn();
                             int a = rid.getPartitionKey().asIntBuffer().get();

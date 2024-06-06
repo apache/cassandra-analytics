@@ -92,12 +92,12 @@ public class IndexIterator<ReaderType extends IIndexReader> implements StreamSca
         }
     }
 
-    public IndexEntry rid()
+    public IndexEntry data()
     {
         return Objects.requireNonNull(curr, "advanceToNextColumn() must be called before data()");
     }
 
-    public boolean hasNext() throws IOException
+    public boolean next() throws IOException
     {
         return isRunning() && noFailures() && (hasPendingItems() || notFinished());
     }

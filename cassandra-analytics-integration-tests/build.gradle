@@ -63,6 +63,7 @@ configurations {
 }
 
 dependencies {
+    testImplementation(project(':cassandra-analytics-common'))
     testImplementation(project(':cassandra-analytics-core'))
     testImplementation(group: 'net.java.dev.jna', name: 'jna', version: '5.9.0')
 

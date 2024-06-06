@@ -39,7 +39,7 @@ import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
-import org.apache.cassandra.spark.utils.ColumnTypes;
+import org.apache.cassandra.spark.utils.FastThreadLocalUtf8Decoder;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
@@ -106,7 +106,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         long openTimeNanos = System.nanoTime() - startTimeNanos;
         LOGGER.info("Opened CompactionScanner runtimeNanos={}", openTimeNanos);
         stats.openedCompactionScanner(openTimeNanos);
-        rid = scanner.rid();
+        rid = scanner.data();
         stats.openedSparkCellIterator();
         firstProjectedValueColumnPositionOrZero = maybeGetPositionOfFirstProjectedValueColumnOrZero();
     }
@@ -170,7 +170,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
 
     private boolean getNext() throws IOException
     {
-        while (scanner.hasNext())
+        while (scanner.next())
         {
             // If hasNext returns true, it indicates the partition keys has been loaded into the rid.
             // Therefore, let's try to rebuild partition.
@@ -190,8 +190,8 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
             maybeRebuildClusteringKeys(columnNameBuf);
 
             // Deserialize CQL field column name
-            ByteBuffer component = ColumnTypes.extractComponent(columnNameBuf, cqlTable.numClusteringKeys());
-            String columnName = component != null ? ByteBufferUtils.stringThrowRuntime(component) : null;
+            ByteBuffer component = ByteBufferUtils.extractComponent(columnNameBuf, cqlTable.numClusteringKeys());
+            String columnName = component != null ? FastThreadLocalUtf8Decoder.stringThrowRuntime(component) : null;
             if (columnName == null || columnName.isEmpty())
             {
                 if (!hasProjectedValueColumns || !scanner.hasMoreColumns())
@@ -300,7 +300,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         else
         {
             // Split composite partition keys
-            ByteBuffer[] partitionKeyBufs = ColumnTypes.split(partitionKey, table.numPartitionKeys());
+            ByteBuffer[] partitionKeyBufs = ByteBufferUtils.split(partitionKey, table.numPartitionKeys());
             int index = 0;
             for (CqlField field : table.partitionKeys())
             {
@@ -323,7 +323,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         int index = 0;
         for (CqlField field : clusteringKeys)
         {
-            Object newObj = deserialize(field, ColumnTypes.extractComponent(columnNameBuf, index++));
+            Object newObj = deserialize(field, ByteBufferUtils.extractComponent(columnNameBuf, index++));
             Object oldObj = values[field.position()];
             if (newRow || oldObj == null || newObj == null || !field.equals(newObj, oldObj))
             {

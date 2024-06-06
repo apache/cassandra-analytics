@@ -39,8 +39,8 @@ import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
-import org.apache.cassandra.spark.utils.streaming.SSTableInputStream;
-import org.apache.cassandra.spark.utils.streaming.SSTableSource;
+import org.apache.cassandra.spark.utils.streaming.BufferingInputStream;
+import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -171,21 +171,21 @@ public class SidecarProvisionedSSTable extends SSTable
 
     public InputStream open(ListSnapshotFilesResponse.FileInfo fileInfo, FileType fileType)
     {
-        SSTableSource<SidecarProvisionedSSTable> ssTableSource = source(fileInfo, fileType);
-        return new SSTableInputStream<>(ssTableSource, stats);
+        CassandraFileSource<SidecarProvisionedSSTable> ssTableSource = source(fileInfo, fileType);
+        return new BufferingInputStream<>(ssTableSource, stats);
     }
 
     /**
-     * Build an SSTableSource to async provide the bytes
+     * Build an CassandraFileSource to async provide the bytes
      *
      * @param fileInfo contains information about the file to stream
      * @param fileType SSTable file type
-     * @return an SSTableSource implementation that uses Sidecar client to request bytes
+     * @return an CassandraFileSource implementation that uses Sidecar client to request bytes
      */
-    private SSTableSource<SidecarProvisionedSSTable> source(ListSnapshotFilesResponse.FileInfo fileInfo, FileType fileType)
+    private CassandraFileSource<SidecarProvisionedSSTable> source(ListSnapshotFilesResponse.FileInfo fileInfo, FileType fileType)
     {
         SidecarProvisionedSSTable thisSSTable = this;
-        return new SSTableSource<SidecarProvisionedSSTable>()
+        return new CassandraFileSource<SidecarProvisionedSSTable>()
         {
             @Override
             public void request(long start, long end, StreamConsumer consumer)

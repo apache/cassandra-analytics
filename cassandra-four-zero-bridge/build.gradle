@@ -29,6 +29,7 @@ configurations {
 }
 
 dependencies {
+    compileOnly project(":cassandra-analytics-common")
     compileOnly(project(':cassandra-bridge'))
 
     compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
@@ -36,6 +37,7 @@ dependencies {
 
     compileOnly(project(path: ':cassandra-four-zero', configuration: 'shadow'))
 
+    testImplementation project(":cassandra-analytics-common")
     testImplementation(project(':cassandra-bridge'))
     testImplementation(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")

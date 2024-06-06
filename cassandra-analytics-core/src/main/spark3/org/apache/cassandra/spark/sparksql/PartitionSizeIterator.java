@@ -60,11 +60,11 @@ public class PartitionSizeIterator implements PartitionReader<InternalRow>
      */
     public boolean next() throws IOException
     {
-        if (it.hasNext())
+        if (it.next())
         {
             it.advanceToNextColumn();
 
-            IndexEntry entry = it.rid();
+            IndexEntry entry = it.data();
             Object[] values = new Object[numPartitionKeys + 2];
 
             SparkCellIterator.readPartitionKey(entry.getPartitionKey(), cqlTable, values, stats);

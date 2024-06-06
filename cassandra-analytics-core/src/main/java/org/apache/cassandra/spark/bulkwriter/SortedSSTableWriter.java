@@ -186,7 +186,7 @@ public class SortedSSTableWriter
             DataLayer layer = new LocalDataLayer(version, keyspace, schema, udtStatements, directory);
             try (StreamScanner<Rid> scanner = layer.openCompactionScanner(partitionId, Collections.emptyList(), null))
             {
-                while (scanner.hasNext())
+                while (scanner.next())
                 {
                     scanner.advanceToNextColumn();
                 }
