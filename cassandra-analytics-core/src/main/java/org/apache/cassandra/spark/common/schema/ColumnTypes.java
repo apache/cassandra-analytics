@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.common.schema;
 
 import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.Date;
 
 @SuppressWarnings("unused")  // Extra types can become useful in the future
 public final class ColumnTypes implements Serializable
@@ -34,6 +35,7 @@ public final class ColumnTypes implements Serializable
     public static final ColumnType<java.util.UUID> UUID = new UuidType();
     public static final ColumnType<Double> DOUBLE = new DoubleType();
     public static final ColumnType<Boolean> BOOLEAN = new BooleanType();
+    public static final ColumnType<Date> TIMESTAMP = new TimestampType();
 
     // Nullable Types
     public static final ColumnType<String> NULLABLE_STRING = new StringType()

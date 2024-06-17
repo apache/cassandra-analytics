@@ -103,7 +103,6 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
                       .withConfig(config -> configuration.features.forEach(config::with))
                       .withTokenSupplier(tokenSupplier);
 
-
         if (dcCount > 1)
         {
             clusterBuilder.withNodeIdTopology(networkTopology(finalNodeCount,

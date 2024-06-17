@@ -26,6 +26,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -56,6 +58,10 @@ import static org.assertj.core.api.Assertions.catchThrowable;
  */
 public class SparkTestUtils
 {
+    static final Function<Object[], String> DEFAULT_COLUMNS_MAPPER = (Object[] columns) -> String.format("%s:%s:%s",
+                                                                                                         columns[0],
+                                                                                                         columns[1],
+                                                                                                         columns[2]);
     protected ICluster<? extends IInstance> cluster;
     protected DnsResolver dnsResolver;
     protected int sidecarPort;
@@ -167,12 +173,18 @@ public class SparkTestUtils
 
     public void validateWrites(List<Row> sourceData, Object[][] queriedData)
     {
+        validateWrites(sourceData, queriedData, null, Row::getInt);
+    }
+
+    public void validateWrites(List<Row> sourceData, Object[][] queriedData,
+                               Function<Object[], String> columnsMapper,
+                               BiFunction<Row, Integer, Object> extractKeyFromRowFn)
+    {
+        columnsMapper = columnsMapper != null ? columnsMapper : DEFAULT_COLUMNS_MAPPER;
+
         // build a set of entries read from Cassandra into a set
         Set<String> actualEntries = Arrays.stream(queriedData)
-                                          .map((Object[] columns) -> String.format("%s:%s:%s",
-                                                                                   columns[0],
-                                                                                   columns[1],
-                                                                                   columns[2]))
+                                          .map(columnsMapper)
                                           .collect(Collectors.toSet());
 
         // Number of entries in Cassandra must match the original datasource
@@ -180,8 +192,8 @@ public class SparkTestUtils
 
         // remove from actual entries to make sure that the data read is the same as the data written
         sourceData.forEach(row -> {
-            String key = String.format("%d:%s:%d",
-                                       row.getInt(0),
+            String key = String.format("%s:%s:%d",
+                                       extractKeyFromRowFn.apply(row, 0),
                                        row.getString(1),
                                        row.getInt(2));
             assertThat(actualEntries.remove(key)).as(key + " is expected to exist in the actual entries")
