@@ -19,26 +19,41 @@
 
 package org.apache.cassandra.spark.common.schema;
 
-import java.io.Serializable;
 import java.nio.ByteBuffer;
+import java.util.Date;
 
-public interface ColumnType<T> extends Serializable
+/**
+ * Provides functionality to convert {@link ByteBuffer}s to a {@link Date} column type and to serialize
+ * {@link Date} types to {@link ByteBuffer}s
+ */
+public class TimestampType implements ColumnType<Date>
 {
+    public static final int TYPE_SIZE = Long.SIZE / Byte.SIZE;
+
     /**
      * Parses a value of this type from buffer. Value will be parsed from current position of the buffer. After
      * completion of the function, position will be moved by "length" bytes.
      *
      * @param buffer Buffer to parse column from
      * @param length Serialized value size in buffer is as big as length
-     * @return value as Java type
+     * @return value as {@link Date} type
      */
-    T parseColumn(ByteBuffer buffer, int length);
+    @Override
+    public Date parseColumn(ByteBuffer buffer, int length)
+    {
+        assert length == TYPE_SIZE;
+        return new Date(buffer.getLong());
+    }
 
     /**
-     * Serialize into ByteBuffer and keeps the position at beginning of ByteBuffer
+     * Serialize {@link Date} into ByteBuffer and keeps the position at beginning of ByteBuffer
      *
      * @param value the value to serialize
      * @return A ByteBuffer containing the serialized value
      */
-    ByteBuffer serialize(T value);
+    @Override
+    public ByteBuffer serialize(Date value)
+    {
+        return ByteBuffer.allocate(TYPE_SIZE).putLong(0, value.getTime());
+    }
 }

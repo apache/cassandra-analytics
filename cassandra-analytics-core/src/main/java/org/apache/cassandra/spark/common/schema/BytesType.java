@@ -33,12 +33,6 @@ public class BytesType implements ColumnType<ByteBuffer>
     }
 
     @Override
-    public ByteBuffer getDefault()
-    {
-        return ByteBuffer.wrap(new byte[0]);
-    }
-
-    @Override
     public ByteBuffer serialize(ByteBuffer value)
     {
         int position = value.position();

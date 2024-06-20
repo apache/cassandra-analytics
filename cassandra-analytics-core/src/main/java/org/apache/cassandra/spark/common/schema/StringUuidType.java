@@ -31,12 +31,6 @@ public class StringUuidType implements ColumnType<String>
     }
 
     @Override
-    public String getDefault()
-    {
-        return "";
-    }
-
-    @Override
     public ByteBuffer serialize(String valueStr)
     {
         UUID value = UUID.fromString(valueStr);

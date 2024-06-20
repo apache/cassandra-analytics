@@ -38,12 +38,6 @@ public class BooleanType implements ColumnType<Boolean>
     }
 
     @Override
-    public Boolean getDefault()
-    {
-        return false;
-    }
-
-    @Override
     public ByteBuffer serialize(Boolean value)
     {
         return ByteBuffer.allocate(1).put(0, (byte) (value ? 1 : 0));
