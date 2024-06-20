@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.common.schema;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 public abstract class CollectionType<EntryType, IntermediateType> implements ColumnType<Collection<EntryType>>, Serializable
@@ -35,13 +34,9 @@ public abstract class CollectionType<EntryType, IntermediateType> implements Col
 
     public abstract IntermediateType parseCollectionColumn(ByteBuffer colNameSuffix, ByteBuffer colValue);
 
-    public Collection<EntryType> getDefault()
-    {
-        return Collections.emptyList();
-    }
-
     public abstract List<EntryType> finaliseCollection(List<IntermediateType> entryList);
 
+    @Override
     public ByteBuffer serialize(Collection<EntryType> value)
     {
         throw new UnsupportedOperationException("Doesn't make much sense");

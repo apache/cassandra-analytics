@@ -23,22 +23,18 @@ import java.nio.ByteBuffer;
 
 public class LongType implements ColumnType<Long>
 {
+    public static final int TYPE_SIZE = Long.SIZE / Byte.SIZE;
+
     @Override
     public Long parseColumn(ByteBuffer buffer, int length)
     {
-        assert length == Long.SIZE / Byte.SIZE;
+        assert length == TYPE_SIZE;
         return buffer.getLong();
-    }
-
-    @Override
-    public Long getDefault()
-    {
-        return 0L;
     }
 
     @Override
     public ByteBuffer serialize(Long value)
     {
-        return ByteBuffer.allocate(Long.SIZE / Byte.SIZE).putLong(0, value);
+        return ByteBuffer.allocate(TYPE_SIZE).putLong(0, value);
     }
 }

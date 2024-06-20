@@ -20,29 +20,21 @@
 package org.apache.cassandra.spark.common.schema;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 public class StringType implements ColumnType<String>
 {
-    private static final Charset UTF_8 = Charset.forName("UTF-8");
-
     @Override
     public String parseColumn(ByteBuffer buffer, int length)
     {
         byte[] value = new byte[length];
         buffer.get(value, 0, length);
-        return new String(value, UTF_8);
-    }
-
-    @Override
-    public String getDefault()
-    {
-        return "";
+        return new String(value, StandardCharsets.UTF_8);
     }
 
     @Override
     public ByteBuffer serialize(String value)
     {
-        return ByteBuffer.wrap(value.getBytes(UTF_8));
+        return ByteBuffer.wrap(value.getBytes(StandardCharsets.UTF_8));
     }
 }

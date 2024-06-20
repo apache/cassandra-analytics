@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -49,6 +48,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
+import org.jetbrains.annotations.NotNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -58,10 +58,15 @@ import static org.assertj.core.api.Assertions.catchThrowable;
  */
 public class SparkTestUtils
 {
-    static final Function<Object[], String> DEFAULT_COLUMNS_MAPPER = (Object[] columns) -> String.format("%s:%s:%s",
-                                                                                                         columns[0],
-                                                                                                         columns[1],
-                                                                                                         columns[2]);
+    /**
+     * Maps a row queried from Cassandra, represented as an object array, and it produces a string representation
+     * to perform validation of data written by a bulk writer job
+     */
+    public static final Function<Object[], String> VALIDATION_DEFAULT_COLUMNS_MAPPER = columns -> String.format("%s:%s:%s", columns[0], columns[1], columns[2]);
+    /**
+     * Maps a {@link Row} to a string representation used to validate data written by a bulk writer job
+     */
+    public static final Function<Row, String> VALIDATION_DEFAULT_ROW_MAPPER = row -> String.format("%s:%s:%d", row.get(0), row.get(1), row.getInt(2));
     protected ICluster<? extends IInstance> cluster;
     protected DnsResolver dnsResolver;
     protected int sidecarPort;
@@ -173,15 +178,14 @@ public class SparkTestUtils
 
     public void validateWrites(List<Row> sourceData, Object[][] queriedData)
     {
-        validateWrites(sourceData, queriedData, null, Row::getInt);
+        validateWrites(sourceData, queriedData, VALIDATION_DEFAULT_COLUMNS_MAPPER, VALIDATION_DEFAULT_ROW_MAPPER);
     }
 
-    public void validateWrites(List<Row> sourceData, Object[][] queriedData,
-                               Function<Object[], String> columnsMapper,
-                               BiFunction<Row, Integer, Object> extractKeyFromRowFn)
+    public void validateWrites(List<Row> sourceData,
+                               @NotNull Object[][] queriedData,
+                               @NotNull Function<Object[], String> columnsMapper,
+                               @NotNull Function<Row, String> rowMapper)
     {
-        columnsMapper = columnsMapper != null ? columnsMapper : DEFAULT_COLUMNS_MAPPER;
-
         // build a set of entries read from Cassandra into a set
         Set<String> actualEntries = Arrays.stream(queriedData)
                                           .map(columnsMapper)
@@ -192,10 +196,7 @@ public class SparkTestUtils
 
         // remove from actual entries to make sure that the data read is the same as the data written
         sourceData.forEach(row -> {
-            String key = String.format("%s:%s:%d",
-                                       extractKeyFromRowFn.apply(row, 0),
-                                       row.getString(1),
-                                       row.getInt(2));
+            String key = rowMapper.apply(row);
             assertThat(actualEntries.remove(key)).as(key + " is expected to exist in the actual entries")
                                                  .isTrue();
         });

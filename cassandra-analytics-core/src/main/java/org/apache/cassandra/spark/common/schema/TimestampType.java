@@ -28,7 +28,7 @@ import java.util.Date;
  */
 public class TimestampType implements ColumnType<Date>
 {
-    private static final Date DEFAULT_DATE = new Date(0L);
+    public static final int TYPE_SIZE = Long.SIZE / Byte.SIZE;
 
     /**
      * Parses a value of this type from buffer. Value will be parsed from current position of the buffer. After
@@ -41,19 +41,8 @@ public class TimestampType implements ColumnType<Date>
     @Override
     public Date parseColumn(ByteBuffer buffer, int length)
     {
-        assert length == Long.SIZE / Byte.SIZE;
+        assert length == TYPE_SIZE;
         return new Date(buffer.getLong());
-    }
-
-    /**
-     * Default value, in case column value doesn't exist for CQL row
-     *
-     * @return the default value for the column type
-     */
-    @Override
-    public Date getDefault()
-    {
-        return DEFAULT_DATE;
     }
 
     /**
@@ -65,6 +54,6 @@ public class TimestampType implements ColumnType<Date>
     @Override
     public ByteBuffer serialize(Date value)
     {
-        return ByteBuffer.allocate(Long.SIZE / Byte.SIZE).putLong(0, value.getTime());
+        return ByteBuffer.allocate(TYPE_SIZE).putLong(0, value.getTime());
     }
 }

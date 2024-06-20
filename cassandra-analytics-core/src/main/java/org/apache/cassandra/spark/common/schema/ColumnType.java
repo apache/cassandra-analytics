@@ -35,13 +35,6 @@ public interface ColumnType<T> extends Serializable
     T parseColumn(ByteBuffer buffer, int length);
 
     /**
-     * Default value, in case column value doesn't exist for CQL row
-     *
-     * @return the default value for the column type
-     */
-    T getDefault();
-
-    /**
      * Serialize into ByteBuffer and keeps the position at beginning of ByteBuffer
      *
      * @param value the value to serialize

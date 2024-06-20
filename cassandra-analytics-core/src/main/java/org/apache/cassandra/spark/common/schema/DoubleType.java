@@ -37,12 +37,6 @@ public class DoubleType implements ColumnType<Double>
     }
 
     @Override
-    public Double getDefault()
-    {
-        return 0d;
-    }
-
-    @Override
     public ByteBuffer serialize(Double value)
     {
         return ByteBuffer.allocate(8).putDouble(0, value);

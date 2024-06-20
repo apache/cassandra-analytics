@@ -43,12 +43,6 @@ public class UuidType implements ColumnType<UUID>
     }
 
     @Override
-    public UUID getDefault()
-    {
-        return UUID.randomUUID();
-    }
-
-    @Override
     public ByteBuffer serialize(UUID value)
     {
         return ByteBuffer.allocate(16).putLong(0, value.getMostSignificantBits()).putLong(8, value.getLeastSignificantBits());
