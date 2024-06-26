@@ -51,7 +51,7 @@ public class TestTokenSupplier
      */
     public static TokenSupplier evenlyDistributedTokens(int numNodesPerDC, int newNodesPerDC, int numDcs, int numTokensPerNode)
     {
-        return evenlyDistributedTokens(Partitioner.Random, numNodesPerDC, newNodesPerDC, numDcs, numTokensPerNode);
+        return evenlyDistributedTokens(Partitioner.Murmur3, numNodesPerDC, newNodesPerDC, numDcs, numTokensPerNode);
     }
 
     /**
@@ -79,7 +79,7 @@ public class TestTokenSupplier
         // broadened by a factor of numDcs.
         BigInteger increment = partitioner.maxToken.subtract(partitioner.minToken.add(BigInteger.ONE))
                                                    .multiply(BigInteger.valueOf(numDcs))
-                                                   .divide(BigInteger.valueOf(totalTokens + 2));//BigInteger.valueOf(((partitioner.maxToken / (totalTokens + 2)) * 2 * numDcs));
+                                                   .divide(BigInteger.valueOf(totalTokens + 2));
         List<String>[] tokens = allocateExistingNodeTokens(partitioner,
                                                            numNodesPerDC,
                                                            newNodesPerDC,

@@ -104,7 +104,8 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
         Consumer<IInstanceConfig> instanceConfigUpdater;
         if (configuration.partitioner != null)
         {
-            tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(Partitioner.fromClassName(configuration.partitioner), nodesPerDc, newNodesPerDc, dcCount, 1);
+            tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(Partitioner.fromClassName(configuration.partitioner),
+                                                                      nodesPerDc, newNodesPerDc, dcCount, 1);
             instanceConfigUpdater = instanceConfig -> {
                 instanceConfig.set("partitioner", configuration.partitioner);
                 configuration.features.forEach(instanceConfig::with);
