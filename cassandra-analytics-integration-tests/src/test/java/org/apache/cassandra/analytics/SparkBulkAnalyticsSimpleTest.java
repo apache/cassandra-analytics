@@ -40,7 +40,7 @@ import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
-class SparkBulkWriterSimpleTest extends SharedClusterSparkIntegrationTestBase
+class SparkBulkAnalyticsSimpleTest extends SharedClusterSparkIntegrationTestBase
 {
     static final QualifiedName QUALIFIED_NAME = new QualifiedName(TEST_KEYSPACE, "test");
 

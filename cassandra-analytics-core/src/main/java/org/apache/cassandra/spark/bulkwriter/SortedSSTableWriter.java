@@ -42,6 +42,7 @@ import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.data.LocalDataLayer;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
@@ -181,9 +182,18 @@ public class SortedSSTableWriter
             CassandraVersion version = CassandraBridgeFactory.getCassandraVersion(writerContext.cluster().getLowestCassandraVersion());
             String keyspace = writerContext.job().qualifiedTableName().keyspace();
             String schema = writerContext.schema().getTableSchema().createStatement;
+            Partitioner partitioner = writerContext.cluster().getPartitioner();
             Set<String> udtStatements = writerContext.schema().getUserDefinedTypeStatements();
             String directory = getOutDir().toString();
-            DataLayer layer = new LocalDataLayer(version, keyspace, schema, udtStatements, directory);
+            DataLayer layer = new LocalDataLayer(version,
+                                                 partitioner,
+                                                 keyspace,
+                                                 schema,
+                                                 udtStatements,
+                                                 Collections.emptyList() /* requestedFeatures */,
+                                                 false /* useSSTableInputStream */,
+                                                 null /* statsClass */,
+                                                 directory);
             try (StreamScanner<Rid> scanner = layer.openCompactionScanner(partitionId, Collections.emptyList(), null))
             {
                 while (scanner.hasNext())
