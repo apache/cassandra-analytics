@@ -1,4 +1,5 @@
 1.0.0
+ * Bulk writer fails validation stage when writing to a cluster using RandomPartitioner (CASSANDRA-19727)
  * Invalid mapping when timestamp is used as a partition key during bulk writes (CASSANDRA-19716)
  * NullPointerException when reading static column with null values (CASSANDRA-19626)
  * Integrate with the latest sidecar client (CASSANDRA-19616)

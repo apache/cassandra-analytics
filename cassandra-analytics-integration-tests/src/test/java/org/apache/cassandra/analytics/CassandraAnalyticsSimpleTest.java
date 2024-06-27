@@ -40,7 +40,10 @@ import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
-class SparkBulkWriterSimpleTest extends SharedClusterSparkIntegrationTestBase
+/**
+ * A simple test that runs a sample read/write Cassandra Analytics job.
+ */
+class CassandraAnalyticsSimpleTest extends SharedClusterSparkIntegrationTestBase
 {
     static final QualifiedName QUALIFIED_NAME = new QualifiedName(TEST_KEYSPACE, "test");
 
