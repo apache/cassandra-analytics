@@ -22,12 +22,12 @@ package org.apache.cassandra.analytics;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
 /**
- * Runs test from {@link SparkBulkAnalyticsSimpleTest} with the {@code RandomPartitioner}.
+ * Runs test from {@link CassandraAnalyticsSimpleTest} with the {@code RandomPartitioner}.
  */
-class RandomPartitionerTest extends SparkBulkAnalyticsSimpleTest
+class RandomPartitionerTest extends CassandraAnalyticsSimpleTest
 {
     /**
-     * Inherit the configuration for the cluster from {@link SparkBulkAnalyticsSimpleTest} and set the
+     * Inherit the configuration for the cluster from {@link CassandraAnalyticsSimpleTest} and set the
      * partitioner to be the RandomPartitioner.
      *
      * @return the updated configuration for the cluster
