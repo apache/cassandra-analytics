@@ -49,30 +49,31 @@ import java.io.IOException;
  * <p>
  * Upon return from the next() call the current values of the scanner can be obtained by calling
  * the methods in Rid, getPartitionKey(), getColumnName(), getValue().
+ *
  * @param <Type> type of object returned by rid() method.
  */
 @SuppressWarnings("unused")
 public interface StreamScanner<Type> extends Closeable
 {
     /**
-     * Expose the data/rid to be consumed.
-     * Implementation note: rid should always be updated to the current partition if hasNext returns true.
+     * Expose the data to be consumed.
+     * Implementation note: data should always be updated to the current partition if next returns true.
      *
-     * @return rid
+     * @return data of <Type>
      */
     Type data();
 
     /**
-     * Indicate if there are more data/rid avaiable
+     * Indicate if there are more data avaiable to read.
      *
-     * @return true when the rid is available to be consumed;
+     * @return true when the data is available to be consumed;
      * otherwise, return false to indicate the scanner has exhausted
      * @throws IOException
      */
     boolean next() throws IOException;
 
     /**
-     * Consume the data from the next column and store in rid
+     * Consume the data from the next column and store to be returned by {@link StreamScanner::data} method
      *
      * @throws IOException
      */

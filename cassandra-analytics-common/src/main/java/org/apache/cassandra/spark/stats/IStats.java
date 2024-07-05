@@ -22,6 +22,11 @@ package org.apache.cassandra.spark.stats;
 import org.apache.cassandra.spark.utils.streaming.CassandraFile;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 
+/**
+ * Generic Stats interface that works across all CassandraFile FileTypes.
+ *
+ * @param <FileType>
+ */
 public interface IStats<FileType extends CassandraFile>
 {
     default void inputStreamEnd(CassandraFileSource<FileType> source, long runTimeNanos, long totalNanosBlocked)

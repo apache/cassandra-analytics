@@ -30,6 +30,10 @@ import org.apache.cassandra.db.marshal.SetType;
 import org.apache.cassandra.db.marshal.UserType;
 import org.apache.cassandra.db.rows.Cell;
 
+/**
+ * ComplexTypeBuffer is a util class for reconstructing multi-cell data into complex types such as unfrozen lists, maps, sets, or UDTs.
+ * ComplexTypeBuffer buffers all the cell ByteBuffers then reconstructs as a single ByteBuffer.
+ */
 public abstract class ComplexTypeBuffer
 {
     private final List<ByteBuffer> buffers;
