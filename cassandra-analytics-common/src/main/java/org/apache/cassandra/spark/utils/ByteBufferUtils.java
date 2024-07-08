@@ -235,17 +235,17 @@ public final class ByteBufferUtils
 
     public static ByteBuffer[] split(ByteBuffer name, int numKeys)
     {
-        // Assume all components, we'll trunk the array afterwards if need be, but most names will be complete
-        ByteBuffer[] l = new ByteBuffer[numKeys];
+        // Assume all components, we truncate the array at the end if necessary, but most names will be complete.
+        ByteBuffer[] components = new ByteBuffer[numKeys];
         ByteBuffer buffer = name.duplicate();
         readStatic(buffer);
         int index = 0;
         while (buffer.remaining() > 0)
         {
-            l[index++] = readBytesWithShortLength(buffer);
+            components[index++] = readBytesWithShortLength(buffer);
             buffer.get();  // Skip end-of-component
         }
-        return index == l.length ? l : Arrays.copyOfRange(l, 0, index);
+        return index == components.length ? components : Arrays.copyOfRange(components, 0, index);
     }
 
     public static void readStatic(ByteBuffer buffer)
