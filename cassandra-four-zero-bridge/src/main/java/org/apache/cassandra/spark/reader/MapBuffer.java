@@ -23,6 +23,7 @@ import org.apache.cassandra.db.rows.Cell;
 
 public class MapBuffer extends ComplexTypeBuffer
 {
+    // MapBuffer requires 2x the number of buffers, one for the key and value.
     MapBuffer(int cellCount)
     {
         super(cellCount, cellCount * 2);

@@ -56,10 +56,10 @@ import java.io.IOException;
 public interface StreamScanner<Type> extends Closeable
 {
     /**
-     * Expose the data to be consumed.
-     * Implementation note: data should always be updated to the current partition if next returns true.
+     * Exposes the data to be consumed.
+     * <p>Implementation note: The data should always be updated to the current partition if {@code next} returns {@code true}.</p>
      *
-     * @return data of <Type>
+     * @return data of type {@code Type}
      */
     Type data();
 
@@ -73,7 +73,7 @@ public interface StreamScanner<Type> extends Closeable
     boolean next() throws IOException;
 
     /**
-     * Consume the data from the next column and store to be returned by {@link StreamScanner::data} method
+     * Consume the data from the next column and store to be returned by {@code data} method
      *
      * @throws IOException
      */

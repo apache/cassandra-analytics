@@ -31,36 +31,29 @@ public interface IStats<FileType extends CassandraFile>
 {
     default void inputStreamEnd(CassandraFileSource<FileType> source, long runTimeNanos, long totalNanosBlocked)
     {
-
     }
 
     default void inputStreamEndBuffer(CassandraFileSource<FileType> ssTable)
     {
-
     }
 
     default void inputStreamTimeBlocked(CassandraFileSource<FileType> source, long nanos)
     {
-
     }
 
     default void inputStreamByteRead(CassandraFileSource<FileType> source, int len, int queueSize, int percentComplete)
     {
-
     }
 
     default void inputStreamFailure(CassandraFileSource<FileType> source, Throwable t)
     {
-
     }
 
     default void inputStreamBytesWritten(CassandraFileSource<FileType> ssTable, int len)
     {
-
     }
 
     default void inputStreamBytesSkipped(CassandraFileSource<FileType> source, long bufferedSkipped, long rangeSkipped)
     {
-
     }
 }

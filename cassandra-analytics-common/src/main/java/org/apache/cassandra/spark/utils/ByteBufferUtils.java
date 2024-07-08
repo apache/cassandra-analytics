@@ -35,6 +35,7 @@ import java.util.function.Supplier;
 public final class ByteBufferUtils
 {
     public static final ThreadLocal<CharsetDecoder> UTF8_DECODER_PROVIDER = ThreadLocal.withInitial(StandardCharsets.UTF_8::newDecoder);
+    // the static column marker used in Cassandra, see org.apache.cassandra.db.marshal.CompositeType::STATIC_MARKER
     public static final int STATIC_MARKER = 0xFFFF;
     private static final String EMPTY_STRING = "";
     private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
@@ -97,11 +98,7 @@ public final class ByteBufferUtils
      */
     public static String string(ByteBuffer buffer, Supplier<CharsetDecoder> decoderSupplier) throws CharacterCodingException
     {
-        if (buffer.remaining() <= 0)
-        {
-            return EMPTY_STRING;
-        }
-        return decoderSupplier.get().decode(buffer.duplicate()).toString();
+        return buffer.remaining() <= 0 ? EMPTY_STRING : decoderSupplier.get().decode(buffer.duplicate()).toString();
     }
 
     public static String string(ByteBuffer buffer) throws CharacterCodingException
@@ -224,10 +221,10 @@ public final class ByteBufferUtils
         int index = 0;
         while (buffer.remaining() > 0)
         {
-            ByteBuffer c = readBytesWithShortLength(buffer);
+            ByteBuffer component = readBytesWithShortLength(buffer);
             if (index == position)
             {
-                return c;
+                return component;
             }
 
             buffer.get();  // Skip end-of-component

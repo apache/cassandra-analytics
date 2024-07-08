@@ -85,7 +85,7 @@ public abstract class ComplexTypeBuffer
 
     ByteBuffer build()
     {
-        ByteBuffer result = ByteBuffer.allocate(4 + (buffers.size() * 4) + length);
+        ByteBuffer result = ByteBuffer.allocate(Integer.BYTES + (buffers.size() * Integer.BYTES) + length);
         result.putInt(cellCount);
         for (ByteBuffer buffer : buffers)
         {

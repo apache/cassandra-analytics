@@ -19,6 +19,9 @@
 
 package org.apache.cassandra.spark.utils.streaming;
 
+/**
+ * High-level interface representing a type of Cassandra file, such as SSTable or CommitLog.
+ */
 public interface CassandraFile
 {
 }

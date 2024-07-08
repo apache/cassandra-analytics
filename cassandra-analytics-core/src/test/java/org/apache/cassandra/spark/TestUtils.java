@@ -167,7 +167,7 @@ public final class TestUtils
                                            .option("createStmt", createStmt)
                                            .option("dirs", dir.toAbsolutePath().toString())
                                            .option("version", version.toString())
-                                           .option("useBufferingInputStream", true) // use in the test system to test the BufferingInputStream
+                                           .option("useBufferingInputStream", true)  // Use in the test system to test the BufferingInputStream
                                            .option("partitioner", partitioner.name())
                                            .option("udts", udts.stream().map(f -> f.createStatement(bridge, keyspace)).collect(Collectors.joining("\n")));
         if (statsClass != null)
