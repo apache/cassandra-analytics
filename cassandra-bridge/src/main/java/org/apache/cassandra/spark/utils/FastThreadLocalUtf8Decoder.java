@@ -34,7 +34,7 @@ public final class FastThreadLocalUtf8Decoder
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    private final static FastThreadLocal<CharsetDecoder> UTF8_DECODER = new FastThreadLocal<CharsetDecoder>()
+    private static final FastThreadLocal<CharsetDecoder> UTF8_DECODER = new FastThreadLocal<CharsetDecoder>()
     {
         @Override
         protected CharsetDecoder initialValue()
