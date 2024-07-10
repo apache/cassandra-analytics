@@ -1948,7 +1948,7 @@ public class EndToEndTests
     }
 
     @SuppressWarnings("unused")  // Actually used via reflection in testLargeBlobExclude()
-    public static final Stats<SSTable> STATS = new Stats<>()
+    public static final Stats<SSTable> STATS = new Stats<SSTable>()
     {
         @Override
         public void skippedBytes(long length)

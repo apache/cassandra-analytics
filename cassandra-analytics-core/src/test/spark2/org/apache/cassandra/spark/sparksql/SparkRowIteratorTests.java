@@ -40,7 +40,7 @@ import org.apache.cassandra.spark.reader.Rid;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.stats.Stats;
-import org.apache.cassandra.spark.utils.ColumnTypes;
+import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -189,7 +189,7 @@ public class SparkRowIteratorTests
 
         // Mock scanner
         StreamScanner scanner = mock(StreamScanner.class);
-        when(scanner.rid()).thenReturn(rid);
+        when(scanner.data()).thenReturn(rid);
         doAnswer(invocation -> {
             int col = colPos.getAndIncrement();
             if (rowPos.get() >= numRows)
@@ -215,7 +215,7 @@ public class SparkRowIteratorTests
                         partitionBuffers[position] = partitionKey.serialize(testRow.get(partitionKey.position()));
                         position++;
                     }
-                    rid.setPartitionKeyCopy(ColumnTypes.build(false, partitionBuffers), BigInteger.ONE);
+                    rid.setPartitionKeyCopy(ByteBufferUtils.build(false, partitionBuffers), BigInteger.ONE);
                 }
             }
 
@@ -229,7 +229,7 @@ public class SparkRowIteratorTests
                 position++;
             }
             colBuffers[position] = bridge.ascii().serialize(column.name());
-            rid.setColumnNameCopy(ColumnTypes.build(false, colBuffers));
+            rid.setColumnNameCopy(ByteBufferUtils.build(false, colBuffers));
 
             // Write value, timestamp and tombstone
             rid.setValueCopy(column.serialize(testRow.get(column.position())));
@@ -246,7 +246,7 @@ public class SparkRowIteratorTests
             }
 
             return true;
-        }).when(scanner).hasNext();
+        }).when(scanner).next();
 
         when(dataLayer.openCompactionScanner(anyInt(), anyListOf(PartitionKeyFilter.class), any())).thenReturn(scanner);
 

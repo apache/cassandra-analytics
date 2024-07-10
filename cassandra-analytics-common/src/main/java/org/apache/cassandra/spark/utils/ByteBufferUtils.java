@@ -233,6 +233,31 @@ public final class ByteBufferUtils
         return null;
     }
 
+    public static ByteBuffer build(boolean isStatic, ByteBuffer... buffers)
+    {
+        int totalLength = isStatic ? 2 : 0;
+        for (ByteBuffer buffer : buffers)
+        {
+            // 2 bytes short length + data length + 1 byte for end-of-component marker
+            totalLength += 2 + buffer.remaining() + 1;
+        }
+
+        ByteBuffer out = ByteBuffer.allocate(totalLength);
+        if (isStatic)
+        {
+            out.putShort((short) STATIC_MARKER);
+        }
+
+        for (ByteBuffer buffer : buffers)
+        {
+            ByteBufferUtils.writeShortLength(out, buffer.remaining());  // Short length
+            out.put(buffer.duplicate());  // Data
+            out.put((byte) 0);  // End-of-component marker
+        }
+        out.flip();
+        return out;
+    }
+
     public static ByteBuffer[] split(ByteBuffer name, int numKeys)
     {
         // Assume all components, we truncate the array at the end if necessary, but most names will be complete.
