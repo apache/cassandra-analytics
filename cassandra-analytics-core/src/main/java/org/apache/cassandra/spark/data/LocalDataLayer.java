@@ -174,7 +174,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                       .filter(StringUtils::isNotEmpty)
                       .collect(Collectors.toSet()),
                 SchemaFeatureSet.initializeFromOptions(options),
-                getBoolean(options, lowerCaseKey("useBufferingInputStream"), false),
+                getBoolean(options, lowerCaseKey("useBufferingInputStream"), getBoolean(options, lowerCaseKey("useSSTableInputStream"), false)),
                 options.get(lowerCaseKey("statsClass")),
                 getOrThrow(options, lowerCaseKey("dirs")).split(","));
     }
