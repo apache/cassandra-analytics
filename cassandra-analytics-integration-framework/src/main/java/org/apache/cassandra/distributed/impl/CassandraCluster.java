@@ -43,6 +43,7 @@ import org.apache.cassandra.distributed.api.IMessageSink;
 import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.shared.ClusterUtils;
 import org.apache.cassandra.distributed.shared.Versions;
+import org.apache.cassandra.sidecar.adapters.base.Partitioner;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.cassandra.testing.IClusterExtension;
 import org.apache.cassandra.testing.TestTokenSupplier;
@@ -92,17 +93,31 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
         int originalNodeCount = nodesPerDc * dcCount;
         int finalNodeCount = dcCount * (nodesPerDc + newNodesPerDc);
 
-        TokenSupplier tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(nodesPerDc, newNodesPerDc, dcCount, 1);
-
         UpgradeableCluster.Builder clusterBuilder = UpgradeableCluster.build(originalNodeCount);
         clusterBuilder.withVersion(requestedVersion)
                       .withDynamicPortAllocation(configuration.dynamicPortAllocation) // to allow parallel test runs
                       .withSharedClasses(EXTRA.or(clusterBuilder.getSharedClasses()))
                       .withDCs(dcCount)
-                      .withDataDirCount(configuration.numDataDirsPerInstance)
-                      .withConfig(config -> configuration.features.forEach(config::with))
-                      .withTokenSupplier(tokenSupplier);
+                      .withDataDirCount(configuration.numDataDirsPerInstance);
 
+        TokenSupplier tokenSupplier;
+        Consumer<IInstanceConfig> instanceConfigUpdater;
+        if (configuration.partitioner != null)
+        {
+            tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(Partitioner.fromClassName(configuration.partitioner),
+                                                                      nodesPerDc, newNodesPerDc, dcCount, 1);
+            instanceConfigUpdater = instanceConfig -> {
+                instanceConfig.set("partitioner", configuration.partitioner);
+                configuration.features.forEach(instanceConfig::with);
+            };
+        }
+        else
+        {
+            tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(nodesPerDc, newNodesPerDc, dcCount, 1);
+            instanceConfigUpdater = config -> configuration.features.forEach(config::with);
+        }
+        clusterBuilder.withTokenSupplier(tokenSupplier)
+                      .withConfig(instanceConfigUpdater);
 
         if (dcCount > 1)
         {

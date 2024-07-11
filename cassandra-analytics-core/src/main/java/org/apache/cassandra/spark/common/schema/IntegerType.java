@@ -23,22 +23,19 @@ import java.nio.ByteBuffer;
 
 public class IntegerType implements ColumnType<Integer>
 {
+
+    public static final int TYPE_SIZE = Integer.SIZE / Byte.SIZE;
+
     @Override
     public Integer parseColumn(ByteBuffer buffer, int length)
     {
-        assert length == Integer.SIZE / Byte.SIZE;
+        assert length == TYPE_SIZE;
         return buffer.getInt();
-    }
-
-    @Override
-    public Integer getDefault()
-    {
-        return 0;
     }
 
     @Override
     public ByteBuffer serialize(Integer value)
     {
-        return ByteBuffer.allocate(Integer.SIZE / Byte.SIZE).putInt(0, value);
+        return ByteBuffer.allocate(TYPE_SIZE).putInt(0, value);
     }
 }

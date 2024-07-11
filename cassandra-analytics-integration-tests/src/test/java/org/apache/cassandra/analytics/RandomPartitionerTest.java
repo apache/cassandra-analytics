@@ -17,33 +17,24 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.common.schema;
+package org.apache.cassandra.analytics;
 
-import java.nio.Buffer;
-import java.nio.ByteBuffer;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
-public class BytesType implements ColumnType<ByteBuffer>
+/**
+ * Runs test from {@link CassandraAnalyticsSimpleTest} with the {@code RandomPartitioner}.
+ */
+class RandomPartitionerTest extends CassandraAnalyticsSimpleTest
 {
+    /**
+     * Inherit the configuration for the cluster from {@link CassandraAnalyticsSimpleTest} and set the
+     * partitioner to be the RandomPartitioner.
+     *
+     * @return the updated configuration for the cluster
+     */
     @Override
-    public ByteBuffer parseColumn(ByteBuffer buffer, int length)
+    protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        byte[] value = new byte[length];
-        buffer.get(value, 0, length);
-        return ByteBuffer.wrap(value);
-    }
-
-    @Override
-    public ByteBuffer serialize(ByteBuffer value)
-    {
-        int position = value.position();
-        try
-        {
-            // Cast to ByteBuffer required when compiling with Java 8
-            return (ByteBuffer) ByteBuffer.allocate(value.remaining()).put(value).flip();
-        }
-        finally
-        {
-            ((Buffer) value).position(position);
-        }
+        return super.testClusterConfiguration().partitioner("org.apache.cassandra.dht.RandomPartitioner");
     }
 }

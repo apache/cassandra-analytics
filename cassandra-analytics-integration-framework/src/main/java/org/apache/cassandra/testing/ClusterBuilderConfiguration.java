@@ -38,6 +38,7 @@ public class ClusterBuilderConfiguration
     public boolean dynamicPortAllocation = true;
     public final EnumSet<Feature> features = EnumSet.of(Feature.GOSSIP, Feature.JMX, Feature.NATIVE_PROTOCOL);
     public BiConsumer<ClassLoader, Integer> instanceInitializer = null;
+    public String partitioner;
 
     /**
      * Adds a features to the list of default features.
@@ -134,6 +135,18 @@ public class ClusterBuilderConfiguration
     public ClusterBuilderConfiguration dynamicPortAllocation(boolean dynamicPortAllocation)
     {
         this.dynamicPortAllocation = dynamicPortAllocation;
+        return this;
+    }
+
+    /**
+     * Sets the {@code partitioner} and returns a reference to this Builder enabling method chaining.
+     *
+     * @param partitioner the {@code partitioner} to set
+     * @return a reference to this Builder
+     */
+    public ClusterBuilderConfiguration partitioner(String partitioner)
+    {
+        this.partitioner = partitioner;
         return this;
     }
 }

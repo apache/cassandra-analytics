@@ -68,7 +68,7 @@ public class CqlTableInfoProvider implements TableInfoProvider
                                                                              .put(INT, ColumnTypes.INT)
                                                                              .put(BOOLEAN, ColumnTypes.BOOLEAN)
                                                                              .put(TEXT, ColumnTypes.STRING)
-                                                                             .put(TIMESTAMP, ColumnTypes.LONG)
+                                                                             .put(TIMESTAMP, ColumnTypes.TIMESTAMP)
                                                                              .put(UUID, ColumnTypes.UUID)
                                                                              .put(VARCHAR, ColumnTypes.STRING)
                                                                              .put(ASCII, ColumnTypes.STRING)
