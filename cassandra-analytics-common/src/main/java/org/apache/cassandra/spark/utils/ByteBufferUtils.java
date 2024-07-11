@@ -213,7 +213,13 @@ public final class ByteBufferUtils
         }
     }
 
-    // Extract component position from buffer; return null if there are not enough components
+    /**
+     * Extract component at a given position from composite buffer; return null if there are not enough components
+     *
+     * @param buffer   composite ByteBuffer containing one or more columns.
+     * @param position column position of the component to be extracted.
+     * @return a new ByteBuffer that exposes the bytes for the individual column.
+     */
     public static ByteBuffer extractComponent(ByteBuffer buffer, int position)
     {
         buffer = buffer.duplicate();
@@ -233,6 +239,13 @@ public final class ByteBufferUtils
         return null;
     }
 
+    /**
+     * Builds a composite ByteBuffer containing one or more column components.
+     *
+     * @param isStatic true if it is a static column.
+     * @param buffers  array of ByteBuffers for each individual column components.
+     * @return a composite ByteBuffer concatentating all column components.
+     */
     public static ByteBuffer build(boolean isStatic, ByteBuffer... buffers)
     {
         int totalLength = isStatic ? 2 : 0;
@@ -258,11 +271,18 @@ public final class ByteBufferUtils
         return out;
     }
 
-    public static ByteBuffer[] split(ByteBuffer name, int numKeys)
+    /**
+     * Split a composite ByteBuffer into the individual components.
+     *
+     * @param composite composite ByteBuffer e.g. containing one or more composite partition keys.
+     * @param numKeys   number of keys within the composite.
+     * @return array of ByteBuffers split into the individual components.
+     */
+    public static ByteBuffer[] split(ByteBuffer composite, int numKeys)
     {
         // Assume all components, we truncate the array at the end if necessary, but most names will be complete.
         ByteBuffer[] components = new ByteBuffer[numKeys];
-        ByteBuffer buffer = name.duplicate();
+        ByteBuffer buffer = composite.duplicate();
         readStatic(buffer);
         int index = 0;
         while (buffer.remaining() > 0)
@@ -273,6 +293,11 @@ public final class ByteBufferUtils
         return index == components.length ? components : Arrays.copyOfRange(components, 0, index);
     }
 
+    /**
+     * Read and discard static column if it exists.
+     *
+     * @param buffer ByteBuffer
+     */
     public static void readStatic(ByteBuffer buffer)
     {
         if (buffer.remaining() < 2)
