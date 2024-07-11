@@ -54,7 +54,7 @@ public final class FastThreadLocalUtf8Decoder
         {
             return string(buffer);
         }
-        catch (final CharacterCodingException exception)
+        catch (CharacterCodingException exception)
         {
             throw new RuntimeException(exception);
         }

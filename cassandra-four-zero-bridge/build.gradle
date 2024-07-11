@@ -37,7 +37,6 @@ dependencies {
 
     compileOnly(project(path: ':cassandra-four-zero', configuration: 'shadow'))
 
-    testImplementation project(":cassandra-analytics-common")
     testImplementation(project(':cassandra-bridge'))
     testImplementation(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")

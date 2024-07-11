@@ -34,7 +34,7 @@ import java.util.function.Supplier;
 
 public final class ByteBufferUtils
 {
-    public static final ThreadLocal<CharsetDecoder> UTF8_DECODER_PROVIDER = ThreadLocal.withInitial(StandardCharsets.UTF_8::newDecoder);
+    private static final ThreadLocal<CharsetDecoder> UTF8_DECODER_PROVIDER = ThreadLocal.withInitial(StandardCharsets.UTF_8::newDecoder);
     // the static column marker used in Cassandra, see org.apache.cassandra.db.marshal.CompositeType::STATIC_MARKER
     public static final int STATIC_MARKER = 0xFFFF;
     private static final String EMPTY_STRING = "";
