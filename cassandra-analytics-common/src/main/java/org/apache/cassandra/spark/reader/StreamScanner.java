@@ -57,7 +57,8 @@ public interface StreamScanner<Type> extends Closeable
 {
     /**
      * Exposes the data to be consumed.
-     * <p>Implementation note: The data should always be updated to the current partition if {@code next} returns {@code true}. Calls to {@code data} should be idempotent and not alter the state of the underlying scanner.
+     * <p>Implementation note: The data should always be updated to the current partition if {@code next} returns {@code true}.
+     * Calls to {@code data} should be idempotent and not alter the state of the underlying scanner.
      * </p>
      *
      * @return data of type {@code Type}
@@ -66,7 +67,9 @@ public interface StreamScanner<Type> extends Closeable
 
     /**
      * Indicate if there are more data available to read.
-     * <p>Implementation note: {@code next} can alter the state of the underlying scanner, so it should be called once and not called again until the {@code data} is consumed.
+     * <p>Implementation note: {@code next} can alter the state of the underlying scanner,
+     * so it should be called once and not called again until the {@code data} is consumed.
+     * </p>
      *
      * @return true when the data is available to be consumed;
      * otherwise, return false to indicate the scanner has exhausted
