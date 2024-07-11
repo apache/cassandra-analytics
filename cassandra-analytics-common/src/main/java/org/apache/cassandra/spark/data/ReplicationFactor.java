@@ -24,8 +24,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
+import com.google.common.base.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -179,19 +178,14 @@ public class ReplicationFactor implements Serializable
         }
 
         ReplicationFactor that = (ReplicationFactor) other;
-        return new EqualsBuilder()
-               .append(this.replicationStrategy, that.replicationStrategy)
-               .append(this.options, that.options)
-               .isEquals();
+        return this.replicationStrategy == that.replicationStrategy
+               && java.util.Objects.equals(this.options, that.options);
     }
 
     @Override
     public int hashCode()
     {
-        return new HashCodeBuilder()
-               .append(replicationStrategy)
-               .append(options)
-               .toHashCode();
+        return Objects.hashCode(replicationStrategy, options);
     }
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<ReplicationFactor>

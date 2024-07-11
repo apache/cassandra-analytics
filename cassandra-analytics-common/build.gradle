@@ -41,7 +41,6 @@ publishing {
 dependencies {
     implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"
     implementation "com.esotericsoftware:kryo-shaded:${kryoVersion}"
-    implementation "commons-lang:commons-lang:${commonsLangVersion}"
     implementation "com.google.guava:guava:${guavaVersion}"
     implementation "com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}"
     implementation "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"

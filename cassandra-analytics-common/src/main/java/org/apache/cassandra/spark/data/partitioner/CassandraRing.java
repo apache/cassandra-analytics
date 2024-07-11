@@ -33,14 +33,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -243,27 +242,18 @@ public class CassandraRing implements Serializable
         }
 
         CassandraRing that = (CassandraRing) other;
-        return new EqualsBuilder()
-               .append(this.partitioner, that.partitioner)
-               .append(this.keyspace, that.keyspace)
-               .append(this.replicationFactor, that.replicationFactor)
-               .append(this.instances, that.instances)
-               .append(this.replicas, that.replicas)
-               .append(this.tokenRangeMap, that.tokenRangeMap)
-               .isEquals();
+        return this.partitioner == that.partitioner
+               && Objects.equal(this.keyspace, that.keyspace)
+               && Objects.equal(this.replicationFactor, that.replicationFactor)
+               && Objects.equal(this.instances, that.instances)
+               && Objects.equal(this.replicas, that.replicas)
+               && Objects.equal(this.tokenRangeMap, that.tokenRangeMap);
     }
 
     @Override
     public int hashCode()
     {
-        return new HashCodeBuilder()
-               .append(partitioner)
-               .append(keyspace)
-               .append(replicationFactor)
-               .append(instances)
-               .append(replicas)
-               .append(tokenRangeMap)
-               .toHashCode();
+        return Objects.hashCode(partitioner, keyspace, replicationFactor, instances, replicas, tokenRangeMap);
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException

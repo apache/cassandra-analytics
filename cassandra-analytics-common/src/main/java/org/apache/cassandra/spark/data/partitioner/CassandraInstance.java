@@ -22,8 +22,6 @@ package org.apache.cassandra.spark.data.partitioner;
 import java.io.Serializable;
 import java.util.Objects;
 
-import org.apache.commons.lang.builder.EqualsBuilder;
-
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
@@ -72,11 +70,9 @@ public class CassandraInstance implements TokenOwner, Serializable
         }
 
         CassandraInstance that = (CassandraInstance) other;
-        return new EqualsBuilder()
-               .append(this.token, that.token)
-               .append(this.node, that.node)
-               .append(this.dataCenter, that.dataCenter)
-               .isEquals();
+        return Objects.equals(this.token, that.token)
+               && Objects.equals(this.node, that.node)
+               && Objects.equals(this.dataCenter, that.dataCenter);
     }
 
     @Override
