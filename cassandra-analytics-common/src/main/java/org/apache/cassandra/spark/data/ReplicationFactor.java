@@ -24,7 +24,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -185,7 +185,7 @@ public class ReplicationFactor implements Serializable
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(replicationStrategy, options);
+        return Objects.hash(replicationStrategy, options);
     }
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<ReplicationFactor>

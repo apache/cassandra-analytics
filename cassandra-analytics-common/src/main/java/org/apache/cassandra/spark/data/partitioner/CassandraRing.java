@@ -33,7 +33,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
@@ -243,17 +243,17 @@ public class CassandraRing implements Serializable
 
         CassandraRing that = (CassandraRing) other;
         return this.partitioner == that.partitioner
-               && Objects.equal(this.keyspace, that.keyspace)
-               && Objects.equal(this.replicationFactor, that.replicationFactor)
-               && Objects.equal(this.instances, that.instances)
-               && Objects.equal(this.replicas, that.replicas)
-               && Objects.equal(this.tokenRangeMap, that.tokenRangeMap);
+               && Objects.equals(this.keyspace, that.keyspace)
+               && Objects.equals(this.replicationFactor, that.replicationFactor)
+               && Objects.equals(this.instances, that.instances)
+               && Objects.equals(this.replicas, that.replicas)
+               && Objects.equals(this.tokenRangeMap, that.tokenRangeMap);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hashCode(partitioner, keyspace, replicationFactor, instances, replicas, tokenRangeMap);
+        return Objects.hash(partitioner, keyspace, replicationFactor, instances, replicas, tokenRangeMap);
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
