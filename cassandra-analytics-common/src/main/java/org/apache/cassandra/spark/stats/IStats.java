@@ -25,35 +25,35 @@ import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 /**
  * Generic Stats interface that works across all CassandraFile FileTypes.
  *
- * @param <FileType>
+ * @param <T>
  */
-public interface IStats<FileType extends CassandraFile>
+public interface IStats<T extends CassandraFile>
 {
-    default void inputStreamEnd(CassandraFileSource<FileType> source, long runTimeNanos, long totalNanosBlocked)
+    default void inputStreamEnd(CassandraFileSource<T> source, long runTimeNanos, long totalNanosBlocked)
     {
     }
 
-    default void inputStreamEndBuffer(CassandraFileSource<FileType> ssTable)
+    default void inputStreamEndBuffer(CassandraFileSource<T> ssTable)
     {
     }
 
-    default void inputStreamTimeBlocked(CassandraFileSource<FileType> source, long nanos)
+    default void inputStreamTimeBlocked(CassandraFileSource<T> source, long nanos)
     {
     }
 
-    default void inputStreamByteRead(CassandraFileSource<FileType> source, int len, int queueSize, int percentComplete)
+    default void inputStreamByteRead(CassandraFileSource<T> source, int len, int queueSize, int percentComplete)
     {
     }
 
-    default void inputStreamFailure(CassandraFileSource<FileType> source, Throwable t)
+    default void inputStreamFailure(CassandraFileSource<T> source, Throwable t)
     {
     }
 
-    default void inputStreamBytesWritten(CassandraFileSource<FileType> ssTable, int len)
+    default void inputStreamBytesWritten(CassandraFileSource<T> ssTable, int len)
     {
     }
 
-    default void inputStreamBytesSkipped(CassandraFileSource<FileType> source, long bufferedSkipped, long rangeSkipped)
+    default void inputStreamBytesSkipped(CassandraFileSource<T> source, long bufferedSkipped, long rangeSkipped)
     {
     }
 }
