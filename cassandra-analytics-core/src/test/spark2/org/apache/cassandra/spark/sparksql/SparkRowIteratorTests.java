@@ -36,7 +36,7 @@ import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
-import org.apache.cassandra.spark.reader.Rid;
+import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.stats.Stats;
@@ -174,7 +174,7 @@ public class SparkRowIteratorTests
                                                   .filter(field -> !field.isClusteringColumn())
                                                   .sorted()
                                                   .collect(Collectors.toList());
-        Rid rid = new Rid();
+        RowData rowData = new RowData();
         AtomicInteger rowPos = new AtomicInteger();
         AtomicInteger colPos = new AtomicInteger();
 
@@ -189,7 +189,7 @@ public class SparkRowIteratorTests
 
         // Mock scanner
         StreamScanner scanner = mock(StreamScanner.class);
-        when(scanner.data()).thenReturn(rid);
+        when(scanner.data()).thenReturn(rowData);
         doAnswer(invocation -> {
             int col = colPos.getAndIncrement();
             if (rowPos.get() >= numRows)
@@ -203,7 +203,7 @@ public class SparkRowIteratorTests
                 if (cqlTable.numPartitionKeys() == 1)
                 {
                     CqlField partitionKey = cqlTable.partitionKeys().get(0);
-                    rid.setPartitionKeyCopy(partitionKey.serialize(testRow.get(partitionKey.position())), BigInteger.ONE);
+                    rowData.setPartitionKeyCopy(partitionKey.serialize(testRow.get(partitionKey.position())), BigInteger.ONE);
                 }
                 else
                 {
@@ -215,7 +215,7 @@ public class SparkRowIteratorTests
                         partitionBuffers[position] = partitionKey.serialize(testRow.get(partitionKey.position()));
                         position++;
                     }
-                    rid.setPartitionKeyCopy(ByteBufferUtils.build(false, partitionBuffers), BigInteger.ONE);
+                    rowData.setPartitionKeyCopy(ByteBufferUtils.build(false, partitionBuffers), BigInteger.ONE);
                 }
             }
 
@@ -229,10 +229,10 @@ public class SparkRowIteratorTests
                 position++;
             }
             colBuffers[position] = bridge.ascii().serialize(column.name());
-            rid.setColumnNameCopy(ByteBufferUtils.build(false, colBuffers));
+            rowData.setColumnNameCopy(ByteBufferUtils.build(false, colBuffers));
 
             // Write value, timestamp and tombstone
-            rid.setValueCopy(column.serialize(testRow.get(column.position())));
+            rowData.setValueCopy(column.serialize(testRow.get(column.position())));
 
             // Move to next row
             if (colPos.get() == numColumns)

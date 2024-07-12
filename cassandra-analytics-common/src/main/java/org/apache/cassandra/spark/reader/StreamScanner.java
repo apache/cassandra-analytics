@@ -61,7 +61,7 @@ public interface StreamScanner<T> extends Closeable
      * Calls to {@code data} should be idempotent and not alter the state of the underlying scanner.
      * </p>
      *
-     * @return data of type {@code Type}
+     * @return data of type {@code <T>}
      */
     T data();
 
