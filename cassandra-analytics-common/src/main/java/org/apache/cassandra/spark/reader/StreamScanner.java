@@ -50,10 +50,10 @@ import java.io.IOException;
  * Upon return from the next() call the current values of the scanner can be obtained by calling
  * the methods in Rid, getPartitionKey(), getColumnName(), getValue().
  *
- * @param <Type> type of object returned by rid() method.
+ * @param <T> type of object returned by rid() method.
  */
 @SuppressWarnings("unused")
-public interface StreamScanner<Type> extends Closeable
+public interface StreamScanner<T> extends Closeable
 {
     /**
      * Exposes the data to be consumed.
@@ -63,7 +63,7 @@ public interface StreamScanner<Type> extends Closeable
      *
      * @return data of type {@code Type}
      */
-    Type data();
+    T data();
 
     /**
      * Indicate if there are more data available to read.

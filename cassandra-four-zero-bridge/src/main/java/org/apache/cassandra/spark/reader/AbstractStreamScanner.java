@@ -46,7 +46,7 @@ import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.jetbrains.annotations.NotNull;
 
-public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Closeable
+public abstract class AbstractStreamScanner implements StreamScanner<RowData>, Closeable
 {
     // All partitions in the SSTable
     private UnfilteredPartitionIterator allPartitions;
@@ -68,7 +68,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
     @NotNull
     protected final TimeProvider timeProvider;
 
-    protected final Rid rid = new Rid();
+    protected final RowData rowData = new RowData();
 
     AbstractStreamScanner(@NotNull TableMetadata metadata,
                           @NotNull Partitioner partitionerType,
@@ -92,9 +92,9 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
     }
 
     @Override
-    public Rid data()
+    public RowData data()
     {
-        return rid;
+        return rowData;
     }
 
     /* Abstract methods */
@@ -169,7 +169,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                         if (partition.partitionLevelDeletion().isLive())
                         {
                             // Reset rid with new partition key
-                            rid.setPartitionKeyCopy(partition.partitionKey().getKey(), token);
+                            rowData.setPartitionKeyCopy(partition.partitionKey().getKey(), token);
                         }
                         else
                         {
@@ -243,7 +243,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                     // There is a CQL row level delete
                     if (!row.deletion().isLive())
                     {
-                        handleRowTombstone(rid.getToken(), row);
+                        handleRowTombstone(rowData.getToken(), row);
                         return true;
                     }
 
@@ -343,11 +343,11 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
         {
             if (!consumed)
             {
-                rid.setColumnNameCopy(ReaderUtils.encodeCellName(metadata,
-                                                                 clustering,
-                                                                 ByteBufferUtil.EMPTY_BYTE_BUFFER,
-                                                                 null));
-                rid.setValueCopy(ByteBufferUtil.EMPTY_BYTE_BUFFER);
+                rowData.setColumnNameCopy(ReaderUtils.encodeCellName(metadata,
+                                                                     clustering,
+                                                                     ByteBufferUtil.EMPTY_BYTE_BUFFER,
+                                                                     null));
+                rowData.setValueCopy(ByteBufferUtil.EMPTY_BYTE_BUFFER);
                 consumed = true;
             }
             else
@@ -382,19 +382,19 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
         public void consume()
         {
             boolean isStatic = cell.column().isStatic();
-            rid.setColumnNameCopy(ReaderUtils.encodeCellName(metadata,
+            rowData.setColumnNameCopy(ReaderUtils.encodeCellName(metadata,
                                                              isStatic ? Clustering.STATIC_CLUSTERING : clustering,
-                                                             cell.column().name.bytes,
-                                                             null));
+                                                                 cell.column().name.bytes,
+                                                                 null));
             if (cell.isTombstone())
             {
-                handleCellTombstone(rid.getToken());
+                handleCellTombstone(rowData.getToken());
             }
             else
             {
-                rid.setValueCopy(cell.buffer());
+                rowData.setValueCopy(cell.buffer());
             }
-            rid.setTimestamp(cell.timestamp());
+            rowData.setTimestamp(cell.timestamp());
             // Null out clustering so hasData will return false
             clustering = null;
         }
@@ -429,10 +429,10 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
         @Override
         public void consume()
         {
-            rid.setColumnNameCopy(ReaderUtils.encodeCellName(metadata,
-                                                             clustering,
-                                                             column.name.bytes,
-                                                             ByteBufferUtil.EMPTY_BYTE_BUFFER));
+            rowData.setColumnNameCopy(ReaderUtils.encodeCellName(metadata,
+                                                                 clustering,
+                                                                 column.name.bytes,
+                                                                 ByteBufferUtil.EMPTY_BYTE_BUFFER));
             // The complex data is live, but there could be element deletion inside; check for it later in the block
             if (deletionTime.isLive())
             {
@@ -449,20 +449,20 @@ public abstract class AbstractStreamScanner implements StreamScanner<Rid>, Close
                     }
                     else
                     {
-                        handleCellTombstoneInComplex(rid.getToken(), cell);
+                        handleCellTombstoneInComplex(rowData.getToken(), cell);
                     }
                     // In the case the cell is deleted, the deletion time is also the cell's timestamp
                     maxTimestamp = Math.max(maxTimestamp, cell.timestamp());
                 }
 
-                rid.setValueCopy(buffer.build());
-                rid.setTimestamp(maxTimestamp);
+                rowData.setValueCopy(buffer.build());
+                rowData.setTimestamp(maxTimestamp);
             }
             else
             {
                 // The entire collection/UDT is deleted
-                handleCellTombstone(rid.getToken());
-                rid.setTimestamp(deletionTime.markedForDeleteAt());
+                handleCellTombstone(rowData.getToken());
+                rowData.setTimestamp(deletionTime.markedForDeleteAt());
             }
 
             // Null out clustering to indicate no data

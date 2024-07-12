@@ -526,16 +526,16 @@ public class SSTableReaderTests
                     try (CompactionStreamScanner scanner = new CompactionStreamScanner(metadata, partitioner, toCompact))
                     {
                         // Iterate through CompactionStreamScanner verifying it correctly compacts data together
-                        Rid rid = scanner.data();
+                        RowData rowData = scanner.data();
                         while (scanner.next())
                         {
                             scanner.advanceToNextColumn();
 
                             // Extract partition key value
-                            int a = rid.getPartitionKey().asIntBuffer().get();
+                            int a = rowData.getPartitionKey().asIntBuffer().get();
 
                             // Extract clustering key value and column name
-                            ByteBuffer colBuf = rid.getColumnName();
+                            ByteBuffer colBuf = rowData.getColumnName();
                             ByteBuffer clusteringKey = ByteBufferUtils.readBytesWithShortLength(colBuf);
                             colBuf.get();
                             String colName = ByteBufferUtils.string(ByteBufferUtils.readBytesWithShortLength(colBuf));
@@ -548,7 +548,7 @@ public class SSTableReaderTests
                             int b = clusteringKey.asIntBuffer().get();
 
                             // Extract value column
-                            int c = rid.getValue().asIntBuffer().get();
+                            int c = rowData.getValue().asIntBuffer().get();
 
                             // Verify CompactionIterator compacts 3 SSTables to use last values written
                             assertEquals(c, a + b);
@@ -908,14 +908,14 @@ public class SSTableReaderTests
                     try (CompactionStreamScanner scanner = new CompactionStreamScanner(metadata, partitioner, toCompact))
                     {
                         // Iterate through CompactionScanner and verify we have all the partition keys we are looking for
-                        Rid rid = scanner.data();
+                        RowData rowData = scanner.data();
                         while (scanner.next())
                         {
                             scanner.advanceToNextColumn();
-                            int a = rid.getPartitionKey().asIntBuffer().get();
+                            int a = rowData.getPartitionKey().asIntBuffer().get();
                             found[a] = true;
                             // Extract clustering key value and column name
-                            ByteBuffer colBuf = rid.getColumnName();
+                            ByteBuffer colBuf = rowData.getColumnName();
                             ByteBuffer clusteringKey = ByteBufferUtils.readBytesWithShortLength(colBuf);
                             colBuf.get();
                             String colName = ByteBufferUtils.string(ByteBufferUtils.readBytesWithShortLength(colBuf));
@@ -928,7 +928,7 @@ public class SSTableReaderTests
                             int b = clusteringKey.asIntBuffer().get();
 
                             // Extract value column
-                            int c = rid.getValue().asIntBuffer().get();
+                            int c = rowData.getValue().asIntBuffer().get();
 
                             assertEquals(c, a + b);
                             rowCount++;

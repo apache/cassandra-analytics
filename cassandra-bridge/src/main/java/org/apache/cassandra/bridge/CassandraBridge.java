@@ -60,7 +60,7 @@ import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.IndexEntry;
-import org.apache.cassandra.spark.reader.Rid;
+import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
@@ -87,16 +87,16 @@ public abstract class CassandraBridge
 
     // Compaction Stream Scanner
     // CHECKSTYLE IGNORE: Method with many parameters
-    public abstract StreamScanner<Rid> getCompactionScanner(@NotNull CqlTable table,
-                                                            @NotNull Partitioner partitionerType,
-                                                            @NotNull SSTablesSupplier ssTables,
-                                                            @Nullable SparkRangeFilter sparkRangeFilter,
-                                                            @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
-                                                            @Nullable PruneColumnFilter columnFilter,
-                                                            @NotNull TimeProvider timeProvider,
-                                                            boolean readIndexOffset,
-                                                            boolean useIncrementalRepair,
-                                                            @NotNull Stats stats);
+    public abstract StreamScanner<RowData> getCompactionScanner(@NotNull CqlTable table,
+                                                                @NotNull Partitioner partitionerType,
+                                                                @NotNull SSTablesSupplier ssTables,
+                                                                @Nullable SparkRangeFilter sparkRangeFilter,
+                                                                @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
+                                                                @Nullable PruneColumnFilter columnFilter,
+                                                                @NotNull TimeProvider timeProvider,
+                                                                boolean readIndexOffset,
+                                                                boolean useIncrementalRepair,
+                                                                @NotNull Stats stats);
 
     public abstract StreamScanner<IndexEntry> getPartitionSizeIterator(@NotNull CqlTable table,
                                                                        @NotNull Partitioner partitioner,

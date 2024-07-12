@@ -29,7 +29,7 @@ import org.apache.cassandra.spark.utils.ByteBufferUtils;
 /**
  * Rid - Row Identifier - contains the partition key, clustering keys and column name that uniquely identifies a row and column of data in Cassandra
  */
-public class Rid
+public class RowData
 {
     private ByteBuffer partitionKey;
     private ByteBuffer columnName;

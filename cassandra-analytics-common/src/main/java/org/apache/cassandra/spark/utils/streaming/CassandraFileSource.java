@@ -27,9 +27,9 @@ import org.jetbrains.annotations.Nullable;
 /**
  * CassandraFileSource to asynchronously provide bytes to StreamConsumer when requested
  *
- * @param <CassandraFileType> CassandraFile type
+ * @param <T> CassandraFile type
  */
-public interface CassandraFileSource<CassandraFileType extends CassandraFile>
+public interface CassandraFileSource<T extends CassandraFile>
 {
     long DEFAULT_MAX_BUFFER_SIZE = 6291460L;
     long DEFAULT_CHUNK_BUFFER_SIZE = 4194300L;
@@ -47,7 +47,7 @@ public interface CassandraFileSource<CassandraFileType extends CassandraFile>
     /**
      * @return SSTable this source refers to
      */
-    CassandraFileType sstable();
+    T sstable();
 
     /**
      * @return the SSTable file component type this source refers to

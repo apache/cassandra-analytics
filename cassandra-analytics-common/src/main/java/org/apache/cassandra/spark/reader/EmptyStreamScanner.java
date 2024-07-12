@@ -19,12 +19,12 @@
 
 package org.apache.cassandra.spark.reader;
 
-public class EmptyStreamScanner implements StreamScanner<Rid>
+public class EmptyStreamScanner implements StreamScanner<RowData>
 {
     public static final EmptyStreamScanner INSTANCE = new EmptyStreamScanner();
 
     @Override
-    public Rid data()
+    public RowData data()
     {
         return null;
     }

@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
-import org.apache.cassandra.spark.reader.Rid;
+import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
@@ -60,9 +60,9 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
     protected final PruneColumnFilter columnFilter;
     private final long startTimeNanos;
     @NotNull
-    private final StreamScanner<Rid> scanner;
+    private final StreamScanner<RowData> scanner;
     @NotNull
-    private final Rid rid;
+    private final RowData rowData;
 
     // Mutable Iterator State
     private boolean skipPartition = false;
@@ -106,13 +106,13 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         long openTimeNanos = System.nanoTime() - startTimeNanos;
         LOGGER.info("Opened CompactionScanner runtimeNanos={}", openTimeNanos);
         stats.openedCompactionScanner(openTimeNanos);
-        rid = scanner.data();
+        rowData = scanner.data();
         stats.openedSparkCellIterator();
         firstProjectedValueColumnPositionOrZero = maybeGetPositionOfFirstProjectedValueColumnOrZero();
     }
 
-    protected StreamScanner<Rid> openScanner(int partitionId,
-                                             @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+    protected StreamScanner<RowData> openScanner(int partitionId,
+                                                 @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
         return dataLayer.openCompactionScanner(partitionId, partitionKeyFilters, columnFilter);
     }
@@ -186,7 +186,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
             }
 
             // Deserialize clustering keys - if moved to new CQL row - and update 'values' Object[] array
-            ByteBuffer columnNameBuf = Objects.requireNonNull(rid.getColumnName(), "ColumnName buffer in Rid is null, this is unexpected");
+            ByteBuffer columnNameBuf = Objects.requireNonNull(rowData.getColumnName(), "ColumnName buffer in Rid is null, this is unexpected");
             maybeRebuildClusteringKeys(columnNameBuf);
 
             // Deserialize CQL field column name
@@ -205,7 +205,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
                     // columns are projected. The column we find is irrelevant because if we fall under this
                     // condition it means that we are in a situation where the row has only PK + CK, but no
                     // regular columns.
-                    next = new Cell(values, firstProjectedValueColumnPositionOrZero, newRow, rid.getTimestamp());
+                    next = new Cell(values, firstProjectedValueColumnPositionOrZero, newRow, rowData.getTimestamp());
                     return true;
                 }
 
@@ -229,7 +229,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
             }
 
             // Update next Cell
-            next = new Cell(values, field.position(), newRow, rid.getTimestamp());
+            next = new Cell(values, field.position(), newRow, rowData.getTimestamp());
 
             return true;
         }
@@ -260,7 +260,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
      */
     private void maybeRebuildPartition()
     {
-        if (!rid.isNewPartition())
+        if (!rowData.isNewPartition())
         {
             return;
         }
@@ -275,15 +275,15 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
             values[field.position()] = null;
         }
 
-        skipPartition = !dataLayer.isInPartition(partitionId, rid.getToken(), rid.getPartitionKey());
+        skipPartition = !dataLayer.isInPartition(partitionId, rowData.getToken(), rowData.getPartitionKey());
         if (skipPartition)
         {
-            stats.skippedPartitionInIterator(rid.getPartitionKey(), rid.getToken());
+            stats.skippedPartitionInIterator(rowData.getPartitionKey(), rowData.getToken());
             return;
         }
 
         // Or new partition, so deserialize partition keys and update 'values' array
-        readPartitionKey(rid.getPartitionKey(), cqlTable, this.values, stats);
+        readPartitionKey(rowData.getPartitionKey(), cqlTable, this.values, stats);
     }
 
     public static void readPartitionKey(ByteBuffer partitionKey,
@@ -341,7 +341,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         if (columnFilter == null || columnFilter.includeColumn(field.name()))
         {
             // Deserialize value
-            Object value = deserialize(field, rid.getValue());
+            Object value = deserialize(field, rowData.getValue());
 
             if (field.isStaticColumn())
             {
