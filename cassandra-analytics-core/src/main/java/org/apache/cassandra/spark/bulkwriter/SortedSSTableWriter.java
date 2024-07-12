@@ -43,7 +43,7 @@ import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.apache.cassandra.spark.reader.Rid;
+import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.jetbrains.annotations.NotNull;
@@ -194,9 +194,9 @@ public class SortedSSTableWriter
                                                  false /* useSSTableInputStream */,
                                                  null /* statsClass */,
                                                  directory);
-            try (StreamScanner<Rid> scanner = layer.openCompactionScanner(partitionId, Collections.emptyList(), null))
+            try (StreamScanner<RowData> scanner = layer.openCompactionScanner(partitionId, Collections.emptyList(), null))
             {
-                while (scanner.hasNext())
+                while (scanner.next())
                 {
                     scanner.advanceToNextColumn();
                 }

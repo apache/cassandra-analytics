@@ -79,7 +79,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     private String statsClass;
     private transient volatile Stats stats = null;
     private List<SchemaFeature> requestedFeatures;
-    private boolean useSSTableInputStream;
+    private boolean useBufferingInputStream;
     private String[] paths;
     private int minimumReplicasPerMutation = 1;
 
@@ -174,7 +174,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                       .filter(StringUtils::isNotEmpty)
                       .collect(Collectors.toSet()),
                 SchemaFeatureSet.initializeFromOptions(options),
-                getBoolean(options, lowerCaseKey("useSSTableInputStream"), false),
+                getBoolean(options, lowerCaseKey("useBufferingInputStream"), getBoolean(options, lowerCaseKey("useSSTableInputStream"), false)),
                 options.get(lowerCaseKey("statsClass")),
                 getOrThrow(options, lowerCaseKey("dirs")).split(","));
     }
@@ -219,7 +219,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                           @NotNull String createStatement,
                           @NotNull Set<String> udts,
                           @NotNull List<SchemaFeature> requestedFeatures,
-                          boolean useSSTableInputStream,
+                          boolean useBufferingInputStream,
                           @Nullable String statsClass,
                           String... paths)
     {
@@ -233,7 +233,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                                              udts);
         this.jobId = UUID.randomUUID().toString();
         this.requestedFeatures = requestedFeatures;
-        this.useSSTableInputStream = useSSTableInputStream;
+        this.useBufferingInputStream = useBufferingInputStream;
         this.statsClass = statsClass;
         this.paths = paths;
     }
@@ -244,7 +244,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                            @NotNull CqlTable cqlTable,
                            @NotNull String jobId,
                            @NotNull List<SchemaFeature> requestedFeatures,
-                           boolean useSSTableInputStream,
+                           boolean useBufferingInputStream,
                            @Nullable String statsClass,
                            String... paths)
     {
@@ -253,7 +253,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
         this.cqlTable = cqlTable;
         this.jobId = jobId;
         this.requestedFeatures = requestedFeatures;
-        this.useSSTableInputStream = useSSTableInputStream;
+        this.useBufferingInputStream = useBufferingInputStream;
         this.statsClass = statsClass;
         this.paths = paths;
     }
@@ -324,7 +324,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                 .map(Paths::get)
                 .flatMap(Throwing.function(Files::list))
                 .filter(path -> path.getFileName().toString().endsWith("-" + FileType.DATA.getFileSuffix()))
-                .map(path -> new FileSystemSSTable(path, useSSTableInputStream, this::stats))
+                .map(path -> new FileSystemSSTable(path, useBufferingInputStream, this::stats))
                 .collect(Collectors.toSet()));
     }
 
@@ -404,7 +404,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
         out.writeObject(this.requestedFeatures.stream()
                                               .map(SchemaFeature::toString)
                                               .toArray(String[]::new));
-        out.writeBoolean(this.useSSTableInputStream);
+        out.writeBoolean(this.useBufferingInputStream);
         out.writeBoolean(this.statsClass != null);
         if (this.statsClass != null)
         {
@@ -424,7 +424,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
         this.requestedFeatures = Arrays.stream((String[]) in.readObject())
                                        .map(SchemaFeatureSet::valueOf)
                                        .collect(Collectors.toList());
-        this.useSSTableInputStream = in.readBoolean();
+        this.useBufferingInputStream = in.readBoolean();
         this.statsClass = in.readBoolean() ? in.readUTF() : null;
         this.paths = (String[]) in.readObject();
         this.minimumReplicasPerMutation = in.readInt();
@@ -444,7 +444,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
             kryo.writeObject(out, object.requestedFeatures.stream()
                                                           .map(SchemaFeature::toString)
                                                           .toArray(String[]::new));
-            out.writeBoolean(object.useSSTableInputStream);
+            out.writeBoolean(object.useBufferingInputStream);
             out.writeString(object.statsClass);
             kryo.writeObject(out, object.paths);
             out.writeInt(object.minimumReplicasPerMutation);

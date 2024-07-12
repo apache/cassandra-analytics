@@ -51,7 +51,7 @@ import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.RandomUtils;
-import org.apache.cassandra.spark.utils.streaming.SSTableSource;
+import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.Row;
 import scala.collection.mutable.AbstractSeq;
@@ -1948,7 +1948,7 @@ public class EndToEndTests
     }
 
     @SuppressWarnings("unused")  // Actually used via reflection in testLargeBlobExclude()
-    public static final Stats STATS = new Stats()
+    public static final Stats<SSTable> STATS = new Stats<SSTable>()
     {
         @Override
         public void skippedBytes(long length)
@@ -1957,7 +1957,7 @@ public class EndToEndTests
         }
 
         @Override
-        public void inputStreamBytesSkipped(SSTableSource<? extends SSTable> ssTable,
+        public void inputStreamBytesSkipped(CassandraFileSource<SSTable> ssTable,
                                             long bufferedSkipped,
                                             long rangeSkipped)
         {

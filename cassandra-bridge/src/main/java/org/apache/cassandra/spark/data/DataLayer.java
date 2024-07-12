@@ -38,7 +38,7 @@ import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.EmptyStreamScanner;
 import org.apache.cassandra.spark.reader.IndexEntry;
-import org.apache.cassandra.spark.reader.Rid;
+import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.NoMatchFoundException;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
@@ -250,9 +250,9 @@ public abstract class DataLayer implements Serializable
     /**
      * @return CompactionScanner for iterating over one or more SSTables, compacting data and purging tombstones
      */
-    public StreamScanner<Rid> openCompactionScanner(int partitionId,
-                                                    List<PartitionKeyFilter> partitionKeyFilters,
-                                                    @Nullable PruneColumnFilter columnFilter)
+    public StreamScanner<RowData> openCompactionScanner(int partitionId,
+                                                        List<PartitionKeyFilter> partitionKeyFilters,
+                                                        @Nullable PruneColumnFilter columnFilter)
     {
         List<PartitionKeyFilter> filtersInRange;
         try

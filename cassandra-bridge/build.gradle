@@ -39,6 +39,7 @@ publishing {
 }
 
 dependencies {
+    api(project(':cassandra-analytics-common'))
     compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
     compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
 

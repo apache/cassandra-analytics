@@ -37,7 +37,7 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.data.BasicSupplier;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.FileType;
-import org.apache.cassandra.spark.reader.Rid;
+import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
@@ -99,25 +99,25 @@ public class SSTableReaderTests
             int count = 0;
             referenceEpoch.set(t1 + timeOffsetSecs);
 
-            try (StreamScanner<Rid> scanner = bridge.getCompactionScanner(table,
-                                                                          partitioner,
-                                                                          ssTableSupplier,
-                                                                          null,
-                                                                          Collections.emptyList(),
-                                                                          null,
-                                                                          navigatableTimeProvider,
-                                                                          false,
-                                                                          false,
-                                                                          Stats.DoNothingStats.INSTANCE))
+            try (StreamScanner<RowData> scanner = bridge.getCompactionScanner(table,
+                                                                              partitioner,
+                                                                              ssTableSupplier,
+                                                                              null,
+                                                                              Collections.emptyList(),
+                                                                              null,
+                                                                              navigatableTimeProvider,
+                                                                              false,
+                                                                              false,
+                                                                              Stats.DoNothingStats.INSTANCE))
             {
                 // iterate through CompactionStreamScanner verifying it correctly compacts data together
-                Rid rid = scanner.rid();
-                while (scanner.hasNext())
+                RowData rowData = scanner.data();
+                while (scanner.next())
                 {
                     scanner.advanceToNextColumn();
 
                     // extract column name
-                    ByteBuffer colBuf = rid.getColumnName();
+                    ByteBuffer colBuf = rowData.getColumnName();
                     String colName = ByteBufferUtils.string(ByteBufferUtils.readBytesWithShortLength(colBuf));
                     colBuf.get();
                     if (StringUtils.isEmpty(colName))
@@ -127,7 +127,7 @@ public class SSTableReaderTests
                     assertEquals("b", colName);
 
                     // extract value column
-                    ByteBuffer b = rid.getValue();
+                    ByteBuffer b = rowData.getValue();
                     Set<?> set = new HashSet<>(Arrays.asList(((GenericArrayData) bridge.set(bridge.aInt())
                                                                                        .deserialize(b))
                                                              .array()));

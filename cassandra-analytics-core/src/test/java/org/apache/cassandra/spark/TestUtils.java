@@ -167,7 +167,7 @@ public final class TestUtils
                                            .option("createStmt", createStmt)
                                            .option("dirs", dir.toAbsolutePath().toString())
                                            .option("version", version.toString())
-                                           .option("useSSTableInputStream", true) // use in the test system to test the SSTableInputStream
+                                           .option("useBufferingInputStream", true)  // Use in the test system to test the BufferingInputStream
                                            .option("partitioner", partitioner.name())
                                            .option("udts", udts.stream().map(f -> f.createStatement(bridge, keyspace)).collect(Collectors.joining("\n")));
         if (statsClass != null)
@@ -205,7 +205,7 @@ public final class TestUtils
                                            .option("createStmt", createStatement)
                                            .option("dirs", directory.toAbsolutePath().toString())
                                            .option("version", version.toString())
-                                           .option("useSSTableInputStream", true)  // Use in the test system to test the SSTableInputStream
+                                           .option("useBufferingInputStream", true)  // Use in the test system to test the BufferingInputStream
                                            .option("partitioner", partitioner.name())
                                            .option(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), addLastModifiedTimestampColumn)
                                            .option("udts", udts.stream()

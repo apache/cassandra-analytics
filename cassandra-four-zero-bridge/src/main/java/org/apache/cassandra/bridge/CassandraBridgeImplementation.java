@@ -113,7 +113,7 @@ import org.apache.cassandra.spark.reader.CompactionStreamScanner;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.IndexReader;
 import org.apache.cassandra.spark.reader.ReaderUtils;
-import org.apache.cassandra.spark.reader.Rid;
+import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.SchemaBuilder;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.reader.SummaryDbUtils;
@@ -250,16 +250,16 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public StreamScanner<Rid> getCompactionScanner(@NotNull CqlTable table,
-                                                   @NotNull Partitioner partitioner,
-                                                   @NotNull SSTablesSupplier ssTables,
-                                                   @Nullable SparkRangeFilter sparkRangeFilter,
-                                                   @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
-                                                   @Nullable PruneColumnFilter columnFilter,
-                                                   @NotNull TimeProvider timeProvider,
-                                                   boolean readIndexOffset,
-                                                   boolean useIncrementalRepair,
-                                                   @NotNull Stats stats)
+    public StreamScanner<RowData> getCompactionScanner(@NotNull CqlTable table,
+                                                       @NotNull Partitioner partitioner,
+                                                       @NotNull SSTablesSupplier ssTables,
+                                                       @Nullable SparkRangeFilter sparkRangeFilter,
+                                                       @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
+                                                       @Nullable PruneColumnFilter columnFilter,
+                                                       @NotNull TimeProvider timeProvider,
+                                                       boolean readIndexOffset,
+                                                       boolean useIncrementalRepair,
+                                                       @NotNull Stats stats)
     {
         // NOTE: Need to use SchemaBuilder to init keyspace if not already set in Cassandra Schema instance
         SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
