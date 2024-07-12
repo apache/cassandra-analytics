@@ -48,10 +48,10 @@ import org.jetbrains.annotations.NotNull;
  * <p>
  * This class expects the consumer thread to be single-threaded, and the producer thread to be single-threaded OR serialized to ensure ordering of events.
  *
- * @param <FileType> CassandraFile type e.g. SSTable, CommitLog
+ * @param <T> CassandraFile type e.g. SSTable, CommitLog
  */
 @SuppressWarnings({"WeakerAccess", "unused"})
-public class BufferingInputStream<FileType extends CassandraFile> extends InputStream implements StreamConsumer
+public class BufferingInputStream<T extends CassandraFile> extends InputStream implements StreamConsumer
 {
     private static final StreamBuffer.ByteArrayWrapper END_MARKER = StreamBuffer.wrap(new byte[0]);
     private static final StreamBuffer.ByteArrayWrapper FINISHED_MARKER = StreamBuffer.wrap(new byte[0]);
@@ -67,8 +67,8 @@ public class BufferingInputStream<FileType extends CassandraFile> extends InputS
     }
 
     private final BlockingQueue<StreamBuffer> queue;
-    private final CassandraFileSource<FileType> source;
-    private final IStats<FileType> stats;
+    private final CassandraFileSource<T> source;
+    private final IStats<T> stats;
     private final long startTimeNanos;
 
     // Variables accessed by both producer, consumer & timeout thread so must be volatile or atomic
@@ -92,7 +92,7 @@ public class BufferingInputStream<FileType extends CassandraFile> extends InputS
      *
      * @param stats {@link IStats} implementation for recording instrumentation
      */
-    public BufferingInputStream(CassandraFileSource<FileType> source, IStats<FileType> stats)
+    public BufferingInputStream(CassandraFileSource<T> source, IStats<T> stats)
     {
         this.source = source;
         this.queue = new LinkedBlockingQueue<>();

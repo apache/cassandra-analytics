@@ -34,7 +34,7 @@ import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public abstract class Stats<FileType extends SSTable> implements IStats<FileType>
+public abstract class Stats<T extends SSTable> implements IStats<T>
 {
 
     public static class DoNothingStats extends Stats
@@ -375,7 +375,7 @@ public abstract class Stats<FileType extends SSTable> implements IStats<FileType
      * @param ssTable   the SSTable source for this input stream
      * @param throwable throwable
      */
-    public void inputStreamFailure(CassandraFileSource<FileType> ssTable, Throwable throwable)
+    public void inputStreamFailure(CassandraFileSource<T> ssTable, Throwable throwable)
     {
     }
 
@@ -387,7 +387,7 @@ public abstract class Stats<FileType extends SSTable> implements IStats<FileType
      * @param ssTable the SSTable source for this input stream
      * @param nanos   time in nanoseconds
      */
-    public void inputStreamTimeBlocked(CassandraFileSource<FileType> ssTable, long nanos)
+    public void inputStreamTimeBlocked(CassandraFileSource<T> ssTable, long nanos)
     {
     }
 
@@ -398,7 +398,7 @@ public abstract class Stats<FileType extends SSTable> implements IStats<FileType
      * @param ssTable the SSTable source for this input stream
      * @param length  number of bytes written
      */
-    public void inputStreamBytesWritten(CassandraFileSource<FileType> ssTable, int length)
+    public void inputStreamBytesWritten(CassandraFileSource<T> ssTable, int length)
     {
     }
 
@@ -410,7 +410,7 @@ public abstract class Stats<FileType extends SSTable> implements IStats<FileType
      * @param queueSize       current queue size
      * @param percentComplete % completion
      */
-    public void inputStreamByteRead(CassandraFileSource<FileType> ssTable,
+    public void inputStreamByteRead(CassandraFileSource<T> ssTable,
                                     int length,
                                     int queueSize,
                                     int percentComplete)
@@ -423,7 +423,7 @@ public abstract class Stats<FileType extends SSTable> implements IStats<FileType
      *
      * @param ssTable the SSTable source for this input stream
      */
-    public void inputStreamEndBuffer(CassandraFileSource<FileType> ssTable)
+    public void inputStreamEndBuffer(CassandraFileSource<T> ssTable)
     {
     }
 
@@ -434,7 +434,7 @@ public abstract class Stats<FileType extends SSTable> implements IStats<FileType
      * @param runTimeNanos      total time open in nanoseconds
      * @param totalNanosBlocked total time blocked on queue waiting for bytes in nanoseconds
      */
-    public void inputStreamEnd(CassandraFileSource<FileType> ssTable, long runTimeNanos, long totalNanosBlocked)
+    public void inputStreamEnd(CassandraFileSource<T> ssTable, long runTimeNanos, long totalNanosBlocked)
     {
     }
 
@@ -446,7 +446,7 @@ public abstract class Stats<FileType extends SSTable> implements IStats<FileType
      * @param rangeSkipped    the number of bytes skipped
      *                        by efficiently incrementing the start range for the next request
      */
-    public void inputStreamBytesSkipped(CassandraFileSource<FileType> ssTable,
+    public void inputStreamBytesSkipped(CassandraFileSource<T> ssTable,
                                         long bufferedSkipped,
                                         long rangeSkipped)
     {
