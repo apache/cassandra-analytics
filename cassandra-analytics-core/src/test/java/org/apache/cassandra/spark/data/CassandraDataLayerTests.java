@@ -45,7 +45,7 @@ class CassandraDataLayerTests
         ClientConfig clientConfig = ClientConfig.create(options);
         assertEquals("big-data", clientConfig.keyspace());
         assertEquals("customers", clientConfig.table());
-        assertEquals("localhost", clientConfig.sidecarInstances());
+        assertEquals("localhost", clientConfig.sidecarContactPoints());
         ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = clientConfig.clearSnapshotStrategy();
         assertTrue(clearSnapshotStrategy.shouldClearOnCompletion());
         assertEquals("2d", clearSnapshotStrategy.ttl());

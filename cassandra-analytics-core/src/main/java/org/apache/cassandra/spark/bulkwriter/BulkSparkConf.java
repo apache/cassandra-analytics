@@ -33,17 +33,20 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.bulkwriter.blobupload.StorageClientConfig;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
+import org.apache.cassandra.spark.common.SidecarInstanceFactory;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.spark.SparkConf;
@@ -146,9 +149,8 @@ public class BulkSparkConf implements Serializable
     protected boolean useOpenSsl;
     protected int ringRetryCount;
     // create sidecarInstances from sidecarInstancesValue and effectiveSidecarPort
-    private final String sidecarInstancesValue;
+    private final String sidecarContactPointsCsv;
     private transient Set<? extends SidecarInstance> sidecarInstances; // not serialized
-
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
@@ -156,7 +158,7 @@ public class BulkSparkConf implements Serializable
         Optional<Integer> sidecarPortFromOptions = MapUtils.getOptionalInt(options, WriterOptions.SIDECAR_PORT.name(), "sidecar port");
         this.userProvidedSidecarPort = sidecarPortFromOptions.isPresent() ? sidecarPortFromOptions.get() : getOptionalInt(SIDECAR_PORT).orElse(-1);
         this.effectiveSidecarPort = this.userProvidedSidecarPort == -1 ? DEFAULT_SIDECAR_PORT : this.userProvidedSidecarPort;
-        this.sidecarInstancesValue = MapUtils.getOrDefault(options, WriterOptions.SIDECAR_INSTANCES.name(), null);
+        this.sidecarContactPointsCsv = resolveSidecarContactPoints(options);
         this.sidecarInstances = sidecarInstances();
         this.keyspace = MapUtils.getOrThrow(options, WriterOptions.KEYSPACE.name());
         this.table = MapUtils.getOrThrow(options, WriterOptions.TABLE.name());
@@ -240,36 +242,45 @@ public class BulkSparkConf implements Serializable
                      .collect(Collectors.toSet());
     }
 
-    protected int resolveSSTableDataSizeInMiB(Map<String, String> options)
+    public static int resolveSSTableDataSizeInMiB(Map<String, String> options)
     {
-        int legacyOptionValue = -1;
-        if (options.containsKey(WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name()))
-        {
-            LOGGER.warn("The writer option: SSTABLE_DATA_SIZE_IN_MB is deprecated. " +
-                        "Please use SSTABLE_DATA_SIZE_IN_MIB instead. See option description for details.");
-            legacyOptionValue = MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name(),
-                                                DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
-        }
+        return MapUtils.resolveDeprecated(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name(), WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name(), option -> {
+            if (option == null)
+            {
+                return DEFAULT_SSTABLE_DATA_SIZE_IN_MIB;
+            }
 
-        if (options.containsKey(WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name()))
-        {
-            LOGGER.info("The writer option: SSTABLE_DATA_SIZE_IN_MIB is defined. " +
-                        "Favor the value over SSTABLE_DATA_SIZE_IN_MB");
-            return MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name(),
-                                   DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
+            return MapUtils.getInt(options, option, DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
+        });
+    }
 
-        }
+    public static String resolveSidecarContactPoints(Map<String, String> options)
+    {
+        return MapUtils.resolveDeprecated(options, WriterOptions.SIDECAR_CONTACT_POINTS.name(), WriterOptions.SIDECAR_INSTANCES.name(), option -> {
+            if (option == null)
+            {
+                return null;
+            }
 
-        return legacyOptionValue == -1 ? DEFAULT_SSTABLE_DATA_SIZE_IN_MIB : legacyOptionValue;
+            return MapUtils.getOrDefault(options, option, null);
+        });
     }
 
     protected Set<? extends SidecarInstance> buildSidecarInstances()
     {
-        String[] split = Objects.requireNonNull(sidecarInstancesValue, "Unable to build sidecar instances from null value")
+        String[] split = Objects.requireNonNull(sidecarContactPointsCsv, "Unable to build sidecar instances from null value")
                                 .split(",");
         return Arrays.stream(split)
-                     .map(hostname -> new SidecarInstanceImpl(hostname, effectiveSidecarPort))
+                     .filter(StringUtils::isNotEmpty)
+                     .map(hostname -> SidecarInstanceFactory.createFromString(hostname, effectiveSidecarPort))
                      .collect(Collectors.toSet());
+    }
+
+    // extract port from input if present and use the extract port to create SidecarInstanceImpl
+    // otherwise, the input does not contain port info, and it uses the default port
+    static SidecarInstanceImpl createSidecarInstance(String input, int defaultPort)
+    {
+        return SidecarInstanceFactory.createFromString(input, defaultPort);
     }
 
     Set<? extends SidecarInstance> sidecarInstances()

@@ -22,13 +22,19 @@ package org.apache.cassandra.spark.utils;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Supplier;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility methods for {@link Map}
  */
 public final class MapUtils
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MapUtils.class);
+
     private MapUtils()
     {
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
@@ -238,5 +244,36 @@ public final class MapUtils
     public static boolean containsKey(Map<String, String> options, String key)
     {
         return options.containsKey(lowerCaseKey(key));
+    }
+
+    /**
+     * Resolve the value by consolidating the value associated with the current option and the deprecated option.
+     * The method assumes that both the new and the deprecated options expect the same value type.
+     * The value of the new option has the precedence over the deprecated one. Meaning when both options are present,
+     * the value associated with the new option is returned.
+     *
+     * @param options option keys and values map
+     * @param option new option
+     * @param deprecated deprecated option
+     * @param resolver function to resolve the value. If the input of the function is null, it asks for the default value
+     * @return resolved value
+     * @param <T> value type
+     */
+    public static <T> T resolveDeprecated(Map<String, String> options, String option, String deprecated, Function<String, T> resolver)
+    {
+        T deprecatedOptionValue = null;
+        if (options.containsKey(deprecated))
+        {
+            LOGGER.warn("The option: {} is deprecated. Please use {} instead. See option description for details.", deprecated, option);
+            deprecatedOptionValue = resolver.apply(deprecated);
+        }
+
+        if (options.containsKey(option))
+        {
+            LOGGER.info("The option: {} is defined. Favor the value over {}", option, deprecated);
+            return resolver.apply(option);
+        }
+
+        return deprecatedOptionValue == null ? resolver.apply(null) : deprecatedOptionValue;
     }
 }

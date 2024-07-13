@@ -51,6 +51,7 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +76,8 @@ import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
+import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
+import org.apache.cassandra.spark.common.SidecarInstanceFactory;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
@@ -154,7 +157,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.table = options.table();
         this.quoteIdentifiers = options.quoteIdentifiers();
         this.sidecarClientConfig = sidecarClientConfig;
-        this.sidecarInstances = options.sidecarInstances;
+        this.sidecarInstances = options.sidecarContactPoints;
         this.sidecarPort = options.sidecarPort;
         this.sslConfig = sslConfig;
         this.bigNumberConfigMap = options.bigNumberConfigMap();
@@ -899,14 +902,15 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
     protected Set<? extends SidecarInstance> initializeClusterConfig(ClientConfig options)
     {
-        return initializeClusterConfig(options.sidecarInstances, options.sidecarPort());
+        return initializeClusterConfig(options.sidecarContactPoints, options.sidecarPort());
     }
 
     // not intended to be overridden
     private Set<? extends SidecarInstance> initializeClusterConfig(String sidecarInstances, int sidecarPort)
     {
         return Arrays.stream(sidecarInstances.split(","))
-                     .map(hostname -> new SidecarInstanceImpl(hostname, sidecarPort))
+                     .filter(StringUtils::isNotEmpty)
+                     .map(hostname -> SidecarInstanceFactory.createFromString(hostname, sidecarPort))
                      .collect(Collectors.toSet());
     }
 

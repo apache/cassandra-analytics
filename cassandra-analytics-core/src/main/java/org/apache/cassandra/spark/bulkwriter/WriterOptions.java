@@ -26,7 +26,11 @@ import org.apache.cassandra.spark.transports.storage.extensions.StorageTransport
  */
 public enum WriterOptions implements WriterOption
 {
+    @Deprecated // Prefer the equivalent, SIDECAR_CONTACT_POINTS
     SIDECAR_INSTANCES,
+    // The option specifies the initial contact points of sidecar servers to discover the cluster topology
+    // Note that the addresses can include port; when port is present, it takes precedence over SIDECAR_PORT
+    SIDECAR_CONTACT_POINTS,
     KEYSPACE,
     TABLE,
     BULK_WRITER_CL,
@@ -45,7 +49,7 @@ public enum WriterOptions implements WriterOption
     TRUSTSTORE_PATH,
     TRUSTSTORE_BASE64_ENCODED,
     SIDECAR_PORT,
-    @Deprecated // the size unit `MB` is incorrect, use `SSTABLE_DATA_SIZE_IN_MIB` instead
+    @Deprecated // Prefer the equivalent, `SSTABLE_DATA_SIZE_IN_MIB`. The size unit `MB` is incorrect and internally treated as MiB.
     SSTABLE_DATA_SIZE_IN_MB,
     SSTABLE_DATA_SIZE_IN_MIB,
     TTL,

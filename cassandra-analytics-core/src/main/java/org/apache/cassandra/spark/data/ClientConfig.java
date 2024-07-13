@@ -43,7 +43,11 @@ public class ClientConfig
 {
     protected final Logger logger = LoggerFactory.getLogger(this.getClass());
 
+    // TODO: the key value string is not consistent with WriterOptions and keys in BulkSparkConf
+    @Deprecated // Prefer the equivalent, SIDECAR_CONTACT_POINTS
     public static final String SIDECAR_INSTANCES = "sidecar_instances";
+    // The option specifies the initial contact points of sidecar servers to discover the cluster topology
+    public static final String SIDECAR_CONTACT_POINTS = "sidecar_contact_points";
     public static final String KEYSPACE_KEY = "keyspace";
     public static final String TABLE_KEY = "table";
     public static final String SNAPSHOT_NAME_KEY = "snapshotName";
@@ -78,7 +82,7 @@ public class ClientConfig
     public static final String QUOTE_IDENTIFIERS = "quote_identifiers";
     public static final int DEFAULT_SIDECAR_PORT = 9043;
 
-    protected String sidecarInstances;
+    protected String sidecarContactPoints;
     @Nullable
     protected String keyspace;
     @Nullable
@@ -105,7 +109,7 @@ public class ClientConfig
 
     protected ClientConfig(Map<String, String> options)
     {
-        this.sidecarInstances = parseSidecarInstances(options);
+        this.sidecarContactPoints = parseSidecarContactPoints(options);
         this.keyspace = MapUtils.getOrThrow(options, KEYSPACE_KEY, "keyspace");
         this.table = MapUtils.getOrThrow(options, TABLE_KEY, "table");
         this.snapshotName = MapUtils.getOrDefault(options, SNAPSHOT_NAME_KEY, "sbr_" + UUID.randomUUID().toString().replace("-", ""));
@@ -135,9 +139,16 @@ public class ClientConfig
         this.quoteIdentifiers = MapUtils.getBoolean(options, QUOTE_IDENTIFIERS, false);
     }
 
-    protected String parseSidecarInstances(Map<String, String> options)
+    protected String parseSidecarContactPoints(Map<String, String> options)
     {
-        return MapUtils.getOrThrow(options, SIDECAR_INSTANCES, "sidecar_instances");
+        return MapUtils.resolveDeprecated(options, SIDECAR_CONTACT_POINTS, SIDECAR_INSTANCES, option -> {
+            if (option == null)
+            {
+                throw MapUtils.throwable(SIDECAR_CONTACT_POINTS + " or " + SIDECAR_INSTANCES).get();
+            }
+
+            return MapUtils.getOrThrow(options, option);
+        });
     }
 
     protected ClearSnapshotStrategy parseClearSnapshotStrategy(boolean hasDeprecatedOption,
@@ -155,9 +166,9 @@ public class ClientConfig
         return ClearSnapshotStrategy.parse(clearSnapshotStrategyOption);
     }
 
-    public String sidecarInstances()
+    public String sidecarContactPoints()
     {
-        return sidecarInstances;
+        return sidecarContactPoints;
     }
 
     public String keyspace()
