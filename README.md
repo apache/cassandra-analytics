@@ -34,7 +34,7 @@ import org.apache.spark.sql.SparkSession
 
 val sparkSession = SparkSession.builder.getOrCreate()
 val df = sparkSession.read.format("org.apache.cassandra.spark.sparksql.CassandraDataSource")
-                          .option("sidecar_instances", "localhost,localhost2,localhost3")
+                          .option("sidecar_contact_points", "localhost,localhost2,localhost3")
                           .option("keyspace", "sbr_tests")
                           .option("table", "basic_test")
                           .option("DC", "datacenter1")

@@ -48,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class CassandraDataSourceHelperCacheTest
 {
     public static final Map<String, String> REQUIRED_CLIENT_CONFIG_OPTIONS =
-            ImmutableMap.of("sidecar_instances", "127.0.0.1",
+            ImmutableMap.of("sidecar_contact_points", "127.0.0.1",
                             "keyspace", "big-data",
                             "table", "customers");
 

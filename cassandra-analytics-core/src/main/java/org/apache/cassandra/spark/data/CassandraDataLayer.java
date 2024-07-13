@@ -76,7 +76,6 @@ import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
-import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.common.SidecarInstanceFactory;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;

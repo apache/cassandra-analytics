@@ -116,7 +116,7 @@ public class SparkTestUtils
         int numCores = coresPerExecutor * numExecutors;
 
         return sql.read().format("org.apache.cassandra.spark.sparksql.CassandraDataSource")
-                  .option("sidecar_instances", sidecarInstancesOption(cluster, dnsResolver))
+                  .option("sidecar_contact_points", sidecarInstancesOption(cluster, dnsResolver))
                   .option("keyspace", tableName.keyspace()) // unquoted
                   .option("table", tableName.table()) // unquoted
                   .option("DC", "datacenter1")
@@ -147,7 +147,7 @@ public class SparkTestUtils
     {
         return df.write()
                  .format("org.apache.cassandra.spark.sparksql.CassandraDataSink")
-                 .option("sidecar_instances", sidecarInstancesOption(cluster, dnsResolver))
+                 .option("sidecar_contact_points", sidecarInstancesOption(cluster, dnsResolver))
                  .option("keyspace", tableName.keyspace())
                  .option("table", tableName.table())
                  .option("local_dc", "datacenter1")

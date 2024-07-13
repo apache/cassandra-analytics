@@ -36,7 +36,7 @@ class CassandraDataLayerTests
     public static final Map<String, String> REQUIRED_CLIENT_CONFIG_OPTIONS = ImmutableMap.of(
     "keyspace", "big-data",
     "table", "customers",
-    "sidecar_instances", "localhost");
+    "sidecar_contact_points", "localhost");
 
     @Test
     void testDefaultClearSnapshotStrategy()

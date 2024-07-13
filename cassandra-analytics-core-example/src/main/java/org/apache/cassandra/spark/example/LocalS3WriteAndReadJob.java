@@ -66,7 +66,7 @@ public class LocalS3WriteAndReadJob extends AbstractCassandraJob
     protected JobConfiguration configureJob(SparkContext sc, SparkConf sparkConf)
     {
         Map<String, String> writeOptions = new HashMap<>();
-        writeOptions.put("sidecar_instances", sidecarInstances);
+        writeOptions.put("sidecar_contact_points", sidecarInstances);
         writeOptions.put("keyspace", "spark_test");
         writeOptions.put("table", "test");
         writeOptions.put("local_dc", dataCenter);
@@ -92,7 +92,7 @@ public class LocalS3WriteAndReadJob extends AbstractCassandraJob
                                             sparkConf.getInt("spark.executor.instances", 1));
         int numCores = coresPerExecutor * numExecutors;
         Map<String, String> readerOptions = new HashMap<>();
-        readerOptions.put("sidecar_instances", "localhost,localhost2,localhost3");
+        readerOptions.put("sidecar_contact_points", "localhost,localhost2,localhost3");
         readerOptions.put("keyspace", "spark_test");
         readerOptions.put("table", "test");
         readerOptions.put("DC", "datacenter1");

@@ -45,7 +45,7 @@ public class ClientConfig
 
     // TODO: the key value string is not consistent with WriterOptions and keys in BulkSparkConf
     @Deprecated // Prefer the equivalent, SIDECAR_CONTACT_POINTS
-    public static final String SIDECAR_INSTANCES = "sidecar_instances";
+    public static final String SIDECAR_INSTANCES = "sidecar_contact_points";
     // The option specifies the initial contact points of sidecar servers to discover the cluster topology
     public static final String SIDECAR_CONTACT_POINTS = "sidecar_contact_points";
     public static final String KEYSPACE_KEY = "keyspace";

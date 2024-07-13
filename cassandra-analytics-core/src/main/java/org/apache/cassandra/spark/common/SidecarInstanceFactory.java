@@ -29,8 +29,19 @@ import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 
 public class SidecarInstanceFactory
 {
+    private SidecarInstanceFactory()
+    {
+        throw new UnsupportedOperationException("Utility class");
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(SidecarInstanceFactory.class);
 
+    /**
+     * Create SidecarInstance object by parsing the input string, which is IP address or hostname and optionally includes port
+     * @param input hostname string that can optionally includes the port. If port is present, the defaultPort param is ignored.
+     * @param defaultPort port value used when the input string contains no port
+     * @return SidecarInstanceImpl
+     */
     public static SidecarInstanceImpl createFromString(String input, int defaultPort)
     {
         Preconditions.checkArgument(StringUtils.isNotEmpty(input), "Unable to create sidecar instance from empty input");
