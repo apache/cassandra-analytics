@@ -34,6 +34,9 @@ import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Stats class for bulk reader and SSTable operations.
+ */
 public abstract class Stats implements IStats<SSTable>
 {
 
