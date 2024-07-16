@@ -24,7 +24,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.apache.cassandra.distributed.api.TokenSupplier;
-import org.apache.cassandra.sidecar.adapters.base.Partitioner;
+import org.apache.cassandra.sidecar.common.server.cluster.locator.Partitioner;
 
 /**
  * Static factory holder that provides a token supplier
