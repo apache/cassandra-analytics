@@ -147,9 +147,9 @@ public class BulkSparkConf implements Serializable
     protected final String configuredJobId;
     protected boolean useOpenSsl;
     protected int ringRetryCount;
-    // create sidecarInstances from sidecarInstancesValue and effectiveSidecarPort
-    private final String sidecarContactPointsCsv;
-    private transient Set<? extends SidecarInstance> sidecarInstances; // not serialized
+    // create sidecarInstances from sidecarContactPointsValue and effectiveSidecarPort
+    private final String sidecarContactPointsValue; // It takes comma separated values
+    private transient Set<? extends SidecarInstance> sidecarContactPoints; // not serialized
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
@@ -157,8 +157,8 @@ public class BulkSparkConf implements Serializable
         Optional<Integer> sidecarPortFromOptions = MapUtils.getOptionalInt(options, WriterOptions.SIDECAR_PORT.name(), "sidecar port");
         this.userProvidedSidecarPort = sidecarPortFromOptions.isPresent() ? sidecarPortFromOptions.get() : getOptionalInt(SIDECAR_PORT).orElse(-1);
         this.effectiveSidecarPort = this.userProvidedSidecarPort == -1 ? DEFAULT_SIDECAR_PORT : this.userProvidedSidecarPort;
-        this.sidecarContactPointsCsv = resolveSidecarContactPoints(options);
-        this.sidecarInstances = sidecarInstances();
+        this.sidecarContactPointsValue = resolveSidecarContactPoints(options);
+        this.sidecarContactPoints = sidecarInstances();
         this.keyspace = MapUtils.getOrThrow(options, WriterOptions.KEYSPACE.name());
         this.table = MapUtils.getOrThrow(options, WriterOptions.TABLE.name());
         this.skipExtendedVerify = MapUtils.getBoolean(options, WriterOptions.SKIP_EXTENDED_VERIFY.name(), true,
@@ -267,7 +267,7 @@ public class BulkSparkConf implements Serializable
 
     protected Set<? extends SidecarInstance> buildSidecarInstances()
     {
-        String[] split = Objects.requireNonNull(sidecarContactPointsCsv, "Unable to build sidecar instances from null value")
+        String[] split = Objects.requireNonNull(sidecarContactPointsValue, "Unable to build sidecar instances from null value")
                                 .split(",");
         return Arrays.stream(split)
                      .filter(StringUtils::isNotEmpty)
@@ -275,20 +275,13 @@ public class BulkSparkConf implements Serializable
                      .collect(Collectors.toSet());
     }
 
-    // extract port from input if present and use the extract port to create SidecarInstanceImpl
-    // otherwise, the input does not contain port info, and it uses the default port
-    static SidecarInstanceImpl createSidecarInstance(String input, int defaultPort)
-    {
-        return SidecarInstanceFactory.createFromString(input, defaultPort);
-    }
-
     Set<? extends SidecarInstance> sidecarInstances()
     {
-        if (sidecarInstances == null)
+        if (sidecarContactPoints == null)
         {
-            sidecarInstances = buildSidecarInstances();
+            sidecarContactPoints = buildSidecarInstances();
         }
-        return sidecarInstances;
+        return sidecarContactPoints;
     }
 
     protected void validateEnvironment() throws RuntimeException

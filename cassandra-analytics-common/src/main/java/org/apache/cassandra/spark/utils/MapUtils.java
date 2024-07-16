@@ -268,7 +268,7 @@ public final class MapUtils
             deprecatedOptionValue = resolver.apply(deprecated);
         }
 
-        if (options.containsKey(option))
+        if (options.containsKey(option) && deprecatedOptionValue != null)
         {
             LOGGER.info("The option: {} is defined. Favor the value over {}", option, deprecated);
             return resolver.apply(option);
