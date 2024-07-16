@@ -71,9 +71,17 @@ dependencies {
 
     testImplementation(project(path: ":cassandra-analytics-integration-framework"))
 
+    testImplementation platform(group: 'software.amazon.awssdk', name:'bom', version:"${project.aswSdkVersion}")
     testImplementation 'software.amazon.awssdk:s3'
     testImplementation 'software.amazon.awssdk:netty-nio-client'
-    testImplementation platform(group: 'software.amazon.awssdk', name:'bom', version:"${project.aswSdkVersion}")
+    testImplementation('io.netty:netty-transport-classes-epoll') {
+        version {
+            // Some integration tests are failing with version 4.1.100.final due to netty bootstrapping issue in cassandra java driver.
+            // Force the version to the old version unblocks the integration test.
+            strictly '4.1.86.Final'
+        }
+    }
+
     testImplementation 'com.adobe.testing:s3mock-testcontainers:2.17.0' // 3.x version do not support java 11
 
     testRuntimeOnly 'com.fasterxml.jackson.core:jackson-annotations:2.14.2'
