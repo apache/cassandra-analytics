@@ -43,9 +43,9 @@ import org.apache.cassandra.distributed.api.IMessageSink;
 import org.apache.cassandra.distributed.api.TokenSupplier;
 import org.apache.cassandra.distributed.shared.ClusterUtils;
 import org.apache.cassandra.distributed.shared.Versions;
-import org.apache.cassandra.sidecar.adapters.base.Partitioner;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.cassandra.testing.IClusterExtension;
+import org.apache.cassandra.testing.Partitioner;
 import org.apache.cassandra.testing.TestTokenSupplier;
 import org.jetbrains.annotations.NotNull;
 
