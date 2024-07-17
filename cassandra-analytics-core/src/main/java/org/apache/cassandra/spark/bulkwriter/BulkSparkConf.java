@@ -41,7 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.bulkwriter.blobupload.StorageClientConfig;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
@@ -158,7 +157,7 @@ public class BulkSparkConf implements Serializable
         this.userProvidedSidecarPort = sidecarPortFromOptions.isPresent() ? sidecarPortFromOptions.get() : getOptionalInt(SIDECAR_PORT).orElse(-1);
         this.effectiveSidecarPort = this.userProvidedSidecarPort == -1 ? DEFAULT_SIDECAR_PORT : this.userProvidedSidecarPort;
         this.sidecarContactPointsValue = resolveSidecarContactPoints(options);
-        this.sidecarContactPoints = sidecarInstances();
+        this.sidecarContactPoints = sidecarContactPoints();
         this.keyspace = MapUtils.getOrThrow(options, WriterOptions.KEYSPACE.name());
         this.table = MapUtils.getOrThrow(options, WriterOptions.TABLE.name());
         this.skipExtendedVerify = MapUtils.getBoolean(options, WriterOptions.SKIP_EXTENDED_VERIFY.name(), true,
@@ -265,7 +264,7 @@ public class BulkSparkConf implements Serializable
         });
     }
 
-    protected Set<? extends SidecarInstance> buildSidecarInstances()
+    protected Set<? extends SidecarInstance> buildSidecarContactPoints()
     {
         String[] split = Objects.requireNonNull(sidecarContactPointsValue, "Unable to build sidecar instances from null value")
                                 .split(",");
@@ -275,11 +274,11 @@ public class BulkSparkConf implements Serializable
                      .collect(Collectors.toSet());
     }
 
-    Set<? extends SidecarInstance> sidecarInstances()
+    Set<? extends SidecarInstance> sidecarContactPoints()
     {
         if (sidecarContactPoints == null)
         {
-            sidecarContactPoints = buildSidecarInstances();
+            sidecarContactPoints = buildSidecarContactPoints();
         }
         return sidecarContactPoints;
     }
