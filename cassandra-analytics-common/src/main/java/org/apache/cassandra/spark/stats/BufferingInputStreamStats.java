@@ -23,6 +23,10 @@ import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.utils.streaming.CassandraFile;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 
+/**
+ * Stats for {@link org.apache.cassandra.spark.utils.streaming.BufferingInputStream}.
+ * @param <T>
+ */
 public interface BufferingInputStreamStats<T extends CassandraFile>
 {
     static <T extends CassandraFile> BufferingInputStreamStats<T> doNothingStats()
