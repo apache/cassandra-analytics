@@ -90,7 +90,7 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
     /**
      * @param source CassandraFileSource to async provide the bytes after {@link CassandraFileSource#request(long, long, StreamConsumer)} is called
      *
-     * @param stats {@link IStats} implementation for recording instrumentation
+     * @param stats {@link BufferingInputStreamStats} implementation for recording instrumentation
      */
     public BufferingInputStream(CassandraFileSource<T> source, BufferingInputStreamStats<T> stats)
     {
