@@ -324,7 +324,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                 .map(Paths::get)
                 .flatMap(Throwing.function(Files::list))
                 .filter(path -> path.getFileName().toString().endsWith("-" + FileType.DATA.getFileSuffix()))
-                .map(path -> new FileSystemSSTable(path, useBufferingInputStream, this::stats))
+                .map(path -> new FileSystemSSTable(path, useBufferingInputStream, () -> this.stats.bufferingInputStreamStats()))
                 .collect(Collectors.toSet()));
     }
 

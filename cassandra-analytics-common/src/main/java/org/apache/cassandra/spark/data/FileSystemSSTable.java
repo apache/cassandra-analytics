@@ -30,7 +30,7 @@ import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.spark.stats.IStats;
+import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
 import org.apache.cassandra.spark.utils.IOUtils;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.utils.streaming.BufferingInputStream;
@@ -44,9 +44,9 @@ public class FileSystemSSTable extends SSTable
 
     private final transient Path dataFilePath;
     private final transient boolean useBufferingInputStream;
-    private final transient Supplier<IStats<SSTable>> stats;
+    private final transient Supplier<BufferingInputStreamStats<SSTable>> stats;
 
-    public FileSystemSSTable(@NotNull Path dataFilePath, boolean useBufferingInputStream, @NotNull Supplier<IStats<SSTable>> stats)
+    public FileSystemSSTable(@NotNull Path dataFilePath, boolean useBufferingInputStream, @NotNull Supplier<BufferingInputStreamStats<SSTable>> stats)
     {
         this.dataFilePath = dataFilePath;
         this.useBufferingInputStream = useBufferingInputStream;

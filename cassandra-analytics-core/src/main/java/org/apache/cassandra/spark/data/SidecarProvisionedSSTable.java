@@ -172,7 +172,7 @@ public class SidecarProvisionedSSTable extends SSTable
     public InputStream open(ListSnapshotFilesResponse.FileInfo fileInfo, FileType fileType)
     {
         CassandraFileSource<SidecarProvisionedSSTable> ssTableSource = source(fileInfo, fileType);
-        return new BufferingInputStream<>(ssTableSource, stats);
+        return new BufferingInputStream<>(ssTableSource, stats.bufferingInputStreamStats());
     }
 
     /**

@@ -30,16 +30,21 @@ import org.apache.cassandra.spark.data.SSTablesSupplier;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
-import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
+import org.apache.cassandra.spark.utils.streaming.CassandraFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public abstract class Stats<T extends SSTable> implements IStats<T>
+public abstract class Stats
 {
 
     public static class DoNothingStats extends Stats
     {
         public static final DoNothingStats INSTANCE = new DoNothingStats();
+    }
+
+    public <T extends CassandraFile> BufferingInputStreamStats<T> bufferingInputStreamStats()
+    {
+        return BufferingInputStreamStats.doNothingStats();
     }
 
     // Spark Row Iterator
@@ -354,101 +359,6 @@ public abstract class Stats<T extends SSTable> implements IStats<T>
      * @param timeOpenNanos time in nanoseconds SSTable was open
      */
     public void closedSSTable(long timeOpenNanos)
-    {
-    }
-
-    // SSTable Input Stream
-
-    /**
-     * When {@link org.apache.cassandra.spark.utils.streaming.BufferingInputStream} queue is full, usually indicating
-     * job is CPU-bound and blocked on the CompactionIterator
-     *
-     * @param ssTable the SSTable source for this input stream
-     */
-    public void inputStreamQueueFull(CassandraFileSource<? extends SSTable> ssTable)
-    {
-    }
-
-    /**
-     * Failure occurred in the {@link org.apache.cassandra.spark.utils.streaming.BufferingInputStream}
-     *
-     * @param ssTable   the SSTable source for this input stream
-     * @param throwable throwable
-     */
-    public void inputStreamFailure(CassandraFileSource<T> ssTable, Throwable throwable)
-    {
-    }
-
-    /**
-     * Time the {@link org.apache.cassandra.spark.utils.streaming.BufferingInputStream} spent blocking on queue
-     * waiting for bytes. High time spent blocking indicates the job is network-bound, or blocked on the
-     * {@link org.apache.cassandra.spark.utils.streaming.CassandraFileSource} to supply the bytes.
-     *
-     * @param ssTable the SSTable source for this input stream
-     * @param nanos   time in nanoseconds
-     */
-    public void inputStreamTimeBlocked(CassandraFileSource<T> ssTable, long nanos)
-    {
-    }
-
-    /**
-     * Bytes written to {@link org.apache.cassandra.spark.utils.streaming.BufferingInputStream}
-     * by the {@link org.apache.cassandra.spark.utils.streaming.CassandraFileSource}
-     *
-     * @param ssTable the SSTable source for this input stream
-     * @param length  number of bytes written
-     */
-    public void inputStreamBytesWritten(CassandraFileSource<T> ssTable, int length)
-    {
-    }
-
-    /**
-     * Bytes read from {@link org.apache.cassandra.spark.utils.streaming.BufferingInputStream}
-     *
-     * @param ssTable         the SSTable source for this input stream
-     * @param length          number of bytes read
-     * @param queueSize       current queue size
-     * @param percentComplete % completion
-     */
-    public void inputStreamByteRead(CassandraFileSource<T> ssTable,
-                                    int length,
-                                    int queueSize,
-                                    int percentComplete)
-    {
-    }
-
-    /**
-     * {@link org.apache.cassandra.spark.utils.streaming.CassandraFileSource} has finished writing
-     * to {@link org.apache.cassandra.spark.utils.streaming.BufferingInputStream} after reaching expected file length
-     *
-     * @param ssTable the SSTable source for this input stream
-     */
-    public void inputStreamEndBuffer(CassandraFileSource<T> ssTable)
-    {
-    }
-
-    /**
-     * {@link org.apache.cassandra.spark.utils.streaming.BufferingInputStream} finished and closed
-     *
-     * @param ssTable           the SSTable source for this input stream
-     * @param runTimeNanos      total time open in nanoseconds
-     * @param totalNanosBlocked total time blocked on queue waiting for bytes in nanoseconds
-     */
-    public void inputStreamEnd(CassandraFileSource<T> ssTable, long runTimeNanos, long totalNanosBlocked)
-    {
-    }
-
-    /**
-     * Called when the InputStream skips bytes
-     *
-     * @param ssTable         the SSTable source for this input stream
-     * @param bufferedSkipped the number of bytes already buffered in memory skipped
-     * @param rangeSkipped    the number of bytes skipped
-     *                        by efficiently incrementing the start range for the next request
-     */
-    public void inputStreamBytesSkipped(CassandraFileSource<T> ssTable,
-                                        long bufferedSkipped,
-                                        long rangeSkipped)
     {
     }
 

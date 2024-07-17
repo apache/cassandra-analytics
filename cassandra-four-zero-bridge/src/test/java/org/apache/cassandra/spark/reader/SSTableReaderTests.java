@@ -592,7 +592,7 @@ public class SSTableReaderTests
 
                     AtomicBoolean pass = new AtomicBoolean(true);
                     AtomicInteger skipCount = new AtomicInteger(0);
-                    Stats<SSTable> stats = new Stats<SSTable>()
+                    Stats stats = new Stats()
                     {
                         @Override
                         public void skippedSSTable(@Nullable SparkRangeFilter sparkRangeFilter,
@@ -652,7 +652,7 @@ public class SSTableReaderTests
 
                     AtomicBoolean pass = new AtomicBoolean(true);
                     AtomicInteger skipCount = new AtomicInteger(0);
-                    Stats<SSTable> stats = new Stats<SSTable>()
+                    Stats stats = new Stats()
                     {
                         @Override
                         public void skippedSSTable(@Nullable SparkRangeFilter sparkRangeFilter,

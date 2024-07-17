@@ -49,8 +49,10 @@ import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.SSTable;
+import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.RandomUtils;
+import org.apache.cassandra.spark.utils.streaming.CassandraFile;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.Row;
@@ -1948,7 +1950,7 @@ public class EndToEndTests
     }
 
     @SuppressWarnings("unused")  // Actually used via reflection in testLargeBlobExclude()
-    public static final Stats<SSTable> STATS = new Stats<SSTable>()
+    public static final Stats STATS = new Stats()
     {
         @Override
         public void skippedBytes(long length)
@@ -1956,13 +1958,19 @@ public class EndToEndTests
             skippedRawBytes.addAndGet(length);
         }
 
-        @Override
-        public void inputStreamBytesSkipped(CassandraFileSource<SSTable> ssTable,
-                                            long bufferedSkipped,
-                                            long rangeSkipped)
+        public BufferingInputStreamStats<SSTable> bufferingInputStreamStats()
         {
-            skippedInputStreamBytes.addAndGet(bufferedSkipped);
-            skippedRangeBytes.addAndGet(rangeSkipped);
+            return new BufferingInputStreamStats<SSTable>()
+            {
+                @Override
+                public void inputStreamBytesSkipped(CassandraFileSource<SSTable> ssTable,
+                                                    long bufferedSkipped,
+                                                    long rangeSkipped)
+                {
+                    skippedInputStreamBytes.addAndGet(bufferedSkipped);
+                    skippedRangeBytes.addAndGet(rangeSkipped);
+                }
+            };
         }
     };
 

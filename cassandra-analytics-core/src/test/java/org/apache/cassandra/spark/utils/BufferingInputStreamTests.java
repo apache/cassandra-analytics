@@ -140,7 +140,7 @@ public class BufferingInputStreamTests
             requestCount.incrementAndGet();
             writeBuffers(consumer, randomBuffers(chunksPerRequest));
         }, null);
-        BufferingInputStream<SSTable> is = new BufferingInputStream<>(mockedClient, STATS);
+        BufferingInputStream<SSTable> is = new BufferingInputStream<>(mockedClient, STATS.bufferingInputStreamStats());
         readStreamFully(is);
         assertEquals(numRequests, requestCount.get());
         assertEquals(0L, is.bytesBuffered());
@@ -170,7 +170,7 @@ public class BufferingInputStreamTests
             }
         }, null);
         assertThrows(IOException.class,
-                     () -> readStreamFully(new BufferingInputStream<>(source, STATS))
+                     () -> readStreamFully(new BufferingInputStream<>(source, STATS.bufferingInputStreamStats()))
         );
     }
 
@@ -220,7 +220,7 @@ public class BufferingInputStreamTests
                 });
             }
         }, timeout);
-        BufferingInputStream<SSTable> inputStream = new BufferingInputStream<>(source, STATS);
+        BufferingInputStream<SSTable> inputStream = new BufferingInputStream<>(source, STATS.bufferingInputStreamStats());
         try
         {
             readStreamFully(inputStream);
@@ -292,7 +292,7 @@ public class BufferingInputStreamTests
 
         int bytesToRead = chunkSize * numChunks;
         long skipAhead = size - bytesToRead + 1;
-        try (BufferingInputStream<SSTable> stream = new BufferingInputStream<>(source, STATS))
+        try (BufferingInputStream<SSTable> stream = new BufferingInputStream<>(source, STATS.bufferingInputStreamStats()))
         {
             // Skip ahead so we only read the final chunks
             ByteBufferUtils.skipFully(stream, skipAhead);
@@ -341,7 +341,7 @@ public class BufferingInputStreamTests
             }
         };
 
-        try (BufferingInputStream<SSTable> stream = new BufferingInputStream<>(source, STATS))
+        try (BufferingInputStream<SSTable> stream = new BufferingInputStream<>(source, STATS.bufferingInputStreamStats()))
         {
             ByteBufferUtils.skipFully(stream, 20971520);
             readStreamFully(stream);

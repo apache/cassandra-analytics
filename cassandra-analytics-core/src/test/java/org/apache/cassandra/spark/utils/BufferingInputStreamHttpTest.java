@@ -290,7 +290,7 @@ public class BufferingInputStreamHttpTest
                                                                   Files.size(path),
                                                                   maxBufferSize,
                                                                   chunkBufferSize);
-            try (BufferingInputStream<SSTable> is = new BufferingInputStream<>(source, BufferingInputStreamTests.STATS))
+            try (BufferingInputStream<SSTable> is = new BufferingInputStream<>(source, BufferingInputStreamTests.STATS.bufferingInputStreamStats()))
             {
                 actualMD5 = DigestUtils.md5(is);
                 blockingTimeMillis = TimeUnit.MILLISECONDS.convert(is.timeBlockedNanos(), TimeUnit.NANOSECONDS);
