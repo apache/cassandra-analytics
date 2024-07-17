@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.cassandra.spark.stats.IStats;
+import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -68,7 +68,7 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
 
     private final BlockingQueue<StreamBuffer> queue;
     private final CassandraFileSource<T> source;
-    private final IStats<T> stats;
+    private final BufferingInputStreamStats<T> stats;
     private final long startTimeNanos;
 
     // Variables accessed by both producer, consumer & timeout thread so must be volatile or atomic
@@ -90,9 +90,9 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
     /**
      * @param source CassandraFileSource to async provide the bytes after {@link CassandraFileSource#request(long, long, StreamConsumer)} is called
      *
-     * @param stats {@link IStats} implementation for recording instrumentation
+     * @param stats {@link BufferingInputStreamStats} implementation for recording instrumentation
      */
-    public BufferingInputStream(CassandraFileSource<T> source, IStats<T> stats)
+    public BufferingInputStream(CassandraFileSource<T> source, BufferingInputStreamStats<T> stats)
     {
         this.source = source;
         this.queue = new LinkedBlockingQueue<>();

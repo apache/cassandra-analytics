@@ -193,6 +193,6 @@ public class SSTableLister implements SSTableCollector
         {
             throw new IllegalArgumentException("SSTable should have only one data component");
         }
-        return new FileSystemSSTable(dataComponents.get(0), true, () -> Stats.DoNothingStats.INSTANCE);
+        return new FileSystemSSTable(dataComponents.get(0), true, Stats.DoNothingStats.INSTANCE::bufferingInputStreamStats);
     }
 }
