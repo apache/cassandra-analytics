@@ -36,7 +36,7 @@ class CassandraDataLayerTests
     public static final Map<String, String> REQUIRED_CLIENT_CONFIG_OPTIONS = ImmutableMap.of(
     "keyspace", "big-data",
     "table", "customers",
-    "sidecar_instances", "localhost");
+    "sidecar_contact_points", "localhost");
 
     @Test
     void testDefaultClearSnapshotStrategy()
@@ -45,7 +45,7 @@ class CassandraDataLayerTests
         ClientConfig clientConfig = ClientConfig.create(options);
         assertEquals("big-data", clientConfig.keyspace());
         assertEquals("customers", clientConfig.table());
-        assertEquals("localhost", clientConfig.sidecarInstances());
+        assertEquals("localhost", clientConfig.sidecarContactPoints());
         ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = clientConfig.clearSnapshotStrategy();
         assertTrue(clearSnapshotStrategy.shouldClearOnCompletion());
         assertEquals("2d", clearSnapshotStrategy.ttl());

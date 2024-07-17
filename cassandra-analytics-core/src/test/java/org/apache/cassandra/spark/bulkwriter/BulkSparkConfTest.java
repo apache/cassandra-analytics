@@ -35,23 +35,18 @@ import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.DEFAULT_SIDECAR_PORT;
 import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.MINIMUM_JOB_KEEP_ALIVE_MINUTES;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.emptyString;
-import static org.hamcrest.core.Is.is;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class BulkSparkConfTest
+class BulkSparkConfTest
 {
     private SparkConf sparkConf;
     private BulkSparkConf bulkSparkConf;
     private Map<String, String> defaultOptions;
 
     @BeforeEach
-    public void before()
+    void before()
     {
         sparkConf = new SparkConf();
         defaultOptions = Maps.newTreeMap(String.CASE_INSENSITIVE_ORDER);
@@ -64,28 +59,28 @@ public class BulkSparkConfTest
     }
 
     @Test
-    public void testGetBoolean()
+    void testGetBoolean()
     {
         sparkConf.set("spark.cassandra_analytics.job.skip_clean", "true");
-        assertThat(bulkSparkConf.getSkipClean(), is(true));
+        assertThat(bulkSparkConf.getSkipClean()).isTrue();
     }
 
     @Test
-    public void testGetLong()
+    void testGetLong()
     {
         sparkConf.set("spark.cassandra_analytics.sidecar.request.retries.delay.milliseconds", "2222");
-        assertThat(bulkSparkConf.getSidecarRequestRetryDelayMillis(), is(2222L));
+        assertThat(bulkSparkConf.getSidecarRequestRetryDelayMillis()).isEqualTo(2222L);
     }
 
     @Test
-    public void testGetInt()
+    void testGetInt()
     {
         sparkConf.set("spark.cassandra_analytics.request.max_connections", "1234");
-        assertThat(bulkSparkConf.getMaxHttpConnections(), is(1234));
+        assertThat(bulkSparkConf.getMaxHttpConnections()).isEqualTo(1234);
     }
 
     @Test
-    public void deprecatedSettingsAreHonored()
+    void deprecatedSettingsAreHonored()
     {
         // Test that deprecated names of settings are in fact picked up correctly
 
@@ -102,155 +97,182 @@ public class BulkSparkConfTest
             }
         };
 
-        assertThat(bulkSparkConf.getMaxHttpConnections(), is(1234));
-        assertThat(bulkSparkConf.getHttpResponseTimeoutMs(), is(5678));
+        assertThat(bulkSparkConf.getMaxHttpConnections()).isEqualTo(1234);
+        assertThat(bulkSparkConf.getHttpResponseTimeoutMs()).isEqualTo(5678);
     }
 
     @Test
-    public void calculatesCoresCorrectlyForStaticAllocation()
+    void calculatesCoresCorrectlyForStaticAllocation()
     {
         sparkConf.set("spark.executor.cores", "5");
         sparkConf.set("spark.executor.instances", "5");
-        assertThat(bulkSparkConf.getCores(), is(25));
+        assertThat(bulkSparkConf.getCores()).isEqualTo(25);
     }
 
     @Test
-    public void calculatesCoresCorrectlyForDynamicAllocation()
+    void calculatesCoresCorrectlyForDynamicAllocation()
     {
         sparkConf.set("spark.executor.cores", "6");
         sparkConf.set("spark.dynamicAllocation.maxExecutors", "7");
-        assertThat(bulkSparkConf.getCores(), is(42));
+        assertThat(bulkSparkConf.getCores()).isEqualTo(42);
     }
 
     @Test
-    public void ensureSetupSparkConfAddsPerformsNecessaryTasks()
+    void ensureSetupSparkConfAddsPerformsNecessaryTasks()
     {
-        assertThat(sparkConf.get("spark.kryo.registrator", ""), is(emptyString()));
-        assertThat(sparkConf.get("spark.executor.extraJavaOptions", ""), is(emptyString()));
+        assertThat(sparkConf.get("spark.kryo.registrator", "")).isEmpty();
+        assertThat(sparkConf.get("spark.executor.extraJavaOptions", "")).isEmpty();
         BulkSparkConf.setupSparkConf(sparkConf, true);
-        assertEquals("," + SbwKryoRegistrator.class.getName(), sparkConf.get("spark.kryo.registrator", ""));
+        assertThat(sparkConf.get("spark.kryo.registrator", ""))
+        .isEqualTo("," + SbwKryoRegistrator.class.getName());
         if (BuildInfo.isAtLeastJava11(BuildInfo.javaSpecificationVersion()))
         {
-            assertEquals(BulkSparkConf.JDK11_OPTIONS, sparkConf.get("spark.executor.extraJavaOptions", ""));
+            assertThat(sparkConf.get("spark.executor.extraJavaOptions", ""))
+            .isEqualTo(BulkSparkConf.JDK11_OPTIONS);
         }
     }
 
     @Test
-    public void withProperMtlsSettingsWillCreateSuccessfully()
+    void withProperMtlsSettingsWillCreateSuccessfully()
     {
         // mTLS is now required, and the BulkSparkConf constructor fails if the options aren't present
         Map<String, String> options = copyDefaultOptions();
         SparkConf sparkConf = new SparkConf();
-        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
+        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options));
     }
 
     @Test
-    public void keystorePathRequiredIfBase64EncodedKeystoreNotSet()
+    void keystorePathRequiredIfBase64EncodedKeystoreNotSet()
     {
         Map<String, String> options = copyDefaultOptions();
         options.remove(WriterOptions.KEYSTORE_PATH.name());
         SparkConf sparkConf = new SparkConf();
-        NullPointerException npe = assertThrows(NullPointerException.class,
-                                                () -> new BulkSparkConf(sparkConf, options));
-        assertEquals("Keystore password was set. But both keystore path and base64 encoded string are not set. "
-                     + "Please either set option " + WriterOptions.KEYSTORE_PATH
-                     + " or option " + WriterOptions.KEYSTORE_BASE64_ENCODED, npe.getMessage());
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        .isExactlyInstanceOf(NullPointerException.class)
+        .hasMessage("Keystore password was set. But both keystore path and base64 encoded string are not set. "
+                    + "Please either set option " + WriterOptions.KEYSTORE_PATH
+                    + " or option " + WriterOptions.KEYSTORE_BASE64_ENCODED);
     }
 
     @Test
-    public void testSkipClean()
+    void testSkipClean()
     {
-        assertFalse(bulkSparkConf.getSkipClean());
+        assertThat(bulkSparkConf.getSkipClean()).isFalse();
         sparkConf.set(BulkSparkConf.SKIP_CLEAN, "true");
-        assertTrue(bulkSparkConf.getSkipClean());
+        assertThat(bulkSparkConf.getSkipClean()).isTrue();
     }
 
     @Test
-    public void testDefaultSidecarPort()
+    void testDefaultSidecarPort()
     {
         bulkSparkConf = new BulkSparkConf(new SparkConf(), defaultOptions);
-        assertEquals(-1, bulkSparkConf.getUserProvidedSidecarPort());
-        assertEquals(DEFAULT_SIDECAR_PORT, bulkSparkConf.getEffectiveSidecarPort());
+        assertThat(bulkSparkConf.getUserProvidedSidecarPort()).isEqualTo(-1);
+        assertThat(bulkSparkConf.getEffectiveSidecarPort()).isEqualTo(DEFAULT_SIDECAR_PORT);
     }
 
     @Test
-    public void testSidecarPortSetByOptions()
+    void testSidecarPortSetByOptions()
     {
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.SIDECAR_PORT.name(), "9999");
         bulkSparkConf = new BulkSparkConf(new SparkConf(), options);
-        assertEquals(9999, bulkSparkConf.getUserProvidedSidecarPort());
-        assertEquals(9999, bulkSparkConf.getEffectiveSidecarPort());
+        assertThat(bulkSparkConf.getUserProvidedSidecarPort()).isEqualTo(9999);
+        assertThat(bulkSparkConf.getEffectiveSidecarPort()).isEqualTo(9999);
     }
 
     @Test
-    public void testSidecarPortSetByProperty()
+    void testSidecarPortSetByProperty()
     {
         // Spark conf loads values from system properties, but we can also test by calling `.set` explicitly.
         // This makes the test not pollute global (System.properties) state but still tests the same basic path.
         SparkConf conf = new SparkConf()
                          .set(BulkSparkConf.SIDECAR_PORT, "9876");
         bulkSparkConf = new BulkSparkConf(conf, defaultOptions);
-        assertEquals(9876, bulkSparkConf.getUserProvidedSidecarPort());
-        assertEquals(9876, bulkSparkConf.getEffectiveSidecarPort());
+        assertThat(bulkSparkConf.getUserProvidedSidecarPort()).isEqualTo(9876);
+        assertThat(bulkSparkConf.getEffectiveSidecarPort()).isEqualTo(9876);
     }
 
     @Test
-    public void testKeystoreBase64EncodedStringSet()
+    void testKeystoreBase64EncodedStringSet()
     {
         Map<String, String> options = copyDefaultOptions();
         options.remove(WriterOptions.KEYSTORE_PATH.name());
         options.put(WriterOptions.KEYSTORE_BASE64_ENCODED.name(), "dummy_base64_encoded_keystore");
-        bulkSparkConf = new BulkSparkConf(sparkConf, defaultOptions);
+        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, defaultOptions));
     }
 
     @Test
-    public void testTrustStorePasswordSetPathNotSet()
+    void testTrustStorePasswordSetPathNotSet()
     {
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.TRUSTSTORE_PATH.name(), "dummy");
-        NullPointerException npe = assertThrows(NullPointerException.class,
-                                                () -> new BulkSparkConf(sparkConf, options));
-        assertEquals("Trust Store Path was provided, but password is missing. "
-                     + "Please provide option " + WriterOptions.TRUSTSTORE_PASSWORD, npe.getMessage());
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        .isExactlyInstanceOf(NullPointerException.class)
+        .hasMessage("Trust Store Path was provided, but password is missing. "
+                    + "Please provide option " + WriterOptions.TRUSTSTORE_PASSWORD);
     }
 
     @Test
     void testQuoteIdentifiers()
     {
-        assertFalse(bulkSparkConf.quoteIdentifiers);
+        assertThat(bulkSparkConf.quoteIdentifiers).isFalse();
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.QUOTE_IDENTIFIERS.name(), "true");
         BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
-        assertNotNull(bulkSparkConf);
-        assertTrue(bulkSparkConf.quoteIdentifiers);
+        assertThat(bulkSparkConf).isNotNull();
+        assertThat(bulkSparkConf.quoteIdentifiers).isTrue();
     }
 
     @Test
-    public void testInvalidJobKeepAliveMinutes()
+    void testInvalidJobKeepAliveMinutes()
     {
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.JOB_KEEP_ALIVE_MINUTES.name(), "-100");
-        IllegalArgumentException iae = assertThrows(IllegalArgumentException.class, () -> new BulkSparkConf(sparkConf, options));
-        assertEquals("Invalid value for the 'JOB_KEEP_ALIVE_MINUTES' Bulk Writer option (-100). It cannot be less than the minimum 10",
-                     iae.getMessage());
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Invalid value for the 'JOB_KEEP_ALIVE_MINUTES' Bulk Writer option (-100). It cannot be less than the minimum 10");
     }
 
     @Test
-    public void testDefaultJobKeepAliveMinutes()
+    void testDefaultJobKeepAliveMinutes()
     {
         Map<String, String> options = copyDefaultOptions();
         BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
-        assertEquals(MINIMUM_JOB_KEEP_ALIVE_MINUTES, conf.getJobKeepAliveMinutes());
+        assertThat(conf.getJobKeepAliveMinutes()).isEqualTo(MINIMUM_JOB_KEEP_ALIVE_MINUTES);
     }
 
     @Test
-    public void testJobKeepAliveMinutes()
+    void testJobKeepAliveMinutes()
     {
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.JOB_KEEP_ALIVE_MINUTES.name(), "30");
         BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
-        assertEquals(30, conf.getJobKeepAliveMinutes());
+        assertThat(conf.getJobKeepAliveMinutes()).isEqualTo(30);
+    }
+
+    @Test
+    void testSidecarContactPoints()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        assertThat(BulkSparkConf.resolveSidecarContactPoints(options)).isEqualTo("127.0.0.1");
+
+        String sidecarInstances = "127.0.0.1,128.0.0.2";
+        options.put(WriterOptions.SIDECAR_INSTANCES.name(), sidecarInstances);
+        assertThat(BulkSparkConf.resolveSidecarContactPoints(options)).isEqualTo(sidecarInstances);
+
+        String contactPoints = "localhost1,localhost2";
+        options.put(WriterOptions.SIDECAR_CONTACT_POINTS.name(), contactPoints);
+        assertThat(BulkSparkConf.resolveSidecarContactPoints(options)).isEqualTo(contactPoints);
+
+        String contactPointsWithPort = "localhost1:9999,localhost2:9999";
+        options.put(WriterOptions.SIDECAR_CONTACT_POINTS.name(), contactPointsWithPort);
+        assertThat(BulkSparkConf.resolveSidecarContactPoints(options)).isEqualTo(contactPointsWithPort);
+
+        options.remove(WriterOptions.SIDECAR_INSTANCES.name());
+        options.remove(WriterOptions.SIDECAR_CONTACT_POINTS.name());
+        assertThat(BulkSparkConf.resolveSidecarContactPoints(options))
+        .describedAs("When none of the sidecar options are define. It resolves to the default value null")
+        .isNull();
     }
 
     private Map<String, String> copyDefaultOptions()

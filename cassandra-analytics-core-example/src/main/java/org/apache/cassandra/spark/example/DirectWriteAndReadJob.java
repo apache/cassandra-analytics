@@ -41,7 +41,7 @@ public class DirectWriteAndReadJob extends AbstractCassandraJob
     protected JobConfiguration configureJob(SparkContext sc, SparkConf sparkConf)
     {
         Map<String, String> writeOptions = new HashMap<>();
-        writeOptions.put("sidecar_instances", "localhost,localhost2,localhost3");
+        writeOptions.put("sidecar_contact_points", "localhost,localhost2,localhost3");
         writeOptions.put("keyspace", "spark_test");
         writeOptions.put("table", "test");
         writeOptions.put("local_dc", "datacenter1");
@@ -54,7 +54,7 @@ public class DirectWriteAndReadJob extends AbstractCassandraJob
                                             sparkConf.getInt("spark.executor.instances", 1));
         int numCores = coresPerExecutor * numExecutors;
         Map<String, String> readerOptions = new HashMap<>();
-        readerOptions.put("sidecar_instances", "localhost,localhost2,localhost3");
+        readerOptions.put("sidecar_contact_points", "localhost,localhost2,localhost3");
         readerOptions.put("keyspace", "spark_test");
         readerOptions.put("table", "test");
         readerOptions.put("DC", "datacenter1");

@@ -36,14 +36,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.blobupload.StorageClientConfig;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
+import org.apache.cassandra.spark.common.SidecarInstanceFactory;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.spark.SparkConf;
@@ -145,10 +146,9 @@ public class BulkSparkConf implements Serializable
     protected final String configuredJobId;
     protected boolean useOpenSsl;
     protected int ringRetryCount;
-    // create sidecarInstances from sidecarInstancesValue and effectiveSidecarPort
-    private final String sidecarInstancesValue;
-    private transient Set<? extends SidecarInstance> sidecarInstances; // not serialized
-
+    // create sidecarInstances from sidecarContactPointsValue and effectiveSidecarPort
+    private final String sidecarContactPointsValue; // It takes comma separated values
+    private transient Set<? extends SidecarInstance> sidecarContactPoints; // not serialized
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
@@ -156,8 +156,8 @@ public class BulkSparkConf implements Serializable
         Optional<Integer> sidecarPortFromOptions = MapUtils.getOptionalInt(options, WriterOptions.SIDECAR_PORT.name(), "sidecar port");
         this.userProvidedSidecarPort = sidecarPortFromOptions.isPresent() ? sidecarPortFromOptions.get() : getOptionalInt(SIDECAR_PORT).orElse(-1);
         this.effectiveSidecarPort = this.userProvidedSidecarPort == -1 ? DEFAULT_SIDECAR_PORT : this.userProvidedSidecarPort;
-        this.sidecarInstancesValue = MapUtils.getOrDefault(options, WriterOptions.SIDECAR_INSTANCES.name(), null);
-        this.sidecarInstances = sidecarInstances();
+        this.sidecarContactPointsValue = resolveSidecarContactPoints(options);
+        this.sidecarContactPoints = sidecarContactPoints();
         this.keyspace = MapUtils.getOrThrow(options, WriterOptions.KEYSPACE.name());
         this.table = MapUtils.getOrThrow(options, WriterOptions.TABLE.name());
         this.skipExtendedVerify = MapUtils.getBoolean(options, WriterOptions.SKIP_EXTENDED_VERIFY.name(), true,
@@ -240,45 +240,47 @@ public class BulkSparkConf implements Serializable
                      .collect(Collectors.toSet());
     }
 
-    protected int resolveSSTableDataSizeInMiB(Map<String, String> options)
+    public static int resolveSSTableDataSizeInMiB(Map<String, String> options)
     {
-        int legacyOptionValue = -1;
-        if (options.containsKey(WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name()))
-        {
-            LOGGER.warn("The writer option: SSTABLE_DATA_SIZE_IN_MB is deprecated. " +
-                        "Please use SSTABLE_DATA_SIZE_IN_MIB instead. See option description for details.");
-            legacyOptionValue = MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name(),
-                                                DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
-        }
+        return MapUtils.resolveDeprecated(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name(), WriterOptions.SSTABLE_DATA_SIZE_IN_MB.name(), option -> {
+            if (option == null)
+            {
+                return DEFAULT_SSTABLE_DATA_SIZE_IN_MIB;
+            }
 
-        if (options.containsKey(WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name()))
-        {
-            LOGGER.info("The writer option: SSTABLE_DATA_SIZE_IN_MIB is defined. " +
-                        "Favor the value over SSTABLE_DATA_SIZE_IN_MB");
-            return MapUtils.getInt(options, WriterOptions.SSTABLE_DATA_SIZE_IN_MIB.name(),
-                                   DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
-
-        }
-
-        return legacyOptionValue == -1 ? DEFAULT_SSTABLE_DATA_SIZE_IN_MIB : legacyOptionValue;
+            return MapUtils.getInt(options, option, DEFAULT_SSTABLE_DATA_SIZE_IN_MIB, "sstable data size in mebibytes");
+        });
     }
 
-    protected Set<? extends SidecarInstance> buildSidecarInstances()
+    public static String resolveSidecarContactPoints(Map<String, String> options)
     {
-        String[] split = Objects.requireNonNull(sidecarInstancesValue, "Unable to build sidecar instances from null value")
+        return MapUtils.resolveDeprecated(options, WriterOptions.SIDECAR_CONTACT_POINTS.name(), WriterOptions.SIDECAR_INSTANCES.name(), option -> {
+            if (option == null)
+            {
+                return null;
+            }
+
+            return MapUtils.getOrDefault(options, option, null);
+        });
+    }
+
+    protected Set<? extends SidecarInstance> buildSidecarContactPoints()
+    {
+        String[] split = Objects.requireNonNull(sidecarContactPointsValue, "Unable to build sidecar instances from null value")
                                 .split(",");
         return Arrays.stream(split)
-                     .map(hostname -> new SidecarInstanceImpl(hostname, effectiveSidecarPort))
+                     .filter(StringUtils::isNotEmpty)
+                     .map(hostname -> SidecarInstanceFactory.createFromString(hostname, effectiveSidecarPort))
                      .collect(Collectors.toSet());
     }
 
-    Set<? extends SidecarInstance> sidecarInstances()
+    Set<? extends SidecarInstance> sidecarContactPoints()
     {
-        if (sidecarInstances == null)
+        if (sidecarContactPoints == null)
         {
-            sidecarInstances = buildSidecarInstances();
+            sidecarContactPoints = buildSidecarContactPoints();
         }
-        return sidecarInstances;
+        return sidecarContactPoints;
     }
 
     protected void validateEnvironment() throws RuntimeException

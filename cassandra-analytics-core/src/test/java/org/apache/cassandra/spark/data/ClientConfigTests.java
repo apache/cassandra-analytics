@@ -36,7 +36,7 @@ class ClientConfigTests
     public static final Map<String, String> REQUIRED_CLIENT_CONFIG_OPTIONS = ImmutableMap.of(
     "keyspace", "big-data",
     "table", "customers",
-    "sidecar_instances", "localhost");
+    "sidecar_contact_points", "localhost");
 
     @ParameterizedTest
     @ValueSource(strings = {"2h", "200s", "4d", "60m", "  60m", "50s ", " 32d "})

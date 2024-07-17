@@ -44,6 +44,14 @@ println("Spark version: ${ext.sparkLabel}")
 ext.jdkLabel = System.getenv("JDK_VERSION") ?: "${analyticsJDKLevel}"
 println("Java source/target compatibility level: ${ext.jdkLabel}")
 
+// validate the builder is indeed using the correct JDK_VERSION as specified
+String actualJdkVersion = System.getProperty("java.version")
+if (!actualJdkVersion.startsWith(ext.jdkLabel))
+{
+  def errorMessage = "Invalid jdk version (Found: ${actualJdkVersion}) for jdk-${ext.jdkLabel} build"
+  throw new RuntimeException(errorMessage)
+}
+
 ext.dependencyLocation = (System.getenv("CASSANDRA_DEP_DIR") ?: "${rootDir}/dependencies") + "/"
 
 
