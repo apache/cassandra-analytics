@@ -31,8 +31,8 @@ import java.util.stream.Collectors;
 
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.db.marshal.AbstractType;
+import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
 
@@ -193,13 +193,13 @@ public abstract class CqlCollection extends CqlType implements CqlField.CqlColle
         return cqlName();
     }
 
-    public static CqlCollection read(CqlField.CqlType.InternalType internalType, Input input, CassandraBridge bridge)
+    public static CqlCollection read(CqlField.CqlType.InternalType internalType, Input input, CassandraTypes cassandraTypes)
     {
         int numTypes = input.readInt();
         CqlField.CqlType[] types = new CqlField.CqlType[numTypes];
         for (int type = 0; type < numTypes; type++)
         {
-            types[type] = CqlField.CqlType.read(input, bridge);
+            types[type] = CqlField.CqlType.read(input, cassandraTypes);
         }
         return CqlCollection.build(internalType, types);
     }

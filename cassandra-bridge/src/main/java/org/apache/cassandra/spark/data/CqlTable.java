@@ -200,10 +200,10 @@ public class CqlTable implements Serializable
         return udts;
     }
 
-    public Set<String> udtCreateStmts(CassandraBridge bridge)
+    public Set<String> udtCreateStmts(CassandraTypes cassandraTypes)
     {
         return udts.stream()
-                   .map(udt -> udt.createStatement(bridge, keyspace))
+                   .map(udt -> udt.createStatement(cassandraTypes, keyspace))
                    .collect(Collectors.toSet());
     }
 
@@ -264,11 +264,11 @@ public class CqlTable implements Serializable
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CqlTable>
     {
-        private final CassandraBridge bridge;
+        private final CassandraTypes cassandraTypes;
 
-        public Serializer(CassandraBridge bridge)
+        public Serializer(CassandraTypes cassandraTypes)
         {
-            this.bridge = bridge;
+            this.cassandraTypes = cassandraTypes;
         }
 
         @Override
@@ -288,7 +288,7 @@ public class CqlTable implements Serializable
             Set<CqlField.CqlUdt> udts = new LinkedHashSet<>(numUdts);
             for (int udt = 0; udt < numUdts; udt++)
             {
-                udts.add((CqlField.CqlUdt) CqlField.CqlType.read(input, bridge));
+                udts.add((CqlField.CqlUdt) CqlField.CqlType.read(input, cassandraTypes));
             }
             int indexCount = input.readInt();
             return new CqlTable(keyspace, table, createStatement, replicationFactor, fields, udts, indexCount);

@@ -156,10 +156,10 @@ public class CqlField implements Serializable, Comparable<CqlField>
             out.writeInt(type.internalType().ordinal());
         }
 
-        static CqlType read(Input input, CassandraBridge bridge)
+        static CqlType read(Input input, CassandraTypes cassandraTypes)
         {
             InternalType internalType = InternalType.values()[input.readInt()];
-            return bridge.readType(internalType, input);
+            return cassandraTypes.readType(internalType, input);
         }
     }
 
@@ -218,7 +218,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
     {
         CqlFrozen frozen();
 
-        String createStatement(CassandraBridge bridge, String keyspace);
+        String createStatement(CassandraTypes cassandraTypes, String keyspace);
 
         String keyspace();
 
@@ -425,11 +425,11 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CqlField>
     {
-        private final CassandraBridge bridge;
+        private final CassandraTypes cassandraTypes;
 
-        public Serializer(CassandraBridge bridge)
+        public Serializer(CassandraTypes cassandraTypes)
         {
-            this.bridge = bridge;
+            this.cassandraTypes = cassandraTypes;
         }
 
         @Override
@@ -439,7 +439,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
                                 input.readBoolean(),
                                 input.readBoolean(),
                                 input.readString(),
-                                CqlType.read(input, bridge),
+                                CqlType.read(input, cassandraTypes),
                                 input.readInt());
         }
 

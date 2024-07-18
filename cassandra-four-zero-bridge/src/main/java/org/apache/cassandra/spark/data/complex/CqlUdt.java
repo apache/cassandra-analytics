@@ -49,6 +49,7 @@ import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.serializers.UTF8Serializer;
+import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
@@ -142,14 +143,14 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     public org.apache.cassandra.cql3.functions.types.DataType driverDataType(boolean isFrozen)
     {
         return UserTypeHelper.newUserType(
-                keyspace(),
-                name(),
-                isFrozen,
-                fields().stream()
-                        .map(field -> UserTypeHelper.newField(field.name(),
-                                                              ((CqlType) field.type()).driverDataType(isFrozen)))
-                        .collect(Collectors.toList()),
-                ProtocolVersion.V3);
+        keyspace(),
+        name(),
+        isFrozen,
+        fields().stream()
+                .map(field -> UserTypeHelper.newField(field.name(),
+                                                      ((CqlType) field.type()).driverDataType(isFrozen)))
+                .collect(Collectors.toList()),
+        ProtocolVersion.V3);
     }
 
     @Override
@@ -267,9 +268,9 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     {
         // Get UserTypeSerializer from Schema instance to ensure fields are deserialized in correct order
         return (TypeSerializer<T>) Schema.instance.getKeyspaceMetadata(keyspace()).types
-                .get(UTF8Serializer.instance.serialize(name()))
-                .orElseThrow(() -> new RuntimeException(String.format("UDT '%s' not initialized", name())))
-                .getSerializer();
+                                   .get(UTF8Serializer.instance.serialize(name()))
+                                   .orElseThrow(() -> new RuntimeException(String.format("UDT '%s' not initialized", name())))
+                                   .getSerializer();
     }
 
     @Override
@@ -291,8 +292,8 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
         {
             int fieldCount = buffer.getInt();
             Preconditions.checkArgument(fieldCount == size(),
-                    String.format("Unexpected number of fields deserializing UDT '%s', expected %d fields but %d found",
-                                  cqlName(), size(), fieldCount));
+                                        String.format("Unexpected number of fields deserializing UDT '%s', expected %d fields but %d found",
+                                                      cqlName(), size(), fieldCount));
         }
 
         Map<String, Object> result = new LinkedHashMap<>(size());
@@ -350,24 +351,24 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    public String createStatement(CassandraBridge bridge, String keyspace)
+    public String createStatement(CassandraTypes cassandraTypes, String keyspace)
     {
         return String.format("CREATE TYPE %s.%s (%s);",
-                             bridge.maybeQuoteIdentifier(keyspace),
-                             bridge.maybeQuoteIdentifier(name),
-                             fieldsString(bridge));
+                             cassandraTypes.maybeQuoteIdentifier(keyspace),
+                             cassandraTypes.maybeQuoteIdentifier(name),
+                             fieldsString(cassandraTypes));
     }
 
-    private String fieldsString(CassandraBridge bridge)
+    private String fieldsString(CassandraTypes cassandraTypes)
     {
         return fields.stream()
-                     .map(field -> fieldString(bridge, field))
+                     .map(field -> fieldString(cassandraTypes, field))
                      .collect(Collectors.joining(", "));
     }
 
-    private static String fieldString(CassandraBridge bridge, CqlField field)
+    private static String fieldString(CassandraTypes cassandraTypes, CqlField field)
     {
-        return String.format("%s %s", bridge.maybeQuoteIdentifier(field.name()), field.type().cqlName());
+        return String.format("%s %s", cassandraTypes.maybeQuoteIdentifier(field.name()), field.type().cqlName());
     }
 
     public String keyspace()
@@ -414,19 +415,19 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
     {
         return DataTypes.createStructType(fields().stream()
-                .map(field -> DataTypes.createStructField(field.name(),
-                                                          field.type().sparkSqlType(bigNumberConfig),
-                                                          true))
-                .toArray(StructField[]::new));
+                                                  .map(field -> DataTypes.createStructField(field.name(),
+                                                                                            field.type().sparkSqlType(bigNumberConfig),
+                                                                                            true))
+                                                  .toArray(StructField[]::new));
     }
 
-    public static CqlUdt read(Input input, CassandraBridge bridge)
+    public static CqlUdt read(Input input, CassandraTypes cassandraTypes)
     {
         Builder builder = CqlUdt.builder(input.readString(), input.readString());
         int numFields = input.readInt();
         for (int field = 0; field < numFields; field++)
         {
-            builder.withField(input.readString(), CqlField.CqlType.read(input, bridge));
+            builder.withField(input.readString(), CqlField.CqlType.read(input, cassandraTypes));
         }
         return builder.build();
     }
@@ -482,17 +483,17 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CqlUdt>
     {
-        private final CassandraBridge bridge;
+        private final CassandraTypes cassandraTypes;
 
-        public Serializer(CassandraBridge bridge)
+        public Serializer(CassandraTypes cassandraTypes)
         {
-            this.bridge = bridge;
+            this.cassandraTypes = cassandraTypes;
         }
 
         @Override
         public CqlUdt read(Kryo kryo, Input input, Class type)
         {
-            return CqlUdt.read(input, bridge);
+            return CqlUdt.read(input, cassandraTypes);
         }
 
         @Override
@@ -528,9 +529,9 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     public static UserType toUserType(CqlUdt udt)
     {
         List<UserType.Field> fields = udt.fields().stream()
-                .map(field -> UserTypeHelper.newField(field.name(),
-                                                      ((CqlType) field.type()).driverDataType()))
-                .collect(Collectors.toList());
+                                         .map(field -> UserTypeHelper.newField(field.name(),
+                                                                               ((CqlType) field.type()).driverDataType()))
+                                         .collect(Collectors.toList());
         return UserTypeHelper.newUserType(udt.keyspace(), udt.name(), true, fields, ProtocolVersion.V3);
     }
 }
