@@ -1852,13 +1852,13 @@ public class EndToEndTests
                   for (long pk = 0; pk < Tester.DEFAULT_NUM_ROWS; pk++)
                   {
                       Map<String, Object> value = ImmutableMap.of(
-                            pk < midPoint ? "a" : "b", RandomUtils.randomValue(bridge.text()).toString(),
-                            "c", RandomUtils.randomValue(bridge.text()).toString());
+                            pk < midPoint ? "a" : "b", bridge.text().randomValue().toString(),
+                            "c", bridge.text().randomValue().toString());
                       values.put(pk, value);
                       writer.write(pk, bridge.toUserTypeValue(type, value),
-                                       RandomUtils.randomValue(bridge.text()),
-                                       RandomUtils.randomValue(bridge.timestamp()),
-                                       RandomUtils.randomValue(bridge.aInt()));
+                                       bridge.text().randomValue(),
+                                       bridge.timestamp().randomValue(),
+                                       bridge.aInt().randomValue());
                   }
               })
               .withCheck(dataset -> {

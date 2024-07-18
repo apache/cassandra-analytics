@@ -25,7 +25,7 @@ import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Provides time
-  */
+ **/
 public interface TimeProvider
 {
     /**
@@ -57,8 +57,9 @@ public interface TimeProvider
 
     /**
      * Get the time value that is used as a reference. It should never change throughout the lifecycle of the provider
-     * @return a fixed epoch time in seconds
      *
+     * @return a fixed epoch time in seconds
+     * <p>
      * Note that the actual constant value returned is implementation dependent
      */
     int referenceEpochInSeconds();
