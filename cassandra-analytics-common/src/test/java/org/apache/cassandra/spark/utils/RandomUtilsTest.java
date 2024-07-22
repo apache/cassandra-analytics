@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RandomUtilsTest
@@ -47,6 +48,15 @@ public class RandomUtilsTest
             assertTrue(r >= 4);
             assertTrue(r < 7);
         }
+    }
+
+    @Test
+    public void testNextIntThrows()
+    {
+        assertThrows(IllegalArgumentException.class, () -> RandomUtils.nextInt(-1, 5));
+        assertThrows(IllegalArgumentException.class, () -> RandomUtils.nextInt(-5, -2));
+        assertThrows(IllegalArgumentException.class, () -> RandomUtils.nextInt(5, 5));
+        assertThrows(IllegalArgumentException.class, () -> RandomUtils.nextInt(10, 5));
     }
 
     @Test

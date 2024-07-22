@@ -65,17 +65,13 @@ public final class RandomUtils
 
     public static int nextInt(int startInclusive, int endExclusive)
     {
-        if (endExclusive < startInclusive)
+        if (endExclusive <= startInclusive)
         {
-            throw new IllegalArgumentException("Start value must be smaller or equal to end value.");
+            throw new IllegalArgumentException("Start value must be less than the end value.");
         }
         if (startInclusive < 0)
         {
             throw new IllegalArgumentException("Both range values must be non-negative.");
-        }
-        if (startInclusive == endExclusive)
-        {
-            return startInclusive;
         }
 
         return startInclusive + RANDOM.nextInt(endExclusive - startInclusive);
