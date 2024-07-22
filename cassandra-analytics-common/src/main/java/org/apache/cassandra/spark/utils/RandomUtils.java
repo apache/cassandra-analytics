@@ -32,7 +32,6 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
 public final class RandomUtils
 {
-    private static final String ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
     public static final int MIN_COLLECTION_SIZE = 16;
 
     public static final Random RANDOM = new Random();
@@ -64,7 +63,7 @@ public final class RandomUtils
         return RANDOM.nextInt(bound - 1) + 1;
     }
 
-    public static int nextInt(final int startInclusive, final int endExclusive)
+    public static int nextInt(int startInclusive, int endExclusive)
     {
         if (endExclusive < startInclusive)
         {
@@ -124,13 +123,27 @@ public final class RandomUtils
         return randomAlphanumeric(RandomUtils.nextInt(minLengthInclusive, maxLengthExclusive));
     }
 
-    public static String randomAlphanumeric(int maxLength)
+    public static String randomAlphanumeric(int length)
     {
-        StringBuilder sb = new StringBuilder(maxLength);
-        IntStream.rangeClosed(0, maxLength)
-                 .map(i -> RANDOM.nextInt(ALPHANUMERIC.length()))
-                 .mapToObj(ALPHANUMERIC::charAt)
+        StringBuilder sb = new StringBuilder(length);
+        IntStream.range(0, length)
+                 .mapToObj(i -> randomAsciiAlphanumeric())
                  .forEach(sb::append);
         return sb.toString();
+    }
+
+    /**
+     * @return random ascii character between 0x30...0x39 for numbers and 0x41...0x5A for uppercase letters
+     */
+    public static char randomAsciiAlphanumeric()
+    {
+        int c = RANDOM.nextInt(36);
+        if (c < 10)
+        {
+            // return ascii number
+            return (char) (c + 48);
+        }
+        // return ascii uppercase character
+        return (char) ((c - 10) + 65);
     }
 }
