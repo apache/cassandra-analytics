@@ -24,13 +24,12 @@ import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -38,12 +37,13 @@ import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.jetbrains.annotations.NotNull;
 
-@SuppressWarnings({"WeakerAccess", "unused"})
+@SuppressWarnings({ "WeakerAccess", "unused" })
 public class CqlField implements Serializable, Comparable<CqlField>
 {
     private static final long serialVersionUID = 42L;
@@ -133,6 +133,12 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
         @VisibleForTesting
         Object sparkSqlRowValue(Row row, int position);
+
+        @VisibleForTesting
+        default Object randomValue()
+        {
+            return randomValue(RandomUtils.MIN_COLLECTION_SIZE);
+        }
 
         @VisibleForTesting
         Object randomValue(int minCollectionSize);
@@ -354,14 +360,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
     @Override
     public int hashCode()
     {
-        return new HashCodeBuilder()
-               .append(name)
-               .append(isPartitionKey)
-               .append(isClusteringColumn)
-               .append(isStaticColumn)
-               .append(type)
-               .append(position)
-               .toHashCode();
+        return Objects.hash(name, isPartitionKey, isClusteringColumn, isStaticColumn, type, position);
     }
 
     @Override
@@ -381,14 +380,12 @@ public class CqlField implements Serializable, Comparable<CqlField>
         }
 
         CqlField that = (CqlField) other;
-        return new EqualsBuilder()
-               .append(this.name, that.name)
-               .append(this.isPartitionKey, that.isPartitionKey)
-               .append(this.isClusteringColumn, that.isClusteringColumn)
-               .append(this.isStaticColumn, that.isStaticColumn)
-               .append(this.type, that.type)
-               .append(this.position, that.position)
-               .isEquals();
+        return Objects.equals(this.name, that.name)
+               && this.isPartitionKey == that.isPartitionKey
+               && this.isClusteringColumn == that.isClusteringColumn
+               && this.isStaticColumn == that.isStaticColumn
+               && Objects.equals(this.type, that.type)
+               && this.position == that.position;
     }
 
     public boolean equals(Object first, Object second)

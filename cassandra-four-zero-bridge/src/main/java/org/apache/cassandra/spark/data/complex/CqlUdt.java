@@ -34,8 +34,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.google.common.base.Preconditions;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -77,12 +75,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
         this.name = name;
         this.fields = Collections.unmodifiableList(fields);
         this.fieldMap = this.fields.stream().collect(Collectors.toMap(CqlField::name, Function.identity()));
-        this.hashCode = new HashCodeBuilder()
-                .append(internalType().ordinal())
-                .append(this.keyspace)
-                .append(this.name)
-                .append(this.fields)
-                .toHashCode();
+        this.hashCode = Objects.hash(internalType().ordinal(), this.keyspace, this.name, this.fields);
     }
 
     @Override
@@ -481,12 +474,10 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
         }
 
         CqlUdt that = (CqlUdt) other;
-        return new EqualsBuilder()
-               .append(this.internalType(), that.internalType())
-               .append(this.keyspace, that.keyspace)
-               .append(this.name, that.name)
-               .append(this.fields, that.fields)
-               .isEquals();
+        return this.internalType() == that.internalType()
+               && Objects.equals(this.keyspace, that.keyspace)
+               && Objects.equals(this.name, that.name)
+               && Objects.equals(this.fields, that.fields);
     }
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CqlUdt>

@@ -26,12 +26,10 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -237,13 +235,7 @@ public class CqlTable implements Serializable
     @Override
     public int hashCode()
     {
-        return new HashCodeBuilder()
-               .append(keyspace)
-               .append(table)
-               .append(createStatement)
-               .append(fields)
-               .append(udts)
-               .toHashCode();
+        return Objects.hash(keyspace, table, createStatement, fields, udts);
     }
 
     @Override
@@ -263,13 +255,11 @@ public class CqlTable implements Serializable
         }
 
         CqlTable that = (CqlTable) other;
-        return new EqualsBuilder()
-               .append(this.keyspace, that.keyspace)
-               .append(this.table, that.table)
-               .append(this.createStatement, that.createStatement)
-               .append(this.fields, that.fields)
-               .append(this.udts, that.udts)
-               .isEquals();
+        return Objects.equals(this.keyspace, that.keyspace)
+               && Objects.equals(this.table, that.table)
+               && Objects.equals(this.createStatement, that.createStatement)
+               && Objects.equals(this.fields, that.fields)
+               && Objects.equals(this.udts, that.udts);
     }
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CqlTable>

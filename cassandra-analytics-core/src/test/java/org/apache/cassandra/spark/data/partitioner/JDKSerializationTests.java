@@ -32,7 +32,6 @@ import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -48,6 +47,7 @@ import org.apache.cassandra.spark.data.PartitionedDataLayer;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.VersionRunner;
+import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.NotNull;
@@ -131,7 +131,7 @@ public class JDKSerializationTests extends VersionRunner
     public void testCqlFieldSet(CassandraBridge bridge)
     {
         CqlField.CqlSet setType = bridge.set(bridge.text());
-        CqlField field = new CqlField(true, false, false, RandomStringUtils.randomAlphanumeric(5, 20), setType, 10);
+        CqlField field = new CqlField(true, false, false, RandomUtils.randomAlphanumeric(5, 20), setType, 10);
         byte[] bytes = bridge.javaSerialize(field);
         CqlField deserialized = bridge.javaDeserialize(bytes, CqlField.class);
         assertEquals(field, deserialized);

@@ -25,11 +25,9 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
@@ -53,12 +51,11 @@ public abstract class CqlCollection extends CqlType implements CqlField.CqlColle
         this(Arrays.asList(types));
     }
 
+    @SuppressWarnings("ConfusingArgumentToVarargsMethod")
     CqlCollection(List<CqlField.CqlType> types)
     {
         this.types = new ArrayList<>(types);
-        this.hashCode = new HashCodeBuilder()
-                        .append(types.toArray(new CqlField.CqlType[0]))
-                        .hashCode();
+        this.hashCode = Objects.hash((CqlField.CqlType[]) types.toArray(new CqlField.CqlType[0]));
     }
 
     @Override
@@ -241,9 +238,7 @@ public abstract class CqlCollection extends CqlType implements CqlField.CqlColle
         }
 
         CqlCollection that = (CqlCollection) other;
-        return new EqualsBuilder()
-               .append(this.internalType(), that.internalType())
-               .append(this.types, that.types)
-               .isEquals();
+        return this.internalType() == that.internalType()
+               && Objects.equals(this.types, that.types);
     }
 }

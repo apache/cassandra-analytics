@@ -452,7 +452,7 @@ public class DataTypeSerializationTests
             qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
                 CqlField.CqlList list = bridge.list(type);
                 List<Object> expected = IntStream.range(0, 128)
-                                                 .mapToObj(index -> RandomUtils.randomValue(type))
+                                                 .mapToObj(index -> type.randomValue())
                                                  .collect(Collectors.toList());
                 ByteBuffer buffer = list.serialize(expected);
                 List<Object> actual = Arrays.asList(((ArrayData) list.deserialize(buffer)).array());
@@ -471,7 +471,7 @@ public class DataTypeSerializationTests
             qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
                 CqlField.CqlSet set = bridge.set(type);
                 Set<Object> expected = IntStream.range(0, 128)
-                                                .mapToObj(integer -> RandomUtils.randomValue(type))
+                                                .mapToObj(integer -> type.randomValue())
                                                 .collect(Collectors.toSet());
                 ByteBuffer buffer = set.serialize(expected);
                 Set<Object> actual = new HashSet<>(Arrays.asList(((ArrayData) set.deserialize(buffer)).array()));
@@ -496,9 +496,9 @@ public class DataTypeSerializationTests
                     Object key = null;
                     while (key == null || expected.containsKey(key))
                     {
-                        key = RandomUtils.randomValue(keyType);
+                        key = keyType.randomValue();
                     }
-                    expected.put(key, RandomUtils.randomValue(valueType));
+                    expected.put(key, valueType.randomValue());
                 }
                 ByteBuffer buffer = map.serialize(expected);
                 ArrayBasedMapData mapData = ((ArrayBasedMapData) map.deserialize(buffer));
@@ -531,7 +531,7 @@ public class DataTypeSerializationTests
                                             .withField("b", bridge.ascii())
                                             .withField("c", secondType)
                                             .build();
-                Map<String, Object> expected = (Map<String, Object>) RandomUtils.randomValue(udt);
+                Map<String, Object> expected = (Map<String, Object>) udt.randomValue();
                 assert expected != null;
                 ByteBuffer buffer = udt.serializeUdt(expected);
                 Map<String, Object> actual = udt.deserializeUdt(buffer, false);
@@ -555,7 +555,7 @@ public class DataTypeSerializationTests
                                                        bridge.timestamp(),
                                                        bridge.uuid(),
                                                        bridge.varchar());
-                Object[] expected = (Object[]) RandomUtils.randomValue(tuple);
+                Object[] expected = (Object[]) tuple.randomValue();
                 assert expected != null;
                 ByteBuffer buffer = tuple.serializeTuple(expected);
                 Object[] actual = tuple.deserializeTuple(buffer, false);

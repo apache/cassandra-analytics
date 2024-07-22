@@ -20,10 +20,8 @@
 package org.apache.cassandra.spark.data.complex;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.Set;
-
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.BigNumberConfig;
@@ -45,10 +43,7 @@ public class CqlFrozen extends CqlType implements CqlField.CqlFrozen
     public CqlFrozen(CqlField.CqlType inner)
     {
         this.inner = inner;
-        this.hashCode = new HashCodeBuilder()
-                .append(internalType().ordinal())
-                .append(inner)
-                .toHashCode();
+        this.hashCode = Objects.hash(internalType().ordinal(), inner);
     }
 
     public static CqlFrozen build(CqlField.CqlType inner)
@@ -233,9 +228,7 @@ public class CqlFrozen extends CqlType implements CqlField.CqlFrozen
         }
 
         CqlFrozen that = (CqlFrozen) other;
-        return new EqualsBuilder()
-               .append(this.internalType(), that.internalType())
-               .append(this.inner, that.inner)
-               .isEquals();
+        return this.internalType() == that.internalType()
+               && Objects.equals(this.inner, that.inner);
     }
 }

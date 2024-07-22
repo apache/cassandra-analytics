@@ -21,8 +21,6 @@ package org.apache.cassandra.spark.data.types;
 
 import java.util.Comparator;
 
-import org.apache.commons.lang3.RandomStringUtils;
-
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.spark.data.NativeType;
@@ -91,7 +89,7 @@ public abstract class StringBased extends NativeType
     @Override
     public Object randomValue(int minCollectionSize)
     {
-        return RandomStringUtils.randomAlphanumeric(RandomUtils.randomPositiveInt(32));
+        return RandomUtils.randomAlphanumeric(RandomUtils.randomPositiveInt(32));
     }
 
     @Override
