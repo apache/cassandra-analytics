@@ -1,4 +1,5 @@
 1.0.0
+ * Remove other uses of Apache Commons lang for hashcode, equality and random string generation (CASSANDRA-19791)
  * Split out BufferingInputStream stats into separate interface (CASSANDRA-19778)
  * Bump Sidecar version to 55a9efee (CASSANDRA-19774)
  * Add new module cassandra-analytics-common to store common code with minimal dependencies (CASSANDRA-19748)
