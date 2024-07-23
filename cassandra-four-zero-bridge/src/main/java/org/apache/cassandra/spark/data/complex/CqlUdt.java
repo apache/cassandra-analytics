@@ -142,14 +142,14 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     public org.apache.cassandra.cql3.functions.types.DataType driverDataType(boolean isFrozen)
     {
         return UserTypeHelper.newUserType(
-        keyspace(),
-        name(),
-        isFrozen,
-        fields().stream()
-                .map(field -> UserTypeHelper.newField(field.name(),
-                                                      ((CqlType) field.type()).driverDataType(isFrozen)))
-                .collect(Collectors.toList()),
-        ProtocolVersion.V3);
+                keyspace(),
+                name(),
+                isFrozen,
+                fields().stream()
+                        .map(field -> UserTypeHelper.newField(field.name(),
+                                                              ((CqlType) field.type()).driverDataType(isFrozen)))
+                        .collect(Collectors.toList()),
+                ProtocolVersion.V3);
     }
 
     @Override
@@ -291,8 +291,8 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
         {
             int fieldCount = buffer.getInt();
             Preconditions.checkArgument(fieldCount == size(),
-                                        String.format("Unexpected number of fields deserializing UDT '%s', expected %d fields but %d found",
-                                                      cqlName(), size(), fieldCount));
+                    String.format("Unexpected number of fields deserializing UDT '%s', expected %d fields but %d found",
+                                  cqlName(), size(), fieldCount));
         }
 
         Map<String, Object> result = new LinkedHashMap<>(size());
@@ -414,10 +414,10 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
     {
         return DataTypes.createStructType(fields().stream()
-                                                  .map(field -> DataTypes.createStructField(field.name(),
-                                                                                            field.type().sparkSqlType(bigNumberConfig),
-                                                                                            true))
-                                                  .toArray(StructField[]::new));
+                .map(field -> DataTypes.createStructField(field.name(),
+                                                          field.type().sparkSqlType(bigNumberConfig),
+                                                          true))
+                .toArray(StructField[]::new));
     }
 
     public static CqlUdt read(Input input, CassandraTypes cassandraTypes)
@@ -528,9 +528,9 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     public static UserType toUserType(CqlUdt udt)
     {
         List<UserType.Field> fields = udt.fields().stream()
-                                         .map(field -> UserTypeHelper.newField(field.name(),
-                                                                               ((CqlType) field.type()).driverDataType()))
-                                         .collect(Collectors.toList());
+                .map(field -> UserTypeHelper.newField(field.name(),
+                                                      ((CqlType) field.type()).driverDataType()))
+                .collect(Collectors.toList());
         return UserTypeHelper.newUserType(udt.keyspace(), udt.name(), true, fields, ProtocolVersion.V3);
     }
 }
