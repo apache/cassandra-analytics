@@ -267,9 +267,9 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     {
         // Get UserTypeSerializer from Schema instance to ensure fields are deserialized in correct order
         return (TypeSerializer<T>) Schema.instance.getKeyspaceMetadata(keyspace()).types
-                                   .get(UTF8Serializer.instance.serialize(name()))
-                                   .orElseThrow(() -> new RuntimeException(String.format("UDT '%s' not initialized", name())))
-                                   .getSerializer();
+                .get(UTF8Serializer.instance.serialize(name()))
+                .orElseThrow(() -> new RuntimeException(String.format("UDT '%s' not initialized", name())))
+                .getSerializer();
     }
 
     @Override
