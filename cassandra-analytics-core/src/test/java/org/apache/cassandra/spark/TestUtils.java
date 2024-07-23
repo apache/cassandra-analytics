@@ -87,8 +87,9 @@ public final class TestUtils
 
     public static Path getFirstFileType(Path directory, FileType fileType) throws IOException
     {
-        return getFileType(directory, fileType).findFirst().orElseThrow(() ->
-                new IllegalStateException(String.format("Could not find %s file", fileType.getFileSuffix())));
+        return getFileType(directory, fileType).findFirst().orElseThrow(
+        () ->
+        new IllegalStateException(String.format("Could not find %s file", fileType.getFileSuffix())));
     }
 
     public static Stream<Path> getFileType(Path directory, FileType fileType) throws IOException
@@ -169,7 +170,8 @@ public final class TestUtils
                                            .option("version", version.toString())
                                            .option("useBufferingInputStream", true)  // Use in the test system to test the BufferingInputStream
                                            .option("partitioner", partitioner.name())
-                                           .option("udts", udts.stream().map(f -> f.createStatement(bridge, keyspace)).collect(Collectors.joining("\n")));
+                                           .option("udts", udts.stream().map(f -> f.createStatement(bridge.cassandraTypes(), keyspace))
+                                                               .collect(Collectors.joining("\n")));
         if (statsClass != null)
         {
             frameReader = frameReader.option("statsClass", statsClass);
@@ -209,7 +211,7 @@ public final class TestUtils
                                            .option("partitioner", partitioner.name())
                                            .option(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), addLastModifiedTimestampColumn)
                                            .option("udts", udts.stream()
-                                                               .map(udt -> udt.createStatement(bridge, keyspace))
+                                                               .map(udt -> udt.createStatement(bridge.cassandraTypes(), keyspace))
                                                                .collect(Collectors.joining("\n")));
         if (statsClass != null)
         {
@@ -304,13 +306,14 @@ public final class TestUtils
     public static CassandraRing createRing(Partitioner partitioner, Map<String, Integer> numInstances)
     {
         Collection<CassandraInstance> instances = numInstances.entrySet().stream()
-                .map(dataCenter -> TestUtils.createInstances(partitioner, dataCenter.getValue(), dataCenter.getKey()))
-                .flatMap(Collection::stream)
-                .collect(Collectors.toList());
+                                                              .map(dataCenter ->
+                                                                   TestUtils.createInstances(partitioner, dataCenter.getValue(), dataCenter.getKey()))
+                                                              .flatMap(Collection::stream)
+                                                              .collect(Collectors.toList());
         Map<String, Integer> dataCenters = numInstances.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey, dataCenter -> Math.min(dataCenter.getValue(), 3)));
+                                                       .collect(Collectors.toMap(Map.Entry::getKey, dataCenter -> Math.min(dataCenter.getValue(), 3)));
         return new CassandraRing(partitioner, "test", new ReplicationFactor(
-                ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, dataCenters), instances);
+        ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, dataCenters), instances);
     }
 
     public static Collection<CassandraInstance> createInstances(Partitioner partitioner,

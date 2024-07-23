@@ -331,7 +331,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
         for (CqlField.CqlUdt udt : udts)
         {
             // Add user-defined types to CQL writer
-            String statement = udt.createStatement(this, keyspace);
+            String statement = udt.createStatement(cassandraTypes(), keyspace);
             builder.withType(statement);
         }
 
