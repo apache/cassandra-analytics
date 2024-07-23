@@ -34,7 +34,6 @@ import java.util.stream.Collectors;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.cassandra.bridge.CassandraBridge;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings({ "WeakerAccess", "unused" })
