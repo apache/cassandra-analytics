@@ -53,6 +53,9 @@ configurations {
     fourzerobridge {
         description = 'Bridge to Cassandra 4.0'
     }
+    fourzerotypes {
+        description = 'Cassandra 4.0 Data Types'
+    }
 }
 
 dependencies {
@@ -61,6 +64,7 @@ dependencies {
     implementation project(":cassandra-analytics-common")
     fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     fourzerobridge(project(path: ':cassandra-four-zero-bridge'))
+    fourzerotypes(project(path: ':cassandra-four-zero-types'))
 
     // Including newer JNA which works with "Modern" Linux/GLIBC.
     // End users can exclude this and include their own if necessary.
@@ -108,6 +112,7 @@ dependencies {
 jar {
     dependsOn(configurations.fourzero)
     dependsOn(configurations.fourzerobridge)
+    dependsOn(configurations.fourzerotypes)
 
     writeBuildVersion(version, project.projectDir)
 
@@ -115,6 +120,7 @@ jar {
     into('bridges') {
         from(configurations.fourzero.singleFile)
         from(configurations.fourzerobridge.singleFile)
+        from(configurations.fourzerotypes.singleFile)
     }
 }
 

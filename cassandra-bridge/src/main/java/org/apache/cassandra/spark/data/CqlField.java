@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.data;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
@@ -30,6 +31,7 @@ import java.util.function.Function;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.UnsignedBytes;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -46,6 +48,22 @@ import org.jetbrains.annotations.NotNull;
 public class CqlField implements Serializable, Comparable<CqlField>
 {
     private static final long serialVersionUID = 42L;
+
+    public static final Comparator<Byte> BYTE_COMPARATOR = CqlField::compareBytes;
+    public static final Comparator<Long> LONG_COMPARATOR = Long::compareTo;
+    public static final Comparator<Integer> INTEGER_COMPARATOR = Integer::compareTo;
+    public static final Comparator<byte[]> BYTE_ARRAY_COMPARATOR = UnsignedBytes.lexicographicalComparator();
+    public static final Comparator<Boolean> BOOLEAN_COMPARATOR = Boolean::compareTo;
+    public static final Comparator<Double> DOUBLE_COMPARATOR = Double::compareTo;
+    public static final Comparator<Void> VOID_COMPARATOR_COMPARATOR = (first, second) -> 0;
+    public static final Comparator<Float> FLOAT_COMPARATOR = Float::compareTo;
+    public static final Comparator<Short> SHORT_COMPARATOR = Short::compare;
+    public static final Comparator<String> UUID_COMPARATOR = Comparator.comparing(java.util.UUID::fromString);
+
+    private static int compareBytes(byte first, byte second)
+    {
+        return first - second;  // Safe because of the range being restricted
+    }
 
     public interface CqlType extends Serializable, Comparator<Object>
     {

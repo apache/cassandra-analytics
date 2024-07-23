@@ -125,6 +125,12 @@ public final class CassandraBridgeFactory
     }
 
     @NotNull
+    private static String typesResourceName(@NotNull String label)
+    {
+        return "/bridges/" + label + "-types.jar";
+    }
+
+    @NotNull
     @SuppressWarnings("unchecked")
     private static CassandraBridge create(@NotNull String label)
     {
@@ -140,7 +146,12 @@ public final class CassandraBridgeFactory
             File bridgeJar = Files.createTempFile(null, ".jar").toFile();
             FileUtils.copyInputStreamToFile(contents, bridgeJar);
 
-            URL[] urls = {casandraJar.toURI().toURL(), bridgeJar.toURI().toURL()};
+            name = typesResourceName(label);
+            contents = CassandraBridgeFactory.class.getResourceAsStream(name);
+            File typesJar = Files.createTempFile(null, ".jar").toFile();
+            FileUtils.copyInputStreamToFile(contents, typesJar);
+
+            URL[] urls = {casandraJar.toURI().toURL(), bridgeJar.toURI().toURL(), typesJar.toURI().toURL()};
             ClassLoader loader = new PostDelegationClassLoader(urls, Thread.currentThread().getContextClassLoader());
             Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass("org.apache.cassandra.bridge.CassandraBridgeImplementation");
             Constructor<CassandraBridge> constructor = bridge.getConstructor();

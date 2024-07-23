@@ -19,80 +19,79 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import java.util.Comparator;
-
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
-import org.apache.cassandra.db.marshal.EmptyType;
+import org.apache.cassandra.db.marshal.BooleanType;
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.NativeType;
+import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
-public class Empty extends NativeType
+public class Boolean extends NativeType
 {
-    public static final Empty INSTANCE = new Empty();
-    private static final Comparator<Void> VOID_COMPARATOR_COMPARATOR = (first, second) -> 0;
-
-    @Override
-    public boolean isSupported()
-    {
-        return false;
-    }
+    public static final Boolean INSTANCE = new Boolean();
 
     @Override
     public String name()
     {
-        return "empty";
+        return "boolean";
     }
 
     @Override
     public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.NullType;
+        return DataTypes.BooleanType;
     }
 
     @Override
     public AbstractType<?> dataType()
     {
-        return EmptyType.instance;
+        return BooleanType.instance;
     }
 
     @Override
     protected int compareTo(Object first, Object second)
     {
-        return VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+        return CqlField.BOOLEAN_COMPARATOR.compare((java.lang.Boolean) first, (java.lang.Boolean) second);
     }
 
     @Override
     public int cardinality(int orElse)
     {
-        return 1;
+        return 2;
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
     {
-        return null;
+        return row.getBoolean(position);
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return null;
+        return row.getBoolean(position);
     }
 
     @Override
     public Object randomValue(int minCollectionSize)
     {
-        return null;
+        return RandomUtils.RANDOM.nextBoolean();
     }
 
     @Override
     public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
     {
-        udtValue.setToNull(position);
+        udtValue.setBool(position, (boolean) value);
+    }
+
+    @Override
+    public org.apache.cassandra.cql3.functions.types.DataType driverDataType(boolean isFrozen)
+    {
+        return org.apache.cassandra.cql3.functions.types.DataType.cboolean();
     }
 }

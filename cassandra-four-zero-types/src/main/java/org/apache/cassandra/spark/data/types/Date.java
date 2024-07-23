@@ -25,6 +25,7 @@ import org.apache.cassandra.cql3.functions.types.LocalDate;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.SimpleDateType;
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.NativeType;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.spark.sql.Row;
@@ -67,7 +68,7 @@ public class Date extends NativeType
     @Override
     protected int compareTo(Object first, Object second)
     {
-        return Int.INTEGER_COMPARATOR.compare((Integer) first, (Integer) second);
+        return CqlField.INTEGER_COMPARATOR.compare((Integer) first, (Integer) second);
     }
 
     @Override

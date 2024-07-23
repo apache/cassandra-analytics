@@ -19,12 +19,11 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import java.util.Comparator;
-
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
-import org.apache.cassandra.db.marshal.BooleanType;
+import org.apache.cassandra.db.marshal.FloatType;
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.NativeType;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.spark.sql.Row;
@@ -32,68 +31,61 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
-public class Boolean extends NativeType
+public class Float extends NativeType
 {
-    public static final Boolean INSTANCE = new Boolean();
-    private static final Comparator<java.lang.Boolean> BOOLEAN_COMPARATOR = java.lang.Boolean::compareTo;
+    public static final Float INSTANCE = new Float();
 
     @Override
     public String name()
     {
-        return "boolean";
+        return "float";
     }
 
     @Override
     public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.BooleanType;
+        return DataTypes.FloatType;
     }
 
     @Override
     public AbstractType<?> dataType()
     {
-        return BooleanType.instance;
+        return FloatType.instance;
     }
 
     @Override
     protected int compareTo(Object first, Object second)
     {
-        return BOOLEAN_COMPARATOR.compare((java.lang.Boolean) first, (java.lang.Boolean) second);
-    }
-
-    @Override
-    public int cardinality(int orElse)
-    {
-        return 2;
+        return CqlField.FLOAT_COMPARATOR.compare((java.lang.Float) first, (java.lang.Float) second);
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
     {
-        return row.getBoolean(position);
+        return row.getFloat(position);
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return row.getBoolean(position);
+        return row.getFloat(position);
     }
 
     @Override
     public Object randomValue(int minCollectionSize)
     {
-        return RandomUtils.RANDOM.nextBoolean();
+        return RandomUtils.RANDOM.nextFloat();
     }
 
     @Override
     public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
     {
-        udtValue.setBool(position, (boolean) value);
+        udtValue.setFloat(position, (float) value);
     }
 
     @Override
     public org.apache.cassandra.cql3.functions.types.DataType driverDataType(boolean isFrozen)
     {
-        return org.apache.cassandra.cql3.functions.types.DataType.cboolean();
+        return org.apache.cassandra.cql3.functions.types.DataType.cfloat();
     }
 }

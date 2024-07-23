@@ -19,9 +19,11 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import java.util.Comparator;
-
 import org.apache.cassandra.bridge.BigNumberConfig;
+import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
+import org.apache.cassandra.db.marshal.AbstractType;
+import org.apache.cassandra.db.marshal.ByteType;
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.NativeType;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.spark.sql.Row;
@@ -29,37 +31,61 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
-public abstract class LongBased extends NativeType
+public class TinyInt extends NativeType
 {
-    static final Comparator<Long> LONG_COMPARATOR = Long::compareTo;
+    public static final TinyInt INSTANCE = new TinyInt();
+
+    @Override
+    public String name()
+    {
+        return "tinyint";
+    }
 
     @Override
     public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.LongType;
+        return DataTypes.ByteType;
+    }
+
+    @Override
+    public AbstractType<?> dataType()
+    {
+        return ByteType.instance;
     }
 
     @Override
     protected int compareTo(Object first, Object second)
     {
-        return LONG_COMPARATOR.compare((Long) first, (Long) second);
-    }
-
-    @Override
-    public Object randomValue(int minCollectionSize)
-    {
-        return (long) RandomUtils.randomPositiveInt(5_000_000);  // Keep within bound to avoid overflows
+        return CqlField.BYTE_COMPARATOR.compare((Byte) first, (Byte) second);
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
     {
-        return row.getLong(position);
+        return row.getByte(position);
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return row.getLong(position);
+        return row.getByte(position);
+    }
+
+    @Override
+    public Object randomValue(int minCollectionSize)
+    {
+        return RandomUtils.randomBytes(1)[0];
+    }
+
+    @Override
+    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    {
+        udtValue.setByte(position, (byte) value);
+    }
+
+    @Override
+    public org.apache.cassandra.cql3.functions.types.DataType driverDataType(boolean isFrozen)
+    {
+        return org.apache.cassandra.cql3.functions.types.DataType.tinyint();
     }
 }
