@@ -20,7 +20,6 @@
 package org.apache.cassandra.spark.data;
 
 import java.io.Serializable;
-import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
