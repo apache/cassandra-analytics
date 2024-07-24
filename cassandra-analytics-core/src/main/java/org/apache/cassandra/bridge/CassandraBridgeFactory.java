@@ -121,13 +121,18 @@ public final class CassandraBridgeFactory
     @NotNull
     private static String bridgeResourceName(@NotNull String label)
     {
-        return "/bridges/" + label + "-bridge.jar";
+        return jarResourceName(label, "bridge");
     }
 
     @NotNull
     private static String typesResourceName(@NotNull String label)
     {
-        return "/bridges/" + label + "-types.jar";
+        return jarResourceName(label, "types");
+    }
+
+    private static String jarResourceName(String... parts)
+    {
+        return "/bridges/" + String.join("-", parts) + ".jar";
     }
 
     @NotNull
