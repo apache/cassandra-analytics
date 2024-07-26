@@ -32,6 +32,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.TestUtils;
+import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -262,14 +263,14 @@ public class SchemaTests extends VersionRunner
             string = String.format(pattern, first, second);
         }
 
-        Matcher matcher = CassandraBridge.COLLECTION_PATTERN.matcher(string);
+        Matcher matcher = CassandraTypes.COLLECTION_PATTERN.matcher(string);
         assertEquals(collection != null && first != null, matcher.matches());
         if (matcher.matches())
         {
             assertNotNull(collection);
             assertNotNull(first);
             assertEquals(collection, matcher.group(1));
-            String[] types = CassandraBridge.splitInnerTypes(matcher.group(2));
+            String[] types = CassandraTypes.splitInnerTypes(matcher.group(2));
             assertEquals(first, bridge.nativeType(types[0].toUpperCase()));
             if (isMap)
             {

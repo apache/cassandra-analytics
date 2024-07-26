@@ -31,8 +31,6 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -41,10 +39,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
 
@@ -53,6 +48,7 @@ import com.google.common.collect.ImmutableMap;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
+import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -78,8 +74,7 @@ public abstract class CassandraBridge
     @VisibleForTesting
     public static final Object UNSET_MARKER = new Object();
 
-    public static final Pattern COLLECTION_PATTERN = Pattern.compile("^(set|list|map|tuple)<(.+)>$", Pattern.CASE_INSENSITIVE);
-    public static final Pattern FROZEN_PATTERN = Pattern.compile("^frozen<(.*)>$", Pattern.CASE_INSENSITIVE);
+    public abstract CassandraTypes cassandraTypes();
 
     public abstract AbstractMap.SimpleEntry<ByteBuffer, BigInteger> getPartitionKey(@NotNull CqlTable table,
                                                                                     @NotNull Partitioner partitioner,
@@ -163,30 +158,27 @@ public abstract class CassandraBridge
      * @param identifier the identifier
      * @return the quoted identifier when the input is mixed case or a reserved word, the original input otherwise
      */
-    public abstract String maybeQuoteIdentifier(String identifier);
-
-    protected boolean isAlreadyQuoted(String identifier)
+    public String maybeQuoteIdentifier(String identifier)
     {
-        if (identifier != null && identifier.length() > 1)
-        {
-            return identifier.charAt(0) == '"' &&
-                   identifier.charAt(identifier.length() - 1) == '"';
-        }
-        return false;
+        return cassandraTypes().maybeQuoteIdentifier(identifier);
     }
 
     // CQL Type Parsing
 
-    public abstract CqlField.CqlType readType(CqlField.CqlType.InternalType type, Input input);
+    public CqlField.CqlType readType(CqlField.CqlType.InternalType type, Input input)
+    {
+        return cassandraTypes().readType(type, input);
+    }
 
     public List<CqlField.NativeType> allTypes()
     {
-        return Arrays.asList(ascii(), bigint(), blob(), bool(), counter(), date(), decimal(), aDouble(),
-                             duration(), empty(), aFloat(), inet(), aInt(), smallint(), text(), time(),
-                             timestamp(), timeuuid(), tinyint(), uuid(), varchar(), varint());
+        return cassandraTypes().allTypes();
     }
 
-    public abstract Map<String, ? extends CqlField.NativeType> nativeTypeNames();
+    public Map<String, ? extends CqlField.NativeType> nativeTypeNames()
+    {
+        return cassandraTypes().nativeTypeNames();
+    }
 
     public CqlField.NativeType nativeType(String name)
     {
@@ -200,65 +192,152 @@ public abstract class CassandraBridge
 
     // Native
 
-    public abstract CqlField.NativeType ascii();
+    public CqlField.NativeType ascii()
+    {
+        return cassandraTypes().ascii();
+    }
 
-    public abstract CqlField.NativeType blob();
+    public CqlField.NativeType blob()
+    {
+        return cassandraTypes().blob();
+    }
 
-    public abstract CqlField.NativeType bool();
+    public CqlField.NativeType bool()
+    {
+        return cassandraTypes().bool();
+    }
 
-    public abstract CqlField.NativeType counter();
+    public CqlField.NativeType counter()
+    {
+        return cassandraTypes().counter();
+    }
 
-    public abstract CqlField.NativeType bigint();
+    public CqlField.NativeType bigint()
+    {
+        return cassandraTypes().bigint();
+    }
 
-    public abstract CqlField.NativeType date();
+    public CqlField.NativeType date()
+    {
+        return cassandraTypes().date();
+    }
 
-    public abstract CqlField.NativeType decimal();
+    public CqlField.NativeType decimal()
+    {
+        return cassandraTypes().decimal();
+    }
 
-    public abstract CqlField.NativeType aDouble();
+    public CqlField.NativeType aDouble()
+    {
+        return cassandraTypes().aDouble();
+    }
 
-    public abstract CqlField.NativeType duration();
+    public CqlField.NativeType duration()
+    {
+        return cassandraTypes().duration();
+    }
 
-    public abstract CqlField.NativeType empty();
+    public CqlField.NativeType empty()
+    {
+        return cassandraTypes().empty();
+    }
 
-    public abstract CqlField.NativeType aFloat();
+    public CqlField.NativeType aFloat()
+    {
+        return cassandraTypes().aFloat();
+    }
 
-    public abstract CqlField.NativeType inet();
+    public CqlField.NativeType inet()
+    {
+        return cassandraTypes().inet();
+    }
 
-    public abstract CqlField.NativeType aInt();
+    public CqlField.NativeType aInt()
+    {
+        return cassandraTypes().aInt();
+    }
 
-    public abstract CqlField.NativeType smallint();
+    public CqlField.NativeType smallint()
+    {
+        return cassandraTypes().smallint();
+    }
 
-    public abstract CqlField.NativeType text();
+    public CqlField.NativeType text()
+    {
+        return cassandraTypes().text();
+    }
 
-    public abstract CqlField.NativeType time();
+    public CqlField.NativeType time()
+    {
+        return cassandraTypes().time();
+    }
 
-    public abstract CqlField.NativeType timestamp();
+    public CqlField.NativeType timestamp()
+    {
+        return cassandraTypes().timestamp();
+    }
 
-    public abstract CqlField.NativeType timeuuid();
+    public CqlField.NativeType timeuuid()
+    {
+        return cassandraTypes().timeuuid();
+    }
 
-    public abstract CqlField.NativeType tinyint();
+    public CqlField.NativeType tinyint()
+    {
+        return cassandraTypes().tinyint();
+    }
 
-    public abstract CqlField.NativeType uuid();
+    public CqlField.NativeType uuid()
+    {
+        return cassandraTypes().uuid();
+    }
 
-    public abstract CqlField.NativeType varchar();
+    public CqlField.NativeType varchar()
+    {
+        return cassandraTypes().varchar();
+    }
 
-    public abstract CqlField.NativeType varint();
+    public CqlField.NativeType varint()
+    {
+        return cassandraTypes().varint();
+    }
 
     // Complex
 
-    public abstract CqlField.CqlType collection(String name, CqlField.CqlType... types);
+    public CqlField.CqlType collection(String name, CqlField.CqlType... types)
+    {
+        return cassandraTypes().collection(name, types);
+    }
 
-    public abstract CqlField.CqlList list(CqlField.CqlType type);
+    public CqlField.CqlList list(CqlField.CqlType type)
+    {
+        return cassandraTypes().list(type);
+    }
 
-    public abstract CqlField.CqlSet set(CqlField.CqlType type);
+    public CqlField.CqlSet set(CqlField.CqlType type)
+    {
+        return cassandraTypes().set(type);
+    }
 
-    public abstract CqlField.CqlMap map(CqlField.CqlType keyType, CqlField.CqlType valueType);
+    public CqlField.CqlMap map(CqlField.CqlType keyType, CqlField.CqlType valueType)
+    {
+        return cassandraTypes().map(keyType, valueType);
+    }
 
-    public abstract CqlField.CqlTuple tuple(CqlField.CqlType... types);
+    public CqlField.CqlTuple tuple(CqlField.CqlType... types)
+    {
+        return cassandraTypes().tuple(types);
+    }
 
-    public abstract CqlField.CqlType frozen(CqlField.CqlType type);
+    public CqlField.CqlType frozen(CqlField.CqlType type)
+    {
+        return cassandraTypes().frozen(type);
+    }
 
-    public abstract CqlField.CqlUdtBuilder udt(String keyspace, String name);
+    public CqlField.CqlUdtBuilder udt(String keyspace, String name)
+    {
+        return cassandraTypes().udt(keyspace, name);
+    }
 
     public CqlField.CqlType parseType(String type)
     {
@@ -267,82 +346,7 @@ public abstract class CassandraBridge
 
     public CqlField.CqlType parseType(String type, Map<String, CqlField.CqlUdt> udts)
     {
-        if (type == null || type.length() == 0)
-        {
-            return null;
-        }
-        Matcher collectionMatcher = COLLECTION_PATTERN.matcher(type);
-        if (collectionMatcher.find())
-        {
-            // CQL collection
-            String[] types = splitInnerTypes(collectionMatcher.group(2));
-            return collection(collectionMatcher.group(1), Stream.of(types)
-                                                                .map(collectionType -> parseType(collectionType, udts))
-                                                                .toArray(CqlField.CqlType[]::new));
-        }
-        Matcher frozenMatcher = FROZEN_PATTERN.matcher(type);
-        if (frozenMatcher.find())
-        {
-            // Frozen collections
-            return frozen(parseType(frozenMatcher.group(1), udts));
-        }
-
-        if (udts.containsKey(type))
-        {
-            // User-defined type
-            return udts.get(type);
-        }
-
-        // Native CQL 3 type
-        return nativeType(type);
-    }
-
-    @VisibleForTesting
-    public static String[] splitInnerTypes(String str)
-    {
-        List<String> result = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        int parentheses = 0;
-        for (int index = 0; index < str.length(); index++)
-        {
-            char character = str.charAt(index);
-            switch (character)
-            {
-                case ' ':
-                    if (parentheses == 0)
-                    {
-                        continue;
-                    }
-                    break;
-                case ',':
-                    if (parentheses == 0)
-                    {
-                        if (current.length() > 0)
-                        {
-                            result.add(current.toString());
-                            current = new StringBuilder();
-                        }
-                        continue;
-                    }
-                    break;
-                case '<':
-                    parentheses++;
-                    break;
-                case '>':
-                    parentheses--;
-                    break;
-                default:
-                    // Do nothing
-            }
-            current.append(character);
-        }
-
-        if (current.length() > 0 || result.isEmpty())
-        {
-            result.add(current.toString());
-        }
-
-        return result.toArray(new String[0]);
+        return cassandraTypes().parseType(type, udts);
     }
 
     // SSTable Writer

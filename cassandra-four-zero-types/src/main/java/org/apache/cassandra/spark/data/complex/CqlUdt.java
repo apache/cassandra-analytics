@@ -39,7 +39,6 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.BigNumberConfig;
-import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.cql3.functions.types.UDTValue;
@@ -49,6 +48,7 @@ import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.serializers.UTF8Serializer;
+import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
@@ -350,24 +350,24 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    public String createStatement(CassandraBridge bridge, String keyspace)
+    public String createStatement(CassandraTypes cassandraTypes, String keyspace)
     {
         return String.format("CREATE TYPE %s.%s (%s);",
-                             bridge.maybeQuoteIdentifier(keyspace),
-                             bridge.maybeQuoteIdentifier(name),
-                             fieldsString(bridge));
+                             cassandraTypes.maybeQuoteIdentifier(keyspace),
+                             cassandraTypes.maybeQuoteIdentifier(name),
+                             fieldsString(cassandraTypes));
     }
 
-    private String fieldsString(CassandraBridge bridge)
+    private String fieldsString(CassandraTypes cassandraTypes)
     {
         return fields.stream()
-                     .map(field -> fieldString(bridge, field))
+                     .map(field -> fieldString(cassandraTypes, field))
                      .collect(Collectors.joining(", "));
     }
 
-    private static String fieldString(CassandraBridge bridge, CqlField field)
+    private static String fieldString(CassandraTypes cassandraTypes, CqlField field)
     {
-        return String.format("%s %s", bridge.maybeQuoteIdentifier(field.name()), field.type().cqlName());
+        return String.format("%s %s", cassandraTypes.maybeQuoteIdentifier(field.name()), field.type().cqlName());
     }
 
     public String keyspace()
@@ -420,13 +420,13 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
                 .toArray(StructField[]::new));
     }
 
-    public static CqlUdt read(Input input, CassandraBridge bridge)
+    public static CqlUdt read(Input input, CassandraTypes cassandraTypes)
     {
         Builder builder = CqlUdt.builder(input.readString(), input.readString());
         int numFields = input.readInt();
         for (int field = 0; field < numFields; field++)
         {
-            builder.withField(input.readString(), CqlField.CqlType.read(input, bridge));
+            builder.withField(input.readString(), CqlField.CqlType.read(input, cassandraTypes));
         }
         return builder.build();
     }
@@ -482,17 +482,17 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CqlUdt>
     {
-        private final CassandraBridge bridge;
+        private final CassandraTypes cassandraTypes;
 
-        public Serializer(CassandraBridge bridge)
+        public Serializer(CassandraTypes cassandraTypes)
         {
-            this.bridge = bridge;
+            this.cassandraTypes = cassandraTypes;
         }
 
         @Override
         public CqlUdt read(Kryo kryo, Input input, Class type)
         {
-            return CqlUdt.read(input, bridge);
+            return CqlUdt.read(input, cassandraTypes);
         }
 
         @Override

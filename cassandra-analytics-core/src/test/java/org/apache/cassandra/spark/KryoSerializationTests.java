@@ -334,7 +334,7 @@ public class KryoSerializationTests
         udt.write(out);
         out.close();
         Input in = new Input(out.getBuffer(), 0, out.position());
-        CqlField.CqlUdt deserialized = (CqlField.CqlUdt) CqlField.CqlType.read(in, bridge);
+        CqlField.CqlUdt deserialized = (CqlField.CqlUdt) CqlField.CqlType.read(in, bridge.cassandraTypes());
         assertEquals(udt, deserialized);
         for (int index = 0; index < deserialized.fields().size(); index++)
         {

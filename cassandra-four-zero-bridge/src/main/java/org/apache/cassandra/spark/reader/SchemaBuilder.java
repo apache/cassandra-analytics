@@ -62,6 +62,7 @@ import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.TableMetadataRef;
 import org.apache.cassandra.schema.Types;
+import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -119,7 +120,7 @@ public class SchemaBuilder
                          String keyspace,
                          ReplicationFactor replicationFactor,
                          Partitioner partitioner,
-                         Function<CassandraBridge, Set<String>> udtStatementsProvider,
+                         Function<CassandraTypes, Set<String>> udtStatementsProvider,
                          @Nullable UUID tableId,
                          int indexCount)
     {
@@ -132,7 +133,7 @@ public class SchemaBuilder
         Pair<KeyspaceMetadata, TableMetadata> updated = CassandraSchema.apply(schema ->
                 updateSchema(schema,
                              this.keyspace,
-                             udtStatementsProvider.apply(bridge),
+                             udtStatementsProvider.apply(bridge.cassandraTypes()),
                              this.createStmt,
                              partitioner,
                              this.replicationFactor,

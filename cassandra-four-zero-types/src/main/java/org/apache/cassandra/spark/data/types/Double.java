@@ -22,84 +22,70 @@ package org.apache.cassandra.spark.data.types;
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
-import org.apache.cassandra.db.marshal.TimestampType;
+import org.apache.cassandra.db.marshal.DoubleType;
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.NativeType;
+import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
-public class Timestamp extends NativeType
+public class Double extends NativeType
 {
-    public static final Timestamp INSTANCE = new Timestamp();
+    public static final Double INSTANCE = new Double();
 
     @Override
     public String name()
     {
-        return "timestamp";
+        return "double";
     }
 
     @Override
     public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.TimestampType;
+        return DataTypes.DoubleType;
     }
 
     @Override
     public AbstractType<?> dataType()
     {
-        return TimestampType.instance;
-    }
-
-    @Override
-    public Object toSparkSqlType(Object value, boolean isFrozen)
-    {
-        return ((java.util.Date) value).getTime() * 1000L;  // long
+        return DoubleType.instance;
     }
 
     @Override
     protected int compareTo(Object first, Object second)
     {
-        return BigInt.LONG_COMPARATOR.compare((Long) first, (Long) second);
+        return CqlField.DOUBLE_COMPARATOR.compare((java.lang.Double) first, (java.lang.Double) second);
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
     {
-        return row.getLong(position);
+        return row.getDouble(position);
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return new java.util.Date(row.getTimestamp(position).getTime());
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        if (value instanceof java.util.Date)
-        {
-            return value;
-        }
-        return new java.util.Date((long) value / 1000L);
-    }
-
-    @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
-    {
-        udtValue.setTimestamp(position, (java.util.Date) value);
+        return row.getDouble(position);
     }
 
     @Override
     public Object randomValue(int minCollectionSize)
     {
-        return new java.util.Date();
+        return RandomUtils.RANDOM.nextDouble();
+    }
+
+    @Override
+    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    {
+        udtValue.setDouble(position, (double) value);
     }
 
     @Override
     public org.apache.cassandra.cql3.functions.types.DataType driverDataType(boolean isFrozen)
     {
-        return org.apache.cassandra.cql3.functions.types.DataType.timestamp();
+        return org.apache.cassandra.cql3.functions.types.DataType.cdouble();
     }
 }

@@ -19,75 +19,78 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import java.util.Comparator;
-
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
-import org.apache.cassandra.db.marshal.ShortType;
+import org.apache.cassandra.db.marshal.EmptyType;
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.NativeType;
-import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
-public class SmallInt extends NativeType
+public class Empty extends NativeType
 {
-    public static final SmallInt INSTANCE = new SmallInt();
-    private static final Comparator<Short> SHORT_COMPARATOR = Short::compare;
+    public static final Empty INSTANCE = new Empty();
+
+    @Override
+    public boolean isSupported()
+    {
+        return false;
+    }
 
     @Override
     public String name()
     {
-        return "smallint";
+        return "empty";
     }
 
     @Override
     public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.ShortType;
+        return DataTypes.NullType;
     }
 
     @Override
     public AbstractType<?> dataType()
     {
-        return ShortType.instance;
+        return EmptyType.instance;
     }
 
     @Override
     protected int compareTo(Object first, Object second)
     {
-        return SHORT_COMPARATOR.compare((Short) first, (Short) second);
+        return CqlField.VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+    }
+
+    @Override
+    public int cardinality(int orElse)
+    {
+        return 1;
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
     {
-        return row.getShort(position);
+        return null;
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return row.getShort(position);
+        return null;
     }
 
     @Override
     public Object randomValue(int minCollectionSize)
     {
-        return (short) RandomUtils.RANDOM.nextInt(Short.MAX_VALUE + 1);
+        return null;
     }
 
     @Override
     public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
     {
-        udtValue.setShort(position, (short) value);
-    }
-
-    @Override
-    public org.apache.cassandra.cql3.functions.types.DataType driverDataType(boolean isFrozen)
-    {
-        return org.apache.cassandra.cql3.functions.types.DataType.smallint();
+        udtValue.setToNull(position);
     }
 }

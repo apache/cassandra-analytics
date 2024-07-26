@@ -19,42 +19,73 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import java.util.Comparator;
-
-import com.google.common.primitives.UnsignedBytes;
-
 import org.apache.cassandra.bridge.BigNumberConfig;
+import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
+import org.apache.cassandra.db.marshal.AbstractType;
+import org.apache.cassandra.db.marshal.Int32Type;
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.NativeType;
+import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
-public abstract class BinaryBased extends NativeType
+public class Int extends NativeType
 {
-    public static final Comparator<byte[]> BYTE_ARRAY_COMPARATOR = UnsignedBytes.lexicographicalComparator();
+    public static final Int INSTANCE = new Int();
 
     @Override
-    protected int compareTo(Object first, Object second)
+    public String name()
     {
-        return BYTE_ARRAY_COMPARATOR.compare((byte[]) first, (byte[]) second);
+        return "int";
     }
 
     @Override
     public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.BinaryType;
+        return DataTypes.IntegerType;
+    }
+
+    @Override
+    public AbstractType<?> dataType()
+    {
+        return Int32Type.instance;
+    }
+
+    @Override
+    protected int compareTo(Object first, Object second)
+    {
+        return CqlField.INTEGER_COMPARATOR.compare((Integer) first, (Integer) second);
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
     {
-        return row.getBinary(position);
+        return row.getInt(position);
     }
 
     @Override
     protected Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return row.getAs(position);
+        return row.getInt(position);
+    }
+
+    @Override
+    public Object randomValue(int minCollectionSize)
+    {
+        return RandomUtils.RANDOM.nextInt();
+    }
+
+    @Override
+    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    {
+        udtValue.setInt(position, (int) value);
+    }
+
+    @Override
+    public org.apache.cassandra.cql3.functions.types.DataType driverDataType(boolean isFrozen)
+    {
+        return org.apache.cassandra.cql3.functions.types.DataType.cint();
     }
 }

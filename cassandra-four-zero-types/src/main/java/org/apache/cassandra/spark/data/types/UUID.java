@@ -19,17 +19,15 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import java.util.Comparator;
-
 import org.apache.cassandra.cql3.functions.types.DataType;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.UUIDType;
+import org.apache.cassandra.spark.data.CqlField;
 
 public class UUID extends StringBased
 {
     public static final UUID INSTANCE = new UUID();
-    private static final Comparator<String> UUID_COMPARATOR = Comparator.comparing(java.util.UUID::fromString);
 
     @Override
     public String name()
@@ -46,7 +44,7 @@ public class UUID extends StringBased
     @Override
     protected int compareTo(Object first, Object second)
     {
-        return UUID_COMPARATOR.compare(first.toString(), second.toString());
+        return CqlField.UUID_COMPARATOR.compare(first.toString(), second.toString());
     }
 
     @Override

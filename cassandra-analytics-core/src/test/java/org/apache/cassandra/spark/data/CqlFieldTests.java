@@ -153,7 +153,7 @@ public class CqlFieldTests extends VersionRunner
     @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
     public void testTuple(CassandraBridge bridge)
     {
-        String[] result = CassandraBridge.splitInnerTypes("a, b, c, d,e, f, g");
+        String[] result = CassandraTypes.splitInnerTypes("a, b, c, d,e, f, g");
         assertEquals("a", result[0]);
         assertEquals("b", result[1]);
         assertEquals("c", result[2]);
@@ -165,7 +165,7 @@ public class CqlFieldTests extends VersionRunner
 
     private static void splitMap(String str, String left, String right)
     {
-        String[] result = CassandraBridge.splitInnerTypes(str);
+        String[] result = CassandraTypes.splitInnerTypes(str);
         if (left != null)
         {
             assertEquals(left, result[0]);

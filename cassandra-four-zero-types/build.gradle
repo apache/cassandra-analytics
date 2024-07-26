@@ -29,40 +29,22 @@ configurations {
 }
 
 dependencies {
-    compileOnly project(":cassandra-analytics-common")
-    compileOnly project(":cassandra-four-zero-types")
     compileOnly(project(':cassandra-bridge'))
 
     compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
     compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
 
     compileOnly(project(path: ':cassandra-four-zero', configuration: 'shadow'))
-
-    testImplementation project(":cassandra-analytics-common")
-    testImplementation project(":cassandra-four-zero-types")
-    testImplementation(project(':cassandra-bridge'))
-    testImplementation(project(path: ':cassandra-four-zero', configuration: 'shadow'))
-    testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
-    testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
-    testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
-    testImplementation("org.mockito:mockito-core:${project.rootProject.mockitoVersion}")
-    testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-    testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-    testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
-
-    testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
-    testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
 }
 
 jar {
-    archiveFileName = "four-zero-bridge.jar"
+    archiveFileName = "four-zero-types.jar"
 }
 
 test {
     useJUnitPlatform()
     reports {
-        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "four-zero-bridge").toFile()
+        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "four-zero-types").toFile()
         junitXml {
             enabled true
             destination = destDir
