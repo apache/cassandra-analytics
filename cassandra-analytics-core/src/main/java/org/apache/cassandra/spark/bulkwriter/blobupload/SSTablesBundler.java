@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -105,6 +106,11 @@ public class SSTablesBundler implements Iterator<Bundle>
     public void includeDirectory(Path dir)
     {
         collector.includeDirectory(dir);
+    }
+
+    public void includeSSTable(List<Path> sstableComponents)
+    {
+        collector.includeSSTable(sstableComponents);
     }
 
     public void finish()

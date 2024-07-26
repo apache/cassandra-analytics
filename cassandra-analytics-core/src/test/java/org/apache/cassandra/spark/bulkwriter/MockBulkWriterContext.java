@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -498,14 +499,16 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
                                                         String sessionId,
                                                         SortedSSTableWriter sstableWriter,
                                                         Range<BigInteger> range,
-                                                        ReplicaAwareFailureHandler<RingInstance> failureHandler)
+                                                        ReplicaAwareFailureHandler<RingInstance> failureHandler,
+                                                        ExecutorService executorService)
             {
                 return new DirectStreamSession(mockBulkWriterContext,
                                                sstableWriter,
                                                this,
                                                sessionId,
                                                range,
-                                               failureHandler);
+                                               failureHandler,
+                                               executorService);
             }
         };
     }

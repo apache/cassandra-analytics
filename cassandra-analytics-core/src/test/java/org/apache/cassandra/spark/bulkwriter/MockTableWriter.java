@@ -25,6 +25,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.io.FileUtils;
@@ -76,6 +78,12 @@ public class MockTableWriter implements SSTableWriter
     }
 
     @Override
+    public void setSSTablesProducedListener(Consumer<Set<String>> listener)
+    {
+        //todo
+    }
+
+    @Override
     public void close() throws IOException
     {
         // Create files to mimic SSTableWriter
@@ -107,6 +115,7 @@ public class MockTableWriter implements SSTableWriter
         // to match with SortedSSTableWriter's constructor
         SortedSSTableWriter create(MockTableWriter tableWriter,
                                    Path outDir,
-                                   DigestAlgorithm digestAlgorithm);
+                                   DigestAlgorithm digestAlgorithm,
+                                   int partitionId);
     }
 }

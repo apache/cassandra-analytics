@@ -97,6 +97,20 @@ public class SSTableLister implements SSTableCollector
     }
 
     @Override
+    public void includeSSTable(List<Path> sstableComponents)
+    {
+        // TODO: refactor
+        SSTable sstable = buildSSTable(sstableComponents);
+        SSTableSummary summary = bridge.getSSTableSummary(qualifiedTableName.keyspace(),
+                                                          qualifiedTableName.table(),
+                                                          sstable);
+        long size = sizeSum(sstableComponents);
+        totalSize += size;
+        SSTableFilesAndRange sstableAndRange = new SSTableFilesAndRange(summary, sstableComponents, sizeSum(sstableComponents));
+        sstables.add(sstableAndRange);
+    }
+
+    @Override
     public long totalSize()
     {
         return totalSize;

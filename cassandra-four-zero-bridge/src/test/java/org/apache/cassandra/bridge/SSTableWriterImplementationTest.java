@@ -20,10 +20,16 @@
 package org.apache.cassandra.bridge;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -39,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class SSTableWriterImplementationTest
 {
-    public static final String CREATE_STATEMENT = "CREATE TABLE test_keyspace.test_table (a int, b text)";
+    public static final String CREATE_STATEMENT = "CREATE TABLE test_keyspace.test_table (a int PRIMARY KEY, b text)";
     public static final String INSERT_STATEMENT = "INSERT INTO test_keyspace.test_table (a, b) VALUES (?, ?)";
 
     @TempDir
@@ -52,12 +58,48 @@ class SSTableWriterImplementationTest
                                                                                         CREATE_STATEMENT,
                                                                                         INSERT_STATEMENT,
                                                                                         250,
-                                                                                        new HashSet<>(),
+                                                                                        Collections.emptySet(),
                                                                                         new Murmur3Partitioner());
 
 
         assertTrue(peekSorted(builder));
         assertEquals(250, peekBufferSizeInMB(builder));
+    }
+
+    @Test
+    void testGetProducedSSTables() throws IOException
+    {
+        Set<String> produced = new HashSet<>();
+        try (SSTableWriterImplementation writer = new SSTableWriterImplementation(writeDirectory.getAbsolutePath(),
+                                                                                  "murmur3",
+                                                                                  CREATE_STATEMENT,
+                                                                                  INSERT_STATEMENT,
+                                                                                  Collections.emptySet(),
+                                                                                  1))
+        {
+            writer.setSSTablesProducedListener(produced::addAll);
+            assertTrue(produced.isEmpty());
+
+            File tocFile1 = new File(writeDirectory, "foo-big-TOC.txt");
+            File tocFile2 = new File(writeDirectory, "bar-big-TOC.txt");
+            assertTrue(tocFile1.createNewFile());
+            assertTrue(tocFile2.createNewFile());
+            int i = 100; // the test runs roughly 11 seconds; 20_000 milliseconds timeout should suffice.
+            while (produced.isEmpty() && i-- > 0)
+            {
+                try
+                {
+                    writer.addRow(null);
+                }
+                catch (Exception e)
+                {
+                    // writing null to trigger the check for produced sstables. It throws and it is expected
+                }
+                Uninterruptibles.sleepUninterruptibly(200, TimeUnit.MILLISECONDS);
+            }
+        }
+        assertEquals(2, produced.size());
+        assertEquals(Set.of("foo-big", "bar-big"), produced);
     }
 
     static boolean peekSorted(CQLSSTableWriter.Builder builder) throws NoSuchFieldException, IllegalAccessException

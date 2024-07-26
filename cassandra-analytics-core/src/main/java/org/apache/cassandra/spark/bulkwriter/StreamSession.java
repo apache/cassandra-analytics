@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -37,6 +39,7 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import o.a.c.sidecar.client.shaded.io.vertx.core.impl.ConcurrentHashSet;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 
@@ -53,6 +56,11 @@ public abstract class StreamSession<T extends TransportContext>
     protected final ReplicaAwareFailureHandler<RingInstance> failureHandler;
     protected final TokenRangeMapping<RingInstance> tokenRangeMapping;
     protected final SortedSSTableWriter sstableWriter;
+    protected final ExecutorService executorService;
+
+    private final Set<Path> streamedFiles = new ConcurrentHashSet<>();
+    private final AtomicReference<Exception> lastStreamFailure = new AtomicReference<>();
+    private volatile boolean isStreamFinalized = false;
 
     @VisibleForTesting
     protected StreamSession(BulkWriterContext writerContext,
@@ -60,17 +68,42 @@ public abstract class StreamSession<T extends TransportContext>
                             T transportContext,
                             String sessionID,
                             Range<BigInteger> tokenRange,
-                            ReplicaAwareFailureHandler<RingInstance> failureHandler)
+                            ReplicaAwareFailureHandler<RingInstance> failureHandler,
+                            ExecutorService executorService)
     {
         this.writerContext = writerContext;
         this.sstableWriter = sstableWriter;
+        this.sstableWriter.setSSTablesProducedListener(this::onSSTablesProduced);
         this.transportContext = transportContext;
         this.tokenRangeMapping = writerContext.cluster().getTokenRangeMapping(true);
         this.sessionID = sessionID;
         this.tokenRange = tokenRange;
         this.failureHandler = failureHandler;
         this.replicas = getReplicas();
+        this.executorService = executorService; // TODO: create a single thread pool per session? There is no need to serialize executions amongst multiple sessions
     }
+
+    /**
+     * Get notified on sstables produced. When the method is invoked, the input parameter 'sstables' is guaranteed to be non-empty.
+     *
+     * @param sstables
+     */
+    protected abstract void onSSTablesProduced(Set<String> sstables);
+
+    /**
+     * Finalize the stream with the produced sstables and return the stream result.
+     *
+     * @return stream result
+     */
+    protected abstract StreamResult doFinalizeStream();
+
+    /**
+     * Send the SSTable(s) written by SSTableWriter
+     * The code runs on a separate thread
+     *
+     * @param sstableWriter produces SSTable(s)
+     */
+    protected abstract void sendRemainingSSTables();
 
     public Range<BigInteger> getTokenRange()
     {
@@ -79,6 +112,9 @@ public abstract class StreamSession<T extends TransportContext>
 
     public void addRow(BigInteger token, Map<String, Object> boundValues) throws IOException
     {
+        // exit early when sending the produced sstables has failed
+        rethrowIfLastStreamFailed();
+
         sstableWriter.addRow(token, boundValues);
     }
 
@@ -87,14 +123,44 @@ public abstract class StreamSession<T extends TransportContext>
         return sstableWriter.rowCount();
     }
 
-    public Future<StreamResult> scheduleStreamAsync(int partitionId, ExecutorService executorService) throws IOException
+    public Future<StreamResult> finalizeStreamAsync() throws IOException
     {
-        Preconditions.checkState(!sstableWriter.getTokenRange().isEmpty(), "Trying to stream empty SSTable");
+        rethrowIfLastStreamFailed();
+        Preconditions.checkState(!sstableWriter.getTokenRange().isEmpty(), "Cannot stream empty SSTable");
         Preconditions.checkState(tokenRange.encloses(sstableWriter.getTokenRange()),
                                  "SSTable range %s should be enclosed in the partition range %s",
                                  sstableWriter.getTokenRange(), tokenRange);
-        sstableWriter.close(writerContext, partitionId);
-        return executorService.submit(() -> doScheduleStream(sstableWriter));
+        isStreamFinalized = true;
+        // close the writer before finalizing stream
+        sstableWriter.close(writerContext);
+        return executorService.submit(this::doFinalizeStream);
+    }
+
+    protected boolean isStreamFinalized()
+    {
+        return isStreamFinalized;
+    }
+
+    protected boolean setLastStreamFailure(Exception streamFailure)
+    {
+        return lastStreamFailure.compareAndSet(null, streamFailure);
+    }
+
+    protected void recordStreamedFiles(Set<Path> files)
+    {
+        // todo: check no overlap with streamedFiles or throw? instead of just allAll blindly
+        streamedFiles.addAll(files);
+    }
+
+    protected boolean isFileStreamed(Path file)
+    {
+        return streamedFiles.contains(file);
+    }
+
+    private void rethrowIfLastStreamFailed() throws IOException
+    {
+        if (lastStreamFailure.get() != null)
+            throw new IOException("Unexpected exception while streaming SSTables", lastStreamFailure.get());
     }
 
     @VisibleForTesting
@@ -138,20 +204,4 @@ public abstract class StreamSession<T extends TransportContext>
         return failedInstances.contains(ringInstance)
                || blockedInstanceIps.contains(ringInstance.ipAddress());
     }
-
-    /**
-     * Schedule the stream with the produced sstables and return the stream result.
-     *
-     * @param sstableWriter produces SSTable(s)
-     * @return stream result
-     */
-    protected abstract StreamResult doScheduleStream(SortedSSTableWriter sstableWriter);
-
-    /**
-     * Send the SSTable(s) written by SSTableWriter
-     * The code runs on a separate thread
-     *
-     * @param sstableWriter produces SSTable(s)
-     */
-    protected abstract void sendSSTables(SortedSSTableWriter sstableWriter);
 }

@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter.blobupload;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
 
 import com.google.common.collect.Range;
 import org.slf4j.Logger;
@@ -80,10 +81,12 @@ public class CassandraCloudStorageTransportContext implements TransportContext.C
                                                  String sessionId,
                                                  SortedSSTableWriter sstableWriter,
                                                  Range<BigInteger> range,
-                                                 ReplicaAwareFailureHandler<RingInstance> failureHandler)
+                                                 ReplicaAwareFailureHandler<RingInstance> failureHandler,
+                                                 ExecutorService executorService)
     {
         return new BlobStreamSession(writerContext, sstableWriter,
-                                     this, sessionId, range, failureHandler);
+                                     this, sessionId, range, failureHandler,
+                                     executorService);
     }
 
     @Override

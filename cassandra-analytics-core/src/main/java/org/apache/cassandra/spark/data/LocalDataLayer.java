@@ -31,6 +31,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -82,6 +83,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     private boolean useBufferingInputStream;
     private String[] paths;
     private int minimumReplicasPerMutation = 1;
+    private Set<Path> dataFilePaths;
 
     @Nullable
     private static Stats loadStats(@Nullable String statsClass)
@@ -236,6 +238,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
         this.useBufferingInputStream = useBufferingInputStream;
         this.statsClass = statsClass;
         this.paths = paths;
+        this.dataFilePaths = new HashSet<>();
     }
 
     // For serialization
@@ -314,16 +317,32 @@ public class LocalDataLayer extends DataLayer implements Serializable
         return stats;
     }
 
+    public void setDataFilePaths(Set<Path> dataFilePaths)
+    {
+        this.dataFilePaths = dataFilePaths;
+    }
+
     @Override
     public SSTablesSupplier sstables(int partitionId,
                                      @Nullable SparkRangeFilter sparkRangeFilter,
                                      @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
-        return new BasicSupplier(Arrays
-                .stream(paths)
-                .map(Paths::get)
-                .flatMap(Throwing.function(Files::list))
-                .filter(path -> path.getFileName().toString().endsWith("-" + FileType.DATA.getFileSuffix()))
+        Stream<Path> dataFilePathsStream;
+        // if data file paths is supplied, prefer it over listing files from paths
+        if (!dataFilePaths.isEmpty())
+        {
+            dataFilePathsStream = dataFilePaths.stream();
+        }
+        else
+        {
+            dataFilePathsStream = Arrays
+                                  .stream(paths)
+                                  .map(Paths::get)
+                                  .flatMap(Throwing.function(Files::list))
+                                  .filter(path -> path.getFileName().toString().endsWith("-" + FileType.DATA.getFileSuffix()));
+        }
+
+        return new BasicSupplier(dataFilePathsStream
                 .map(path -> new FileSystemSSTable(path, useBufferingInputStream, () -> this.stats.bufferingInputStreamStats()))
                 .collect(Collectors.toSet()));
     }

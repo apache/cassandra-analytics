@@ -198,7 +198,7 @@ public class RecordWriter
                     }
                     currentRange = subRanges.get(currentRangeIndex);
                 }
-                maybeCreateStreamSession(taskContext, currentRange);
+                maybeSwitchToNewStreamSession(taskContext, currentRange);
                 writeRow(rowData, valueMap, partitionId, streamSession.getTokenRange());
             }
 
@@ -213,6 +213,7 @@ public class RecordWriter
         }
         catch (Exception exception)
         {
+            // todo: cleanup any remaining local sstables
             LOGGER.error("[{}] Failed to write job={}, taskStageAttemptNumber={}, taskAttemptNumber={}",
                          partitionId,
                          job.getId(),
@@ -274,27 +275,10 @@ public class RecordWriter
      * If we do find the need to split a range into sub-ranges, we create the corresponding session for the sub-range
      * if the token from the row data belongs to the range.
      */
-    private void maybeCreateStreamSession(TaskContext taskContext,
-                                          Range<BigInteger> currentRange) throws IOException
+    private void maybeSwitchToNewStreamSession(TaskContext taskContext,
+                                               Range<BigInteger> currentRange) throws IOException
     {
-        maybeCreateSubRangeSession(taskContext, currentRange);
-
-        // If we do not have any stream session at this point, we create a session using the partition's token range
-        if (streamSession == null)
-        {
-            createStreamSessionWithAssignedRange(taskContext);
-        }
-    }
-
-    /**
-     * Given that the token belongs to a sub-range, creates a new stream session if either
-     * 1) we do not have an existing stream session, or 2) the existing stream session corresponds to a range that
-     * does NOT match the sub-range the token belongs to.
-     */
-    private void maybeCreateSubRangeSession(TaskContext taskContext,
-                                            Range<BigInteger> matchingSubRange) throws IOException
-    {
-        if (streamSession != null && streamSession.getTokenRange().equals(matchingSubRange))
+        if (streamSession != null && streamSession.getTokenRange().equals(currentRange))
         {
             return;
         }
@@ -306,12 +290,7 @@ public class RecordWriter
             flushAsync(taskContext.partitionId());
         }
 
-        streamSession = createStreamSession(taskContext, matchingSubRange);
-    }
-
-    private void createStreamSessionWithAssignedRange(TaskContext taskContext) throws IOException
-    {
-        createStreamSession(taskContext, getTokenRange(taskContext));
+        streamSession = createStreamSession(taskContext, currentRange);
     }
 
     private StreamSession<?> createStreamSession(TaskContext taskContext, Range<BigInteger> range) throws IOException
@@ -321,11 +300,11 @@ public class RecordWriter
         String sessionId = TaskContextUtils.createStreamSessionId(taskContext);
         Path perSessionDirectory = baseDir.resolve(sessionId);
         Files.createDirectories(perSessionDirectory);
-        SortedSSTableWriter sstableWriter = tableWriterFactory.create(writerContext, perSessionDirectory, digestAlgorithm);
+        SortedSSTableWriter sstableWriter = tableWriterFactory.create(writerContext, perSessionDirectory, digestAlgorithm, taskContext.partitionId());
         LOGGER.info("[{}][{}] Created new SSTable writer with directory={}",
                     taskContext.partitionId(), sessionId, perSessionDirectory);
         return writerContext.transportContext()
-                            .createStreamSession(writerContext, sessionId, sstableWriter, range, failureHandler);
+                            .createStreamSession(writerContext, sessionId, sstableWriter, range, failureHandler, executorService);
     }
 
     /**
@@ -478,7 +457,7 @@ public class RecordWriter
         Preconditions.checkState(streamSession != null);
         LOGGER.info("[{}][{}] Closing writer and scheduling SStable stream with {} rows",
                     partitionId, streamSession.sessionID, streamSession.rowCount());
-        Future<StreamResult> future = streamSession.scheduleStreamAsync(partitionId, executorService);
+        Future<StreamResult> future = streamSession.finalizeStreamAsync();
         streamFutures.put(streamSession.sessionID, future);
         streamSession = null;
     }
@@ -495,11 +474,13 @@ public class RecordWriter
          * @param writerContext   the context for the bulk writer job
          * @param outDir          an output directory where SSTables components will be written to
          * @param digestAlgorithm a digest provider to calculate digests for every SSTable component
+         * @param partitionId     partition id
          * @return a new {@link SortedSSTableWriter}
          */
         SortedSSTableWriter create(BulkWriterContext writerContext,
                                    Path outDir,
-                                   DigestAlgorithm digestAlgorithm);
+                                   DigestAlgorithm digestAlgorithm,
+                                   int partitionId);
     }
 
     // The java version of org.apache.spark.InterruptibleIterator

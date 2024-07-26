@@ -26,13 +26,13 @@ import org.jetbrains.annotations.NotNull;
 
 public class NonValidatingTestSortedSSTableWriter extends SortedSSTableWriter
 {
-    public NonValidatingTestSortedSSTableWriter(MockTableWriter tableWriter, Path path, DigestAlgorithm digestAlgorithm)
+    public NonValidatingTestSortedSSTableWriter(MockTableWriter tableWriter, Path path, DigestAlgorithm digestAlgorithm, int partitionId)
     {
-        super(tableWriter, path, digestAlgorithm);
+        super(tableWriter, path, digestAlgorithm, partitionId);
     }
 
     @Override
-    public void validateSSTables(@NotNull BulkWriterContext writerContext, int partitionId)
+    public void validateSSTables(@NotNull BulkWriterContext writerContext)
     {
         // Skip validation for these tests
     }

@@ -19,10 +19,14 @@
 
 package org.apache.cassandra.spark.bulkwriter.blobupload;
 
+import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
@@ -45,6 +49,8 @@ import org.apache.cassandra.spark.bulkwriter.StreamResult;
 import org.apache.cassandra.spark.bulkwriter.StreamSession;
 import org.apache.cassandra.spark.bulkwriter.TransportContext;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
+import org.apache.cassandra.spark.common.Digest;
+import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
@@ -61,25 +67,27 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
     protected final CassandraBridge bridge;
     private final Set<CreatedRestoreSlice> createdRestoreSlices = new HashSet<>();
     private final SSTablesBundler sstablesBundler;
-    private int bundleCount;
+    private int bundleCount = 0;
 
     public BlobStreamSession(BulkWriterContext bulkWriterContext, SortedSSTableWriter sstableWriter,
                              TransportContext.CloudStorageTransportContext transportContext,
                              String sessionID, Range<BigInteger> tokenRange,
-                             ReplicaAwareFailureHandler<RingInstance> failureHandler)
+                             ReplicaAwareFailureHandler<RingInstance> failureHandler,
+                             ExecutorService executorService)
     {
         this(bulkWriterContext, sstableWriter, transportContext, sessionID, tokenRange,
              CassandraBridgeFactory.get(bulkWriterContext.cluster().getLowestCassandraVersion()),
-             failureHandler);
+             failureHandler, executorService);
     }
 
     @VisibleForTesting
     public BlobStreamSession(BulkWriterContext bulkWriterContext, SortedSSTableWriter sstableWriter,
                              TransportContext.CloudStorageTransportContext transportContext,
                              String sessionID, Range<BigInteger> tokenRange,
-                             CassandraBridge bridge, ReplicaAwareFailureHandler<RingInstance> failureHandler)
+                             CassandraBridge bridge, ReplicaAwareFailureHandler<RingInstance> failureHandler,
+                             ExecutorService executorService)
     {
-        super(bulkWriterContext, sstableWriter, transportContext, sessionID, tokenRange, failureHandler);
+        super(bulkWriterContext, sstableWriter, transportContext, sessionID, tokenRange, failureHandler, executorService);
 
         JobInfo job = bulkWriterContext.job();
         long maxSizePerBundleInBytes = job.transportInfo().getMaxSizePerBundleInBytes();
@@ -94,7 +102,53 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
     }
 
     @Override
-    protected StreamResult doScheduleStream(SortedSSTableWriter sstableWriter)
+    protected void onSSTablesProduced(Set<String> sstables)
+    {
+        if (sstables.isEmpty() || isStreamFinalized())
+            return;
+
+        executorService.submit(() -> {
+            try
+            {
+                Map<Path, Digest> fileDigests = sstableWriter.prepareSStablesToSend(writerContext, sstables);
+                // group the files by sstable (unique) basename and add to bundler
+                fileDigests.keySet()
+                           .stream()
+                           .collect(Collectors.groupingBy(SSTables::getSSTableBaseName))
+                           .values()
+                           .forEach(sstablesBundler::includeSSTable);
+
+                if (!sstablesBundler.hasNext())
+                {
+                    return;
+                }
+
+                bundleCount += 1;
+                Bundle bundle = sstablesBundler.next();
+                try
+                {
+                    sendBundle(bundle, false);
+                }
+                catch (RuntimeException e)
+                {
+                    // log and rethrow
+                    LOGGER.error("[{}]: Unexpected exception while upload SSTable", sessionID, e);
+                    setLastStreamFailure(e);
+                }
+                finally
+                {
+                    bundle.deleteAll();
+                }
+            }
+            catch (IOException e)
+            {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    @Override
+    protected StreamResult doFinalizeStream()
     {
         sstablesBundler.includeDirectory(sstableWriter.getOutDir());
 
@@ -112,7 +166,7 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
             return BlobStreamResult.empty(sessionID, tokenRange);
         }
 
-        sendSSTables(sstableWriter);
+        sendRemainingSSTables();
         LOGGER.info("[{}]: Uploaded bundles to S3. sstables={} bundles={}", sessionID, sstableWriter.sstableCount(), bundleCount);
 
         BlobStreamResult streamResult = new BlobStreamResult(sessionID,
@@ -130,9 +184,8 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
     }
 
     @Override
-    protected void sendSSTables(SortedSSTableWriter sstableWriter)
+    protected void sendRemainingSSTables()
     {
-        bundleCount = 0;
         while (sstablesBundler.hasNext())
         {
             bundleCount++;

@@ -86,15 +86,15 @@ public class SortedSSTableWriterTest
     public void canCreateWriterForVersion(String version) throws IOException
     {
         MockBulkWriterContext writerContext = new MockBulkWriterContext(tokenRangeMapping, version, ConsistencyLevel.CL.LOCAL_QUORUM);
-        SortedSSTableWriter tw = new SortedSSTableWriter(writerContext, tmpDir, new XXHash32DigestAlgorithm());
+        SortedSSTableWriter tw = new SortedSSTableWriter(writerContext, tmpDir, new XXHash32DigestAlgorithm(), 1);
         tw.addRow(BigInteger.ONE, ImmutableMap.of("id", 1, "date", 1, "course", "foo", "marks", 1));
-        tw.close(writerContext, 1);
+        tw.close(writerContext);
         try (DirectoryStream<Path> dataFileStream = Files.newDirectoryStream(tw.getOutDir(), "*Data.db"))
         {
             dataFileStream.forEach(dataFilePath ->
                                    assertEquals(CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion(),
                                                 SSTables.cassandraVersionFromTable(dataFilePath).getMajorVersion()));
         }
-        tw.validateSSTables(writerContext, 1);
+        tw.validateSSTables(writerContext);
     }
 }
