@@ -95,7 +95,7 @@ public class Decimal extends NativeType
     public Object randomValue(int minCollectionSize)
     {
         BigInteger unscaledVal = new BigInteger(BigNumberConfig.DEFAULT.bigDecimalPrecision(), RandomUtils.RANDOM);
-        int scale = RandomUtils.RANDOM.nextInt(BigNumberConfig.DEFAULT.bigDecimalScale());
+        int scale = BigNumberConfig.DEFAULT.bigDecimalScale();
         return new BigDecimal(unscaledVal, scale);
     }
 
