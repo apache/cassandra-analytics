@@ -27,7 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.spark.bulkwriter.util.ThreadUtil;
+import org.apache.cassandra.util.ThreadUtil;
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;

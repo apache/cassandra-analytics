@@ -29,7 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.bulkwriter.util.ThreadUtil;
+import org.apache.cassandra.util.ThreadUtil;
 
 /**
  * A monitor that check whether the cassandra topology has changed.

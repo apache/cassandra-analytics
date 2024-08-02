@@ -19,20 +19,21 @@
 
 package org.apache.cassandra.bridge;
 
+import java.io.Closeable;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardWatchEventKinds;
-import java.nio.file.WatchEvent;
-import java.nio.file.WatchKey;
-import java.nio.file.WatchService;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -45,8 +46,8 @@ import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
+import org.apache.cassandra.util.ThreadUtil;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class SSTableWriterImplementation implements SSTableWriter
 {
@@ -56,11 +57,10 @@ public class SSTableWriterImplementation implements SSTableWriter
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SSTableWriterImplementation.class);
-    private static final String TOC_COMPONENT_SUFFIX = "-TOC.txt";
 
     private final CQLSSTableWriter writer;
     private final Path outputDir;
-    private final WatchService watchService;
+    private final SSTableWatcher sstableWatcher;
     private Consumer<Set<String>> producedSSTablesListener;
 
     public SSTableWriterImplementation(String inDirectory,
@@ -69,6 +69,18 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        String insertStatement,
                                        @NotNull Set<String> userDefinedTypeStatements,
                                        int bufferSizeMB)
+    {
+        this(inDirectory, partitioner, createStatement, insertStatement, userDefinedTypeStatements, bufferSizeMB, 10);
+    }
+
+    @VisibleForTesting
+    SSTableWriterImplementation(String inDirectory,
+                                String partitioner,
+                                String createStatement,
+                                String insertStatement,
+                                @NotNull Set<String> userDefinedTypeStatements,
+                                int bufferSizeMB,
+                                long sstableWatcherDelaySeconds)
     {
         IPartitioner cassPartitioner = partitioner.toLowerCase().contains("random") ? new RandomPartitioner()
                                                                                     : new Murmur3Partitioner();
@@ -81,28 +93,89 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        cassPartitioner)
                       .build();
         this.outputDir = Paths.get(inDirectory);
-        this.watchService = setupWatchService();
+        this.sstableWatcher = new SSTableWatcher(sstableWatcherDelaySeconds);
     }
 
-    protected @Nullable WatchService setupWatchService()
+    private class SSTableWatcher implements Closeable
     {
-        WatchService ws = null;
-        try
+        // The TOC component is the last one flushed when finishing a SSTable.
+        // Therefore, it monitors the creation of the TOC component to determine the creation of SSTable
+        private static final String TOC_COMPONENT_SUFFIX = "-TOC.txt";
+        private static final String GLOB_PATTERN_FOR_TOC = "*" + TOC_COMPONENT_SUFFIX;
+
+        private final ScheduledExecutorService sstableWatcherScheduler;
+        // set of base filenames
+        private final Set<String> knownSSTables;
+        private final Set<String> newlyProducedSSTables;
+
+        SSTableWatcher(long delaySeconds)
         {
-            ws = outputDir.getFileSystem().newWatchService();
-            outputDir.register(ws, StandardWatchEventKinds.ENTRY_CREATE);
+            ThreadFactory tf = ThreadUtil.threadFactory("SSTableWatcher-" + outputDir.getFileName().toString());
+            this.sstableWatcherScheduler = Executors.newSingleThreadScheduledExecutor(tf);
+            this.knownSSTables = new HashSet<>();
+            this.newlyProducedSSTables = new HashSet<>();
+            sstableWatcherScheduler.scheduleWithFixedDelay(this::listSSTables, delaySeconds, delaySeconds, TimeUnit.SECONDS);
         }
-        catch (IOException e)
+
+        Set<String> newlyProducedSSTables()
         {
-            LOGGER.warn("Failed to set up WatchService to monitor the newly produced sstables", e);
+            if (newlyProducedSSTables.isEmpty())
+            {
+                return Collections.emptySet();
+            }
+
+            synchronized (this)
+            {
+                Set<String> result = new HashSet<>(newlyProducedSSTables);
+                knownSSTables.addAll(newlyProducedSSTables);
+                newlyProducedSSTables.clear();
+                return result;
+            }
         }
-        return ws;
+
+        private synchronized void listSSTables()
+        {
+            try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDir, GLOB_PATTERN_FOR_TOC))
+            {
+                stream.forEach(path -> {
+                    String baseFilename = path.getFileName().toString().replace(TOC_COMPONENT_SUFFIX, "");
+                    if (!knownSSTables.contains(baseFilename))
+                    {
+                        newlyProducedSSTables.add(baseFilename);
+                    }
+                });
+            }
+            catch (IOException e)
+            {
+                LOGGER.warn("Fails to list SSTables", e);
+            }
+        }
+
+        @Override
+        public void close()
+        {
+            sstableWatcherScheduler.shutdown();
+            try
+            {
+                boolean terminated = sstableWatcherScheduler.awaitTermination(10, TimeUnit.SECONDS);
+                if (!terminated)
+                {
+                    LOGGER.debug("SSTableWatcher scheduler termination times out");
+                }
+            }
+            catch (InterruptedException e)
+            {
+                LOGGER.debug("Closing SSTableWatcher scheduler is interrupted");
+            }
+            knownSSTables.clear();
+            newlyProducedSSTables.clear();
+        }
     }
 
     @Override
     public void addRow(Map<String, Object> values) throws IOException
     {
-        Set<String> sstables = producedSSTables();
+        Set<String> sstables = sstableWatcher.newlyProducedSSTables();
         if (!sstables.isEmpty())
         {
             producedSSTablesListener.accept(sstables);
@@ -124,59 +197,12 @@ public class SSTableWriterImplementation implements SSTableWriter
         producedSSTablesListener = Objects.requireNonNull(listener);
     }
 
-    /**
-     * Returns a set of the produced SSTables or null. The method does not block
-     * Null is returned when
-     * - there is no sstable, or
-     * - watchService is not started, or
-     * - no producedSSTablesListener is registered
-     * <p>
-     * The implementation is based on WatchService and there is always certain delay between a file is created and captured by watcher.
-     * The consumer also need to note that there may be missing event in rare cases. The consumer is required to find the missing sstables and handle them.
-     */
-    private Set<String> producedSSTables()
-    {
-        if (watchService == null || producedSSTablesListener == null)
-        {
-            return Collections.emptySet();
-        }
-
-        Set<String> produced = new HashSet<>();
-        WatchKey key;
-        while ((key = watchService.poll()) != null)
-        {
-            List<WatchEvent<?>> events = key.pollEvents();
-            // Reset the key ASAP in order to continue receiving events
-            // Note that it is still possible that new events happens during key.pollEvents(), and those events won't be captured, since reset was not called
-            key.reset();
-            for (WatchEvent<?> event : events)
-            {
-                if (event.kind() != StandardWatchEventKinds.ENTRY_CREATE)
-                    continue;
-
-                // for ENTRY_CREATE kind, the context type is Path
-                Path createdFile = (Path) event.context();
-                // The TOC component is the last one flushed when finishing a SSTable.
-                // Therefore, it monitors the creation of the TOC component to determine the creation of SSTable
-                if (createdFile.toString().endsWith(TOC_COMPONENT_SUFFIX))
-                {
-                    String sstableBaseName = createdFile.toString().replace(TOC_COMPONENT_SUFFIX, "");
-                    produced.add(sstableBaseName);
-                }
-            }
-        }
-        return produced;
-    }
-
     @Override
     public void close() throws IOException
     {
-        // close watchservice first. There is no need to continue monitoring the new sstables.
+        // close sstablewatcher first. There is no need to continue monitoring the new sstables.
         // writer.close is guaranteed to create one more sstable
-        if (watchService != null)
-        {
-            watchService.close();
-        }
+        sstableWatcher.close();
         writer.close();
     }
 

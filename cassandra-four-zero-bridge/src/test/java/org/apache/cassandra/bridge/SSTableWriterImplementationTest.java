@@ -75,6 +75,7 @@ class SSTableWriterImplementationTest
                                                                                   CREATE_STATEMENT,
                                                                                   INSERT_STATEMENT,
                                                                                   Collections.emptySet(),
+                                                                                  1,
                                                                                   1))
         {
             writer.setSSTablesProducedListener(produced::addAll);
@@ -84,7 +85,7 @@ class SSTableWriterImplementationTest
             File tocFile2 = new File(writeDirectory, "bar-big-TOC.txt");
             assertTrue(tocFile1.createNewFile());
             assertTrue(tocFile2.createNewFile());
-            int i = 100; // the test runs roughly 11 seconds; 20_000 milliseconds timeout should suffice.
+            int i = 15; // the test runs roughly within 2 seconds; 3_000 milliseconds timeout should suffice.
             while (produced.isEmpty() && i-- > 0)
             {
                 try

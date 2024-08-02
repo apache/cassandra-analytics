@@ -53,7 +53,7 @@ import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.bulkwriter.util.TaskContextUtils;
-import org.apache.cassandra.spark.bulkwriter.util.ThreadUtil;
+import org.apache.cassandra.util.ThreadUtil;
 import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
