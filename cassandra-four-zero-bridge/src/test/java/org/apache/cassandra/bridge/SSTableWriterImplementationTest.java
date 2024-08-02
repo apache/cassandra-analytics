@@ -85,22 +85,18 @@ class SSTableWriterImplementationTest
             File tocFile2 = new File(writeDirectory, "bar-big-TOC.txt");
             assertTrue(tocFile1.createNewFile());
             assertTrue(tocFile2.createNewFile());
-            int i = 15; // the test runs roughly within 2 seconds; 3_000 milliseconds timeout should suffice.
-            while (produced.isEmpty() && i-- > 0)
-            {
-                try
-                {
-                    writer.addRow(null);
-                }
-                catch (Exception e)
-                {
-                    // writing null to trigger the check for produced sstables. It throws and it is expected
-                }
-                Uninterruptibles.sleepUninterruptibly(200, TimeUnit.MILLISECONDS);
-            }
+            waitForProduced(writer, produced);
+            assertEquals(2, produced.size());
+            assertEquals(Set.of("foo-big", "bar-big"), produced);
+            produced.clear();
+
+            assertTrue(produced.isEmpty());
+            File tocFile3 = new File(writeDirectory, "baz-big-TOC.txt");
+            assertTrue(tocFile3.createNewFile());
+            waitForProduced(writer, produced);
+            assertEquals(1, produced.size());
+            assertEquals(Set.of("baz-big"), produced);
         }
-        assertEquals(2, produced.size());
-        assertEquals(Set.of("foo-big", "bar-big"), produced);
     }
 
     static boolean peekSorted(CQLSSTableWriter.Builder builder) throws NoSuchFieldException, IllegalAccessException
@@ -120,7 +116,7 @@ class SSTableWriterImplementationTest
         return (long) sizeField.get(builder);
     }
 
-    static Field findFirstField(Class<?> clazz, String... fieldNames) throws NoSuchFieldException, IllegalAccessException
+    static Field findFirstField(Class<?> clazz, String... fieldNames) throws NoSuchFieldException
     {
         Field field = null;
         for (String fieldName : fieldNames)
@@ -141,5 +137,22 @@ class SSTableWriterImplementationTest
         }
 
         return field;
+    }
+
+    private void waitForProduced(SSTableWriterImplementation writer, Set<String> produced)
+    {
+        int i = 15; // the test runs roughly within 2 seconds; 3_000 milliseconds timeout should suffice.
+        while (produced.isEmpty() && i-- > 0)
+        {
+            try
+            {
+                writer.addRow(null);
+            }
+            catch (Exception e)
+            {
+                // writing null to trigger the check for produced sstables. It throws and it is expected
+            }
+            Uninterruptibles.sleepUninterruptibly(200, TimeUnit.MILLISECONDS);
+        }
     }
 }
