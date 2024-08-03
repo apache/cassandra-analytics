@@ -83,7 +83,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     private boolean useBufferingInputStream;
     private String[] paths;
     private int minimumReplicasPerMutation = 1;
-    private Set<Path> dataFilePaths;
+    private Set<Path> dataFilePaths = null;
 
     @Nullable
     private static Stats loadStats(@Nullable String statsClass)
@@ -328,8 +328,8 @@ public class LocalDataLayer extends DataLayer implements Serializable
                                      @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
         Stream<Path> dataFilePathsStream;
-        // if data file paths is supplied, prefer it over listing files from paths
-        if (!dataFilePaths.isEmpty())
+        // if data file paths is supplied, prefer them over listing files
+        if (dataFilePaths != null && !dataFilePaths.isEmpty())
         {
             dataFilePathsStream = dataFilePaths.stream();
         }
