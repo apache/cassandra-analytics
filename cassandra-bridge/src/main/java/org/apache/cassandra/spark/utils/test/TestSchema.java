@@ -19,16 +19,13 @@
 
 package org.apache.cassandra.spark.utils.test;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -56,6 +53,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.apache.cassandra.spark.utils.ByteBufferUtils;
 
 /**
  * Helper class to create and test various schemas
@@ -729,70 +727,22 @@ public final class TestSchema
                 CqlField.CqlType type = key < partitionKeys.size()
                         ? partitionKeys.get(key).type()
                         : clusteringKeys.get(key - partitionKeys.size()).type();
-                str.append(toString(type, get(key))).append(":");
+                str.append(toHexString(type, get(key))).append(":");
             }
             return str.toString();
         }
 
-        private String toString(CqlField.CqlType type, Object key)
+        private String toHexString(CqlField.CqlType type, Object value)
         {
-            if (key instanceof BigDecimal)
-            {
-                return ((BigDecimal) key).setScale(8, RoundingMode.CEILING).toPlainString();
-            }
-            else if (key instanceof Timestamp)
-            {
-                return new Date(((Timestamp) key).getTime()).toString();
-            }
-            else if (key instanceof Object[])
-            {
-                return String.format("[%s]", Arrays.stream((Object[]) key)
-                                                   .map(value -> toString(type, value))
-                                                   .collect(Collectors.joining(", ")));
-            }
-            else if (key instanceof Map)
-            {
-                CqlField.CqlType innerType = getFrozenInnerType(type);
-                if (innerType instanceof CqlField.CqlMap)
-                {
-                    CqlField.CqlMap mapType = (CqlField.CqlMap) innerType;
-                    return ((Map<?, ?>) key).entrySet()
-                            .stream()
-                            .sorted((Comparator<Map.Entry<?, ?>>) (first, second) ->
-                                    mapType.keyType().compare(first.getKey(), second.getKey()))
-                            .map(Map.Entry::getValue)
-                            .collect(Collectors.toList())
-                            .toString();
-                }
-                return ((Map<?, ?>) key).entrySet().stream().collect(
-                        Collectors.toMap(entry -> toString(innerType, entry.getKey()),
-                                         entry -> toString(innerType, entry.getValue()))).toString();
-            }
-            else if (key instanceof Collection)
-            {
-                CqlField.CqlType innerType = ((CqlField.CqlCollection) getFrozenInnerType(type)).type();
-                return ((Collection<?>) key).stream()
-                                            .sorted(innerType)
-                                            .map(value -> toString(innerType, value))
-                                            .collect(Collectors.toList()).toString();
-            }
-            return key != null ? key.toString() : "null";
-        }
-
-        private CqlField.CqlType getFrozenInnerType(CqlField.CqlType type)
-        {
-            if (type instanceof CqlField.CqlFrozen)
-            {
-                return getFrozenInnerType(((CqlField.CqlFrozen) type).inner());
-            }
-            return type;
+            ByteBuffer buf = value == null ? null : type.serialize(value);
+            return ByteBufferUtils.toHexString(buf);
         }
 
         @Override
         public String toString()
         {
             return String.format("[%s]", IntStream.range(0, values.length)
-                                                  .mapToObj(index -> toString(allFields.get(index).type(), values[index]))
+                                                  .mapToObj(index -> toHexString(allFields.get(index).type(), values[index]))
                                                   .collect(Collectors.joining(", ")));
         }
 
