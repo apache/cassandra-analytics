@@ -86,7 +86,9 @@ class SSTableWriterImplementationTest
             assertTrue(tocFile2.createNewFile());
             waitForProduced(writer, produced);
             assertEquals(2, produced.size());
-            assertEquals(Set.of("foo-big", "bar-big"), produced);
+            Set<SSTableDescriptor> expected = new HashSet<>(Arrays.asList(new SSTableDescriptor("foo-big"),
+                                                                          new SSTableDescriptor("bar-big")));
+            assertEquals(expected, produced);
             produced.clear();
 
             assertTrue(produced.isEmpty());
@@ -94,7 +96,7 @@ class SSTableWriterImplementationTest
             assertTrue(tocFile3.createNewFile());
             waitForProduced(writer, produced);
             assertEquals(1, produced.size());
-            assertEquals(Set.of("baz-big"), produced);
+            assertEquals(Collections.singleton(new SSTableDescriptor("baz-big")), produced);
         }
     }
 
