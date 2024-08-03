@@ -37,6 +37,7 @@ import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload
 import o.a.c.sidecar.client.shaded.common.request.data.RestoreJobSummaryResponsePayload;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.BulkWriteValidator;
@@ -102,10 +103,12 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
     }
 
     @Override
-    protected void onSSTablesProduced(Set<String> sstables)
+    protected void onSSTablesProduced(Set<SSTableDescriptor> sstables)
     {
         if (sstables.isEmpty() || isStreamFinalized())
+        {
             return;
+        }
 
         executorService.submit(() -> {
             try
@@ -120,6 +123,7 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
 
                 if (!sstablesBundler.hasNext())
                 {
+                    // hold on until a bundle can be produced
                     return;
                 }
 
@@ -204,6 +208,15 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
                 sstablesBundler.cleanupBundle(sessionID);
             }
         }
+    }
+
+    @Override
+    public void cleanupOnFailure()
+    {
+        super.cleanupOnFailure();
+
+        // remove any remaining bundle
+        sstablesBundler.cleanupBundle(sessionID);
     }
 
     void sendBundle(Bundle bundle, boolean hasRefreshedCredentials)

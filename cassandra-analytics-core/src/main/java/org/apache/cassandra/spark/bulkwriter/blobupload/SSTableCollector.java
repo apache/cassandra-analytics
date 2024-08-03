@@ -39,8 +39,8 @@ public interface SSTableCollector
     void includeDirectory(Path dir);
 
     /**
-     * TODO
-     * @param file
+     * Include the sstable components of an individual SSTable
+     * @param sstableComponents sstable components
      */
     void includeSSTable(List<Path> sstableComponents);
 

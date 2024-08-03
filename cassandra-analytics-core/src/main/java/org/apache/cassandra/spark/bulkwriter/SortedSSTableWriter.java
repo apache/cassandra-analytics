@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
+import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.data.FileType;
@@ -137,7 +138,7 @@ public class SortedSSTableWriter
         rowCount += 1;
     }
 
-    public void setSSTablesProducedListener(Consumer<Set<String>> listener)
+    public void setSSTablesProducedListener(Consumer<Set<SSTableDescriptor>> listener)
     {
         cqlSSTableWriter.setSSTablesProducedListener(listener);
     }
@@ -166,10 +167,10 @@ public class SortedSSTableWriter
         return sstableCount;
     }
 
-    public Map<Path, Digest> prepareSStablesToSend(@NotNull BulkWriterContext writerContext, Set<String> sstables) throws IOException
+    public Map<Path, Digest> prepareSStablesToSend(@NotNull BulkWriterContext writerContext, Set<SSTableDescriptor> sstables) throws IOException
     {
         DirectoryStream.Filter<Path> sstableFilter = path -> {
-            String baseName = SSTables.getSSTableBaseName(path);
+            SSTableDescriptor baseName = SSTables.getSSTableDescriptor(path);
             return sstables.contains(baseName);
         };
         Set<Path> dataFilePaths = new HashSet<>();

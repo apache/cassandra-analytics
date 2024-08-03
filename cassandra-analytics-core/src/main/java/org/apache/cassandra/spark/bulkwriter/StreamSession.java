@@ -36,10 +36,12 @@ import java.util.stream.Collectors;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import o.a.c.sidecar.client.shaded.io.vertx.core.impl.ConcurrentHashSet;
+import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 
@@ -80,15 +82,15 @@ public abstract class StreamSession<T extends TransportContext>
         this.tokenRange = tokenRange;
         this.failureHandler = failureHandler;
         this.replicas = getReplicas();
-        this.executorService = executorService; // TODO: create a single thread pool per session? There is no need to serialize executions amongst multiple sessions
+        this.executorService = executorService;
     }
 
     /**
      * Get notified on sstables produced. When the method is invoked, the input parameter 'sstables' is guaranteed to be non-empty.
      *
-     * @param sstables
+     * @param sstables produces SSTables
      */
-    protected abstract void onSSTablesProduced(Set<String> sstables);
+    protected abstract void onSSTablesProduced(Set<SSTableDescriptor> sstables);
 
     /**
      * Finalize the stream with the produced sstables and return the stream result.
@@ -100,8 +102,6 @@ public abstract class StreamSession<T extends TransportContext>
     /**
      * Send the SSTable(s) written by SSTableWriter
      * The code runs on a separate thread
-     *
-     * @param sstableWriter produces SSTable(s)
      */
     protected abstract void sendRemainingSSTables();
 
@@ -125,15 +125,39 @@ public abstract class StreamSession<T extends TransportContext>
 
     public Future<StreamResult> finalizeStreamAsync() throws IOException
     {
+        isStreamFinalized = true;
         rethrowIfLastStreamFailed();
         Preconditions.checkState(!sstableWriter.getTokenRange().isEmpty(), "Cannot stream empty SSTable");
         Preconditions.checkState(tokenRange.encloses(sstableWriter.getTokenRange()),
                                  "SSTable range %s should be enclosed in the partition range %s",
                                  sstableWriter.getTokenRange(), tokenRange);
-        isStreamFinalized = true;
         // close the writer before finalizing stream
         sstableWriter.close(writerContext);
         return executorService.submit(this::doFinalizeStream);
+    }
+
+    /**
+     * Clean up any remaining files on disk when streaming is failed
+     */
+    public void cleanupOnFailure()
+    {
+        try
+        {
+            sstableWriter.close(writerContext);
+        }
+        catch (IOException e)
+        {
+            LOGGER.warn("[{}]: Failed to close sstable writer on streaming failure", sessionID, e);
+        }
+
+        try
+        {
+            FileUtils.deleteDirectory(sstableWriter.getOutDir().toFile());
+        }
+        catch (IOException e)
+        {
+            LOGGER.warn("[{}]: Failed to clean up the produced sstables on streaming failure", sessionID, e);
+        }
     }
 
     protected boolean isStreamFinalized()
@@ -148,7 +172,6 @@ public abstract class StreamSession<T extends TransportContext>
 
     protected void recordStreamedFiles(Set<Path> files)
     {
-        // todo: check no overlap with streamedFiles or throw? instead of just allAll blindly
         streamedFiles.addAll(files);
     }
 
@@ -160,7 +183,9 @@ public abstract class StreamSession<T extends TransportContext>
     private void rethrowIfLastStreamFailed() throws IOException
     {
         if (lastStreamFailure.get() != null)
+        {
             throw new IOException("Unexpected exception while streaming SSTables", lastStreamFailure.get());
+        }
     }
 
     @VisibleForTesting

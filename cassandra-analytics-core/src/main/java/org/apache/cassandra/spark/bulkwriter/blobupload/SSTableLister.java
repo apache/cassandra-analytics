@@ -46,6 +46,7 @@ import org.apache.cassandra.spark.data.FileSystemSSTable;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.stats.Stats;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * {@link SSTableLister} lists the directories containing SSTables.
@@ -83,15 +84,7 @@ public class SSTableLister implements SSTableCollector
         }
 
         listSSTables(dir)
-        .map(components -> {
-            SSTable sstable = buildSSTable(components);
-            SSTableSummary summary = bridge.getSSTableSummary(qualifiedTableName.keyspace(),
-                                                              qualifiedTableName.table(),
-                                                              sstable);
-            long size = sizeSum(components);
-            totalSize += size;
-            return new SSTableFilesAndRange(summary, components, sizeSum(components));
-        })
+        .map(this::createSSTableFilesAndRange)
         .sorted(SORT_BY_FIRST_TOKEN_THEN_LAST_TOKEN)
         .forEach(sstables::add);
     }
@@ -99,14 +92,7 @@ public class SSTableLister implements SSTableCollector
     @Override
     public void includeSSTable(List<Path> sstableComponents)
     {
-        // TODO: refactor
-        SSTable sstable = buildSSTable(sstableComponents);
-        SSTableSummary summary = bridge.getSSTableSummary(qualifiedTableName.keyspace(),
-                                                          qualifiedTableName.table(),
-                                                          sstable);
-        long size = sizeSum(sstableComponents);
-        totalSize += size;
-        SSTableFilesAndRange sstableAndRange = new SSTableFilesAndRange(summary, sstableComponents, sizeSum(sstableComponents));
+        SSTableFilesAndRange sstableAndRange = createSSTableFilesAndRange(sstableComponents);
         sstables.add(sstableAndRange);
     }
 
@@ -208,5 +194,16 @@ public class SSTableLister implements SSTableCollector
             throw new IllegalArgumentException("SSTable should have only one data component");
         }
         return new FileSystemSSTable(dataComponents.get(0), true, Stats.DoNothingStats.INSTANCE::bufferingInputStreamStats);
+    }
+
+    private @NotNull SSTableFilesAndRange createSSTableFilesAndRange(List<Path> sstableComponents)
+    {
+        SSTable sstable = buildSSTable(sstableComponents);
+        SSTableSummary summary = bridge.getSSTableSummary(qualifiedTableName.keyspace(),
+                                                          qualifiedTableName.table(),
+                                                          sstable);
+        long size = sizeSum(sstableComponents);
+        totalSize += size;
+        return new SSTableFilesAndRange(summary, sstableComponents, size);
     }
 }

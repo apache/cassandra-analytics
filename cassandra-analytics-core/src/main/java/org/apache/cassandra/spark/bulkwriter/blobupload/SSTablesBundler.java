@@ -26,7 +26,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Set;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -121,6 +120,11 @@ public class SSTablesBundler implements Iterator<Bundle>
     public void cleanupBundle(String sessionID)
     {
         LOGGER.info("[{}]: Clean up bundle files after stream session bundle={}", sessionID, currentBundle);
+        if (currentBundle == null)
+        {
+            return;
+        }
+
         try
         {
             Bundle bundle = currentBundle;

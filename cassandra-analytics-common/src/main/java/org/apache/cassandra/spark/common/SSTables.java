@@ -21,6 +21,8 @@ package org.apache.cassandra.spark.common;
 
 import java.nio.file.Path;
 
+import org.apache.cassandra.bridge.SSTableDescriptor;
+
 public final class SSTables
 {
     private SSTables()
@@ -32,5 +34,11 @@ public final class SSTables
     {
         String fileName = dataFile.getFileName().toString();
         return fileName.substring(0, fileName.lastIndexOf("-") + 1);
+    }
+
+    public static SSTableDescriptor getSSTableDescriptor(Path dataFile)
+    {
+        String baseFilename = getSSTableBaseName(dataFile);
+        return new SSTableDescriptor(baseFilename);
     }
 }

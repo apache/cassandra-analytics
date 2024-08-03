@@ -213,12 +213,17 @@ public class RecordWriter
         }
         catch (Exception exception)
         {
-            // todo: cleanup any remaining local sstables
             LOGGER.error("[{}] Failed to write job={}, taskStageAttemptNumber={}, taskAttemptNumber={}",
                          partitionId,
                          job.getId(),
                          taskContext.stageAttemptNumber(),
                          taskContext.attemptNumber());
+
+            // if streamSession is not closed/nullified. Clean it up here
+            if (streamSession != null)
+            {
+                streamSession.cleanupOnFailure();
+            }
 
             if (exception instanceof InterruptedException)
             {

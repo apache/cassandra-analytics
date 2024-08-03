@@ -25,7 +25,6 @@ import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -69,7 +68,7 @@ class SSTableWriterImplementationTest
     @Test
     void testGetProducedSSTables() throws IOException
     {
-        Set<String> produced = new HashSet<>();
+        Set<SSTableDescriptor> produced = new HashSet<>();
         try (SSTableWriterImplementation writer = new SSTableWriterImplementation(writeDirectory.getAbsolutePath(),
                                                                                   "murmur3",
                                                                                   CREATE_STATEMENT,
@@ -139,7 +138,7 @@ class SSTableWriterImplementationTest
         return field;
     }
 
-    private void waitForProduced(SSTableWriterImplementation writer, Set<String> produced)
+    private void waitForProduced(SSTableWriterImplementation writer, Set<SSTableDescriptor> produced)
     {
         int i = 15; // the test runs roughly within 2 seconds; 3_000 milliseconds timeout should suffice.
         while (produced.isEmpty() && i-- > 0)

@@ -43,6 +43,5 @@ public interface SSTableWriter extends Closeable
      * Note that once a produced sstable has been returned, the returning lists of the subsequent calls do not include it anymore.
      * Therefore, it only returns the _newly_ produced sstables.
      */
-    //TODO - create SSTableDescriptor
-    void setSSTablesProducedListener(Consumer<Set<String>> listener);
+    void setSSTablesProducedListener(Consumer<Set<SSTableDescriptor>> listener);
 }

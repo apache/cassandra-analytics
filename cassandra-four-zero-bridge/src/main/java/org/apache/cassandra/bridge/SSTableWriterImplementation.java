@@ -61,7 +61,7 @@ public class SSTableWriterImplementation implements SSTableWriter
     private final CQLSSTableWriter writer;
     private final Path outputDir;
     private final SSTableWatcher sstableWatcher;
-    private Consumer<Set<String>> producedSSTablesListener;
+    private Consumer<Set<SSTableDescriptor>> producedSSTablesListener;
 
     public SSTableWriterImplementation(String inDirectory,
                                        String partitioner,
@@ -104,9 +104,8 @@ public class SSTableWriterImplementation implements SSTableWriter
         private static final String GLOB_PATTERN_FOR_TOC = "*" + TOC_COMPONENT_SUFFIX;
 
         private final ScheduledExecutorService sstableWatcherScheduler;
-        // set of base filenames
-        private final Set<String> knownSSTables;
-        private final Set<String> newlyProducedSSTables;
+        private final Set<SSTableDescriptor> knownSSTables;
+        private final Set<SSTableDescriptor> newlyProducedSSTables;
 
         SSTableWatcher(long delaySeconds)
         {
@@ -117,7 +116,7 @@ public class SSTableWriterImplementation implements SSTableWriter
             sstableWatcherScheduler.scheduleWithFixedDelay(this::listSSTables, delaySeconds, delaySeconds, TimeUnit.SECONDS);
         }
 
-        Set<String> newlyProducedSSTables()
+        Set<SSTableDescriptor> newlyProducedSSTables()
         {
             if (newlyProducedSSTables.isEmpty())
             {
@@ -126,7 +125,7 @@ public class SSTableWriterImplementation implements SSTableWriter
 
             synchronized (this)
             {
-                Set<String> result = new HashSet<>(newlyProducedSSTables);
+                Set<SSTableDescriptor> result = new HashSet<>(newlyProducedSSTables);
                 knownSSTables.addAll(newlyProducedSSTables);
                 newlyProducedSSTables.clear();
                 return result;
@@ -139,9 +138,10 @@ public class SSTableWriterImplementation implements SSTableWriter
             {
                 stream.forEach(path -> {
                     String baseFilename = path.getFileName().toString().replace(TOC_COMPONENT_SUFFIX, "");
-                    if (!knownSSTables.contains(baseFilename))
+                    SSTableDescriptor sstable = new SSTableDescriptor(baseFilename);
+                    if (!knownSSTables.contains(sstable))
                     {
-                        newlyProducedSSTables.add(baseFilename);
+                        newlyProducedSSTables.add(sstable);
                     }
                 });
             }
@@ -175,7 +175,7 @@ public class SSTableWriterImplementation implements SSTableWriter
     @Override
     public void addRow(Map<String, Object> values) throws IOException
     {
-        Set<String> sstables = sstableWatcher.newlyProducedSSTables();
+        Set<SSTableDescriptor> sstables = sstableWatcher.newlyProducedSSTables();
         if (!sstables.isEmpty())
         {
             producedSSTablesListener.accept(sstables);
@@ -192,7 +192,7 @@ public class SSTableWriterImplementation implements SSTableWriter
     }
 
     @Override
-    public void setSSTablesProducedListener(Consumer<Set<String>> listener)
+    public void setSSTablesProducedListener(Consumer<Set<SSTableDescriptor>> listener)
     {
         producedSSTablesListener = Objects.requireNonNull(listener);
     }
@@ -200,7 +200,7 @@ public class SSTableWriterImplementation implements SSTableWriter
     @Override
     public void close() throws IOException
     {
-        // close sstablewatcher first. There is no need to continue monitoring the new sstables.
+        // close sstablewatcher first. There is no need to continue monitoring the new sstables. StreamSession should handle the last set of sstables.
         // writer.close is guaranteed to create one more sstable
         sstableWatcher.close();
         writer.close();

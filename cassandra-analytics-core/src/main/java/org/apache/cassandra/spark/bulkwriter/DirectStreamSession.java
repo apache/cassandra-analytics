@@ -33,7 +33,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
@@ -42,6 +41,7 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
@@ -67,11 +67,13 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
     }
 
     @Override
-    protected void onSSTablesProduced(Set<String> sstables)
+    protected void onSSTablesProduced(Set<SSTableDescriptor> sstables)
     {
         // do not submit the streaming task if it is in the last stream run, the rest of the sstables should be handled by doScheduleStream
         if (sstables.isEmpty() || isStreamFinalized())
+        {
             return;
+        }
 
         // send sstables asynchronously
         executorService.submit(() -> {
