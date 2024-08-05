@@ -129,6 +129,7 @@ public class SSTableWriterImplementation implements SSTableWriter
 
                 if (!newlyProducedSSTables.isEmpty())
                 {
+                    knownSSTables.addAll(newlyProducedSSTables);
                     producedSSTablesListener.accept(newlyProducedSSTables);
                 }
             }

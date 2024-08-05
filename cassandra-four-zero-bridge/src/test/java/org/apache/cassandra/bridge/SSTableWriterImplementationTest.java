@@ -84,7 +84,7 @@ class SSTableWriterImplementationTest
             File tocFile2 = new File(writeDirectory, "bar-big-TOC.txt");
             assertTrue(tocFile1.createNewFile());
             assertTrue(tocFile2.createNewFile());
-            waitForProduced(writer, produced);
+            waitForProduced(produced);
             assertEquals(2, produced.size());
             Set<SSTableDescriptor> expected = new HashSet<>(Arrays.asList(new SSTableDescriptor("foo-big"),
                                                                           new SSTableDescriptor("bar-big")));
@@ -94,7 +94,7 @@ class SSTableWriterImplementationTest
             assertTrue(produced.isEmpty());
             File tocFile3 = new File(writeDirectory, "baz-big-TOC.txt");
             assertTrue(tocFile3.createNewFile());
-            waitForProduced(writer, produced);
+            waitForProduced(produced);
             assertEquals(1, produced.size());
             assertEquals(Collections.singleton(new SSTableDescriptor("baz-big")), produced);
         }
@@ -140,19 +140,11 @@ class SSTableWriterImplementationTest
         return field;
     }
 
-    private void waitForProduced(SSTableWriterImplementation writer, Set<SSTableDescriptor> produced)
+    private void waitForProduced(Set<SSTableDescriptor> produced)
     {
         int i = 15; // the test runs roughly within 2 seconds; 3_000 milliseconds timeout should suffice.
         while (produced.isEmpty() && i-- > 0)
         {
-            try
-            {
-                writer.addRow(null);
-            }
-            catch (Exception e)
-            {
-                // writing null to trigger the check for produced sstables. It throws and it is expected
-            }
             Uninterruptibles.sleepUninterruptibly(200, TimeUnit.MILLISECONDS);
         }
     }
