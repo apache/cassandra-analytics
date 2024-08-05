@@ -25,7 +25,6 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
@@ -105,37 +104,20 @@ public class SSTableWriterImplementation implements SSTableWriter
 
         private final ScheduledExecutorService sstableWatcherScheduler;
         private final Set<SSTableDescriptor> knownSSTables;
-        private final Set<SSTableDescriptor> newlyProducedSSTables;
 
         SSTableWatcher(long delaySeconds)
         {
             ThreadFactory tf = ThreadUtil.threadFactory("SSTableWatcher-" + outputDir.getFileName().toString());
             this.sstableWatcherScheduler = Executors.newSingleThreadScheduledExecutor(tf);
             this.knownSSTables = new HashSet<>();
-            this.newlyProducedSSTables = new HashSet<>();
             sstableWatcherScheduler.scheduleWithFixedDelay(this::listSSTables, delaySeconds, delaySeconds, TimeUnit.SECONDS);
         }
 
-        Set<SSTableDescriptor> newlyProducedSSTables()
-        {
-            if (newlyProducedSSTables.isEmpty())
-            {
-                return Collections.emptySet();
-            }
-
-            synchronized (this)
-            {
-                Set<SSTableDescriptor> result = new HashSet<>(newlyProducedSSTables);
-                knownSSTables.addAll(newlyProducedSSTables);
-                newlyProducedSSTables.clear();
-                return result;
-            }
-        }
-
-        private synchronized void listSSTables()
+        private void listSSTables()
         {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDir, GLOB_PATTERN_FOR_TOC))
             {
+                HashSet<SSTableDescriptor> newlyProducedSSTables = new HashSet<>();
                 stream.forEach(path -> {
                     String baseFilename = path.getFileName().toString().replace(TOC_COMPONENT_SUFFIX, "");
                     SSTableDescriptor sstable = new SSTableDescriptor(baseFilename);
@@ -144,6 +126,11 @@ public class SSTableWriterImplementation implements SSTableWriter
                         newlyProducedSSTables.add(sstable);
                     }
                 });
+
+                if (!newlyProducedSSTables.isEmpty())
+                {
+                    producedSSTablesListener.accept(newlyProducedSSTables);
+                }
             }
             catch (IOException e)
             {
@@ -168,19 +155,12 @@ public class SSTableWriterImplementation implements SSTableWriter
                 LOGGER.debug("Closing SSTableWatcher scheduler is interrupted");
             }
             knownSSTables.clear();
-            newlyProducedSSTables.clear();
         }
     }
 
     @Override
     public void addRow(Map<String, Object> values) throws IOException
     {
-        Set<SSTableDescriptor> sstables = sstableWatcher.newlyProducedSSTables();
-        if (!sstables.isEmpty())
-        {
-            producedSSTablesListener.accept(sstables);
-        }
-
         try
         {
             writer.addRow(values);
