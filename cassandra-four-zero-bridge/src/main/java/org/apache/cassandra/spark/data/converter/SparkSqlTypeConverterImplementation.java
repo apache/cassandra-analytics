@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import com.google.common.collect.ImmutableMap;
+
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.converter.types.Ascii;
@@ -134,7 +136,7 @@ public class SparkSqlTypeConverterImplementation implements SparkSqlTypeConverte
         types.put(org.apache.cassandra.spark.data.types.UUID.class, UUID.INSTANCE);
         types.put(org.apache.cassandra.spark.data.types.VarChar.class, VarChar.INSTANCE);
         types.put(org.apache.cassandra.spark.data.types.VarInt.class, VarInt.INSTANCE);
-        NATIVE_TYPES = Map.copyOf(types);
+        NATIVE_TYPES = ImmutableMap.copyOf(types);
     }
 
     public SparkType toSparkType(CqlField.CqlType cqlType)

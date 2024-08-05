@@ -19,10 +19,6 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import org.apache.cassandra.spark.data.CqlField;
-
-import java.nio.ByteBuffer;
-
 import org.apache.cassandra.spark.data.NativeType;
 
 public abstract class BinaryBased extends NativeType

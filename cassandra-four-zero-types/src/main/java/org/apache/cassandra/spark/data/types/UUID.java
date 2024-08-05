@@ -23,7 +23,6 @@ import org.apache.cassandra.cql3.functions.types.DataType;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.UUIDType;
-import org.apache.cassandra.spark.data.CqlField;
 
 public class UUID extends StringBased
 {
