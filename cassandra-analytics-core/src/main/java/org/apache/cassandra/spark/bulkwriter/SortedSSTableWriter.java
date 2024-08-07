@@ -217,6 +217,12 @@ public class SortedSSTableWriter
         validateSSTables(writerContext, null);
     }
 
+    /**
+     * Validate SSTables. If dataFilePaths is null, it finds all sstables under the output directory of the writer and validates them
+     * @param writerContext bulk writer context
+     * @param dataFilePaths paths of sstables (data file) to be validated. The argument is nullable.
+     *                      When it is null, it validates all sstables under the output directory.
+     */
     @VisibleForTesting
     public void validateSSTables(@NotNull BulkWriterContext writerContext, Set<Path> dataFilePaths)
     {

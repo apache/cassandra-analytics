@@ -64,6 +64,7 @@ public class SSTableLister implements SSTableCollector
     private final CassandraBridge bridge;
     private final Queue<SSTableFilesAndRange> sstables;
     private final Set<Path> sstableDirectories;
+    private final Set<Path> knownFiles;
     private long totalSize;
 
     public SSTableLister(QualifiedTableName qualifiedTableName, CassandraBridge bridge)
@@ -72,6 +73,7 @@ public class SSTableLister implements SSTableCollector
         this.bridge = bridge;
         this.sstables = new LinkedBlockingQueue<>();
         this.sstableDirectories = new HashSet<>();
+        this.knownFiles = new HashSet<>();
     }
 
     @Override
@@ -92,6 +94,7 @@ public class SSTableLister implements SSTableCollector
     @Override
     public void includeSSTable(List<Path> sstableComponents)
     {
+        knownFiles.addAll(sstableComponents);
         SSTableFilesAndRange sstableAndRange = createSSTableFilesAndRange(sstableComponents);
         sstables.add(sstableAndRange);
     }
@@ -132,6 +135,12 @@ public class SSTableLister implements SSTableCollector
         try (Stream<Path> stream = Files.list(dir))
         {
             stream.forEach(path -> {
+                if (knownFiles.contains(path))
+                {
+                    // ignore the file as it has been included via includeSSTable
+                    return;
+                }
+
                 final String ssTablePrefix = getSSTablePrefix(path.getFileName().toString());
 
                 if (ssTablePrefix.isEmpty())

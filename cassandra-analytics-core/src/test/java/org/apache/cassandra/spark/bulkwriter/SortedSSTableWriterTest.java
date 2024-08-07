@@ -25,6 +25,8 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 
@@ -89,12 +91,17 @@ public class SortedSSTableWriterTest
         SortedSSTableWriter tw = new SortedSSTableWriter(writerContext, tmpDir, new XXHash32DigestAlgorithm(), 1);
         tw.addRow(BigInteger.ONE, ImmutableMap.of("id", 1, "date", 1, "course", "foo", "marks", 1));
         tw.close(writerContext);
+        Set<Path> dataFilePaths = new HashSet<>();
         try (DirectoryStream<Path> dataFileStream = Files.newDirectoryStream(tw.getOutDir(), "*Data.db"))
         {
-            dataFileStream.forEach(dataFilePath ->
-                                   assertEquals(CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion(),
-                                                SSTables.cassandraVersionFromTable(dataFilePath).getMajorVersion()));
+            dataFileStream.forEach(dataFilePath -> {
+                dataFilePaths.add(dataFilePath);
+                assertEquals(CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion(),
+                             SSTables.cassandraVersionFromTable(dataFilePath).getMajorVersion());
+            });
         }
+        // no exception should be thrown from both the validate methods
         tw.validateSSTables(writerContext);
+        tw.validateSSTables(writerContext, dataFilePaths);
     }
 }

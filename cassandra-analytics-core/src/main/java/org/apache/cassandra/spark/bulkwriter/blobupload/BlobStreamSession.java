@@ -114,6 +114,7 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
             try
             {
                 Map<Path, Digest> fileDigests = sstableWriter.prepareSStablesToSend(writerContext, sstables);
+                // sstablesBundler keeps track of the known files. No need to record the streamed files.
                 // group the files by sstable (unique) basename and add to bundler
                 fileDigests.keySet()
                            .stream()
