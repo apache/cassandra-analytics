@@ -107,7 +107,7 @@ class SSTableListerTest
     {
         SSTableLister sstableLister = setupSSTableLister();
         List<Path> sstableComponents = new ArrayList<>();
-        try(DirectoryStream<Path> stream = Files.newDirectoryStream(outputDir, "na-1-big-*"))
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDir, "na-1-big-*"))
         {
             stream.forEach(sstableComponents::add);
         }
