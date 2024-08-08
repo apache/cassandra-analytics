@@ -50,6 +50,7 @@ import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * SSTableWriter that expects sorted data
@@ -77,6 +78,8 @@ public class SortedSSTableWriter
     private final Map<Path, Digest> overallFileDigests = new HashMap<>();
     private final DigestAlgorithm digestAlgorithm;
 
+    private volatile boolean isClosed = false;
+
     private int sstableCount = 0;
     private long rowCount = 0;
     private long bytesWritten = 0;
@@ -99,7 +102,7 @@ public class SortedSSTableWriter
 
         String lowestCassandraVersion = writerContext.cluster().getLowestCassandraVersion();
         String packageVersion = getPackageVersion(lowestCassandraVersion);
-        LOGGER.info("Running with version " + packageVersion);
+        LOGGER.info("Running with version {}", packageVersion);
 
         SchemaInfo schema = writerContext.schema();
         TableSchema tableSchema = schema.getTableSchema();
@@ -192,12 +195,18 @@ public class SortedSSTableWriter
         }
         bytesWritten += calculatedTotalSize(fileDigests.keySet());
         overallFileDigests.putAll(fileDigests);
-        validateSSTables(writerContext, dataFilePaths);
+        validateSSTables(writerContext, getOutDir(), dataFilePaths);
         return fileDigests;
     }
 
     public void close(BulkWriterContext writerContext) throws IOException
     {
+        if (isClosed)
+        {
+            LOGGER.info("Already closed");
+            return;
+        }
+        isClosed = true;
         cqlSSTableWriter.close();
         for (Path dataFile : getDataFileStream())
         {
@@ -214,17 +223,19 @@ public class SortedSSTableWriter
     @VisibleForTesting
     public void validateSSTables(@NotNull BulkWriterContext writerContext)
     {
-        validateSSTables(writerContext, null);
+        validateSSTables(writerContext, getOutDir(), null);
     }
 
     /**
      * Validate SSTables. If dataFilePaths is null, it finds all sstables under the output directory of the writer and validates them
+     *
+     * @param outputDirectory output directory of the sstable writer
      * @param writerContext bulk writer context
      * @param dataFilePaths paths of sstables (data file) to be validated. The argument is nullable.
      *                      When it is null, it validates all sstables under the output directory.
      */
     @VisibleForTesting
-    public void validateSSTables(@NotNull BulkWriterContext writerContext, Set<Path> dataFilePaths)
+    public void validateSSTables(@NotNull BulkWriterContext writerContext, @NotNull Path outputDirectory, @Nullable Set<Path> dataFilePaths)
     {
         // NOTE: If this current implementation of SS-tables' validation proves to be a performance issue,
         //       we will need to modify LocalDataLayer to allow scanning and compaction of single data file,
@@ -236,7 +247,6 @@ public class SortedSSTableWriter
             String schema = writerContext.schema().getTableSchema().createStatement;
             Partitioner partitioner = writerContext.cluster().getPartitioner();
             Set<String> udtStatements = writerContext.schema().getUserDefinedTypeStatements();
-            String directory = getOutDir().toString();
             LocalDataLayer layer = new LocalDataLayer(version,
                                                       partitioner,
                                                       keyspace,
@@ -245,7 +255,7 @@ public class SortedSSTableWriter
                                                       Collections.emptyList() /* requestedFeatures */,
                                                       false /* useSSTableInputStream */,
                                                       null /* statsClass */,
-                                                      directory);
+                                                      outputDirectory.toString());
             if (dataFilePaths != null)
             {
                 layer.setDataFilePaths(dataFilePaths);

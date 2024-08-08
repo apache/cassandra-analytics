@@ -53,6 +53,7 @@ import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.bulkwriter.util.TaskContextUtils;
+import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.util.ThreadUtil;
 import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
@@ -184,6 +185,10 @@ public class RecordWriter
             Range<BigInteger> currentRange = subRanges.get(currentRangeIndex);
             while (dataIterator.hasNext())
             {
+                if (streamSession != null)
+                {
+                    streamSession.throwIfLastStreamFailed();
+                }
                 Tuple2<DecoratedKey, Object[]> rowData = dataIterator.next();
                 BigInteger token = rowData._1().getToken();
                 // Advance to the next range that contains the token.
@@ -218,12 +223,6 @@ public class RecordWriter
                          job.getId(),
                          taskContext.stageAttemptNumber(),
                          taskContext.attemptNumber());
-
-            // if streamSession is not closed/nullified. Clean it up here
-            if (streamSession != null)
-            {
-                streamSession.cleanupOnFailure();
-            }
 
             if (exception instanceof InterruptedException)
             {
