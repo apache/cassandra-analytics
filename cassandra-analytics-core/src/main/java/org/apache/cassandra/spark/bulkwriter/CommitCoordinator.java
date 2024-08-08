@@ -43,7 +43,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.spark.bulkwriter.util.ThreadUtil;
+import org.apache.cassandra.util.ThreadUtil;
 import org.jetbrains.annotations.Nullable;
 
 public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> implements AutoCloseable

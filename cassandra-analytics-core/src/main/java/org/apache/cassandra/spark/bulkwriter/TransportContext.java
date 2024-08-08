@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.util.concurrent.ExecutorService;
 
 import com.google.common.collect.Range;
 
@@ -42,13 +43,15 @@ public interface TransportContext
      * @param sstableWriter sstable writer of the stream session
      * @param range token range of the stream session
      * @param failureHandler handler to track failures of the stream session
+     * @param executorService executor service
      * @return a new stream session
      */
     StreamSession<? extends TransportContext> createStreamSession(BulkWriterContext writerContext,
                                                                   String sessionId,
                                                                   SortedSSTableWriter sstableWriter,
                                                                   Range<BigInteger> range,
-                                                                  ReplicaAwareFailureHandler<RingInstance> failureHandler);
+                                                                  ReplicaAwareFailureHandler<RingInstance> failureHandler,
+                                                                  ExecutorService executorService);
 
     default void close()
     {

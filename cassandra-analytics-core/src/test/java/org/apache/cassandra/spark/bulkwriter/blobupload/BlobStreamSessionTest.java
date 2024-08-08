@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.Executors;
 
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableList;
@@ -95,7 +96,7 @@ class BlobStreamSessionTest
         when(job.getRestoreJobId()).thenReturn(jobId);
         when(job.qualifiedTableName()).thenReturn(new QualifiedTableName("ks", "table1"));
         MockTableWriter tableWriter = new MockTableWriter(folder);
-        SortedSSTableWriter sstableWriter = new NonValidatingTestSortedSSTableWriter(tableWriter, folder, new XXHash32DigestAlgorithm());
+        SortedSSTableWriter sstableWriter = new NonValidatingTestSortedSSTableWriter(tableWriter, folder, new XXHash32DigestAlgorithm(), 1);
 
         DataTransportInfo transportInfo = mock(DataTransportInfo.class);
         when(transportInfo.getTransport()).thenReturn(DataTransport.S3_COMPAT);
@@ -135,7 +136,8 @@ class BlobStreamSessionTest
 
             BlobStreamSession ss = new BlobStreamSession(spiedWriterContext, sstableWriter,
                                                          transportContext, sessionId,
-                                                         range, bridge, replicaAwareFailureHandler);
+                                                         range, bridge, replicaAwareFailureHandler,
+                                                         Executors.newSingleThreadExecutor());
 
             // test begins
             for (Bundle bundle : bundles)

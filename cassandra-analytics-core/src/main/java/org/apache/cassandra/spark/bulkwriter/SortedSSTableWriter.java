@@ -27,8 +27,10 @@ import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
@@ -38,9 +40,10 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
+import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
-import org.apache.cassandra.spark.data.DataLayer;
+import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.RowData;
@@ -68,9 +71,10 @@ public class SortedSSTableWriter
 
     private final Path outDir;
     private final org.apache.cassandra.bridge.SSTableWriter cqlSSTableWriter;
+    private final int partitionId;
     private BigInteger minToken = null;
     private BigInteger maxToken = null;
-    private final Map<Path, Digest> fileDigestMap = new HashMap<>();
+    private final Map<Path, Digest> overallFileDigests = new HashMap<>();
     private final DigestAlgorithm digestAlgorithm;
 
     private int sstableCount = 0;
@@ -78,17 +82,20 @@ public class SortedSSTableWriter
     private long bytesWritten = 0;
 
     public SortedSSTableWriter(org.apache.cassandra.bridge.SSTableWriter tableWriter, Path outDir,
-                               DigestAlgorithm digestAlgorithm)
+                               DigestAlgorithm digestAlgorithm,
+                               int partitionId)
     {
-        cqlSSTableWriter = tableWriter;
+        this.cqlSSTableWriter = tableWriter;
         this.outDir = outDir;
         this.digestAlgorithm = digestAlgorithm;
+        this.partitionId = partitionId;
     }
 
-    public SortedSSTableWriter(BulkWriterContext writerContext, Path outDir, DigestAlgorithm digestAlgorithm)
+    public SortedSSTableWriter(BulkWriterContext writerContext, Path outDir, DigestAlgorithm digestAlgorithm, int partitionId)
     {
         this.outDir = outDir;
         this.digestAlgorithm = digestAlgorithm;
+        this.partitionId = partitionId;
 
         String lowestCassandraVersion = writerContext.cluster().getLowestCassandraVersion();
         String packageVersion = getPackageVersion(lowestCassandraVersion);
@@ -131,6 +138,11 @@ public class SortedSSTableWriter
         rowCount += 1;
     }
 
+    public void setSSTablesProducedListener(Consumer<Set<SSTableDescriptor>> listener)
+    {
+        cqlSSTableWriter.setSSTablesProducedListener(listener);
+    }
+
     /**
      * @return the total number of rows written
      */
@@ -155,24 +167,64 @@ public class SortedSSTableWriter
         return sstableCount;
     }
 
-    public void close(BulkWriterContext writerContext, int partitionId) throws IOException
+    public Map<Path, Digest> prepareSStablesToSend(@NotNull BulkWriterContext writerContext, Set<SSTableDescriptor> sstables) throws IOException
+    {
+        DirectoryStream.Filter<Path> sstableFilter = path -> {
+            SSTableDescriptor baseName = SSTables.getSSTableDescriptor(path);
+            return sstables.contains(baseName);
+        };
+        Set<Path> dataFilePaths = new HashSet<>();
+        Map<Path, Digest> fileDigests = new HashMap<>();
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(getOutDir(), sstableFilter))
+        {
+            for (Path path : stream)
+            {
+                if (path.getFileName().toString().endsWith("-" + FileType.DATA.getFileSuffix()))
+                {
+                    dataFilePaths.add(path);
+                    sstableCount += 1;
+                }
+
+                Digest digest = digestAlgorithm.calculateFileDigest(path);
+                fileDigests.put(path, digest);
+                LOGGER.debug("Calculated digest={} for path={}", digest, path);
+            }
+        }
+        bytesWritten += calculatedTotalSize(fileDigests.keySet());
+        overallFileDigests.putAll(fileDigests);
+        validateSSTables(writerContext, dataFilePaths);
+        return fileDigests;
+    }
+
+    public void close(BulkWriterContext writerContext) throws IOException
     {
         cqlSSTableWriter.close();
-        sstableCount = 0;
         for (Path dataFile : getDataFileStream())
         {
             // NOTE: We calculate file hashes before re-reading so that we know what we hashed
             //       is what we validated. Then we send these along with the files and the
             //       receiving end re-hashes the files to make sure they still match.
-            fileDigestMap.putAll(calculateFileDigestMap(dataFile));
+            overallFileDigests.putAll(calculateFileDigestMap(dataFile));
             sstableCount += 1;
         }
-        bytesWritten = calculatedTotalSize(fileDigestMap.keySet());
-        validateSSTables(writerContext, partitionId);
+        bytesWritten += calculatedTotalSize(overallFileDigests.keySet());
+        validateSSTables(writerContext);
     }
 
     @VisibleForTesting
-    public void validateSSTables(@NotNull BulkWriterContext writerContext, int partitionId)
+    public void validateSSTables(@NotNull BulkWriterContext writerContext)
+    {
+        validateSSTables(writerContext, null);
+    }
+
+    /**
+     * Validate SSTables. If dataFilePaths is null, it finds all sstables under the output directory of the writer and validates them
+     * @param writerContext bulk writer context
+     * @param dataFilePaths paths of sstables (data file) to be validated. The argument is nullable.
+     *                      When it is null, it validates all sstables under the output directory.
+     */
+    @VisibleForTesting
+    public void validateSSTables(@NotNull BulkWriterContext writerContext, Set<Path> dataFilePaths)
     {
         // NOTE: If this current implementation of SS-tables' validation proves to be a performance issue,
         //       we will need to modify LocalDataLayer to allow scanning and compaction of single data file,
@@ -185,15 +237,20 @@ public class SortedSSTableWriter
             Partitioner partitioner = writerContext.cluster().getPartitioner();
             Set<String> udtStatements = writerContext.schema().getUserDefinedTypeStatements();
             String directory = getOutDir().toString();
-            DataLayer layer = new LocalDataLayer(version,
-                                                 partitioner,
-                                                 keyspace,
-                                                 schema,
-                                                 udtStatements,
-                                                 Collections.emptyList() /* requestedFeatures */,
-                                                 false /* useSSTableInputStream */,
-                                                 null /* statsClass */,
-                                                 directory);
+            LocalDataLayer layer = new LocalDataLayer(version,
+                                                      partitioner,
+                                                      keyspace,
+                                                      schema,
+                                                      udtStatements,
+                                                      Collections.emptyList() /* requestedFeatures */,
+                                                      false /* useSSTableInputStream */,
+                                                      null /* statsClass */,
+                                                      directory);
+            if (dataFilePaths != null)
+            {
+                layer.setDataFilePaths(dataFilePaths);
+            }
+
             try (StreamScanner<RowData> scanner = layer.openCompactionScanner(partitionId, Collections.emptyList(), null))
             {
                 while (scanner.next())
@@ -255,6 +312,6 @@ public class SortedSSTableWriter
      */
     public Map<Path, Digest> fileDigestMap()
     {
-        return Collections.unmodifiableMap(fileDigestMap);
+        return Collections.unmodifiableMap(overallFileDigests);
     }
 }

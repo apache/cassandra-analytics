@@ -46,6 +46,7 @@ import org.apache.cassandra.spark.data.FileSystemSSTable;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.stats.Stats;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * {@link SSTableLister} lists the directories containing SSTables.
@@ -63,6 +64,7 @@ public class SSTableLister implements SSTableCollector
     private final CassandraBridge bridge;
     private final Queue<SSTableFilesAndRange> sstables;
     private final Set<Path> sstableDirectories;
+    private final Set<Path> knownFiles;
     private long totalSize;
 
     public SSTableLister(QualifiedTableName qualifiedTableName, CassandraBridge bridge)
@@ -71,6 +73,7 @@ public class SSTableLister implements SSTableCollector
         this.bridge = bridge;
         this.sstables = new LinkedBlockingQueue<>();
         this.sstableDirectories = new HashSet<>();
+        this.knownFiles = new HashSet<>();
     }
 
     @Override
@@ -83,17 +86,17 @@ public class SSTableLister implements SSTableCollector
         }
 
         listSSTables(dir)
-        .map(components -> {
-            SSTable sstable = buildSSTable(components);
-            SSTableSummary summary = bridge.getSSTableSummary(qualifiedTableName.keyspace(),
-                                                              qualifiedTableName.table(),
-                                                              sstable);
-            long size = sizeSum(components);
-            totalSize += size;
-            return new SSTableFilesAndRange(summary, components, sizeSum(components));
-        })
+        .map(this::createSSTableFilesAndRange)
         .sorted(SORT_BY_FIRST_TOKEN_THEN_LAST_TOKEN)
         .forEach(sstables::add);
+    }
+
+    @Override
+    public void includeSSTable(List<Path> sstableComponents)
+    {
+        knownFiles.addAll(sstableComponents);
+        SSTableFilesAndRange sstableAndRange = createSSTableFilesAndRange(sstableComponents);
+        sstables.add(sstableAndRange);
     }
 
     @Override
@@ -132,6 +135,12 @@ public class SSTableLister implements SSTableCollector
         try (Stream<Path> stream = Files.list(dir))
         {
             stream.forEach(path -> {
+                if (knownFiles.contains(path))
+                {
+                    // ignore the file as it has been included via includeSSTable
+                    return;
+                }
+
                 final String ssTablePrefix = getSSTablePrefix(path.getFileName().toString());
 
                 if (ssTablePrefix.isEmpty())
@@ -194,5 +203,16 @@ public class SSTableLister implements SSTableCollector
             throw new IllegalArgumentException("SSTable should have only one data component");
         }
         return new FileSystemSSTable(dataComponents.get(0), true, Stats.DoNothingStats.INSTANCE::bufferingInputStreamStats);
+    }
+
+    private @NotNull SSTableFilesAndRange createSSTableFilesAndRange(List<Path> sstableComponents)
+    {
+        SSTable sstable = buildSSTable(sstableComponents);
+        SSTableSummary summary = bridge.getSSTableSummary(qualifiedTableName.keyspace(),
+                                                          qualifiedTableName.table(),
+                                                          sstable);
+        long size = sizeSum(sstableComponents);
+        totalSize += size;
+        return new SSTableFilesAndRange(summary, sstableComponents, size);
     }
 }

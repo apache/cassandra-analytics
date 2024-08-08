@@ -22,8 +22,26 @@ package org.apache.cassandra.bridge;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 
 public interface SSTableWriter extends Closeable
 {
+    /**
+     * Write a new row
+     *
+     * @param values values of the row
+     * @throws IOException i/o exception when writing
+     */
     void addRow(Map<String, Object> values) throws IOException;
+
+    /**
+     * Register the listener for the set of newly produced sstable, identified by its unique base filename.
+     * The base filename is filename of sstable without the component suffix.
+     * For example, "nb-1-big"
+     * <p>
+     * Note that once a produced sstable has been returned, the returning lists of the subsequent calls do not include it anymore.
+     * Therefore, it only returns the _newly_ produced sstables.
+     */
+    void setSSTablesProducedListener(Consumer<Set<SSTableDescriptor>> listener);
 }

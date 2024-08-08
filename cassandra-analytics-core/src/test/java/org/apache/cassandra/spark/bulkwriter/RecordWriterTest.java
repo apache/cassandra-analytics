@@ -389,7 +389,7 @@ class RecordWriterTest
     void testCorruptSSTable()
     {
         rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc,
-                              (wc, path, dp) -> new SortedSSTableWriter(tw.setOutDir(path), path, digestAlgorithm));
+                              (wc, path, dp, pid) -> new SortedSSTableWriter(tw.setOutDir(path), path, digestAlgorithm, pid));
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         // TODO: Add better error handling with human-readable exception messages in SSTableReader::new
         // That way we can assert on the exception thrown here
@@ -400,7 +400,7 @@ class RecordWriterTest
     void testWriteWithOutOfRangeTokenFails()
     {
         rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc,
-                              (wc, path, dp) -> new SortedSSTableWriter(tw, folder, digestAlgorithm));
+                              (wc, path, dp, pid) -> new SortedSSTableWriter(tw, folder, digestAlgorithm, pid));
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, Range.all(), false, false, false);
         RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
         String expectedErr = "java.lang.IllegalStateException: Received Token " +
@@ -412,7 +412,7 @@ class RecordWriterTest
     void testAddRowThrowingFails()
     {
         rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc,
-                              (wc, path, dp) -> new SortedSSTableWriter(tw, folder, digestAlgorithm));
+                              (wc, path, dp, pid) -> new SortedSSTableWriter(tw, folder, digestAlgorithm, pid));
         tw.setAddRowThrows(true);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
@@ -425,7 +425,7 @@ class RecordWriterTest
         // Mock context returns a 60-minute allowable time skew, so we use something just outside the limits
         long sixtyOneMinutesInMillis = TimeUnit.MINUTES.toMillis(61);
         rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc,
-                              (wc, path, dp) -> new SortedSSTableWriter(tw, folder, digestAlgorithm));
+                              (wc, path, dp, pid) -> new SortedSSTableWriter(tw, folder, digestAlgorithm, pid));
         writerContext.setTimeProvider(() -> System.currentTimeMillis() - sixtyOneMinutesInMillis);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));

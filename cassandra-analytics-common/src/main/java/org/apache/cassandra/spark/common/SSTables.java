@@ -21,6 +21,8 @@ package org.apache.cassandra.spark.common;
 
 import java.nio.file.Path;
 
+import org.apache.cassandra.bridge.SSTableDescriptor;
+
 public final class SSTables
 {
     private SSTables()
@@ -28,9 +30,30 @@ public final class SSTables
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
+    /**
+     * Get the sstable base name from data file path.
+     * For example, the base name of data file '/path/to/table/nb-1-big-Data.db' is 'nb-1-big'
+     *
+     * @deprecated use {@code #getSSTableDescriptor(Path).baseFilename} instead
+     *
+     * @param dataFile data file path
+     * @return sstable base name
+     */
+    @Deprecated
     public static String getSSTableBaseName(Path dataFile)
     {
         String fileName = dataFile.getFileName().toString();
         return fileName.substring(0, fileName.lastIndexOf("-") + 1);
+    }
+
+    /**
+     * Get the {@link SSTableDescriptor} from the data file path.
+     * @param dataFile data file path
+     * @return sstable descriptor
+     */
+    public static SSTableDescriptor getSSTableDescriptor(Path dataFile)
+    {
+        String baseFilename = getSSTableBaseName(dataFile);
+        return new SSTableDescriptor(baseFilename);
     }
 }

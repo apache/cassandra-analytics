@@ -114,7 +114,7 @@ public class StreamSessionConsistencyTest
         });
         StreamSession<?> streamSession = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
         streamSession.addRow(BigInteger.valueOf(102L), COLUMN_BIND_VALUES);
-        Future<?> fut = streamSession.scheduleStreamAsync(1, executor);
+        Future<?> fut = streamSession.finalizeStreamAsync();
         if (shouldFail)
         {
             ExecutionException exception = assertThrows(ExecutionException.class, fut::get);
@@ -152,7 +152,7 @@ public class StreamSessionConsistencyTest
         writerContext.setUploadSupplier(instance -> dcFailures.get(instance.datacenter()).getAndDecrement() <= 0);
         StreamSession<?> streamSession = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
         streamSession.addRow(BigInteger.valueOf(102L), COLUMN_BIND_VALUES);
-        Future<?> fut =  streamSession.scheduleStreamAsync(1, executor);
+        Future<?> fut =  streamSession.finalizeStreamAsync();
         if (shouldFail)
         {
             ExecutionException exception = assertThrows(ExecutionException.class, fut::get);
@@ -209,10 +209,11 @@ public class StreamSessionConsistencyTest
     private StreamSession<?> createStreamSession(MockTableWriter.Creator writerCreator)
     {
         return new DirectStreamSession(writerContext,
-                                       writerCreator.create(tableWriter, folder, digestAlgorithm),
+                                       writerCreator.create(tableWriter, folder, digestAlgorithm, 1),
                                        transportContext,
                                        "sessionId",
                                        RANGE,
-                                       new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()));
+                                       new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()),
+                                       executor);
     }
 }

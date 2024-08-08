@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
+import java.util.concurrent.ExecutorService;
 
 import com.google.common.collect.Range;
 
@@ -49,14 +50,16 @@ public class CassandraDirectDataTransportContext implements TransportContext.Dir
                                                    String sessionId,
                                                    SortedSSTableWriter sstableWriter,
                                                    Range<BigInteger> range,
-                                                   ReplicaAwareFailureHandler<RingInstance> failureHandler)
+                                                   ReplicaAwareFailureHandler<RingInstance> failureHandler,
+                                                   ExecutorService executorService)
     {
         return new DirectStreamSession(writerContext,
                                        sstableWriter,
                                        this,
                                        sessionId,
                                        range,
-                                       failureHandler);
+                                       failureHandler,
+                                       executorService);
     }
 
     @Override

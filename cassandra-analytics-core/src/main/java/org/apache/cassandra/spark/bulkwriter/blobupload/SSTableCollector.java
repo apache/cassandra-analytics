@@ -39,6 +39,12 @@ public interface SSTableCollector
     void includeDirectory(Path dir);
 
     /**
+     * Include the sstable components of an individual SSTable
+     * @param sstableComponents sstable components
+     */
+    void includeSSTable(List<Path> sstableComponents);
+
+    /**
      * @return total size of all sstables included
      */
     long totalSize();

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.bulkwriter.util;
+package org.apache.cassandra.util;
 
 import java.util.concurrent.ThreadFactory;
 

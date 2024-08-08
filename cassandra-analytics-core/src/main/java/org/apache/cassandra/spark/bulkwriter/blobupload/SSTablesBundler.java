@@ -107,6 +107,11 @@ public class SSTablesBundler implements Iterator<Bundle>
         collector.includeDirectory(dir);
     }
 
+    public void includeSSTable(List<Path> sstableComponents)
+    {
+        collector.includeSSTable(sstableComponents);
+    }
+
     public void finish()
     {
         reachedEnd = true;
@@ -115,6 +120,11 @@ public class SSTablesBundler implements Iterator<Bundle>
     public void cleanupBundle(String sessionID)
     {
         LOGGER.info("[{}]: Clean up bundle files after stream session bundle={}", sessionID, currentBundle);
+        if (currentBundle == null)
+        {
+            return;
+        }
+
         try
         {
             Bundle bundle = currentBundle;

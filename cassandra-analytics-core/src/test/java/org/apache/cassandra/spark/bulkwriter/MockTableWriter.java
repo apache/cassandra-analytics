@@ -25,10 +25,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.io.FileUtils;
 
+import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.bridge.SSTableWriter;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 
@@ -76,11 +79,15 @@ public class MockTableWriter implements SSTableWriter
     }
 
     @Override
+    public void setSSTablesProducedListener(Consumer<Set<SSTableDescriptor>> listener)
+    {
+        // do nothing
+    }
+
+    @Override
     public void close() throws IOException
     {
         // Create files to mimic SSTableWriter
-        // TODO: Instead, we shouldn't have SSTableWriter return the outDir - we should
-        //       provide a way to iterate over the data files and pass a callable of some kind in
         for (String component: TABLE_COMPONENTS)
         {
             Path path = Paths.get(outDir.toString(), BASE_NAME + component);
@@ -107,6 +114,7 @@ public class MockTableWriter implements SSTableWriter
         // to match with SortedSSTableWriter's constructor
         SortedSSTableWriter create(MockTableWriter tableWriter,
                                    Path outDir,
-                                   DigestAlgorithm digestAlgorithm);
+                                   DigestAlgorithm digestAlgorithm,
+                                   int partitionId);
     }
 }

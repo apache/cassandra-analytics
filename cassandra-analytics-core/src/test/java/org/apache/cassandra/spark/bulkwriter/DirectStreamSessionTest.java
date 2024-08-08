@@ -107,7 +107,7 @@ public class DirectStreamSessionTest
         StreamSession<?> ss = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         assertThat(ss.rowCount(), is(1L));
-        StreamResult streamResult = ss.scheduleStreamAsync(1, executor).get();
+        StreamResult streamResult = ss.finalizeStreamAsync().get();
         assertThat(streamResult.rowCount, is(1L));
         executor.assertFuturesCalled();
         assertThat(executor.futures.size(), equalTo(1));  // We only scheduled one SSTable
@@ -122,11 +122,11 @@ public class DirectStreamSessionTest
         Exception exception = assertThrows(IllegalStateException.class,
                                            () -> new DirectStreamSession(
                                            writerContext,
-                                           new NonValidatingTestSortedSSTableWriter(tableWriter, folder, digestAlgorithm),
+                                           new NonValidatingTestSortedSSTableWriter(tableWriter, folder, digestAlgorithm, 1),
                                            transportContext,
                                            "sessionId",
                                            Range.range(BigInteger.valueOf(0L), BoundType.OPEN, BigInteger.valueOf(0L), BoundType.CLOSED),
-                                           replicaAwareFailureHandler())
+                                           replicaAwareFailureHandler(), null)
                                            );
         assertThat(exception.getMessage(), is("No replicas found for range (0‥0]"));
     }
@@ -137,7 +137,7 @@ public class DirectStreamSessionTest
         StreamSession<?> ss = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
         ss.addRow(BigInteger.valueOf(9999L), COLUMN_BOUND_VALUES);
         IllegalStateException illegalStateException = assertThrows(IllegalStateException.class,
-                                                      () -> ss.scheduleStreamAsync(1, executor));
+                                                                   ss::finalizeStreamAsync);
         assertThat(illegalStateException.getMessage(), matchesPattern(
         "SSTable range \\[9999(‥|..)9999] should be enclosed in the partition range \\[101(‥|..)199]"));
     }
@@ -184,7 +184,7 @@ public class DirectStreamSessionTest
         ExecutionException ex = assertThrows(ExecutionException.class, () -> {
             StreamSession<?> ss = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
             ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
-            Future<?> fut = ss.scheduleStreamAsync(1, executor);
+            Future<?> fut = ss.finalizeStreamAsync();
             tableWriter.removeOutDir();
             fut.get();
         });
@@ -220,7 +220,7 @@ public class DirectStreamSessionTest
             }
         });
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
-        ss.scheduleStreamAsync(1, executor).get();
+        ss.finalizeStreamAsync().get();
         executor.assertFuturesCalled();
         assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));
         final List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::nodeName).collect(Collectors.toList());
@@ -245,7 +245,7 @@ public class DirectStreamSessionTest
         });
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         ExecutionException exception = assertThrows(ExecutionException.class,
-                                                    () -> ss.scheduleStreamAsync(1, executor).get());
+                                                    () -> ss.finalizeStreamAsync().get());
         assertEquals("Failed to load 1 ranges with LOCAL_QUORUM for job " + writerContext.job().getId()
                      + " in phase UploadAndCommit.", exception.getCause().getMessage());
         executor.assertFuturesCalled();
@@ -260,7 +260,7 @@ public class DirectStreamSessionTest
         StreamSession<?> ss = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         ExecutionException ex = assertThrows(ExecutionException.class,
-                                             () -> ss.scheduleStreamAsync(1, executor).get());
+                                             () -> ss.finalizeStreamAsync().get());
         assertThat(ex.getCause().getMessage(), startsWith(LOAD_RANGE_ERROR_PREFIX));
     }
 
@@ -279,10 +279,11 @@ public class DirectStreamSessionTest
     private DirectStreamSession createStreamSession(MockTableWriter.Creator writerCreator)
     {
         return new DirectStreamSession(writerContext,
-                                       writerCreator.create(tableWriter, folder, digestAlgorithm),
+                                       writerCreator.create(tableWriter, folder, digestAlgorithm, 1),
                                        transportContext,
                                        "sessionId",
                                        range,
-                                       replicaAwareFailureHandler());
+                                       replicaAwareFailureHandler(),
+                                       executor);
     }
 }
