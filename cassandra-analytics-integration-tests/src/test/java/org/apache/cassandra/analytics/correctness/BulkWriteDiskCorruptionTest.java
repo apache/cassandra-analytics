@@ -122,7 +122,10 @@ public class BulkWriteDiskCorruptionTest extends SharedClusterSparkIntegrationTe
         }
 
         @SuppressWarnings("unused")
-        public static void validateSSTables(BulkWriterContext context, Path outputDirectory, Set<Path> dataFilePaths, @SuperCall Callable<?> orig) throws Exception
+        public static void validateSSTables(BulkWriterContext context,
+                                            Path outputDirectory,
+                                            Set<Path> dataFilePaths,
+                                            @SuperCall Callable<?> orig) throws Exception
         {
             try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDirectory, "*Data.db"))
             {
