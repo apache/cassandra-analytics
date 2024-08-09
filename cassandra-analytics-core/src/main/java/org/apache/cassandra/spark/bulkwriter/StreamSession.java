@@ -36,7 +36,6 @@ import java.util.stream.Collectors;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
-import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,11 +109,20 @@ public abstract class StreamSession<T extends TransportContext>
         return tokenRange;
     }
 
+    /**
+     * Throw exception when the last streaming task has failed
+     * @throws IOException
+     */
+    public void throwIfLastStreamFailed() throws IOException
+    {
+        if (lastStreamFailure.get() != null)
+        {
+            throw new IOException("Unexpected exception while streaming SSTables", lastStreamFailure.get());
+        }
+    }
+
     public void addRow(BigInteger token, Map<String, Object> boundValues) throws IOException
     {
-        // exit early when sending the produced sstables has failed
-        rethrowIfLastStreamFailed();
-
         sstableWriter.addRow(token, boundValues);
     }
 
@@ -126,7 +134,6 @@ public abstract class StreamSession<T extends TransportContext>
     public Future<StreamResult> finalizeStreamAsync() throws IOException
     {
         isStreamFinalized = true;
-        rethrowIfLastStreamFailed();
         Preconditions.checkState(!sstableWriter.getTokenRange().isEmpty(), "Cannot stream empty SSTable");
         Preconditions.checkState(tokenRange.encloses(sstableWriter.getTokenRange()),
                                  "SSTable range %s should be enclosed in the partition range %s",
@@ -134,30 +141,6 @@ public abstract class StreamSession<T extends TransportContext>
         // close the writer before finalizing stream
         sstableWriter.close(writerContext);
         return executorService.submit(this::doFinalizeStream);
-    }
-
-    /**
-     * Clean up any remaining files on disk when streaming is failed
-     */
-    public void cleanupOnFailure()
-    {
-        try
-        {
-            sstableWriter.close(writerContext);
-        }
-        catch (IOException e)
-        {
-            LOGGER.warn("[{}]: Failed to close sstable writer on streaming failure", sessionID, e);
-        }
-
-        try
-        {
-            FileUtils.deleteDirectory(sstableWriter.getOutDir().toFile());
-        }
-        catch (IOException e)
-        {
-            LOGGER.warn("[{}]: Failed to clean up the produced sstables on streaming failure", sessionID, e);
-        }
     }
 
     protected boolean isStreamFinalized()
@@ -178,14 +161,6 @@ public abstract class StreamSession<T extends TransportContext>
     protected boolean isFileStreamed(Path file)
     {
         return streamedFiles.contains(file);
-    }
-
-    private void rethrowIfLastStreamFailed() throws IOException
-    {
-        if (lastStreamFailure.get() != null)
-        {
-            throw new IOException("Unexpected exception while streaming SSTables", lastStreamFailure.get());
-        }
     }
 
     @VisibleForTesting

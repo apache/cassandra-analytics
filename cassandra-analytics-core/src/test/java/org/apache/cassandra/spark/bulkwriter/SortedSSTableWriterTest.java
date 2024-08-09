@@ -102,6 +102,6 @@ public class SortedSSTableWriterTest
         }
         // no exception should be thrown from both the validate methods
         tw.validateSSTables(writerContext);
-        tw.validateSSTables(writerContext, dataFilePaths);
+        tw.validateSSTables(writerContext, tw.getOutDir(), dataFilePaths);
     }
 }

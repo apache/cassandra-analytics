@@ -211,15 +211,6 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
         }
     }
 
-    @Override
-    public void cleanupOnFailure()
-    {
-        super.cleanupOnFailure();
-
-        // remove any remaining bundle
-        sstablesBundler.cleanupBundle(sessionID);
-    }
-
     void sendBundle(Bundle bundle, boolean hasRefreshedCredentials)
     {
         StorageCredentials writeCredentials = getStorageCredentialsFromSidecar();
