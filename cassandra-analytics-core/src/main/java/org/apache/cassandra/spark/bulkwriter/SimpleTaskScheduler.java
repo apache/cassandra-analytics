@@ -34,53 +34,62 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.util.ThreadUtil;
 
-public class HeartbeatReporter implements Closeable
+/**
+ * Scheduler for simple and short tasks
+ */
+public class SimpleTaskScheduler implements Closeable
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(HeartbeatReporter.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(SimpleTaskScheduler.class);
 
     private final ScheduledExecutorService scheduler;
-    private final Map<String, ScheduledFuture<?>> scheduledHeartbeats;
+    private final Map<String, ScheduledFuture<?>> scheduledTasks;
     private boolean isClosed;
 
-    public HeartbeatReporter()
+    public SimpleTaskScheduler()
     {
-        ThreadFactory tf = ThreadUtil.threadFactory("Heartbeat reporter");
+        ThreadFactory tf = ThreadUtil.threadFactory("bulk-write-simple-task-scheduler");
         this.scheduler = Executors.newSingleThreadScheduledExecutor(tf);
-        this.scheduledHeartbeats = new HashMap<>();
+        this.scheduledTasks = new HashMap<>();
         this.isClosed = false;
     }
 
-    public synchronized void schedule(String name, long heartBeatIntervalMillis, Runnable heartBeat)
+    public synchronized void schedule(String name, long delayMillis, Runnable task)
     {
-        if (isClosed)
+        if (isClosed() || isScheduled(name))
         {
-            LOGGER.info("HeartbeatReporter is already closed");
             return;
         }
 
-        if (scheduledHeartbeats.containsKey(name))
+        ScheduledFuture<?> fut = scheduler.schedule(new NoThrow(name, task),
+                                                    delayMillis,
+                                                    TimeUnit.MILLISECONDS);
+        scheduledTasks.put(name, fut);
+    }
+
+    public synchronized void schedulePeriodic(String name, long taskIntervalMillis, Runnable task)
+    {
+        if (isClosed() || isScheduled(name))
         {
-            LOGGER.info("The heartbeat has been scheduled already. heartbeat={}", name);
             return;
         }
-        ScheduledFuture<?> fut = scheduler.scheduleWithFixedDelay(new NoThrow(name, heartBeat),
-                                                                  heartBeatIntervalMillis, // initial delay
-                                                                  heartBeatIntervalMillis, // delay
+
+        ScheduledFuture<?> fut = scheduler.scheduleWithFixedDelay(new NoThrow(name, task),
+                                                                  taskIntervalMillis, // initial delay
+                                                                  taskIntervalMillis, // delay
                                                                   TimeUnit.MILLISECONDS);
-        scheduledHeartbeats.put(name, fut);
+        scheduledTasks.put(name, fut);
     }
 
     // return true if unscheduled; return false if unable to unschedule, typically it is unscheduled already
     @VisibleForTesting
     public synchronized boolean unschedule(String name)
     {
-        if (isClosed)
+        if (isClosed())
         {
-            LOGGER.info("HeartbeatReporter is already closed");
             return false;
         }
 
-        ScheduledFuture<?> fut = scheduledHeartbeats.remove(name);
+        ScheduledFuture<?> fut = scheduledTasks.remove(name);
         if (fut == null)
         {
             return false;
@@ -94,14 +103,14 @@ public class HeartbeatReporter implements Closeable
     public synchronized void close()
     {
         isClosed = true;
-        scheduledHeartbeats.values().forEach(fut -> fut.cancel(true));
+        scheduledTasks.values().forEach(fut -> fut.cancel(true));
         scheduler.shutdownNow();
         try
         {
             boolean terminated = scheduler.awaitTermination(2, TimeUnit.SECONDS);
             if (!terminated)
             {
-                LOGGER.warn("Closing heartbeat reporter times out");
+                LOGGER.warn("Closing SimpleTaskScheduler times out");
             }
         }
         catch (InterruptedException ie)
@@ -112,6 +121,25 @@ public class HeartbeatReporter implements Closeable
         {
             LOGGER.warn("Exception when closing scheduler", exception);
         }
+    }
+
+    private boolean isClosed()
+    {
+        if (isClosed)
+        {
+            LOGGER.info("SimpleTaskScheduler is already closed");
+        }
+        return isClosed;
+    }
+
+    private boolean isScheduled(String name)
+    {
+        boolean isScheduled = scheduledTasks.containsKey(name);
+        if (isScheduled)
+        {
+            LOGGER.info("The task has been scheduled already. task={}", name);
+        }
+        return isScheduled;
     }
 
     // A Runnable wrapper that does not throw exceptions. Therefore, it gets executed again by scheduler

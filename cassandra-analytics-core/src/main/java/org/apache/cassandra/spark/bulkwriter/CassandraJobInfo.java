@@ -88,13 +88,19 @@ public class CassandraJobInfo implements JobInfo
     }
 
     @Override
+    public long jobTimeoutSeconds()
+    {
+        return conf.getJobTimeoutSeconds();
+    }
+
+    @Override
     public int effectiveSidecarPort()
     {
         return conf.getEffectiveSidecarPort();
     }
 
     @Override
-    public int importCoordinatorTimeoutMultiplier()
+    public double importCoordinatorTimeoutMultiplier()
     {
         return conf.importCoordinatorTimeoutMultiplier;
     }

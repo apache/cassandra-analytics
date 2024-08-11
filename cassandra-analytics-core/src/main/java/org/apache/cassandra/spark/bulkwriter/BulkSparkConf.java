@@ -121,7 +121,7 @@ public class BulkSparkConf implements Serializable
     public final boolean skipExtendedVerify;
     public final WriteMode writeMode;
     public final int commitThreadsPerInstance;
-    public final int importCoordinatorTimeoutMultiplier;
+    public final double importCoordinatorTimeoutMultiplier;
     public boolean quoteIdentifiers;
     protected final String keystorePassword;
     protected final String keystorePath;
@@ -141,6 +141,7 @@ public class BulkSparkConf implements Serializable
     protected final StorageClientConfig storageClientConfig;
     protected final DataTransportInfo dataTransportInfo;
     protected final int jobKeepAliveMinutes;
+    protected final long jobTimeoutSeconds;
     // An optional unique identifier supplied by customer. The jobId is different from restoreJobId that is used internally.
     // The value is null when absent
     protected final String configuredJobId;
@@ -182,7 +183,7 @@ public class BulkSparkConf implements Serializable
         // else fall back to props, and then default if neither specified
         this.useOpenSsl = getBoolean(USE_OPENSSL, true);
         this.ringRetryCount = getInt(RING_RETRY_COUNT, DEFAULT_RING_RETRY_COUNT);
-        this.importCoordinatorTimeoutMultiplier = getInt(IMPORT_COORDINATOR_TIMEOUT_MULTIPLIER, 2);
+        this.importCoordinatorTimeoutMultiplier = getDouble(IMPORT_COORDINATOR_TIMEOUT_MULTIPLIER, 2.0);
         this.ttl = MapUtils.getOrDefault(options, WriterOptions.TTL.name(), null);
         this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
         this.quoteIdentifiers = MapUtils.getBoolean(options, WriterOptions.QUOTE_IDENTIFIERS.name(), false, "quote identifiers");
@@ -216,6 +217,7 @@ public class BulkSparkConf implements Serializable
             throw new IllegalArgumentException(String.format("Invalid value for the '%s' Bulk Writer option (%d). It cannot be less than the minimum %s",
                                                              WriterOptions.JOB_KEEP_ALIVE_MINUTES, jobKeepAliveMinutes, MINIMUM_JOB_KEEP_ALIVE_MINUTES));
         }
+        this.jobTimeoutSeconds = MapUtils.getLong(options, WriterOptions.JOB_TIMEOUT_SECONDS.name(), -1L);
         this.configuredJobId = MapUtils.getOrDefault(options, WriterOptions.JOB_ID.name(), null);
 
         validateEnvironment();
@@ -497,6 +499,17 @@ public class BulkSparkConf implements Serializable
     public int getJobKeepAliveMinutes()
     {
         return jobKeepAliveMinutes;
+    }
+
+    public long getJobTimeoutSeconds()
+    {
+        return jobTimeoutSeconds;
+    }
+
+    protected double getDouble(String settingName, double defaultValue)
+    {
+        String finalSetting = getSettingNameOrDeprecatedName(settingName);
+        return conf.getDouble(finalSetting, defaultValue);
     }
 
     protected int getInt(String settingName, int defaultValue)

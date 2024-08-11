@@ -32,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
@@ -63,6 +64,7 @@ import org.apache.cassandra.spark.transports.storage.extensions.StorageTransport
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 
+import static org.apache.cassandra.spark.bulkwriter.ImportCompletionCoordinator.estimateTimeoutNanos;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -224,7 +226,8 @@ class ImportCompletionCoordinatorTest
          * The test verifies that in such scenario, ImportCompletionCoordinator does not block forever,
          * and it can conclude success result
          */
-        List<BlobStreamResult> resultList = buildBlobStreamResultWithNoProgressImports(1);
+        when(mockJobInfo.importCoordinatorTimeoutMultiplier()).thenReturn(0.0); // disable estimated timeout
+        List<BlobStreamResult> resultList = buildBlobStreamResultWithNoProgressImports(/* Stuck slice per replica set */ 1, /* importTimeMillis */ 0L);
         ImportCompletionCoordinator coordinator = ImportCompletionCoordinator.of(0, mockWriterContext, dataTransferApi,
                                                                                  writerValidator, resultList, mockExtension, onCancelJob);
         coordinator.waitForCompletion();
@@ -235,6 +238,51 @@ class ImportCompletionCoordinatorTest
         int cancelledImports = importFutures.keySet().stream().mapToInt(f -> f.isCancelled() ? 1 : 0).sum();
         assertEquals(TOTAL_INSTANCES, cancelledImports,
                      "Each replica set should have a slice gets cancelled due to making no progress");
+    }
+
+    @Test
+    void testAwaitShouldBlockUntilClSatisfiedWhenIdealTimeoutIsLow()
+    {
+        // it should produce a really large estimate; the coordinator ignores it anyway due to small ideal timeout
+        when(mockJobInfo.importCoordinatorTimeoutMultiplier()).thenReturn(1000.0);
+        when(mockJobInfo.jobTimeoutSeconds()).thenReturn(1L); // low ideal timeout lead to immediate termination as soon as CL is satisfied
+        List<BlobStreamResult> resultList = buildBlobStreamResultWithNoProgressImports(/* Stuck slice per replica set */ 1, /* importTimeMillis */ 100L);
+        ImportCompletionCoordinator coordinator = ImportCompletionCoordinator.of(System.nanoTime(), mockWriterContext, dataTransferApi,
+                                                                                 writerValidator, resultList, mockExtension, onCancelJob);
+        coordinator.waitForCompletion();
+        // the import should complete as soon as CL is satisfied
+        assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
+                     "All objects should be applied and reported for exactly once");
+        assertEquals(allTestObjectKeys(), new HashSet<>(appliedObjectKeys.getAllValues()));
+        Map<CompletableFuture<Void>, RequestAndInstance> importFutures = coordinator.importFutures();
+        // all the other imports should be cancelled, given ideal timeout has exceeded
+        int cancelledImports = importFutures.keySet().stream().mapToInt(f -> f.isCancelled() ? 1 : 0).sum();
+        assertEquals(TOTAL_INSTANCES, cancelledImports,
+                     "Each replica set should have a slice gets cancelled due to making no progress");
+    }
+
+    @Test
+    void testAwaitShouldBlockUntilIdealTimeoutExceeds()
+    {
+        // it should produce a really large estimate; the coordinator ignores it anyway due to small ideal timeout
+        when(mockJobInfo.importCoordinatorTimeoutMultiplier()).thenReturn(1000.0);
+        long idealTimeout = 5L;
+        when(mockJobInfo.jobTimeoutSeconds()).thenReturn(idealTimeout); // await at most 10 seconds
+        List<BlobStreamResult> resultList = buildBlobStreamResultWithNoProgressImports(/* Stuck slice per replica set */ 1, /* importTimeMillis */ 100L);
+        long startNanos = System.nanoTime();
+        ImportCompletionCoordinator coordinator = ImportCompletionCoordinator.of(startNanos, mockWriterContext, dataTransferApi,
+                                                                                 writerValidator, resultList, mockExtension, onCancelJob);
+        coordinator.waitForCompletion();
+        assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
+                     "All objects should be applied and reported for exactly once");
+        assertEquals(allTestObjectKeys(), new HashSet<>(appliedObjectKeys.getAllValues()));
+        Map<CompletableFuture<Void>, RequestAndInstance> importFutures = coordinator.importFutures();
+        // all the other imports should be cancelled, given ideal timeout has exceeded
+        int cancelledImports = importFutures.keySet().stream().mapToInt(f -> f.isCancelled() ? 1 : 0).sum();
+        assertEquals(TOTAL_INSTANCES, cancelledImports,
+                     "Each replica set should have a slice gets cancelled due to making no progress");
+        assertTrue(System.nanoTime() - startNanos > TimeUnit.SECONDS.toNanos(idealTimeout),
+                   "ImportCompletionCoordinator should wait for at least " + idealTimeout + " seconds");
     }
 
     @Test
@@ -272,19 +320,63 @@ class ImportCompletionCoordinatorTest
         assertEquals(coordinatorEx.getCause(), firstFailureEx.getCause());
     }
 
+    @Test
+    void testEstimateTimeout()
+    {
+        // params for estimateTimeoutNanos
+        long timeToAllSatisfiedNanos = TimeUnit.SECONDS.toNanos(3);
+        long elapsedNanos = TimeUnit.SECONDS.toNanos(10);
+        double importCoordinatorTimeoutMultiplier = 1;
+        double minSliceSize = 100;
+        double maxSliceSize = 200;
+        long jobIdealTimeoutSeconds = 0;
+
+
+        long estimatedTimeout = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
+                                                     importCoordinatorTimeoutMultiplier,
+                                                     minSliceSize, maxSliceSize,
+                                                     jobIdealTimeoutSeconds);
+        assertEquals(0, estimatedTimeout,
+                     "jobIdealTimeoutSeconds is 0. It should not wait for any additional time");
+
+        jobIdealTimeoutSeconds = Integer.MAX_VALUE;
+        estimatedTimeout = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
+                                                importCoordinatorTimeoutMultiplier,
+                                                minSliceSize, maxSliceSize,
+                                                jobIdealTimeoutSeconds);
+        assertEquals(TimeUnit.SECONDS.toNanos(6), estimatedTimeout,
+                     "It takes 3 seconds to achieve CL; Based on the size estimate, it should take 200 / 100 * 3 seconds in addition");
+
+        importCoordinatorTimeoutMultiplier = 0;
+        estimatedTimeout = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
+                                                importCoordinatorTimeoutMultiplier,
+                                                minSliceSize, maxSliceSize,
+                                                jobIdealTimeoutSeconds);
+        assertEquals(0, estimatedTimeout,
+                     "When timeout multiplier is 0, there is no additional wait time");
+
+        importCoordinatorTimeoutMultiplier = 0.5;
+        estimatedTimeout = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
+                                                importCoordinatorTimeoutMultiplier,
+                                                minSliceSize, maxSliceSize,
+                                                jobIdealTimeoutSeconds);
+        assertEquals(TimeUnit.SECONDS.toNanos(3), estimatedTimeout,
+                     "The estimate is 200 / 100 * 3 * 0.5 == 3");
+    }
+
     private Set<String> allTestObjectKeys()
     {
         return IntStream.range(0, 10).boxed().map(i -> "key_for_instance_" + i).collect(Collectors.toSet());
     }
 
-    private List<BlobStreamResult> buildBlobStreamResultWithNoProgressImports(int noProgressInstanceCount)
+    private List<BlobStreamResult> buildBlobStreamResultWithNoProgressImports(int noProgressInstanceCount, long importTimeMillis)
     {
-        return buildBlobStreamResult(0, false, 0, noProgressInstanceCount);
+        return buildBlobStreamResult(0, false, 0, noProgressInstanceCount, importTimeMillis);
     }
 
     private List<BlobStreamResult> buildBlobStreamResult(int failedInstanceCount, boolean simulateSlowImport, int unavailableInstanceCount)
     {
-        return buildBlobStreamResult(failedInstanceCount, simulateSlowImport, unavailableInstanceCount, 0);
+        return buildBlobStreamResult(failedInstanceCount, simulateSlowImport, unavailableInstanceCount, 0, 0);
     }
 
     /**
@@ -297,10 +389,12 @@ class ImportCompletionCoordinatorTest
     private List<BlobStreamResult> buildBlobStreamResult(int failedInstanceCount,
                                                          boolean simulateSlowImport,
                                                          int unavailableInstanceCount,
-                                                         int noProgressInstanceCount)
+                                                         int noProgressInstanceCount,
+                                                         long minimumImportTimeMills)
     {
         List<BlobStreamResult> resultList = new ArrayList<>();
         int totalInstances = 10;
+        long importTime = Math.max(0, minimumImportTimeMills);
 
         for (int i = 0; i < totalInstances; i++)
         {
@@ -333,7 +427,7 @@ class ImportCompletionCoordinatorTest
                 {
                     // only add slowness for the last import
                     doAnswer((Answer<CompletableFuture<Void>>) invocation -> {
-                        Thread.sleep(ThreadLocalRandom.current().nextInt(2000));
+                        Thread.sleep(importTime + ThreadLocalRandom.current().nextInt(2000));
                         return CompletableFuture.completedFuture(null);
                     })
                     .when(dataTransferApi)
@@ -350,16 +444,22 @@ class ImportCompletionCoordinatorTest
                 }
                 else if (failedPerReplica-- > 0)
                 {
-                    CompletableFuture<Void> future = new CompletableFuture<>();
-                    future.completeExceptionally(RetriesExhaustedException.of(10, mock(Request.class), null));
-                    doReturn(future)
+                    CompletableFuture<Void> failure = new CompletableFuture<>();
+                    failure.completeExceptionally(RetriesExhaustedException.of(10, mock(Request.class), null));
+                    doAnswer((Answer<CompletableFuture<Void>>) invocation -> {
+                        Thread.sleep(importTime);
+                        return failure;
+                    })
                     .when(dataTransferApi)
                     .createRestoreSliceFromDriver(eq(new SidecarInstanceImpl(instance.nodeName(), 9043)),
                                                   eq(mockCreateSliceRequestPayload));
                 }
                 else
                 {
-                    doReturn(CompletableFuture.completedFuture(null))
+                    doAnswer((Answer<CompletableFuture<Void>>) invocation -> {
+                        Thread.sleep(importTime);
+                        return CompletableFuture.completedFuture(null);
+                    })
                     .when(dataTransferApi)
                     .createRestoreSliceFromDriver(eq(new SidecarInstanceImpl(instance.nodeName(), 9043)),
                                                   eq(mockCreateSliceRequestPayload));

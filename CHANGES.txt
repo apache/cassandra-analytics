@@ -1,4 +1,5 @@
 1.0.0
+ * Add job_timeout_seconds writer option (CASSANDRA-19827)
  * Prevent double closing sstable writer (CASSANDRA-19821)
  * Stream sstable eagerly when bulk writing to reclaim local disk space sooner (CASSANDRA-19806)
  * Split the Cassandra type logic out from CassandraBridge into a separate module (CASSANDRA-19793)

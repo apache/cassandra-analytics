@@ -283,15 +283,21 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
+    public long jobTimeoutSeconds()
+    {
+        return -1;
+    }
+
+    @Override
     public int effectiveSidecarPort()
     {
         return 9043;
     }
 
     @Override
-    public int importCoordinatorTimeoutMultiplier()
+    public double importCoordinatorTimeoutMultiplier()
     {
-        return 2;
+        return 2.0;
     }
 
     public void setSkipCleanOnFailures(boolean skipClean)

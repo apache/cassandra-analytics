@@ -29,34 +29,34 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class HeartbeatReporterTest
+public class SimpleTaskSchedulerTest
 {
-    private HeartbeatReporter heartbeatReporter = new HeartbeatReporter();
+    private SimpleTaskScheduler simpleTaskScheduler = new SimpleTaskScheduler();
     private String heartbeatName = "test-heartbeat";
 
     @AfterEach
     public void teardown()
     {
-        heartbeatReporter.unschedule(heartbeatName);
+        simpleTaskScheduler.unschedule(heartbeatName);
     }
 
     @Test
-    public void testScheduleHeartbeat()
+    public void testSchedulePeriodicHeartbeat()
     {
         CountDownLatch latch = new CountDownLatch(10);
         long start = System.nanoTime();
-        heartbeatReporter.schedule(heartbeatName, 10, latch::countDown);
+        simpleTaskScheduler.schedulePeriodic(heartbeatName, 10, latch::countDown);
         Uninterruptibles.awaitUninterruptibly(latch);
         assertEquals(0, latch.getCount());
         assertTrue(System.nanoTime() > start + TimeUnit.MILLISECONDS.toNanos(10 * 10));
     }
 
     @Test
-    public void testScheduleSuppressThrows()
+    public void testSchedulePeriodicSuppressThrows()
     {
         CountDownLatch latch = new CountDownLatch(10);
         long start = System.nanoTime();
-        heartbeatReporter.schedule(heartbeatName, 10, () -> {
+        simpleTaskScheduler.schedulePeriodic(heartbeatName, 10, () -> {
             latch.countDown();
             throw new RuntimeException("It fails");
         });

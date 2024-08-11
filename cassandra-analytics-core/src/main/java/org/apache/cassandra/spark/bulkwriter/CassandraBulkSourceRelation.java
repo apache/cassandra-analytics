@@ -66,7 +66,8 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     private final JavaSparkContext sparkContext;
     private final Broadcast<BulkWriterContext> broadcastContext;
     private final BulkWriteValidator writeValidator;
-    private HeartbeatReporter heartbeatReporter;
+    private final SimpleTaskScheduler simpleTaskScheduler;
+    private volatile ImportCompletionCoordinator importCoordinator = null; // value is only set when using S3_COMPAT
     private long startTimeNanos;
 
     @SuppressWarnings("RedundantTypeArguments")
@@ -78,7 +79,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         this.broadcastContext = sparkContext.<BulkWriterContext>broadcast(writerContext);
         ReplicaAwareFailureHandler<RingInstance> failureHandler = new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
-        onCloudStorageTransport(ignored -> this.heartbeatReporter = new HeartbeatReporter());
+        this.simpleTaskScheduler = new SimpleTaskScheduler();
     }
 
     @Override
@@ -114,6 +115,18 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     {
         validateJob(overwrite);
         this.startTimeNanos = System.nanoTime();
+
+        long timeoutSeconds = writerContext.job().jobTimeoutSeconds();
+        long timeoutMillis = TimeUnit.SECONDS.toMillis(timeoutSeconds);
+        LOGGER.info("Scheduled job timeout. timeoutSeconds={}", timeoutSeconds);
+        simpleTaskScheduler.schedule("Job timeout", timeoutMillis, () -> {
+            ImportCompletionCoordinator coordinator = importCoordinator;
+            // only cancel on timeout when consistency level not reached
+            if (coordinator == null || !coordinator.hasConsistencyLevelReached())
+            {
+                cancelJob(new CancelJobEvent("Job times out after " + timeoutSeconds + " seconds"));
+            }
+        });
 
         maybeEnableTransportExtension();
         Tokenizer tokenizer = new Tokenizer(writerContext);
@@ -210,10 +223,10 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                 context.transportExtensionImplementation()
                        .onAllObjectsPersisted(objectsCount, rowCount, elapsedTimeMillis());
 
-                ImportCompletionCoordinator.of(startTimeNanos, writerContext, context.dataTransferApi(),
-                                               writeValidator, resultsAsBlobStreamResults,
-                                               context.transportExtensionImplementation(), this::cancelJob)
-                                           .waitForCompletion();
+                importCoordinator = ImportCompletionCoordinator.of(startTimeNanos, writerContext, context.dataTransferApi(),
+                                                                   writeValidator, resultsAsBlobStreamResults,
+                                                                   context.transportExtensionImplementation(), this::cancelJob);
+                importCoordinator.waitForCompletion();
                 markRestoreJobAsSucceeded(context);
             });
 
@@ -243,7 +256,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         {
             try
             {
-                onCloudStorageTransport(ignored -> heartbeatReporter.close());
+                onCloudStorageTransport(ignored -> simpleTaskScheduler.close());
                 writerContext.shutdown();
                 sqlContext().sparkContext().clearJobGroup();
             }
@@ -327,9 +340,9 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
             impl.setCredentialChangeListener(storageTransportHandler);
             impl.setObjectFailureListener(storageTransportHandler);
             createRestoreJob(ctx);
-            heartbeatReporter.schedule("Extend lease",
-                                       TimeUnit.MINUTES.toMillis(1),
-                                       () -> extendLeaseForJob(ctx));
+            simpleTaskScheduler.schedulePeriodic("Extend lease",
+                                                 TimeUnit.MINUTES.toMillis(1),
+                                                 () -> extendLeaseForJob(ctx));
         });
     }
 
