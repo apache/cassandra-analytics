@@ -43,7 +43,6 @@ import java.util.stream.Collectors;
 
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
-import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import software.amazon.awssdk.auth.credentials.AwsCredentials;
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
@@ -216,7 +215,8 @@ public class StorageClient implements AutoCloseable
             {
                 int loopPartNumber = partNumber;
                 ByteBuffer buffer = chunks.next();
-                AsyncRequestBody body = AsyncRequestBody.fromBytes(ByteBufferUtils.getArray(buffer));
+                // get a copy of the remaining ByteBuffer; for the last chunk, the cloned ByteBuffer is resized accordingly.
+                AsyncRequestBody body = AsyncRequestBody.fromRemainingByteBuffer(buffer);
                 UploadPartRequest uploadPartRequest = UploadPartRequest.builder()
                                                                        .overrideConfiguration(credentialsOverride(credentials))
                                                                        .bucket(storageTransportConfiguration.getWriteBucket())
