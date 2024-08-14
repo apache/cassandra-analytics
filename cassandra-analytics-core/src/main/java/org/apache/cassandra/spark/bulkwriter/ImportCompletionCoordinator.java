@@ -45,9 +45,9 @@ import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.blobupload.BlobDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.blobupload.BlobStreamResult;
 import org.apache.cassandra.spark.bulkwriter.blobupload.CreatedRestoreSlice;
-import org.apache.cassandra.util.ThreadUtil;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
+import org.apache.cassandra.util.ThreadUtil;
 
 import static org.apache.cassandra.clients.Sidecar.toSidecarInstance;
 import static org.apache.cassandra.spark.bulkwriter.blobupload.CreatedRestoreSlice.ConsistencyLevelCheckResult.NOT_SATISFIED;
@@ -69,7 +69,7 @@ public final class ImportCompletionCoordinator
     private final CompletableFuture<Void> firstFailure = new CompletableFuture<>();
     private final CompletableFuture<Void> terminal = new CompletableFuture<>();
     private final Map<CompletableFuture<Void>, RequestAndInstance> importFutures = new HashMap<>();
-    private final AtomicBoolean terminalScheduled = new AtomicBoolean(false);
+    private final AtomicBoolean consistencyLevelReached = new AtomicBoolean(false);
     private final AtomicInteger completedSlices = new AtomicInteger(0);
 
     private long waitStartNanos;
@@ -165,6 +165,11 @@ public final class ImportCompletionCoordinator
         }
     }
 
+    public boolean hasReachedConsistencyLevel()
+    {
+        return consistencyLevelReached.get();
+    }
+
     private void waitForCompletionInternal()
     {
         prepareToPoll();
@@ -219,8 +224,6 @@ public final class ImportCompletionCoordinator
         // whenComplete callback will still be invoked when the future is cancelled.
         // In such case, expect CancellationException
         future.whenComplete((v, t) -> {
-            LOGGER.info("Completed slice requests {}/{}", completedSlices.incrementAndGet(), importFutures.keySet().size());
-
             if (t instanceof CancellationException)
             {
                 RequestAndInstance rai = importFutures.get(future);
@@ -228,19 +231,35 @@ public final class ImportCompletionCoordinator
                 return;
             }
 
+            LOGGER.info("Completed slice requests {}/{}", completedSlices.incrementAndGet(), importFutures.keySet().size());
+
             // only enter the block once
             if (satisfiedSlices.get() == totalSlices
-                && terminalScheduled.compareAndSet(false, true))
+                && consistencyLevelReached.compareAndSet(false, true))
             {
-                long timeToAllSatisfiedNanos = System.nanoTime() - waitStartNanos;
-                long timeout = estimateTimeout(timeToAllSatisfiedNanos);
-                LOGGER.info("The specified consistency level of the job has been satisfied. " +
-                            "Continuing to waiting on slices completion in order to prevent Cassandra side " +
-                            "streaming as much as possible. The estimated additional wait time is {} seconds.",
-                            TimeUnit.NANOSECONDS.toSeconds(timeout));
-                // schedule to complete the terminal
-                scheduler.schedule(() -> terminal.complete(null),
-                                   timeout, TimeUnit.NANOSECONDS);
+                LOGGER.info("The specified consistency level of the job has been satisfied. consistencyLevel={}", job.getConsistencyLevel());
+
+                long nowNanos = System.nanoTime();
+                long timeToAllSatisfiedNanos = nowNanos - waitStartNanos;
+                long elapsedNanos = nowNanos - startTimeNanos;
+                long timeoutNanos = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
+                                                         job.importCoordinatorTimeoutMultiplier(),
+                                                         minSliceSize, maxSliceSize,
+                                                         job.jobTimeoutSeconds());
+                if (timeoutNanos > 0)
+                {
+                    LOGGER.info("Continuing to waiting on slices completion in order to prevent Cassandra side " +
+                                "streaming as much as possible. The estimated additional wait time is {} seconds.",
+                                TimeUnit.NANOSECONDS.toSeconds(timeoutNanos));
+                    // schedule to complete the terminal
+                    scheduler.schedule(() -> terminal.complete(null),
+                                       timeoutNanos, TimeUnit.NANOSECONDS);
+                }
+                else
+                {
+                    // complete immediately since there is no additional time to wait
+                    terminal.complete(null);
+                }
             }
         });
     }
@@ -258,23 +277,41 @@ public final class ImportCompletionCoordinator
         validateAllRangesAreSatisfied();
     }
 
-    // calculate the timeout based on the 1) time taken to have all slices satisfied, and 2) use import rate
-    private long estimateTimeout(long timeToAllSatisfiedNanos)
+    // Calculate the timeout based on the 1) time taken to have all slices satisfied, 2) use import rate and 3) jobTimeoutSeconds
+    // The effective timeout is the min of the estimate and the jobTimeoutSeconds (when specified)
+    static long estimateTimeoutNanos(long timeToAllSatisfiedNanos,
+                                     long elapsedNanos,
+                                     double importCoordinatorTimeoutMultiplier,
+                                     double minSliceSize,
+                                     double maxSliceSize,
+                                     long jobTimeoutSeconds)
     {
-        long timeout = timeToAllSatisfiedNanos;
+        long timeoutNanos = timeToAllSatisfiedNanos;
         // use the minSliceSize to get the slowest import rate. R = minSliceSize / T
         // use the maxSliceSize to get the highest amount of time needed for import. D = maxSliceSize / R
         // Please do not combine the two statements below for readability purpose
-        double estimatedRateFloor = ((double) minSliceSize) / timeToAllSatisfiedNanos;
-        double timeEstimateBasedOnRate = ((double) maxSliceSize) / estimatedRateFloor;
-        timeout = Math.max((long) timeEstimateBasedOnRate, timeout);
-        timeout = job.importCoordinatorTimeoutMultiplier() * timeout;
-        if (TimeUnit.NANOSECONDS.toHours(timeout) > 1)
+        double estimatedRateFloor = minSliceSize / timeToAllSatisfiedNanos;
+        double timeEstimateBasedOnRate = maxSliceSize / estimatedRateFloor;
+        double estimate = Math.max(timeEstimateBasedOnRate, (double) timeoutNanos);
+        timeoutNanos = (long) Math.ceil(importCoordinatorTimeoutMultiplier * estimate);
+        // consider the jobTimeoutSeconds only if it is specified
+        if (jobTimeoutSeconds != -1)
         {
-            LOGGER.warn("The estimated additional timeout is more than 1 hour. timeout={} seconds",
-                        TimeUnit.NANOSECONDS.toSeconds(timeout));
+            long remainingTimeoutNanos = TimeUnit.SECONDS.toNanos(jobTimeoutSeconds) - elapsedNanos;
+            if (remainingTimeoutNanos <= 0)
+            {
+                // Timeout has passed, and we have already achieved the desired consistency level.
+                // Do not wait any longer
+                return 0;
+            }
+            timeoutNanos = Math.min(timeoutNanos, remainingTimeoutNanos);
         }
-        return timeout;
+        if (TimeUnit.NANOSECONDS.toHours(timeoutNanos) > 1)
+        {
+            LOGGER.warn("The additional time to wait is more than 1 hour. timeout={} seconds",
+                        TimeUnit.NANOSECONDS.toSeconds(timeoutNanos));
+        }
+        return timeoutNanos;
     }
 
     private void createSliceInstanceFuture(CreatedRestoreSlice createdRestoreSlice,

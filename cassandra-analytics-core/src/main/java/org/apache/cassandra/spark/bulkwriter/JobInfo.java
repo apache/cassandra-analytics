@@ -85,6 +85,11 @@ public interface JobInfo extends Serializable
     int jobKeepAliveMinutes();
 
     /**
+     * @return job timeout in seconds; see {@link WriterOptions#JOB_TIMEOUT_SECONDS}
+     */
+    long jobTimeoutSeconds();
+
+    /**
      * @return sidecar service port
      */
     int effectiveSidecarPort();
@@ -92,5 +97,5 @@ public interface JobInfo extends Serializable
     /**
      * @return multiplier to calculate the final timeout for import coordinator
      */
-    int importCoordinatorTimeoutMultiplier();
+    double importCoordinatorTimeoutMultiplier();
 }

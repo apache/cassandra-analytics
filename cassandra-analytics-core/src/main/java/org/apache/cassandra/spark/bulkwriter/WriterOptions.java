@@ -117,4 +117,11 @@ public enum WriterOptions implements WriterOption
      * Option to tune the concurrency of the nio http client employed in s3 client
      */
     STORAGE_CLIENT_NIO_HTTP_CLIENT_MAX_CONCURRENCY,
+    /**
+     * Option to specify the timeout in seconds for bulk write jobs. By default, it is disabled.
+     * When JOB_TIMEOUT_SECONDS is specified, a job exceeding the timeout is:
+     * - successful when the desired consistency level is met
+     * - a failure otherwise
+     */
+    JOB_TIMEOUT_SECONDS,
 }
