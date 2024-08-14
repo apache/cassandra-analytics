@@ -183,7 +183,7 @@ public class BulkSparkConf implements Serializable
         // else fall back to props, and then default if neither specified
         this.useOpenSsl = getBoolean(USE_OPENSSL, true);
         this.ringRetryCount = getInt(RING_RETRY_COUNT, DEFAULT_RING_RETRY_COUNT);
-        this.importCoordinatorTimeoutMultiplier = getDouble(IMPORT_COORDINATOR_TIMEOUT_MULTIPLIER, 2.0);
+        this.importCoordinatorTimeoutMultiplier = getDouble(IMPORT_COORDINATOR_TIMEOUT_MULTIPLIER, 0.5);
         this.ttl = MapUtils.getOrDefault(options, WriterOptions.TTL.name(), null);
         this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
         this.quoteIdentifiers = MapUtils.getBoolean(options, WriterOptions.QUOTE_IDENTIFIERS.name(), false, "quote identifiers");

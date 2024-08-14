@@ -165,7 +165,7 @@ public final class ImportCompletionCoordinator
         }
     }
 
-    public boolean hasConsistencyLevelReached()
+    public boolean hasReachedConsistencyLevel()
     {
         return consistencyLevelReached.get();
     }
@@ -237,6 +237,8 @@ public final class ImportCompletionCoordinator
             if (satisfiedSlices.get() == totalSlices
                 && consistencyLevelReached.compareAndSet(false, true))
             {
+                LOGGER.info("The specified consistency level of the job has been satisfied. consistencyLevel={}", job.getConsistencyLevel());
+
                 long nowNanos = System.nanoTime();
                 long timeToAllSatisfiedNanos = nowNanos - waitStartNanos;
                 long elapsedNanos = nowNanos - startTimeNanos;
@@ -244,13 +246,11 @@ public final class ImportCompletionCoordinator
                                                          job.importCoordinatorTimeoutMultiplier(),
                                                          minSliceSize, maxSliceSize,
                                                          job.jobTimeoutSeconds());
-                LOGGER.info("The specified consistency level of the job has been satisfied. " +
-                            "Continuing to waiting on slices completion in order to prevent Cassandra side " +
-                            "streaming as much as possible. The estimated additional wait time is {} seconds.",
-                            TimeUnit.NANOSECONDS.toSeconds(timeoutNanos));
-
                 if (timeoutNanos > 0)
                 {
+                    LOGGER.info("Continuing to waiting on slices completion in order to prevent Cassandra side " +
+                                "streaming as much as possible. The estimated additional wait time is {} seconds.",
+                                TimeUnit.NANOSECONDS.toSeconds(timeoutNanos));
                     // schedule to complete the terminal
                     scheduler.schedule(() -> terminal.complete(null),
                                        timeoutNanos, TimeUnit.NANOSECONDS);
@@ -297,14 +297,14 @@ public final class ImportCompletionCoordinator
         // consider the jobTimeoutSeconds only if it is specified
         if (jobTimeoutSeconds != -1)
         {
-            long remainingIdealTimeoutNanos = TimeUnit.SECONDS.toNanos(jobTimeoutSeconds) - elapsedNanos;
-            if (remainingIdealTimeoutNanos <= 0)
+            long remainingTimeoutNanos = TimeUnit.SECONDS.toNanos(jobTimeoutSeconds) - elapsedNanos;
+            if (remainingTimeoutNanos <= 0)
             {
-                // ideal timeout has passed, and we have already achieved the desired consistency level.
+                // Timeout has passed, and we have already achieved the desired consistency level.
                 // Do not wait any longer
                 return 0;
             }
-            timeoutNanos = Math.min(timeoutNanos, remainingIdealTimeoutNanos);
+            timeoutNanos = Math.min(timeoutNanos, remainingTimeoutNanos);
         }
         if (TimeUnit.NANOSECONDS.toHours(timeoutNanos) > 1)
         {

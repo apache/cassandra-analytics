@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -32,20 +33,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class SimpleTaskSchedulerTest
 {
     private SimpleTaskScheduler simpleTaskScheduler = new SimpleTaskScheduler();
-    private String heartbeatName = "test-heartbeat";
+    private String taskName = "test-task";
 
     @AfterEach
     public void teardown()
     {
-        simpleTaskScheduler.unschedule(heartbeatName);
+        simpleTaskScheduler.unschedule(taskName);
     }
 
     @Test
-    public void testSchedulePeriodicHeartbeat()
+    public void testSchedulePeriodic()
     {
         CountDownLatch latch = new CountDownLatch(10);
         long start = System.nanoTime();
-        simpleTaskScheduler.schedulePeriodic(heartbeatName, 10, latch::countDown);
+        simpleTaskScheduler.schedulePeriodic(taskName, Duration.ofMillis(10), latch::countDown);
         Uninterruptibles.awaitUninterruptibly(latch);
         assertEquals(0, latch.getCount());
         assertTrue(System.nanoTime() > start + TimeUnit.MILLISECONDS.toNanos(10 * 10));
@@ -56,7 +57,7 @@ public class SimpleTaskSchedulerTest
     {
         CountDownLatch latch = new CountDownLatch(10);
         long start = System.nanoTime();
-        simpleTaskScheduler.schedulePeriodic(heartbeatName, 10, () -> {
+        simpleTaskScheduler.schedulePeriodic(taskName, Duration.ofMillis(10), () -> {
             latch.countDown();
             throw new RuntimeException("It fails");
         });

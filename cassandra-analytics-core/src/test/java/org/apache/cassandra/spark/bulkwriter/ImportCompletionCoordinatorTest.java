@@ -241,11 +241,11 @@ class ImportCompletionCoordinatorTest
     }
 
     @Test
-    void testAwaitShouldBlockUntilClSatisfiedWhenIdealTimeoutIsLow()
+    void testAwaitShouldBlockUntilClSatisfiedWhenTimeoutIsLow()
     {
-        // it should produce a really large estimate; the coordinator ignores it anyway due to small ideal timeout
+        // it should produce a really large estimate; the coordinator ignores it anyway due to small  timeout
         when(mockJobInfo.importCoordinatorTimeoutMultiplier()).thenReturn(1000.0);
-        when(mockJobInfo.jobTimeoutSeconds()).thenReturn(1L); // low ideal timeout lead to immediate termination as soon as CL is satisfied
+        when(mockJobInfo.jobTimeoutSeconds()).thenReturn(1L); // low  timeout lead to immediate termination as soon as CL is satisfied
         List<BlobStreamResult> resultList = buildBlobStreamResultWithNoProgressImports(/* Stuck slice per replica set */ 1, /* importTimeMillis */ 100L);
         ImportCompletionCoordinator coordinator = ImportCompletionCoordinator.of(System.nanoTime(), mockWriterContext, dataTransferApi,
                                                                                  writerValidator, resultList, mockExtension, onCancelJob);
@@ -255,19 +255,19 @@ class ImportCompletionCoordinatorTest
                      "All objects should be applied and reported for exactly once");
         assertEquals(allTestObjectKeys(), new HashSet<>(appliedObjectKeys.getAllValues()));
         Map<CompletableFuture<Void>, RequestAndInstance> importFutures = coordinator.importFutures();
-        // all the other imports should be cancelled, given ideal timeout has exceeded
+        // all the other imports should be cancelled, given  timeout has exceeded
         int cancelledImports = importFutures.keySet().stream().mapToInt(f -> f.isCancelled() ? 1 : 0).sum();
         assertEquals(TOTAL_INSTANCES, cancelledImports,
                      "Each replica set should have a slice gets cancelled due to making no progress");
     }
 
     @Test
-    void testAwaitShouldBlockUntilIdealTimeoutExceeds()
+    void testAwaitShouldBlockUntilTimeoutExceeds()
     {
-        // it should produce a really large estimate; the coordinator ignores it anyway due to small ideal timeout
+        // it should produce a really large estimate; the coordinator ignores it anyway due to small  timeout
         when(mockJobInfo.importCoordinatorTimeoutMultiplier()).thenReturn(1000.0);
-        long idealTimeout = 5L;
-        when(mockJobInfo.jobTimeoutSeconds()).thenReturn(idealTimeout); // await at most 10 seconds
+        long timeout = 5L;
+        when(mockJobInfo.jobTimeoutSeconds()).thenReturn(timeout);
         List<BlobStreamResult> resultList = buildBlobStreamResultWithNoProgressImports(/* Stuck slice per replica set */ 1, /* importTimeMillis */ 100L);
         long startNanos = System.nanoTime();
         ImportCompletionCoordinator coordinator = ImportCompletionCoordinator.of(startNanos, mockWriterContext, dataTransferApi,
@@ -277,12 +277,12 @@ class ImportCompletionCoordinatorTest
                      "All objects should be applied and reported for exactly once");
         assertEquals(allTestObjectKeys(), new HashSet<>(appliedObjectKeys.getAllValues()));
         Map<CompletableFuture<Void>, RequestAndInstance> importFutures = coordinator.importFutures();
-        // all the other imports should be cancelled, given ideal timeout has exceeded
+        // all the other imports should be cancelled, given  timeout has exceeded
         int cancelledImports = importFutures.keySet().stream().mapToInt(f -> f.isCancelled() ? 1 : 0).sum();
         assertEquals(TOTAL_INSTANCES, cancelledImports,
                      "Each replica set should have a slice gets cancelled due to making no progress");
-        assertTrue(System.nanoTime() - startNanos > TimeUnit.SECONDS.toNanos(idealTimeout),
-                   "ImportCompletionCoordinator should wait for at least " + idealTimeout + " seconds");
+        assertTrue(System.nanoTime() - startNanos > TimeUnit.SECONDS.toNanos(timeout),
+                   "ImportCompletionCoordinator should wait for at least " + timeout + " seconds");
     }
 
     @Test
@@ -329,21 +329,21 @@ class ImportCompletionCoordinatorTest
         double importCoordinatorTimeoutMultiplier = 1;
         double minSliceSize = 100;
         double maxSliceSize = 200;
-        long jobIdealTimeoutSeconds = 0;
+        long jobTimeoutSeconds = 0;
 
 
         long estimatedTimeout = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
                                                      importCoordinatorTimeoutMultiplier,
                                                      minSliceSize, maxSliceSize,
-                                                     jobIdealTimeoutSeconds);
+                                                     jobTimeoutSeconds);
         assertEquals(0, estimatedTimeout,
-                     "jobIdealTimeoutSeconds is 0. It should not wait for any additional time");
+                     "jobTimeoutSeconds is 0. It should not wait for any additional time");
 
-        jobIdealTimeoutSeconds = Integer.MAX_VALUE;
+        jobTimeoutSeconds = Integer.MAX_VALUE;
         estimatedTimeout = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
                                                 importCoordinatorTimeoutMultiplier,
                                                 minSliceSize, maxSliceSize,
-                                                jobIdealTimeoutSeconds);
+                                                jobTimeoutSeconds);
         assertEquals(TimeUnit.SECONDS.toNanos(6), estimatedTimeout,
                      "It takes 3 seconds to achieve CL; Based on the size estimate, it should take 200 / 100 * 3 seconds in addition");
 
@@ -351,7 +351,7 @@ class ImportCompletionCoordinatorTest
         estimatedTimeout = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
                                                 importCoordinatorTimeoutMultiplier,
                                                 minSliceSize, maxSliceSize,
-                                                jobIdealTimeoutSeconds);
+                                                jobTimeoutSeconds);
         assertEquals(0, estimatedTimeout,
                      "When timeout multiplier is 0, there is no additional wait time");
 
@@ -359,7 +359,7 @@ class ImportCompletionCoordinatorTest
         estimatedTimeout = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
                                                 importCoordinatorTimeoutMultiplier,
                                                 minSliceSize, maxSliceSize,
-                                                jobIdealTimeoutSeconds);
+                                                jobTimeoutSeconds);
         assertEquals(TimeUnit.SECONDS.toNanos(3), estimatedTimeout,
                      "The estimate is 200 / 100 * 3 * 0.5 == 3");
     }

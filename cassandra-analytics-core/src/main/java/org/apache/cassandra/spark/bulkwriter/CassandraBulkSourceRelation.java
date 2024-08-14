@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -244,7 +245,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         {
             try
             {
-                onCloudStorageTransport(ignored -> simpleTaskScheduler.close());
+                simpleTaskScheduler.close();
                 writerContext.shutdown();
                 sqlContext().sparkContext().clearJobGroup();
             }
@@ -329,7 +330,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
             impl.setObjectFailureListener(storageTransportHandler);
             createRestoreJob(ctx);
             simpleTaskScheduler.schedulePeriodic("Extend lease",
-                                                 TimeUnit.MINUTES.toMillis(1),
+                                                 Duration.ofMinutes(1),
                                                  () -> extendLeaseForJob(ctx));
         });
     }
@@ -441,12 +442,11 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         long timeoutSeconds = writerContext.job().jobTimeoutSeconds();
         if (timeoutSeconds != -1)
         {
-            long timeoutMillis = TimeUnit.SECONDS.toMillis(timeoutSeconds);
             LOGGER.info("Scheduled job timeout. timeoutSeconds={}", timeoutSeconds);
-            simpleTaskScheduler.schedule("Job timeout", timeoutMillis, () -> {
+            simpleTaskScheduler.schedule("Job timeout", Duration.ofSeconds(timeoutSeconds), () -> {
                 ImportCompletionCoordinator coordinator = importCoordinator;
                 // only cancel on timeout when consistency level not reached
-                if (coordinator == null || !coordinator.hasConsistencyLevelReached())
+                if (coordinator == null || !coordinator.hasReachedConsistencyLevel())
                 {
                     cancelJob(new CancelJobEvent("Job times out after " + timeoutSeconds + " seconds"));
                 }

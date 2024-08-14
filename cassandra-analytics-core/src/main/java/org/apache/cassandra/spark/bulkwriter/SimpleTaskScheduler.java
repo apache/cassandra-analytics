@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Closeable;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -53,7 +54,7 @@ public class SimpleTaskScheduler implements Closeable
         this.isClosed = false;
     }
 
-    public synchronized void schedule(String name, long delayMillis, Runnable task)
+    public synchronized void schedule(String name, Duration delay, Runnable task)
     {
         if (isClosed() || isScheduled(name))
         {
@@ -61,12 +62,12 @@ public class SimpleTaskScheduler implements Closeable
         }
 
         ScheduledFuture<?> fut = scheduler.schedule(new NoThrow(name, task),
-                                                    delayMillis,
+                                                    delay.toMillis(),
                                                     TimeUnit.MILLISECONDS);
         scheduledTasks.put(name, fut);
     }
 
-    public synchronized void schedulePeriodic(String name, long taskIntervalMillis, Runnable task)
+    public synchronized void schedulePeriodic(String name, Duration interval, Runnable task)
     {
         if (isClosed() || isScheduled(name))
         {
@@ -74,8 +75,8 @@ public class SimpleTaskScheduler implements Closeable
         }
 
         ScheduledFuture<?> fut = scheduler.scheduleWithFixedDelay(new NoThrow(name, task),
-                                                                  taskIntervalMillis, // initial delay
-                                                                  taskIntervalMillis, // delay
+                                                                  interval.toMillis(), // initial delay
+                                                                  interval.toMillis(), // delay
                                                                   TimeUnit.MILLISECONDS);
         scheduledTasks.put(name, fut);
     }
@@ -112,6 +113,10 @@ public class SimpleTaskScheduler implements Closeable
             {
                 LOGGER.warn("Closing SimpleTaskScheduler times out");
             }
+            else
+            {
+                LOGGER.info("SimpleTaskScheduler is closed");
+            }
         }
         catch (InterruptedException ie)
         {
@@ -127,7 +132,7 @@ public class SimpleTaskScheduler implements Closeable
     {
         if (isClosed)
         {
-            LOGGER.info("SimpleTaskScheduler is already closed");
+            LOGGER.debug("SimpleTaskScheduler is already closed");
         }
         return isClosed;
     }
@@ -137,7 +142,7 @@ public class SimpleTaskScheduler implements Closeable
         boolean isScheduled = scheduledTasks.containsKey(name);
         if (isScheduled)
         {
-            LOGGER.info("The task has been scheduled already. task={}", name);
+            LOGGER.debug("The task has been scheduled already. task={}", name);
         }
         return isScheduled;
     }
