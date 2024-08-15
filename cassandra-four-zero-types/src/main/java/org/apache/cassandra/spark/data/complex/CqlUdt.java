@@ -60,6 +60,8 @@ import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class CqlUdt extends CqlType implements CqlField.CqlUdt
 {
@@ -133,7 +135,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setUDTValue(position, (UDTValue) value);
     }
@@ -153,7 +155,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    public Object convertForCqlWriter(Object value, CassandraVersion version)
+    public Object convertForCqlWriter(@NotNull Object value, CassandraVersion version)
     {
         if (value instanceof UDTValue)
         {
@@ -503,26 +505,26 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @SuppressWarnings("unchecked")
-    public static UDTValue toUserTypeValue(CassandraVersion version, CqlUdt udt, Object value)
+    public static UDTValue toUserTypeValue(CassandraVersion version, CqlUdt udt, @NotNull Object value)
     {
         Map<String, Object> values = (Map<String, Object>) value;
         UDTValue udtValue = UserTypeHelper.newUDTValue(toUserType(udt));
         int position = 0;
         for (CqlField field : udt.fields())
         {
-            setInnerValue(version, udtValue, (CqlType) field.type(), position++, values.get(field.name()));
+            setNullableInnerValue(version, udtValue, (CqlType) field.type(), position++, values.get(field.name()));
         }
         return udtValue;
     }
 
     // Set inner value for UDTs or Tuples
-    public static void setInnerValue(CassandraVersion version,
-                                     SettableByIndexData<?> udtValue,
-                                     CqlType type,
-                                     int position,
-                                     Object value)
+    public static void setNullableInnerValue(CassandraVersion version,
+                                             SettableByIndexData<?> udtValue,
+                                             CqlType type,
+                                             int position,
+                                             @Nullable Object value)
     {
-        type.setInnerValue(udtValue, position, type.convertForCqlWriter(value, version));
+        type.setNullableInnerValue(udtValue, position, value == null ? null : type.convertForCqlWriter(value, version));
     }
 
     public static UserType toUserType(CqlUdt udt)

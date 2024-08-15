@@ -73,7 +73,7 @@ public class Inet extends BinaryBased
     }
 
     @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setInet(position, (InetAddress) value);
     }

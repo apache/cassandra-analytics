@@ -22,8 +22,8 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +46,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
@@ -56,8 +57,10 @@ import org.mockito.Mockito;
 import scala.Tuple2;
 
 import static org.apache.cassandra.spark.bulkwriter.MockBulkWriterContext.DEFAULT_CASSANDRA_VERSION;
+import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.BOOLEAN;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
+import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.TEXT;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHAR;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCqlType;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -227,6 +230,34 @@ class RecordWriterTest
         writerContext.setSstableDataSizeInMB(1);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         validateSuccessfulWrite(writerContext, data, columnNames);
+    }
+
+    @Test
+    void test() throws InterruptedException
+    {
+        String[] pk = {"pk1", "pk2"};
+        String[] columnNames = {"pk1", "pk2", "c1", "c2"};
+        Pair<StructType, ImmutableMap<String, CqlField.CqlType>> validPair = TableSchemaTestCommon.buildMatchedDataframeAndCqlColumns(
+        columnNames,
+        new DataType[]{DataTypes.StringType, DataTypes.StringType, DataTypes.StringType, DataTypes.BooleanType},
+        new CqlField.CqlType[]{mockCqlType(TEXT), mockCqlType(TEXT), mockCqlType(TEXT), mockCqlType(BOOLEAN)});
+
+        Tokenizer tokenizer = new Tokenizer(Arrays.asList(0, 1), Arrays.asList(pk), Arrays.asList(ColumnTypes.STRING, ColumnTypes.STRING), true);
+
+        MockBulkWriterContext writerContext = new MockBulkWriterContext(tokenRangeMapping,
+                                                                        DEFAULT_CASSANDRA_VERSION,
+                                                                        ConsistencyLevel.CL.LOCAL_QUORUM,
+                                                                        validPair,
+                                                                        pk,
+                                                                        pk,
+                                                                        false);
+        writerContext.setSstableDataSizeInMB(1);
+        Object[] row = new Object[] { "pk1v", "pk2v", "c1v", null };
+        Iterator<Tuple2<DecoratedKey, Object[]>> data = Arrays.asList(Tuple2.apply(new DecoratedKey(BigInteger.ONE, tokenizer.getDecoratedKey(row).getKey()), row)).iterator();
+
+        rw = new RecordWriter(writerContext, columnNames, () -> tc, SortedSSTableWriter::new);
+        WriteResult wr = rw.write(data);
+        System.out.println(wr);
     }
 
     @Test

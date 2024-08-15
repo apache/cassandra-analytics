@@ -203,7 +203,7 @@ public class CqlTuple extends CqlCollection implements CqlField.CqlTuple
     }
 
     @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setTupleValue(position, toTupleValue(CassandraVersion.FOURZERO, this, value));
     }
@@ -237,7 +237,7 @@ public class CqlTuple extends CqlCollection implements CqlField.CqlTuple
         Object[] array = (Object[]) value;
         for (int position = 0; position < array.length; position++)
         {
-            CqlUdt.setInnerValue(version, tupleValue, (CqlType) tuple.type(position), position, array[position]);
+            CqlUdt.setNullableInnerValue(version, tupleValue, (CqlType) tuple.type(position), position, array[position]);
         }
         return tupleValue;
     }

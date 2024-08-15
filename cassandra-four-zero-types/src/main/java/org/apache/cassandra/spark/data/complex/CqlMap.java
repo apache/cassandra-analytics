@@ -174,7 +174,7 @@ public class CqlMap extends CqlCollection implements CqlField.CqlMap
     }
 
     @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setMap(position, (Map<?, ?>) value);
     }

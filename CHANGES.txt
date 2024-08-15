@@ -1,4 +1,5 @@
 1.0.0
+ * Fix NPE when writing UDT values (CASSANDRA-19836)
  * Add job_timeout_seconds writer option (CASSANDRA-19827)
  * Prevent double closing sstable writer (CASSANDRA-19821)
  * Stream sstable eagerly when bulk writing to reclaim local disk space sooner (CASSANDRA-19806)

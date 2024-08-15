@@ -30,6 +30,8 @@ import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public abstract class CqlType implements CqlField.CqlType
 {
@@ -106,10 +108,33 @@ public abstract class CqlType implements CqlField.CqlType
         throw CqlField.notImplemented(this);
     }
 
-    // Set inner value for UDTs or Tuples
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    /**
+     * Set inner value for UDTs or Tuples
+     * @param udtValue udtValue to update
+     * @param position position in the vdtValue to set
+     * @param value value to set; the value is guaranteed to not be null
+     */
+    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, @NotNull Object value)
     {
         throw CqlField.notImplemented(this);
+    }
+
+    /**
+     * Set nullable inner value at the position for UDTs or Tuples
+     * @param udtValue udtValue to update
+     * @param position position in the vdtValue to set
+     * @param value nullable value to set
+     */
+    public final void setNullableInnerValue(SettableByIndexData<?> udtValue, int position, @Nullable Object value)
+    {
+        if (value == null)
+        {
+            udtValue.setToNull(position);
+        }
+        else
+        {
+            setInnerValue(udtValue, position, value);
+        }
     }
 
     @Override

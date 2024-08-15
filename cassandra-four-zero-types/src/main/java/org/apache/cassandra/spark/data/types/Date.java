@@ -105,7 +105,7 @@ public class Date extends NativeType
     }
 
     @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setDate(position, (LocalDate) value);
     }

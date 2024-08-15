@@ -87,7 +87,7 @@ public class Timestamp extends NativeType
     }
 
     @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setTimestamp(position, (java.util.Date) value);
     }

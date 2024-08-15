@@ -78,7 +78,7 @@ public class TinyInt extends NativeType
     }
 
     @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setByte(position, (byte) value);
     }
