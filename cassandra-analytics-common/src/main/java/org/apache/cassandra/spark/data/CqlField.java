@@ -44,7 +44,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
 {
     private static final long serialVersionUID = 42L;
 
-    private static final Comparator<String> STRING_COMPARATOR = String::compareTo;
+    public static final Comparator<String> STRING_COMPARATOR = String::compareTo;
     public static final Comparator<Byte> BYTE_COMPARATOR = CqlField::compareBytes;
     public static final Comparator<Long> LONG_COMPARATOR = Long::compareTo;
     public static final Comparator<Integer> INTEGER_COMPARATOR = Integer::compareTo;
@@ -97,6 +97,9 @@ public class CqlField implements Serializable, Comparable<CqlField>
             return false;
         }
 
+        /**
+         * @return true if type is complex.
+         */
         default boolean isComplex()
         {
             return false;
@@ -109,16 +112,16 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
         default Object deserializeToType(TypeConverter converter, ByteBuffer buffer, boolean isFrozen)
         {
-            Object value = deserializeToJava(buffer, isFrozen);
+            Object value = deserializeToJavaType(buffer, isFrozen);
             return value != null ? converter.convert(this, value, isFrozen) : null;
         }
 
-        default Object deserializeToJava(ByteBuffer buffer)
+        default Object deserializeToJavaType(ByteBuffer buffer)
         {
-            return deserializeToJava(buffer, isFrozen());
+            return deserializeToJavaType(buffer, isFrozen());
         }
 
-        Object deserializeToJava(ByteBuffer buffer, boolean isFrozen);
+        Object deserializeToJavaType(ByteBuffer buffer, boolean isFrozen);
 
         ByteBuffer serialize(Object value);
 
@@ -349,7 +352,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
     public Object deserializeToJava(ByteBuffer buffer)
     {
-        return type().deserializeToJava(buffer, false);
+        return type().deserializeToJavaType(buffer, false);
     }
 
     /**
@@ -361,7 +364,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
      */
     public Object deserializeToJava(ByteBuffer buffer, boolean isFrozen)
     {
-        return type().deserializeToJava(buffer, isFrozen);
+        return type().deserializeToJavaType(buffer, isFrozen);
     }
 
     public ByteBuffer serialize(Object value)

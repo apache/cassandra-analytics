@@ -24,7 +24,7 @@ import org.jetbrains.annotations.NotNull;
 public interface TypeConverter
 {
     /**
-     * Converts Cassandra native value to desired equivalent.
+     * Converts deserialized Cassandra Java value to desired equivalent type.
      * E.g. SparkSQL uses `org.apache.spark.unsafe.types.UTF8String` to wrap strings.
      * E.g. SparkSQL starts counting dates from 1970-01-01 = 0, but Cassandra starts at 1970-01-01 = Integer.MIN_VALUE.
      *

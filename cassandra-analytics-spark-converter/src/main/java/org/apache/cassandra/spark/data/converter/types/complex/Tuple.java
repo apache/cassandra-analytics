@@ -73,7 +73,7 @@ public class Tuple implements CollectionTrait
         if (value instanceof ByteBuffer)
         {
             // Need to deserialize first, e.g. if tuple is frozen inside collections
-            return toSparkSqlType(tuple.deserializeToJava((ByteBuffer) value), isFrozen);
+            return toSparkSqlType(tuple.deserializeToJavaType((ByteBuffer) value), isFrozen);
         }
         else
         {

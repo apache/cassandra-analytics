@@ -158,8 +158,8 @@ public class DataTypeSerializationTests
             qt().forAll(integers().all())
                 .checkAssert(integer -> assertEquals((long) integer, bridge.bigint().deserializeToType(bridge.typeConverter(),
                                                                                                        bridge.bigint().serialize((long) integer))));
-            assertEquals(Long.MAX_VALUE, bridge.bigint().deserializeToJava(bridge.bigint().serialize(Long.MAX_VALUE)));
-            assertEquals(Long.MIN_VALUE, bridge.bigint().deserializeToJava(bridge.bigint().serialize(Long.MIN_VALUE)));
+            assertEquals(Long.MAX_VALUE, bridge.bigint().deserializeToJavaType(bridge.bigint().serialize(Long.MAX_VALUE)));
+            assertEquals(Long.MIN_VALUE, bridge.bigint().deserializeToJavaType(bridge.bigint().serialize(Long.MIN_VALUE)));
             qt().withExamples(MAX_TESTS)
                 .forAll(longs().all())
                 .checkAssert(aLong -> assertEquals(aLong, bridge.bigint().deserializeToType(bridge.typeConverter(),

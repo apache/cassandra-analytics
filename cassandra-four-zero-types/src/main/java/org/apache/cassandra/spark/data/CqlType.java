@@ -45,7 +45,7 @@ public abstract class CqlType implements CqlField.CqlType
     public abstract AbstractType<?> dataType(boolean isMultiCell);
 
     @Override
-    public Object deserializeToJava(ByteBuffer buffer, boolean isFrozen)
+    public Object deserializeToJavaType(ByteBuffer buffer, boolean isFrozen)
     {
         return serializer().deserialize(buffer);
     }

@@ -59,7 +59,7 @@ public class PartitionKeyTests
             Object value = partitionKeyType.randomValue(100);
             String string = ((CqlType) partitionKeyType).serializer().toString(value);
             ByteBuffer buffer = BRIDGE.buildPartitionKey(table, Collections.singletonList(string));
-            Object cassandraValue = partitionKeyType.deserializeToJava(buffer);
+            Object cassandraValue = partitionKeyType.deserializeToJavaType(buffer);
 
             // compare using Cassandra types
             assertTrue(ComparisonUtils.equals(value, cassandraValue));
@@ -96,8 +96,8 @@ public class PartitionKeyTests
             assertEquals(3, buffers.length);
 
             assertEquals(columnA, buffers[0].getInt());
-            assertEquals(columnB, partitionKeyType.deserializeToJava(buffers[1]));
-            assertEquals(columnC, BRIDGE.typeConverter().toSparkType(BRIDGE.text()).toTestRowType(BRIDGE.text().deserializeToJava(buffers[2])));
+            assertEquals(columnB, partitionKeyType.deserializeToJavaType(buffers[1]));
+            assertEquals(columnC, BRIDGE.typeConverter().toSparkType(BRIDGE.text()).toTestRowType(BRIDGE.text().deserializeToJavaType(buffers[2])));
         });
     }
 }

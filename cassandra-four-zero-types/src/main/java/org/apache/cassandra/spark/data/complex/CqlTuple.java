@@ -77,7 +77,7 @@ public class CqlTuple extends CqlCollection implements CqlField.CqlTuple
     }
 
     @Override
-    public Object deserializeToJava(ByteBuffer buffer, boolean isFrozen)
+    public Object deserializeToJavaType(ByteBuffer buffer, boolean isFrozen)
     {
         return deserializeTuple((cqlType, value, isFrozen1) -> value, buffer, isFrozen);
     }
@@ -126,7 +126,7 @@ public class CqlTuple extends CqlCollection implements CqlField.CqlTuple
                 break;
             }
             int length = buffer.getInt();
-            Object val = length > 0 ? type.deserializeToJava(ByteBufferUtils.readBytes(buffer, length), isFrozen) : null;
+            Object val = length > 0 ? type.deserializeToJavaType(ByteBufferUtils.readBytes(buffer, length), isFrozen) : null;
             result[position++] = val != null ? converter.convert(type, val, isFrozen) : null;
         }
         return result;
