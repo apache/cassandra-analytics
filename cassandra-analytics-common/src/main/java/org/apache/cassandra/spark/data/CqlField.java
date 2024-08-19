@@ -213,7 +213,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
     {
         ByteBuffer serializeTuple(Object[] values);
 
-        Object[] deserializeTuple(TypeConverter converter, ByteBuffer buffer, boolean isFrozen);
+        Object[] deserializeTuple(ByteBuffer buffer, boolean isFrozen);
     }
 
     public interface CqlFrozen extends CqlType

@@ -566,7 +566,7 @@ public class DataTypeSerializationTests
                     Object[] expected = (Object[]) tuple.randomValue();
                     assert expected != null;
                     ByteBuffer buffer = tuple.serializeTuple(expected);
-                    Object[] actual = tuple.deserializeTuple(bridge.typeConverter(), buffer, false);
+                    Object[] actual = tuple.deserializeTuple(buffer, false);
                     assertEquals(expected.length, actual.length);
                     for (int index = 0; index < expected.length; index++)
                     {
