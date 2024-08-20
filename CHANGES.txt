@@ -1,4 +1,5 @@
 1.0.0
+ * Decouple Cassandra types from Spark types so Cassandra types can be used independently from Spark (CASSANDRA-19815)
  * Fix NPE when writing UDT values (CASSANDRA-19836)
  * Add job_timeout_seconds writer option (CASSANDRA-19827)
  * Prevent double closing sstable writer (CASSANDRA-19821)
