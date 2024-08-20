@@ -203,7 +203,7 @@ public class CqlTuple extends CqlCollection implements CqlField.CqlTuple
     }
 
     @Override
-    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setTupleValue(position, toTupleValue(CassandraVersion.FOURZERO, this, value));
     }

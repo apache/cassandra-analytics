@@ -41,7 +41,7 @@ public class BigInt extends LongBased
     }
 
     @Override
-    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setLong(position, (long) value);
     }

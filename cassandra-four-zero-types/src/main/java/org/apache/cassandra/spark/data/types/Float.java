@@ -78,7 +78,7 @@ public class Float extends NativeType
     }
 
     @Override
-    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setFloat(position, (float) value);
     }

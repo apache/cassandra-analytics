@@ -41,7 +41,7 @@ public class Time extends LongBased
     }
 
     @Override
-    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setTime(position, (long) value);
     }

@@ -78,7 +78,7 @@ public class SmallInt extends NativeType
     }
 
     @Override
-    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setShort(position, (short) value);
     }

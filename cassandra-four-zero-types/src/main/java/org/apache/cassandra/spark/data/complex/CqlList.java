@@ -116,7 +116,7 @@ public class CqlList extends CqlCollection implements CqlField.CqlList
     }
 
     @Override
-    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setList(position, (List<?>) value);
     }

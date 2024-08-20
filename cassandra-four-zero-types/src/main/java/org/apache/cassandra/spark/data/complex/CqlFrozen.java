@@ -163,9 +163,9 @@ public class CqlFrozen extends CqlType implements CqlField.CqlFrozen
     }
 
     @Override
-    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
-        ((CqlType) inner()).setNullableInnerValue(udtValue, position, value);
+        ((CqlType) inner()).setInnerValue(udtValue, position, value);
     }
 
     @Override

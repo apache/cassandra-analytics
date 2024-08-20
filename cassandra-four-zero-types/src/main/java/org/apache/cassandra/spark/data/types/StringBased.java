@@ -93,7 +93,7 @@ public abstract class StringBased extends NativeType
     }
 
     @Override
-    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setString(position, (String) value);
     }

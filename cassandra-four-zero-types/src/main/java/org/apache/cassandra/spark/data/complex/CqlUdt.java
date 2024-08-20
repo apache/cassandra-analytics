@@ -135,7 +135,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setUDTValue(position, (UDTValue) value);
     }
@@ -524,7 +524,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
                                              int position,
                                              @Nullable Object value)
     {
-        type.setNullableInnerValue(udtValue, position, value == null ? null : type.convertForCqlWriter(value, version));
+        type.setInnerValue(udtValue, position, value == null ? null : type.convertForCqlWriter(value, version));
     }
 
     public static UserType toUserType(CqlUdt udt)

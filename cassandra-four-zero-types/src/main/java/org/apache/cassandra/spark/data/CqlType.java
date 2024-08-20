@@ -114,7 +114,7 @@ public abstract class CqlType implements CqlField.CqlType
      * @param position position in the vdtValue to set
      * @param value value to set; the value is guaranteed to not be null
      */
-    protected void setInnerValue(SettableByIndexData<?> udtValue, int position, @NotNull Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, @NotNull Object value)
     {
         throw CqlField.notImplemented(this);
     }
@@ -125,7 +125,7 @@ public abstract class CqlType implements CqlField.CqlType
      * @param position position in the vdtValue to set
      * @param value nullable value to set
      */
-    public final void setNullableInnerValue(SettableByIndexData<?> udtValue, int position, @Nullable Object value)
+    public final void setInnerValue(SettableByIndexData<?> udtValue, int position, @Nullable Object value)
     {
         if (value == null)
         {
@@ -133,7 +133,7 @@ public abstract class CqlType implements CqlField.CqlType
         }
         else
         {
-            setInnerValue(udtValue, position, value);
+            setInnerValueInternal(udtValue, position, value);
         }
     }
 
