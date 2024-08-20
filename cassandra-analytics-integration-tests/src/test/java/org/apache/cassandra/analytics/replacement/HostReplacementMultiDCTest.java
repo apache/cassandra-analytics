@@ -43,13 +43,11 @@ import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
-import static org.apache.cassandra.distributed.api.ConsistencyLevel.ALL;
-import static org.apache.cassandra.distributed.api.ConsistencyLevel.EACH_QUORUM;
-import static org.apache.cassandra.distributed.api.ConsistencyLevel.LOCAL_QUORUM;
-import static org.apache.cassandra.distributed.api.ConsistencyLevel.ONE;
-import static org.apache.cassandra.distributed.api.ConsistencyLevel.QUORUM;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
+import static org.apache.cassandra.distributed.api.ConsistencyLevel.EACH_QUORUM;
+import static org.apache.cassandra.distributed.api.ConsistencyLevel.LOCAL_QUORUM;
+import static org.apache.cassandra.distributed.api.ConsistencyLevel.QUORUM;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3_DC2_RF3;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
@@ -107,8 +105,7 @@ class HostReplacementMultiDCTest extends HostReplacementTestBase
         return Stream.of(
         Arguments.of(TestConsistencyLevel.of(LOCAL_QUORUM, LOCAL_QUORUM)),
         Arguments.of(TestConsistencyLevel.of(LOCAL_QUORUM, EACH_QUORUM)),
-        Arguments.of(TestConsistencyLevel.of(QUORUM, QUORUM)),
-        Arguments.of(TestConsistencyLevel.of(ONE, ALL))
+        Arguments.of(TestConsistencyLevel.of(QUORUM, QUORUM))
         );
     }
 

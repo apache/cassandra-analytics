@@ -19,35 +19,23 @@
 
 package org.apache.cassandra.spark.common.model;
 
-import org.apache.cassandra.spark.data.model.TokenOwner;
-
-public interface CassandraInstance extends TokenOwner
+public enum NodeStatus
 {
-    String nodeName();
+    UP,
+    DOWN,
+    UNKNOWN;
 
-    String datacenter();
-
-    /**
-     * IP address string of a Cassandra instance.
-     * Mainly used in blocked instance list to identify instances.
-     * Prefer to use {@link #ipAddressWithPort} as instance identifier,
-     * unless knowing the compared is IP address without port for sure.
-     */
-    String ipAddress();
-
-    /**
-     * Equivalent to EndpointWithPort in Cassandra
-     * @return ip address with port string in the format, "ip:port"
-     */
-    String ipAddressWithPort();
-
-    /**
-     * @return state of the node
-     */
-    NodeState nodeState();
-
-    /**
-     * @return status of the node
-     */
-    NodeStatus nodeStatus();
+    public static NodeStatus fromNameIgnoreCase(String name)
+    {
+        String uppercase = name.toUpperCase();
+        try
+        {
+            return valueOf(uppercase);
+        }
+        catch (Exception ex)
+        {
+            // default to UNKNOWN
+            return UNKNOWN;
+        }
+    }
 }

@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
@@ -40,7 +41,9 @@ import org.apache.cassandra.spark.bulkwriter.RingInstance;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.jetbrains.annotations.Nullable;
 
+// TODO: refactor to improve the return types of methods to use `Instance` instead of String and cleanup
 public class TokenRangeMapping<Instance extends CassandraInstance> implements Serializable
 {
     private static final long serialVersionUID = -7284933683815811160L;
@@ -137,6 +140,31 @@ public class TokenRangeMapping<Instance extends CassandraInstance> implements Se
         return new HashSet<>(pendingReplicasByDC.get(datacenter));
     }
 
+    /**
+     * Get the write replicas of sub-ranges that overlap with the input range.
+     *
+     * @param range range to check. The range can potentially overlap with multiple ranges.
+     *              For example, a down node adds one failure of a token range that covers multiple primary token ranges that replicate to it.
+     * @param localDc local DC name to filter out non-local-DC instances. The parameter is optional. When not present, i.e. null, no filtering is applied
+     * @return the write replicas of sub-ranges
+     */
+    public Map<Range<BigInteger>, Set<Instance>> getWriteReplicasOfRange(Range<BigInteger> range, @Nullable String localDc)
+    {
+        Map<Range<BigInteger>, List<Instance>> subRangeReplicas = replicasByTokenRange.subRangeMap(range).asMapOfRanges();
+        Function<List<Instance>, Set<Instance>> inDcInstances = instances -> {
+            if (localDc != null)
+            {
+                return instances.stream()
+                                .filter(instance -> instance.datacenter().equalsIgnoreCase(localDc))
+                                .collect(Collectors.toSet());
+            }
+            return new HashSet<>(instances);
+        };
+        return subRangeReplicas.entrySet()
+                               .stream()
+                               .collect(Collectors.toMap(Map.Entry::getKey, entry -> inDcInstances.apply(entry.getValue())));
+    }
+
     public Set<String> getWriteReplicas()
     {
         return (writeReplicasByDC == null || writeReplicasByDC.isEmpty())
@@ -168,7 +196,7 @@ public class TokenRangeMapping<Instance extends CassandraInstance> implements Se
     public Set<String> getReplacementInstances()
     {
         return replacementInstances.stream()
-                                   .map(RingInstance::ipAddress)
+                                   .map(RingInstance::ipAddressWithPort)
                                    .collect(Collectors.toSet());
     }
 
@@ -176,7 +204,7 @@ public class TokenRangeMapping<Instance extends CassandraInstance> implements Se
     {
         return replacementInstances.stream()
                                    .filter(r -> r.datacenter().equalsIgnoreCase(datacenter))
-                                   .map(RingInstance::ipAddress)
+                                   .map(RingInstance::ipAddressWithPort)
                                    .collect(Collectors.toSet());
     }
 

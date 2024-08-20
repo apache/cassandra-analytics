@@ -357,7 +357,7 @@ public final class ImportCompletionCoordinator
         // it either passes or throw if consistency level cannot be satisfied
         try
         {
-            writeValidator.validateClOrFail(cassandraTopologyMonitor.initialTopology());
+            writeValidator.validateClOrFail(cassandraTopologyMonitor.initialTopology(), false);
         }
         catch (RuntimeException rte)
         {

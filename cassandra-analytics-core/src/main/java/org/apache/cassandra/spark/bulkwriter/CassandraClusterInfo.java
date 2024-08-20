@@ -34,6 +34,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -60,8 +62,10 @@ import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.client.InstanceState;
 import org.apache.cassandra.spark.common.client.InstanceStatus;
+import org.apache.cassandra.spark.common.model.NodeState;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.FutureUtils;
 import org.jetbrains.annotations.NotNull;
@@ -227,10 +231,18 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         return schemaResponse.schema();
     }
 
-    private TokenRangeReplicasResponse getTokenRangesAndReplicaSets() throws ExecutionException, InterruptedException
+    private TokenRangeReplicasResponse getTokenRangesAndReplicaSets()
     {
         CassandraContext context = getCassandraContext();
-        return context.getSidecarClient().tokenRangeReplicas(new ArrayList<>(context.getCluster()), conf.keyspace).get();
+        try
+        {
+            return context.getSidecarClient().tokenRangeReplicas(new ArrayList<>(context.getCluster()), conf.keyspace).get();
+        }
+        catch (ExecutionException | InterruptedException exception)
+        {
+            LOGGER.error("Failed to get token ranges for keyspace {}", conf.keyspace, exception);
+            throw new SidecarApiCallException("Failed to get token ranges for keyspace" + conf.keyspace, exception);
+        }
     }
 
     private Set<String> readReplicasFromTokenRangeResponse(TokenRangeReplicasResponse response)
@@ -381,67 +393,66 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     private TokenRangeMapping<RingInstance> getTokenRangeReplicas()
     {
+        return getTokenRangeReplicas(this::getTokenRangesAndReplicaSets,
+                                     this::getPartitioner,
+                                     this::getReplicationFactor,
+                                     this::instanceIsBlocked);
+    }
+
+    @VisibleForTesting
+    static TokenRangeMapping<RingInstance> getTokenRangeReplicas(Supplier<TokenRangeReplicasResponse> topologySupplier,
+                                                                 Supplier<Partitioner> partitionerSupplier,
+                                                                 Supplier<ReplicationFactor> replicationFactorSupplier,
+                                                                 Predicate<? super RingInstance> blockedInstancePredicate)
+    {
+        long start = System.nanoTime();
+        TokenRangeReplicasResponse response = topologySupplier.get();
+        long elapsedTimeNanos = System.nanoTime() - start;
+        Multimap<RingInstance, Range<BigInteger>> tokenRangesByInstance = getTokenRangesByInstance(response.writeReplicas(),
+                                                                                                   response.replicaMetadata());
+        LOGGER.info("Retrieved token ranges for {} instances from write replica set in {} milliseconds",
+                    tokenRangesByInstance.size(),
+                    TimeUnit.NANOSECONDS.toMillis(elapsedTimeNanos));
+
+        Set<RingInstance> instances = response.replicaMetadata()
+                                              .values()
+                                              .stream()
+                                              .map(RingInstance::new)
+                                              .collect(Collectors.toSet());
+
+        Set<RingInstance> replacementInstances = instances.stream()
+                                                          .filter(i -> i.nodeState() == NodeState.REPLACING)
+                                                          .collect(Collectors.toSet());
+
+        Set<RingInstance> blockedInstances = instances.stream()
+                                                      .filter(blockedInstancePredicate)
+                                                      .collect(Collectors.toSet());
+
+        Set<String> blockedIps = blockedInstances.stream().map(i -> i.ringInstance().address())
+                                                 .collect(Collectors.toSet());
+
+        // Each token range has hosts by DC. We collate them across all ranges into all hosts by DC
         Map<String, Set<String>> writeReplicasByDC;
-        Map<String, Set<String>> pendingReplicasByDC;
-        Map<String, ReplicaMetadata> replicaMetadata;
-        Set<RingInstance> blockedInstances;
-        Set<RingInstance> replacementInstances;
-        Multimap<RingInstance, Range<BigInteger>> tokenRangesByInstance;
-        try
+        writeReplicasByDC = response.writeReplicas()
+                                    .stream()
+                                    .flatMap(wr -> wr.replicasByDatacenter().entrySet().stream())
+                                    .collect(Collectors.toMap(Map.Entry::getKey, e -> new HashSet<>(e.getValue()),
+                                                              (l1, l2) -> filterAndMergeInstances(l1, l2, blockedIps)));
+
+        Map<String, Set<String>> pendingReplicasByDC = getPendingReplicas(response, writeReplicasByDC);
+
+        if (LOGGER.isDebugEnabled())
         {
-            long start = System.nanoTime();
-            TokenRangeReplicasResponse response = getTokenRangesAndReplicaSets();
-            long elapsedTimeNanos = System.nanoTime() - start;
-            replicaMetadata = response.replicaMetadata();
-
-            tokenRangesByInstance = getTokenRangesByInstance(response.writeReplicas(), response.replicaMetadata());
-            LOGGER.info("Retrieved token ranges for {} instances from write replica set in {} nanoseconds",
-                        tokenRangesByInstance.size(),
-                        elapsedTimeNanos);
-
-            replacementInstances = response.replicaMetadata()
-                                           .values()
-                                           .stream()
-                                           .filter(m -> m.state().equalsIgnoreCase(InstanceState.REPLACING.name()))
-                                           .map(RingInstance::new)
-                                           .collect(Collectors.toSet());
-
-            blockedInstances = response.replicaMetadata()
-                                       .values()
-                                       .stream()
-                                       .map(RingInstance::new)
-                                       .filter(this::instanceIsBlocked)
-                                       .collect(Collectors.toSet());
-
-            Set<String> blockedIps = blockedInstances.stream().map(i -> i.ringInstance().address())
-                                                     .collect(Collectors.toSet());
-
-            // Each token range has hosts by DC. We collate them across all ranges into all hosts by DC
-            writeReplicasByDC = response.writeReplicas()
-                                        .stream()
-                                        .flatMap(wr -> wr.replicasByDatacenter().entrySet().stream())
-                                        .collect(Collectors.toMap(Map.Entry::getKey, e -> new HashSet<>(e.getValue()),
-                                                                  (l1, l2) -> filterAndMergeInstances(l1, l2, blockedIps)));
-
-            pendingReplicasByDC = getPendingReplicas(response, writeReplicasByDC);
-
-            if (LOGGER.isDebugEnabled())
-            {
-                LOGGER.debug("Fetched token-ranges with dcs={}, write_replica_count={}, pending_replica_count={}",
-                             writeReplicasByDC.keySet(),
-                             writeReplicasByDC.values().stream().flatMap(Collection::stream).collect(Collectors.toSet()).size(),
-                             pendingReplicasByDC.values().stream().flatMap(Collection::stream).collect(Collectors.toSet()).size());
-            }
-        }
-        catch (ExecutionException | InterruptedException exception)
-        {
-            LOGGER.error("Failed to get token ranges, ", exception);
-            throw new RuntimeException(exception);
+            LOGGER.debug("Fetched token-ranges with dcs={}, write_replica_count={}, pending_replica_count={}",
+                         writeReplicasByDC.keySet(),
+                         writeReplicasByDC.values().stream().flatMap(Collection::stream).collect(Collectors.toSet()).size(),
+                         pendingReplicasByDC.values().stream().flatMap(Collection::stream).collect(Collectors.toSet()).size());
         }
 
+        Map<String, ReplicaMetadata> replicaMetadata = response.replicaMetadata();
         // Include availability info so CL checks can use it to exclude replacement hosts
-        return new TokenRangeMapping<>(getPartitioner(),
-                                       getReplicationFactor(),
+        return new TokenRangeMapping<>(partitionerSupplier.get(),
+                                       replicationFactorSupplier.get(),
                                        writeReplicasByDC,
                                        pendingReplicasByDC,
                                        tokenRangesByInstance,
@@ -450,7 +461,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                                        replacementInstances);
     }
 
-    private Set<String> filterAndMergeInstances(Set<String> instancesList1, Set<String> instancesList2, Set<String> blockedIPs)
+    private static Set<String> filterAndMergeInstances(Set<String> instancesList1, Set<String> instancesList2, Set<String> blockedIPs)
     {
         Set<String> merged = new HashSet<>();
         // Removes blocked instances. If this is included, remove blockedInstances from CL checks
@@ -460,7 +471,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         return merged;
     }
 
-    private Map<String, Set<String>> getPendingReplicas(TokenRangeReplicasResponse response, Map<String, Set<String>> writeReplicasByDC)
+    private static Map<String, Set<String>> getPendingReplicas(TokenRangeReplicasResponse response, Map<String, Set<String>> writeReplicasByDC)
     {
 
         Set<String> pendingReplicas = response.replicaMetadata()
@@ -478,7 +489,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         // Filter writeReplica entries and the value replicaSet to only include those with pending replicas
         return writeReplicasByDC.entrySet()
                                 .stream()
-                                .filter(e -> e.getValue().stream()
+                                .filter(e -> e.getValue().stream() // todo: transformToHostWithoutPort is called twice for entries
                                               .anyMatch(v -> pendingReplicas.contains(transformToHostWithoutPort(v))))
                                 .collect(Collectors.toMap(Map.Entry::getKey,
                                                           e -> e.getValue().stream()
@@ -486,13 +497,13 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                                                                 .collect(Collectors.toSet())));
     }
 
-    private String transformToHostWithoutPort(String v)
+    private static String transformToHostWithoutPort(String v)
     {
         return v.contains(":") ? v.split(":")[0] : v;
     }
 
-    private Multimap<RingInstance, Range<BigInteger>> getTokenRangesByInstance(List<ReplicaInfo> writeReplicas,
-                                                                               Map<String, ReplicaMetadata> replicaMetadata)
+    private static Multimap<RingInstance, Range<BigInteger>> getTokenRangesByInstance(List<ReplicaInfo> writeReplicas,
+                                                                                      Map<String, ReplicaMetadata> replicaMetadata)
     {
         Multimap<RingInstance, Range<BigInteger>> instanceToRangeMap = ArrayListMultimap.create();
         for (ReplicaInfo rInfo : writeReplicas)

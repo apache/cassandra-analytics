@@ -188,7 +188,7 @@ class ImportCompletionCoordinatorTest
                                        .waitForCompletion();
         });
         assertNotNull(exception.getMessage());
-        assertTrue(exception.getMessage().contains("Failed to load"));
+        assertTrue(exception.getMessage().contains("Failed to write"), "Actual error message: " + exception.getMessage());
         assertTrue(exception.getMessage().contains(errorMessage));
         assertNotNull(exception.getCause());
         validateAllSlicesWereCalledAtMostOnce(resultList);
@@ -407,8 +407,8 @@ class ImportCompletionCoordinatorTest
             int noProgressPerReplicaSet = noProgressInstanceCount;
             // create one distinct slice per instance
             CreateSliceRequestPayload mockCreateSliceRequestPayload = mock(CreateSliceRequestPayload.class);
-            when(mockCreateSliceRequestPayload.startToken()).thenReturn(BigInteger.valueOf(100 * i));
-            when(mockCreateSliceRequestPayload.endToken()).thenReturn(BigInteger.valueOf(100 * (1 + i)));
+            when(mockCreateSliceRequestPayload.startToken()).thenReturn(BigInteger.valueOf(100 * (i - 1)));
+            when(mockCreateSliceRequestPayload.endToken()).thenReturn(BigInteger.valueOf(100 * i));
             when(mockCreateSliceRequestPayload.sliceId()).thenReturn(UUID.randomUUID().toString());
             when(mockCreateSliceRequestPayload.key()).thenReturn("key_for_instance_" + i); // to be captured by extension mock
             when(mockCreateSliceRequestPayload.bucket()).thenReturn("bucket"); // to be captured by extension mock
@@ -495,8 +495,8 @@ class ImportCompletionCoordinatorTest
         return new RingInstance(new RingEntry.Builder()
                                 .datacenter("DC1")
                                 .address("127.0.0." + instanceInRing)
-                                .token(String.valueOf(i * 100))
-                                .fqdn("instance-" + instanceInRing)
+                                .token(String.valueOf(i * 100_000))
+                                .fqdn("DC1-i" + instanceInRing)
                                 .build());
     }
 }

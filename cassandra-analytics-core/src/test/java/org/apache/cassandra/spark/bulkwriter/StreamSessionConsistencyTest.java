@@ -45,6 +45,7 @@ import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 
@@ -52,6 +53,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class StreamSessionConsistencyTest
@@ -59,7 +61,8 @@ public class StreamSessionConsistencyTest
     private static final int NUMBER_DCS = 2;
     private static final int FILES_PER_SSTABLE = 8;
     private static final int REPLICATION_FACTOR = 3;
-    private static final List<String> EXPECTED_INSTANCES = ImmutableList.of("DC1-i1", "DC1-i2", "DC1-i3", "DC2-i1", "DC2-i2", "DC2-i3");
+    // range [101, 199] is replicated to those instances. i1 has token 0/1, which are before the range
+    private static final List<String> EXPECTED_INSTANCES = ImmutableList.of("DC1-i2", "DC1-i3", "DC1-i4", "DC2-i2", "DC2-i3", "DC2-i4");
     private static final Range<BigInteger> RANGE = Range.range(BigInteger.valueOf(101L), BoundType.CLOSED, BigInteger.valueOf(199L), BoundType.CLOSED);
     private static final TokenRangeMapping<RingInstance> TOKEN_RANGE_MAPPING =
     TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3, "DC2", 3), 6);
@@ -82,7 +85,7 @@ public class StreamSessionConsistencyTest
         return clsToFailures.stream().map(List::toArray).collect(Collectors.toList());
     }
 
-    private void setup(ConsistencyLevel.CL consistencyLevel, List<Integer> failuresPerDc)
+    private void setup(ConsistencyLevel.CL consistencyLevel)
     {
         digestAlgorithm = new XXHash32DigestAlgorithm();
         tableWriter = new MockTableWriter(folder);
@@ -96,20 +99,21 @@ public class StreamSessionConsistencyTest
                                                        List<Integer> failuresPerDc)
     throws IOException, ExecutionException, InterruptedException
     {
-        setup(consistencyLevel, failuresPerDc);
+        setup(consistencyLevel);
         AtomicInteger dc1Failures = new AtomicInteger(failuresPerDc.get(0));
         AtomicInteger dc2Failures = new AtomicInteger(failuresPerDc.get(1));
         ImmutableMap<String, AtomicInteger> dcFailures = ImmutableMap.of("DC1", dc1Failures, "DC2", dc2Failures);
         boolean shouldFail = calculateFailure(consistencyLevel, dc1Failures.get(), dc2Failures.get());
-        // Return successful result for 1st result, failed for the rest
         writerContext.setCommitResultSupplier((uuids, dc) -> {
             if (dcFailures.get(dc).getAndDecrement() > 0)
             {
-                return new DirectDataTransferApi.RemoteCommitResult(false, null, uuids, "");
+                // failure
+                return new DirectDataTransferApi.RemoteCommitResult(false, uuids, null, "");
             }
             else
             {
-                return new DirectDataTransferApi.RemoteCommitResult(true, uuids, null, "");
+                // success
+                return new DirectDataTransferApi.RemoteCommitResult(true, null, null, "");
             }
         });
         StreamSession<?> streamSession = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
@@ -118,7 +122,7 @@ public class StreamSessionConsistencyTest
         if (shouldFail)
         {
             ExecutionException exception = assertThrows(ExecutionException.class, fut::get);
-            assertEquals("Failed to load 1 ranges with " + consistencyLevel
+            assertEquals("Failed to write 1 ranges with " + consistencyLevel
                          + " for job " + writerContext.job().getId()
                          + " in phase UploadAndCommit.", exception.getCause().getMessage());
         }
@@ -143,7 +147,7 @@ public class StreamSessionConsistencyTest
                                                        List<Integer> failuresPerDc)
     throws IOException, ExecutionException, InterruptedException
     {
-        setup(consistencyLevel, failuresPerDc);
+        setup(consistencyLevel);
         AtomicInteger dc1Failures = new AtomicInteger(failuresPerDc.get(0));
         AtomicInteger dc2Failures = new AtomicInteger(failuresPerDc.get(1));
         int numFailures = dc1Failures.get() + dc2Failures.get();
@@ -156,7 +160,8 @@ public class StreamSessionConsistencyTest
         if (shouldFail)
         {
             ExecutionException exception = assertThrows(ExecutionException.class, fut::get);
-            assertEquals("Failed to load 1 ranges with " + consistencyLevel
+            assertInstanceOf(ConsistencyNotSatisfiedException.class, exception.getCause());
+            assertEquals("Failed to write 1 ranges with " + consistencyLevel
                          + " for job " + writerContext.job().getId()
                          + " in phase UploadAndCommit.", exception.getCause().getMessage());
         }

@@ -337,9 +337,10 @@ public class RecordWriter
         if (haveMappingsChanged)
         {
             Set<Range<BigInteger>> rangeDelta = symmetricDifference(startMapping.keySet(), endMapping.keySet());
-            Set<String> instanceDelta = symmetricDifference(initialInstances, endInstances).stream()
-                                                                                           .map(RingInstance::ipAddress)
-                                                                                           .collect(Collectors.toSet());
+            Set<String> instanceDelta = symmetricDifference(initialInstances, endInstances)
+                                        .stream()
+                                        .map(RingInstance::ipAddressWithPort)
+                                        .collect(Collectors.toSet());
             String message = String.format("[%s] Token range mappings have changed since the task started " +
                                            "with non-overlapping instances: %s and ranges: %s",
                                            partitionId,

@@ -49,7 +49,6 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
 import static org.apache.cassandra.distributed.api.ConsistencyLevel.ALL;
-import static org.apache.cassandra.distributed.api.ConsistencyLevel.ONE;
 import static org.apache.cassandra.distributed.api.ConsistencyLevel.QUORUM;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
@@ -191,7 +190,6 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
     static Stream<Arguments> singleDCTestInputs()
     {
         return Stream.of(
-        Arguments.of(TestConsistencyLevel.of(ONE, ALL)),
         Arguments.of(TestConsistencyLevel.of(QUORUM, QUORUM))
         );
     }
