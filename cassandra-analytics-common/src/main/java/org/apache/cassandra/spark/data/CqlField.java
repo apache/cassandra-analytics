@@ -350,7 +350,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
         return type().deserializeToType(converter, buffer, isFrozen);
     }
 
-    public Object deserializeToJava(ByteBuffer buffer)
+    public Object deserializeToJavaType(ByteBuffer buffer)
     {
         return type().deserializeToJavaType(buffer, false);
     }
@@ -362,7 +362,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
      * @param isFrozen true if the Cassandra type is frozen
      * @return deserialized object as stanard Java type.
      */
-    public Object deserializeToJava(ByteBuffer buffer, boolean isFrozen)
+    public Object deserializeToJavaType(ByteBuffer buffer, boolean isFrozen)
     {
         return type().deserializeToJavaType(buffer, isFrozen);
     }
