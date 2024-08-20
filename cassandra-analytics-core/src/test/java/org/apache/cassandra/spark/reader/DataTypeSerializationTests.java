@@ -41,6 +41,7 @@ import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.converter.types.SparkType;
 import org.apache.cassandra.spark.utils.RandomUtils;
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayBasedMapData;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.types.Decimal;
@@ -566,7 +567,8 @@ public class DataTypeSerializationTests
                     Object[] expected = (Object[]) tuple.randomValue();
                     assert expected != null;
                     ByteBuffer buffer = tuple.serializeTuple(expected);
-                    Object[] actual = tuple.deserializeTuple(buffer, false);
+                    GenericInternalRow row = (GenericInternalRow) bridge.typeConverter().convert(tuple, tuple.deserializeTuple(buffer, false));
+                    Object[] actual = row.values();
                     assertEquals(expected.length, actual.length);
                     for (int index = 0; index < expected.length; index++)
                     {
