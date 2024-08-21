@@ -27,6 +27,8 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.unsafe.types.UTF8String;
 import org.jetbrains.annotations.NotNull;
 
+import static org.apache.cassandra.spark.data.CqlField.STRING_COMPARATOR;
+
 public interface StringTraits extends SparkType
 {
     @Override
@@ -75,8 +77,7 @@ public interface StringTraits extends SparkType
     {
         if (first instanceof String && second instanceof String)
         {
-            first = UTF8String.fromString((String) first);
-            second = UTF8String.fromString((String) second);
+            return STRING_COMPARATOR.compare(first.toString(), second.toString());
         }
         return ((UTF8String) first).compare((UTF8String) second);
     }

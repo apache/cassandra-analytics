@@ -95,6 +95,8 @@ public interface ListTrait extends CollectionTrait
     @Override
     default int compareTo(Object first, Object second)
     {
-        return SparkType.compareArrays(((GenericArrayData) first).array(), ((GenericArrayData) second).array(), (pos) -> sparkType());
+        return SparkType.compareArrays(((GenericArrayData) first).array(),
+                                       ((GenericArrayData) second).array(),
+                                       (position) -> sparkType());
     }
 }

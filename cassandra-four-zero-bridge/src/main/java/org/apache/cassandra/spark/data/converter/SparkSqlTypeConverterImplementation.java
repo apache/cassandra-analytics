@@ -146,10 +146,6 @@ public class SparkSqlTypeConverterImplementation implements SparkSqlTypeConverte
 
     public Object convert(CqlField.CqlType cqlType, @NotNull Object value, boolean isFrozen)
     {
-        if (value == null)
-        {
-            return null;
-        }
         return getOrThrow(cqlType).toSparkSqlType(value, isFrozen);
     }
 

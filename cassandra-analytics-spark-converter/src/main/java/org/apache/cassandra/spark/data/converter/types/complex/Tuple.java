@@ -122,12 +122,16 @@ public class Tuple implements CollectionTrait
     @Override
     public boolean equalsTo(Object first, Object second)
     {
-        return SparkType.equalsArrays(((GenericInternalRow) first).values(), ((GenericInternalRow) second).values(), this::sparkType);
+        return SparkType.equalsArrays(((GenericInternalRow) first).values(),
+                                      ((GenericInternalRow) second).values(),
+                                      this::sparkType);
     }
 
     @Override
     public int compareTo(Object first, Object second)
     {
-        return SparkType.compareArrays(((GenericInternalRow) first).values(), ((GenericInternalRow) second).values(), this::sparkType);
+        return SparkType.compareArrays(((GenericInternalRow) first).values(),
+                                       ((GenericInternalRow) second).values(),
+                                       this::sparkType);
     }
 }

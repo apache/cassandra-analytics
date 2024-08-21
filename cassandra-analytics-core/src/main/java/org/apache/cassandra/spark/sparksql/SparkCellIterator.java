@@ -331,7 +331,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
             Object oldObj = values[field.position()];
             // Historically, we compare equality of clustering keys using the Spark types
             // to determine if we have moved to a new 'row'. We could also compare using the Cassandra types
-            // or the raw ByteBuffers before converting to Spark types.
+            // or the raw ByteBuffers before converting to Spark types to be slightly more performant.
             if (newRow || oldObj == null || newObj == null || !sparkSqlTypeConverter.toSparkType(field.type()).equals(newObj, oldObj))
             {
                 newRow = true;

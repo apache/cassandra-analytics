@@ -64,12 +64,12 @@ public class Map implements MapTrait
     {
         final Object[] keys = new Object[map.size()];
         final Object[] values = new Object[map.size()];
-        int pos = 0;
+        int position = 0;
         for (final java.util.Map.Entry<Object, Object> entry : map.entrySet())
         {
-            keys[pos] = keyType().toSparkSqlType(entry.getKey(), isFrozen);
-            values[pos] = valueType().toSparkSqlType(entry.getValue(), isFrozen);
-            pos++;
+            keys[position] = keyType().toSparkSqlType(entry.getKey(), isFrozen);
+            values[position] = valueType().toSparkSqlType(entry.getValue(), isFrozen);
+            position++;
         }
         return new ArrayBasedMapData(ArrayData.toArrayData(keys), ArrayData.toArrayData(values));
     }
@@ -127,7 +127,7 @@ public class Map implements MapTrait
     {
         return SparkType.equalsArrays(((MapData) first).valueArray().array(),
                                       ((MapData) second).valueArray().array(),
-                                      (pos) -> valueType());
+                                      (position) -> valueType());
     }
 
     @Override
@@ -135,6 +135,6 @@ public class Map implements MapTrait
     {
         return SparkType.compareArrays(((MapData) first).valueArray().array(),
                                        ((MapData) second).valueArray().array(),
-                                       (pos) -> valueType());
+                                       (position) -> valueType());
     }
 }

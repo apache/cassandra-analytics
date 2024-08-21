@@ -92,6 +92,9 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
         boolean isSupported();
 
+        /**
+         * @return true if type is frozen
+         */
         default boolean isFrozen()
         {
             return false;
