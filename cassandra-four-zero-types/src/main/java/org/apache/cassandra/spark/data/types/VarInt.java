@@ -93,7 +93,7 @@ public class VarInt extends Decimal
     }
 
     @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setVarint(position, (BigInteger) value);
     }

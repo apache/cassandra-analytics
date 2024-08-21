@@ -60,7 +60,7 @@ public class UUID extends StringBased
     }
 
     @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setUUID(position, (java.util.UUID) value);
     }

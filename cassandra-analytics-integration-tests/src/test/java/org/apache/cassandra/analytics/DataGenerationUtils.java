@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -154,6 +155,7 @@ public final class DataGenerationUtils
     public static Dataset<Row> generateCourseData(SparkSession spark, Integer ttl, Long timestamp, int rowCount)
     {
         SQLContext sql = spark.sqlContext();
+        // Note: only primary key columns are required to be not nullable; All columns are nullable only for test convenience
         StructType schema = new StructType()
                             .add("id", IntegerType, false)
                             .add("course", StringType, false)
@@ -189,40 +191,43 @@ public final class DataGenerationUtils
         return sql.createDataFrame(rows, schema);
     }
 
-    public static Dataset<Row> generateUdtData(SparkSession spark, int rowCount)
+    public static Dataset<Row> generateUdtData(SparkSession spark, int rowCount, Predicate<Integer> nullUdtFieldValuePredicate)
     {
         SQLContext sql = spark.sqlContext();
-        StructType udtType = createStructType(new StructField[]{new StructField("f1", StringType, false, Metadata.empty()),
-                                                                new StructField("f2", IntegerType, false, Metadata.empty())});
+        StructType udtType = createStructType(new StructField[]{new StructField("f1", StringType, true, Metadata.empty()),
+                                                                new StructField("f2", IntegerType, true, Metadata.empty())});
         StructType schema = new StructType()
-                            .add("id", IntegerType, false)
-                            .add("udtfield", udtType, false);
+                            .add("id", IntegerType, false) // pk is not nullable
+                            .add("udtfield", udtType, true); // value column is nullable
 
         List<Row> rows = IntStream.range(0, rowCount)
                                   .mapToObj(id -> {
                                       String course = "course" + id;
-                                      Object[] values = {id, RowFactory.create(course, id)};
+                                      Row udt = RowFactory.create(course, nullUdtFieldValuePredicate.test(id) ? null : id);
+                                      Object[] values = {id, udt};
                                       return RowFactory.create(values);
                                   }).collect(Collectors.toList());
         return sql.createDataFrame(rows, schema);
     }
 
-    public static Dataset<Row> generateNestedUdtData(SparkSession spark, int rowCount)
+    public static Dataset<Row> generateNestedUdtData(SparkSession spark, int rowCount, Predicate<Integer> nullUdtFieldValuePredicate)
     {
         SQLContext sql = spark.sqlContext();
-        StructType udtType = createStructType(new StructField[]{new StructField("f1", StringType, false, Metadata.empty()),
-                                                                new StructField("f2", IntegerType, false, Metadata.empty())});
-        StructType nestedType = createStructType(new StructField[] {new StructField("n1", IntegerType, false, Metadata.empty()),
-                                                                    new StructField("n2", udtType, false, Metadata.empty())});
+        StructType udtType = createStructType(new StructField[]{new StructField("f1", StringType, true, Metadata.empty()),
+                                                                new StructField("f2", IntegerType, true, Metadata.empty())});
+        StructType nestedType = createStructType(new StructField[] {new StructField("n1", IntegerType, true, Metadata.empty()),
+                                                                    new StructField("n2", udtType, true, Metadata.empty())});
         StructType schema = new StructType()
-                            .add("id", IntegerType, false)
-                            .add("nested", nestedType, false);
+                            .add("id", IntegerType, false) // pk is not nullable
+                            .add("nested", nestedType, true); // value column is nullable
 
         List<Row> rows = IntStream.range(0, rowCount)
                                   .mapToObj(id -> {
                                       String course = "course" + id;
-                                      Row innerUdt = RowFactory.create(id, RowFactory.create(course, id));
-                                      Object[] values = {id, innerUdt};
+                                      Row outerUdt = RowFactory.create(id,
+                                                                       // inner udt value
+                                                                       nullUdtFieldValuePredicate.test(id) ? null : RowFactory.create(course, id));
+                                      Object[] values = {id, outerUdt};
                                       return RowFactory.create(values);
                                   }).collect(Collectors.toList());
         return sql.createDataFrame(rows, schema);

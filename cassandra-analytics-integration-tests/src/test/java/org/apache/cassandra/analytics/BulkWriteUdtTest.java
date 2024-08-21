@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.analytics;
 
+import java.util.function.Predicate;
+
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
@@ -61,7 +63,8 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
     void testWriteWithUdt()
     {
         SparkSession spark = getOrCreateSparkSession();
-        Dataset<Row> df = DataGenerationUtils.generateUdtData(spark, ROW_COUNT);
+        Predicate<Integer> nullSetter = index -> index % 2 == 0;
+        Dataset<Row> df = DataGenerationUtils.generateUdtData(spark, ROW_COUNT, nullSetter);
 
         bulkWriterDataFrameWriter(df, UDT_TABLE_NAME).save();
 
@@ -76,7 +79,8 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
     void testWriteWithNestedUdt()
     {
         SparkSession spark = getOrCreateSparkSession();
-        Dataset<Row> df = DataGenerationUtils.generateNestedUdtData(spark, ROW_COUNT);
+        Predicate<Integer> nullSetter = index -> index % 2 == 0;
+        Dataset<Row> df = DataGenerationUtils.generateNestedUdtData(spark, ROW_COUNT, nullSetter);
 
         bulkWriterDataFrameWriter(df, NESTED_TABLE_NAME).save();
 
@@ -90,9 +94,11 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
     @NotNull
     public static String defaultRowFormatter(com.datastax.driver.core.Row row)
     {
+        // Formats as field:value with no whitespaces, and strings quoted
+        // Driver Codec writes "NULL" for null value. Spark DF writes "null".
         return row.getLong(0) +
                ":" +
-               row.getUDTValue(1); // Formats as field:value with no whitespaces, and strings quoted
+               row.getUDTValue(1).toString().replace("NULL", "null");
     }
 
     @Override

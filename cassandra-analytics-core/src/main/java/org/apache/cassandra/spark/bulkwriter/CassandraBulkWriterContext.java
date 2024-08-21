@@ -254,6 +254,6 @@ public class CassandraBulkWriterContext implements BulkWriterContext, KryoSerial
                                conf.getTTLOptions(),
                                conf.getTimestampOptions(),
                                lowestCassandraVersion,
-                               jobInfo.qualifiedTableName().quoteIdentifiers());
+                               conf.quoteIdentifiers);
     }
 }

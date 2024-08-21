@@ -94,7 +94,7 @@ public class CqlSet extends CqlList implements CqlField.CqlSet
     }
 
     @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setSet(position, (Set<?>) value);
     }

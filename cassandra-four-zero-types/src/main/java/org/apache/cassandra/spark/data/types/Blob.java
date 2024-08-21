@@ -63,7 +63,7 @@ public class Blob extends BinaryBased
     }
 
     @Override
-    public void setInnerValue(SettableByIndexData<?> udtValue, int position, Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setBytes(position, (ByteBuffer) value);
     }
