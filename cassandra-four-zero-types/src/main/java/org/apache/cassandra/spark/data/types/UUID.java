@@ -42,18 +42,6 @@ public class UUID extends StringBased
     }
 
     @Override
-    protected int compareTo(Object first, Object second)
-    {
-        return CqlField.UUID_COMPARATOR.compare(first.toString(), second.toString());
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        return java.util.UUID.fromString(value.toString());
-    }
-
-    @Override
     public DataType driverDataType(boolean isFrozen)
     {
         return DataType.uuid();

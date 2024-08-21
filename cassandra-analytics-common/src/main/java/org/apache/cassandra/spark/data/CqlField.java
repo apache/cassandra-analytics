@@ -20,13 +20,13 @@
 package org.apache.cassandra.spark.data;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.Function;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
@@ -35,12 +35,8 @@ import com.google.common.primitives.UnsignedBytes;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.utils.RandomUtils;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.types.DataType;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings({ "WeakerAccess", "unused" })
@@ -48,6 +44,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
 {
     private static final long serialVersionUID = 42L;
 
+    private static final Comparator<String> STRING_COMPARATOR = String::compareTo;
     public static final Comparator<Byte> BYTE_COMPARATOR = CqlField::compareBytes;
     public static final Comparator<Long> LONG_COMPARATOR = Long::compareTo;
     public static final Comparator<Integer> INTEGER_COMPARATOR = Integer::compareTo;
@@ -58,13 +55,14 @@ public class CqlField implements Serializable, Comparable<CqlField>
     public static final Comparator<Float> FLOAT_COMPARATOR = Float::compareTo;
     public static final Comparator<Short> SHORT_COMPARATOR = Short::compare;
     public static final Comparator<String> UUID_COMPARATOR = Comparator.comparing(java.util.UUID::fromString);
+    public static final Comparator<BigDecimal> BIGDECIMAL_COMPARATOR = Comparator.naturalOrder();
 
     private static int compareBytes(byte first, byte second)
     {
         return first - second;  // Safe because of the range being restricted
     }
 
-    public interface CqlType extends Serializable, Comparator<Object>
+    public interface CqlType extends Serializable
     {
         enum InternalType
         {
@@ -94,17 +92,35 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
         boolean isSupported();
 
-        Object toSparkSqlType(Object value);
+        default boolean isFrozen()
+        {
+            return false;
+        }
 
-        Object toSparkSqlType(Object value, boolean isFrozen);
+        default boolean isComplex()
+        {
+            return false;
+        }
 
-        Object deserialize(ByteBuffer buffer);
+        default Object deserializeToType(TypeConverter converter, ByteBuffer buffer)
+        {
+            return deserializeToType(converter, buffer, isFrozen());
+        }
 
-        Object deserialize(ByteBuffer buffer, boolean isFrozen);
+        default Object deserializeToType(TypeConverter converter, ByteBuffer buffer, boolean isFrozen)
+        {
+            Object value = deserializeToJava(buffer, isFrozen);
+            return value != null ? converter.convert(this, value, isFrozen) : null;
+        }
+
+        default Object deserializeToJava(ByteBuffer buffer)
+        {
+            return deserializeToJava(buffer, isFrozen());
+        }
+
+        Object deserializeToJava(ByteBuffer buffer, boolean isFrozen);
 
         ByteBuffer serialize(Object value);
-
-        boolean equals(Object first, Object second);
 
         CassandraVersion version();
 
@@ -114,29 +130,6 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
         String cqlName();
 
-        /*
-            SparkSQL      |    Java
-            ByteType      |    byte or Byte
-            ShortType     |    short or Short
-            IntegerType   |    int or Integer
-            LongType      |    long or Long
-            FloatType     |    float or Float
-            DoubleType    |    double or Double
-            DecimalType   |    java.math.BigDecimal
-            StringType    |    String
-            BinaryType    |    byte[]
-            BooleanType   |    boolean or Boolean
-            TimestampType |    java.sql.Timestamp
-            DateType      |    java.sql.Date
-            ArrayType     |    java.util.List
-            MapType       |    java.util.Map
-
-            See: https://spark.apache.org/docs/latest/sql-reference.html
-        */
-        DataType sparkSqlType();
-
-        DataType sparkSqlType(BigNumberConfig bigNumberConfig);
-
         void write(Output output);
 
         Set<CqlField.CqlUdt> udts();
@@ -144,13 +137,6 @@ public class CqlField implements Serializable, Comparable<CqlField>
         @VisibleForTesting
         int cardinality(int orElse);
 
-        @VisibleForTesting
-        Object sparkSqlRowValue(GenericInternalRow row, int position);
-
-        @VisibleForTesting
-        Object sparkSqlRowValue(Row row, int position);
-
-        @VisibleForTesting
         default Object randomValue()
         {
             return randomValue(RandomUtils.MIN_COLLECTION_SIZE);
@@ -158,9 +144,6 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
         @VisibleForTesting
         Object randomValue(int minCollectionSize);
-
-        @VisibleForTesting
-        Object toTestRowType(Object value);
 
         @VisibleForTesting
         Object convertForCqlWriter(Object value, CassandraVersion version);
@@ -201,6 +184,11 @@ public class CqlField implements Serializable, Comparable<CqlField>
         CqlField.CqlType type();
 
         CqlField.CqlType type(int position);
+
+        default boolean isComplex()
+        {
+            return true;
+        }
     }
 
     public interface CqlMap extends CqlCollection
@@ -222,12 +210,17 @@ public class CqlField implements Serializable, Comparable<CqlField>
     {
         ByteBuffer serializeTuple(Object[] values);
 
-        Object[] deserializeTuple(ByteBuffer buffer, boolean isFrozen);
+        Object[] deserializeTuple(TypeConverter converter, ByteBuffer buffer, boolean isFrozen);
     }
 
     public interface CqlFrozen extends CqlType
     {
         CqlField.CqlType inner();
+
+        default boolean isFrozen()
+        {
+            return true;
+        }
     }
 
     public interface CqlUdt extends CqlType
@@ -246,7 +239,13 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
         ByteBuffer serializeUdt(Map<String, Object> values);
 
-        Map<String, Object> deserializeUdt(ByteBuffer buffer, boolean isFrozen);
+        Map<String, Object> deserializeUdt(TypeConverter typeConverter, ByteBuffer buffer, boolean isFrozen);
+
+        @Override
+        default boolean isComplex()
+        {
+            return true;
+        }
     }
 
     public interface CqlUdtBuilder
@@ -330,14 +329,39 @@ public class CqlField implements Serializable, Comparable<CqlField>
         return type;
     }
 
-    public Object deserialize(ByteBuffer buffer)
+    public Object deserializeToType(TypeConverter converter, ByteBuffer buffer)
     {
-        return deserialize(buffer, false);
+        return deserializeToType(converter, buffer, false);
     }
 
-    public Object deserialize(ByteBuffer buffer, boolean isFrozen)
+    /**
+     * Deserialize raw ByteBuffer from Cassandra type and convert to a new type using the TypeConverter.
+     *
+     * @param converter custom TypeConverter that maps Cassandra type to some other type.
+     * @param buffer    raw ByteBuffer
+     * @param isFrozen  true if the Cassandra type is frozen
+     * @return deserialized object converted to custom type.
+     */
+    public Object deserializeToType(TypeConverter converter, ByteBuffer buffer, boolean isFrozen)
     {
-        return type().deserialize(buffer, isFrozen);
+        return type().deserializeToType(converter, buffer, isFrozen);
+    }
+
+    public Object deserializeToJava(ByteBuffer buffer)
+    {
+        return type().deserializeToJava(buffer, false);
+    }
+
+    /**
+     * Deserialize Cassandra raw ByteBuffer and return as standard Java type.
+     *
+     * @param buffer   raw ByteBuffer
+     * @param isFrozen true if the Cassandra type is frozen
+     * @return deserialized object as stanard Java type.
+     */
+    public Object deserializeToJava(ByteBuffer buffer, boolean isFrozen)
+    {
+        return type().deserializeToJava(buffer, isFrozen);
     }
 
     public ByteBuffer serialize(Object value)
@@ -404,41 +428,6 @@ public class CqlField implements Serializable, Comparable<CqlField>
                && this.position == that.position;
     }
 
-    public boolean equals(Object first, Object second)
-    {
-        return type().equals(first, second);
-    }
-
-    public static boolean equalsArrays(Object[] first, Object[] second, Function<Integer, CqlType> types)
-    {
-        for (int index = 0; index < Math.min(first.length, second.length); index++)
-        {
-            if (!types.apply(index).equals(first[index], second[index]))
-            {
-                return false;
-            }
-        }
-        return first.length == second.length;
-    }
-
-    public int compare(Object first, Object second)
-    {
-        return type().compare(first, second);
-    }
-
-    public static int compareArrays(Object[] first, Object[] second, Function<Integer, CqlType> types)
-    {
-        for (int index = 0; index < Math.min(first.length, second.length); index++)
-        {
-            int comparison = types.apply(index).compare(first[index], second[index]);
-            if (comparison != 0)
-            {
-                return comparison;
-            }
-        }
-        return Integer.compare(first.length, second.length);
-    }
-
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CqlField>
     {
         private final CassandraTypes cassandraTypes;
@@ -473,6 +462,11 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
     public static UnsupportedOperationException notImplemented(CqlType type)
     {
-        return new UnsupportedOperationException(type.toString() + " type not implemented");
+        return notImplemented(type.toString());
+    }
+
+    public static UnsupportedOperationException notImplemented(String type)
+    {
+        return new UnsupportedOperationException(type + " type not implemented");
     }
 }

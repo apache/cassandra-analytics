@@ -25,7 +25,6 @@ import org.apache.cassandra.cql3.functions.types.DataType;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.BytesType;
-import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.RandomUtils;
 
 public class Blob extends BinaryBased
@@ -45,21 +44,9 @@ public class Blob extends BinaryBased
     }
 
     @Override
-    public Object toSparkSqlType(Object value, boolean isFrozen)
-    {
-        return ByteBufferUtils.getArray((ByteBuffer) value);
-    }
-
-    @Override
     public Object randomValue(int minCollectionSize)
     {
         return RandomUtils.randomByteBuffer(RandomUtils.randomPositiveInt(256));
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        return ByteBuffer.wrap((byte[]) value);
     }
 
     @Override

@@ -65,6 +65,7 @@ dependencies {
     fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     fourzerobridge(project(path: ':cassandra-four-zero-bridge'))
     fourzerotypes(project(path: ':cassandra-four-zero-types'))
+    implementation(project(':cassandra-analytics-spark-converter'))
 
     // Including newer JNA which works with "Modern" Linux/GLIBC.
     // End users can exclude this and include their own if necessary.
@@ -89,6 +90,7 @@ dependencies {
 
     testImplementation(group: 'com.google.guava', name: 'guava', version: '19.0')
 
+    testImplementation(project(':cassandra-analytics-spark-converter'))
     testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")

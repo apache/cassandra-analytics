@@ -32,6 +32,7 @@ dependencies {
     compileOnly project(":cassandra-analytics-common")
     compileOnly project(":cassandra-four-zero-types")
     compileOnly(project(':cassandra-bridge'))
+    compileOnly project(":cassandra-analytics-spark-converter")
 
     compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
     compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
@@ -41,6 +42,7 @@ dependencies {
     testImplementation project(":cassandra-analytics-common")
     testImplementation project(":cassandra-four-zero-types")
     testImplementation(project(':cassandra-bridge'))
+    testImplementation project(":cassandra-analytics-spark-converter")
     testImplementation(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")

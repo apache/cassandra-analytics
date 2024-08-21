@@ -20,7 +20,6 @@
 package org.apache.cassandra.spark.data.types;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 
 import com.google.common.net.InetAddresses;
 
@@ -44,25 +43,6 @@ public class Inet extends BinaryBased
     public AbstractType<?> dataType()
     {
         return InetAddressType.instance;
-    }
-
-    @Override
-    public Object toSparkSqlType(Object value, boolean isFrozen)
-    {
-        return ((InetAddress) value).getAddress();
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        try
-        {
-            return InetAddress.getByAddress((byte[]) value);
-        }
-        catch (UnknownHostException exception)
-        {
-            throw new RuntimeException(exception);
-        }
     }
 
     @Override

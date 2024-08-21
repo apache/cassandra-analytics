@@ -19,17 +19,12 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.DoubleType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.NativeType;
 import org.apache.cassandra.spark.utils.RandomUtils;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
 
 public class Double extends NativeType
 {
@@ -42,33 +37,9 @@ public class Double extends NativeType
     }
 
     @Override
-    public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
-    {
-        return DataTypes.DoubleType;
-    }
-
-    @Override
     public AbstractType<?> dataType()
     {
         return DoubleType.instance;
-    }
-
-    @Override
-    protected int compareTo(Object first, Object second)
-    {
-        return CqlField.DOUBLE_COMPARATOR.compare((java.lang.Double) first, (java.lang.Double) second);
-    }
-
-    @Override
-    protected Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
-    {
-        return row.getDouble(position);
-    }
-
-    @Override
-    protected Object nativeSparkSqlRowValue(Row row, int position)
-    {
-        return row.getDouble(position);
     }
 
     @Override

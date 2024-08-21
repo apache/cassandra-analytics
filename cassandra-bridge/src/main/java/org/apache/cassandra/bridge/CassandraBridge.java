@@ -54,6 +54,7 @@ import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.RowData;
@@ -75,6 +76,8 @@ public abstract class CassandraBridge
     public static final Object UNSET_MARKER = new Object();
 
     public abstract CassandraTypes cassandraTypes();
+
+    public abstract SparkSqlTypeConverter typeConverter();
 
     public abstract AbstractMap.SimpleEntry<ByteBuffer, BigInteger> getPartitionKey(@NotNull CqlTable table,
                                                                                     @NotNull Partitioner partitioner,

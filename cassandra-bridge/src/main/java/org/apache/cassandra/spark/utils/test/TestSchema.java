@@ -557,7 +557,7 @@ public final class TestSchema
             Object[] values = new Object[allFields.size()];
             for (CqlField field : allFields)
             {
-                values[field.position()] = field.type().sparkSqlRowValue((GenericInternalRow) row, field.position());
+                values[field.position()] = bridge.typeConverter().sparkSqlRowValue(field, (GenericInternalRow) row, field.position());
             }
             return new TestRow(values);
         }
@@ -579,7 +579,7 @@ public final class TestSchema
                 continue;
             }
             int position = field.position() - skipped;
-            values[position] = row.get(position) != null ? field.type().sparkSqlRowValue(row, position) : null;
+            values[position] = row.get(position) != null ? bridge.typeConverter().sparkSqlRowValue(field, row, position) : null;
         }
         return new TestRow(values);
     }

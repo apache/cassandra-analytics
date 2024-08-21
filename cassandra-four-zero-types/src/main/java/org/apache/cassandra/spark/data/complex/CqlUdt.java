@@ -31,14 +31,12 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import com.google.common.base.Preconditions;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.cql3.functions.types.UDTValue;
@@ -51,15 +49,9 @@ import org.apache.cassandra.serializers.UTF8Serializer;
 import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
+import org.apache.cassandra.spark.data.TypeConverter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.transport.ProtocolVersion;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.StructField;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -94,44 +86,10 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    public Object sparkSqlRowValue(GenericInternalRow row, int position)
-    {
-        InternalRow struct = row.getStruct(position, size());
-        return IntStream.range(0, size())
-                        .boxed()
-                        .collect(Collectors.toMap(index -> field(index).name(),
-                                                  index -> type(index).toTestRowType(struct.get(index, type(index).sparkSqlType()))));
-    }
-
-    @Override
-    public Object sparkSqlRowValue(Row row, int position)
-    {
-        Row struct = row.getStruct(position);
-        return IntStream.range(0, struct.size())
-                        .boxed()
-                        .filter(index -> !struct.isNullAt(index))
-                        .collect(Collectors.toMap(index -> struct.schema().fields()[index].name(),
-                                                  index -> field(index).type().toTestRowType(struct.get(index))));
-    }
-
-    @Override
     public Object randomValue(int minCollectionSize)
     {
         return fields().stream()
                        .collect(Collectors.toMap(CqlField::name, field -> Objects.requireNonNull(field.type().randomValue(minCollectionSize))));
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        GenericRowWithSchema row = (GenericRowWithSchema) value;
-        String[] fieldNames = row.schema().fieldNames();
-        Map<String, Object> result = new LinkedHashMap<>(fieldNames.length);
-        for (int fieldName = 0; fieldName < fieldNames.length; fieldName++)
-        {
-            result.put(fieldNames[fieldName], field(fieldName).type().toTestRowType(row.get(fieldName)));
-        }
-        return result;
     }
 
     @Override
@@ -228,42 +186,6 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    public Object toSparkSqlType(Object value)
-    {
-        return toSparkSqlType(value, false);
-    }
-
-    @Override
-    public Object toSparkSqlType(Object value, boolean isFrozen)
-    {
-        return udtToSparkSqlType(value, isFrozen);
-    }
-
-    @SuppressWarnings("unchecked")
-    private GenericInternalRow udtToSparkSqlType(Object value, boolean isFrozen)
-    {
-        if (value instanceof ByteBuffer)
-        {
-            // Need to deserialize first, e.g. if UDT is frozen inside collections
-            return udtToSparkSqlType(deserializeUdt((ByteBuffer) value, isFrozen));
-        }
-        else
-        {
-            return udtToSparkSqlType((Map<String, Object>) value);
-        }
-    }
-
-    private GenericInternalRow udtToSparkSqlType(Map<String, Object> value)
-    {
-        Object[] objects = new Object[size()];
-        for (int index = 0; index < size(); index++)
-        {
-            objects[index] = value.getOrDefault(field(index).name(), null);
-        }
-        return new GenericInternalRow(objects);
-    }
-
-    @Override
     @SuppressWarnings("unchecked")
     public <T> TypeSerializer<T> serializer()
     {
@@ -275,19 +197,14 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    public Object deserialize(ByteBuffer buffer)
+    public Object deserializeToType(TypeConverter converter, ByteBuffer buffer, boolean isFrozen)
     {
-        return deserialize(buffer, false);
+        Object value = deserializeUdt(converter, buffer, isFrozen);
+        return value != null ? converter.convert(this, value, isFrozen) : null;
     }
 
     @Override
-    public Object deserialize(ByteBuffer buffer, boolean isFrozen)
-    {
-        return udtToSparkSqlType(deserializeUdt(buffer, isFrozen));
-    }
-
-    @Override
-    public Map<String, Object> deserializeUdt(ByteBuffer buffer, boolean isFrozen)
+    public Map<String, Object> deserializeUdt(TypeConverter typeConverter, ByteBuffer buffer, boolean isFrozen)
     {
         if (!isFrozen)
         {
@@ -305,7 +222,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
                 break;
             }
             int length = buffer.getInt();
-            result.put(field.name(), length > 0 ? field.deserialize(ByteBufferUtils.readBytes(buffer, length), isFrozen) : null);
+            result.put(field.name(), length > 0 ? field.deserializeToType(typeConverter, ByteBufferUtils.readBytes(buffer, length), isFrozen) : null);
         }
 
         return result;
@@ -338,12 +255,6 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
         }
         // Cast to ByteBuffer required when compiling with Java 8
         return (ByteBuffer) result.flip();
-    }
-
-    @Override
-    public boolean equals(Object first, Object second)
-    {
-        return CqlField.equalsArrays(((GenericInternalRow) first).values(), ((GenericInternalRow) second).values(), this::type);
     }
 
     public InternalType internalType()
@@ -412,16 +323,6 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
         return name;
     }
 
-    @Override
-    public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
-    {
-        return DataTypes.createStructType(fields().stream()
-                .map(field -> DataTypes.createStructField(field.name(),
-                                                          field.type().sparkSqlType(bigNumberConfig),
-                                                          true))
-                .toArray(StructField[]::new));
-    }
-
     public static CqlUdt read(Input input, CassandraTypes cassandraTypes)
     {
         Builder builder = CqlUdt.builder(input.readString(), input.readString());
@@ -451,12 +352,6 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     public int hashCode()
     {
         return hashCode;
-    }
-
-    @Override
-    public int compare(Object first, Object second)
-    {
-        return CqlField.compareArrays(((GenericInternalRow) first).values(), ((GenericInternalRow) second).values(), this::type);
     }
 
     @Override

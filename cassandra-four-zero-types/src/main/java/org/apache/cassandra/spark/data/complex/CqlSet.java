@@ -33,8 +33,6 @@ import org.apache.cassandra.serializers.SetSerializer;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 
 @SuppressWarnings("unchecked")
 public class CqlSet extends CqlList implements CqlField.CqlSet
@@ -73,24 +71,6 @@ public class CqlSet extends CqlList implements CqlField.CqlSet
     public Object randomValue(int minCollectionSize)
     {
         return new HashSet<>(((List<Object>) super.randomValue(minCollectionSize)));
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        return new HashSet<>(((List<Object>) super.toTestRowType(value)));
-    }
-
-    @Override
-    public Object sparkSqlRowValue(GenericInternalRow row, int position)
-    {
-        return new HashSet<>(((List<Object>) super.sparkSqlRowValue(row, position)));
-    }
-
-    @Override
-    public Object sparkSqlRowValue(Row row, int position)
-    {
-        return new HashSet<>(((List<Object>) super.sparkSqlRowValue(row, position)));
     }
 
     @Override

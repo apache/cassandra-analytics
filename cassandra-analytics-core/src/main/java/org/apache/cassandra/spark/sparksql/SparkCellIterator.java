@@ -34,6 +34,7 @@ import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.reader.RowData;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
@@ -74,6 +75,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
     protected final int partitionId;
     protected final int firstProjectedValueColumnPositionOrZero;
     protected final boolean hasProjectedValueColumns;
+    private final SparkSqlTypeConverter sparkSqlTypeConverter;
 
     public SparkCellIterator(int partitionId,
                              @NotNull DataLayer dataLayer,
@@ -109,6 +111,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         rowData = scanner.data();
         stats.openedSparkCellIterator();
         firstProjectedValueColumnPositionOrZero = maybeGetPositionOfFirstProjectedValueColumnOrZero();
+        sparkSqlTypeConverter = dataLayer.bridge().typeConverter();
     }
 
     protected StreamScanner<RowData> openScanner(int partitionId,
@@ -283,10 +286,11 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         }
 
         // Or new partition, so deserialize partition keys and update 'values' array
-        readPartitionKey(rowData.getPartitionKey(), cqlTable, this.values, stats);
+        readPartitionKey(sparkSqlTypeConverter, rowData.getPartitionKey(), cqlTable, this.values, stats);
     }
 
-    public static void readPartitionKey(ByteBuffer partitionKey,
+    public static void readPartitionKey(SparkSqlTypeConverter sparkSqlTypeConverter,
+                                        ByteBuffer partitionKey,
                                         CqlTable table,
                                         Object[] values,
                                         Stats stats)
@@ -295,7 +299,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         {
             // Not a composite partition key
             CqlField field = table.partitionKeys().get(0);
-            values[field.position()] = deserialize(field, partitionKey, stats);
+            values[field.position()] = deserialize(sparkSqlTypeConverter, field, partitionKey, stats);
         }
         else
         {
@@ -304,7 +308,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
             int index = 0;
             for (CqlField field : table.partitionKeys())
             {
-                values[field.position()] = deserialize(field, partitionKeyBufs[index++], stats);
+                values[field.position()] = deserialize(sparkSqlTypeConverter, field, partitionKeyBufs[index++], stats);
             }
         }
     }
@@ -325,7 +329,10 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         {
             Object newObj = deserialize(field, ByteBufferUtils.extractComponent(columnNameBuf, index++));
             Object oldObj = values[field.position()];
-            if (newRow || oldObj == null || newObj == null || !field.equals(newObj, oldObj))
+            // Historically, we compare equality of clustering keys using the Spark types
+            // to determine if we have moved to a new 'row'. We could also compare using the Cassandra types
+            // or the raw ByteBuffers before converting to Spark types.
+            if (newRow || oldObj == null || newObj == null || !sparkSqlTypeConverter.toSparkType(field.type()).equals(newObj, oldObj))
             {
                 newRow = true;
                 values[field.position()] = newObj;
@@ -355,13 +362,13 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
 
     private Object deserialize(CqlField field, ByteBuffer buffer)
     {
-        return deserialize(field, buffer, stats);
+        return deserialize(sparkSqlTypeConverter, field, buffer, stats);
     }
 
-    private static Object deserialize(CqlField field, ByteBuffer buffer, Stats stats)
+    private static Object deserialize(SparkSqlTypeConverter sparkSqlTypeConverter, CqlField field, ByteBuffer buffer, Stats stats)
     {
         long now = System.nanoTime();
-        Object value = buffer == null ? null : field.deserialize(buffer);
+        Object value = buffer == null ? null : field.deserializeToType(sparkSqlTypeConverter, buffer);
         stats.fieldDeserialization(field, System.nanoTime() - now);
         return value;
     }

@@ -23,6 +23,7 @@ import java.io.IOException;
 
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.stats.Stats;
@@ -43,6 +44,7 @@ public class PartitionSizeIterator implements PartitionReader<InternalRow>
     private final Stats stats;
     private final long startTimeNanos;
     private GenericInternalRow curr = null;
+    private final SparkSqlTypeConverter sparkSqlTypeConverter;
 
     public PartitionSizeIterator(int partitionId, @NotNull DataLayer dataLayer)
     {
@@ -52,6 +54,7 @@ public class PartitionSizeIterator implements PartitionReader<InternalRow>
         this.startTimeNanos = System.nanoTime();
         this.it = dataLayer.openPartitionSizeIterator(partitionId);
         stats.openedPartitionSizeIterator(System.nanoTime() - startTimeNanos);
+        this.sparkSqlTypeConverter = dataLayer.bridge().typeConverter();
     }
 
     /**
@@ -67,7 +70,7 @@ public class PartitionSizeIterator implements PartitionReader<InternalRow>
             IndexEntry entry = it.data();
             Object[] values = new Object[numPartitionKeys + 2];
 
-            SparkCellIterator.readPartitionKey(entry.getPartitionKey(), cqlTable, values, stats);
+            SparkCellIterator.readPartitionKey(sparkSqlTypeConverter, entry.getPartitionKey(), cqlTable, values, stats);
             values[numPartitionKeys] = entry.getUncompressed();
             values[numPartitionKeys + 1] = entry.getCompressed();
 

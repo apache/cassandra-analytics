@@ -19,13 +19,10 @@
 
 package org.apache.cassandra.spark.data.complex;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
@@ -35,15 +32,6 @@ import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.utils.RandomUtils;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.catalyst.util.ArrayData;
-import org.apache.spark.sql.catalyst.util.GenericArrayData;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
-import scala.collection.mutable.AbstractSeq;
-
-import static org.apache.cassandra.spark.utils.ScalaConversionUtils.mutableSeqAsJavaList;
 
 public class CqlList extends CqlCollection implements CqlField.CqlList
 {
@@ -56,15 +44,6 @@ public class CqlList extends CqlCollection implements CqlField.CqlList
     public AbstractType<?> dataType(boolean isMultiCell)
     {
         return ListType.getInstance(((CqlType) type()).dataType(), isMultiCell);
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public Object toSparkSqlType(Object value, boolean isFrozen)
-    {
-        return ArrayData.toArrayData(((Collection<Object>) value).stream()
-                                                                 .map(element -> type().toSparkSqlType(element))
-                                                                 .toArray());
     }
 
     @Override
@@ -81,60 +60,15 @@ public class CqlList extends CqlCollection implements CqlField.CqlList
     }
 
     @Override
-    public boolean equals(Object first, Object second)
-    {
-        return CqlField.equalsArrays(((GenericArrayData) first).array(),
-                                     ((GenericArrayData) second).array(), position -> type());
-    }
-
-    @Override
     public String name()
     {
         return "list";
     }
 
     @Override
-    public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
-    {
-        return DataTypes.createArrayType(type().sparkSqlType(bigNumberConfig));
-    }
-
-    @Override
-    public int compare(Object first, Object second)
-    {
-        return CqlField.compareArrays(((GenericArrayData) first).array(),
-                                      ((GenericArrayData) second).array(), position -> type());
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public Object toTestRowType(Object value)
-    {
-        return mutableSeqAsJavaList((AbstractSeq<?>) value).stream()
-                     .map(element -> type().toTestRowType(element))
-                     .collect(Collectors.toList());
-    }
-
-    @Override
     protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
         udtValue.setList(position, (List<?>) value);
-    }
-
-    @Override
-    public Object sparkSqlRowValue(GenericInternalRow row, int position)
-    {
-        return Arrays.stream(row.getArray(position).array())
-                     .map(element -> type().toTestRowType(element))
-                     .collect(Collectors.toList());
-    }
-
-    @Override
-    public Object sparkSqlRowValue(Row row, int position)
-    {
-        return row.getList(position).stream()
-                .map(element -> type().toTestRowType(element))
-                .collect(Collectors.toList());
     }
 
     @Override
