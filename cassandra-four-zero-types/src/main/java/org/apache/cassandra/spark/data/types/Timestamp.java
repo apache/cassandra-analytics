@@ -39,7 +39,7 @@ public class Timestamp extends NativeType
     {
         return TimestampType.instance;
     }
-    
+
     @Override
     protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
     {
