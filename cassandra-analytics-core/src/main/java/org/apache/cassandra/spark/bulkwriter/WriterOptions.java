@@ -60,12 +60,6 @@ public enum WriterOptions implements WriterOption
      */
     QUOTE_IDENTIFIERS,
     /**
-     * Option to specify a comma separated list of Cassandra instances that are blocked from receiving any
-     * writes from the analytics library. Note that this contributes to the number of unavailable instances for
-     * the write consistency level validations.
-     */
-    BLOCKED_CASSANDRA_INSTANCES,
-    /**
      * Option that specifies the type of digest to compute when uploading SSTables for checksum validation.
      * If unspecified, it defaults to {@code XXHash32} digests. The legacy {@code MD5} digest is also supported.
      */

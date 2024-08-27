@@ -162,8 +162,6 @@ public class BulkWriteValidator
                                                     + "Please rerun import once topology changes are complete.",
                                                     instance.nodeName(), cluster.getInstanceState(instance));
                 throw new RuntimeException(errorMessage);
-            // Both 'blocked' and 'down' instances are considered as failure
-            case UNAVAILABLE_BLOCKED:
             case UNAVAILABLE_DOWN:
                 Collection<Range<BigInteger>> unavailableRanges = cluster.getTokenRangeMapping(true)
                                                                          .getTokenRanges()

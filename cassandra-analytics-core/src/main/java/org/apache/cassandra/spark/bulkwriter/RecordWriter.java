@@ -146,12 +146,11 @@ public class RecordWriter
         boolean isClusterBeingResized = (!initialTokenRangeMapping.getPendingReplicas().isEmpty() ||
                                          !initialTokenRangeMapping.getReplacementInstances().isEmpty());
         LOGGER.info("[{}]: Fetched token range mapping for keyspace: {} with write replicas: {} containing pending " +
-                    "replicas: {}, blocked instances: {}, replacement instances: {}",
+                    "replicas: {}, replacement instances: {}",
                     taskContext.partitionId(),
                     writerContext.job().qualifiedTableName().keyspace(),
                     initialTokenRangeMapping.getWriteReplicas().size(),
                     initialTokenRangeMapping.getPendingReplicas().size(),
-                    initialTokenRangeMapping.getBlockedInstances().size(),
                     initialTokenRangeMapping.getReplacementInstances().size());
 
         Map<Range<BigInteger>, List<RingInstance>> initialTokenRangeInstances =
