@@ -29,6 +29,7 @@ configurations {
 }
 
 dependencies {
+    compileOnly "org.slf4j:slf4j-api:${slf4jApiVersion}"
     compileOnly project(":cassandra-analytics-common")
     compileOnly(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     compileOnly "com.esotericsoftware:kryo-shaded:${kryoVersion}"

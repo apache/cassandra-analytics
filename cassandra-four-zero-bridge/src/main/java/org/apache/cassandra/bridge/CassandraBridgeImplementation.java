@@ -358,7 +358,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
 
     public static IPartitioner getPartitioner(Partitioner partitioner)
     {
-        return partitioner == Partitioner.Murmur3Partitioner ? Murmur3Partitioner.instance : RandomPartitioner.instance;
+        return CassandraTypesImplementation.getPartitioner(partitioner);
     }
 
     @Override

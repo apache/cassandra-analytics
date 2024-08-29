@@ -25,11 +25,15 @@ import java.util.stream.Collectors;
 
 import com.esotericsoftware.kryo.io.Input;
 import org.apache.cassandra.cql3.ColumnIdentifier;
+import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.dht.Murmur3Partitioner;
+import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.complex.CqlCollection;
 import org.apache.cassandra.spark.data.complex.CqlFrozen;
 import org.apache.cassandra.spark.data.complex.CqlUdt;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.data.types.Ascii;
 import org.apache.cassandra.spark.data.types.BigInt;
 import org.apache.cassandra.spark.data.types.Blob;
@@ -62,6 +66,11 @@ public class CassandraTypesImplementation extends CassandraTypes
     public CassandraTypesImplementation()
     {
         nativeTypes = allTypes().stream().collect(Collectors.toMap(CqlField.CqlType::name, Function.identity()));
+    }
+
+    public static IPartitioner getPartitioner(Partitioner partitioner)
+    {
+        return partitioner == Partitioner.Murmur3Partitioner ? Murmur3Partitioner.instance : RandomPartitioner.instance;
     }
 
     @Override

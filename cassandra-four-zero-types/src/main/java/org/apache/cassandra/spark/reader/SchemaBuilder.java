@@ -38,9 +38,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.antlr.runtime.RecognitionException;
-import org.apache.cassandra.bridge.CassandraBridge;
-import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.bridge.CassandraSchema;
+import org.apache.cassandra.bridge.CassandraTypesImplementation;
 import org.apache.cassandra.cql3.CQL3Type;
 import org.apache.cassandra.cql3.CQLFragmentParser;
 import org.apache.cassandra.cql3.CqlParser;
@@ -82,7 +81,7 @@ public class SchemaBuilder
     private final String createStmt;
     private final String keyspace;
     private final ReplicationFactor replicationFactor;
-    private final CassandraBridge bridge;
+    private final CassandraTypes cassandraTypes;
     private final int indexCount;
 
     public SchemaBuilder(CqlTable table, Partitioner partitioner)
@@ -127,13 +126,13 @@ public class SchemaBuilder
         this.createStmt = createStmt;
         this.keyspace = keyspace;
         this.replicationFactor = replicationFactor;
-        this.bridge = new CassandraBridgeImplementation();
+        this.cassandraTypes = new CassandraTypesImplementation();
         this.indexCount = indexCount;
 
         Pair<KeyspaceMetadata, TableMetadata> updated = CassandraSchema.apply(schema ->
                 updateSchema(schema,
                              this.keyspace,
-                             udtStatementsProvider.apply(bridge.cassandraTypes()),
+                             udtStatementsProvider.apply(cassandraTypes),
                              this.createStmt,
                              partitioner,
                              this.replicationFactor,
@@ -156,7 +155,7 @@ public class SchemaBuilder
                                                                       Consumer<ColumnMetadata> columnValidator)
     {
         // Set up and open keyspace if needed
-        IPartitioner cassPartitioner = CassandraBridgeImplementation.getPartitioner(partitioner);
+        IPartitioner cassPartitioner = CassandraTypesImplementation.getPartitioner(partitioner);
         setupKeyspace(schema, keyspace, replicationFactor, cassPartitioner);
 
         // Set up and open table if needed, parse UDTs and include when parsing table schema
@@ -221,7 +220,7 @@ public class SchemaBuilder
 
         if (cqlType instanceof CQL3Type.Native)
         {
-            CqlField.CqlType type = bridge.parseType(cqlType.toString());
+            CqlField.CqlType type = cassandraTypes.parseType(cqlType.toString());
             if (!type.isSupported())
             {
                 throw new UnsupportedOperationException(type.name() + " data type is not supported");
@@ -456,7 +455,7 @@ public class SchemaBuilder
             for (int field = 0; field < userType.size(); field++)
             {
                 builder.withField(userType.fieldName(field).toString(),
-                                  bridge.parseType(userType.fieldType(field).asCQL3Type().toString(), udts));
+                                  cassandraTypes.parseType(userType.fieldType(field).asCQL3Type().toString(), udts));
             }
             udts.put(name, builder.build());
         }
@@ -523,7 +522,7 @@ public class SchemaBuilder
             boolean isStatic = col.isStatic();
             String name = col.name.toString();
             CqlField.CqlType type = col.type.isUDT() ? udts.get(((UserType) col.type).getNameAsString())
-                                                     : bridge.parseType(col.type.asCQL3Type().toString(), udts);
+                                                     : cassandraTypes.parseType(col.type.asCQL3Type().toString(), udts);
             boolean isFrozen = col.type.isFreezable() && !col.type.isMultiCell();
             result.add(new CqlField(isPartitionKey,
                                     isClusteringColumn,
