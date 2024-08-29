@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
+import org.apache.cassandra.spark.data.converter.types.SparkType;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.reader.StreamScanner;
@@ -57,6 +58,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
     private final Stats stats;
     private final CqlTable cqlTable;
     private final Object[] values;
+    private final SparkType[] sparkTypes;
     @Nullable
     protected final PruneColumnFilter columnFilter;
     private final long startTimeNanos;
@@ -111,7 +113,13 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         rowData = scanner.data();
         stats.openedSparkCellIterator();
         firstProjectedValueColumnPositionOrZero = maybeGetPositionOfFirstProjectedValueColumnOrZero();
+
         sparkSqlTypeConverter = dataLayer.bridge().typeConverter();
+        sparkTypes = new SparkType[cqlTable.numFields()];
+        for (int index = 0; index < cqlTable.numFields(); index++)
+        {
+            sparkTypes[index] = sparkSqlTypeConverter.toSparkType(cqlTable.field(index).type());
+        }
     }
 
     protected StreamScanner<RowData> openScanner(int partitionId,
@@ -332,7 +340,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
             // Historically, we compare equality of clustering keys using the Spark types
             // to determine if we have moved to a new 'row'. We could also compare using the Cassandra types
             // or the raw ByteBuffers before converting to Spark types  - this mightb be slightly more performant.
-            if (newRow || oldObj == null || newObj == null || !sparkSqlTypeConverter.toSparkType(field.type()).equals(newObj, oldObj))
+            if (newRow || oldObj == null || newObj == null || !sparkTypes[field.position()].equals(newObj, oldObj))
             {
                 newRow = true;
                 values[field.position()] = newObj;
