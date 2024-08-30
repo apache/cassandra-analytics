@@ -149,7 +149,6 @@ class RecordWriterTest
     @Test
     void testWriteWithBlockedInstances()
     {
-
         String blockedInstanceIp = "127.0.0.2";
         TokenRangeMapping<RingInstance> testMapping =
         TokenRangeMappingUtils.buildTokenRangeMappingWithBlockedInstance(100000,

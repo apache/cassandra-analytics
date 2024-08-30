@@ -114,13 +114,13 @@ public class BlockedInstancesTest extends ResiliencyTestBase
                           .hasMessageContaining("java.lang.RuntimeException: Bulk Write to Cassandra has failed");
 
         Throwable cause = thrown;
-        while (cause != null && !StringUtils.contains(cause.getMessage(), "Failed to load"))
+        while (cause != null && !StringUtils.contains(cause.getMessage(), "Failed to write"))
         {
             cause = cause.getCause();
         }
 
         assertThat(cause).isNotNull()
-                         .hasMessageFindingMatch(String.format("Failed to load (\\d+) ranges with %s for " +
+                         .hasMessageFindingMatch(String.format("Failed to write (\\d+) ranges with %s for " +
                                                                "job ([a-zA-Z0-9-]+) in phase Environment Validation.", cl.writeCL));
 
         expectedInstanceData.entrySet()

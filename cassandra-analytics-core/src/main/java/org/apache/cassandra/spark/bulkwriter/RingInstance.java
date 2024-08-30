@@ -25,9 +25,11 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Objects;
 
-import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
+import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.common.model.NodeState;
+import org.apache.cassandra.spark.common.model.NodeStatus;
 import org.jetbrains.annotations.Nullable;
 
 public class RingInstance implements CassandraInstance, Serializable
@@ -77,8 +79,28 @@ public class RingInstance implements CassandraInstance, Serializable
         return ringEntry.address();
     }
 
+    @Override
+    public String ipAddressWithPort()
+    {
+        return ringEntry.address() + ':' + ringEntry.port();
+    }
+
+    @Override
+    public NodeState nodeState()
+    {
+        return NodeState.fromNameIgnoreCase(ringEntry.state());
+    }
+
+    @Override
+    public NodeStatus nodeStatus()
+    {
+        return NodeStatus.fromNameIgnoreCase(ringEntry.status());
+    }
+
     /**
      * Custom equality that compares the token, fully qualified domain name, the port, and the datacenter
+     *
+     * Note that node state and status are not part of the calculation.
      *
      * @param other the other instance
      * @return true if both instances are equal, false otherwise
@@ -100,6 +122,8 @@ public class RingInstance implements CassandraInstance, Serializable
 
     /**
      * Custom hashCode that compares the token, fully qualified domain name, the port, and the datacenter
+     *
+     * Note that node state and status are not part of the calculation.
      *
      * @return The hashcode of this instance based on the important fields
      */

@@ -25,6 +25,7 @@ import java.util.UUID;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public interface JobInfo extends Serializable
 {
@@ -32,6 +33,7 @@ public interface JobInfo extends Serializable
     // Job Information API - should this really just move back to Config? Here to try to reduce the violations of the Law of Demeter more than anything else
     ConsistencyLevel getConsistencyLevel();
 
+    @Nullable
     String getLocalDC();
 
     /**

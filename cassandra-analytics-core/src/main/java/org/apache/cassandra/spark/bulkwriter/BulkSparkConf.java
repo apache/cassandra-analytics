@@ -164,7 +164,13 @@ public class BulkSparkConf implements Serializable
         this.skipExtendedVerify = MapUtils.getBoolean(options, WriterOptions.SKIP_EXTENDED_VERIFY.name(), true,
                                                       "skip extended verification of SSTables by Cassandra");
         this.consistencyLevel = ConsistencyLevel.CL.valueOf(MapUtils.getOrDefault(options, WriterOptions.BULK_WRITER_CL.name(), "EACH_QUORUM"));
-        this.localDC = MapUtils.getOrDefault(options, WriterOptions.LOCAL_DC.name(), null);
+        String dc = MapUtils.getOrDefault(options, WriterOptions.LOCAL_DC.name(), null);
+        if (!consistencyLevel.isLocal() && dc != null)
+        {
+            LOGGER.warn("localDc is present for non-local consistency level {} specified in writer options. Correcting localDc to null", consistencyLevel);
+            dc = null;
+        }
+        this.localDC = dc;
         this.numberSplits = MapUtils.getInt(options, WriterOptions.NUMBER_SPLITS.name(), DEFAULT_NUM_SPLITS, "number of splits");
         this.sstableDataSizeInMiB = resolveSSTableDataSizeInMiB(options);
         this.commitBatchSize = MapUtils.getInt(options, WriterOptions.COMMIT_BATCH_SIZE.name(), DEFAULT_COMMIT_BATCH_SIZE, "commit batch size");

@@ -216,13 +216,13 @@ public class SparkTestUtils
         Throwable cause = thrown;
 
         // Find the cause
-        while (cause != null && !StringUtils.contains(cause.getMessage(), "Failed to load"))
+        while (cause != null && !StringUtils.contains(cause.getMessage(), "Failed to write"))
         {
             cause = cause.getCause();
         }
 
         assertThat(cause).isNotNull()
-                         .hasMessageFindingMatch("Failed to load (\\d+) ranges with " + writeCL +
+                         .hasMessageFindingMatch("Failed to write (\\d+) ranges with " + writeCL +
                                                  " for job ([a-zA-Z0-9-]+) in phase .*");
     }
 

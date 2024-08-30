@@ -20,18 +20,17 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
-import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 
 public class BulkWriteValidator
 {
@@ -57,8 +56,8 @@ public class BulkWriteValidator
                                         String phase,
                                         JobInfo job)
     {
-        Collection<AbstractMap.SimpleEntry<Range<BigInteger>, Multimap<RingInstance, String>>> failedRanges =
-        failureHandler.getFailedEntries(tokenRangeMapping, job.getConsistencyLevel(), job.getLocalDC());
+        List<ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange> failedRanges =
+        failureHandler.getFailedRanges(tokenRangeMapping, job.getConsistencyLevel(), job.getLocalDC());
 
         if (failedRanges.isEmpty())
         {
@@ -66,18 +65,11 @@ public class BulkWriteValidator
         }
         else
         {
-            String message = String.format("Failed to load %s ranges with %s for job %s in phase %s.",
+            String message = String.format("Failed to write %s ranges with %s for job %s in phase %s.",
                                            failedRanges.size(), job.getConsistencyLevel(), job.getId(), phase);
             logger.error(message);
-            failedRanges.forEach(failedRange ->
-                                 failedRange.getValue()
-                                            .keySet()
-                                            .forEach(instance ->
-                                                     logger.error("Failed {} for {} on {}",
-                                                                  phase,
-                                                                  failedRange.getKey(),
-                                                                  instance.toString())));
-            throw new RuntimeException(message);
+            logFailedRanges(logger, phase, failedRanges);
+            throw new ConsistencyNotSatisfiedException(message);
         }
     }
 
@@ -117,6 +109,21 @@ public class BulkWriteValidator
         });
     }
 
+    private static void logFailedRanges(Logger logger, String phase,
+                                        List<ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange> failedRanges)
+    {
+        for (ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange failedRange : failedRanges)
+        {
+            failedRange.failuresPerInstance.forEachInstance((instance, errors) -> {
+                logger.error("Failed in phase {} for {} on {}. Failure: {}",
+                             phase,
+                             failedRange.range,
+                             instance.toString(),
+                             errors);
+            });
+        }
+    }
+
     public void updateFailureHandler(Range<BigInteger> failedRange, RingInstance instance, String reason)
     {
         failureHandler.addFailure(failedRange, instance, reason);
@@ -124,8 +131,16 @@ public class BulkWriteValidator
 
     public void validateClOrFail(TokenRangeMapping<RingInstance> tokenRangeMapping)
     {
-        // Updates failures by looking up instance metadata
-        updateInstanceAvailability();
+        validateClOrFail(tokenRangeMapping, true);
+    }
+
+    public void validateClOrFail(TokenRangeMapping<RingInstance> tokenRangeMapping, boolean refreshInstanceAvailability)
+    {
+        if (refreshInstanceAvailability)
+        {
+            // Updates failures by looking up instance metadata
+            updateInstanceAvailability();
+        }
         // Fails if the failures violate consistency requirements
         validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, phase, job);
     }
@@ -147,12 +162,9 @@ public class BulkWriteValidator
                                                     + "Please rerun import once topology changes are complete.",
                                                     instance.nodeName(), cluster.getInstanceState(instance));
                 throw new RuntimeException(errorMessage);
-            // Check for blocked instances and ranges for the purpose of logging only.
-            // We check for blocked instances while validating consistency level requirements
+            // Both 'blocked' and 'down' instances are considered as failure
             case UNAVAILABLE_BLOCKED:
             case UNAVAILABLE_DOWN:
-                boolean shouldAddFailure = availability == InstanceAvailability.UNAVAILABLE_DOWN;
-
                 Collection<Range<BigInteger>> unavailableRanges = cluster.getTokenRangeMapping(true)
                                                                          .getTokenRanges()
                                                                          .get(instance);
@@ -160,10 +172,7 @@ public class BulkWriteValidator
                     String nodeDisplayName = instance.nodeName();
                     String message = String.format("%s %s", nodeDisplayName, availability.getMessage());
                     LOGGER.warn("{} failed in phase {} on {} because {}", failedRange, phase, nodeDisplayName, message);
-                    if (shouldAddFailure)
-                    {
-                        failureHandler.addFailure(failedRange, instance, message);
-                    }
+                    failureHandler.addFailure(failedRange, instance, message);
                 });
                 break;
 
