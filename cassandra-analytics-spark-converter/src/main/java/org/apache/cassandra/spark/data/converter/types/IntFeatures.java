@@ -26,36 +26,29 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
-public class Empty implements SparkType
+interface IntFeatures extends SparkType
 {
-    public static final Empty INSTANCE = new Empty();
-
-    private Empty()
+    @Override
+    default DataType dataType(BigNumberConfig bigNumberConfig)
     {
-
+        return DataTypes.IntegerType;
     }
 
     @Override
-    public DataType dataType(BigNumberConfig bigNumberConfig)
+    default Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
     {
-        return DataTypes.NullType;
+        return row.getInt(position);
     }
 
     @Override
-    public Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
+    default Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return null;
+        return row.getInt(position);
     }
 
     @Override
-    public Object nativeSparkSqlRowValue(Row row, int position)
+    default int compareTo(Object first, Object second)
     {
-        return null;
-    }
-
-    @Override
-    public int compareTo(Object first, Object second)
-    {
-        return CqlField.VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+        return CqlField.INTEGER_COMPARATOR.compare((Integer) first, (Integer) second);
     }
 }

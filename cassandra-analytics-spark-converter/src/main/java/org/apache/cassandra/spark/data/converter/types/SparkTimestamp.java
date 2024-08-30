@@ -20,17 +20,16 @@
 package org.apache.cassandra.spark.data.converter.types;
 
 import org.apache.cassandra.bridge.BigNumberConfig;
-import org.apache.cassandra.spark.data.CqlField;
 import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
+import org.jetbrains.annotations.NotNull;
 
-public class Empty implements SparkType
+public class SparkTimestamp implements LongFeatures
 {
-    public static final Empty INSTANCE = new Empty();
+    public static final SparkTimestamp INSTANCE = new SparkTimestamp();
 
-    private Empty()
+    private SparkTimestamp()
     {
 
     }
@@ -38,24 +37,28 @@ public class Empty implements SparkType
     @Override
     public DataType dataType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.NullType;
+        return DataTypes.TimestampType;
     }
 
     @Override
-    public Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
     {
-        return null;
+        return ((java.util.Date) value).getTime() * 1000L; // long
     }
 
     @Override
     public Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return null;
+        return new java.util.Date(row.getTimestamp(position).getTime());
     }
 
     @Override
-    public int compareTo(Object first, Object second)
+    public Object toTestRowType(Object value)
     {
-        return CqlField.VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+        if (value instanceof java.util.Date)
+        {
+            return value;
+        }
+        return new java.util.Date((long) value / 1000L);
     }
 }

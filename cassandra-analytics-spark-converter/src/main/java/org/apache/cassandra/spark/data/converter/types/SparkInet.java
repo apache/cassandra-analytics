@@ -19,43 +19,40 @@
 
 package org.apache.cassandra.spark.data.converter.types;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
-import org.apache.cassandra.spark.data.CqlField;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
-public class Empty implements SparkType
+import org.jetbrains.annotations.NotNull;
+
+public class SparkInet implements BinaryFeatures
 {
-    public static final Empty INSTANCE = new Empty();
+    public static final SparkInet INSTANCE = new SparkInet();
 
-    private Empty()
+    private SparkInet()
     {
 
     }
 
     @Override
-    public DataType dataType(BigNumberConfig bigNumberConfig)
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
     {
-        return DataTypes.NullType;
+        return ((InetAddress) value).getAddress(); // byte[]
     }
 
     @Override
-    public Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
+    public Object toTestRowType(Object value)
     {
-        return null;
-    }
-
-    @Override
-    public Object nativeSparkSqlRowValue(Row row, int position)
-    {
-        return null;
-    }
-
-    @Override
-    public int compareTo(Object first, Object second)
-    {
-        return CqlField.VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+        if (value instanceof byte[])
+        {
+            try
+            {
+                return InetAddress.getByAddress((byte[]) value);
+            }
+            catch (final UnknownHostException e)
+            {
+                throw new RuntimeException(e);
+            }
+        }
+        return value;
     }
 }

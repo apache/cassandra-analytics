@@ -26,36 +26,35 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
-public class Empty implements SparkType
+public class SparkBoolean implements SparkType
 {
-    public static final Empty INSTANCE = new Empty();
+    public static final SparkBoolean INSTANCE = new SparkBoolean();
 
-    private Empty()
+    private SparkBoolean()
     {
 
     }
 
-    @Override
     public DataType dataType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.NullType;
+        return DataTypes.BooleanType;
     }
 
     @Override
     public Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
     {
-        return null;
+        return row.getBoolean(position);
     }
 
     @Override
     public Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return null;
+        return row.getBoolean(position);
     }
 
     @Override
     public int compareTo(Object first, Object second)
     {
-        return CqlField.VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+        return CqlField.BOOLEAN_COMPARATOR.compare((java.lang.Boolean) first, (java.lang.Boolean) second);
     }
 }

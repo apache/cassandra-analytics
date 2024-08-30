@@ -19,43 +19,53 @@
 
 package org.apache.cassandra.spark.data.converter.types;
 
+import java.nio.ByteBuffer;
+
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
+import org.jetbrains.annotations.NotNull;
 
-public class Empty implements SparkType
+interface BinaryFeatures extends SparkType
 {
-    public static final Empty INSTANCE = new Empty();
-
-    private Empty()
+    @Override
+    default Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
     {
+        return ByteBufferUtils.getArray((ByteBuffer) value); // byte[]
+    }
 
+    default DataType dataType(BigNumberConfig bigNumberConfig)
+    {
+        return DataTypes.BinaryType;
+    }
+
+    default Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
+    {
+        return row.getBinary(position);
+    }
+
+    default Object nativeSparkSqlRowValue(Row row, int position)
+    {
+        return row.getAs(position);
     }
 
     @Override
-    public DataType dataType(BigNumberConfig bigNumberConfig)
+    default Object toTestRowType(Object value)
     {
-        return DataTypes.NullType;
+        if (value instanceof byte[])
+        {
+            return ByteBuffer.wrap((byte[]) value);
+        }
+        return value;
     }
 
     @Override
-    public Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
+    default int compareTo(Object first, Object second)
     {
-        return null;
-    }
-
-    @Override
-    public Object nativeSparkSqlRowValue(Row row, int position)
-    {
-        return null;
-    }
-
-    @Override
-    public int compareTo(Object first, Object second)
-    {
-        return CqlField.VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+        return CqlField.BYTE_ARRAY_COMPARATOR.compare((byte[]) first, (byte[]) second);
     }
 }

@@ -27,32 +27,35 @@ import com.google.common.collect.ImmutableMap;
 
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.data.converter.types.Ascii;
-import org.apache.cassandra.spark.data.converter.types.BigInt;
-import org.apache.cassandra.spark.data.converter.types.Blob;
-import org.apache.cassandra.spark.data.converter.types.Boolean;
-import org.apache.cassandra.spark.data.converter.types.Counter;
-import org.apache.cassandra.spark.data.converter.types.Date;
-import org.apache.cassandra.spark.data.converter.types.Decimal;
-import org.apache.cassandra.spark.data.converter.types.Double;
-import org.apache.cassandra.spark.data.converter.types.Duration;
 import org.apache.cassandra.spark.data.converter.types.Empty;
-import org.apache.cassandra.spark.data.converter.types.Float;
-import org.apache.cassandra.spark.data.converter.types.Inet;
-import org.apache.cassandra.spark.data.converter.types.Int;
-import org.apache.cassandra.spark.data.converter.types.SmallInt;
+import org.apache.cassandra.spark.data.converter.types.SparkAscii;
+import org.apache.cassandra.spark.data.converter.types.SparkBigInt;
+import org.apache.cassandra.spark.data.converter.types.SparkBlob;
+import org.apache.cassandra.spark.data.converter.types.SparkBoolean;
+import org.apache.cassandra.spark.data.converter.types.SparkCounter;
+import org.apache.cassandra.spark.data.converter.types.SparkDate;
+import org.apache.cassandra.spark.data.converter.types.SparkDecimal;
+import org.apache.cassandra.spark.data.converter.types.SparkDouble;
+import org.apache.cassandra.spark.data.converter.types.SparkDuration;
+import org.apache.cassandra.spark.data.converter.types.SparkFloat;
+import org.apache.cassandra.spark.data.converter.types.SparkInet;
+import org.apache.cassandra.spark.data.converter.types.SparkInt;
+import org.apache.cassandra.spark.data.converter.types.SparkSmallInt;
+import org.apache.cassandra.spark.data.converter.types.SparkText;
+import org.apache.cassandra.spark.data.converter.types.SparkTime;
+import org.apache.cassandra.spark.data.converter.types.SparkTimeUUID;
+import org.apache.cassandra.spark.data.converter.types.SparkTimestamp;
+import org.apache.cassandra.spark.data.converter.types.SparkTinyInt;
 import org.apache.cassandra.spark.data.converter.types.SparkType;
-import org.apache.cassandra.spark.data.converter.types.Text;
-import org.apache.cassandra.spark.data.converter.types.Time;
-import org.apache.cassandra.spark.data.converter.types.TimeUUID;
-import org.apache.cassandra.spark.data.converter.types.Timestamp;
-import org.apache.cassandra.spark.data.converter.types.TinyInt;
-import org.apache.cassandra.spark.data.converter.types.UUID;
-import org.apache.cassandra.spark.data.converter.types.VarChar;
-import org.apache.cassandra.spark.data.converter.types.VarInt;
-import org.apache.cassandra.spark.data.converter.types.complex.Frozen;
-import org.apache.cassandra.spark.data.converter.types.complex.List;
-import org.apache.cassandra.spark.data.converter.types.complex.Udt;
+import org.apache.cassandra.spark.data.converter.types.SparkUUID;
+import org.apache.cassandra.spark.data.converter.types.SparkVarChar;
+import org.apache.cassandra.spark.data.converter.types.SparkVarInt;
+import org.apache.cassandra.spark.data.converter.types.complex.SparkFrozen;
+import org.apache.cassandra.spark.data.converter.types.complex.SparkList;
+import org.apache.cassandra.spark.data.converter.types.complex.SparkMap;
+import org.apache.cassandra.spark.data.converter.types.complex.SparkSet;
+import org.apache.cassandra.spark.data.converter.types.complex.SparkTuple;
+import org.apache.cassandra.spark.data.converter.types.complex.SparkUdt;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
@@ -114,28 +117,28 @@ public class SparkSqlTypeConverterImplementation implements SparkSqlTypeConverte
     static
     {
         Map<Class<? extends CqlField.CqlType>, SparkType> types = new HashMap<>();
-        types.put(org.apache.cassandra.spark.data.types.Ascii.class, Ascii.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.BigInt.class, BigInt.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Blob.class, Blob.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Boolean.class, Boolean.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Counter.class, Counter.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Date.class, Date.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Decimal.class, Decimal.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Double.class, Double.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Duration.class, Duration.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Ascii.class, SparkAscii.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.BigInt.class, SparkBigInt.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Blob.class, SparkBlob.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Boolean.class, SparkBoolean.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Counter.class, SparkCounter.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Date.class, SparkDate.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Decimal.class, SparkDecimal.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Double.class, SparkDouble.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Duration.class, SparkDuration.INSTANCE);
         types.put(org.apache.cassandra.spark.data.types.Empty.class, Empty.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Float.class, Float.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Inet.class, Inet.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Int.class, Int.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.SmallInt.class, SmallInt.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Text.class, Text.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Time.class, Time.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.Timestamp.class, Timestamp.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.TimeUUID.class, TimeUUID.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.TinyInt.class, TinyInt.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.UUID.class, UUID.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.VarChar.class, VarChar.INSTANCE);
-        types.put(org.apache.cassandra.spark.data.types.VarInt.class, VarInt.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Float.class, SparkFloat.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Inet.class, SparkInet.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Int.class, SparkInt.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.SmallInt.class, SparkSmallInt.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Text.class, SparkText.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Time.class, SparkTime.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.Timestamp.class, SparkTimestamp.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.TimeUUID.class, SparkTimeUUID.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.TinyInt.class, SparkTinyInt.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.UUID.class, SparkUUID.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.VarChar.class, SparkVarChar.INSTANCE);
+        types.put(org.apache.cassandra.spark.data.types.VarInt.class, SparkVarInt.INSTANCE);
         NATIVE_TYPES = ImmutableMap.copyOf(types);
     }
 
@@ -165,30 +168,30 @@ public class SparkSqlTypeConverterImplementation implements SparkSqlTypeConverte
         if (cqlType.isFrozen())
         {
             // frozen type has no equivalent in SparkSQL so unpack inner
-            return new Frozen(INSTANCE, ((CqlField.CqlFrozen) cqlType).inner());
+            return new SparkFrozen(INSTANCE, ((CqlField.CqlFrozen) cqlType).inner());
         }
 
         if (cqlType.isComplex())
         {
             if (cqlType instanceof CqlField.CqlSet)
             {
-                return new org.apache.cassandra.spark.data.converter.types.complex.Set(INSTANCE, (CqlField.CqlSet) cqlType);
+                return new SparkSet(INSTANCE, (CqlField.CqlSet) cqlType);
             }
             else if (cqlType instanceof CqlField.CqlList)
             {
-                return new List(INSTANCE, (CqlField.CqlList) cqlType);
+                return new SparkList(INSTANCE, (CqlField.CqlList) cqlType);
             }
             else if (cqlType instanceof CqlField.CqlMap)
             {
-                return new org.apache.cassandra.spark.data.converter.types.complex.Map(INSTANCE, (CqlField.CqlMap) cqlType);
+                return new SparkMap(INSTANCE, (CqlField.CqlMap) cqlType);
             }
             else if (cqlType instanceof CqlField.CqlTuple)
             {
-                return new org.apache.cassandra.spark.data.converter.types.complex.Tuple(INSTANCE, (CqlField.CqlTuple) cqlType);
+                return new SparkTuple(INSTANCE, (CqlField.CqlTuple) cqlType);
             }
             else if (cqlType instanceof CqlField.CqlUdt)
             {
-                return new Udt(INSTANCE, (CqlField.CqlUdt) cqlType);
+                return new SparkUdt(INSTANCE, (CqlField.CqlUdt) cqlType);
             }
             throw new IllegalStateException("Unexpected complex type: " + cqlType);
         }

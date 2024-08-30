@@ -26,11 +26,11 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
-public class Empty implements SparkType
+public class SparkFloat implements SparkType
 {
-    public static final Empty INSTANCE = new Empty();
+    public static final SparkFloat INSTANCE = new SparkFloat();
 
-    private Empty()
+    private SparkFloat()
     {
 
     }
@@ -38,24 +38,24 @@ public class Empty implements SparkType
     @Override
     public DataType dataType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.NullType;
+        return DataTypes.FloatType;
     }
 
     @Override
     public Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
     {
-        return null;
+        return row.getFloat(position);
     }
 
     @Override
     public Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return null;
+        return row.getFloat(position);
     }
 
     @Override
     public int compareTo(Object first, Object second)
     {
-        return CqlField.VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+        return CqlField.FLOAT_COMPARATOR.compare((java.lang.Float) first, (java.lang.Float) second);
     }
 }

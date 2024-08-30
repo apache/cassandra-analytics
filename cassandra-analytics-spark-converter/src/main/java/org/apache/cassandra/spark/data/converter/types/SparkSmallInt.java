@@ -26,11 +26,11 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
-public class Empty implements SparkType
+public class SparkSmallInt implements SparkType
 {
-    public static final Empty INSTANCE = new Empty();
+    public static final SparkSmallInt INSTANCE = new SparkSmallInt();
 
-    private Empty()
+    private SparkSmallInt()
     {
 
     }
@@ -38,24 +38,24 @@ public class Empty implements SparkType
     @Override
     public DataType dataType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.NullType;
+        return DataTypes.ShortType;
     }
 
     @Override
     public Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
     {
-        return null;
+        return row.getShort(position);
     }
 
     @Override
     public Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return null;
+        return row.getShort(position);
     }
 
     @Override
     public int compareTo(Object first, Object second)
     {
-        return CqlField.VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+        return CqlField.SHORT_COMPARATOR.compare((Short) first, (Short) second);
     }
 }

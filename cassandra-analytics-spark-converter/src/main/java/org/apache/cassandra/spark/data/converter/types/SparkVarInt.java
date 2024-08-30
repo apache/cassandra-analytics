@@ -19,18 +19,21 @@
 
 package org.apache.cassandra.spark.data.converter.types;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+
 import org.apache.cassandra.bridge.BigNumberConfig;
-import org.apache.cassandra.spark.data.CqlField;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
+import org.jetbrains.annotations.NotNull;
 
-public class Empty implements SparkType
+public class SparkVarInt implements DecimalFeatures
 {
-    public static final Empty INSTANCE = new Empty();
+    public static final SparkVarInt INSTANCE = new SparkVarInt();
 
-    private Empty()
+    private SparkVarInt()
     {
 
     }
@@ -38,24 +41,38 @@ public class Empty implements SparkType
     @Override
     public DataType dataType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.NullType;
+        return DataTypes.createDecimalType(bigNumberConfig.bigIntegerPrecision(), bigNumberConfig.bigIntegerScale());
+    }
+
+    @Override
+    public Object toTestRowType(Object value)
+    {
+        if (value instanceof BigInteger)
+        {
+            return value;
+        }
+        else if (value instanceof BigDecimal)
+        {
+            return ((BigDecimal) value).toBigInteger();
+        }
+        return ((org.apache.spark.sql.types.Decimal) value).toJavaBigInteger();
+    }
+
+    @Override
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    {
+        return org.apache.spark.sql.types.Decimal.apply((BigInteger) value);
     }
 
     @Override
     public Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
     {
-        return null;
+        return row.getDecimal(position, BigNumberConfig.DEFAULT.bigIntegerPrecision(), BigNumberConfig.DEFAULT.bigIntegerScale());
     }
 
     @Override
     public Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return null;
-    }
-
-    @Override
-    public int compareTo(Object first, Object second)
-    {
-        return CqlField.VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+        return row.getDecimal(position).toBigInteger();
     }
 }

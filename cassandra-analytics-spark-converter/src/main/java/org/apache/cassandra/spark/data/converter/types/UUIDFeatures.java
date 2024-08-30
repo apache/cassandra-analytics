@@ -19,43 +19,19 @@
 
 package org.apache.cassandra.spark.data.converter.types;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.spark.data.CqlField;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
 
-public class Empty implements SparkType
+interface UUIDFeatures extends StringTraits
 {
-    public static final Empty INSTANCE = new Empty();
-
-    private Empty()
+    @Override
+    default Object toTestRowType(Object value)
     {
-
+        return java.util.UUID.fromString(value.toString());
     }
 
     @Override
-    public DataType dataType(BigNumberConfig bigNumberConfig)
+    default int compareTo(Object first, Object second)
     {
-        return DataTypes.NullType;
-    }
-
-    @Override
-    public Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
-    {
-        return null;
-    }
-
-    @Override
-    public Object nativeSparkSqlRowValue(Row row, int position)
-    {
-        return null;
-    }
-
-    @Override
-    public int compareTo(Object first, Object second)
-    {
-        return CqlField.VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+        return CqlField.UUID_COMPARATOR.compare(first.toString(), second.toString());
     }
 }

@@ -25,37 +25,59 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
+import org.jetbrains.annotations.NotNull;
 
-public class Empty implements SparkType
+public class SparkDate implements SparkType
 {
-    public static final Empty INSTANCE = new Empty();
+    public static final SparkDate INSTANCE = new SparkDate();
 
-    private Empty()
+    private SparkDate()
     {
 
     }
 
-    @Override
     public DataType dataType(BigNumberConfig bigNumberConfig)
     {
-        return DataTypes.NullType;
+        return DataTypes.DateType;
     }
 
-    @Override
-    public Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
     {
-        return null;
+        // SparkSQL date type is an int incrementing from day 0 on 1970-01-01
+        // Cassandra stores date as "days since 1970-01-01 plus Integer.MIN_VALUE"
+        final int days = (Integer) value;
+        return days - Integer.MIN_VALUE;
     }
 
     @Override
+    public Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
+    {
+        return row.getInt(position);
+    }
+
     public Object nativeSparkSqlRowValue(Row row, int position)
     {
-        return null;
+        return row.getDate(position);
     }
 
     @Override
     public int compareTo(Object first, Object second)
     {
-        return CqlField.VOID_COMPARATOR_COMPARATOR.compare((Void) first, (Void) second);
+        return CqlField.INTEGER_COMPARATOR.compare((Integer) first, (Integer) second);
+    }
+
+    @Override
+    public Object toTestRowType(Object value)
+    {
+        if (value instanceof java.sql.Date)
+        {
+            // Round up to convert date back to days since epoch
+            return (int) ((java.sql.Date) value).toLocalDate().toEpochDay();
+        }
+        else if (value instanceof Integer)
+        {
+            return ((Integer) value) - Integer.MIN_VALUE;
+        }
+        return value;
     }
 }
