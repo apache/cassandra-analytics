@@ -231,7 +231,11 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     @Override
     public String getLocalDC()
     {
-        return "DC1";
+        if (getConsistencyLevel().isLocal())
+        {
+            return "DC1";
+        }
+        return null;
     }
 
     @Override

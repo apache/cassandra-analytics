@@ -62,7 +62,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DirectStreamSessionTest
 {
-    public static final String LOAD_RANGE_ERROR_PREFIX = "Failed to load 1 ranges with LOCAL_QUORUM";
+    public static final String LOAD_RANGE_ERROR_PREFIX = "Failed to write 1 ranges with LOCAL_QUORUM";
     private static final Map<String, Object> COLUMN_BOUND_VALUES = ImmutableMap.of("id", 0, "date", 1, "course", "course", "marks", 2);
     @TempDir
     private Path folder;
@@ -88,7 +88,7 @@ public class DirectStreamSessionTest
         tableWriter = new MockTableWriter(folder);
         transportContext = (TransportContext.DirectDataBulkWriterContext) writerContext.transportContext();
         executor = new MockScheduledExecutorService();
-        expectedInstances = Lists.newArrayList("DC1-i1", "DC1-i2", "DC1-i3");
+        expectedInstances = Lists.newArrayList("DC1-i2", "DC1-i3", "DC1-i4");
     }
 
     @Test
@@ -246,7 +246,7 @@ public class DirectStreamSessionTest
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         ExecutionException exception = assertThrows(ExecutionException.class,
                                                     () -> ss.finalizeStreamAsync().get());
-        assertEquals("Failed to load 1 ranges with LOCAL_QUORUM for job " + writerContext.job().getId()
+        assertEquals("Failed to write 1 ranges with LOCAL_QUORUM for job " + writerContext.job().getId()
                      + " in phase UploadAndCommit.", exception.getCause().getMessage());
         executor.assertFuturesCalled();
         assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));

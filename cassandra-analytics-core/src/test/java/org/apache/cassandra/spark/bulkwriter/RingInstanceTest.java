@@ -108,7 +108,7 @@ public class RingInstanceTest
                 .multiply(BigInteger.valueOf(index))).subtract(BigInteger.valueOf(2).pow(63));
     }
 
-    private static ReplicaAwareFailureHandler<CassandraInstance> ntsStrategyHandler(Partitioner partitioner)
+    private static ReplicaAwareFailureHandler<RingInstance> ntsStrategyHandler(Partitioner partitioner)
     {
         return new ReplicaAwareFailureHandler<>(partitioner);
     }
@@ -211,15 +211,16 @@ public class RingInstanceTest
         Partitioner partitioner = Partitioner.Murmur3Partitioner;
         BigInteger[] tokens = getTokens(partitioner, 5);
         List<RingInstance> instances = getInstances(tokens, DATACENTER_1);
-        CassandraInstance instance1 = instances.get(0);
-        CassandraInstance instance2 = instance(tokens[0], instance1.nodeName(), instance1.datacenter(), "?");
-        ReplicaAwareFailureHandler<CassandraInstance> replicationFactor3 = ntsStrategyHandler(partitioner);
+        RingInstance instance1 = instances.get(0);
+        RingInstance instance2 = instance(tokens[0], instance1.nodeName(), instance1.datacenter(), "?");
+        ReplicaAwareFailureHandler<RingInstance> replicationFactor3 = ntsStrategyHandler(partitioner);
         ReplicationFactor repFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
                                                             ntsOptions(new String[]{DATACENTER_1 }, new int[]{3 }));
-        Map<String, Set<String>> writeReplicas = instances.stream()
-                                                          .collect(Collectors.groupingBy(CassandraInstance::datacenter,
-                                                                                         Collectors.mapping(CassandraInstance::nodeName,
-                                                                                                            Collectors.toSet())));
+        Map<String, Set<String>> writeReplicas =
+        instances.stream().collect(Collectors.groupingBy(CassandraInstance::datacenter,
+                                                         // writeReplicas are ultimately created from StorageService#getRangeToEndpointMap in Cassandra
+                                                         // The returned values are ip addresses.
+                                                         Collectors.mapping(CassandraInstance::ipAddressWithPort, Collectors.toSet())));
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = TokenRangeMappingUtils.setupTokenRangeMap(partitioner, repFactor, instances);
         TokenRangeMapping<RingInstance> tokenRange = new TokenRangeMapping<>(partitioner,
                                                                              repFactor,
@@ -236,7 +237,7 @@ public class RingInstanceTest
         replicationFactor3.addFailure(Range.openClosed(tokens[0].add(BigInteger.ONE),
                                                        tokens[0].add(BigInteger.valueOf(2L))), instance2, "Failure 2");
 
-        replicationFactor3.getFailedEntries(tokenRange, ConsistencyLevel.CL.LOCAL_QUORUM, DATACENTER_1);
+        replicationFactor3.getFailedRanges(tokenRange, ConsistencyLevel.CL.LOCAL_QUORUM, DATACENTER_1);
         assertFalse(replicationFactor3.hasFailed(tokenRange, ConsistencyLevel.CL.LOCAL_QUORUM, DATACENTER_1));
     }
 }

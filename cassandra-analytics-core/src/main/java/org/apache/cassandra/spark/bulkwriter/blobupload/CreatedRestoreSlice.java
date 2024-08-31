@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter.blobupload;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -106,7 +107,7 @@ public class CreatedRestoreSlice implements Serializable
         }
 
         if (!succeededInstances().isEmpty()
-            && consistencyLevel.canBeSatisfied(succeededInstances(), replicationFactor, localDC))
+            && consistencyLevel.canBeSatisfied(succeededInstances(), Collections.emptyList(), replicationFactor, localDC))
         {
             isSatisfied = true;
             return ConsistencyLevelCheckResult.SATISFIED;

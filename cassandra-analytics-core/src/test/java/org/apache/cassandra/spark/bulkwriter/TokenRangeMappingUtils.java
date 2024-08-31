@@ -65,9 +65,11 @@ public final class TokenRangeMappingUtils
                                                 .get();
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
         Map<String, Set<String>> writeReplicas =
-        instances.stream().collect(Collectors.groupingBy(RingInstance::datacenter,
-                                                         Collectors.mapping(RingInstance::nodeName,
-                                                                            Collectors.toSet())));
+        instances.stream()
+                 .collect(Collectors.groupingBy(RingInstance::datacenter,
+                                                // writeReplicas are ultimately created from StorageService#getRangeToEndpointMap in Cassandra
+                                                // The returned values are ip addresses with port.
+                                                Collectors.mapping(RingInstance::ipAddressWithPort, Collectors.toSet())));
         writeReplicas.replaceAll((key, value) -> {
             value.removeIf(e -> value.size() > 3);
             return value;
@@ -77,7 +79,7 @@ public final class TokenRangeMappingUtils
                                                          .map(i -> new ReplicaMetadata(i.ringInstance().state(),
                                                                                        i.ringInstance().status(),
                                                                                        i.nodeName(),
-                                                                                       i.ipAddress(),
+                                                                                       i.ipAddressWithPort(),
                                                                                        7012,
                                                                                        i.datacenter()))
                                                          .collect(Collectors.toList());
@@ -118,18 +120,16 @@ public final class TokenRangeMappingUtils
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
         Map<String, Set<String>> writeReplicas =
         instances.stream().collect(Collectors.groupingBy(RingInstance::datacenter,
-                                                         Collectors.mapping(RingInstance::nodeName,
+                                                         // writeReplicas are ultimately created from StorageService#getRangeToEndpointMap in Cassandra
+                                                         // The returned values are ip addresses with port.
+                                                         Collectors.mapping(RingInstance::ipAddressWithPort,
                                                                             Collectors.toSet())));
-        writeReplicas.replaceAll((key, value) -> {
-            value.removeIf(e -> value.size() > 3);
-            return value;
-        });
 
         List<ReplicaMetadata> replicaMetadata = instances.stream()
                                                          .map(i -> new ReplicaMetadata(i.ringInstance().state(),
                                                                                        i.ringInstance().status(),
                                                                                        i.nodeName(),
-                                                                                       i.ipAddress(),
+                                                                                       i.ipAddressWithPort(),
                                                                                        7012,
                                                                                        i.datacenter()))
                                                          .collect(Collectors.toList());
@@ -177,18 +177,16 @@ public final class TokenRangeMappingUtils
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
         Map<String, Set<String>> writeReplicas =
         instances.stream().collect(Collectors.groupingBy(RingInstance::datacenter,
-                                                         Collectors.mapping(RingInstance::nodeName,
+                                                         // writeReplicas are ultimately created from StorageService#getRangeToEndpointMap in Cassandra
+                                                         // The returned values are ip addresses with port.
+                                                         Collectors.mapping(RingInstance::ipAddressWithPort,
                                                                             Collectors.toSet())));
-        writeReplicas.replaceAll((key, value) -> {
-            value.removeIf(e -> value.size() > 3);
-            return value;
-        });
 
         List<ReplicaMetadata> replicaMetadata = instances.stream()
                                                          .map(i -> new ReplicaMetadata(i.ringInstance().state(),
                                                                                        i.ringInstance().status(),
                                                                                        i.nodeName(),
-                                                                                       i.ipAddress(),
+                                                                                       i.ipAddressWithPort(),
                                                                                        7012,
                                                                                        i.datacenter()))
                                                          .collect(Collectors.toList());
@@ -261,13 +259,14 @@ public final class TokenRangeMappingUtils
             String datacenter = rfForDC.getKey();
             for (int i = 0; i < instancesPerDc; i++)
             {
+                int instanceId = i + 1;
                 RingEntry.Builder ringEntry = new RingEntry.Builder()
-                                              .address("127.0." + dcOffset + "." + i)
+                                              .address("127.0." + dcOffset + "." + instanceId)
                                               .datacenter(datacenter)
                                               .load("0")
                                               // Single DC tokens will be in multiples of 100000
                                               .token(Integer.toString(initialToken + dcOffset + 100_000 * i))
-                                              .fqdn(datacenter + "-i" + i)
+                                              .fqdn(datacenter + "-i" + instanceId)
                                               .rack("Rack")
                                               .hostId("")
                                               .status("UP")

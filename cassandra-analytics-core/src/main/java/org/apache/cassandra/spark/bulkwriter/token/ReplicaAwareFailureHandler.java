@@ -20,13 +20,12 @@
 package org.apache.cassandra.spark.bulkwriter.token;
 
 import java.math.BigInteger;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
@@ -37,16 +36,72 @@ import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
 
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.common.model.NodeStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.jetbrains.annotations.Nullable;
 
 public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
 {
-    private final RangeMap<BigInteger, Multimap<Instance, String>> failedRangesMap = TreeRangeMap.create();
+    public class FailuresPerInstance
+    {
+        private final Multimap<Instance, String> errorMessagesPerInstance;
+
+        public FailuresPerInstance()
+        {
+            this.errorMessagesPerInstance = ArrayListMultimap.create();
+        }
+
+        public FailuresPerInstance(Multimap<Instance, String> errorMessagesPerInstance)
+        {
+            this.errorMessagesPerInstance = ArrayListMultimap.create(errorMessagesPerInstance);
+        }
+
+        public FailuresPerInstance copy()
+        {
+            return new FailuresPerInstance(this.errorMessagesPerInstance);
+        }
+
+        public Set<Instance> instances()
+        {
+            return errorMessagesPerInstance.keySet();
+        }
+
+        public void addErrorForInstance(Instance instance, String errorMessage)
+        {
+            errorMessagesPerInstance.put(instance, errorMessage);
+        }
+
+        public boolean hasError(Instance instance)
+        {
+            return errorMessagesPerInstance.containsKey(instance)
+                   && !errorMessagesPerInstance.get(instance).isEmpty();
+        }
+
+        public void forEachInstance(BiConsumer<Instance, Collection<String>> instanceErrorsConsumer)
+        {
+            errorMessagesPerInstance.asMap().forEach(instanceErrorsConsumer);
+        }
+    }
+
+    public class ConsistencyFailurePerRange
+    {
+        public final Range<BigInteger> range;
+        public final FailuresPerInstance failuresPerInstance;
+
+        public ConsistencyFailurePerRange(Range<BigInteger> range, FailuresPerInstance failuresPerInstance)
+        {
+            this.range = range;
+            this.failuresPerInstance = failuresPerInstance;
+        }
+    }
+
+    // failures captures per each range; note that failures do not necessarily fail a range, as long as consistency level is considered
+    private final RangeMap<BigInteger, FailuresPerInstance> rangeFailuresMap = TreeRangeMap.create();
 
     public ReplicaAwareFailureHandler(Partitioner partitioner)
     {
-        failedRangesMap.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), ArrayListMultimap.create());
+        rangeFailuresMap.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), new FailuresPerInstance());
     }
 
     /**
@@ -66,25 +121,25 @@ public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
      */
     public synchronized void addFailure(Range<BigInteger> tokenRange, Instance casInstance, String errMessage)
     {
-        RangeMap<BigInteger, Multimap<Instance, String>> overlappingFailures = failedRangesMap.subRangeMap(tokenRange);
-        RangeMap<BigInteger, Multimap<Instance, String>> mappingsToAdd = TreeRangeMap.create();
+        RangeMap<BigInteger, FailuresPerInstance> overlappingFailures = rangeFailuresMap.subRangeMap(tokenRange);
+        RangeMap<BigInteger, FailuresPerInstance> mappingsToAdd = TreeRangeMap.create();
 
-        for (Map.Entry<Range<BigInteger>, Multimap<Instance, String>> entry : overlappingFailures.asMapOfRanges().entrySet())
+        for (Map.Entry<Range<BigInteger>, FailuresPerInstance> entry : overlappingFailures.asMapOfRanges().entrySet())
         {
-            Multimap<Instance, String> newErrorMap = ArrayListMultimap.create(entry.getValue());
-            newErrorMap.put(casInstance, errMessage);
+            FailuresPerInstance newErrorMap = entry.getValue().copy();
+            newErrorMap.addErrorForInstance(casInstance, errMessage);
             mappingsToAdd.put(entry.getKey(), newErrorMap);
         }
-        failedRangesMap.putAll(mappingsToAdd);
+        rangeFailuresMap.putAll(mappingsToAdd);
     }
 
     public Set<Instance> getFailedInstances()
     {
-        return failedRangesMap.asMapOfRanges().values()
-                              .stream()
-                              .map(Multimap::keySet)
-                              .flatMap(Collection::stream)
-                              .collect(Collectors.toSet());
+        return rangeFailuresMap.asMapOfRanges().values()
+                               .stream()
+                               .map(FailuresPerInstance::instances)
+                               .flatMap(Collection::stream)
+                               .collect(Collectors.toSet());
     }
 
     /**
@@ -94,119 +149,75 @@ public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
      * @param tokenRangeMapping the mapping of token ranges to a Cassandra instance
      * @param cl                the desired consistency level
      * @param localDC           the local datacenter
-     * @return list of failed entries for token ranges that break consistency. This should ideally be empty for a
+     * @return list of failed token ranges that break consistency. This should ideally be empty for a
      * successful operation.
      */
-    public synchronized Collection<AbstractMap.SimpleEntry<Range<BigInteger>, Multimap<Instance, String>>>
-    getFailedEntries(TokenRangeMapping<? extends CassandraInstance> tokenRangeMapping,
-                     ConsistencyLevel cl,
-                     String localDC)
+    public synchronized List<ConsistencyFailurePerRange>
+    getFailedRanges(TokenRangeMapping<Instance> tokenRangeMapping,
+                    ConsistencyLevel cl,
+                    @Nullable String localDC)
     {
+        Preconditions.checkArgument((cl.isLocal() && localDC != null) || (!cl.isLocal() && localDC == null),
+                                    "Not a valid pair of consistency level configuration. " +
+                                    "Consistency level: " + cl + " localDc: " + localDC);
+        List<ConsistencyFailurePerRange> failedRanges = new ArrayList<>();
 
-        List<AbstractMap.SimpleEntry<Range<BigInteger>, Multimap<Instance, String>>> failedEntries =
-        new ArrayList<>();
-
-        for (Map.Entry<Range<BigInteger>, Multimap<Instance, String>> failedRangeEntry : failedRangesMap.asMapOfRanges()
-                                                                                                        .entrySet())
+        for (Map.Entry<Range<BigInteger>, FailuresPerInstance> failedRangeEntry : rangeFailuresMap.asMapOfRanges()
+                                                                                                  .entrySet())
         {
-            Multimap<Instance, String> errorMap = failedRangeEntry.getValue();
-            Collection<Instance> failedInstances = errorMap.keySet()
-                                                           .stream()
-                                                           .filter(inst ->
-                                                                   !errorMap.get(inst).isEmpty())
-                                                           .collect(Collectors.toList());
+            Range<BigInteger> range = failedRangeEntry.getKey();
+            FailuresPerInstance errorMap = failedRangeEntry.getValue();
+            Set<Instance> failedReplicas = errorMap.instances()
+                                                   .stream()
+                                                   .filter(errorMap::hasError)
+                                                   .collect(Collectors.toSet());
 
-
-            if (!validateConsistency(tokenRangeMapping, failedInstances, cl, localDC))
+            // no failures found for the range; skip consistency check on this one and move on
+            if (failedReplicas.isEmpty())
             {
-                failedEntries.add(new AbstractMap.SimpleEntry<>(failedRangeEntry.getKey(),
-                                                                failedRangeEntry.getValue()));
+                continue;
             }
+
+            tokenRangeMapping.getWriteReplicasOfRange(range, localDC)
+                             .forEach((subrange, liveAndDown) -> {
+                                 if (!checkSubrange(cl, localDC, tokenRangeMapping.replicationFactor(), liveAndDown, failedReplicas))
+                                 {
+                                     failedRanges.add(new ConsistencyFailurePerRange(subrange, errorMap));
+                                 }
+                             });
         }
 
-        return failedEntries;
+        return failedRanges;
     }
 
-    private boolean validateConsistency(TokenRangeMapping<? extends CassandraInstance> tokenRangeMapping,
-                                        Collection<Instance> failedInstances,
-                                        ConsistencyLevel cl,
-                                        String localDC)
+    /**
+     * Check whether a CL can be satisfied for each sub-range.
+     * @return true if consistency is satisfied; false otherwise.
+     */
+    private boolean checkSubrange(ConsistencyLevel cl,
+                                  @Nullable String localDC,
+                                  ReplicationFactor replicationFactor,
+                                  Set<Instance> liveAndDown,
+                                  Set<Instance> failedReplicas)
     {
-        boolean isConsistencyLevelMet = true;
+        Set<Instance> liveReplicas = liveAndDown.stream()
+                                                .filter(instance -> instance.nodeStatus() == NodeStatus.UP)
+                                                .collect(Collectors.toSet());
+        Set<Instance> pendingReplicas = liveAndDown.stream()
+                                                   .filter(instance -> instance.nodeState().isPending)
+                                                   .collect(Collectors.toSet());
+        // success is assumed if not failed
+        Set<Instance> succeededReplicas = liveReplicas.stream()
+                                                      .filter(instance -> !failedReplicas.contains(instance))
+                                                      .collect(Collectors.toSet());
 
-        Set<String> failedInstanceIPs = failedInstances.stream()
-                                                       .map(CassandraInstance::ipAddress)
-                                                       .collect(Collectors.toSet());
-        Set<String> datacenters = Collections.emptySet();
-        ReplicationFactor replicationFactor = tokenRangeMapping.replicationFactor();
-        if (cl == ConsistencyLevel.CL.EACH_QUORUM)
-        {
-            datacenters = replicationFactor.getOptions().keySet();
-            Preconditions.checkArgument(replicationFactor.getReplicationStrategy() == ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
-                                        "%s requires %s replication strategy", cl, ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy);
-        }
-
-        if (cl.isLocal())
-        {
-            datacenters = Collections.singleton(localDC);
-            Preconditions.checkArgument(replicationFactor.getReplicationStrategy() == ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
-                                        "%s requires %s replication strategy", cl, ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy);
-        }
-
-        if (!datacenters.isEmpty())
-        {
-            for (String dc : datacenters)
-            {
-                Set<String> failedIpsPerDC = failedInstances.stream()
-                                                            .filter(inst -> inst.datacenter().matches(dc))
-                                                            .map(CassandraInstance::ipAddress)
-                                                            .collect(Collectors.toSet());
-
-                Set<String> dcWriteReplicas = maybeUpdateWriteReplicasForReplacements(tokenRangeMapping.getWriteReplicas(dc),
-                                                                                      tokenRangeMapping.getReplacementInstances(dc),
-                                                                                      failedIpsPerDC);
-
-                isConsistencyLevelMet = isConsistencyLevelMet &&
-                                        cl.checkConsistency(dcWriteReplicas,
-                                                            tokenRangeMapping.getPendingReplicas(dc),
-                                                            tokenRangeMapping.getReplacementInstances(dc),
-                                                            tokenRangeMapping.getBlockedInstances(dc),
-                                                            failedIpsPerDC,
-                                                            localDC);
-            }
-        }
-        else
-        {
-            Set<String> replacementInstances = tokenRangeMapping.getReplacementInstances();
-            Set<String> dcWriteReplicas = maybeUpdateWriteReplicasForReplacements(tokenRangeMapping.getWriteReplicas(),
-                                                                                  replacementInstances,
-                                                                                  failedInstanceIPs);
-
-            isConsistencyLevelMet = cl.checkConsistency(dcWriteReplicas,
-                                                        tokenRangeMapping.getPendingReplicas(),
-                                                        replacementInstances,
-                                                        tokenRangeMapping.getBlockedInstances(),
-                                                        failedInstanceIPs,
-                                                        localDC);
-        }
-        return isConsistencyLevelMet;
+        return cl.canBeSatisfied(succeededReplicas, pendingReplicas, replicationFactor, localDC);
     }
 
-    public boolean hasFailed(TokenRangeMapping<? extends CassandraInstance> tokenRange,
+    public boolean hasFailed(TokenRangeMapping<Instance> tokenRange,
                              ConsistencyLevel cl,
                              String localDC)
     {
-        return !getFailedEntries(tokenRange, cl, localDC).isEmpty();
-    }
-
-    private static Set<String> maybeUpdateWriteReplicasForReplacements(Set<String> writeReplicas, Set<String> replacingInstances, Set<String> failedInstances)
-    {
-        // Exclude replacement nodes from write-replicas if replacements are NOT among failed instances
-        if (!replacingInstances.isEmpty() && Collections.disjoint(failedInstances, replacingInstances))
-        {
-
-            return writeReplicas.stream().filter(r -> !replacingInstances.contains(r)).collect(Collectors.toSet());
-        }
-        return writeReplicas;
+        return !getFailedRanges(tokenRange, cl, localDC).isEmpty();
     }
 }
