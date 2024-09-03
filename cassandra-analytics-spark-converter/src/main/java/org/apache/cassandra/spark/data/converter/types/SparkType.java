@@ -30,45 +30,86 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * This interface and the inheriting classes define the Spark equivalents to the Cassandra CQL data types.
+ * Each CQL type should have a 1-1 mapping to an equivalent Spark type defined
+ * in the `org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter` implementation.
+ */
 public interface SparkType extends Comparator<Object>
 {
+    /**
+     * @return the SparkSQL `org.apache.spark.sql.types.DataType` for this SparkType.
+     */
     default DataType dataType()
     {
         return dataType(BigNumberConfig.DEFAULT);
     }
 
+    /**
+     * @param bigNumberConfig specifies the scale and precision to be used for VarInt and Decimal types.
+     * @return the SparkSQL `org.apache.spark.sql.types.DataType` for this SparkType.
+     */
     DataType dataType(BigNumberConfig bigNumberConfig);
 
+    /**
+     * @param value    the Cassandra value.
+     * @param isFrozen true if the type is frozen.
+     * @return the value mapped to the Spark equivalent data type.
+     */
     default Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
     {
         // All other non-overridden data types work as ordinary Java data types
         return value;
     }
 
+    /**
+     * @param row      a SparkSQL `org.apache.spark.sql.catalyst.expressions.GenericInternalRow`
+     * @param position position in row
+     * @return the SparkSQL value at `position` in the `row` converted back into test type - used only in the test system.
+     */
     default Object sparkSqlRowValue(GenericInternalRow row, int position)
     {
         // we need to convert native types to TestRow types
         return row.isNullAt(position) ? null : toTestRowType(nativeSparkSqlRowValue(row, position));
     }
 
+    /**
+     * @param row      a SparkSQL `org.apache.spark.sql.catalyst.expressions.GenericInternalRow`
+     * @param position position in row
+     * @return the SparkSQL value at `position` in the `row` converted back into test type - used only in the test system.
+     */
     default Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
     {
         // we need to convert native types to TestRow types
         return row.isNullAt(position) ? null : toTestRowType(nativeSparkSqlRowValue(row, position));
     }
 
+    /**
+     * @param row      a SparkSQL `org.apache.spark.sql.Row`
+     * @param position position in row
+     * @return the SparkSQL value at `position` in the `row` converted back into test type - used only in the test system.
+     */
     default Object sparkSqlRowValue(Row row, int position)
     {
         // we need to convert native types to TestRow types
         return row.isNullAt(position) ? null : toTestRowType(nativeSparkSqlRowValue(row, position));
     }
 
+    /**
+     * @param row      a SparkSQL `org.apache.spark.sql.Row`
+     * @param position position in row
+     * @return the SparkSQL value at `position` in the `row` converted back into test type - used only in the test system.
+     */
     default Object nativeSparkSqlRowValue(Row row, int position)
     {
         // we need to convert native types to TestRow types
         return row.isNullAt(position) ? null : toTestRowType(nativeSparkSqlRowValue(row, position));
     }
 
+    /**
+     * @param value SparkSQL value.
+     * @return SparkSQL value converted back into test type - used only in the test system.
+     */
     default Object toTestRowType(Object value)
     {
         return value;

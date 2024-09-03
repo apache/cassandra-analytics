@@ -89,16 +89,6 @@ public class SparkSqlTypeConverterImplementation implements SparkSqlTypeConverte
         */
     public static final Map<Class<? extends CqlField.CqlType>, SparkType> NATIVE_TYPES;
 
-    public Object nativeSparkSqlRowValue(CqlField.CqlType cqlType, GenericInternalRow row, int position)
-    {
-        return toSparkType(cqlType).nativeSparkSqlRowValue(row, position);
-    }
-
-    public Object nativeSparkSqlRowValue(CqlField.CqlType cqlType, Row row, int position)
-    {
-        return toSparkType(cqlType).nativeSparkSqlRowValue(row, position);
-    }
-
     public Object sparkSqlRowValue(CqlField.CqlType cqlType, GenericInternalRow row, int position)
     {
         return toSparkType(cqlType).sparkSqlRowValue(row, position);
