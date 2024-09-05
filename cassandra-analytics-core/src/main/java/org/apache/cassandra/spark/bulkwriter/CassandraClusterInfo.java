@@ -424,10 +424,11 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                                     .stream()
                                     .flatMap(wr -> wr.replicasByDatacenter().entrySet().stream())
                                     .collect(Collectors.toMap(Map.Entry::getKey,
-                                                              e -> new HashSet<>(e.getValue()), (l1, l2) -> {
-                                        l1.addAll(l2);
-                                        return l1;
-                                    }));
+                                                              e -> new HashSet<>(e.getValue()),
+                                                              (l1, l2) -> {
+                                                                  l1.addAll(l2);
+                                                                  return l1;
+                                                              }));
 
         Map<String, Set<String>> pendingReplicasByDC = getPendingReplicas(response, writeReplicasByDC);
 
