@@ -151,7 +151,9 @@ public class SidecarProvisionedSSTable extends SSTable
             return null;
         }
 
-        if (fileType == FileType.COMPRESSION_INFO)
+        if (fileType == FileType.COMPRESSION_INFO
+            && sidecarClientConfig.cacheCompressionMetadata()
+            && snapshotFile.size < sidecarClientConfig.maxSizeCacheCompressionMetadata())
         {
             String key = String.format("%s/%s/%s/%s/%s", instance.hostname(), keyspace, table, snapshotName, snapshotFile.fileName);
             byte[] bytes;
