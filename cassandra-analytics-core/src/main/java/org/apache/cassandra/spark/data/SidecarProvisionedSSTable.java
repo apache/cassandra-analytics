@@ -153,7 +153,7 @@ public class SidecarProvisionedSSTable extends SSTable
 
         if (fileType == FileType.COMPRESSION_INFO
             && sidecarClientConfig.cacheCompressionMetadata()
-            && snapshotFile.size < sidecarClientConfig.maxSizeCacheCompressionMetadata())
+            && snapshotFile.size < sidecarClientConfig.maxSizeCacheCompressionMetadataBytes())
         {
             String key = String.format("%s/%s/%s/%s/%s", instance.hostname(), keyspace, table, snapshotName, snapshotFile.fileName);
             byte[] bytes;
