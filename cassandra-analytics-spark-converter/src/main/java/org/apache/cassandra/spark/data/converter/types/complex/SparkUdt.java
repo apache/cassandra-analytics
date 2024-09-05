@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.data.converter.types.complex;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -132,7 +133,7 @@ public class SparkUdt implements SparkType
     {
         GenericRowWithSchema row = (GenericRowWithSchema) value;
         String[] fieldNames = row.schema().fieldNames();
-        java.util.Map<String, Object> result = new LinkedHashMap<>(fieldNames.length);
+        Map<String, Object> result = new LinkedHashMap<>(fieldNames.length);
         for (int index = 0; index < fieldNames.length; index++)
         {
             result.put(fieldNames[index], sparkType(index).toTestRowType(row.get(index)));
@@ -156,11 +157,17 @@ public class SparkUdt implements SparkType
         }
         else
         {
-            return udtToSparkSqlType((java.util.Map<String, Object>) value);
+            if (!(value instanceof Map))
+            {
+                throw new IllegalArgumentException("Expected Map<String, Object> or raw ByteBuffer for UDT type");
+            }
+            // UDTs should be deserialized to Map<String, Object> by `CqlField.deserializeUdt`
+            Map<String, Object> map = (Map<String, Object>) value;
+            return udtToSparkSqlType(map);
         }
     }
 
-    private GenericInternalRow udtToSparkSqlType(java.util.Map<String, Object> value)
+    private GenericInternalRow udtToSparkSqlType(Map<String, Object> value)
     {
         Object[] objects = new Object[size()];
         for (int index = 0; index < size(); index++)

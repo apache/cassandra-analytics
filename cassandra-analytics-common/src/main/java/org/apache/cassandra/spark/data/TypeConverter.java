@@ -23,11 +23,6 @@ import org.jetbrains.annotations.NotNull;
 
 public interface TypeConverter
 {
-    default Object convert(CqlField.CqlType cqlType, @NotNull Object value)
-    {
-        return convert(cqlType, value, false);
-    }
-
     /**
      * Converts deserialized Cassandra Java value to desired equivalent type.
      * E.g. SparkSQL uses `org.apache.spark.unsafe.types.UTF8String` to wrap strings.

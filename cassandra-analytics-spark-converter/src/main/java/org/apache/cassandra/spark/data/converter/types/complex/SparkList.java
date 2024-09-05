@@ -19,10 +19,26 @@
 
 package org.apache.cassandra.spark.data.converter.types.complex;
 
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
+import org.apache.cassandra.spark.data.converter.types.SparkType;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.catalyst.util.ArrayData;
+import org.apache.spark.sql.catalyst.util.GenericArrayData;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.jetbrains.annotations.NotNull;
+import scala.collection.mutable.WrappedArray;
 
-public class SparkList implements ListFeatures
+public class SparkList implements CollectionFeatures
 {
     private final SparkSqlTypeConverter converter;
     final CqlField.CqlCollection list;
@@ -31,6 +47,68 @@ public class SparkList implements ListFeatures
     {
         this.converter = converter;
         this.list = list;
+    }
+
+    @Override
+    public DataType dataType(BigNumberConfig bigNumberConfig)
+    {
+        return DataTypes.createArrayType(sparkType().dataType(bigNumberConfig));
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    {
+        return ArrayData.toArrayData(((Collection<Object>) value)
+                                     .stream()
+                                     .map(a -> sparkType().toSparkSqlType(a, isFrozen))
+                                     .toArray());
+    }
+
+    @Override
+    public Object sparkSqlRowValue(GenericInternalRow row, int position)
+    {
+        return Arrays.stream(row.getArray(position).array())
+                     .map(element -> sparkType().toTestRowType(element))
+                     .collect(collector());
+    }
+
+    @Override
+    public Object sparkSqlRowValue(Row row, int position)
+    {
+        return row.getList(position).stream()
+                  .map(element -> sparkType().toTestRowType(element))
+                  .collect(collector());
+    }
+
+    @SuppressWarnings({ "unchecked", "RedundantCast" }) // redundant cast to (Object[]) is required
+    @Override
+    public Object toTestRowType(Object value)
+    {
+        return Stream.of((Object[]) ((WrappedArray<Object>) value).array())
+                     .map(element -> sparkType().toTestRowType(element))
+                     .collect(Collectors.toList());
+    }
+
+    public <T> Collector<T, ?, ?> collector()
+    {
+        return Collectors.toList();
+    }
+
+    @Override
+    public boolean equalsTo(Object first, Object second)
+    {
+        return SparkType.equalsArrays(((GenericArrayData) first).array(),
+                                      ((GenericArrayData) second).array(),
+                                      (position) -> sparkType());
+    }
+
+    @Override
+    public int compareTo(Object first, Object second)
+    {
+        return SparkType.compareArrays(((GenericArrayData) first).array(),
+                                       ((GenericArrayData) second).array(),
+                                       (position) -> sparkType());
     }
 
     public CqlField.CqlCollection collection()

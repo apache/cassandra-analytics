@@ -77,6 +77,10 @@ public class SparkTuple implements CollectionFeatures
         }
         else
         {
+            if (!(value instanceof Object[]))
+            {
+                throw new IllegalArgumentException("Expected Object[] or raw ByteBuffer for Tuple type");
+            }
             Object[] array = (Object[]) value;
             for (int index = 0; index < array.length; index++)
             {

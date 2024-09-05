@@ -518,7 +518,7 @@ public class DataTypeSerializationTests
                     Object[] expected = (Object[]) tuple.randomValue();
                     assert expected != null;
                     ByteBuffer buffer = tuple.serializeTuple(expected);
-                    GenericInternalRow row = (GenericInternalRow) bridge.typeConverter().convert(tuple, tuple.deserializeTuple(buffer, false));
+                    GenericInternalRow row = (GenericInternalRow) bridge.typeConverter().convert(tuple, tuple.deserializeTuple(buffer, false), false);
                     Object[] actual = row.values();
                     assertEquals(expected.length, actual.length);
                     for (int index = 0; index < expected.length; index++)
