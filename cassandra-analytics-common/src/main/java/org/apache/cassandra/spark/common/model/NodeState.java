@@ -24,8 +24,7 @@ public enum NodeState
     NORMAL(false),
     JOINING(true),
     LEAVING(true),
-    MOVING(true),
-    REPLACING(true); // state added in sidecar
+    MOVING(true);
 
     public final boolean isPending;
 

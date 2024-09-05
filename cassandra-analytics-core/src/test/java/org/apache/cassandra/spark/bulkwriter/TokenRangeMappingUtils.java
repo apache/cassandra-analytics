@@ -22,6 +22,8 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,14 +35,12 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 
-import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.common.client.InstanceStatus;
+import org.apache.cassandra.spark.common.model.NodeStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.RangeUtils;
-
 
 public final class TokenRangeMappingUtils
 {
@@ -65,7 +65,7 @@ public final class TokenRangeMappingUtils
                              .datacenter(entry.datacenter())
                              .port(entry.port())
                              .address(entry.address())
-                             .status(InstanceStatus.DOWN.name())
+                             .status(NodeStatus.DOWN.name())
                              .state(entry.state())
                              .token(entry.token())
                              .fqdn(entry.fqdn())
@@ -77,21 +77,12 @@ public final class TokenRangeMappingUtils
         RingInstance newInstance = new RingInstance(newEntry);
         instances.add(0, newInstance);
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
-        Map<String, Set<String>> writeReplicas =
-        instances.stream().collect(Collectors.groupingBy(RingInstance::datacenter,
-                                                         // writeReplicas are ultimately created from StorageService#getRangeToEndpointMap in Cassandra
-                                                         // The returned values are ip addresses with port.
-                                                         Collectors.mapping(RingInstance::ipAddressWithPort,
-                                                                            Collectors.toSet())));
-
-        List<ReplicaMetadata> replicaMetadata = instances.stream()
-                                                         .map(i -> new ReplicaMetadata(i.ringInstance().state(),
-                                                                                       i.ringInstance().status(),
-                                                                                       i.nodeName(),
-                                                                                       i.ipAddressWithPort(),
-                                                                                       7012,
-                                                                                       i.datacenter()))
-                                                         .collect(Collectors.toList());
+        Map<String, Set<RingInstance>> writeReplicas = new HashMap<>();
+        for (RingInstance ringInstance : instances)
+        {
+            Set<RingInstance> dc = writeReplicas.computeIfAbsent(ringInstance.datacenter(), k -> new HashSet<>());
+            dc.add(ringInstance);
+        }
 
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
         return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
@@ -99,8 +90,7 @@ public final class TokenRangeMappingUtils
                                        writeReplicas,
                                        Collections.emptyMap(),
                                        tokenRanges,
-                                       replicaMetadata,
-                                       Collections.emptySet());
+                                       new HashSet<>(instances));
     }
 
     public static TokenRangeMapping<RingInstance> buildTokenRangeMapping(int initialToken,
@@ -133,21 +123,12 @@ public final class TokenRangeMappingUtils
         }
 
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
-        Map<String, Set<String>> writeReplicas =
-        instances.stream().collect(Collectors.groupingBy(RingInstance::datacenter,
-                                                         // writeReplicas are ultimately created from StorageService#getRangeToEndpointMap in Cassandra
-                                                         // The returned values are ip addresses with port.
-                                                         Collectors.mapping(RingInstance::ipAddressWithPort,
-                                                                            Collectors.toSet())));
-
-        List<ReplicaMetadata> replicaMetadata = instances.stream()
-                                                         .map(i -> new ReplicaMetadata(i.ringInstance().state(),
-                                                                                       i.ringInstance().status(),
-                                                                                       i.nodeName(),
-                                                                                       i.ipAddressWithPort(),
-                                                                                       7012,
-                                                                                       i.datacenter()))
-                                                         .collect(Collectors.toList());
+        Map<String, Set<RingInstance>> writeReplicas = new HashMap<>();
+        for (RingInstance ringInstance : instances)
+        {
+            Set<RingInstance> dc = writeReplicas.computeIfAbsent(ringInstance.datacenter(), k -> new HashSet<>());
+            dc.add(ringInstance);
+        }
 
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
         return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
@@ -155,8 +136,7 @@ public final class TokenRangeMappingUtils
                                        writeReplicas,
                                        Collections.emptyMap(),
                                        tokenRanges,
-                                       replicaMetadata,
-                                       Collections.emptySet());
+                                       new HashSet<>(instances));
     }
 
     // Used only in tests

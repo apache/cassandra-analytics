@@ -19,7 +19,10 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-public enum InstanceAvailability
+/**
+ * Availability of a node to take writes
+ */
+public enum WriteAvailability
 {
     AVAILABLE("is available"),
     UNAVAILABLE_DOWN("is down"),
@@ -36,7 +39,7 @@ public enum InstanceAvailability
 
     private final String message;
 
-    InstanceAvailability(String message)
+    WriteAvailability(String message)
     {
         this.message = message;
     }

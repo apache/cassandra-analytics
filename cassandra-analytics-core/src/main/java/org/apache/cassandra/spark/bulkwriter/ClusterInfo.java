@@ -25,7 +25,6 @@ import java.util.Map;
 
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.common.client.InstanceState;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.validation.StartupValidatable;
 
@@ -37,9 +36,10 @@ public interface ClusterInfo extends StartupValidatable, Serializable
 
     String getLowestCassandraVersion();
 
-    Map<RingInstance, InstanceAvailability> getInstanceAvailability();
-
-    InstanceState getInstanceState(RingInstance instance);
+    /**
+     * @return WriteAvailability per RingInstance in the cluster
+     */
+    Map<RingInstance, WriteAvailability> clusterWriteAvailability();
 
     Partitioner getPartitioner();
 

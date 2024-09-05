@@ -57,19 +57,20 @@ class BulkWriteValidatorTest
         Map<String, String> replicationOptions = new HashMap<>();
         replicationOptions.put("class", "SimpleStrategy");
         replicationOptions.put("replication_factor", "3");
-        TokenRangeMapping<RingInstance> topology = CassandraClusterInfo.getTokenRangeReplicas(
+        TokenRangeMapping<RingInstance> topology = TokenRangeMapping.create(
         () -> mockSimpleTokenRangeReplicasResponse(10, 3),
         () -> Partitioner.Murmur3Partitioner,
-        () -> new ReplicationFactor(replicationOptions));
+        () -> new ReplicationFactor(replicationOptions),
+        RingInstance::new);
         when(mockClusterInfo.getTokenRangeMapping(anyBoolean())).thenReturn(topology);
-        Map<RingInstance, InstanceAvailability> instanceAvailabilityMap = new HashMap<>(10);
+        Map<RingInstance, WriteAvailability> instanceAvailabilityMap = new HashMap<>(10);
         for (RingInstance instance : topology.getTokenRanges().keySet())
         {
             // Mark nodes 0, 1, 2 as DOWN
             int nodeId = Integer.parseInt(instance.ipAddress().replace("localhost", ""));
-            instanceAvailabilityMap.put(instance, (nodeId <= 2) ? InstanceAvailability.UNAVAILABLE_DOWN : InstanceAvailability.AVAILABLE);
+            instanceAvailabilityMap.put(instance, (nodeId <= 2) ? WriteAvailability.UNAVAILABLE_DOWN : WriteAvailability.AVAILABLE);
         }
-        when(mockClusterInfo.getInstanceAvailability()).thenReturn(instanceAvailabilityMap);
+        when(mockClusterInfo.clusterWriteAvailability()).thenReturn(instanceAvailabilityMap);
 
         JobInfo mockJobInfo = mock(JobInfo.class);
         UUID jobId = UUID.randomUUID();
