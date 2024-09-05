@@ -136,7 +136,6 @@ public class BulkSparkConf implements Serializable
     protected final SparkConf conf;
     protected final int effectiveSidecarPort;
     protected final int userProvidedSidecarPort;
-    protected final Set<String> blockedInstances;
     protected final DigestAlgorithmSupplier digestAlgorithmSupplier;
     protected final StorageClientConfig storageClientConfig;
     protected final DataTransportInfo dataTransportInfo;
@@ -193,7 +192,6 @@ public class BulkSparkConf implements Serializable
         this.ttl = MapUtils.getOrDefault(options, WriterOptions.TTL.name(), null);
         this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
         this.quoteIdentifiers = MapUtils.getBoolean(options, WriterOptions.QUOTE_IDENTIFIERS.name(), false, "quote identifiers");
-        this.blockedInstances = buildBlockedInstances(options);
         int storageClientConcurrency = MapUtils.getInt(options, WriterOptions.STORAGE_CLIENT_CONCURRENCY.name(),
                                                        DEFAULT_STORAGE_CLIENT_CONCURRENCY, "storage client concurrency");
         long storageClientKeepAliveSeconds = MapUtils.getLong(options, WriterOptions.STORAGE_CLIENT_THREAD_KEEP_ALIVE_SECONDS.name(),
@@ -239,13 +237,6 @@ public class BulkSparkConf implements Serializable
     protected DigestAlgorithmSupplier digestAlgorithmSupplierFromOptions(Map<String, String> options)
     {
         return MapUtils.getEnumOption(options, WriterOptions.DIGEST.name(), DigestAlgorithms.XXHASH32, "digest type");
-    }
-
-    protected Set<String> buildBlockedInstances(Map<String, String> options)
-    {
-        String blockedInstances = MapUtils.getOrDefault(options, WriterOptions.BLOCKED_CASSANDRA_INSTANCES.name(), "");
-        return Arrays.stream(blockedInstances.split(","))
-                     .collect(Collectors.toSet());
     }
 
     public static int resolveSSTableDataSizeInMiB(Map<String, String> options)

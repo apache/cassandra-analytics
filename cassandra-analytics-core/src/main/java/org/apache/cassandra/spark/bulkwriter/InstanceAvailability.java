@@ -24,10 +24,6 @@ public enum InstanceAvailability
     AVAILABLE("is available"),
     UNAVAILABLE_DOWN("is down"),
     /**
-     * This node is listed in the cluster block list
-     */
-    UNAVAILABLE_BLOCKED("is blocked"),
-    /**
      * This node is JOINING, and it's gossip state is BOOT_REPLACE, which means it's a host replacement.
      * We can support SBW jobs with host replacements ongoing, but we treat them as UNAVAILABLE so the
      * job's success or failure depends on its consistency level requirements.
