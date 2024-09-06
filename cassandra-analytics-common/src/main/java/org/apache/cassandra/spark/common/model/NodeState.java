@@ -24,7 +24,8 @@ public enum NodeState
     NORMAL(false),
     JOINING(true),
     LEAVING(true),
-    MOVING(true);
+    MOVING(true),
+    REPLACING(true); // deprecated state. Remove once Sidecar's TokenRangeReplicasResponse gets rid of it
 
     public final boolean isPending;
 
