@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.data;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
@@ -171,7 +172,7 @@ class SidecarProvisionedSSTableTest
     @Test
     public void testCompressionCacheDisabled()
     {
-        SSTable ssTable = prepareTable(Sidecar.ClientConfig.create(Map.of("cachecompressionmetadata", "false")),
+        SSTable ssTable = prepareTable(Sidecar.ClientConfig.create(Collections.singletonMap("cachecompressionmetadata", "false")),
                                        "localhost1", 9043,
                                        "keyspace1", "table1",
                                        "snapshot1", "na-1-big-Data.db",
@@ -194,7 +195,7 @@ class SidecarProvisionedSSTableTest
     @Test
     public void testCompressionCacheTooLarge()
     {
-        SSTable ssTable = prepareTable(Sidecar.ClientConfig.create(Map.of("maxsizecachecompressionmetadatabytes", "4194304")),
+        SSTable ssTable = prepareTable(Sidecar.ClientConfig.create(Collections.singletonMap("maxsizecachecompressionmetadatabytes", "4194304")),
                                        "localhost1", 9043,
                                        "keyspace1", "table1",
                                        "snapshot1", "na-1-big-Data.db",
