@@ -54,47 +54,6 @@ public final class TokenRangeMappingUtils
         return buildTokenRangeMapping(initialToken, rfByDC, instancesPerDC, false, -1);
     }
 
-    public static TokenRangeMapping<RingInstance> buildTokenRangeMappingWithBlockedInstance(int initialToken,
-                                                                                            ImmutableMap<String, Integer> rfByDC,
-                                                                                            int instancesPerDC, String blockedInstanceIp)
-    {
-        List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
-        RingInstance blockedInstance = instances.stream()
-                                                .filter(i -> i.ipAddress().equals(blockedInstanceIp))
-                                                .findFirst()
-                                                .get();
-        ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
-        Map<String, Set<String>> writeReplicas =
-        instances.stream()
-                 .collect(Collectors.groupingBy(RingInstance::datacenter,
-                                                // writeReplicas are ultimately created from StorageService#getRangeToEndpointMap in Cassandra
-                                                // The returned values are ip addresses with port.
-                                                Collectors.mapping(RingInstance::ipAddressWithPort, Collectors.toSet())));
-        writeReplicas.replaceAll((key, value) -> {
-            value.removeIf(e -> value.size() > 3);
-            return value;
-        });
-
-        List<ReplicaMetadata> replicaMetadata = instances.stream()
-                                                         .map(i -> new ReplicaMetadata(i.ringInstance().state(),
-                                                                                       i.ringInstance().status(),
-                                                                                       i.nodeName(),
-                                                                                       i.ipAddressWithPort(),
-                                                                                       7012,
-                                                                                       i.datacenter()))
-                                                         .collect(Collectors.toList());
-
-        Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
-        return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
-                                       replicationFactor,
-                                       writeReplicas,
-                                       Collections.emptyMap(),
-                                       tokenRanges,
-                                       replicaMetadata,
-                                       Collections.singleton(blockedInstance),
-                                       Collections.emptySet());
-    }
-
     public static TokenRangeMapping<RingInstance> buildTokenRangeMappingWithFailures(int initialToken,
                                                                                      ImmutableMap<String, Integer> rfByDC,
                                                                                      int instancesPerDC)
@@ -141,7 +100,6 @@ public final class TokenRangeMappingUtils
                                        Collections.emptyMap(),
                                        tokenRanges,
                                        replicaMetadata,
-                                       Collections.emptySet(),
                                        Collections.emptySet());
     }
 
@@ -198,7 +156,6 @@ public final class TokenRangeMappingUtils
                                        Collections.emptyMap(),
                                        tokenRanges,
                                        replicaMetadata,
-                                       Collections.emptySet(),
                                        Collections.emptySet());
     }
 
