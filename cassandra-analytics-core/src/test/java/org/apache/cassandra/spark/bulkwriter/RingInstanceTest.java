@@ -27,11 +27,8 @@ import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -215,17 +212,9 @@ public class RingInstanceTest
         ReplicaAwareFailureHandler<RingInstance> replicationFactor3 = ntsStrategyHandler(partitioner);
         ReplicationFactor repFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
                                                             ntsOptions(new String[]{DATACENTER_1 }, new int[]{3 }));
-        Map<String, Set<RingInstance>> writeReplicas = new HashMap<>();
-        for (RingInstance ringInstance : instances)
-        {
-            Set<RingInstance> dc = writeReplicas.computeIfAbsent(ringInstance.datacenter(), k -> new HashSet<>());
-            dc.add(ringInstance);
-        }
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = TokenRangeMappingUtils.setupTokenRangeMap(partitioner, repFactor, instances);
         TokenRangeMapping<RingInstance> tokenRange = new TokenRangeMapping<>(partitioner,
                                                                              repFactor,
-                                                                             writeReplicas,
-                                                                             Collections.emptyMap(),
                                                                              tokenRanges,
                                                                              Collections.emptySet());
 

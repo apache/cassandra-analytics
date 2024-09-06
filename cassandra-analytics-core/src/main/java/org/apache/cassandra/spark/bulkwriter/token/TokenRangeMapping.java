@@ -33,6 +33,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
@@ -58,10 +59,9 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
     private final Partitioner partitioner;
     private final ReplicationFactor replicationFactor;
     private final transient Set<I> allInstances;
-    private final transient RangeMap<BigInteger, List<I>> replicasByTokenRange;
+    private final transient Set<I> pendingInstances;
+    private final transient RangeMap<BigInteger, List<I>> instancesByTokenRange;
     private final transient Multimap<I, Range<BigInteger>> tokenRangeMap;
-    private final transient Map<String, Set<I>> writeReplicasByDC;
-    private final transient Map<String, Set<I>> pendingReplicasByDC;
 
     public static <I extends CassandraInstance>
     TokenRangeMapping<I> create(Supplier<TokenRangeReplicasResponse> topologySupplier,
@@ -100,12 +100,8 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
                          pendingReplicasByDC.values().stream().flatMap(Collection::stream).collect(Collectors.toSet()).size());
         }
 
-        Map<String, ReplicaMetadata> replicaMetadata = response.replicaMetadata();
-        // Include availability info so CL checks can use it to exclude replacement hosts
         return new TokenRangeMapping<>(partitionerSupplier.get(),
                                        replicationFactorSupplier.get(),
-                                       writeReplicasByDC,
-                                       pendingReplicasByDC,
                                        tokenRangesByInstance,
                                        allInstances);
     }
@@ -136,19 +132,18 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
 
     public TokenRangeMapping(Partitioner partitioner,
                              ReplicationFactor replicationFactor,
-                             Map<String, Set<I>> writeReplicasByDC,
-                             Map<String, Set<I>> pendingReplicasByDC,
                              Multimap<I, Range<BigInteger>> tokenRanges,
                              Set<I> allInstances)
     {
         this.partitioner = partitioner;
         this.replicationFactor = replicationFactor;
         this.tokenRangeMap = tokenRanges;
-        this.pendingReplicasByDC = pendingReplicasByDC;
-        this.writeReplicasByDC = writeReplicasByDC;
         this.allInstances = allInstances;
-        // Populate reverse mapping of ranges to replicas
-        this.replicasByTokenRange = populateReplicas();
+        this.pendingInstances = allInstances.stream()
+                                            .filter(i -> i.nodeState().isPending)
+                                            .collect(Collectors.toSet());
+        // Populate reverse mapping of ranges to instances
+        this.instancesByTokenRange = populateRangeReplicas();
     }
 
     public Partitioner partitioner()
@@ -195,14 +190,13 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
         return allInstances;
     }
 
-    public Set<I> getPendingReplicas()
+    public Set<I> pendingInstances()
     {
-        return (pendingReplicasByDC == null || pendingReplicasByDC.isEmpty())
-               ? Collections.emptySet() : pendingReplicasByDC.values().stream().flatMap(Set::stream).collect(Collectors.toSet());
+        return pendingInstances;
     }
 
     /**
-     * Get the write replicas of sub-ranges that overlap with the input range.
+     * Get write replica-sets of sub-ranges that overlap with the input range.
      *
      * @param range range to check. The range can potentially overlap with multiple ranges.
      *              For example, a down node adds one failure of a token range that covers multiple primary token ranges that replicate to it.
@@ -211,7 +205,7 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
      */
     public Map<Range<BigInteger>, Set<I>> getWriteReplicasOfRange(Range<BigInteger> range, @Nullable String localDc)
     {
-        Map<Range<BigInteger>, List<I>> subRangeReplicas = replicasByTokenRange.subRangeMap(range).asMapOfRanges();
+        Map<Range<BigInteger>, List<I>> subRangeReplicas = instancesByTokenRange.subRangeMap(range).asMapOfRanges();
         Function<List<I>, Set<I>> inDcInstances = instances -> {
             if (localDc != null)
             {
@@ -226,21 +220,15 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
                                .collect(Collectors.toMap(Map.Entry::getKey, entry -> inDcInstances.apply(entry.getValue())));
     }
 
-    public Set<I> getWriteReplicas()
-    {
-        return (writeReplicasByDC == null || writeReplicasByDC.isEmpty())
-               ? Collections.emptySet() : writeReplicasByDC.values().stream().flatMap(Set::stream).collect(Collectors.toSet());
-    }
-
     // Used for writes
     public RangeMap<BigInteger, List<I>> getRangeMap()
     {
-        return this.replicasByTokenRange;
+        return this.instancesByTokenRange;
     }
 
     public RangeMap<BigInteger, List<I>> getSubRanges(Range<BigInteger> tokenRange)
     {
-        return replicasByTokenRange.subRangeMap(tokenRange);
+        return instancesByTokenRange.subRangeMap(tokenRange);
     }
 
     public Multimap<I, Range<BigInteger>> getTokenRanges()
@@ -248,7 +236,7 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
         return tokenRangeMap;
     }
 
-    private RangeMap<BigInteger, List<I>> populateReplicas()
+    private RangeMap<BigInteger, List<I>> populateRangeReplicas()
     {
         RangeMap<BigInteger, List<I>> replicaRangeMap = TreeRangeMap.create();
         // Calculate token range to replica mapping
@@ -272,17 +260,14 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
         }
 
         TokenRangeMapping<?> that = (TokenRangeMapping<?>) other;
-        return writeReplicasByDC.equals(that.writeReplicasByDC)
-               && pendingReplicasByDC.equals(that.pendingReplicasByDC);
+        return partitioner == that.partitioner
+               && allInstances.equals(that.allInstances)
+               && pendingInstances.equals(that.pendingInstances);
     }
 
     @Override
     public int hashCode()
     {
-        int result = tokenRangeMap.hashCode();
-        result = 31 * result + pendingReplicasByDC.hashCode();
-        result = 31 * result + writeReplicasByDC.hashCode();
-        result = 31 * result + replicasByTokenRange.hashCode();
-        return result;
+        return Objects.hashCode(partitioner, tokenRangeMap, allInstances, pendingInstances, instancesByTokenRange);
     }
 }

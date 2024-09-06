@@ -21,12 +21,9 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 
@@ -77,18 +74,10 @@ public final class TokenRangeMappingUtils
         RingInstance newInstance = new RingInstance(newEntry);
         instances.add(0, newInstance);
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
-        Map<String, Set<RingInstance>> writeReplicas = new HashMap<>();
-        for (RingInstance ringInstance : instances)
-        {
-            Set<RingInstance> dc = writeReplicas.computeIfAbsent(ringInstance.datacenter(), k -> new HashSet<>());
-            dc.add(ringInstance);
-        }
 
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
         return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
                                        replicationFactor,
-                                       writeReplicas,
-                                       Collections.emptyMap(),
                                        tokenRanges,
                                        new HashSet<>(instances));
     }
@@ -123,18 +112,9 @@ public final class TokenRangeMappingUtils
         }
 
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
-        Map<String, Set<RingInstance>> writeReplicas = new HashMap<>();
-        for (RingInstance ringInstance : instances)
-        {
-            Set<RingInstance> dc = writeReplicas.computeIfAbsent(ringInstance.datacenter(), k -> new HashSet<>());
-            dc.add(ringInstance);
-        }
-
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
         return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
                                        replicationFactor,
-                                       writeReplicas,
-                                       Collections.emptyMap(),
                                        tokenRanges,
                                        new HashSet<>(instances));
     }

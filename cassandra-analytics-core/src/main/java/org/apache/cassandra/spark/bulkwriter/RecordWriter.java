@@ -143,13 +143,13 @@ public class RecordWriter
                                  taskTokenRange);
 
         TokenRangeMapping<RingInstance> initialTokenRangeMapping = writerContext.cluster().getTokenRangeMapping(false);
-        boolean isClusterBeingResized = !initialTokenRangeMapping.getPendingReplicas().isEmpty();
+        boolean isClusterBeingResized = !initialTokenRangeMapping.pendingInstances().isEmpty();
         LOGGER.info("[{}]: Fetched token range mapping for keyspace: {} with write instances: {} " +
                     "containing pending instances: {}",
                     taskContext.partitionId(),
                     writerContext.job().qualifiedTableName().keyspace(),
-                    initialTokenRangeMapping.getWriteReplicas().size(),
-                    initialTokenRangeMapping.getPendingReplicas().size());
+                    initialTokenRangeMapping.allInstances().size(),
+                    initialTokenRangeMapping.pendingInstances().size());
 
         Map<Range<BigInteger>, List<RingInstance>> initialTokenRangeInstances =
         taskTokenRangeMapping(initialTokenRangeMapping, taskTokenRange);
