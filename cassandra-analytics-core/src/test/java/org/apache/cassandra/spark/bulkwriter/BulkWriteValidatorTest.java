@@ -62,7 +62,9 @@ class BulkWriteValidatorTest
         for (RingInstance instance : topology.getTokenRanges().keySet())
         {
             // Mark nodes 0, 1, 2 as DOWN
-            int nodeId = Integer.parseInt(instance.ipAddress().replace("localhost", ""));
+            int nodeId = Integer.parseInt(instance.ipAddress()
+                                                  .replace("localhost", "")
+                                                  .replace(":9042", ""));
             instanceAvailabilityMap.put(instance, (nodeId <= 2) ? WriteAvailability.UNAVAILABLE_DOWN : WriteAvailability.AVAILABLE);
         }
         when(mockClusterInfo.clusterWriteAvailability()).thenReturn(instanceAvailabilityMap);
