@@ -228,7 +228,6 @@ public class RingInstanceTest
                                                                              Collections.emptyMap(),
                                                                              tokenRanges,
                                                                              Collections.emptyList(),
-                                                                             Collections.emptySet(),
                                                                              Collections.emptySet());
 
         // This test proves that for any RF3 keyspace

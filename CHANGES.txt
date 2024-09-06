@@ -1,5 +1,6 @@
 1.0.0
  * Decouple Cassandra types from Spark types so Cassandra types can be used independently from Spark (CASSANDRA-19815)
+ * Removes checks for blocked instances from bulk-write path (CASSANDRA-19873)
  * Fix consistency level check for write (CASSANDRA-19842)
  * Fix NPE when writing UDT values (CASSANDRA-19836)
  * Add job_timeout_seconds writer option (CASSANDRA-19827)

@@ -34,7 +34,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -375,10 +374,6 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         {
             return InstanceAvailability.UNAVAILABLE_DOWN;
         }
-        if (instanceIsBlocked(instance))
-        {
-            return InstanceAvailability.UNAVAILABLE_BLOCKED;
-        }
         if (instanceIsNormal(instance.ringInstance()) ||
             instanceIsTransitioning(instance.ringInstance()) ||
             instanceIsBeingReplaced(instance.ringInstance()))
@@ -395,15 +390,13 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     {
         return getTokenRangeReplicas(this::getTokenRangesAndReplicaSets,
                                      this::getPartitioner,
-                                     this::getReplicationFactor,
-                                     this::instanceIsBlocked);
+                                     this::getReplicationFactor);
     }
 
     @VisibleForTesting
     static TokenRangeMapping<RingInstance> getTokenRangeReplicas(Supplier<TokenRangeReplicasResponse> topologySupplier,
                                                                  Supplier<Partitioner> partitionerSupplier,
-                                                                 Supplier<ReplicationFactor> replicationFactorSupplier,
-                                                                 Predicate<? super RingInstance> blockedInstancePredicate)
+                                                                 Supplier<ReplicationFactor> replicationFactorSupplier)
     {
         long start = System.nanoTime();
         TokenRangeReplicasResponse response = topologySupplier.get();
@@ -424,20 +417,17 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                                                           .filter(i -> i.nodeState() == NodeState.REPLACING)
                                                           .collect(Collectors.toSet());
 
-        Set<RingInstance> blockedInstances = instances.stream()
-                                                      .filter(blockedInstancePredicate)
-                                                      .collect(Collectors.toSet());
-
-        Set<String> blockedIps = blockedInstances.stream().map(i -> i.ringInstance().address())
-                                                 .collect(Collectors.toSet());
-
         // Each token range has hosts by DC. We collate them across all ranges into all hosts by DC
         Map<String, Set<String>> writeReplicasByDC;
         writeReplicasByDC = response.writeReplicas()
                                     .stream()
                                     .flatMap(wr -> wr.replicasByDatacenter().entrySet().stream())
-                                    .collect(Collectors.toMap(Map.Entry::getKey, e -> new HashSet<>(e.getValue()),
-                                                              (l1, l2) -> filterAndMergeInstances(l1, l2, blockedIps)));
+                                    .collect(Collectors.toMap(Map.Entry::getKey,
+                                                              e -> new HashSet<>(e.getValue()),
+                                                              (l1, l2) -> {
+                                                                  l1.addAll(l2);
+                                                                  return l1;
+                                                              }));
 
         Map<String, Set<String>> pendingReplicasByDC = getPendingReplicas(response, writeReplicasByDC);
 
@@ -457,18 +447,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                                        pendingReplicasByDC,
                                        tokenRangesByInstance,
                                        new ArrayList<>(replicaMetadata.values()),
-                                       blockedInstances,
                                        replacementInstances);
-    }
-
-    private static Set<String> filterAndMergeInstances(Set<String> instancesList1, Set<String> instancesList2, Set<String> blockedIPs)
-    {
-        Set<String> merged = new HashSet<>();
-        // Removes blocked instances. If this is included, remove blockedInstances from CL checks
-        merged.addAll(instancesList1.stream().filter(i -> !blockedIPs.contains(i)).collect(Collectors.toSet()));
-        merged.addAll(instancesList2.stream().filter(i -> !blockedIPs.contains(i)).collect(Collectors.toSet()));
-
-        return merged;
     }
 
     private static Map<String, Set<String>> getPendingReplicas(TokenRangeReplicasResponse response, Map<String, Set<String>> writeReplicasByDC)
@@ -587,11 +566,6 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
              .orElseThrow(() -> new RuntimeException("No valid Cassandra Versions were returned from Cassandra Sidecar"));
         nodeSettings.compareAndSet(null, ns);
         return ns.releaseVersion();
-    }
-
-    protected boolean instanceIsBlocked(RingInstance instance)
-    {
-        return conf.blockedInstances.contains(instance.ipAddress());
     }
 
     protected boolean instanceIsNormal(RingEntry ringEntry)

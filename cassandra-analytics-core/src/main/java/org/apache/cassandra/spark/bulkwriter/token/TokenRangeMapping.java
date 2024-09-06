@@ -49,7 +49,6 @@ public class TokenRangeMapping<Instance extends CassandraInstance> implements Se
     private static final long serialVersionUID = -7284933683815811160L;
     private final Partitioner partitioner;
     private final ReplicationFactor replicationFactor;
-    private final transient Set<RingInstance> blockedInstances;
     private final transient Set<RingInstance> replacementInstances;
     private final transient RangeMap<BigInteger, List<Instance>> replicasByTokenRange;
     private final transient Multimap<Instance, Range<BigInteger>> tokenRangeMap;
@@ -63,7 +62,6 @@ public class TokenRangeMapping<Instance extends CassandraInstance> implements Se
                              Map<String, Set<String>> pendingReplicasByDC,
                              Multimap<Instance, Range<BigInteger>> tokenRanges,
                              List<ReplicaMetadata> replicaMetadata,
-                             Set<RingInstance> blockedInstances,
                              Set<RingInstance> replacementInstances)
     {
         this.partitioner = partitioner;
@@ -71,7 +69,6 @@ public class TokenRangeMapping<Instance extends CassandraInstance> implements Se
         this.tokenRangeMap = tokenRanges;
         this.pendingReplicasByDC = pendingReplicasByDC;
         this.writeReplicasByDC = writeReplicasByDC;
-        this.blockedInstances = blockedInstances;
         this.replacementInstances = replacementInstances;
         this.replicaMetadata = replicaMetadata;
         // Populate reverse mapping of ranges to replicas
@@ -176,22 +173,6 @@ public class TokenRangeMapping<Instance extends CassandraInstance> implements Se
         return (writeReplicasByDC == null || writeReplicasByDC.isEmpty())
                ? Collections.emptySet() : new HashSet<>(writeReplicasByDC.get(datacenter));
     }
-
-    public Set<String> getBlockedInstances()
-    {
-        return blockedInstances.stream()
-                               .map(RingInstance::ipAddress)
-                               .collect(Collectors.toSet());
-    }
-
-    public Set<String> getBlockedInstances(String datacenter)
-    {
-        return blockedInstances.stream()
-                               .filter(r -> r.datacenter().equalsIgnoreCase(datacenter))
-                               .map(RingInstance::ipAddress)
-                               .collect(Collectors.toSet());
-    }
-
 
     public Set<String> getReplacementInstances()
     {
