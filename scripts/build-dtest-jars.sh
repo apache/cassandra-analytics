@@ -112,12 +112,12 @@ else
             fi
         fi
     done
-    # always delete the Cassandra source after dtest.jar is built to avoid confusing IDE
-    rm -rf "$DTEST_JAR_DIR/cassandra-build"
     # Exit, if we didn't build successfully
     if [ "${RETURN}" -ne "0" ]; then
         echo "Build failed with exit code: ${RETURN}"
         exit ${RETURN}
     fi
   done
+  # always delete the Cassandra source after dtest.jar is built to avoid confusing IDE
+  rm -rf "$DTEST_JAR_DIR/cassandra-build"
 fi
