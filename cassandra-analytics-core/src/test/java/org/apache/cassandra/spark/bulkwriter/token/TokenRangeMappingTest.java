@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class TokenRangeMappingTest
 {
-    private final ReplicationFactor rf = new ReplicationFactor(new HashMap<>()
+    private final ReplicationFactor rf = new ReplicationFactor(new HashMap<String, String>()
     {{
         put("class", "SimpleStrategy");
         put("replication_factor", "3");
