@@ -27,6 +27,7 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.apache.commons.io.IOUtils;
@@ -51,7 +52,8 @@ import org.jetbrains.annotations.Nullable;
 public class SidecarProvisionedSSTable extends SSTable
 {
     private static final long serialVersionUID = 6452703925812602832L;
-    private static final Cache<String, byte[]> COMPRESSION_CACHE = CacheBuilder.newBuilder()
+    @VisibleForTesting
+    public static final Cache<String, byte[]> COMPRESSION_CACHE = CacheBuilder.newBuilder()
                                                                                .expireAfterAccess(1, TimeUnit.HOURS)
                                                                                .maximumSize(2048)
                                                                                .build();

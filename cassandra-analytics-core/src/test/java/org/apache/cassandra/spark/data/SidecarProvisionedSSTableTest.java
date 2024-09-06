@@ -19,8 +19,12 @@
 
 package org.apache.cassandra.spark.data;
 
-import java.util.Collections;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Map;
 
+import com.google.common.collect.ImmutableMap;
+import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,9 +35,13 @@ import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.spark.utils.streaming.BufferingInputStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -142,12 +150,88 @@ class SidecarProvisionedSSTableTest
         .isThrownBy(() -> prepareTable("localhost", 9043, "ks", "tbl", "snap", dataFileName));
     }
 
+    private static final byte[] ARRAY = new byte[]{'a', 'b', 'c'};
+
+    @Test
+    public void testCompressionCache()
+    {
+        SSTable ssTable = prepareTable("localhost1", 9043, "keyspace1", "table1", "snapshot1", "na-1-big-Data.db");
+        String key = String.format("%s/%s/%s/%s/%s", "localhost1", "keyspace1", "table1", "snapshot1", "na-1-big-Data.db");
+        SidecarProvisionedSSTable.COMPRESSION_CACHE.put(key, ARRAY);
+        try (InputStream is = ssTable.openCompressionStream())
+        {
+            assertArrayEquals(ARRAY, IOUtils.toByteArray(is));
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    public void testCompressionCacheDisabled()
+    {
+        SSTable ssTable = prepareTable(Sidecar.ClientConfig.create(Map.of("cachecompressionmetadata", "false")),
+                                       "localhost1", 9043,
+                                       "keyspace1", "table1",
+                                       "snapshot1", "na-1-big-Data.db",
+                                       524288);
+        String key = String.format("%s/%s/%s/%s/%s", "localhost1", "keyspace2", "table2", "snapshot2", "na-2-big-Data.db");
+        SidecarProvisionedSSTable.COMPRESSION_CACHE.put(key, ARRAY);
+        try (InputStream is = ssTable.openCompressionStream())
+        {
+            assertNotNull(is);
+            // when not cached it should return a BufferingInputStream
+            // but in the tests it's backed by nothing so don't consume
+            assertInstanceOf(BufferingInputStream.class, is);
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    public void testCompressionCacheTooLarge()
+    {
+        SSTable ssTable = prepareTable(Sidecar.ClientConfig.create(Map.of("maxsizecachecompressionmetadatabytes", "4194304")),
+                                       "localhost1", 9043,
+                                       "keyspace1", "table1",
+                                       "snapshot1", "na-1-big-Data.db",
+                                       5 * 1025 * 1024);
+        String key = String.format("%s/%s/%s/%s/%s", "localhost1", "keyspace2", "table2", "snapshot2", "na-2-big-Data.db");
+        SidecarProvisionedSSTable.COMPRESSION_CACHE.put(key, ARRAY);
+        try (InputStream is = ssTable.openCompressionStream())
+        {
+            assertNotNull(is);
+            // when not cached it should return a BufferingInputStream
+            // but in the tests it's backed by nothing so don't consume
+            assertInstanceOf(BufferingInputStream.class, is);
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
+
     SSTable prepareTable(String sidecarHostName,
                          int sidecarPort,
                          String keyspace,
                          String table,
                          String snapshot,
                          String dataFileName)
+    {
+        return prepareTable(this.sidecarClientConfig, sidecarHostName, sidecarPort, keyspace, table, snapshot, dataFileName, 5);
+    }
+
+    SSTable prepareTable(Sidecar.ClientConfig clientConfig,
+                         String sidecarHostName,
+                         int sidecarPort,
+                         String keyspace,
+                         String table,
+                         String snapshot,
+                         String dataFileName,
+                         int compressionFileSize)
     {
         ListSnapshotFilesResponse.FileInfo fileInfo = new ListSnapshotFilesResponse.FileInfo(5,
                                                                                              sidecarHostName,
@@ -157,13 +241,21 @@ class SidecarProvisionedSSTableTest
                                                                                              keyspace,
                                                                                              table + "-abc1234",
                                                                                              dataFileName);
+        ListSnapshotFilesResponse.FileInfo compressionInfo = new ListSnapshotFilesResponse.FileInfo(compressionFileSize,
+                                                                                                    sidecarHostName,
+                                                                                                    sidecarPort,
+                                                                                                    1,
+                                                                                                    snapshot,
+                                                                                                    keyspace,
+                                                                                                    table + "-abc1234",
+                                                                                                    dataFileName);
         return new SidecarProvisionedSSTable(mockSidecarClient,
-                                             sidecarClientConfig,
+                                             clientConfig,
                                              new SidecarInstanceImpl(sidecarHostName, sidecarPort),
                                              keyspace,
                                              table,
                                              snapshot,
-                                             Collections.singletonMap(FileType.DATA, fileInfo),
+                                             ImmutableMap.of(FileType.DATA, fileInfo, FileType.COMPRESSION_INFO, compressionInfo),
                                              1,
                                              Stats.DoNothingStats.INSTANCE);
     }
