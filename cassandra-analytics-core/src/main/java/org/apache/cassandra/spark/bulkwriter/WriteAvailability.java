@@ -19,6 +19,9 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import org.apache.cassandra.spark.common.model.NodeState;
+import org.apache.cassandra.spark.common.model.NodeStatus;
+
 /**
  * Availability of a node to take writes
  */
@@ -26,12 +29,6 @@ public enum WriteAvailability
 {
     AVAILABLE("is available"),
     UNAVAILABLE_DOWN("is down"),
-    /**
-     * This node is JOINING, and it's gossip state is BOOT_REPLACE, which means it's a host replacement.
-     * We can support SBW jobs with host replacements ongoing, but we treat them as UNAVAILABLE so the
-     * job's success or failure depends on its consistency level requirements.
-     */
-    UNAVAILABLE_REPLACEMENT("is a host replacement"),
     /**
      * INVALID_STATE is true when a node is in an unknown state
      */
@@ -47,5 +44,20 @@ public enum WriteAvailability
     public String getMessage()
     {
         return message;
+    }
+
+    public static WriteAvailability determineFromNodeState(NodeState nodeState, NodeStatus nodeStatus)
+    {
+        if (nodeStatus != NodeStatus.UP)
+        {
+            return WriteAvailability.UNAVAILABLE_DOWN;
+        }
+        // pending and normal nodes are available for write
+        if (nodeState == NodeState.NORMAL || nodeState.isPending)
+        {
+            return WriteAvailability.AVAILABLE;
+        }
+        // If it's not one of the above, it's INVALID.
+        return WriteAvailability.INVALID_STATE;
     }
 }

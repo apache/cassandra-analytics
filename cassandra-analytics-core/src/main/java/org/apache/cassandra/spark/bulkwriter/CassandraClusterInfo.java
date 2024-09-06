@@ -48,8 +48,6 @@ import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.common.model.NodeState;
-import org.apache.cassandra.spark.common.model.NodeStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
@@ -360,24 +358,11 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     protected WriteAvailability determineWriteAvailability(RingInstance instance)
     {
-        if (instance.nodeStatus() != NodeStatus.UP)
-        {
-            return WriteAvailability.UNAVAILABLE_DOWN;
-        }
-        // pending and normal nodes are available for write
-        if (instance.nodeState() == NodeState.NORMAL || instance.nodeState().isPending)
-        {
-            return WriteAvailability.AVAILABLE;
-        }
-
-        LOGGER.info("No valid state found for instance {}", instance);
-        // If it's not one of the above, it's inherently INVALID.
-        return WriteAvailability.INVALID_STATE;
+        return WriteAvailability.determineFromNodeState(instance.nodeState(), instance.nodeStatus());
     }
 
     private TokenRangeMapping<RingInstance> getTokenRangeReplicas()
     {
-
         return TokenRangeMapping.create(this::getTokenRangesAndReplicaSets,
                                         this::getPartitioner,
                                         this::getReplicationFactor,

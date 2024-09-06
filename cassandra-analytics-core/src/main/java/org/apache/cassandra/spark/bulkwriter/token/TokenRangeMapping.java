@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.bulkwriter.token;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -77,27 +76,10 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
         Multimap<I, Range<BigInteger>> tokenRangesByInstance = tokenRangesByInstance(response.writeReplicas(),
                                                                                      instanceByIpAddress);
 
-        // Each token range has hosts by DC. We collate them across all ranges into all hosts by DC
-        Map<String, Set<I>> writeReplicasByDC = new HashMap<>();
-        Map<String, Set<I>> pendingReplicasByDC = new HashMap<>();
         Set<I> allInstances = new HashSet<>(instanceByIpAddress.values());
-        for (I instance : allInstances)
-        {
-            Set<I> dc = writeReplicasByDC.computeIfAbsent(instance.datacenter(), k -> new HashSet<>());
-            dc.add(instance);
-            if (instance.nodeState().isPending)
-            {
-                Set<I> pendingInDc = pendingReplicasByDC.computeIfAbsent(instance.datacenter(), k -> new HashSet<>());
-                pendingInDc.add(instance);
-            }
-        }
-
         if (LOGGER.isDebugEnabled())
         {
-            LOGGER.debug("Fetched token-ranges with dcs={}, write_replica_count={}, pending_replica_count={}",
-                         writeReplicasByDC.keySet(),
-                         writeReplicasByDC.values().stream().flatMap(Collection::stream).collect(Collectors.toSet()).size(),
-                         pendingReplicasByDC.values().stream().flatMap(Collection::stream).collect(Collectors.toSet()).size());
+            LOGGER.debug("Fetched token-range replicas: {}", allInstances);
         }
 
         return new TokenRangeMapping<>(partitionerSupplier.get(),

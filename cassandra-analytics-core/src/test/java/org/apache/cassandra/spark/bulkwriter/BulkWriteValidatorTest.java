@@ -19,17 +19,12 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
-import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaInfo;
-import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -58,7 +53,7 @@ class BulkWriteValidatorTest
         replicationOptions.put("class", "SimpleStrategy");
         replicationOptions.put("replication_factor", "3");
         TokenRangeMapping<RingInstance> topology = TokenRangeMapping.create(
-        () -> mockSimpleTokenRangeReplicasResponse(10, 3),
+        () -> TokenRangeMappingUtils.mockSimpleTokenRangeReplicasResponse(10, 3),
         () -> Partitioner.Murmur3Partitioner,
         () -> new ReplicationFactor(replicationOptions),
         RingInstance::new);
@@ -86,31 +81,5 @@ class BulkWriteValidatorTest
         assertThatThrownBy(() -> writerValidator.validateClOrFail(topology))
         .isExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
         .hasMessageContaining("Failed to write");
-    }
-
-    private TokenRangeReplicasResponse mockSimpleTokenRangeReplicasResponse(int instancesCount, int replicationFactor)
-    {
-        long startToken = 0;
-        long rangeLength = 100;
-        List<ReplicaInfo> replicaInfoList = new ArrayList<>(instancesCount);
-        Map<String, ReplicaMetadata> replicaMetadata = new HashMap<>(instancesCount);
-        for (int i = 0; i < instancesCount; i++)
-        {
-            long endToken = startToken + rangeLength;
-            List<String> replicas = new ArrayList<>(replicationFactor);
-            for (int r = 0; r < replicationFactor; r++)
-            {
-                replicas.add("localhost" + (i + r) % instancesCount);
-            }
-            Map<String, List<String>> replicasPerDc = new HashMap<>();
-            replicasPerDc.put("ignored", replicas);
-            ReplicaInfo ri = new ReplicaInfo(String.valueOf(startToken), String.valueOf(endToken), replicasPerDc);
-            replicaInfoList.add(ri);
-            String address = "localhost" + i;
-            ReplicaMetadata rm = new ReplicaMetadata("NORMAL", "UP", address, address, 9042, "ignored");
-            replicaMetadata.put(address, rm);
-            startToken = endToken;
-        }
-        return new TokenRangeReplicasResponse(replicaInfoList, replicaInfoList, replicaMetadata);
     }
 }
