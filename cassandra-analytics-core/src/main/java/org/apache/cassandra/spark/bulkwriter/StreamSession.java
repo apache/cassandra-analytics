@@ -111,7 +111,7 @@ public abstract class StreamSession<T extends TransportContext>
 
     /**
      * Throw exception when the last streaming task has failed
-     * @throws IOException
+     * @throws IOException stream failure
      */
     public void throwIfLastStreamFailed() throws IOException
     {

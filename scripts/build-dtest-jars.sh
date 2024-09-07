@@ -118,4 +118,6 @@ else
         exit ${RETURN}
     fi
   done
+  # always delete the Cassandra source after dtest.jar is built to avoid confusing IDE
+  rm -rf "$DTEST_JAR_DIR/cassandra-build"
 fi

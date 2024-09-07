@@ -29,8 +29,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -43,7 +41,6 @@ import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
@@ -53,19 +50,18 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 public class RingInstanceTest
 {
     public static final String DATACENTER_1 = "DATACENTER1";
-    public static final String KEYSPACE = "KEYSPACE";
 
     static List<RingInstance> getInstances(BigInteger[] tokens, String datacenter)
     {
         List<RingInstance> instances = new ArrayList<>();
         for (int token = 0; token < tokens.length; token++)
         {
-            instances.add(instance(tokens[token], "node-" + token, datacenter, "host"));
+            instances.add(instance(tokens[token], "node-" + token, datacenter));
         }
         return instances;
     }
 
-    static RingInstance instance(BigInteger token, String nodeName, String datacenter, String hostName)
+    static RingInstance instance(BigInteger token, String nodeName, String datacenter)
     {
         return new RingInstance(new RingEntry.Builder()
                                 .datacenter(datacenter)
@@ -212,22 +208,14 @@ public class RingInstanceTest
         BigInteger[] tokens = getTokens(partitioner, 5);
         List<RingInstance> instances = getInstances(tokens, DATACENTER_1);
         RingInstance instance1 = instances.get(0);
-        RingInstance instance2 = instance(tokens[0], instance1.nodeName(), instance1.datacenter(), "?");
+        RingInstance instance2 = instance(tokens[0], instance1.nodeName(), instance1.datacenter());
         ReplicaAwareFailureHandler<RingInstance> replicationFactor3 = ntsStrategyHandler(partitioner);
         ReplicationFactor repFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
                                                             ntsOptions(new String[]{DATACENTER_1 }, new int[]{3 }));
-        Map<String, Set<String>> writeReplicas =
-        instances.stream().collect(Collectors.groupingBy(CassandraInstance::datacenter,
-                                                         // writeReplicas are ultimately created from StorageService#getRangeToEndpointMap in Cassandra
-                                                         // The returned values are ip addresses.
-                                                         Collectors.mapping(CassandraInstance::ipAddressWithPort, Collectors.toSet())));
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = TokenRangeMappingUtils.setupTokenRangeMap(partitioner, repFactor, instances);
         TokenRangeMapping<RingInstance> tokenRange = new TokenRangeMapping<>(partitioner,
                                                                              repFactor,
-                                                                             writeReplicas,
-                                                                             Collections.emptyMap(),
                                                                              tokenRanges,
-                                                                             Collections.emptyList(),
                                                                              Collections.emptySet());
 
         // This test proves that for any RF3 keyspace

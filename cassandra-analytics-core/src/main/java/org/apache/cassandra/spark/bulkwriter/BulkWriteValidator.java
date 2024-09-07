@@ -148,11 +148,11 @@ public class BulkWriteValidator
     private void updateInstanceAvailability()
     {
         cluster.refreshClusterInfo();
-        Map<RingInstance, InstanceAvailability> availability = cluster.getInstanceAvailability();
+        Map<RingInstance, WriteAvailability> availability = cluster.clusterWriteAvailability();
         availability.forEach(this::validateAvailabilityAndUpdateFailures);
     }
 
-    private void validateAvailabilityAndUpdateFailures(RingInstance instance, InstanceAvailability availability)
+    private void validateAvailabilityAndUpdateFailures(RingInstance instance, WriteAvailability availability)
     {
         switch (availability)
         {
@@ -160,7 +160,7 @@ public class BulkWriteValidator
                 // If we find any nodes in a totally invalid state, just throw as we can't continue
                 String errorMessage = String.format("Instance (%s) is in an invalid state (%s) during import. "
                                                     + "Please rerun import once topology changes are complete.",
-                                                    instance.nodeName(), cluster.getInstanceState(instance));
+                                                    instance.nodeName(), instance.nodeState());
                 throw new RuntimeException(errorMessage);
             case UNAVAILABLE_DOWN:
                 Collection<Range<BigInteger>> unavailableRanges = cluster.getTokenRangeMapping(true)
