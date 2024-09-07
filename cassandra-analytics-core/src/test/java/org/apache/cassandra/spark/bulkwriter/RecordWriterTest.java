@@ -156,7 +156,7 @@ class RecordWriterTest
         rw = new RecordWriter(m, COLUMN_NAMES, () -> tc, SortedSSTableWriter::new);
 
         when(m.getTokenRangeMapping(anyBoolean())).thenReturn(testMapping);
-        when(m.getInstanceAvailability()).thenCallRealMethod();
+        when(m.clusterWriteAvailability()).thenCallRealMethod();
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         rw.write(data);
         Map<CassandraInstance, List<UploadRequest>> uploads = writerContext.getUploads();

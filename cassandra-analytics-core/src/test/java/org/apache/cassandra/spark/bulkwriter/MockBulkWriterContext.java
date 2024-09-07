@@ -23,6 +23,7 @@ import java.math.BigInteger;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -32,7 +33,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -51,7 +51,6 @@ import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.client.ClientException;
-import org.apache.cassandra.spark.common.client.InstanceState;
 import org.apache.cassandra.spark.common.model.BulkFeatures;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.common.schema.ColumnType;
@@ -376,17 +375,15 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public Map<RingInstance, InstanceAvailability> getInstanceAvailability()
+    public Map<RingInstance, WriteAvailability> clusterWriteAvailability()
     {
-        return tokenRangeMapping.getReplicaMetadata().stream()
-                                .map(RingInstance::new)
-                                .collect(Collectors.toMap(Function.identity(), v -> InstanceAvailability.AVAILABLE));
-    }
-
-    @Override
-    public InstanceState getInstanceState(RingInstance ringInstance)
-    {
-        return InstanceState.NORMAL;
+        Set<RingInstance> allInstances = tokenRangeMapping.allInstances();
+        Map<RingInstance, WriteAvailability> result = new HashMap<>(allInstances.size());
+        for (RingInstance instance : allInstances)
+        {
+            result.put(instance, WriteAvailability.AVAILABLE);
+        }
+        return result;
     }
 
     public void setUploadSupplier(Predicate<CassandraInstance> uploadRequestConsumer)

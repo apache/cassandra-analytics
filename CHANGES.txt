@@ -1,5 +1,6 @@
 1.0.0
  * Make the compression cache configurable to reduce heap pressure for large SSTables (CASSANDRA-19900)
+ * Refactor TokenRangeMapping to use proper types instead of Strings (CASSANDRA-19901)
  * Removes checks for blocked instances from bulk-write path (CASSANDRA-19873)
  * Fix consistency level check for write (CASSANDRA-19842)
  * Fix NPE when writing UDT values (CASSANDRA-19836)
