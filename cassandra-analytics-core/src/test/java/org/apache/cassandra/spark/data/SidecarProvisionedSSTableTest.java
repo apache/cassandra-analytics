@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.data;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collections;
-import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.IOUtils;
