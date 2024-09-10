@@ -284,10 +284,10 @@ class BulkSparkConfTest
         String coordinatedWriteConfJsonNoLocalDc = "{\"cluster1\":" +
                                                    "{\"sidecarContactPoints\":[\"instance-1:9999\",\"instance-2:9999\",\"instance-3:9999\"]}}";
 
-        options.put(WriterOptions.COORDINATED_WRITE_CONF.name(), coordinatedWriteConfJsonNoLocalDc);
+        options.put(WriterOptions.COORDINATED_WRITE_CONFIG.name(), coordinatedWriteConfJsonNoLocalDc);
         assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
         .isExactlyInstanceOf(IllegalArgumentException.class)
-        .hasMessage("Coordinated write only supports S3_COMPACT mode");
+        .hasMessage("Coordinated write only supports S3_COMPAT");
 
         options.put(WriterOptions.DATA_TRANSPORT.name(), DataTransport.S3_COMPAT.name());
         options.put(WriterOptions.BULK_WRITER_CL.name(), "LOCAL_QUORUM");
@@ -295,7 +295,7 @@ class BulkSparkConfTest
         .isExactlyInstanceOf(IllegalStateException.class)
         .hasMessage("localDc is not configured for cluster: cluster1 for consistency level: LOCAL_QUORUM");
 
-        options.put(WriterOptions.COORDINATED_WRITE_CONF.name(), "invalid json");
+        options.put(WriterOptions.COORDINATED_WRITE_CONFIG.name(), "invalid json");
         assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
         .isExactlyInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Unable to parse json string into CoordinatedWriteConf of SimpleClusterConf due to Unrecognized token 'invalid'");
@@ -305,7 +305,7 @@ class BulkSparkConfTest
     void testCoordinatedWriteConf()
     {
         Map<String, String> options = copyDefaultOptions();
-        options.remove(WriterOptions.COORDINATED_WRITE_CONF.name());
+        options.remove(WriterOptions.COORDINATED_WRITE_CONFIG.name());
         BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
         assertThat(conf.isCoordinatedWriteConfigured())
         .describedAs("When COORDINATED_WRITE_CONF is absent, isCoordinatedWriteConfigured should return false")
@@ -319,7 +319,7 @@ class BulkSparkConfTest
                                           "\"localDc\":\"dc1\"}}";
         options.put(WriterOptions.DATA_TRANSPORT.name(), DataTransport.S3_COMPAT.name());
         options.put(WriterOptions.BULK_WRITER_CL.name(), "LOCAL_QUORUM");
-        options.put(WriterOptions.COORDINATED_WRITE_CONF.name(), coordinatedWriteConfJson);
+        options.put(WriterOptions.COORDINATED_WRITE_CONFIG.name(), coordinatedWriteConfJson);
         conf = new BulkSparkConf(sparkConf, options);
         assertThat(conf.isCoordinatedWriteConfigured())
         .describedAs("When COORDINATED_WRITE_CONF is present, it should return true")

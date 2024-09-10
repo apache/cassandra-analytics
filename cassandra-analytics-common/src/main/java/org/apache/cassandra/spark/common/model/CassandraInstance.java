@@ -25,7 +25,7 @@ import org.jetbrains.annotations.Nullable;
 public interface CassandraInstance extends TokenOwner
 {
     /**
-     * @return clusterId of the belong cluster; the return value is nullable
+     * @return ID string that can uniquely identify a cluster; the return value is nullable
      */
     @Nullable String clusterId();
 

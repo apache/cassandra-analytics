@@ -36,7 +36,7 @@ public enum WriterOptions implements WriterOption
      * See org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf.
      * When the option is present, SIDECAR_CONTACT_POINTS, SIDECAR_INSTANCES and LOCAL_DC are ignored if they are present.
      */
-    COORDINATED_WRITE_CONF,
+    COORDINATED_WRITE_CONFIG,
     KEYSPACE,
     TABLE,
     BULK_WRITER_CL,

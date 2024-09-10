@@ -227,7 +227,7 @@ public class BulkSparkConf implements Serializable
         }
         this.jobTimeoutSeconds = MapUtils.getLong(options, WriterOptions.JOB_TIMEOUT_SECONDS.name(), -1L);
         this.configuredJobId = MapUtils.getOrDefault(options, WriterOptions.JOB_ID.name(), null);
-        this.coordinatedWriteConfJson = MapUtils.getOrDefault(options, WriterOptions.COORDINATED_WRITE_CONF.name(), null);
+        this.coordinatedWriteConfJson = MapUtils.getOrDefault(options, WriterOptions.COORDINATED_WRITE_CONFIG.name(), null);
         this.coordinatedWriteConf = buildCoordinatedWriteConf(); // must only call the build method at this step, after the related fields have been resolved
         validateEnvironment();
     }
@@ -312,7 +312,7 @@ public class BulkSparkConf implements Serializable
 
         if (dataTransportInfo.getTransport() != DataTransport.S3_COMPAT)
         {
-            throw new IllegalArgumentException("Coordinated write only supports S3_COMPACT mode");
+            throw new IllegalArgumentException("Coordinated write only supports " + DataTransport.S3_COMPAT);
         }
 
         if (sidecarContactPointsValue != null)
