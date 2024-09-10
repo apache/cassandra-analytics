@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
@@ -59,6 +58,7 @@ import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.QualifiedTableName;
+import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.sql.types.DataTypes;
@@ -100,7 +100,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private final UUID jobId;
     private Supplier<Long> timeProvider = System::currentTimeMillis;
 
-    private CountDownLatch uploadsLatch = new CountDownLatch(0);
     private boolean skipClean = false;
     public int refreshClusterInfoCallCount = 0;  // CHECKSTYLE IGNORE: Public mutable field
     private final Map<CassandraInstance, List<UploadRequest>> uploads = new ConcurrentHashMap<>();
@@ -113,8 +112,8 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private final TokenPartitioner tokenPartitioner;
     private final String cassandraVersion;
     private CommitResultSupplier crSupplier = (uuids, dc) -> new DirectDataTransferApi.RemoteCommitResult(true, Collections.emptyList(), uuids, null);
-
     private Predicate<CassandraInstance> uploadRequestConsumer = instance -> true;
+    private ReplicationFactor replicationFactor;
 
     public MockBulkWriterContext(TokenRangeMapping<RingInstance> tokenRangeMapping)
     {
@@ -168,24 +167,9 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         this.jobId = java.util.UUID.randomUUID();
     }
 
-    public Supplier<Long> getTimeProvider()
-    {
-        return timeProvider;
-    }
-
     public void setTimeProvider(Supplier<Long> timeProvider)
     {
         this.timeProvider = timeProvider;
-    }
-
-    public CountDownLatch getUploadsLatch()
-    {
-        return uploadsLatch;
-    }
-
-    public void setUploadsLatch(CountDownLatch uploadsLatch)
-    {
-        this.uploadsLatch = uploadsLatch;
     }
 
     @Override
@@ -204,6 +188,17 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     {
         // TODO: Fix me
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ReplicationFactor replicationFactor()
+    {
+        return replicationFactor;
+    }
+
+    public void setReplicationFactor(ReplicationFactor replicationFactor)
+    {
+        this.replicationFactor = replicationFactor;
     }
 
     @Override

@@ -51,11 +51,10 @@ public abstract class CqlCollection extends CqlType implements CqlField.CqlColle
         this(Arrays.asList(types));
     }
 
-    @SuppressWarnings("ConfusingArgumentToVarargsMethod")
     CqlCollection(List<CqlField.CqlType> types)
     {
         this.types = new ArrayList<>(types);
-        this.hashCode = Objects.hash((CqlField.CqlType[]) types.toArray(new CqlField.CqlType[0]));
+        this.hashCode = Objects.hash(types.toArray());
     }
 
     @Override

@@ -113,7 +113,7 @@ public final class ImportCompletionCoordinator
             onCancelJob.accept(cancelJobEvent);
         };
         this.cassandraTopologyMonitor = monitorCreator.apply(writerContext.cluster(), wrapped);
-        this.replicationFactor = cassandraTopologyMonitor.initialTopology().replicationFactor();
+        this.replicationFactor = writerContext.cluster().replicationFactor();
     }
 
 

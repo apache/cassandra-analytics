@@ -42,11 +42,13 @@ import org.junit.jupiter.api.io.TempDir;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 import org.assertj.core.api.Assertions;
 import org.jetbrains.annotations.NotNull;
 
+import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -83,8 +85,11 @@ public class DirectStreamSessionTest
     {
         digestAlgorithm = new XXHash32DigestAlgorithm();
         range = Range.range(BigInteger.valueOf(101L), BoundType.CLOSED, BigInteger.valueOf(199L), BoundType.CLOSED);
-        tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), 12);
+        ImmutableMap<String, Integer> rfOptions = ImmutableMap.of("DC1", 3);
+        ReplicationFactor rf = new ReplicationFactor(NetworkTopologyStrategy, rfOptions);
+        tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, rfOptions, 12);
         writerContext = getBulkWriterContext();
+        writerContext.setReplicationFactor(rf);
         tableWriter = new MockTableWriter(folder);
         transportContext = (TransportContext.DirectDataBulkWriterContext) writerContext.transportContext();
         executor = new MockScheduledExecutorService();

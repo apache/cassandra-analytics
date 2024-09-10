@@ -21,12 +21,15 @@ package org.apache.cassandra.spark.utils;
 
 import java.util.Locale;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.jetbrains.annotations.NotNull;
 
 /**
  * Utility methods for {@link Map}
@@ -278,5 +281,20 @@ public final class MapUtils
         }
 
         return deprecatedOptionValue == null ? resolver.apply(null) : deprecatedOptionValue;
+    }
+
+    /**
+     * Get the first map entry from the map
+     *
+     * @return the first map entry, if there are at least one entry in the map
+     * @throws NoSuchElementException if the map is emtpy
+     */
+    public static <K, T> Map.Entry<K, T> firstEntry(@NotNull Map<K, T> map)
+    {
+        if (map.isEmpty())
+        {
+            throw new NoSuchElementException("No entry to return from an empty map");
+        }
+        return map.entrySet().iterator().next();
     }
 }

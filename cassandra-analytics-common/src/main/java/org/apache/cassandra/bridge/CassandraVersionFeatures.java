@@ -23,6 +23,8 @@ import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -36,11 +38,20 @@ public class CassandraVersionFeatures implements Comparable<CassandraVersionFeat
     protected final int minorVersion;
     protected final String suffix;
 
+    private final String rawVersionString;
+
+    @VisibleForTesting
     public CassandraVersionFeatures(int majorVersion, int minorVersion, @Nullable String suffix)
+    {
+        this(majorVersion, minorVersion, suffix, null);
+    }
+
+    public CassandraVersionFeatures(int majorVersion, int minorVersion, @Nullable String suffix, @Nullable String rawVersionString)
     {
         this.majorVersion = majorVersion;
         this.minorVersion = minorVersion;
         this.suffix = suffix;
+        this.rawVersionString = rawVersionString;
     }
 
     /**
@@ -49,14 +60,13 @@ public class CassandraVersionFeatures implements Comparable<CassandraVersionFeat
      * @param cassandraVersion the string representing the cassandra version
      * @return an instance representing the parsed values from the version string
      */
-    public static CassandraVersionFeatures cassandraVersionFeaturesFromCassandraVersion(
-            @NotNull String cassandraVersion)
+    public static CassandraVersionFeatures cassandraVersionFeaturesFromCassandraVersion(@NotNull String cassandraVersion)
     {
         String versionCode = getCassandraVersionCode(cassandraVersion);
         String minorVersionCode = getCassandraMinorVersionCode(cassandraVersion);
         String versionSuffix = getCassandraVersionSuffix(cassandraVersion);
 
-        return new CassandraVersionFeatures(Integer.parseInt(versionCode), Integer.parseInt(minorVersionCode), versionSuffix);
+        return new CassandraVersionFeatures(Integer.parseInt(versionCode), Integer.parseInt(minorVersionCode), versionSuffix, cassandraVersion);
     }
 
     // E.g if cassandra version = cassandra-1.2.11-v1, we return 12;
@@ -137,6 +147,11 @@ public class CassandraVersionFeatures implements Comparable<CassandraVersionFeat
     public String getSuffix()
     {
         return suffix;
+    }
+
+    public String getRawVersionString()
+    {
+        return rawVersionString;
     }
 
     @Override

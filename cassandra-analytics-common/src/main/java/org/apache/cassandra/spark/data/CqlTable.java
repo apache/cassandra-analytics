@@ -39,7 +39,7 @@ import org.jetbrains.annotations.NotNull;
 @SuppressWarnings({ "WeakerAccess", "unused" })
 public class CqlTable implements Serializable
 {
-    public static final long serialVersionUID = 42L;
+    private static final long serialVersionUID = 1018995207366817661L;
 
     private final ReplicationFactor replicationFactor;
     private final String keyspace;

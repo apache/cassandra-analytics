@@ -25,6 +25,7 @@ import java.util.Map;
 
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.validation.StartupValidatable;
 import org.jetbrains.annotations.Nullable;
@@ -54,6 +55,11 @@ public interface ClusterInfo extends StartupValidatable, Serializable
      * @return keyspace schema string
      */
     String getKeyspaceSchema(boolean cached);
+
+    /**
+     * @return ReplicationFactor of the enclosing keyspace for bulk write in the cluster
+     */
+    ReplicationFactor replicationFactor();
 
     CassandraContext getCassandraContext();
 

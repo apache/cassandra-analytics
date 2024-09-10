@@ -46,8 +46,8 @@ import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaInfo;
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
-import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class TokenRangeMapping<I extends CassandraInstance> implements Serializable
@@ -56,7 +56,6 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
     private static final Logger LOGGER = LoggerFactory.getLogger(TokenRangeMapping.class);
 
     private final Partitioner partitioner;
-    private final ReplicationFactor replicationFactor;
     private final transient Set<I> allInstances;
     private final transient Set<I> pendingInstances;
     private final transient RangeMap<BigInteger, List<I>> instancesByTokenRange;
@@ -65,7 +64,6 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
     public static <I extends CassandraInstance>
     TokenRangeMapping<I> create(Supplier<TokenRangeReplicasResponse> topologySupplier,
                                 Supplier<Partitioner> partitionerSupplier,
-                                Supplier<ReplicationFactor> replicationFactorSupplier,
                                 Function<ReplicaMetadata, I> instanceCreator)
     {
         TokenRangeReplicasResponse response = topologySupplier.get();
@@ -83,9 +81,37 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
         }
 
         return new TokenRangeMapping<>(partitionerSupplier.get(),
-                                       replicationFactorSupplier.get(),
                                        tokenRangesByInstance,
                                        allInstances);
+    }
+
+    /**
+     * Consolidate all TokenRangeMapping and produce a new TokenRangeMapping instance
+     * @param all list of TokenRangeMapping
+     * @return a consolidated TokenRangeMapping
+     * @param <I> CassandraInstance type
+     */
+    public static <I extends CassandraInstance>
+    TokenRangeMapping<I> consolidate(@NotNull List<TokenRangeMapping<I>> all)
+    {
+        Preconditions.checkArgument(!all.isEmpty(), "Cannot consolidate TokenRangeMapping from none");
+
+        if (all.size() == 1)
+        {
+            return all.get(0);
+        }
+
+        Set<Partitioner> partitioners = all.stream().map(t -> t.partitioner).collect(Collectors.toSet());
+        Preconditions.checkArgument(partitioners.size() == 1, "Multiple Partitioners found: " + partitioners);
+        Partitioner partitioner = all.get(0).partitioner;
+        Set<I> allInstances = new HashSet<>();
+        Multimap<I, Range<BigInteger>> tokenRangesByInstance = ArrayListMultimap.create();
+        for (TokenRangeMapping<I> topology : all)
+        {
+            allInstances.addAll(topology.allInstances);
+            tokenRangesByInstance.putAll(topology.getTokenRanges());
+        }
+        return new TokenRangeMapping<>(partitioner, tokenRangesByInstance, allInstances);
     }
 
     private static <I extends CassandraInstance>
@@ -113,12 +139,10 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
     }
 
     public TokenRangeMapping(Partitioner partitioner,
-                             ReplicationFactor replicationFactor,
                              Multimap<I, Range<BigInteger>> tokenRanges,
                              Set<I> allInstances)
     {
         this.partitioner = partitioner;
-        this.replicationFactor = replicationFactor;
         this.tokenRangeMap = tokenRanges;
         this.allInstances = allInstances;
         this.pendingInstances = allInstances.stream()
@@ -131,11 +155,6 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
     public Partitioner partitioner()
     {
         return partitioner;
-    }
-
-    public ReplicationFactor replicationFactor()
-    {
-        return replicationFactor;
     }
 
     /**

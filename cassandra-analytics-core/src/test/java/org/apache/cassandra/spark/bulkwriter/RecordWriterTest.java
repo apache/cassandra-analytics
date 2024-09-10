@@ -46,6 +46,7 @@ import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 import org.apache.spark.sql.types.DataType;
@@ -59,6 +60,7 @@ import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHAR;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCqlType;
+import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
@@ -100,9 +102,12 @@ class RecordWriterTest
     {
         digestAlgorithm = new XXHash32DigestAlgorithm();
         tw = new MockTableWriter(folder.getRoot());
-        tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(100000, ImmutableMap.of("DC1", 3), 12);
+        ImmutableMap<String, Integer> rfOption = ImmutableMap.of("DC1", 3);
+        ReplicationFactor rf = new ReplicationFactor(NetworkTopologyStrategy, rfOption);
+        tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(100000, rfOption, 12);
         writerContext = new MockBulkWriterContext(tokenRangeMapping);
         writerContext.setSstableDataSizeInMB(1); // defaults to the minimum sstable data size allowed to set
+        writerContext.setReplicationFactor(rf);
         tc = new TestTaskContext();
         range = writerContext.job().getTokenPartitioner().getTokenRange(tc.partitionId());
         tokenizer = new Tokenizer(writerContext);

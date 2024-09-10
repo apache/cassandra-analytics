@@ -52,11 +52,11 @@ class BulkWriteValidatorTest
         Map<String, String> replicationOptions = new HashMap<>();
         replicationOptions.put("class", "SimpleStrategy");
         replicationOptions.put("replication_factor", "3");
+        when(mockClusterInfo.replicationFactor()).thenReturn(new ReplicationFactor(replicationOptions));
         TokenRangeMapping<RingInstance> topology = TokenRangeMapping.create(
         () -> TokenRangeMappingUtils.mockSimpleTokenRangeReplicasResponse(10, 3),
         () -> Partitioner.Murmur3Partitioner,
-        () -> new ReplicationFactor(replicationOptions),
-        RingInstance::new);
+        metadata -> new RingInstance(metadata, null));
         when(mockClusterInfo.getTokenRangeMapping(anyBoolean())).thenReturn(topology);
         Map<RingInstance, WriteAvailability> instanceAvailabilityMap = new HashMap<>(10);
         for (RingInstance instance : topology.getTokenRanges().keySet())
@@ -77,7 +77,8 @@ class BulkWriteValidatorTest
         when(mockJobInfo.jobKeepAliveMinutes()).thenReturn(-1);
         when(mockWriterContext.job()).thenReturn(mockJobInfo);
 
-        BulkWriteValidator writerValidator = new BulkWriteValidator(mockWriterContext, new ReplicaAwareFailureHandler<>(Partitioner.Murmur3Partitioner));
+        ReplicaAwareFailureHandler<RingInstance> failureHandler = new ReplicaAwareFailureHandler<>(Partitioner.Murmur3Partitioner);
+        BulkWriteValidator writerValidator = new BulkWriteValidator(mockWriterContext, failureHandler);
         assertThatThrownBy(() -> writerValidator.validateClOrFail(topology))
         .isExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
         .hasMessageContaining("Failed to write");

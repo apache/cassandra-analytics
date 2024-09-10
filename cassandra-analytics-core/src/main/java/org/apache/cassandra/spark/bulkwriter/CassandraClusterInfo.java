@@ -52,7 +52,6 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.FutureUtils;
-import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
@@ -68,6 +67,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     protected transient volatile TokenRangeMapping<RingInstance> tokenRangeReplicas;
     protected transient volatile String keyspaceSchema;
+    protected transient volatile ReplicationFactor replicationFactor;
     protected transient volatile CassandraContext cassandraContext;
     protected final transient AtomicReference<NodeSettings> nodeSettings;
     protected final transient List<CompletableFuture<NodeSettings>> allNodeSettingFutures;
@@ -240,18 +240,6 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         }
     }
 
-    @NotNull
-    protected ReplicationFactor getReplicationFactor()
-    {
-        String keyspaceSchema = getKeyspaceSchema(true);
-        if (keyspaceSchema == null)
-        {
-            throw new RuntimeException(String.format("Could not retrieve keyspace schema information for keyspace %s",
-                                                     conf.keyspace));
-        }
-        return CqlUtils.extractReplicationFactor(keyspaceSchema, conf.keyspace);
-    }
-
     @Override
     public String getKeyspaceSchema(boolean cached)
     {
@@ -276,6 +264,30 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                 }
             }
             return keyspaceSchema;
+        }
+    }
+
+    @Override
+    public ReplicationFactor replicationFactor()
+    {
+        ReplicationFactor rf = replicationFactor;
+        if (rf != null)
+        {
+            return rf;
+        }
+
+        String keyspaceSchema = getKeyspaceSchema(true);
+        if (keyspaceSchema == null)
+        {
+            throw new RuntimeException("Could not retrieve keyspace schema information for keyspace " + conf.keyspace);
+        }
+        synchronized (this)
+        {
+            if (replicationFactor == null)
+            {
+                replicationFactor = CqlUtils.extractReplicationFactor(keyspaceSchema, conf.keyspace);
+            }
+            return replicationFactor;
         }
     }
 
@@ -367,8 +379,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     {
         return TokenRangeMapping.create(this::getTokenRangesAndReplicaSets,
                                         this::getPartitioner,
-                                        this::getReplicationFactor,
-                                        RingInstance::new);
+                                        metadata -> new RingInstance(metadata, clusterId()));
     }
 
     public String getVersionFromFeature()
