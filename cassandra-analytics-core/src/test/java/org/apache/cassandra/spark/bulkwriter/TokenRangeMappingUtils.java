@@ -21,10 +21,10 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import javax.validation.constraints.NotNull;
 
@@ -33,14 +33,15 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaInfo;
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.common.client.InstanceStatus;
+import org.apache.cassandra.spark.common.model.NodeStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.RangeUtils;
-
 
 public final class TokenRangeMappingUtils
 {
@@ -65,7 +66,7 @@ public final class TokenRangeMappingUtils
                              .datacenter(entry.datacenter())
                              .port(entry.port())
                              .address(entry.address())
-                             .status(InstanceStatus.DOWN.name())
+                             .status(NodeStatus.DOWN.name())
                              .state(entry.state())
                              .token(entry.token())
                              .fqdn(entry.fqdn())
@@ -77,30 +78,12 @@ public final class TokenRangeMappingUtils
         RingInstance newInstance = new RingInstance(newEntry);
         instances.add(0, newInstance);
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
-        Map<String, Set<String>> writeReplicas =
-        instances.stream().collect(Collectors.groupingBy(RingInstance::datacenter,
-                                                         // writeReplicas are ultimately created from StorageService#getRangeToEndpointMap in Cassandra
-                                                         // The returned values are ip addresses with port.
-                                                         Collectors.mapping(RingInstance::ipAddressWithPort,
-                                                                            Collectors.toSet())));
-
-        List<ReplicaMetadata> replicaMetadata = instances.stream()
-                                                         .map(i -> new ReplicaMetadata(i.ringInstance().state(),
-                                                                                       i.ringInstance().status(),
-                                                                                       i.nodeName(),
-                                                                                       i.ipAddressWithPort(),
-                                                                                       7012,
-                                                                                       i.datacenter()))
-                                                         .collect(Collectors.toList());
 
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
         return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
                                        replicationFactor,
-                                       writeReplicas,
-                                       Collections.emptyMap(),
                                        tokenRanges,
-                                       replicaMetadata,
-                                       Collections.emptySet());
+                                       new HashSet<>(instances));
     }
 
     public static TokenRangeMapping<RingInstance> buildTokenRangeMapping(int initialToken,
@@ -133,30 +116,11 @@ public final class TokenRangeMappingUtils
         }
 
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
-        Map<String, Set<String>> writeReplicas =
-        instances.stream().collect(Collectors.groupingBy(RingInstance::datacenter,
-                                                         // writeReplicas are ultimately created from StorageService#getRangeToEndpointMap in Cassandra
-                                                         // The returned values are ip addresses with port.
-                                                         Collectors.mapping(RingInstance::ipAddressWithPort,
-                                                                            Collectors.toSet())));
-
-        List<ReplicaMetadata> replicaMetadata = instances.stream()
-                                                         .map(i -> new ReplicaMetadata(i.ringInstance().state(),
-                                                                                       i.ringInstance().status(),
-                                                                                       i.nodeName(),
-                                                                                       i.ipAddressWithPort(),
-                                                                                       7012,
-                                                                                       i.datacenter()))
-                                                         .collect(Collectors.toList());
-
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
         return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
                                        replicationFactor,
-                                       writeReplicas,
-                                       Collections.emptyMap(),
                                        tokenRanges,
-                                       replicaMetadata,
-                                       Collections.emptySet());
+                                       new HashSet<>(instances));
     }
 
     // Used only in tests
@@ -234,5 +198,31 @@ public final class TokenRangeMappingUtils
             dcOffset++;
         }
         return instances;
+    }
+
+    public static TokenRangeReplicasResponse mockSimpleTokenRangeReplicasResponse(int instancesCount, int replicationFactor)
+    {
+        long startToken = 0;
+        long rangeLength = 100;
+        List<ReplicaInfo> replicaInfoList = new ArrayList<>(instancesCount);
+        Map<String, ReplicaMetadata> replicaMetadata = new HashMap<>(instancesCount);
+        for (int i = 0; i < instancesCount; i++)
+        {
+            long endToken = startToken + rangeLength;
+            List<String> replicas = new ArrayList<>(replicationFactor);
+            for (int r = 0; r < replicationFactor; r++)
+            {
+                replicas.add("localhost" + (i + r) % instancesCount + ":9042");
+            }
+            Map<String, List<String>> replicasPerDc = new HashMap<>();
+            replicasPerDc.put("ignored", replicas);
+            ReplicaInfo ri = new ReplicaInfo(String.valueOf(startToken), String.valueOf(endToken), replicasPerDc);
+            replicaInfoList.add(ri);
+            String address = "localhost" + i + ":9042";
+            ReplicaMetadata rm = new ReplicaMetadata("NORMAL", "UP", address, address, 9042, "ignored");
+            replicaMetadata.put(address, rm);
+            startToken = endToken;
+        }
+        return new TokenRangeReplicasResponse(replicaInfoList, replicaInfoList, replicaMetadata);
     }
 }

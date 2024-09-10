@@ -77,4 +77,6 @@ else
   fi
   git clean -fd
   ./gradlew -Pversion=${SIDECAR_BUILD_VERSION} -Dmaven.repo.local=${SIDECAR_JAR_DIR} publishToMavenLocal
+  # Delete sidecar source after publishing to avoid confusing IDE
+  rm -rf "${SIDECAR_BUILD_DIR}"
 fi

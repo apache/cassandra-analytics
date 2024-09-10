@@ -20,12 +20,9 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Closeable;
-import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,14 +30,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
-import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,9 +41,6 @@ import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.common.response.SchemaResponse;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
-import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaInfo;
-import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
-import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
@@ -59,9 +48,6 @@ import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
-import org.apache.cassandra.spark.common.client.InstanceState;
-import org.apache.cassandra.spark.common.client.InstanceStatus;
-import org.apache.cassandra.spark.common.model.NodeState;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
@@ -106,12 +92,6 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     public String getVersion()
     {
         return CassandraClusterInfo.class.getPackage().getImplementationVersion();
-    }
-
-    @Override
-    public InstanceState getInstanceState(RingInstance ringInstance)
-    {
-        return InstanceState.valueOf(ringInstance.ringInstance().state().toUpperCase());
     }
 
     @Override
@@ -235,7 +215,15 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         CassandraContext context = getCassandraContext();
         try
         {
-            return context.getSidecarClient().tokenRangeReplicas(new ArrayList<>(context.getCluster()), conf.keyspace).get();
+            long start = System.nanoTime();
+            TokenRangeReplicasResponse response = context.getSidecarClient()
+                                                         .tokenRangeReplicas(new ArrayList<>(context.getCluster()), conf.keyspace)
+                                                         .get();
+            long elapsedTimeNanos = System.nanoTime() - start;
+            LOGGER.info("Retrieved token ranges for {} instances in {} milliseconds",
+                        response.writeReplicas().size(),
+                        TimeUnit.NANOSECONDS.toMillis(elapsedTimeNanos));
+            return response;
         }
         catch (ExecutionException | InterruptedException exception)
         {
@@ -352,14 +340,14 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     @Override
-    public Map<RingInstance, InstanceAvailability> getInstanceAvailability()
+    public Map<RingInstance, WriteAvailability> clusterWriteAvailability()
     {
-        TokenRangeMapping<RingInstance> mapping = getTokenRangeMapping(true);
-        Map<RingInstance, InstanceAvailability> result =
-        mapping.getReplicaMetadata()
-               .stream()
-               .map(RingInstance::new)
-               .collect(Collectors.toMap(Function.identity(), this::determineInstanceAvailability));
+        Set<RingInstance> allInstances = getTokenRangeMapping(true).allInstances();
+        Map<RingInstance, WriteAvailability> result = new HashMap<>(allInstances.size());
+        for (RingInstance instance : allInstances)
+        {
+            result.put(instance, determineWriteAvailability(instance));
+        }
 
         if (LOGGER.isDebugEnabled())
         {
@@ -368,142 +356,17 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         return result;
     }
 
-    private InstanceAvailability determineInstanceAvailability(RingInstance instance)
+    protected WriteAvailability determineWriteAvailability(RingInstance instance)
     {
-        if (!instanceIsUp(instance.ringInstance()))
-        {
-            return InstanceAvailability.UNAVAILABLE_DOWN;
-        }
-        if (instanceIsNormal(instance.ringInstance()) ||
-            instanceIsTransitioning(instance.ringInstance()) ||
-            instanceIsBeingReplaced(instance.ringInstance()))
-        {
-            return InstanceAvailability.AVAILABLE;
-        }
-
-        LOGGER.info("No valid state found for instance {}", instance);
-        // If it's not one of the above, it's inherently INVALID.
-        return InstanceAvailability.INVALID_STATE;
+        return WriteAvailability.determineFromNodeState(instance.nodeState(), instance.nodeStatus());
     }
 
     private TokenRangeMapping<RingInstance> getTokenRangeReplicas()
     {
-        return getTokenRangeReplicas(this::getTokenRangesAndReplicaSets,
-                                     this::getPartitioner,
-                                     this::getReplicationFactor);
-    }
-
-    @VisibleForTesting
-    static TokenRangeMapping<RingInstance> getTokenRangeReplicas(Supplier<TokenRangeReplicasResponse> topologySupplier,
-                                                                 Supplier<Partitioner> partitionerSupplier,
-                                                                 Supplier<ReplicationFactor> replicationFactorSupplier)
-    {
-        long start = System.nanoTime();
-        TokenRangeReplicasResponse response = topologySupplier.get();
-        long elapsedTimeNanos = System.nanoTime() - start;
-        Multimap<RingInstance, Range<BigInteger>> tokenRangesByInstance = getTokenRangesByInstance(response.writeReplicas(),
-                                                                                                   response.replicaMetadata());
-        LOGGER.info("Retrieved token ranges for {} instances from write replica set in {} milliseconds",
-                    tokenRangesByInstance.size(),
-                    TimeUnit.NANOSECONDS.toMillis(elapsedTimeNanos));
-
-        Set<RingInstance> instances = response.replicaMetadata()
-                                              .values()
-                                              .stream()
-                                              .map(RingInstance::new)
-                                              .collect(Collectors.toSet());
-
-        Set<RingInstance> replacementInstances = instances.stream()
-                                                          .filter(i -> i.nodeState() == NodeState.REPLACING)
-                                                          .collect(Collectors.toSet());
-
-        // Each token range has hosts by DC. We collate them across all ranges into all hosts by DC
-        Map<String, Set<String>> writeReplicasByDC;
-        writeReplicasByDC = response.writeReplicas()
-                                    .stream()
-                                    .flatMap(wr -> wr.replicasByDatacenter().entrySet().stream())
-                                    .collect(Collectors.toMap(Map.Entry::getKey,
-                                                              e -> new HashSet<>(e.getValue()),
-                                                              (l1, l2) -> {
-                                                                  l1.addAll(l2);
-                                                                  return l1;
-                                                              }));
-
-        Map<String, Set<String>> pendingReplicasByDC = getPendingReplicas(response, writeReplicasByDC);
-
-        if (LOGGER.isDebugEnabled())
-        {
-            LOGGER.debug("Fetched token-ranges with dcs={}, write_replica_count={}, pending_replica_count={}",
-                         writeReplicasByDC.keySet(),
-                         writeReplicasByDC.values().stream().flatMap(Collection::stream).collect(Collectors.toSet()).size(),
-                         pendingReplicasByDC.values().stream().flatMap(Collection::stream).collect(Collectors.toSet()).size());
-        }
-
-        Map<String, ReplicaMetadata> replicaMetadata = response.replicaMetadata();
-        // Include availability info so CL checks can use it to exclude replacement hosts
-        return new TokenRangeMapping<>(partitionerSupplier.get(),
-                                       replicationFactorSupplier.get(),
-                                       writeReplicasByDC,
-                                       pendingReplicasByDC,
-                                       tokenRangesByInstance,
-                                       new ArrayList<>(replicaMetadata.values()),
-                                       replacementInstances);
-    }
-
-    private static Map<String, Set<String>> getPendingReplicas(TokenRangeReplicasResponse response, Map<String, Set<String>> writeReplicasByDC)
-    {
-
-        Set<String> pendingReplicas = response.replicaMetadata()
-                                              .values()
-                                              .stream()
-                                              .filter(m -> InstanceState.isTransitioning(m.state()))
-                                              .map(ReplicaMetadata::address)
-                                              .collect(Collectors.toSet());
-
-        if (pendingReplicas.isEmpty())
-        {
-            return Collections.emptyMap();
-        }
-
-        // Filter writeReplica entries and the value replicaSet to only include those with pending replicas
-        return writeReplicasByDC.entrySet()
-                                .stream()
-                                .filter(e -> e.getValue().stream() // todo: transformToHostWithoutPort is called twice for entries
-                                              .anyMatch(v -> pendingReplicas.contains(transformToHostWithoutPort(v))))
-                                .collect(Collectors.toMap(Map.Entry::getKey,
-                                                          e -> e.getValue().stream()
-                                                                .filter(v -> pendingReplicas.contains(transformToHostWithoutPort(v)))
-                                                                .collect(Collectors.toSet())));
-    }
-
-    private static String transformToHostWithoutPort(String v)
-    {
-        return v.contains(":") ? v.split(":")[0] : v;
-    }
-
-    private static Multimap<RingInstance, Range<BigInteger>> getTokenRangesByInstance(List<ReplicaInfo> writeReplicas,
-                                                                                      Map<String, ReplicaMetadata> replicaMetadata)
-    {
-        Multimap<RingInstance, Range<BigInteger>> instanceToRangeMap = ArrayListMultimap.create();
-        for (ReplicaInfo rInfo : writeReplicas)
-        {
-            Range<BigInteger> range = Range.openClosed(new BigInteger(rInfo.start()), new BigInteger(rInfo.end()));
-            for (Map.Entry<String, List<String>> dcReplicaEntry : rInfo.replicasByDatacenter().entrySet())
-            {
-                // For each writeReplica, get metadata and update map to include range
-                dcReplicaEntry.getValue().forEach(ipAddress -> {
-                    if (!replicaMetadata.containsKey(ipAddress))
-                    {
-                        throw new RuntimeException(String.format("No metadata found for instance: %s", ipAddress));
-                    }
-
-                    // Get metadata for this IP; Create RingInstance
-                    ReplicaMetadata replica = replicaMetadata.get(ipAddress);
-                    instanceToRangeMap.put(new RingInstance(replica), range);
-                });
-            }
-        }
-        return instanceToRangeMap;
+        return TokenRangeMapping.create(this::getTokenRangesAndReplicaSets,
+                                        this::getPartitioner,
+                                        this::getReplicationFactor,
+                                        RingInstance::new);
     }
 
     public String getVersionFromFeature()
@@ -566,28 +429,6 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
              .orElseThrow(() -> new RuntimeException("No valid Cassandra Versions were returned from Cassandra Sidecar"));
         nodeSettings.compareAndSet(null, ns);
         return ns.releaseVersion();
-    }
-
-    protected boolean instanceIsNormal(RingEntry ringEntry)
-    {
-        return InstanceState.NORMAL.name().equalsIgnoreCase(ringEntry.state());
-    }
-
-    protected boolean instanceIsUp(RingEntry ringEntry)
-    {
-        return InstanceStatus.UP.name().equalsIgnoreCase(ringEntry.status());
-    }
-
-    protected boolean instanceIsBeingReplaced(RingEntry ringEntry)
-    {
-        return InstanceState.REPLACING.name().equalsIgnoreCase(ringEntry.state());
-    }
-
-    private boolean instanceIsTransitioning(RingEntry ringEntry)
-    {
-        return InstanceState.JOINING.name().equalsIgnoreCase(ringEntry.state()) ||
-               InstanceState.LEAVING.name().equalsIgnoreCase(ringEntry.state()) ||
-               InstanceState.MOVING.name().equalsIgnoreCase(ringEntry.state());
     }
 
     protected CassandraBridge bridge()

@@ -40,6 +40,8 @@ public final class Properties
     public static final int DEFAULT_MAX_RETRIES = 10;
     public static final long DEFAULT_MILLIS_TO_SLEEP = 500;
     public static final int DEFAULT_MAX_POOL_SIZE = 64;
+    public static final boolean DEFAULT_CACHE_COMPRESSION_METADATA = true;
+    public static final long DEFAULT_MAX_SIZE_CACHE_COMPRESSION_METADATA_BYTES = 8 * MEBI_BYTES; // 8MiB
     public static final long DEFAULT_MAX_BUFFER_SIZE = 6 * MEBI_BYTES;
     public static final long DEFAULT_CHUNK_BUFFER_SIZE = 4 * MEBI_BYTES;
     public static final Map<FileType, Long> DEFAULT_MAX_BUFFER_OVERRIDE = ImmutableMap.of(
