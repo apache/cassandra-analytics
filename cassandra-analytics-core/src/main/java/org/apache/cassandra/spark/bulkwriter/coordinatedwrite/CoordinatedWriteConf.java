@@ -69,7 +69,7 @@ public class CoordinatedWriteConf
         {
             return new CoordinatedWriteConf(OBJECT_MAPPER.readValue(json, javaType));
         }
-        catch (JsonProcessingException e)
+        catch (Exception e)
         {
             throw new IllegalArgumentException("Unable to parse json string into CoordinatedWriteConf of " + clusterConfType.getSimpleName() +
                                                " due to " + e.getMessage(), e);
