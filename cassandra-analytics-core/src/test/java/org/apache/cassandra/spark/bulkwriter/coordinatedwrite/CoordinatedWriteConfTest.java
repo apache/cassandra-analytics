@@ -85,9 +85,8 @@ class CoordinatedWriteConfTest
                       "{\"sidecarContactPoints\":[\"instance-1\",\"instance-2\",\"instance-3\"]," +
                       "\"localDc\":\"dc1\"}}";
         assertThatThrownBy(() -> CoordinatedWriteConf.fromJson(json, SimpleClusterConf.class))
-        .isExactlyInstanceOf(RuntimeException.class)
+        .isExactlyInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Unable to parse json string into CoordinatedWriteConf of SimpleClusterConf")
-        .hasCauseExactlyInstanceOf(ValueInstantiationException.class)
         .hasRootCauseExactlyInstanceOf(IllegalStateException.class)
         .hasRootCauseMessage("Unable to resolve port from instance-1");
     }
