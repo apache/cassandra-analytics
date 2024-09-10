@@ -48,7 +48,7 @@ public class SparkInet implements BinaryFeatures
             {
                 return InetAddress.getByAddress((byte[]) value);
             }
-            catch (final UnknownHostException e)
+            catch (UnknownHostException e)
             {
                 throw new RuntimeException(e);
             }

@@ -62,10 +62,10 @@ public class SparkMap implements MapFeatures
 
     private ArrayBasedMapData mapToSparkSqlType(final java.util.Map<Object, Object> map, boolean isFrozen)
     {
-        final Object[] keys = new Object[map.size()];
-        final Object[] values = new Object[map.size()];
+        Object[] keys = new Object[map.size()];
+        Object[] values = new Object[map.size()];
         int position = 0;
-        for (final java.util.Map.Entry<Object, Object> entry : map.entrySet())
+        for (java.util.Map.Entry<Object, Object> entry : map.entrySet())
         {
             keys[position] = keyType().toSparkSqlType(entry.getKey(), isFrozen);
             values[position] = valueType().toSparkSqlType(entry.getValue(), isFrozen);
@@ -77,14 +77,14 @@ public class SparkMap implements MapFeatures
     @Override
     public Object sparkSqlRowValue(GenericInternalRow row, int position)
     {
-        final MapData map = row.getMap(position);
-        final ArrayData keys = map.keyArray();
-        final ArrayData values = map.valueArray();
-        final java.util.Map<Object, Object> result = new HashMap<>(keys.numElements());
+        MapData map = row.getMap(position);
+        ArrayData keys = map.keyArray();
+        ArrayData values = map.valueArray();
+        java.util.Map<Object, Object> result = new HashMap<>(keys.numElements());
         for (int element = 0; element < keys.numElements(); element++)
         {
-            final Object key = keyType().toTestRowType(keys.get(element, keyType().dataType()));
-            final Object value = valueType().toTestRowType(values.get(element, valueType().dataType()));
+            Object key = keyType().toTestRowType(keys.get(element, keyType().dataType()));
+            Object value = valueType().toTestRowType(values.get(element, valueType().dataType()));
             result.put(key, value);
         }
         return result;

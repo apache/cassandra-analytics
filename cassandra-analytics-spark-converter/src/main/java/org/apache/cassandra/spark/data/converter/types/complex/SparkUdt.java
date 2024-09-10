@@ -87,7 +87,7 @@ public class SparkUdt implements SparkType
     @Override
     public Object sparkSqlRowValue(Row row, int position)
     {
-        final Row struct = row.getStruct(position);
+        Row struct = row.getStruct(position);
         return IntStream.range(0, struct.size())
                         .boxed()
                         .filter(index -> !struct.isNullAt(index))

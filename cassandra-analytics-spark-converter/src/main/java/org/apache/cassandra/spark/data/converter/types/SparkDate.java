@@ -36,11 +36,13 @@ public class SparkDate implements SparkType
 
     }
 
+    @Override
     public DataType dataType(BigNumberConfig bigNumberConfig)
     {
         return DataTypes.DateType;
     }
 
+    @Override
     public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
     {
         // SparkSQL date type is an int incrementing from day 0 on 1970-01-01
@@ -55,6 +57,7 @@ public class SparkDate implements SparkType
         return row.getInt(position);
     }
 
+    @Override
     public Object nativeSparkSqlRowValue(Row row, int position)
     {
         return row.getDate(position);
