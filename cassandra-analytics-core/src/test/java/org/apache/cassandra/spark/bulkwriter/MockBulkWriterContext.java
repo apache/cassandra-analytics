@@ -46,6 +46,7 @@ import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -63,6 +64,7 @@ import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
@@ -211,6 +213,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
+    public String clusterId()
+    {
+        return "test-cluster";
+    }
+
+    @Override
     public void refreshClusterInfo()
     {
         refreshClusterInfoCallCount++;
@@ -301,6 +309,13 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public double importCoordinatorTimeoutMultiplier()
     {
         return 2.0;
+    }
+
+    @Nullable
+    @Override
+    public CoordinatedWriteConf coordinatedWriteConf()
+    {
+        return null;
     }
 
     public void setSkipCleanOnFailures(boolean skipClean)

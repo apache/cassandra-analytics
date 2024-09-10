@@ -28,6 +28,8 @@ import com.google.common.collect.Maps;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
+import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.spark.SparkConf;
@@ -273,6 +275,70 @@ class BulkSparkConfTest
         assertThat(BulkSparkConf.resolveSidecarContactPoints(options))
         .describedAs("When none of the sidecar options are define. It resolves to the default value null")
         .isNull();
+    }
+
+    @Test
+    void testReadCoordinatedWriteConfFails()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        String coordinatedWriteConfJsonNoLocalDc = "{\"cluster1\":" +
+                                                   "{\"sidecarContactPoints\":[\"instance-1:9999\",\"instance-2:9999\",\"instance-3:9999\"]}}";
+
+        options.put(WriterOptions.COORDINATED_WRITE_CONF.name(), coordinatedWriteConfJsonNoLocalDc);
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessage("Coordinated write only supports S3_COMPACT mode");
+
+        options.put(WriterOptions.DATA_TRANSPORT.name(), DataTransport.S3_COMPAT.name());
+        options.put(WriterOptions.BULK_WRITER_CL.name(), "LOCAL_QUORUM");
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        .isExactlyInstanceOf(IllegalStateException.class)
+        .hasMessage("localDc is not configured for cluster: cluster1 for consistency level: LOCAL_QUORUM");
+
+        options.put(WriterOptions.COORDINATED_WRITE_CONF.name(), "invalid json");
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Unable to parse json string into CoordinatedWriteConf of SimpleClusterConf due to Unrecognized token 'invalid'");
+    }
+
+    @Test
+    void testCoordinatedWriteConf()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.remove(WriterOptions.COORDINATED_WRITE_CONF.name());
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.isCoordinatedWriteConfigured())
+        .describedAs("When COORDINATED_WRITE_CONF is absent, isCoordinatedWriteConfigured should return false")
+        .isFalse();
+
+        String coordinatedWriteConfJson = "{\"cluster1\":" +
+                                          "{\"sidecarContactPoints\":[\"instance-1:9999\",\"instance-2:9999\",\"instance-3:9999\"]," +
+                                          "\"localDc\":\"dc1\"}," +
+                                          "\"cluster2\":" +
+                                          "{\"sidecarContactPoints\":[\"instance-4:8888\",\"instance-5:8888\",\"instance-6:8888\"]," +
+                                          "\"localDc\":\"dc1\"}}";
+        options.put(WriterOptions.DATA_TRANSPORT.name(), DataTransport.S3_COMPAT.name());
+        options.put(WriterOptions.BULK_WRITER_CL.name(), "LOCAL_QUORUM");
+        options.put(WriterOptions.COORDINATED_WRITE_CONF.name(), coordinatedWriteConfJson);
+        conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.isCoordinatedWriteConfigured())
+        .describedAs("When COORDINATED_WRITE_CONF is present, it should return true")
+        .isTrue();
+        assertThat(conf.coordinatedWriteConf().clusters()).containsOnlyKeys("cluster1", "cluster2");
+        CoordinatedWriteConf.ClusterConfProvider cluster1 = conf.coordinatedWriteConf().cluster("cluster1");
+        assertThat(cluster1).isNotNull();
+        assertThat(cluster1.sidecarContactPoints())
+        .containsExactlyInAnyOrder(new SidecarInstanceImpl("instance-1", 9999),
+                                   new SidecarInstanceImpl("instance-2", 9999),
+                                   new SidecarInstanceImpl("instance-3", 9999));
+        assertThat(cluster1.localDc()).isEqualTo("dc1");
+        CoordinatedWriteConf.ClusterConfProvider cluster2 = conf.coordinatedWriteConf().cluster("cluster2");
+        assertThat(cluster2).isNotNull();
+        assertThat(cluster2.sidecarContactPoints())
+        .containsExactlyInAnyOrder(new SidecarInstanceImpl("instance-4", 8888),
+                                   new SidecarInstanceImpl("instance-5", 8888),
+                                   new SidecarInstanceImpl("instance-6", 8888));
+        assertThat(cluster2.localDc()).isEqualTo("dc1");
     }
 
     private Map<String, String> copyDefaultOptions()

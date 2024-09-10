@@ -124,7 +124,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     // create clusterConfig from sidecarInstances and sidecarPort, see initializeClusterConfig
     protected String sidecarInstances;
     protected int sidecarPort;
-    protected transient Set<? extends SidecarInstance> clusterConfig;
+    protected transient Set<SidecarInstance> clusterConfig;
     protected TokenPartitioner tokenPartitioner;
     protected Map<String, AvailabilityHint> availabilityHints;
     protected Sidecar.ClientConfig sidecarClientConfig;
@@ -907,13 +907,13 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
     }
 
-    protected Set<? extends SidecarInstance> initializeClusterConfig(ClientConfig options)
+    protected Set<SidecarInstance> initializeClusterConfig(ClientConfig options)
     {
         return initializeClusterConfig(options.sidecarContactPoints, options.sidecarPort());
     }
 
     // not intended to be overridden
-    private Set<? extends SidecarInstance> initializeClusterConfig(String sidecarInstances, int sidecarPort)
+    private Set<SidecarInstance> initializeClusterConfig(String sidecarInstances, int sidecarPort)
     {
         return Arrays.stream(sidecarInstances.split(","))
                      .filter(StringUtils::isNotEmpty)
@@ -921,7 +921,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                      .collect(Collectors.toSet());
     }
 
-    protected String getEffectiveCassandraVersionForRead(Set<? extends SidecarInstance> clusterConfig,
+    protected String getEffectiveCassandraVersionForRead(Set<SidecarInstance> clusterConfig,
                                                          NodeSettings nodeSettings)
     {
         return nodeSettings.releaseVersion();
@@ -932,7 +932,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         LOGGER.info("Dial home. clientConfig={}", options);
     }
 
-    protected void clearSnapshot(Set<? extends SidecarInstance> clusterConfig, @NotNull ClientConfig options)
+    protected void clearSnapshot(Set<SidecarInstance> clusterConfig, @NotNull ClientConfig options)
     {
         if (maybeQuotedKeyspace == null || maybeQuotedTable == null)
         {
@@ -982,7 +982,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
      * @param options           the {@link ClientConfig} options
      * @return the {@link Sizing} object based on the {@code sizing} option provided by the user
      */
-    protected Sizing getSizing(Set<? extends SidecarInstance> clusterConfig,
+    protected Sizing getSizing(Set<SidecarInstance> clusterConfig,
                                ReplicationFactor replicationFactor,
                                ClientConfig options)
     {

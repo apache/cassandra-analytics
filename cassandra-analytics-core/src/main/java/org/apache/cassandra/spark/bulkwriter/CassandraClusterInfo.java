@@ -36,7 +36,6 @@ import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.response.GossipInfoResponse;
 import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.common.response.SchemaResponse;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
@@ -63,19 +62,26 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraClusterInfo.class);
 
     protected final BulkSparkConf conf;
+    protected final String clusterId;
     protected String cassandraVersion;
     protected Partitioner partitioner;
 
-    protected transient TokenRangeMapping<RingInstance> tokenRangeReplicas;
-    protected transient String keyspaceSchema;
-    protected transient GossipInfoResponse gossipInfo;
-    protected transient CassandraContext cassandraContext;
+    protected transient volatile TokenRangeMapping<RingInstance> tokenRangeReplicas;
+    protected transient volatile String keyspaceSchema;
+    protected transient volatile CassandraContext cassandraContext;
     protected final transient AtomicReference<NodeSettings> nodeSettings;
     protected final transient List<CompletableFuture<NodeSettings>> allNodeSettingFutures;
 
     public CassandraClusterInfo(BulkSparkConf conf)
     {
+        this(conf, null);
+    }
+
+    // Used by CassandraClusterInfoGroup
+    public CassandraClusterInfo(BulkSparkConf conf, String clusterId)
+    {
         this.conf = conf;
+        this.clusterId = clusterId;
         this.cassandraContext = buildCassandraContext();
         LOGGER.info("Getting Cassandra versions from all nodes");
         this.nodeSettings = new AtomicReference<>(null);
@@ -111,6 +117,12 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
             }
             return cassandraContext;
         }
+    }
+
+    @Override
+    public String clusterId()
+    {
+        return clusterId;
     }
 
     /**
@@ -191,15 +203,11 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     @Override
-    public void refreshClusterInfo()
+    public synchronized void refreshClusterInfo()
     {
-        synchronized (this)
-        {
-            // Set backing stores to null and let them lazy-load on the next call
-            gossipInfo = null;
-            keyspaceSchema = null;
-            getCassandraContext().refreshClusterConfig();
-        }
+        // Set backing stores to null and let them lazy-load on the next call
+        keyspaceSchema = null;
+        getCassandraContext().refreshClusterConfig();
     }
 
     protected String getCurrentKeyspaceSchema() throws Exception
@@ -230,13 +238,6 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
             LOGGER.error("Failed to get token ranges for keyspace {}", conf.keyspace, exception);
             throw new SidecarApiCallException("Failed to get token ranges for keyspace" + conf.keyspace, exception);
         }
-    }
-
-    private Set<String> readReplicasFromTokenRangeResponse(TokenRangeReplicasResponse response)
-    {
-        return response.readReplicas().stream()
-                       .flatMap(rr -> rr.replicasByDatacenter().values().stream())
-                       .flatMap(List::stream).collect(Collectors.toSet());
     }
 
     @NotNull
@@ -287,7 +288,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
             return topology;
         }
 
-        // Block for the call-sites requesting the latest view of the ring; but it is OK to serve the other call-sites that request for the cached view
+        // Block only for the call-sites requesting the latest view of the ring
+        // The other call-sites get the cached/stale view
         // We can avoid synchronization here
         if (topology != null)
         {

@@ -69,7 +69,7 @@ public class RingInstanceSerializationTest
                                                        7000,
                                                        dataCenter);
 
-        RingInstance ring = new RingInstance(metadata);
+        RingInstance ring = new RingInstance(metadata, "test-cluster");
 
         byte[] bytes = serialize(ring);
         RingInstance deserialized = deserialize(bytes, RingInstance.class);

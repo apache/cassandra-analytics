@@ -25,6 +25,8 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Objects;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
@@ -36,14 +38,11 @@ public class RingInstance implements CassandraInstance, Serializable
 {
     private static final long serialVersionUID = 4399143234683369652L;
     private RingEntry ringEntry;
+    private @Nullable String clusterId;
 
-    public RingInstance(RingEntry ringEntry)
+    public RingInstance(ReplicaMetadata replica, @Nullable String clusterId)
     {
-        this.ringEntry = ringEntry;
-    }
-
-    public RingInstance(ReplicaMetadata replica)
-    {
+        this.clusterId = clusterId;
         this.ringEntry = new RingEntry.Builder()
                          .fqdn(replica.fqdn())
                          .address(replica.address())
@@ -54,11 +53,36 @@ public class RingInstance implements CassandraInstance, Serializable
                          .build();
     }
 
+    @VisibleForTesting
+    public RingInstance(RingEntry ringEntry)
+    {
+        this(ringEntry, null);
+    }
+
+    @VisibleForTesting
+    public RingInstance(RingEntry ringEntry, @Nullable String clusterId)
+    {
+        this.clusterId = clusterId;
+        this.ringEntry = ringEntry;
+    }
+
+    @VisibleForTesting
+    public RingInstance(ReplicaMetadata replica)
+    {
+        this(replica, null);
+    }
+
     // Used only in tests
     @Override
     public String token()
     {
         return ringEntry.token();
+    }
+
+    @Override
+    public String clusterId()
+    {
+        return clusterId;
     }
 
     @Override
@@ -108,12 +132,18 @@ public class RingInstance implements CassandraInstance, Serializable
     @Override
     public boolean equals(@Nullable Object other)
     {
-        if (other == null || !(other instanceof RingInstance))
+        if (this == other)
+        {
+            return true;
+        }
+
+        if (other == null || getClass() != other.getClass())
         {
             return false;
         }
         final RingInstance that = (RingInstance) other;
-        return Objects.equals(ringEntry.token(), that.ringEntry.token())
+        return Objects.equals(clusterId, that.clusterId)
+               && Objects.equals(ringEntry.token(), that.ringEntry.token())
                && Objects.equals(ringEntry.fqdn(), that.ringEntry.fqdn())
                && Objects.equals(ringEntry.address(), that.ringEntry.address())
                && ringEntry.port() == that.ringEntry.port()
@@ -130,7 +160,7 @@ public class RingInstance implements CassandraInstance, Serializable
     @Override
     public int hashCode()
     {
-        return Objects.hash(ringEntry.token(), ringEntry.fqdn(), ringEntry.port(), ringEntry.datacenter(), ringEntry.address());
+        return Objects.hash(clusterId, ringEntry.token(), ringEntry.fqdn(), ringEntry.port(), ringEntry.datacenter(), ringEntry.address());
     }
 
     @Override
@@ -158,6 +188,7 @@ public class RingInstance implements CassandraInstance, Serializable
         out.writeObject(ringEntry.hostId());
         out.writeObject(ringEntry.load());
         out.writeObject(ringEntry.owns());
+        out.writeObject(clusterId);
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
@@ -174,6 +205,7 @@ public class RingInstance implements CassandraInstance, Serializable
         String hostId = (String) in.readObject();
         String load = (String) in.readObject();
         String owns = (String) in.readObject();
+        String clusterId = (String) in.readObject();
         ringEntry = new RingEntry.Builder().datacenter(datacenter)
                                            .address(address)
                                            .port(port)
@@ -186,5 +218,6 @@ public class RingInstance implements CassandraInstance, Serializable
                                            .load(load)
                                            .owns(owns)
                                            .build();
+        this.clusterId = clusterId;
     }
 }

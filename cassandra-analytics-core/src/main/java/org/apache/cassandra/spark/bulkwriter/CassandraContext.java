@@ -40,7 +40,7 @@ public class CassandraContext implements StartupValidatable, Closeable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraContext.class);
     @NotNull
-    protected Set<? extends SidecarInstance> clusterConfig;
+    protected Set<SidecarInstance> clusterConfig;
     private final BulkSparkConf conf;
     private final transient SidecarClient sidecarClient;
 
@@ -57,7 +57,7 @@ public class CassandraContext implements StartupValidatable, Closeable
         return new CassandraContext(conf);
     }
 
-    public Set<? extends SidecarInstance> getCluster()
+    public Set<SidecarInstance> getCluster()
     {
         return clusterConfig;
     }
@@ -86,7 +86,7 @@ public class CassandraContext implements StartupValidatable, Closeable
         return Sidecar.from(new SimpleSidecarInstancesProvider(new ArrayList<>(clusterConfig)), conf);
     }
 
-    protected Set<? extends SidecarInstance> createClusterConfig()
+    protected Set<SidecarInstance> createClusterConfig()
     {
         return conf.sidecarContactPoints();
     }

@@ -184,7 +184,7 @@ public final class Sidecar
     }
 
     public static List<CompletableFuture<NodeSettings>> allNodeSettings(SidecarClient client,
-                                                                        Set<? extends SidecarInstance> instances)
+                                                                        Set<SidecarInstance> instances)
     {
         return instances.stream()
                         .map(instance -> client

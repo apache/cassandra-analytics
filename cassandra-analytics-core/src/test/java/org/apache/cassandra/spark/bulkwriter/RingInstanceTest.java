@@ -38,7 +38,7 @@ import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
-import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
+import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel.CL;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -46,6 +46,8 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RingInstanceTest
 {
@@ -171,6 +173,32 @@ public class RingInstanceTest
     }
 
     @Test
+    public void testEqualsAndHashcodeConsidersClusterId()
+    {
+        RingInstance instance = TokenRangeMappingUtils.getInstances(0, ImmutableMap.of("DATACENTER1", 1), 1).get(0);
+        RingInstance c1i1 = new RingInstance(instance.ringInstance(), "cluster1");
+        RingInstance c1i2 = new RingInstance(instance.ringInstance(), "cluster1");
+        RingInstance c2i1 = new RingInstance(instance.ringInstance(), "cluster2");
+
+        assertEquals(c1i1, c1i2);
+        assertEquals(c1i1.hashCode(), c1i2.hashCode());
+
+        assertNotEquals(c1i1, c2i1);
+        assertNotEquals(c1i1.hashCode(), c2i1.hashCode());
+    }
+
+    @Test
+    public void testHasClusterId()
+    {
+        RingInstance instance = TokenRangeMappingUtils.getInstances(0, ImmutableMap.of("DATACENTER1", 1), 1).get(0);
+        assertFalse(instance.hasClusterId());
+
+        RingInstance instanceWithClusterId = new RingInstance(instance.ringInstance(), "cluster1");
+        assertTrue(instanceWithClusterId.hasClusterId());
+        assertEquals("cluster1", instanceWithClusterId.clusterId());
+    }
+
+    @Test
     public void multiMapWorksWithRingInstances()
     {
         RingInstance instance1 = TokenRangeMappingUtils.getInstances(0, ImmutableMap.of("DATACENTER1", 1), 1).get(0);
@@ -224,7 +252,6 @@ public class RingInstanceTest
         replicationFactor3.addFailure(Range.openClosed(tokens[0].add(BigInteger.ONE),
                                                        tokens[0].add(BigInteger.valueOf(2L))), instance2, "Failure 2");
 
-        replicationFactor3.getFailedRanges(tokenRange, ConsistencyLevel.CL.LOCAL_QUORUM, DATACENTER_1);
-        assertFalse(replicationFactor3.hasFailed(tokenRange, ConsistencyLevel.CL.LOCAL_QUORUM, DATACENTER_1));
+        assertTrue(replicationFactor3.getFailedRanges(tokenRange, CL.LOCAL_QUORUM, DATACENTER_1).isEmpty());
     }
 }

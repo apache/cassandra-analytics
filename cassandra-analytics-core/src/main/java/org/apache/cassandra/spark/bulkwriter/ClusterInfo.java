@@ -27,6 +27,7 @@ import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.validation.StartupValidatable;
+import org.jetbrains.annotations.Nullable;
 
 public interface ClusterInfo extends StartupValidatable, Serializable
 {
@@ -47,9 +48,28 @@ public interface ClusterInfo extends StartupValidatable, Serializable
 
     TimeSkewResponse getTimeSkew(List<RingInstance> replicas);
 
+    /**
+     * Return the keyspace schema string of the enclosing keyspace for bulk write in the cluster
+     * @param cached whether using the cached schema information
+     * @return keyspace schema string
+     */
     String getKeyspaceSchema(boolean cached);
 
     CassandraContext getCassandraContext();
+
+    /**
+     * ID string that can uniquely identify a cluster
+     * <p>
+     * Implementor note: the method is optional. When writing to a single cluster, there is no requirement of assigning an ID for bulk write to proceed.
+     * When in the coordinated write mode, i.e. writing to multiple clusters, the method must be implemented and return unique string for clusters.
+     *
+     * @return cluster id string, null if absent
+     */
+    @Nullable
+    default String clusterId()
+    {
+        return null;
+    }
 
     default void close()
     {
