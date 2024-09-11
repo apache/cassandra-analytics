@@ -23,7 +23,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.spark.data.CqlField;
@@ -36,7 +35,9 @@ import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.jetbrains.annotations.NotNull;
-import scala.collection.mutable.WrappedArray;
+import scala.collection.mutable.AbstractSeq;
+
+import static scala.collection.JavaConverters.mutableSeqAsJavaList;
 
 public class SparkList implements CollectionFeatures
 {
@@ -85,9 +86,9 @@ public class SparkList implements CollectionFeatures
     @Override
     public Object toTestRowType(Object value)
     {
-        return Stream.of((Object[]) ((WrappedArray<Object>) value).array())
-                     .map(element -> sparkType().toTestRowType(element))
-                     .collect(Collectors.toList());
+        return mutableSeqAsJavaList((AbstractSeq<?>) value).stream()
+                                                           .map(element -> sparkType().toTestRowType(element))
+                                                           .collect(Collectors.toList());
     }
 
     public <T> Collector<T, ?, ?> collector()
