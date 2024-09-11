@@ -29,7 +29,7 @@ import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.spark.data.CqlField.STRING_COMPARATOR;
 
-interface StringTraits extends SparkType
+interface StringFeatures extends SparkType
 {
     @Override
     default Object toSparkSqlType(@NotNull Object value, boolean isFrozen)

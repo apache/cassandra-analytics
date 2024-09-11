@@ -19,7 +19,7 @@
 
 package org.apache.cassandra.spark.data.converter.types;
 
-public class SparkVarChar implements StringTraits
+public class SparkVarChar implements StringFeatures
 {
     public static final SparkVarChar INSTANCE = new SparkVarChar();
 

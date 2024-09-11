@@ -21,7 +21,7 @@ package org.apache.cassandra.spark.data.converter.types;
 
 import org.apache.cassandra.spark.data.CqlField;
 
-interface UUIDFeatures extends StringTraits
+interface UUIDFeatures extends StringFeatures
 {
     @Override
     default Object toTestRowType(Object value)

@@ -61,7 +61,7 @@ public class SparkList implements CollectionFeatures
     {
         return ArrayData.toArrayData(((Collection<Object>) value)
                                      .stream()
-                                     .map(a -> sparkType().toSparkSqlType(a, isFrozen))
+                                     .map(element -> sparkType().toSparkSqlType(element, isFrozen))
                                      .toArray());
     }
 

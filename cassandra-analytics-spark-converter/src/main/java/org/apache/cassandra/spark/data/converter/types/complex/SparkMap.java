@@ -104,12 +104,13 @@ public class SparkMap implements MapFeatures
     @Override
     public Object toTestRowType(Object value)
     {
-        return ((java.util.Map<Object, Object>) JavaConverters.mapAsJavaMapConverter(((scala.collection.immutable.Map<?, ?>) value))
-                                                              .asJava()).entrySet().stream()
-                                                                        .collect(Collectors.toMap(
-                                                                                 element -> keyType().toTestRowType(element.getKey()),
-                                                                                 element -> valueType().toTestRowType(element.getValue()))
-                                                                        );
+        return ((java.util.Map<Object, Object>)
+                JavaConverters.mapAsJavaMapConverter(((scala.collection.immutable.Map<?, ?>) value))
+                              .asJava()).entrySet().stream()
+                                        .collect(Collectors.toMap(
+                                                 element -> keyType().toTestRowType(element.getKey()),
+                                                 element -> valueType().toTestRowType(element.getValue()))
+                                        );
     }
 
     public CqlField.CqlCollection collection()

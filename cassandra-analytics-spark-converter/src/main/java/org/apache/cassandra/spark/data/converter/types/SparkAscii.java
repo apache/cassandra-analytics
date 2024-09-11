@@ -19,7 +19,7 @@
 
 package org.apache.cassandra.spark.data.converter.types;
 
-public class SparkAscii implements StringTraits
+public class SparkAscii implements StringFeatures
 {
     public static final SparkAscii INSTANCE = new SparkAscii();
 
