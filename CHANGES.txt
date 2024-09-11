@@ -1,5 +1,5 @@
 1.0.0
- * Add writer option COORDINATED_WRITE_CONF to define coordinated write to multiple Cassandra clusters (CASSANDRA-19909)
+ * Add writer option COORDINATED_WRITE_CONFIG to define coordinated write to multiple Cassandra clusters (CASSANDRA-19909)
  * Decouple Cassandra types from Spark types so Cassandra types can be used independently from Spark (CASSANDRA-19815)
  * Make the compression cache configurable to reduce heap pressure for large SSTables (CASSANDRA-19900)
  * Refactor TokenRangeMapping to use proper types instead of Strings (CASSANDRA-19901)
