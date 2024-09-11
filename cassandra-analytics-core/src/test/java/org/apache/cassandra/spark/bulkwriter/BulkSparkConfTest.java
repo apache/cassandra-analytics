@@ -325,14 +325,14 @@ class BulkSparkConfTest
         .describedAs("When COORDINATED_WRITE_CONF is present, it should return true")
         .isTrue();
         assertThat(conf.coordinatedWriteConf().clusters()).containsOnlyKeys("cluster1", "cluster2");
-        CoordinatedWriteConf.ClusterConfProvider cluster1 = conf.coordinatedWriteConf().cluster("cluster1");
+        CoordinatedWriteConf.ClusterConf cluster1 = conf.coordinatedWriteConf().cluster("cluster1");
         assertThat(cluster1).isNotNull();
         assertThat(cluster1.sidecarContactPoints())
         .containsExactlyInAnyOrder(new SidecarInstanceImpl("instance-1", 9999),
                                    new SidecarInstanceImpl("instance-2", 9999),
                                    new SidecarInstanceImpl("instance-3", 9999));
         assertThat(cluster1.localDc()).isEqualTo("dc1");
-        CoordinatedWriteConf.ClusterConfProvider cluster2 = conf.coordinatedWriteConf().cluster("cluster2");
+        CoordinatedWriteConf.ClusterConf cluster2 = conf.coordinatedWriteConf().cluster("cluster2");
         assertThat(cluster2).isNotNull();
         assertThat(cluster2.sidecarContactPoints())
         .containsExactlyInAnyOrder(new SidecarInstanceImpl("instance-4", 8888),

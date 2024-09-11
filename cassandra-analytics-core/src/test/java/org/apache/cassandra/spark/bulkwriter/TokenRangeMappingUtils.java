@@ -61,7 +61,7 @@ public final class TokenRangeMappingUtils
     {
         List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
         RingInstance instance = instances.remove(0);
-        RingEntry entry = instance.ringInstance();
+        RingEntry entry = instance.ringEntry();
         RingEntry newEntry = new RingEntry.Builder()
                              .datacenter(entry.datacenter())
                              .port(entry.port())
@@ -97,7 +97,7 @@ public final class TokenRangeMappingUtils
         if (shouldUpdateToken)
         {
             RingInstance instance = instances.remove(0);
-            RingEntry entry = instance.ringInstance();
+            RingEntry entry = instance.ringEntry();
             RingEntry newEntry = new RingEntry.Builder()
                                  .datacenter(entry.datacenter())
                                  .port(entry.port())

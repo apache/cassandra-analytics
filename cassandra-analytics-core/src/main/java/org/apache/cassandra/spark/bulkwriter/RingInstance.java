@@ -122,9 +122,9 @@ public class RingInstance implements CassandraInstance, Serializable
     }
 
     /**
-     * Custom equality that compares the token, fully qualified domain name, the port, and the datacenter
+     * Custom equality that compares the token, fully qualified domain name, the port, the datacenter and the clusterId
      *
-     * Note that node state and status are not part of the calculation.
+     * Note that node state, status,  are not part of the calculation.
      *
      * @param other the other instance
      * @return true if both instances are equal, false otherwise
@@ -145,6 +145,7 @@ public class RingInstance implements CassandraInstance, Serializable
         return Objects.equals(clusterId, that.clusterId)
                && Objects.equals(ringEntry.token(), that.ringEntry.token())
                && Objects.equals(ringEntry.fqdn(), that.ringEntry.fqdn())
+               && Objects.equals(ringEntry.rack(), that.ringEntry.rack())
                && Objects.equals(ringEntry.address(), that.ringEntry.address())
                && ringEntry.port() == that.ringEntry.port()
                && Objects.equals(ringEntry.datacenter(), that.ringEntry.datacenter());
@@ -160,7 +161,7 @@ public class RingInstance implements CassandraInstance, Serializable
     @Override
     public int hashCode()
     {
-        return Objects.hash(clusterId, ringEntry.token(), ringEntry.fqdn(), ringEntry.port(), ringEntry.datacenter(), ringEntry.address());
+        return Objects.hash(clusterId, ringEntry.token(), ringEntry.fqdn(), ringEntry.rack(), ringEntry.port(), ringEntry.datacenter(), ringEntry.address());
     }
 
     @Override
@@ -169,7 +170,7 @@ public class RingInstance implements CassandraInstance, Serializable
         return ringEntry.toString();
     }
 
-    public RingEntry ringInstance()
+    public RingEntry ringEntry()
     {
         return ringEntry;
     }

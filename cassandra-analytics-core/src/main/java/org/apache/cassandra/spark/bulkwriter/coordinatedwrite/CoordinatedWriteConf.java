@@ -51,7 +51,7 @@ public class CoordinatedWriteConf
 {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     // The runtime type of ClusterConfProvider is erased; use clustersOf method to read the desired type back
-    private final Map<String, ClusterConfProvider> clusters;
+    private final Map<String, ClusterConf> clusters;
 
     /**
      * Parse JSON string and create a CoordinatedWriteConf object with the specified ClusterConfProvider format
@@ -61,7 +61,7 @@ public class CoordinatedWriteConf
      * @return CoordinatedWriteConf object
      * @param <T> subtype of ClusterConfProvider
      */
-    public static <T extends CoordinatedWriteConf.ClusterConfProvider>
+    public static <T extends ClusterConf>
     CoordinatedWriteConf fromJson(String json, Class<T> clusterConfType)
     {
         JavaType javaType = TypeFactory.defaultInstance().constructMapType(Map.class, String.class, clusterConfType);
@@ -76,23 +76,23 @@ public class CoordinatedWriteConf
         }
     }
 
-    public CoordinatedWriteConf(Map<String, ? extends ClusterConfProvider> clusters)
+    public CoordinatedWriteConf(Map<String, ? extends ClusterConf> clusters)
     {
         this.clusters = Collections.unmodifiableMap(clusters);
     }
 
-    public Map<String, ClusterConfProvider> clusters()
+    public Map<String, ClusterConf> clusters()
     {
         return clusters;
     }
 
     @Nullable
-    public ClusterConfProvider cluster(String clusterId)
+    public ClusterConf cluster(String clusterId)
     {
         return clusters.get(clusterId);
     }
 
-    public <T extends ClusterConfProvider> Map<String, T> clustersOf(Class<T> clusterConfType)
+    public <T extends ClusterConf> Map<String, T> clustersOf(Class<T> clusterConfType)
     {
         // verify that map type can cast; there are only limited number of values and check is cheap
         clusters.values().forEach(v -> Preconditions.checkState(clusterConfType.isInstance(v),
@@ -105,7 +105,7 @@ public class CoordinatedWriteConf
         return OBJECT_MAPPER.writeValueAsString(clusters);
     }
 
-    public interface ClusterConfProvider
+    public interface ClusterConf
     {
         Set<SidecarInstance> sidecarContactPoints();
 
@@ -131,7 +131,7 @@ public class CoordinatedWriteConf
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public static class SimpleClusterConf implements ClusterConfProvider
+    public static class SimpleClusterConf implements ClusterConf
     {
         private final List<String> sidecarContactPointsValue;
         private final Set<SidecarInstance> sidecarContactPoints;

@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Test;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf.ClusterConfProvider;
+import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf.ClusterConf;
 import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf.SimpleClusterConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel.CL;
 
@@ -93,14 +93,14 @@ class CoordinatedWriteConfTest
     @Test
     void testResolveLocalDc()
     {
-        ClusterConfProvider clusterWithLocalDc = new SimpleClusterConf(Collections.singletonList("instance-1:9999"), "dc1");
+        ClusterConf clusterWithLocalDc = new SimpleClusterConf(Collections.singletonList("instance-1:9999"), "dc1");
         assertThat(clusterWithLocalDc.resolveLocalDc(CL.EACH_QUORUM))
         .describedAs("Resolving localDc with Non-local CL should return null")
         .isNull();
         assertThat(clusterWithLocalDc.resolveLocalDc(CL.LOCAL_QUORUM))
         .describedAs("Resolving localDc with local CL should return the actual localDc")
         .isEqualTo("dc1");
-        ClusterConfProvider clusterWithoutLocalDc = new SimpleClusterConf(Collections.singletonList("instance-1:9999"), null);
+        ClusterConf clusterWithoutLocalDc = new SimpleClusterConf(Collections.singletonList("instance-1:9999"), null);
         assertThat(clusterWithoutLocalDc.resolveLocalDc(CL.EACH_QUORUM)).isNull();
         assertThatThrownBy(() -> clusterWithoutLocalDc.resolveLocalDc(CL.LOCAL_QUORUM))
         .isExactlyInstanceOf(IllegalStateException.class)

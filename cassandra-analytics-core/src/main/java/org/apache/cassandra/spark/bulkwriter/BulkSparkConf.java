@@ -228,7 +228,7 @@ public class BulkSparkConf implements Serializable
         this.jobTimeoutSeconds = MapUtils.getLong(options, WriterOptions.JOB_TIMEOUT_SECONDS.name(), -1L);
         this.configuredJobId = MapUtils.getOrDefault(options, WriterOptions.JOB_ID.name(), null);
         this.coordinatedWriteConfJson = MapUtils.getOrDefault(options, WriterOptions.COORDINATED_WRITE_CONFIG.name(), null);
-        this.coordinatedWriteConf = buildCoordinatedWriteConf(); // must only call the build method at this step, after the related fields have been resolved
+        this.coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport());
         validateEnvironment();
     }
 
@@ -296,24 +296,22 @@ public class BulkSparkConf implements Serializable
     {
         if (coordinatedWriteConf == null)
         {
-            coordinatedWriteConf = buildCoordinatedWriteConf();
+            coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport());
         }
 
         return coordinatedWriteConf;
     }
 
     @Nullable
-    protected CoordinatedWriteConf buildCoordinatedWriteConf()
+    protected CoordinatedWriteConf buildCoordinatedWriteConf(DataTransport dataTransport)
     {
         if (coordinatedWriteConfJson == null)
         {
             return null;
         }
 
-        if (dataTransportInfo.getTransport() != DataTransport.S3_COMPAT)
-        {
-            throw new IllegalArgumentException("Coordinated write only supports " + DataTransport.S3_COMPAT);
-        }
+        Preconditions.checkArgument(dataTransport == DataTransport.S3_COMPAT,
+                                    "Coordinated write only supports " + DataTransport.S3_COMPAT);
 
         if (sidecarContactPointsValue != null)
         {
