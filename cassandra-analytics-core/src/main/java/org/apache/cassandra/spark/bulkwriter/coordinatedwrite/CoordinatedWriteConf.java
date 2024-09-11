@@ -27,6 +27,9 @@ import java.util.Set;
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -49,6 +52,8 @@ import static java.util.stream.Collectors.toSet;
  */
 public class CoordinatedWriteConf
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CoordinatedWriteConf.class);
+
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     // The runtime type of ClusterConfProvider is erased; use clustersOf method to read the desired type back
     private final Map<String, ClusterConf> clusters;
@@ -62,12 +67,28 @@ public class CoordinatedWriteConf
      * @param <T> subtype of ClusterConfProvider
      */
     public static <T extends ClusterConf>
-    CoordinatedWriteConf fromJson(String json, Class<T> clusterConfType)
+    CoordinatedWriteConf create(String json, ConsistencyLevel.CL consistencyLevel, Class<T> clusterConfType)
     {
         JavaType javaType = TypeFactory.defaultInstance().constructMapType(Map.class, String.class, clusterConfType);
         try
         {
-            return new CoordinatedWriteConf(OBJECT_MAPPER.readValue(json, javaType));
+            CoordinatedWriteConf result = new CoordinatedWriteConf(OBJECT_MAPPER.readValue(json, javaType));
+            result.clusters().forEach((clusterId, cluster) -> {
+                if (consistencyLevel.isLocal())
+                {
+                    Preconditions.checkState(!StringUtils.isEmpty(cluster.localDc()),
+                                             "localDc is not configured for cluster: " + clusterId + " for consistency level: " + consistencyLevel);
+                }
+                else
+                {
+                    if (cluster.localDc() != null)
+                    {
+                        LOGGER.warn("Ignoring the localDc configured for cluster, when consistency level is non-local. cluster={} consistencyLevel={}",
+                                    clusterId, consistencyLevel);
+                    }
+                }
+            });
+            return result;
         }
         catch (Exception e)
         {

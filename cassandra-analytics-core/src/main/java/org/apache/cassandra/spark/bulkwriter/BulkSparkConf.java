@@ -323,23 +323,7 @@ public class BulkSparkConf implements Serializable
             LOGGER.warn("LOCAL_DC is ignored on the presence of COORDINATED_WRITE_CONF");
         }
 
-        CoordinatedWriteConf result = CoordinatedWriteConf.fromJson(coordinatedWriteConfJson, SimpleClusterConf.class);
-        result.clusters().forEach((clusterId, cluster) -> {
-            if (consistencyLevel.isLocal())
-            {
-                Preconditions.checkState(cluster.localDc() != null,
-                                         "localDc is not configured for cluster: " + clusterId + " for consistency level: " + consistencyLevel);
-            }
-            else
-            {
-                if (cluster.localDc() != null)
-                {
-                    LOGGER.warn("Ignoring the localDc configured for cluster, when consistency level is non-local. cluster={} consistencyLevel={}",
-                                clusterId, consistencyLevel);
-                }
-            }
-        });
-        return result;
+        return CoordinatedWriteConf.create(coordinatedWriteConfJson, consistencyLevel, SimpleClusterConf.class);
     }
 
     protected void validateEnvironment() throws RuntimeException

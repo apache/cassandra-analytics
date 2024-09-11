@@ -54,7 +54,7 @@ class CoordinatedWriteConfTest
                    "\"cluster2\":" +
                    "{\"sidecarContactPoints\":[\"instance-4:8888\",\"instance-5:8888\",\"instance-6:8888\"]," +
                    "\"localDc\":\"dc1\"}}");
-        CoordinatedWriteConf deser = CoordinatedWriteConf.fromJson(json, SimpleClusterConf.class);
+        CoordinatedWriteConf deser = CoordinatedWriteConf.create(json, CL.LOCAL_QUORUM, SimpleClusterConf.class);
         assertThat(deser.clusters()).containsKeys("cluster1", "cluster2");
         assertThat(deser.clustersOf(SimpleClusterConf.class).get("cluster1").sidecarContactPointsValue())
         .isEqualTo(Arrays.asList("instance-1:9999", "instance-2:9999", "instance-3:9999"));
@@ -83,11 +83,22 @@ class CoordinatedWriteConfTest
         String json = "{\"cluster1\":" +
                       "{\"sidecarContactPoints\":[\"instance-1\",\"instance-2\",\"instance-3\"]," +
                       "\"localDc\":\"dc1\"}}";
-        assertThatThrownBy(() -> CoordinatedWriteConf.fromJson(json, SimpleClusterConf.class))
+        assertThatThrownBy(() -> CoordinatedWriteConf.create(json, CL.LOCAL_QUORUM, SimpleClusterConf.class))
         .isExactlyInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Unable to parse json string into CoordinatedWriteConf of SimpleClusterConf")
         .hasRootCauseExactlyInstanceOf(IllegalStateException.class)
         .hasRootCauseMessage("Unable to resolve port from instance-1");
+    }
+
+    @Test
+    void testDeserFailsDueToMissingLocalDcWithNonLocalCL()
+    {
+        String json = "{\"cluster1\":{\"sidecarContactPoints\":[\"instance-1:8888\"]}}";
+        assertThatThrownBy(() -> CoordinatedWriteConf.create(json, CL.LOCAL_QUORUM, SimpleClusterConf.class))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Unable to parse json string into CoordinatedWriteConf of SimpleClusterConf")
+        .hasRootCauseExactlyInstanceOf(IllegalStateException.class)
+        .hasRootCauseMessage("localDc is not configured for cluster: cluster1 for consistency level: LOCAL_QUORUM");
     }
 
     @Test
