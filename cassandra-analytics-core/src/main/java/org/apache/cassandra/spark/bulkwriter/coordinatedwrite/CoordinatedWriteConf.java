@@ -70,31 +70,32 @@ public class CoordinatedWriteConf
     CoordinatedWriteConf create(String json, ConsistencyLevel.CL consistencyLevel, Class<T> clusterConfType)
     {
         JavaType javaType = TypeFactory.defaultInstance().constructMapType(Map.class, String.class, clusterConfType);
+        CoordinatedWriteConf result;
         try
         {
-            CoordinatedWriteConf result = new CoordinatedWriteConf(OBJECT_MAPPER.readValue(json, javaType));
-            result.clusters().forEach((clusterId, cluster) -> {
-                if (consistencyLevel.isLocal())
-                {
-                    Preconditions.checkState(!StringUtils.isEmpty(cluster.localDc()),
-                                             "localDc is not configured for cluster: " + clusterId + " for consistency level: " + consistencyLevel);
-                }
-                else
-                {
-                    if (cluster.localDc() != null)
-                    {
-                        LOGGER.warn("Ignoring the localDc configured for cluster, when consistency level is non-local. cluster={} consistencyLevel={}",
-                                    clusterId, consistencyLevel);
-                    }
-                }
-            });
-            return result;
+            result = new CoordinatedWriteConf(OBJECT_MAPPER.readValue(json, javaType));
         }
         catch (Exception e)
         {
             throw new IllegalArgumentException("Unable to parse json string into CoordinatedWriteConf of " + clusterConfType.getSimpleName() +
                                                " due to " + e.getMessage(), e);
         }
+        result.clusters().forEach((clusterId, cluster) -> {
+            if (consistencyLevel.isLocal())
+            {
+                Preconditions.checkState(!StringUtils.isEmpty(cluster.localDc()),
+                                         "localDc is not configured for cluster: " + clusterId + " for consistency level: " + consistencyLevel);
+            }
+            else
+            {
+                if (cluster.localDc() != null)
+                {
+                    LOGGER.warn("Ignoring the localDc configured for cluster, when consistency level is non-local. cluster={} consistencyLevel={}",
+                                clusterId, consistencyLevel);
+                }
+            }
+        });
+        return result;
     }
 
     public CoordinatedWriteConf(Map<String, ? extends ClusterConf> clusters)

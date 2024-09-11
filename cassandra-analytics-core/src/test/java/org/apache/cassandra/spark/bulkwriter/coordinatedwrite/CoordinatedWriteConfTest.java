@@ -95,10 +95,8 @@ class CoordinatedWriteConfTest
     {
         String json = "{\"cluster1\":{\"sidecarContactPoints\":[\"instance-1:8888\"]}}";
         assertThatThrownBy(() -> CoordinatedWriteConf.create(json, CL.LOCAL_QUORUM, SimpleClusterConf.class))
-        .isExactlyInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Unable to parse json string into CoordinatedWriteConf of SimpleClusterConf")
-        .hasRootCauseExactlyInstanceOf(IllegalStateException.class)
-        .hasRootCauseMessage("localDc is not configured for cluster: cluster1 for consistency level: LOCAL_QUORUM");
+        .isExactlyInstanceOf(IllegalStateException.class)
+        .hasMessage("localDc is not configured for cluster: cluster1 for consistency level: LOCAL_QUORUM");
     }
 
     @Test
