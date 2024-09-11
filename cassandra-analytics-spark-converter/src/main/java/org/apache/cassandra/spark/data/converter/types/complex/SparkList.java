@@ -86,9 +86,9 @@ public class SparkList implements CollectionFeatures
     public Object toTestRowType(Object value)
     {
         return ScalaConversionUtils.mutableSeqAsJavaList((Seq<Object>) value)
-                            .stream()
-                            .map(element -> sparkType().toTestRowType(element))
-                            .collect(Collectors.toList());
+                                   .stream()
+                                   .map(element -> sparkType().toTestRowType(element))
+                                   .collect(Collectors.toList());
     }
 
     public <T> Collector<T, ?, ?> collector()
