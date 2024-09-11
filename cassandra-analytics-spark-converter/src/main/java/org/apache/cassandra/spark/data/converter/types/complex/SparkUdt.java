@@ -75,7 +75,7 @@ public class SparkUdt implements SparkType
     @Override
     public Object sparkSqlRowValue(GenericInternalRow row, int position)
     {
-        final InternalRow struct = row.getStruct(position, size());
+        InternalRow struct = row.getStruct(position, size());
         return IntStream.range(0, size())
                         .boxed()
                         .collect(Collectors.toMap(

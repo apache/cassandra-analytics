@@ -93,7 +93,7 @@ public class SparkTuple implements CollectionFeatures
     @Override
     public Object sparkSqlRowValue(GenericInternalRow row, int position)
     {
-        final InternalRow tupleStruct = row.getStruct(position, size());
+        InternalRow tupleStruct = row.getStruct(position, size());
         return IntStream.range(0, size())
                         .boxed()
                         .map(index -> sparkType(index).toTestRowType(tupleStruct.get(index, sparkType(index).dataType())))
@@ -103,7 +103,7 @@ public class SparkTuple implements CollectionFeatures
     @Override
     public Object sparkSqlRowValue(Row row, int position)
     {
-        final Row tupleStruct = row.getStruct(position);
+        Row tupleStruct = row.getStruct(position);
         return IntStream.range(0, tupleStruct.size())
                         .boxed()
                         .filter(index -> !tupleStruct.isNullAt(index))
@@ -114,8 +114,8 @@ public class SparkTuple implements CollectionFeatures
     @Override
     public Object toTestRowType(Object value)
     {
-        final GenericRowWithSchema tupleRow = (GenericRowWithSchema) value;
-        final Object[] tupleResult = new Object[tupleRow.size()];
+        GenericRowWithSchema tupleRow = (GenericRowWithSchema) value;
+        Object[] tupleResult = new Object[tupleRow.size()];
         for (int index = 0; index < tupleRow.size(); index++)
         {
             tupleResult[index] = sparkType(index).toTestRowType(tupleRow.get(index));
