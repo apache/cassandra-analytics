@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import org.apache.cassandra.bridge.BigNumberConfig;
@@ -27,10 +26,6 @@ import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.IntegerType;
 import org.apache.cassandra.spark.utils.RandomUtils;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
 
 public class VarInt extends Decimal
 {
@@ -43,47 +38,9 @@ public class VarInt extends Decimal
     }
 
     @Override
-    public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
-    {
-        return DataTypes.createDecimalType(bigNumberConfig.bigIntegerPrecision(), bigNumberConfig.bigIntegerScale());
-    }
-
-    @Override
     public AbstractType<?> dataType()
     {
         return IntegerType.instance;
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        if (value instanceof BigInteger)
-        {
-            return value;
-        }
-        else if (value instanceof BigDecimal)
-        {
-            return ((BigDecimal) value).toBigInteger();
-        }
-        return ((org.apache.spark.sql.types.Decimal) value).toJavaBigInteger();
-    }
-
-    @Override
-    public Object toSparkSqlType(Object value, boolean isFrozen)
-    {
-        return org.apache.spark.sql.types.Decimal.apply((BigInteger) value);
-    }
-
-    @Override
-    protected Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
-    {
-        return row.getDecimal(position, BigNumberConfig.DEFAULT.bigIntegerPrecision(), BigNumberConfig.DEFAULT.bigIntegerScale());
-    }
-
-    @Override
-    protected Object nativeSparkSqlRowValue(Row row, int position)
-    {
-        return row.getDecimal(position).toBigInteger();
     }
 
     @Override

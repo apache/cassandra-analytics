@@ -29,12 +29,10 @@ configurations {
 }
 
 dependencies {
-    compileOnly(project(':cassandra-bridge'))
-
-    compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-    compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-
+    compileOnly "org.slf4j:slf4j-api:${slf4jApiVersion}"
+    compileOnly project(":cassandra-analytics-common")
     compileOnly(project(path: ':cassandra-four-zero', configuration: 'shadow'))
+    compileOnly "com.esotericsoftware:kryo-shaded:${kryoVersion}"
 }
 
 jar {

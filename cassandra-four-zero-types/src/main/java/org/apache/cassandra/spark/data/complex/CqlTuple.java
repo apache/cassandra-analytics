@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.cql3.functions.types.TupleHelper;
@@ -36,14 +35,8 @@ import org.apache.cassandra.serializers.TupleSerializer;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
+import org.apache.cassandra.spark.data.TypeConverter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.InternalRow;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.StructField;
 
 public class CqlTuple extends CqlCollection implements CqlField.CqlTuple
 {
@@ -62,29 +55,9 @@ public class CqlTuple extends CqlCollection implements CqlField.CqlTuple
     }
 
     @Override
-    public Object toSparkSqlType(Object value, boolean isFrozen)
-    {
-        if (value instanceof ByteBuffer)
-        {
-            // Need to deserialize first, e.g. if tuple is frozen inside collections
-            return deserialize((ByteBuffer) value);
-        }
-        else
-        {
-            return new GenericInternalRow((Object[]) value);
-        }
-    }
-
-    @Override
     public ByteBuffer serialize(Object value)
     {
         return serializeTuple((Object[]) value);
-    }
-
-    @Override
-    public boolean equals(Object first, Object second)
-    {
-        return CqlField.equalsArrays(((GenericInternalRow) first).values(), ((GenericInternalRow) second).values(), this::type);
     }
 
     @Override
@@ -98,9 +71,15 @@ public class CqlTuple extends CqlCollection implements CqlField.CqlTuple
     }
 
     @Override
-    public Object deserialize(ByteBuffer buffer, boolean isFrozen)
+    public Object deserializeToType(TypeConverter typeConverter, ByteBuffer buffer, boolean isFrozen)
     {
-        return toSparkSqlType(deserializeTuple(buffer, isFrozen));
+        return typeConverter.convert(this, deserializeTuple(buffer, isFrozen), isFrozen);
+    }
+
+    @Override
+    public Object deserializeToJavaType(ByteBuffer buffer, boolean isFrozen)
+    {
+        return deserializeTuple(buffer, isFrozen);
     }
 
     @Override
@@ -113,38 +92,6 @@ public class CqlTuple extends CqlCollection implements CqlField.CqlTuple
     public String name()
     {
         return "tuple";
-    }
-
-    @Override
-    public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
-    {
-        return DataTypes.createStructType(IntStream.range(0, size())
-                                                   .mapToObj(index -> DataTypes.createStructField(
-                                                           Integer.toString(index),
-                                                           type(index).sparkSqlType(bigNumberConfig),
-                                                           true))
-                                                   .toArray(StructField[]::new));
-    }
-
-    @Override
-    public Object sparkSqlRowValue(GenericInternalRow row, int position)
-    {
-        InternalRow tupleStruct = row.getStruct(position, size());
-        return IntStream.range(0, size())
-                        .boxed()
-                        .map(index -> type(index).toTestRowType(tupleStruct.get(index, type(index).sparkSqlType())))
-                        .toArray();
-    }
-
-    @Override
-    public Object sparkSqlRowValue(Row row, int position)
-    {
-        Row tupleStruct = row.getStruct(position);
-        return IntStream.range(0, tupleStruct.size())
-                        .boxed()
-                        .filter(index -> !tupleStruct.isNullAt(index))
-                        .map(index -> type(index).toTestRowType(tupleStruct.get(index)))
-                        .toArray();
     }
 
     @Override
@@ -179,27 +126,9 @@ public class CqlTuple extends CqlCollection implements CqlField.CqlTuple
                 break;
             }
             int length = buffer.getInt();
-            result[position++] = length > 0 ? type.deserialize(ByteBufferUtils.readBytes(buffer, length), isFrozen) : null;
+            result[position++] = length > 0 ? type.deserializeToJavaType(ByteBufferUtils.readBytes(buffer, length), isFrozen) : null;
         }
         return result;
-    }
-
-    @Override
-    public int compare(Object first, Object second)
-    {
-        return CqlField.compareArrays(((GenericInternalRow) first).values(), ((GenericInternalRow) second).values(), this::type);
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        GenericRowWithSchema tupleRow = (GenericRowWithSchema) value;
-        Object[] tupleResult = new Object[tupleRow.size()];
-        for (int index = 0; index < tupleRow.size(); index++)
-        {
-            tupleResult[index] = type(index).toTestRowType(tupleRow.get(index));
-        }
-        return tupleResult;
     }
 
     @Override

@@ -23,7 +23,6 @@ import org.apache.cassandra.cql3.functions.types.DataType;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.UUIDType;
-import org.apache.cassandra.spark.data.CqlField;
 
 public class UUID extends StringBased
 {
@@ -39,18 +38,6 @@ public class UUID extends StringBased
     public AbstractType<?> dataType()
     {
         return UUIDType.instance;
-    }
-
-    @Override
-    protected int compareTo(Object first, Object second)
-    {
-        return CqlField.UUID_COMPARATOR.compare(first.toString(), second.toString());
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        return java.util.UUID.fromString(value.toString());
     }
 
     @Override

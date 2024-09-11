@@ -129,7 +129,7 @@ public class SSTableReaderTests
                     // extract value column
                     ByteBuffer b = rowData.getValue();
                     Set<?> set = new HashSet<>(Arrays.asList(((GenericArrayData) bridge.set(bridge.aInt())
-                                                                                       .deserialize(b))
+                                                                                       .deserializeToType(bridge.typeConverter(), b))
                                                              .array()));
                     assertEquals(expectedColValue, set);
                     count++;

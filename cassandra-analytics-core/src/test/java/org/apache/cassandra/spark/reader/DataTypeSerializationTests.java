@@ -32,15 +32,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
+import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.converter.types.SparkType;
 import org.apache.cassandra.spark.utils.RandomUtils;
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayBasedMapData;
 import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.types.Decimal;
@@ -50,6 +53,7 @@ import static org.apache.cassandra.spark.TestUtils.runTest;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -71,29 +75,19 @@ public class DataTypeSerializationTests
     public void testVarInt()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.varint().deserialize(
-                    bridge.varint().serialize(BigInteger.valueOf(500L))) instanceof Decimal);
-            assertEquals(Decimal.apply(500), bridge.varint().deserialize(
-                    bridge.varint().serialize(BigInteger.valueOf(500L))));
-            assertNotSame(Decimal.apply(501), bridge.varint().deserialize(
-                    bridge.varint().serialize(BigInteger.valueOf(500L))));
-            assertEquals(Decimal.apply(-1), bridge.varint().deserialize(
-                    bridge.varint().serialize(BigInteger.valueOf(-1L))));
-            assertEquals(Decimal.apply(Long.MAX_VALUE), bridge.varint().deserialize(
-                    bridge.varint().serialize(BigInteger.valueOf(Long.MAX_VALUE))));
-            assertEquals(Decimal.apply(Long.MIN_VALUE), bridge.varint().deserialize(
-                    bridge.varint().serialize(BigInteger.valueOf(Long.MIN_VALUE))));
-            assertEquals(Decimal.apply(Integer.MAX_VALUE), bridge.varint().deserialize(
-                    bridge.varint().serialize(BigInteger.valueOf(Integer.MAX_VALUE))));
-            assertEquals(Decimal.apply(Integer.MIN_VALUE), bridge.varint().deserialize(
-                    bridge.varint().serialize(BigInteger.valueOf(Integer.MIN_VALUE))));
+            assertInstanceOf(Decimal.class, toVarInt(bridge, BigInteger.valueOf(500L)));
+            assertEquals(Decimal.apply(500), toVarInt(bridge, BigInteger.valueOf(500L)));
+            assertNotSame(Decimal.apply(501), toVarInt(bridge, BigInteger.valueOf(500L)));
+            assertEquals(Decimal.apply(-1), toVarInt(bridge, BigInteger.valueOf(-1L)));
+            assertEquals(Decimal.apply(Long.MAX_VALUE), toVarInt(bridge, BigInteger.valueOf(Long.MAX_VALUE)));
+            assertEquals(Decimal.apply(Long.MIN_VALUE), toVarInt(bridge, BigInteger.valueOf(Long.MIN_VALUE)));
+            assertEquals(Decimal.apply(Integer.MAX_VALUE), toVarInt(bridge, BigInteger.valueOf(Integer.MAX_VALUE)));
+            assertEquals(Decimal.apply(Integer.MIN_VALUE), toVarInt(bridge, BigInteger.valueOf(Integer.MIN_VALUE)));
             BigInteger veryLargeValue = BigInteger.valueOf(Integer.MAX_VALUE).multiply(BigInteger.valueOf(5));
-            assertEquals(Decimal.apply(veryLargeValue), bridge.varint().deserialize(
-                    bridge.varint().serialize(veryLargeValue)));
+            assertEquals(Decimal.apply(veryLargeValue), toVarInt(bridge, veryLargeValue));
             qt().withExamples(MAX_TESTS)
                 .forAll(bigIntegers().ofBytes(128))
-                .checkAssert(integer -> assertEquals(Decimal.apply(integer), bridge.varint().deserialize(
-                        bridge.varint().serialize(integer))));
+                .checkAssert(integer -> assertEquals(Decimal.apply(integer), toVarInt(bridge, integer)));
         });
     }
 
@@ -101,11 +95,10 @@ public class DataTypeSerializationTests
     public void testInt()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.aInt().deserialize(bridge.aInt().serialize(5)) instanceof Integer);
-            assertEquals(999, bridge.aInt().deserialize(ByteBuffer.allocate(4).putInt(0, 999)));
+            assertInstanceOf(Integer.class, toInt(bridge, 5));
+            assertEquals(999, bridge.aInt().deserializeToType(bridge.typeConverter(), ByteBuffer.allocate(4).putInt(0, 999)));
             qt().forAll(integers().all())
-                .checkAssert(integer -> assertEquals(integer, bridge.aInt().deserialize(
-                        bridge.aInt().serialize(integer))));
+                .checkAssert(integer -> assertEquals(integer, toInt(bridge, integer)));
         });
     }
 
@@ -113,9 +106,9 @@ public class DataTypeSerializationTests
     public void testBoolean()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.bool().deserialize(bridge.bool().serialize(true)) instanceof Boolean);
-            assertTrue((Boolean) bridge.bool().deserialize(bridge.bool().serialize(true)));
-            assertFalse((Boolean) bridge.bool().deserialize(bridge.bool().serialize(false)));
+            assertInstanceOf(Boolean.class, toBool(bridge, true));
+            assertTrue((Boolean) toBool(bridge, true));
+            assertFalse((Boolean) toBool(bridge, false));
         });
     }
 
@@ -123,13 +116,11 @@ public class DataTypeSerializationTests
     public void testTimeUUID()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.timeuuid().deserialize(
-                    bridge.timeuuid().serialize(RandomUtils.getRandomTimeUUIDForTesting())) instanceof UTF8String);
+            assertInstanceOf(UTF8String.class, toTimeUUID(bridge, RandomUtils.getRandomTimeUUIDForTesting()));
             for (int test = 0; test < MAX_TESTS; test++)
             {
                 UUID expected = RandomUtils.getRandomTimeUUIDForTesting();
-                assertEquals(expected.toString(), bridge.timeuuid().deserialize(
-                        bridge.timeuuid().serialize(expected)).toString());
+                assertEquals(expected.toString(), toTimeUUID(bridge, expected).toString());
             }
         });
     }
@@ -138,12 +129,11 @@ public class DataTypeSerializationTests
     public void testUUID()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.uuid().deserialize(bridge.uuid().serialize(UUID.randomUUID())) instanceof UTF8String);
+            assertInstanceOf(UTF8String.class, toUUID(bridge, UUID.randomUUID()));
             for (int test = 0; test < MAX_TESTS; test++)
             {
                 UUID expected = UUID.randomUUID();
-                assertEquals(expected.toString(), bridge.uuid().deserialize(
-                        bridge.uuid().serialize(expected)).toString());
+                assertEquals(expected.toString(), toUUID(bridge, expected).toString());
             }
         });
     }
@@ -152,18 +142,16 @@ public class DataTypeSerializationTests
     public void testLong()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.bigint().deserialize(bridge.bigint().serialize(Long.MAX_VALUE)) instanceof Long);
-            assertEquals(Long.MAX_VALUE, bridge.bigint().deserialize(
-                    ByteBuffer.allocate(8).putLong(0, Long.MAX_VALUE)));
+            assertInstanceOf(Long.class, toBigInt(bridge, Long.MAX_VALUE));
+            assertEquals(Long.MAX_VALUE, bridge.bigint().deserializeToType(bridge.typeConverter(),
+                                                                           ByteBuffer.allocate(8).putLong(0, Long.MAX_VALUE)));
             qt().forAll(integers().all())
-                .checkAssert(integer -> assertEquals((long) integer, bridge.bigint().deserialize(
-                        bridge.bigint().serialize((long) integer))));
-            assertEquals(Long.MAX_VALUE, bridge.bigint().deserialize(bridge.bigint().serialize(Long.MAX_VALUE)));
-            assertEquals(Long.MIN_VALUE, bridge.bigint().deserialize(bridge.bigint().serialize(Long.MIN_VALUE)));
+                .checkAssert(integer -> assertEquals((long) integer, toBigInt(bridge, (long) integer)));
+            assertEquals(Long.MAX_VALUE, toJavaType(bridge, CassandraBridge::bigint, Long.MAX_VALUE));
+            assertEquals(Long.MIN_VALUE, toJavaType(bridge, CassandraBridge::bigint, Long.MIN_VALUE));
             qt().withExamples(MAX_TESTS)
                 .forAll(longs().all())
-                .checkAssert(aLong -> assertEquals(aLong, bridge.bigint().deserialize(
-                        bridge.bigint().serialize(aLong))));
+                .checkAssert(aLong -> assertEquals(aLong, toBigInt(bridge, aLong)));
         });
     }
 
@@ -171,29 +159,20 @@ public class DataTypeSerializationTests
     public void testDecimal()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.decimal().deserialize(
-                    bridge.decimal().serialize(BigDecimal.valueOf(500L))) instanceof Decimal);
-            assertEquals(Decimal.apply(500), bridge.decimal().deserialize(
-                    bridge.decimal().serialize(BigDecimal.valueOf(500L))));
-            assertNotSame(Decimal.apply(501), bridge.decimal().deserialize(
-                    bridge.decimal().serialize(BigDecimal.valueOf(500L))));
-            assertEquals(Decimal.apply(-1), bridge.decimal().deserialize(
-                    bridge.decimal().serialize(BigDecimal.valueOf(-1L))));
-            assertEquals(Decimal.apply(Long.MAX_VALUE), bridge.decimal().deserialize(
-                    bridge.decimal().serialize(BigDecimal.valueOf(Long.MAX_VALUE))));
-            assertEquals(Decimal.apply(Long.MIN_VALUE), bridge.decimal().deserialize(
-                    bridge.decimal().serialize(BigDecimal.valueOf(Long.MIN_VALUE))));
-            assertEquals(Decimal.apply(Integer.MAX_VALUE), bridge.decimal().deserialize(
-                    bridge.decimal().serialize(BigDecimal.valueOf(Integer.MAX_VALUE))));
-            assertEquals(Decimal.apply(Integer.MIN_VALUE), bridge.decimal().deserialize(
-                    bridge.decimal().serialize(BigDecimal.valueOf(Integer.MIN_VALUE))));
+            assertInstanceOf(Decimal.class, toDecimal(bridge, BigDecimal.valueOf(500L)));
+            assertEquals(Decimal.apply(500), toDecimal(bridge, BigDecimal.valueOf(500L)));
+            assertNotSame(Decimal.apply(501), toDecimal(bridge, BigDecimal.valueOf(500L)));
+            assertEquals(Decimal.apply(-1), toDecimal(bridge, BigDecimal.valueOf(-1L)));
+            assertEquals(Decimal.apply(Long.MAX_VALUE), toDecimal(bridge, BigDecimal.valueOf(Long.MAX_VALUE)));
+            assertEquals(Decimal.apply(Long.MIN_VALUE), toDecimal(bridge, BigDecimal.valueOf(Long.MIN_VALUE)));
+            assertEquals(Decimal.apply(Integer.MAX_VALUE), toDecimal(bridge, BigDecimal.valueOf(Integer.MAX_VALUE)));
+            assertEquals(Decimal.apply(Integer.MIN_VALUE), toDecimal(bridge, BigDecimal.valueOf(Integer.MIN_VALUE)));
             BigDecimal veryLargeValue = BigDecimal.valueOf(Integer.MAX_VALUE).multiply(BigDecimal.valueOf(5));
-            assertEquals(Decimal.apply(veryLargeValue), bridge.decimal().deserialize(
-                    bridge.decimal().serialize(veryLargeValue)));
+            assertEquals(Decimal.apply(veryLargeValue), toDecimal(bridge, veryLargeValue));
             qt().withExamples(MAX_TESTS)
                 .forAll(bigDecimals().ofBytes(128).withScale(10))
-                .checkAssert(decimal -> assertEquals(Decimal.apply(decimal), bridge.decimal().deserialize(
-                        bridge.decimal().serialize(decimal))));
+                .checkAssert(decimal -> assertEquals(Decimal.apply(decimal), bridge.decimal().deserializeToType(bridge.typeConverter(),
+                                                                                                                bridge.decimal().serialize(decimal))));
         });
     }
 
@@ -201,18 +180,16 @@ public class DataTypeSerializationTests
     public void testFloat()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.aFloat().deserialize(bridge.aFloat().serialize(Float.MAX_VALUE)) instanceof Float);
-            assertEquals(Float.MAX_VALUE, bridge.aFloat().deserialize(
-                    ByteBuffer.allocate(4).putFloat(0, Float.MAX_VALUE)));
+            assertInstanceOf(Float.class, toFloat(bridge, Float.MAX_VALUE));
+            assertEquals(Float.MAX_VALUE, bridge.aFloat().deserializeToType(bridge.typeConverter(),
+                                                                            ByteBuffer.allocate(4).putFloat(0, Float.MAX_VALUE)));
             qt().forAll(integers().all())
-                .checkAssert(integer -> assertEquals((float) integer, bridge.aFloat().deserialize(
-                        bridge.aFloat().serialize((float) integer))));
-            assertEquals(Float.MAX_VALUE, bridge.aFloat().deserialize(bridge.aFloat().serialize(Float.MAX_VALUE)));
-            assertEquals(Float.MIN_VALUE, bridge.aFloat().deserialize(bridge.aFloat().serialize(Float.MIN_VALUE)));
+                .checkAssert(integer -> assertEquals((float) integer, toFloat(bridge, (float) integer)));
+            assertEquals(Float.MAX_VALUE, toFloat(bridge, Float.MAX_VALUE));
+            assertEquals(Float.MIN_VALUE, toFloat(bridge, Float.MIN_VALUE));
             qt().withExamples(MAX_TESTS)
                 .forAll(floats().any())
-                .checkAssert(aFloat -> assertEquals(aFloat, bridge.aFloat().deserialize(
-                        bridge.aFloat().serialize(aFloat))));
+                .checkAssert(aFloat -> assertEquals(aFloat, toFloat(bridge, aFloat)));
         });
     }
 
@@ -220,18 +197,16 @@ public class DataTypeSerializationTests
     public void testDouble()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.aDouble().deserialize(bridge.aDouble().serialize(Double.MAX_VALUE)) instanceof Double);
-            assertEquals(Double.MAX_VALUE, bridge.aDouble().deserialize(
-                    ByteBuffer.allocate(8).putDouble(0, Double.MAX_VALUE)));
+            assertInstanceOf(Double.class, toDouble(bridge, Double.MAX_VALUE));
+            assertEquals(Double.MAX_VALUE, bridge.aDouble().deserializeToType(bridge.typeConverter(),
+                                                                              ByteBuffer.allocate(8).putDouble(0, Double.MAX_VALUE)));
             qt().forAll(integers().all())
-                .checkAssert(integer -> assertEquals((double) integer, bridge.aDouble().deserialize(
-                        bridge.aDouble().serialize((double) integer))));
-            assertEquals(Double.MAX_VALUE, bridge.aDouble().deserialize(bridge.aDouble().serialize(Double.MAX_VALUE)));
-            assertEquals(Double.MIN_VALUE, bridge.aDouble().deserialize(bridge.aDouble().serialize(Double.MIN_VALUE)));
+                .checkAssert(integer -> assertEquals((double) integer, toDouble(bridge, (double) integer)));
+            assertEquals(Double.MAX_VALUE, toDouble(bridge, Double.MAX_VALUE));
+            assertEquals(Double.MIN_VALUE, toDouble(bridge, Double.MIN_VALUE));
             qt().withExamples(MAX_TESTS)
                 .forAll(doubles().any())
-                .checkAssert(aDouble -> assertEquals(aDouble, bridge.aDouble().deserialize(
-                        bridge.aDouble().serialize(aDouble))));
+                .checkAssert(aDouble -> assertEquals(aDouble, toDouble(bridge, aDouble)));
         });
     }
 
@@ -239,11 +214,10 @@ public class DataTypeSerializationTests
     public void testAscii()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.ascii().deserialize(bridge.ascii().serialize("abc")) instanceof UTF8String);
+            assertInstanceOf(UTF8String.class, toAscii(bridge, "abc"));
             qt().withExamples(MAX_TESTS)
                 .forAll(strings().ascii().ofLengthBetween(0, 100))
-                .checkAssert(string -> assertEquals(string, bridge.ascii().deserialize(
-                        bridge.ascii().serialize(string)).toString()));
+                .checkAssert(string -> assertEquals(string, toAscii(bridge, string).toString()));
         });
     }
 
@@ -251,19 +225,16 @@ public class DataTypeSerializationTests
     public void testText()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.text().deserialize(bridge.text().serialize("abc")) instanceof UTF8String);
+            assertInstanceOf(UTF8String.class, toText(bridge, "abc"));
             qt().withExamples(MAX_TESTS)
                 .forAll(strings().ascii().ofLengthBetween(0, 100))
-                .checkAssert(string -> assertEquals(string, bridge.text().deserialize(
-                        bridge.text().serialize(string)).toString()));
+                .checkAssert(string -> assertEquals(string, toText(bridge, string).toString()));
             qt().withExamples(MAX_TESTS)
                 .forAll(strings().basicLatinAlphabet().ofLengthBetween(0, 100))
-                .checkAssert(string -> assertEquals(string, bridge.text().deserialize(
-                        bridge.text().serialize(string)).toString()));
+                .checkAssert(string -> assertEquals(string, toText(bridge, string).toString()));
             qt().withExamples(MAX_TESTS)
                 .forAll(strings().numeric())
-                .checkAssert(string -> assertEquals(string, bridge.text().deserialize(
-                        bridge.text().serialize(string)).toString()));
+                .checkAssert(string -> assertEquals(string, toText(bridge, string).toString()));
         });
     }
 
@@ -271,19 +242,16 @@ public class DataTypeSerializationTests
     public void testVarchar()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.varchar().deserialize(bridge.varchar().serialize("abc")) instanceof UTF8String);
+            assertInstanceOf(UTF8String.class, toVarChar(bridge, "abc"));
             qt().withExamples(MAX_TESTS)
                 .forAll(strings().ascii().ofLengthBetween(0, 100))
-                .checkAssert(string -> assertEquals(string, bridge.varchar().deserialize(
-                        bridge.varchar().serialize(string)).toString()));
+                .checkAssert(string -> assertEquals(string, toVarChar(bridge, string).toString()));
             qt().withExamples(MAX_TESTS)
                 .forAll(strings().basicLatinAlphabet().ofLengthBetween(0, 100))
-                .checkAssert(string -> assertEquals(string, bridge.varchar().deserialize(
-                        bridge.varchar().serialize(string)).toString()));
+                .checkAssert(string -> assertEquals(string, toVarChar(bridge, string).toString()));
             qt().withExamples(MAX_TESTS)
                 .forAll(strings().numeric())
-                .checkAssert(string -> assertEquals(string, bridge.varchar().deserialize(
-                        bridge.varchar().serialize(string)).toString()));
+                .checkAssert(string -> assertEquals(string, toVarChar(bridge, string).toString()));
         });
     }
 
@@ -291,12 +259,11 @@ public class DataTypeSerializationTests
     public void testInet()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.inet().deserialize(bridge.inet().serialize(RandomUtils.randomInet())) instanceof byte[]);
+            assertInstanceOf(byte[].class, toInet(bridge, RandomUtils.randomInet()));
             for (int test = 0; test < MAX_TESTS; test++)
             {
                 InetAddress expected = RandomUtils.randomInet();
-                assertArrayEquals(expected.getAddress(), (byte[]) bridge.inet().deserialize(
-                        bridge.inet().serialize(expected)));
+                assertArrayEquals(expected.getAddress(), (byte[]) toInet(bridge, expected));
             }
         });
     }
@@ -305,10 +272,9 @@ public class DataTypeSerializationTests
     public void testDate()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.date().deserialize(bridge.date().serialize(5)) instanceof Integer);
+            assertInstanceOf(Integer.class, toDate(bridge, 5));
             qt().forAll(integers().all())
-                .checkAssert(integer -> assertEquals(integer - Integer.MIN_VALUE,
-                                                     bridge.date().deserialize(bridge.date().serialize(integer))));
+                .checkAssert(integer -> assertEquals(integer - Integer.MIN_VALUE, toDate(bridge, integer)));
         });
     }
 
@@ -316,15 +282,14 @@ public class DataTypeSerializationTests
     public void testTime()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.time().deserialize(bridge.time().serialize(Long.MAX_VALUE)) instanceof Long);
+            assertInstanceOf(Long.class, toTime(bridge, Long.MAX_VALUE));
             qt().forAll(integers().all())
-                .checkAssert(integer -> assertEquals((long) integer, bridge.time().deserialize(
-                        bridge.time().serialize((long) integer))));
-            assertEquals(Long.MAX_VALUE, bridge.time().deserialize(bridge.time().serialize(Long.MAX_VALUE)));
-            assertEquals(Long.MIN_VALUE, bridge.time().deserialize(bridge.time().serialize(Long.MIN_VALUE)));
+                .checkAssert(integer -> assertEquals((long) integer, toTime(bridge, (long) integer)));
+            assertEquals(Long.MAX_VALUE, toTime(bridge, Long.MAX_VALUE));
+            assertEquals(Long.MIN_VALUE, toTime(bridge, Long.MIN_VALUE));
             qt().withExamples(MAX_TESTS)
                 .forAll(longs().all())
-                .checkAssert(aLong -> assertEquals(aLong, bridge.time().deserialize(bridge.time().serialize(aLong))));
+                .checkAssert(aLong -> assertEquals(aLong, toTime(bridge, aLong)));
         });
     }
 
@@ -333,13 +298,11 @@ public class DataTypeSerializationTests
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
             Date now = new Date();
-            assertTrue(bridge.timestamp().deserialize(bridge.timestamp().serialize(now)) instanceof Long);
-            assertEquals(java.sql.Timestamp.from(now.toInstant()).getTime() * 1000L,
-                         bridge.timestamp().deserialize(bridge.timestamp().serialize(now)));
+            assertInstanceOf(Long.class, toTimestamp(bridge, now));
+            assertEquals(java.sql.Timestamp.from(now.toInstant()).getTime() * 1000L, toTimestamp(bridge, now));
             qt().withExamples(MAX_TESTS)
                 .forAll(dates().withMillisecondsBetween(0, Long.MAX_VALUE))
-                .checkAssert(date -> assertEquals(java.sql.Timestamp.from(date.toInstant()).getTime() * 1000L,
-                                                  bridge.timestamp().deserialize(bridge.timestamp().serialize(date))));
+                .checkAssert(date -> assertEquals(java.sql.Timestamp.from(date.toInstant()).getTime() * 1000L, toTimestamp(bridge, date)));
         });
     }
 
@@ -347,14 +310,12 @@ public class DataTypeSerializationTests
     public void testBlob()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.blob().deserialize(
-                    bridge.blob().serialize(ByteBuffer.wrap(RandomUtils.randomBytes(5)))) instanceof byte[]);
+            assertInstanceOf(byte[].class, toBlob(bridge, ByteBuffer.wrap(RandomUtils.randomBytes(5))));
             for (int test = 0; test < MAX_TESTS; test++)
             {
                 int size = RandomUtils.RANDOM.nextInt(1024);
                 byte[] expected = RandomUtils.randomBytes(size);
-                assertArrayEquals(expected, (byte[]) bridge.blob().deserialize(
-                        bridge.blob().serialize(ByteBuffer.wrap(expected))));
+                assertArrayEquals(expected, (byte[]) toBlob(bridge, ByteBuffer.wrap(expected)));
             }
         });
     }
@@ -363,7 +324,7 @@ public class DataTypeSerializationTests
     public void testEmpty()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge ->
-            assertNull(bridge.empty().deserialize(bridge.empty().serialize(null)))
+                                                     assertNull(toEmpty(bridge, null))
         );
     }
 
@@ -371,11 +332,11 @@ public class DataTypeSerializationTests
     public void testSmallInt()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.smallint().deserialize(bridge.smallint().serialize((short) 5)) instanceof Short);
+            assertInstanceOf(Short.class, toSmallInt(bridge, (short) 5));
             qt().forAll(integers().between(Short.MIN_VALUE, Short.MAX_VALUE))
                 .checkAssert(integer -> {
                     short expected = integer.shortValue();
-                    assertEquals(expected, bridge.smallint().deserialize(bridge.smallint().serialize(expected)));
+                    assertEquals(expected, toSmallInt(bridge, expected));
                 });
         });
     }
@@ -384,12 +345,11 @@ public class DataTypeSerializationTests
     public void testTinyInt()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertTrue(bridge.tinyint().deserialize(
-                    bridge.tinyint().serialize(RandomUtils.randomByte())) instanceof Byte);
+            assertInstanceOf(Byte.class, toTinyInt(bridge, RandomUtils.randomByte()));
             for (int test = 0; test < MAX_TESTS; test++)
             {
                 byte expected = RandomUtils.randomByte();
-                assertEquals(expected, bridge.tinyint().deserialize(bridge.tinyint().serialize(expected)));
+                assertEquals(expected, toTinyInt(bridge, expected));
             }
         });
     }
@@ -400,10 +360,10 @@ public class DataTypeSerializationTests
         // CassandraBridge.serialize is mostly used for unit tests
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
             // BLOB,  VARINT
-            assertEquals("ABC", bridge.ascii().deserialize(bridge.ascii().serialize("ABC")).toString());
-            assertEquals(500L, bridge.bigint().deserialize(bridge.bigint().serialize(500L)));
-            assertEquals(true, bridge.bool().deserialize(bridge.bool().serialize(true)));
-            assertEquals(false, bridge.bool().deserialize(bridge.bool().serialize(false)));
+            assertEquals("ABC", toAscii(bridge, "ABC").toString());
+            assertEquals(500L, toBigInt(bridge, 500L));
+            assertEquals(true, toBool(bridge, true));
+            assertEquals(false, toBool(bridge, false));
 
             byte[] bytes = new byte[]{'a', 'b', 'c', 'd'};
             ByteBuffer buffer = bridge.blob().serialize(ByteBuffer.wrap(bytes));
@@ -411,37 +371,32 @@ public class DataTypeSerializationTests
             buffer.get(result);
             assertArrayEquals(bytes, result);
 
-            assertEquals(500 + Integer.MIN_VALUE, bridge.date().deserialize(bridge.date().serialize(500)));
-            assertEquals(Decimal.apply(500000.2038484), bridge.decimal().deserialize(
-                    bridge.decimal().serialize(BigDecimal.valueOf(500000.2038484))));
-            assertEquals(123211.023874839, bridge.aDouble().deserialize(bridge.aDouble().serialize(123211.023874839)));
-            assertEquals(58383.23737832839f, bridge.aFloat().deserialize(
-                    bridge.aFloat().serialize(58383.23737832839f)));
+            assertEquals(500 + Integer.MIN_VALUE, toDate(bridge, 500));
+            assertEquals(Decimal.apply(500000.2038484), toDecimal(bridge, BigDecimal.valueOf(500000.2038484)));
+            assertEquals(123211.023874839, toDouble(bridge, 123211.023874839));
+            assertEquals(58383.23737832839f, toFloat(bridge, 58383.23737832839f));
             try
             {
                 assertEquals(InetAddress.getByName("www.apache.org"),
-                             InetAddress.getByAddress((byte[]) bridge.inet().deserialize(
-                                    bridge.inet().serialize(InetAddress.getByName("www.apache.org")))));
+                             InetAddress.getByAddress((byte[]) toInet(bridge, InetAddress.getByName("www.apache.org"))));
             }
             catch (UnknownHostException exception)
             {
                 throw new RuntimeException(exception);
             }
-            assertEquals(283848498, bridge.aInt().deserialize(bridge.aInt().serialize(283848498)));
-            assertEquals((short) 29, bridge.smallint().deserialize(bridge.smallint().serialize((short) 29)));
-            assertEquals("hello world", bridge.ascii().deserialize(bridge.text().serialize("hello world")).toString());
-            assertEquals(5002839L, bridge.time().deserialize(bridge.time().serialize(5002839L)));
+            assertEquals(283848498, toInt(bridge, 283848498));
+            assertEquals((short) 29, toSmallInt(bridge, (short) 29));
+            assertEquals("hello world", toAscii(bridge, "hello world").toString());
+            assertEquals(5002839L, toTime(bridge, 5002839L));
             Date now = new Date();
-            assertEquals(now.getTime() * 1000L, bridge.timestamp().deserialize(bridge.timestamp().serialize(now)));
+            assertEquals(now.getTime() * 1000L, toTimestamp(bridge, now));
             UUID timeUuid = RandomUtils.getRandomTimeUUIDForTesting();
-            assertEquals(timeUuid, UUID.fromString(bridge.timeuuid().deserialize(
-                    bridge.timeuuid().serialize(timeUuid)).toString()));
-            assertEquals((byte) 100, bridge.tinyint().deserialize(bridge.tinyint().serialize((byte) 100)));
+            assertEquals(timeUuid, UUID.fromString(toTimeUUID(bridge, timeUuid).toString()));
+            assertEquals((byte) 100, toTinyInt(bridge, (byte) 100));
             UUID uuid = UUID.randomUUID();
-            assertEquals(uuid, UUID.fromString(bridge.uuid().deserialize(bridge.uuid().serialize(uuid)).toString()));
-            assertEquals("ABCDEFG", bridge.varchar().deserialize(bridge.varchar().serialize("ABCDEFG")).toString());
-            assertEquals(Decimal.apply(12841924), bridge.varint().deserialize(
-                    bridge.varint().serialize(BigInteger.valueOf(12841924))));
+            assertEquals(uuid, UUID.fromString(toUUID(bridge, uuid).toString()));
+            assertEquals("ABCDEFG", toVarChar(bridge, "ABCDEFG").toString());
+            assertEquals(Decimal.apply(12841924), toVarInt(bridge, BigInteger.valueOf(12841924)));
         });
     }
 
@@ -449,75 +404,79 @@ public class DataTypeSerializationTests
     public void testList()
     {
         runTest((partitioner, directory, bridge) ->
-            qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
-                CqlField.CqlList list = bridge.list(type);
-                List<Object> expected = IntStream.range(0, 128)
-                                                 .mapToObj(index -> type.randomValue())
-                                                 .collect(Collectors.toList());
-                ByteBuffer buffer = list.serialize(expected);
-                List<Object> actual = Arrays.asList(((ArrayData) list.deserialize(buffer)).array());
-                assertEquals(expected.size(), actual.size());
-                for (int index = 0; index < expected.size(); index++)
-                {
-                    assertEquals(expected.get(index), type.toTestRowType(actual.get(index)));
-                }
-            }));
+                qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
+                    CqlField.CqlList list = bridge.list(type);
+                    SparkType sparkType = bridge.typeConverter().toSparkType(type);
+                    List<Object> expected = IntStream.range(0, 128)
+                                                     .mapToObj(index -> type.randomValue())
+                                                     .collect(Collectors.toList());
+                    ByteBuffer buffer = list.serialize(expected);
+                    List<Object> actual = Arrays.asList(((ArrayData) list.deserializeToType(bridge.typeConverter(), buffer)).array());
+                    assertEquals(expected.size(), actual.size());
+                    for (int index = 0; index < expected.size(); index++)
+                    {
+                        assertEquals(expected.get(index), sparkType.toTestRowType(actual.get(index)));
+                    }
+                }));
     }
 
     @Test
     public void testSet()
     {
         runTest((partitioner, directory, bridge) ->
-            qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
-                CqlField.CqlSet set = bridge.set(type);
-                Set<Object> expected = IntStream.range(0, 128)
-                                                .mapToObj(integer -> type.randomValue())
-                                                .collect(Collectors.toSet());
-                ByteBuffer buffer = set.serialize(expected);
-                Set<Object> actual = new HashSet<>(Arrays.asList(((ArrayData) set.deserialize(buffer)).array()));
-                assertEquals(expected.size(), actual.size());
-                for (Object value : actual)
-                {
-                    assertTrue(expected.contains(type.toTestRowType(value)));
-                }
-            }));
+                qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
+                    CqlField.CqlSet set = bridge.set(type);
+                    SparkType sparkType = bridge.typeConverter().toSparkType(type);
+                    Set<Object> expected = IntStream.range(0, 128)
+                                                    .mapToObj(integer -> type.randomValue())
+                                                    .collect(Collectors.toSet());
+                    ByteBuffer buffer = set.serialize(expected);
+                    Set<Object> actual = new HashSet<>(Arrays.asList(((ArrayData) set.deserializeToType(bridge.typeConverter(), buffer)).array()));
+                    assertEquals(expected.size(), actual.size());
+                    for (Object value : actual)
+                    {
+                        assertTrue(expected.contains(sparkType.toTestRowType(value)));
+                    }
+                }));
     }
 
     @Test
     public void testMap()
     {
         runTest((partitioner, directory, bridge) ->
-            qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((keyType, valueType) -> {
-                CqlField.CqlMap map = bridge.map(keyType, valueType);
-                int count = keyType.cardinality(128);
-                Map<Object, Object> expected = new HashMap<>(count);
-                for (int entry = 0; entry < count; entry++)
-                {
-                    Object key = null;
-                    while (key == null || expected.containsKey(key))
+                qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((keyType, valueType) -> {
+                    CqlField.CqlMap map = bridge.map(keyType, valueType);
+                    SparkType keySparkType = bridge.typeConverter().toSparkType(keyType);
+                    SparkType valueSparkType = bridge.typeConverter().toSparkType(valueType);
+
+                    int count = keyType.cardinality(128);
+                    Map<Object, Object> expected = new HashMap<>(count);
+                    for (int entry = 0; entry < count; entry++)
                     {
-                        key = keyType.randomValue();
+                        Object key = null;
+                        while (key == null || expected.containsKey(key))
+                        {
+                            key = keyType.randomValue();
+                        }
+                        expected.put(key, valueType.randomValue());
                     }
-                    expected.put(key, valueType.randomValue());
-                }
-                ByteBuffer buffer = map.serialize(expected);
-                ArrayBasedMapData mapData = ((ArrayBasedMapData) map.deserialize(buffer));
-                ArrayData keys = mapData.keyArray();
-                ArrayData values = mapData.valueArray();
-                Map<Object, Object> actual = new HashMap<>(keys.numElements());
-                for (int index = 0; index < keys.numElements(); index++)
-                {
-                    Object key = keyType.toTestRowType(keys.get(index, keyType.sparkSqlType(BigNumberConfig.DEFAULT)));
-                    Object value = valueType.toTestRowType(values.get(index,
-                                                                      valueType.sparkSqlType(BigNumberConfig.DEFAULT)));
-                    actual.put(key, value);
-                }
-                assertEquals(expected.size(), actual.size());
-                for (Map.Entry<Object, Object> entry : expected.entrySet())
-                {
-                    assertEquals(entry.getValue(), actual.get(entry.getKey()));
-                }
-            }));
+                    ByteBuffer buffer = map.serialize(expected);
+                    ArrayBasedMapData mapData = ((ArrayBasedMapData) map.deserializeToType(bridge.typeConverter(), buffer));
+                    ArrayData keys = mapData.keyArray();
+                    ArrayData values = mapData.valueArray();
+                    Map<Object, Object> actual = new HashMap<>(keys.numElements());
+                    for (int index = 0; index < keys.numElements(); index++)
+                    {
+                        Object key = keySparkType.toTestRowType(keys.get(index, bridge.typeConverter().sparkSqlType(keyType)));
+                        Object value = valueSparkType.toTestRowType(values.get(index, bridge.typeConverter().sparkSqlType(valueType)));
+                        actual.put(key, value);
+                    }
+                    assertEquals(expected.size(), actual.size());
+                    for (Map.Entry<Object, Object> entry : expected.entrySet())
+                    {
+                        assertEquals(entry.getValue(), actual.get(entry.getKey()));
+                    }
+                }));
     }
 
     @Test
@@ -525,45 +484,167 @@ public class DataTypeSerializationTests
     public void testUdts()
     {
         runTest((partitioner, directory, bridge) ->
-            qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((firstType, secondType) -> {
-                CqlField.CqlUdt udt = bridge.udt("keyspace", "testudt")
-                                            .withField("a", firstType)
-                                            .withField("b", bridge.ascii())
-                                            .withField("c", secondType)
-                                            .build();
-                Map<String, Object> expected = (Map<String, Object>) udt.randomValue();
-                assert expected != null;
-                ByteBuffer buffer = udt.serializeUdt(expected);
-                Map<String, Object> actual = udt.deserializeUdt(buffer, false);
-                assertEquals(expected.size(), actual.size());
-                for (Map.Entry<String, Object> entry : expected.entrySet())
-                {
-                    assertEquals(entry.getValue(),
-                                 udt.field(entry.getKey()).type().toTestRowType(actual.get(entry.getKey())));
-                }
-            }));
+                qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((firstType, secondType) -> {
+                    CqlField.CqlUdt udt = bridge.udt("keyspace", "testudt")
+                                                .withField("a", firstType)
+                                                .withField("b", bridge.ascii())
+                                                .withField("c", secondType)
+                                                .build();
+                    Map<String, Object> expected = (Map<String, Object>) udt.randomValue();
+                    assert expected != null;
+                    ByteBuffer buffer = udt.serializeUdt(expected);
+                    Map<String, Object> actual = udt.deserializeUdt(bridge.typeConverter(), buffer, false);
+                    assertEquals(expected.size(), actual.size());
+                    for (Map.Entry<String, Object> entry : expected.entrySet())
+                    {
+                        SparkType sparkType = bridge.typeConverter().toSparkType(udt.field(entry.getKey()).type());
+                        assertEquals(entry.getValue(),
+                                     sparkType.toTestRowType(actual.get(entry.getKey())));
+                    }
+                }));
     }
 
     @Test
     public void testTuples()
     {
         runTest((partitioner, directory, bridge) ->
-            qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((firstType, secondType) -> {
-                CqlField.CqlTuple tuple = bridge.tuple(firstType,
-                                                       bridge.ascii(),
-                                                       secondType,
-                                                       bridge.timestamp(),
-                                                       bridge.uuid(),
-                                                       bridge.varchar());
-                Object[] expected = (Object[]) tuple.randomValue();
-                assert expected != null;
-                ByteBuffer buffer = tuple.serializeTuple(expected);
-                Object[] actual = tuple.deserializeTuple(buffer, false);
-                assertEquals(expected.length, actual.length);
-                for (int index = 0; index < expected.length; index++)
-                {
-                    assertEquals(expected[index], tuple.type(index).toTestRowType(actual[index]));
-                }
-            }));
+                qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((firstType, secondType) -> {
+                    CqlField.CqlTuple tuple = bridge.tuple(firstType,
+                                                           bridge.ascii(),
+                                                           secondType,
+                                                           bridge.timestamp(),
+                                                           bridge.uuid(),
+                                                           bridge.varchar());
+                    Object[] expected = (Object[]) tuple.randomValue();
+                    assert expected != null;
+                    ByteBuffer buffer = tuple.serializeTuple(expected);
+                    GenericInternalRow row = (GenericInternalRow) bridge.typeConverter().convert(tuple, tuple.deserializeTuple(buffer, false), false);
+                    Object[] actual = row.values();
+                    assertEquals(expected.length, actual.length);
+                    for (int index = 0; index < expected.length; index++)
+                    {
+                        SparkType sparkType = bridge.typeConverter().toSparkType(tuple.type(index));
+                        assertEquals(expected[index], sparkType.toTestRowType(actual[index]));
+                    }
+                }));
+    }
+
+    // test utilities
+
+    static Object toInt(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::aInt, value);
+    }
+
+    static Object toSmallInt(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::smallint, value);
+    }
+
+    static Object toTinyInt(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::tinyint, value);
+    }
+
+    static Object toBool(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::bool, value);
+    }
+
+    static Object toBigInt(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::bigint, value);
+    }
+
+    static Object toText(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::text, value);
+    }
+
+    static Object toAscii(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::ascii, value);
+    }
+
+    static Object toVarChar(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::varchar, value);
+    }
+
+    static Object toInet(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::inet, value);
+    }
+
+    static Object toDouble(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::aDouble, value);
+    }
+
+    static Object toFloat(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::aFloat, value);
+    }
+
+    static Object toUUID(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::uuid, value);
+    }
+
+    static Object toTimeUUID(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::timeuuid, value);
+    }
+
+    static Object toDecimal(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::decimal, value);
+    }
+
+    static Object toVarInt(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::varint, value);
+    }
+
+    static Object toDate(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::date, value);
+    }
+
+    static Object toTime(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::time, value);
+    }
+
+    static Object toTimestamp(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::timestamp, value);
+    }
+
+    static Object toBlob(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::blob, value);
+    }
+
+    static Object toEmpty(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::empty, value);
+    }
+
+    static Object toNative(CassandraBridge bridge,
+                           Function<CassandraBridge, CqlField.NativeType> typeMapper,
+                           Object value)
+    {
+        CqlField.NativeType nativeType = typeMapper.apply(bridge);
+        return nativeType.deserializeToType(bridge.typeConverter(),
+                                            nativeType.serialize(value));
+    }
+
+    static Object toJavaType(CassandraBridge bridge,
+                             Function<CassandraBridge, CqlField.NativeType> typeMapper,
+                             Object value)
+    {
+        CqlField.NativeType nativeType = typeMapper.apply(bridge);
+        return typeMapper.apply(bridge).deserializeToJavaType(nativeType.serialize(value));
     }
 }

@@ -19,17 +19,11 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.Int32Type;
-import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.NativeType;
 import org.apache.cassandra.spark.utils.RandomUtils;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
 
 public class Int extends NativeType
 {
@@ -42,33 +36,9 @@ public class Int extends NativeType
     }
 
     @Override
-    public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
-    {
-        return DataTypes.IntegerType;
-    }
-
-    @Override
     public AbstractType<?> dataType()
     {
         return Int32Type.instance;
-    }
-
-    @Override
-    protected int compareTo(Object first, Object second)
-    {
-        return CqlField.INTEGER_COMPARATOR.compare((Integer) first, (Integer) second);
-    }
-
-    @Override
-    protected Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
-    {
-        return row.getInt(position);
-    }
-
-    @Override
-    protected Object nativeSparkSqlRowValue(Row row, int position)
-    {
-        return row.getInt(position);
     }
 
     @Override

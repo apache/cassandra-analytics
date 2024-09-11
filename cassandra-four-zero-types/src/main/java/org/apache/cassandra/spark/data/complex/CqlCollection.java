@@ -59,12 +59,6 @@ public abstract class CqlCollection extends CqlType implements CqlField.CqlColle
     }
 
     @Override
-    public Object toSparkSqlType(Object value)
-    {
-        return toSparkSqlType(value, false);
-    }
-
-    @Override
     public AbstractType<?> dataType()
     {
         return dataType(true);
@@ -74,19 +68,6 @@ public abstract class CqlCollection extends CqlType implements CqlField.CqlColle
     public ByteBuffer serialize(Object value)
     {
         return serializer().serialize(value);
-    }
-
-    @Override
-    public Object deserialize(ByteBuffer buffer)
-    {
-        return deserialize(buffer, false);
-    }
-
-    @Override
-    public Object deserialize(ByteBuffer buffer, boolean isFrozen)
-    {
-        Object value = serializer().deserialize(buffer);
-        return value != null ? toSparkSqlType(value) : null;
     }
 
     @Override

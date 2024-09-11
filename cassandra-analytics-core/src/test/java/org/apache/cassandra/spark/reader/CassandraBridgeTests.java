@@ -34,24 +34,24 @@ public class CassandraBridgeTests
     {
         qt().forAll(TestUtils.bridges())
             .checkAssert(bridge -> {
-                assertEquals(DataTypes.StringType, bridge.timeuuid().sparkSqlType());
-                assertEquals(DataTypes.StringType, bridge.uuid().sparkSqlType());
-                assertEquals(DataTypes.StringType, bridge.ascii().sparkSqlType());
-                assertEquals(DataTypes.StringType, bridge.varchar().sparkSqlType());
-                assertEquals(DataTypes.StringType, bridge.text().sparkSqlType());
-                assertEquals(DataTypes.BinaryType, bridge.inet().sparkSqlType());
-                assertEquals(DataTypes.BinaryType, bridge.blob().sparkSqlType());
-                assertEquals(DataTypes.IntegerType, bridge.aInt().sparkSqlType());
-                assertEquals(DataTypes.DateType, bridge.date().sparkSqlType());
-                assertEquals(DataTypes.LongType, bridge.bigint().sparkSqlType());
-                assertEquals(DataTypes.LongType, bridge.time().sparkSqlType());
-                assertEquals(DataTypes.BooleanType, bridge.bool().sparkSqlType());
-                assertEquals(DataTypes.FloatType, bridge.aFloat().sparkSqlType());
-                assertEquals(DataTypes.DoubleType, bridge.aDouble().sparkSqlType());
-                assertEquals(DataTypes.TimestampType, bridge.timestamp().sparkSqlType());
-                assertEquals(DataTypes.NullType, bridge.empty().sparkSqlType());
-                assertEquals(DataTypes.ShortType, bridge.smallint().sparkSqlType());
-                assertEquals(DataTypes.ByteType, bridge.tinyint().sparkSqlType());
+                assertEquals(DataTypes.StringType, bridge.typeConverter().sparkSqlType(bridge.timeuuid()));
+                assertEquals(DataTypes.StringType, bridge.typeConverter().sparkSqlType(bridge.uuid()));
+                assertEquals(DataTypes.StringType, bridge.typeConverter().sparkSqlType(bridge.ascii()));
+                assertEquals(DataTypes.StringType, bridge.typeConverter().sparkSqlType(bridge.varchar()));
+                assertEquals(DataTypes.StringType, bridge.typeConverter().sparkSqlType(bridge.text()));
+                assertEquals(DataTypes.BinaryType, bridge.typeConverter().sparkSqlType(bridge.inet()));
+                assertEquals(DataTypes.BinaryType, bridge.typeConverter().sparkSqlType(bridge.blob()));
+                assertEquals(DataTypes.IntegerType, bridge.typeConverter().sparkSqlType(bridge.aInt()));
+                assertEquals(DataTypes.DateType, bridge.typeConverter().sparkSqlType(bridge.date()));
+                assertEquals(DataTypes.LongType, bridge.typeConverter().sparkSqlType(bridge.bigint()));
+                assertEquals(DataTypes.LongType, bridge.typeConverter().sparkSqlType(bridge.time()));
+                assertEquals(DataTypes.BooleanType, bridge.typeConverter().sparkSqlType(bridge.bool()));
+                assertEquals(DataTypes.FloatType, bridge.typeConverter().sparkSqlType(bridge.aFloat()));
+                assertEquals(DataTypes.DoubleType, bridge.typeConverter().sparkSqlType(bridge.aDouble()));
+                assertEquals(DataTypes.TimestampType, bridge.typeConverter().sparkSqlType(bridge.timestamp()));
+                assertEquals(DataTypes.NullType, bridge.typeConverter().sparkSqlType(bridge.empty()));
+                assertEquals(DataTypes.ShortType, bridge.typeConverter().sparkSqlType(bridge.smallint()));
+                assertEquals(DataTypes.ByteType, bridge.typeConverter().sparkSqlType(bridge.tinyint()));
             });
     }
 }

@@ -74,7 +74,7 @@ public abstract class DataLayer implements Serializable
         {
             MetadataBuilder metadata = fieldMetaData(field);
             structType = structType.add(field.name(),
-                                        field.type().sparkSqlType(bigNumberConfig(field)),
+                                        bridge().typeConverter().sparkSqlType(field, bigNumberConfig(field)),
                                         true,
                                         metadata.build());
         }
@@ -98,7 +98,7 @@ public abstract class DataLayer implements Serializable
             // Pass Cassandra field metadata in StructField metadata
             MetadataBuilder metadata = fieldMetaData(field);
             structType = structType.add(field.name(),
-                                        field.type().sparkSqlType(bigNumberConfig(field)),
+                                        bridge().typeConverter().sparkSqlType(field, bigNumberConfig(field)),
                                         true,
                                         metadata.build());
         }

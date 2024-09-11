@@ -194,6 +194,11 @@ public class CqlTable implements Serializable
         return fields;
     }
 
+    public CqlField field(int position)
+    {
+        return fields.get(position);
+    }
+
     public Set<CqlField.CqlUdt> udts()
     {
         return udts;

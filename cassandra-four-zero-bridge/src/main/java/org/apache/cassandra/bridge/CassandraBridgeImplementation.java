@@ -39,7 +39,6 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -79,9 +78,11 @@ import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverterImplementation;
 import org.apache.cassandra.spark.data.complex.CqlTuple;
 import org.apache.cassandra.spark.data.complex.CqlUdt;
-import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.CompactionStreamScanner;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.IndexReader;
@@ -109,7 +110,6 @@ public class CassandraBridgeImplementation extends CassandraBridge
 {
     private static volatile boolean setup = false;
 
-    private final Map<String, CqlField.NativeType> nativeTypes;
     private final Map<Class<?>, Serializer<?>> kryoSerializers;
 
     static
@@ -176,14 +176,16 @@ public class CassandraBridgeImplementation extends CassandraBridge
         kryoSerializers.put(CqlField.class, new CqlField.Serializer(cassandraTypes()));
         kryoSerializers.put(CqlTable.class, new CqlTable.Serializer(cassandraTypes()));
         kryoSerializers.put(CqlUdt.class, new CqlUdt.Serializer(cassandraTypes()));
-
-        nativeTypes = allTypes().stream().collect(Collectors.toMap(CqlField.CqlType::name, Function.identity()));
     }
 
-    @Override
     public CassandraTypes cassandraTypes()
     {
         return CassandraTypesImplementation.INSTANCE;
+    }
+
+    public SparkSqlTypeConverter typeConverter()
+    {
+        return SparkSqlTypeConverterImplementation.INSTANCE;
     }
 
     @Override
@@ -356,7 +358,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
 
     public static IPartitioner getPartitioner(Partitioner partitioner)
     {
-        return partitioner == Partitioner.Murmur3Partitioner ? Murmur3Partitioner.instance : RandomPartitioner.instance;
+        return CassandraTypesImplementation.getPartitioner(partitioner);
     }
 
     @Override

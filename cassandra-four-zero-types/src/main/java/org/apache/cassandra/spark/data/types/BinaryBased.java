@@ -19,38 +19,9 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
-import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.NativeType;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
 
 public abstract class BinaryBased extends NativeType
 {
 
-    @Override
-    protected int compareTo(Object first, Object second)
-    {
-        return CqlField.BYTE_ARRAY_COMPARATOR.compare((byte[]) first, (byte[]) second);
-    }
-
-    @Override
-    public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
-    {
-        return DataTypes.BinaryType;
-    }
-
-    @Override
-    protected Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
-    {
-        return row.getBinary(position);
-    }
-
-    @Override
-    protected Object nativeSparkSqlRowValue(Row row, int position)
-    {
-        return row.getAs(position);
-    }
 }

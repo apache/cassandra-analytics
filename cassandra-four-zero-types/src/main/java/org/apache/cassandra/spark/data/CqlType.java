@@ -21,15 +21,12 @@ package org.apache.cassandra.spark.data;
 
 import java.nio.ByteBuffer;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.CodecRegistry;
 import org.apache.cassandra.cql3.functions.types.DataType;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.serializers.TypeSerializer;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -48,16 +45,9 @@ public abstract class CqlType implements CqlField.CqlType
     public abstract AbstractType<?> dataType(boolean isMultiCell);
 
     @Override
-    public Object deserialize(ByteBuffer buffer)
+    public Object deserializeToJavaType(ByteBuffer buffer, boolean isFrozen)
     {
-        return deserialize(buffer, false);
-    }
-
-    @Override
-    public Object deserialize(ByteBuffer buffer, boolean isFrozen)
-    {
-        Object value = serializer().deserialize(buffer);
-        return value != null ? toSparkSqlType(value) : null;
+        return serializer().deserialize(buffer);
     }
 
     public abstract <T> TypeSerializer<T> serializer();
@@ -80,30 +70,6 @@ public abstract class CqlType implements CqlField.CqlType
     }
 
     public DataType driverDataType(boolean isFrozen)
-    {
-        throw CqlField.notImplemented(this);
-    }
-
-    @Override
-    public org.apache.spark.sql.types.DataType sparkSqlType()
-    {
-        return sparkSqlType(BigNumberConfig.DEFAULT);
-    }
-
-    @Override
-    public org.apache.spark.sql.types.DataType sparkSqlType(BigNumberConfig bigNumberConfig)
-    {
-        throw CqlField.notImplemented(this);
-    }
-
-    @Override
-    public Object sparkSqlRowValue(GenericInternalRow row, int position)
-    {
-        throw CqlField.notImplemented(this);
-    }
-
-    @Override
-    public Object sparkSqlRowValue(Row row, int position)
     {
         throw CqlField.notImplemented(this);
     }
@@ -147,11 +113,5 @@ public abstract class CqlType implements CqlField.CqlType
     public int cardinality(int orElse)
     {
         return orElse;
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        return value;
     }
 }

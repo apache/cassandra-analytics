@@ -19,20 +19,13 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.LocalDate;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.SimpleDateType;
-import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.NativeType;
 import org.apache.cassandra.spark.utils.RandomUtils;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.types.DataType;
-import org.apache.spark.sql.types.DataTypes;
-import org.jetbrains.annotations.NotNull;
 
 public class Date extends NativeType
 {
@@ -45,57 +38,9 @@ public class Date extends NativeType
     }
 
     @Override
-    public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
-    {
-        return DataTypes.DateType;
-    }
-
-    @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
-    {
-        // SparkSQL date type is an int incrementing from day 0 on 1970-01-01
-        // Cassandra stores date as "days since 1970-01-01 plus Integer.MIN_VALUE"
-        int days = (Integer) value;
-        return days - Integer.MIN_VALUE;
-    }
-
-    @Override
     public AbstractType<?> dataType()
     {
         return SimpleDateType.instance;
-    }
-
-    @Override
-    protected int compareTo(Object first, Object second)
-    {
-        return CqlField.INTEGER_COMPARATOR.compare((Integer) first, (Integer) second);
-    }
-
-    @Override
-    protected Object nativeSparkSqlRowValue(GenericInternalRow row, int position)
-    {
-        return row.getInt(position);
-    }
-
-    @Override
-    protected Object nativeSparkSqlRowValue(Row row, int position)
-    {
-        return row.getDate(position);
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        if (value instanceof java.sql.Date)
-        {
-            // Round up to convert date back to days since epoch
-            return (int) ((java.sql.Date) value).toLocalDate().toEpochDay();
-        }
-        else if (value instanceof Integer)
-        {
-            return ((Integer) value) - Integer.MIN_VALUE;
-        }
-        return value;
     }
 
     @Override

@@ -24,16 +24,12 @@ import java.util.Objects;
 import java.util.Set;
 
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.apache.spark.sql.types.DataType;
 
 public class CqlFrozen extends CqlType implements CqlField.CqlFrozen
 {
@@ -70,45 +66,21 @@ public class CqlFrozen extends CqlType implements CqlField.CqlFrozen
     }
 
     @Override
-    public Object toSparkSqlType(Object value)
-    {
-        return inner().toSparkSqlType(value, true);
-    }
-
-    @Override
-    public Object toSparkSqlType(Object value, boolean isFrozen)
-    {
-        return toSparkSqlType(value);
-    }
-
-    @Override
     public <T> TypeSerializer<T> serializer()
     {
         return ((CqlType) inner()).serializer();
     }
 
     @Override
-    public Object deserialize(ByteBuffer buffer)
+    public Object deserializeToJavaType(ByteBuffer buffer, boolean isFrozen)
     {
-        return inner().deserialize(buffer, true);
-    }
-
-    @Override
-    public Object deserialize(ByteBuffer buffer, boolean isFrozen)
-    {
-        return deserialize(buffer);
+        return inner().deserializeToJavaType(buffer, isFrozen);
     }
 
     @Override
     public ByteBuffer serialize(Object value)
     {
         return inner().serialize(value);
-    }
-
-    @Override
-    public boolean equals(Object first, Object second)
-    {
-        return inner().equals(first, second);
     }
 
     public InternalType internalType()
@@ -133,33 +105,9 @@ public class CqlFrozen extends CqlType implements CqlField.CqlFrozen
     }
 
     @Override
-    public DataType sparkSqlType(BigNumberConfig bigNumberConfig)
-    {
-        return inner.sparkSqlType(bigNumberConfig);
-    }
-
-    @Override
     public Set<CqlField.CqlUdt> udts()
     {
         return inner.udts();
-    }
-
-    @Override
-    public Object sparkSqlRowValue(GenericInternalRow row, int position)
-    {
-        return inner.sparkSqlRowValue(row, position);
-    }
-
-    @Override
-    public Object sparkSqlRowValue(Row row, int position)
-    {
-        return inner.sparkSqlRowValue(row, position);
-    }
-
-    @Override
-    public Object toTestRowType(Object value)
-    {
-        return inner.toTestRowType(value);
     }
 
     @Override
@@ -203,12 +151,6 @@ public class CqlFrozen extends CqlType implements CqlField.CqlFrozen
     public int hashCode()
     {
         return hashCode;
-    }
-
-    @Override
-    public int compare(Object first, Object second)
-    {
-        return inner.compare(first, second);
     }
 
     @Override
