@@ -317,7 +317,7 @@ jobs:
           at: dependencies
       - run_build:
           spark: "3"
-          scala: "2.12"
+          scala: "2.13"
           jdk: "11"
           use_jdk11: "true"
 
@@ -345,7 +345,7 @@ jobs:
           at: dependencies
       - run_integration:
           spark: "3"
-          scala: "2.12"
+          scala: "2.13"
           jdk: "11"
           use_jdk11: "true"
 
