@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,8 +39,8 @@ import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.spark.bulkwriter.CassandraContext;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
-import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
+import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -116,13 +117,9 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
                                                             .collect(Collectors.toList());
         CassandraVersionFeatures first = versions.get(0);
         CassandraVersionFeatures last = versions.get(versions.size() - 1);
-        int majorDiff = Math.abs(first.getMajorVersion() - last.getMajorVersion());
-        if (majorDiff >= 1)
-        {
-            throw new IllegalStateException("Cluster versions are not compatible. " +
-                                            "lowest=" + first.getRawVersionString() +
-                                            " and highest=" + last.getRawVersionString());
-        }
+        Preconditions.checkState(first.getMajorVersion() == last.getMajorVersion(),
+                                 "Cluster versions are not compatible. lowest=%s and highest=%s",
+                                 first.getRawVersionString(), last.getRawVersionString());
 
         return first.getRawVersionString();
     }
@@ -229,7 +226,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
     @Override
     public String clusterId()
     {
-        return "ClusterInfoGroup: " + String.join(",", applyOnEach(ClusterInfo::clusterId).values());
+        return "ClusterInfoGroup: [" + String.join(", ", applyOnEach(ClusterInfo::clusterId).values()) + ']';
     }
 
     @Override
@@ -276,7 +273,8 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
 
     private <T> Map<String, T> applyOnEach(Function<ClusterInfo, T> action)
     {
-        Map<String, T> aggregated = new HashMap<>(clusterInfos.size());
+        // Preserve order with LinkedHashMap
+        Map<String, T> aggregated = new LinkedHashMap<>(clusterInfos.size());
         for (ClusterInfo clusterInfo : clusterInfos)
         {
             try
@@ -295,6 +293,6 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
     private RuntimeException toRuntimeException(ClusterInfo clusterInfo, Throwable cause)
     {
         LOGGER.error("Failed to perform action on cluster. cluster={}", clusterInfo.clusterId(), cause);
-        return new RuntimeException(cause);
+        return new RuntimeException("Failed to perform action on cluster: " + clusterInfo.clusterId(), cause);
     }
 }
