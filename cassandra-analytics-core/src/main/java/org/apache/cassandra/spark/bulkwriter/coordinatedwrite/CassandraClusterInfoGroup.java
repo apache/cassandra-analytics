@@ -55,16 +55,15 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
 
     // immutable
     private final List<ClusterInfo> clusterInfos;
-    private final Map<String, ClusterInfo> clusterInfoById;
-    // map key might be stale, e.g. instance is removed from cluster, but it remains in the map. In such case, we do not expect call-sites use the stale key
-    private final Map<RingInstance, String> instanceToClusterMap = new HashMap<>();
+    private transient volatile Map<String, ClusterInfo> clusterInfoById;
+    private transient volatile TokenRangeMapping<RingInstance> consolidatedTokenRangeMapping;
 
     public CassandraClusterInfoGroup(List<ClusterInfo> clusterInfos)
     {
         Preconditions.checkArgument(clusterInfos != null && !clusterInfos.isEmpty(),
                                     "clusterInfos cannot be null or empty");
         this.clusterInfos = Collections.unmodifiableList(clusterInfos);
-        this.clusterInfoById = clusterInfos.stream().collect(Collectors.toMap(ClusterInfo::clusterId, Function.identity()));
+        buildClusterInfoById();
     }
 
     @Override
@@ -81,18 +80,21 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
             return clusterInfos.get(0).getTokenRangeMapping(cached);
         }
 
-        Map<String, TokenRangeMapping<RingInstance>> aggregated = applyOnEach(c -> c.getTokenRangeMapping(cached));
-        // When there are multiple clusters, populate the reverse lookup map when fetching latest or initializing
-        if (!cached || aggregated.isEmpty())
+        if (!cached || consolidatedTokenRangeMapping == null)
         {
-            // todo: synchronize and clear the reverse lookup map?
-            instanceToClusterMap.clear();
-            aggregated.forEach((clusterId, mapping) -> mapping.getTokenRanges()
-                                                              .keySet()
-                                                              .forEach(instance -> instanceToClusterMap.put(instance, clusterId)));
+            synchronized (this)
+            {
+                // return immediately if consolidatedTokenRangeMapping has been initialized and call-site asks for the cached value
+                if (cached && consolidatedTokenRangeMapping != null)
+                {
+                    return consolidatedTokenRangeMapping;
+                }
+                Map<String, TokenRangeMapping<RingInstance>> aggregated = applyOnEach(c -> c.getTokenRangeMapping(cached));
+                consolidatedTokenRangeMapping = TokenRangeMapping.consolidate(new ArrayList<>(aggregated.values()));
+            }
         }
 
-        return TokenRangeMapping.consolidate(new ArrayList<>(aggregated.values()));
+        return consolidatedTokenRangeMapping;
     }
 
     /**
@@ -169,7 +171,12 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
             return clusterInfos.get(0).getTimeSkew(instances);
         }
 
-        Map<String, List<RingInstance>> instancesByClusterId = instances.stream().collect(Collectors.groupingBy(instanceToClusterMap::get));
+        Map<String, List<RingInstance>> instancesByClusterId = instances.stream().collect(Collectors.groupingBy(instance -> {
+            String clusterId = instance.clusterId();
+            Preconditions.checkState(clusterId != null,
+                                     "RingInstance must define its clusterId for coordinated write");
+            return clusterId;
+        }));
         long localNow = System.currentTimeMillis();
         long maxDiff = 0;
         TimeSkewResponse largestSkew = null;
@@ -177,7 +184,8 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
         {
             String clusterId = entry.getKey();
             List<RingInstance> instancesOfCluster = entry.getValue();
-            ClusterInfo clusterInfo = clusterInfoById.get(clusterId);
+            ClusterInfo clusterInfo = cluster(clusterId);
+            Preconditions.checkState(clusterInfo != null, "ClusterInfo not found with clusterId: " + clusterId);
             TimeSkewResponse response = clusterInfo.getTimeSkew(instancesOfCluster);
             long d = Math.abs(response.currentTime - localNow);
             if (Math.abs(response.currentTime - localNow) > maxDiff)
@@ -234,7 +242,21 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
     @Override
     public ClusterInfo cluster(@NotNull String clusterId)
     {
+        if (clusterInfoById == null)
+        {
+            buildClusterInfoById();
+        }
         return clusterInfoById.get(clusterId);
+    }
+
+    private synchronized void buildClusterInfoById()
+    {
+        if (clusterInfoById != null)
+        {
+            return;
+        }
+
+        clusterInfoById = clusterInfos.stream().collect(Collectors.toMap(ClusterInfo::clusterId, Function.identity()));
     }
 
     private void runOnEach(Consumer<ClusterInfo> action)
