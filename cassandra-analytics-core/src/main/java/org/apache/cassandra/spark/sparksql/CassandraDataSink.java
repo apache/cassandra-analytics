@@ -69,8 +69,6 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
         switch (saveMode)
         {
             case Append:
-                // Initialize the job group ID for later use if we need to cancel the job
-                // TODO: Can we get a more descriptive "description" in here from the end user somehow?
                 BulkWriterContext writerContext = factory().createBulkWriterContext(
                 sqlContext.sparkContext(),
                 ScalaConversionUtils.<String, String>mapAsJavaMap(parameters),
@@ -80,6 +78,8 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
                     JobInfo jobInfo = writerContext.job();
                     String description = "Cassandra Bulk Load for table " + jobInfo.qualifiedTableName();
                     CassandraBulkSourceRelation relation = new CassandraBulkSourceRelation(writerContext, sqlContext);
+                    // Initialize the job group ID for later use if we need to cancel the job
+                    // TODO: Can we get a more descriptive "description" in here from the end user somehow?
                     sqlContext.sparkContext().setJobGroup(jobInfo.getId(), description, false);
                     relation.insert(data, false);
                     return relation;

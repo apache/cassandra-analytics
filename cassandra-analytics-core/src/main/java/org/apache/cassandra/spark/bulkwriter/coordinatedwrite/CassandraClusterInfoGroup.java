@@ -44,7 +44,6 @@ import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.apache.cassandra.spark.utils.MapUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -148,7 +147,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
             throw new IllegalStateException("Clusters are not running with the same partitioner kind. Found partitioners: " + aggregated);
         }
 
-        return MapUtils.firstEntry(aggregated).getValue();
+        return partitioners.iterator().next();
     }
 
     @Override
