@@ -494,6 +494,7 @@ class ImportCompletionCoordinatorTest
         int instanceInRing = i % totalInstances + 1;
         return new RingInstance(new RingEntry.Builder()
                                 .datacenter("DC1")
+                                .rack("Rack")
                                 .address("127.0.0." + instanceInRing)
                                 .token(String.valueOf(i * 100_000))
                                 .fqdn("DC1-i" + instanceInRing)
