@@ -42,6 +42,8 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.blobupload.StorageClientConfig;
+import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf;
+import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf.SimpleClusterConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.common.SidecarInstanceFactory;
@@ -148,7 +150,9 @@ public class BulkSparkConf implements Serializable
     protected int ringRetryCount;
     // create sidecarInstances from sidecarContactPointsValue and effectiveSidecarPort
     private final String sidecarContactPointsValue; // It takes comma separated values
-    private transient Set<? extends SidecarInstance> sidecarContactPoints; // not serialized
+    private transient Set<SidecarInstance> sidecarContactPoints; // not serialized
+    private final String coordinatedWriteConfJson;
+    private transient CoordinatedWriteConf coordinatedWriteConf; // it is transient; deserialized from coordinatedWriteConfJson in executors
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
@@ -223,7 +227,8 @@ public class BulkSparkConf implements Serializable
         }
         this.jobTimeoutSeconds = MapUtils.getLong(options, WriterOptions.JOB_TIMEOUT_SECONDS.name(), -1L);
         this.configuredJobId = MapUtils.getOrDefault(options, WriterOptions.JOB_ID.name(), null);
-
+        this.coordinatedWriteConfJson = MapUtils.getOrDefault(options, WriterOptions.COORDINATED_WRITE_CONFIG.name(), null);
+        this.coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport());
         validateEnvironment();
     }
 
@@ -263,7 +268,7 @@ public class BulkSparkConf implements Serializable
         });
     }
 
-    protected Set<? extends SidecarInstance> buildSidecarContactPoints()
+    protected Set<SidecarInstance> buildSidecarContactPoints()
     {
         String[] split = Objects.requireNonNull(sidecarContactPointsValue, "Unable to build sidecar instances from null value")
                                 .split(",");
@@ -273,13 +278,52 @@ public class BulkSparkConf implements Serializable
                      .collect(Collectors.toSet());
     }
 
-    Set<? extends SidecarInstance> sidecarContactPoints()
+    Set<SidecarInstance> sidecarContactPoints()
     {
         if (sidecarContactPoints == null)
         {
             sidecarContactPoints = buildSidecarContactPoints();
         }
         return sidecarContactPoints;
+    }
+
+    public boolean isCoordinatedWriteConfigured()
+    {
+        return coordinatedWriteConf != null;
+    }
+
+    public CoordinatedWriteConf coordinatedWriteConf()
+    {
+        if (coordinatedWriteConf == null)
+        {
+            coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport());
+        }
+
+        return coordinatedWriteConf;
+    }
+
+    @Nullable
+    protected CoordinatedWriteConf buildCoordinatedWriteConf(DataTransport dataTransport)
+    {
+        if (coordinatedWriteConfJson == null)
+        {
+            return null;
+        }
+
+        Preconditions.checkArgument(dataTransport == DataTransport.S3_COMPAT,
+                                    "Coordinated write only supports " + DataTransport.S3_COMPAT);
+
+        if (sidecarContactPointsValue != null)
+        {
+            LOGGER.warn("SIDECAR_CONTACT_POINTS or SIDECAR_INSTANCES are ignored on the presence of COORDINATED_WRITE_CONF");
+        }
+
+        if (localDC != null)
+        {
+            LOGGER.warn("LOCAL_DC is ignored on the presence of COORDINATED_WRITE_CONF");
+        }
+
+        return CoordinatedWriteConf.create(coordinatedWriteConfJson, consistencyLevel, SimpleClusterConf.class);
     }
 
     protected void validateEnvironment() throws RuntimeException
@@ -351,12 +395,12 @@ public class BulkSparkConf implements Serializable
         return truststorePath;
     }
 
-    protected TTLOption getTTLOptions()
+    public TTLOption getTTLOptions()
     {
         return TTLOption.from(ttl);
     }
 
-    protected TimestampOption getTimestampOptions()
+    public TimestampOption getTimestampOptions()
     {
         return TimestampOption.from(timestamp);
     }

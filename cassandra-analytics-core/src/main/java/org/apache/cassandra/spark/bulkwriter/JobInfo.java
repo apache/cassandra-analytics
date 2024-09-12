@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.io.Serializable;
 import java.util.UUID;
 
+import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.jetbrains.annotations.NotNull;
@@ -100,4 +101,10 @@ public interface JobInfo extends Serializable
      * @return multiplier to calculate the final timeout for import coordinator
      */
     double importCoordinatorTimeoutMultiplier();
+
+    /**
+     * @return CoordinatedWriteConf if configured, null otherwise
+     */
+    @Nullable
+    CoordinatedWriteConf coordinatedWriteConf();
 }

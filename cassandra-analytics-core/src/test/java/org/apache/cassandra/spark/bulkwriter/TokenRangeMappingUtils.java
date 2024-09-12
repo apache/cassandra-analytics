@@ -61,7 +61,7 @@ public final class TokenRangeMappingUtils
     {
         List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC);
         RingInstance instance = instances.remove(0);
-        RingEntry entry = instance.ringInstance();
+        RingEntry entry = instance.ringEntry();
         RingEntry newEntry = new RingEntry.Builder()
                              .datacenter(entry.datacenter())
                              .port(entry.port())
@@ -97,7 +97,7 @@ public final class TokenRangeMappingUtils
         if (shouldUpdateToken)
         {
             RingInstance instance = instances.remove(0);
-            RingEntry entry = instance.ringInstance();
+            RingEntry entry = instance.ringEntry();
             RingEntry newEntry = new RingEntry.Builder()
                                  .datacenter(entry.datacenter())
                                  .port(entry.port())
@@ -218,9 +218,11 @@ public final class TokenRangeMappingUtils
             replicasPerDc.put("ignored", replicas);
             ReplicaInfo ri = new ReplicaInfo(String.valueOf(startToken), String.valueOf(endToken), replicasPerDc);
             replicaInfoList.add(ri);
-            String address = "localhost" + i + ":9042";
+            String address = "localhost" + i;
+            int port = 9042;
+            String addressWithPort = address + ":" + port;
             ReplicaMetadata rm = new ReplicaMetadata("NORMAL", "UP", address, address, 9042, "ignored");
-            replicaMetadata.put(address, rm);
+            replicaMetadata.put(addressWithPort, rm);
             startToken = endToken;
         }
         return new TokenRangeReplicasResponse(replicaInfoList, replicaInfoList, replicaMetadata);

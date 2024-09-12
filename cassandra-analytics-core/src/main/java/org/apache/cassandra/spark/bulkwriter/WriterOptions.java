@@ -31,6 +31,12 @@ public enum WriterOptions implements WriterOption
     // The option specifies the initial contact points of sidecar servers to discover the cluster topology
     // Note that the addresses can include port; when port is present, it takes precedence over SIDECAR_PORT
     SIDECAR_CONTACT_POINTS,
+    /**
+     * The option specifies the configuration (in JSON) for coordinated write.
+     * See org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf.
+     * When the option is present, SIDECAR_CONTACT_POINTS, SIDECAR_INSTANCES and LOCAL_DC are ignored if they are present.
+     */
+    COORDINATED_WRITE_CONFIG,
     KEYSPACE,
     TABLE,
     BULK_WRITER_CL,

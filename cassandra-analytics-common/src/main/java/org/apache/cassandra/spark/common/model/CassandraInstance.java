@@ -20,16 +20,26 @@
 package org.apache.cassandra.spark.common.model;
 
 import org.apache.cassandra.spark.data.model.TokenOwner;
+import org.jetbrains.annotations.Nullable;
 
 public interface CassandraInstance extends TokenOwner
 {
+    /**
+     * @return ID string that can uniquely identify a cluster; the return value is nullable
+     */
+    @Nullable String clusterId();
+
+    default boolean hasClusterId()
+    {
+        return clusterId() != null;
+    }
+
     String nodeName();
 
     String datacenter();
 
     /**
-     * IP address string of a Cassandra instance.
-     * Mainly used in blocked instance list to identify instances.
+     * IP address string (w/o port) of a Cassandra instance.
      * Prefer to use {@link #ipAddressWithPort} as instance identifier,
      * unless knowing the compared is IP address without port for sure.
      */

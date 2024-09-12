@@ -58,7 +58,19 @@ public class SidecarInstanceFactory
             port = Integer.parseInt(portStr);
         }
 
+        Preconditions.checkState(port != -1, "Unable to resolve port from %s", input);
+
         LOGGER.info("Create sidecar instance. hostname={} port={}", hostname, port);
         return new SidecarInstanceImpl(hostname, port);
+    }
+
+    /**
+     * Similar to {@link SidecarInstanceFactory#createFromString(String, int)}, but it requires that the input string must include port
+     * @param hostnameWithPort hostname with port
+     * @return SidecarInstanceImpl
+     */
+    public static SidecarInstanceImpl createFromString(String hostnameWithPort)
+    {
+        return createFromString(hostnameWithPort, -1);
     }
 }

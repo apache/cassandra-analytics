@@ -31,21 +31,23 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
-import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
+import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel.CL;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.jetbrains.annotations.NotNull;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RingInstanceTest
 {
@@ -123,58 +125,75 @@ public class RingInstanceTest
     @Test
     public void testEquals()
     {
-        RingInstance instance1 = TokenRangeMappingUtils.getInstances(0, ImmutableMap.of("DATACENTER1", 1), 1).get(0);
-        RingInstance instance2 = TokenRangeMappingUtils.getInstances(0, ImmutableMap.of("DATACENTER1", 1), 1).get(0);
+        RingInstance instance1 = mockRingInstance();
+        RingInstance instance2 = mockRingInstance();
         assertEquals(instance1, instance2);
     }
 
     @Test
     public void testHashCode()
     {
-        RingInstance instance1 = TokenRangeMappingUtils.getInstances(0, ImmutableMap.of("DATACENTER1", 1), 1).get(0);
-        RingInstance instance2 = TokenRangeMappingUtils.getInstances(0, ImmutableMap.of("DATACENTER1", 1), 1).get(0);
+        RingInstance instance1 = mockRingInstance();
+        RingInstance instance2 = mockRingInstance();
         assertEquals(instance1.hashCode(), instance2.hashCode());
     }
 
     @Test
-    public void testEqualsAndHashcodeIgnoreHost()
+    public void testEqualsAndHashcodeIgnoreNonCriticalFields()
     {
-        RingInstance realInstance = new RingInstance(new RingEntry.Builder()
-                                                     .datacenter("DATACENTER1")
-                                                     .address("127.0.0.1")
-                                                     .port(7000)
-                                                     .rack("Rack")
-                                                     .status("UP")
-                                                     .state("NORMAL")
-                                                     .load("0")
-                                                     .token("0")
-                                                     .fqdn("fqdn")
-                                                     .hostId("")
-                                                     .owns("")
-                                                     .build());
+        RingEntry.Builder builder = mockRingEntryBuilder();
+        // the fields chained in the builder below are not considered for equality check
+        RingInstance instance1 = new RingInstance(builder
+                                                  .status("1")
+                                                  .state("1")
+                                                  .load("1")
+                                                  .hostId("1")
+                                                  .owns("1")
+                                                  .build());
+        RingInstance instance2 = new RingInstance(builder
+                                                  .status("2")
+                                                  .state("2")
+                                                  .load("2")
+                                                  .hostId("2")
+                                                  .owns("2")
+                                                  .build());
+        assertEquals(instance1, instance2);
+        assertEquals(instance1.hashCode(), instance2.hashCode());
+    }
 
-        RingInstance questionInstance = new RingInstance(new RingEntry.Builder()
-                                                         .datacenter("DATACENTER1")
-                                                         .address("127.0.0.1")
-                                                         .port(7000)
-                                                         .rack("Rack")
-                                                         .status("UP")
-                                                         .state("NORMAL")
-                                                         .load("0")
-                                                         .token("0")
-                                                         .fqdn("fqdn")
-                                                         .hostId("")
-                                                         .owns("")
-                                                         .build());
-        assertEquals(realInstance, questionInstance);
-        assertEquals(realInstance.hashCode(), questionInstance.hashCode());
+    @Test
+    public void testEqualsAndHashcodeConsidersClusterId()
+    {
+        RingEntry ringEntry = mockRingEntry();
+        RingInstance c1i1 = new RingInstance(ringEntry, "cluster1");
+        RingInstance c1i2 = new RingInstance(ringEntry, "cluster1");
+        RingInstance c2i1 = new RingInstance(ringEntry, "cluster2");
+
+        assertEquals(c1i1, c1i2);
+        assertEquals(c1i1.hashCode(), c1i2.hashCode());
+
+        assertNotEquals(c1i1, c2i1);
+        assertNotEquals(c1i1.hashCode(), c2i1.hashCode());
+    }
+
+    @Test
+    public void testHasClusterId()
+    {
+        RingEntry ringEntry = mockRingEntry();
+        RingInstance instance = new RingInstance(ringEntry);
+        assertFalse(instance.hasClusterId());
+
+        RingInstance instanceWithClusterId = new RingInstance(ringEntry, "cluster1");
+        assertTrue(instanceWithClusterId.hasClusterId());
+        assertEquals("cluster1", instanceWithClusterId.clusterId());
     }
 
     @Test
     public void multiMapWorksWithRingInstances()
     {
-        RingInstance instance1 = TokenRangeMappingUtils.getInstances(0, ImmutableMap.of("DATACENTER1", 1), 1).get(0);
-        RingInstance instance2 = TokenRangeMappingUtils.getInstances(0, ImmutableMap.of("DATACENTER1", 1), 1).get(0);
+        RingEntry ringEntry = mockRingEntry();
+        RingInstance instance1 = new RingInstance(ringEntry);
+        RingInstance instance2 = new RingInstance(ringEntry);
         byte[] buffer;
 
         try
@@ -224,7 +243,35 @@ public class RingInstanceTest
         replicationFactor3.addFailure(Range.openClosed(tokens[0].add(BigInteger.ONE),
                                                        tokens[0].add(BigInteger.valueOf(2L))), instance2, "Failure 2");
 
-        replicationFactor3.getFailedRanges(tokenRange, ConsistencyLevel.CL.LOCAL_QUORUM, DATACENTER_1);
-        assertFalse(replicationFactor3.hasFailed(tokenRange, ConsistencyLevel.CL.LOCAL_QUORUM, DATACENTER_1));
+        assertTrue(replicationFactor3.getFailedRanges(tokenRange, CL.LOCAL_QUORUM, DATACENTER_1).isEmpty());
+    }
+
+    @NotNull
+    private static RingEntry mockRingEntry()
+    {
+        return mockRingEntryBuilder().build();
+    }
+
+    @NotNull
+    private static RingEntry.Builder mockRingEntryBuilder()
+    {
+        return new RingEntry.Builder()
+               .datacenter("DATACENTER1")
+               .address("127.0.0.1")
+               .port(0)
+               .rack("Rack")
+               .status("UP")
+               .state("NORMAL")
+               .load("0")
+               .token("0")
+               .fqdn("DATACENTER1-i1")
+               .hostId("")
+               .owns("");
+    }
+
+    @NotNull
+    private static RingInstance mockRingInstance()
+    {
+        return new RingInstance(mockRingEntry());
     }
 }
