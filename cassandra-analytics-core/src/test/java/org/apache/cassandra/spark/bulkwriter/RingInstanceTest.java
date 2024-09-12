@@ -38,6 +38,7 @@ import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel.CL;
+import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -48,6 +49,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class RingInstanceTest
 {
@@ -108,7 +111,7 @@ public class RingInstanceTest
 
     private static ReplicaAwareFailureHandler<RingInstance> ntsStrategyHandler(Partitioner partitioner)
     {
-        return new ReplicaAwareFailureHandler<>(partitioner);
+        return new MultiClusterReplicaAwareFailureHandler<>(partitioner);
     }
 
     private static Map<String, Integer> ntsOptions(String[] names, int[] values)
@@ -242,7 +245,12 @@ public class RingInstanceTest
         replicationFactor3.addFailure(Range.openClosed(tokens[0].add(BigInteger.ONE),
                                                        tokens[0].add(BigInteger.valueOf(2L))), instance2, "Failure 2");
 
-        assertTrue(replicationFactor3.getFailedRanges(tokenRange, CL.LOCAL_QUORUM, DATACENTER_1, repFactor).isEmpty());
+        JobInfo jobInfo = mock(JobInfo.class);
+        when(jobInfo.getConsistencyLevel()).thenReturn(CL.LOCAL_QUORUM);
+        when(jobInfo.getLocalDC()).thenReturn(DATACENTER_1);
+        ClusterInfo clusterInfo = mock(ClusterInfo.class);
+        when(clusterInfo.replicationFactor()).thenReturn(repFactor);
+        assertTrue(replicationFactor3.getFailedRanges(tokenRange, jobInfo, clusterInfo).isEmpty());
     }
 
     @NotNull

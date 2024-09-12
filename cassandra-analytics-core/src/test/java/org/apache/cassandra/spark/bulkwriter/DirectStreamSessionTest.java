@@ -39,6 +39,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
@@ -278,7 +279,7 @@ public class DirectStreamSessionTest
     @NotNull
     private ReplicaAwareFailureHandler<RingInstance> replicaAwareFailureHandler()
     {
-        return new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
+        return new MultiClusterReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
     }
 
     private DirectStreamSession createStreamSession(MockTableWriter.Creator writerCreator)

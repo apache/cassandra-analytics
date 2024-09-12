@@ -32,15 +32,17 @@ import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 
+/**
+ * A validator for bulk write result against the target cluster(s).
+ */
 public class BulkWriteValidator
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BulkWriteValidator.class);
 
+    private final ClusterInfo cluster;
     private final ReplicaAwareFailureHandler<RingInstance> failureHandler;
     private final JobInfo job;
     private String phase = "Initializing";
-
-    private final ClusterInfo cluster;
 
     public BulkWriteValidator(BulkWriterContext bulkWriterContext,
                               ReplicaAwareFailureHandler<RingInstance> failureHandler)
@@ -58,7 +60,7 @@ public class BulkWriteValidator
                                         ClusterInfo cluster)
     {
         List<ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange> failedRanges =
-        failureHandler.getFailedRanges(tokenRangeMapping, job.getConsistencyLevel(), job.getLocalDC(), cluster.replicationFactor());
+        failureHandler.getFailedRanges(tokenRangeMapping, job, cluster);
 
         if (failedRanges.isEmpty())
         {

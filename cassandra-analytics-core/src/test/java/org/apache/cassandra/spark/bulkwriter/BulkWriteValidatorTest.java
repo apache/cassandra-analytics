@@ -26,6 +26,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
+import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.QualifiedTableName;
@@ -77,7 +78,7 @@ class BulkWriteValidatorTest
         when(mockJobInfo.jobKeepAliveMinutes()).thenReturn(-1);
         when(mockWriterContext.job()).thenReturn(mockJobInfo);
 
-        ReplicaAwareFailureHandler<RingInstance> failureHandler = new ReplicaAwareFailureHandler<>(Partitioner.Murmur3Partitioner);
+        ReplicaAwareFailureHandler<RingInstance> failureHandler = new MultiClusterReplicaAwareFailureHandler<>(Partitioner.Murmur3Partitioner);
         BulkWriteValidator writerValidator = new BulkWriteValidator(mockWriterContext, failureHandler);
         assertThatThrownBy(() -> writerValidator.validateClOrFail(topology))
         .isExactlyInstanceOf(ConsistencyNotSatisfiedException.class)

@@ -42,7 +42,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
-import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
+import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -222,7 +222,7 @@ public class StreamSessionConsistencyTest
                                        transportContext,
                                        "sessionId",
                                        RANGE,
-                                       new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()),
+                                       new MultiClusterReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner()),
                                        executor);
     }
 }

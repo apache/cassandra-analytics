@@ -57,6 +57,7 @@ import org.apache.cassandra.spark.bulkwriter.RingInstance;
 import org.apache.cassandra.spark.bulkwriter.SortedSSTableWriter;
 import org.apache.cassandra.spark.bulkwriter.TokenRangeMappingUtils;
 import org.apache.cassandra.spark.bulkwriter.TransportContext;
+import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.client.ClientException;
@@ -90,7 +91,8 @@ class BlobStreamSessionTest
         TokenRangeMapping<RingInstance> topology = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), 3);
         MockBulkWriterContext bulkWriterContext = new MockBulkWriterContext(topology);
         BulkWriterContext spiedWriterContext = spy(bulkWriterContext);
-        ReplicaAwareFailureHandler<RingInstance> replicaAwareFailureHandler = new ReplicaAwareFailureHandler<>(bulkWriterContext.cluster().getPartitioner());
+        ReplicaAwareFailureHandler<RingInstance> replicaAwareFailureHandler =
+        new MultiClusterReplicaAwareFailureHandler<>(bulkWriterContext.cluster().getPartitioner());
         Range<BigInteger> range = Range.range(BigInteger.valueOf(100L), BoundType.OPEN, BigInteger.valueOf(199L), BoundType.CLOSED);
         JobInfo job = mock(JobInfo.class);
         when(job.getRestoreJobId()).thenReturn(jobId);
