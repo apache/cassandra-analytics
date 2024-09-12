@@ -116,7 +116,9 @@ class TokenRangeMappingTest
         TokenRangeMapping<RingInstance> topologyWithRandom = createTestMapping(5, Partitioner.RandomPartitioner);
         assertThatThrownBy(() -> TokenRangeMapping.consolidate(Arrays.asList(topologyWithMurmur3, topologyWithRandom)))
         .isExactlyInstanceOf(IllegalArgumentException.class)
-        .hasMessage("Multiple Partitioners found: [org.apache.cassandra.dht.RandomPartitioner, org.apache.cassandra.dht.Murmur3Partitioner]");
+        .hasMessageContaining("Multiple Partitioners found: ")
+        .hasMessageContaining(Partitioner.Murmur3Partitioner.toString())
+        .hasMessageContaining(Partitioner.RandomPartitioner.toString());
     }
 
     @Test
