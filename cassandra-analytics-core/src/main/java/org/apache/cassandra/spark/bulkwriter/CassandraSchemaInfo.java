@@ -29,7 +29,7 @@ public class CassandraSchemaInfo implements SchemaInfo
     private final TableSchema tableSchema;
     private final Set<String> userDefinedTypeStatements;
 
-    public CassandraSchemaInfo(TableSchema tableSchema, Set<String> userDefinedTypeStatements, CqlTable cqlTable)
+    public CassandraSchemaInfo(TableSchema tableSchema, Set<String> userDefinedTypeStatements)
     {
         this.tableSchema = tableSchema;
         this.userDefinedTypeStatements = userDefinedTypeStatements;

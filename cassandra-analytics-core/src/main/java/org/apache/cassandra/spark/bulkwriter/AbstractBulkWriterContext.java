@@ -146,7 +146,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
 
         TableInfoProvider tableInfoProvider = new CqlTableInfoProvider(createTableSchema, cqlTable);
         TableSchema tableSchema = initializeTableSchema(bulkSparkConf(), structType, tableInfoProvider, lowestCassandraVersion());
-        return new CassandraSchemaInfo(tableSchema, udts, cqlTable);
+        return new CassandraSchemaInfo(tableSchema, udts);
     }
 
     /*-------------------------------------------*/
