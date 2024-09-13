@@ -27,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSecrets;
+import o.a.c.sidecar.client.shaded.common.data.RestoreJobStatus;
 import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPayload;
 import org.apache.cassandra.spark.bulkwriter.CancelJobEvent;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
@@ -34,7 +35,7 @@ import org.apache.cassandra.spark.bulkwriter.TransportContext;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
 
-public class StorageTransportHandler implements CredentialChangeListener, ObjectFailureListener
+public class StorageTransportHandler implements CredentialChangeListener, ObjectFailureListener, CoordinationSignalListener
 {
     private final TransportContext.CloudStorageTransportContext transportContext;
     private final Consumer<CancelJobEvent> cancelConsumer;
@@ -74,6 +75,22 @@ public class StorageTransportHandler implements CredentialChangeListener, Object
         cancelConsumer.accept(new CancelJobEvent(errorMessage));
     }
 
+    @Override
+    public void onStageReady(String jobId)
+    {
+        validateReceivedJobId(jobId);
+        LOGGER.info("Received stage ready signal for coordinated write. jobId={}", jobId);
+        sendCoordinationSignal(jobInfo.getRestoreJobId(), RestoreJobStatus.STAGE_READY);
+    }
+
+    @Override
+    public void onApplyReady(String jobId)
+    {
+        validateReceivedJobId(jobId);
+        LOGGER.info("Received apply ready signal for coordinated write. jobId={}", jobId);
+        sendCoordinationSignal(jobInfo.getRestoreJobId(), RestoreJobStatus.IMPORT_READY);
+    }
+
     private void updateCredentials(UUID jobId, StorageCredentialPair credentialPair)
     {
         StorageTransportConfiguration conf = transportContext.transportConfiguration();
@@ -81,6 +98,20 @@ public class StorageTransportHandler implements CredentialChangeListener, Object
         UpdateRestoreJobRequestPayload requestPayload = new UpdateRestoreJobRequestPayload(null, secrets, null, null);
         try
         {
+            transportContext.dataTransferApi().updateRestoreJob(requestPayload);
+        }
+        catch (ClientException e)
+        {
+            throw new RuntimeException("Failed to update secretes for restore job. restoreJobId: " + jobId, e);
+        }
+    }
+
+    private void sendCoordinationSignal(UUID jobId, RestoreJobStatus status)
+    {
+        UpdateRestoreJobRequestPayload requestPayload = new UpdateRestoreJobRequestPayload(null, null, status, null);
+        try
+        {
+            // TODO: send to all clusters\
             transportContext.dataTransferApi().updateRestoreJob(requestPayload);
         }
         catch (ClientException e)

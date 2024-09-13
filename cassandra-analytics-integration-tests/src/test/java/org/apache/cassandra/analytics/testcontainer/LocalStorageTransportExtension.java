@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
+import org.apache.cassandra.spark.transports.storage.extensions.CoordinationSignalListener;
 import org.apache.cassandra.spark.transports.storage.extensions.CredentialChangeListener;
 import org.apache.cassandra.spark.transports.storage.extensions.ObjectFailureListener;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
@@ -98,5 +99,35 @@ public class LocalStorageTransportExtension implements StorageTransportExtension
                                          new StorageCredentials("readKey",
                                                                 "readSecret",
                                                                 "readSessionToken"));
+    }
+
+    @Override
+    public void onStageSucceeded(String clusterId, long objectsCount, long rowsCount, long elapsedMillis)
+    {
+
+    }
+
+    @Override
+    public void onStageFailed(String clusterId, Throwable cause)
+    {
+
+    }
+
+    @Override
+    public void onApplySucceeded(String clusterId, long objectsCount, long rowsCount, long elapsedMillis)
+    {
+
+    }
+
+    @Override
+    public void onApplyFailed(String clusterId, Throwable cause)
+    {
+
+    }
+
+    @Override
+    public void setCoordinationSignalListener(CoordinationSignalListener listener)
+    {
+
     }
 }

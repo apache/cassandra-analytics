@@ -19,22 +19,25 @@
 
 package org.apache.cassandra.spark.transports.storage.extensions;
 
-import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
-
 /**
- * A listener interface that is notified on access token changes
+ * A listener interface that receives coordination signals.
+ * It works in cooperation with {@link CoordinatedTransportExtension} to enable coordinated write
  */
-public interface CredentialChangeListener
+public interface CoordinationSignalListener
 {
     /**
-     * The method is called when new access tokens are available for the job with ID {@code jobId}.
-     * The previous set of credentials and the newly-provided set must both be valid simultaneously
-     * for the Spark job to have time to rotate credentials without interruption.
-     * These tokens should be provided with plenty of time for the job to distribute them to
-     * the consumers of the storage transport endpoint to update their tokens before expiration.
+     * The method is called when the write coordinator, i.e. implementation of {@link CoordinatedTransportExtension}, decides that
+     * it is ready to stage SSTable bundles on all participating clusters.
      *
-     * @param jobId     the unique identifier for the job
-     * @param newTokens a map of access tokens used to authenticate to the storage transport
+     * @param jobId the unique identifier for the job
      */
-    void onCredentialsChanged(String jobId, StorageCredentialPair newTokens);
+    void onStageReady(String jobId);
+
+    /**
+     * The method is called when the write coordinator, i.e. implementation of {@link CoordinatedTransportExtension}, decides that
+     * it is ready to apply/import SSTables on all participating clusters.
+     *
+     * @param jobId the unique identifier for the job
+     */
+    void onApplyReady(String jobId);
 }
