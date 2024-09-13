@@ -92,13 +92,13 @@ class CassandraClusterInfoGroupTest
                                                                                              () -> Partitioner.Murmur3Partitioner,
                                                                                              RingInstance::new);
         when(clusterInfo.getTokenRangeMapping(anyBoolean())).thenReturn(expectedTokenRangeMapping);
-        when(clusterInfo.getTimeSkew(any())).thenReturn(mock(TimeSkewResponse.class));
+        when(clusterInfo.timeSkew(any())).thenReturn(mock(TimeSkewResponse.class));
         when(clusterInfo.getLowestCassandraVersion()).thenReturn("lowestCassandraVersion");
         when(clusterInfo.clusterWriteAvailability()).thenReturn(Collections.emptyMap());
         CassandraClusterInfoGroup group = mockClusterGroup(1, index -> clusterInfo);
         // Since there is a single clusterInfo in the group. It behaves as a simple delegation to the sole clusterInfo
         assertThat(group.clusterWriteAvailability()).isSameAs(clusterInfo.clusterWriteAvailability());
-        assertThat(group.getTimeSkew(null)).isSameAs(clusterInfo.getTimeSkew(null));
+        assertThat(group.timeSkew(null)).isSameAs(clusterInfo.timeSkew(null));
         assertThat(group.getLowestCassandraVersion()).isSameAs(clusterInfo.getLowestCassandraVersion());
         assertThat(group.getTokenRangeMapping(true)).isSameAs(clusterInfo.getTokenRangeMapping(true));
     }

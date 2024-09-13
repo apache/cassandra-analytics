@@ -20,7 +20,9 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Closeable;
+import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +35,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -186,14 +189,19 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     @Override
-    public TimeSkewResponse getTimeSkew(List<RingInstance> replicas)
+    public TimeSkewResponse timeSkew(Range<BigInteger> range)
     {
         try
         {
-            List<SidecarInstance> instances = replicas
-                                              .stream()
-                                              .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort()))
-                                              .collect(Collectors.toList());
+            TokenRangeMapping<RingInstance> topology = getTokenRangeMapping(true);
+            List<SidecarInstance> instances = topology.getSubRanges(range)
+                                                      .asMapOfRanges()
+                                                      .values()
+                                                      .stream()
+                                                      .flatMap(Collection::stream)
+                                                      .distinct() // remove duplications
+                                                      .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort()))
+                                                      .collect(Collectors.toList());
             return getCassandraContext().getSidecarClient().timeSkew(instances).get();
         }
         catch (InterruptedException | ExecutionException exception)
@@ -305,7 +313,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         // We can avoid synchronization here
         if (topology != null)
         {
-            topology = getTokenRangeReplicas();
+            topology = getTokenRangeReplicasFromSidecar();
             this.tokenRangeReplicas = topology;
             return topology;
         }
@@ -315,7 +323,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         {
             try
             {
-                this.tokenRangeReplicas = getTokenRangeReplicas();
+                this.tokenRangeReplicas = getTokenRangeReplicasFromSidecar();
             }
             catch (Exception exception)
             {
@@ -375,7 +383,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         return WriteAvailability.determineFromNodeState(instance.nodeState(), instance.nodeStatus());
     }
 
-    private TokenRangeMapping<RingInstance> getTokenRangeReplicas()
+    private TokenRangeMapping<RingInstance> getTokenRangeReplicasFromSidecar()
     {
         return TokenRangeMapping.create(this::getTokenRangesAndReplicaSets,
                                         this::getPartitioner,

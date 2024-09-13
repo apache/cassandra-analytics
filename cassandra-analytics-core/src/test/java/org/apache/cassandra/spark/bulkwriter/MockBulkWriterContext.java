@@ -178,7 +178,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public TimeSkewResponse getTimeSkew(List<RingInstance> replicas)
+    public TimeSkewResponse timeSkew(Range<BigInteger> range)
     {
         return new TimeSkewResponse(timeProvider.get(), 60);
     }

@@ -25,7 +25,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -151,15 +150,12 @@ public class RecordWriter
                     initialTokenRangeMapping.allInstances().size(),
                     initialTokenRangeMapping.pendingInstances().size());
 
-        Map<Range<BigInteger>, List<RingInstance>> initialTokenRangeInstances =
-        taskTokenRangeMapping(initialTokenRangeMapping, taskTokenRange);
-
         writeValidator.setPhase("Environment Validation");
         writeValidator.validateClOrFail(initialTokenRangeMapping);
         writeValidator.setPhase("UploadAndCommit");
 
         // for all replicas in this partition
-        validateAcceptableTimeSkewOrThrow(new ArrayList<>(instancesFromMapping(initialTokenRangeInstances)));
+        validateAcceptableTimeSkewOrThrow(taskTokenRange);
 
         Iterator<Tuple2<DecoratedKey, Object[]>> dataIterator = new JavaInterruptibleIterator<>(taskContext, sourceIterator);
         int partitionId = taskContext.partitionId();
@@ -361,18 +357,13 @@ public class RecordWriter
         return writerContext.job().getTokenPartitioner().getTokenRange(taskContext.partitionId());
     }
 
-    private void validateAcceptableTimeSkewOrThrow(List<RingInstance> replicas)
+    private void validateAcceptableTimeSkewOrThrow(Range<BigInteger> range)
     {
-        if (replicas.isEmpty())
-        {
-            return;
-        }
-
-        TimeSkewResponse timeSkewResponse = writerContext.cluster().getTimeSkew(replicas);
+        TimeSkewResponse timeSkewResponse = writerContext.cluster().timeSkew(range);
         Instant localNow = Instant.now();
         Instant remoteNow = Instant.ofEpochMilli(timeSkewResponse.currentTime);
-        Duration range = Duration.ofMinutes(timeSkewResponse.allowableSkewInMinutes);
-        if (localNow.isBefore(remoteNow.minus(range)) || localNow.isAfter(remoteNow.plus(range)))
+        Duration allowedDuration = Duration.ofMinutes(timeSkewResponse.allowableSkewInMinutes);
+        if (localNow.isBefore(remoteNow.minus(allowedDuration)) || localNow.isAfter(remoteNow.plus(allowedDuration)))
         {
             final String message = String.format("Time skew between Spark and Cassandra is too large. "
                                                  + "Allowable skew is %d minutes. Spark executor time is %s, Cassandra instance time is %s",

@@ -19,8 +19,10 @@
 
 package org.apache.cassandra.spark.bulkwriter.coordinatedwrite;
 
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -32,6 +34,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -157,40 +160,22 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
     }
 
     /**
-     * @return the largest time skew retrieved from the target replicas
+     * @return the largest time skew retrieved from the target clusters
      */
     @Override
-    public TimeSkewResponse getTimeSkew(List<RingInstance> instances)
+    public TimeSkewResponse timeSkew(Range<BigInteger> range)
     {
         if (clusterInfos.size() == 1)
         {
-            return clusterInfos.get(0).getTimeSkew(instances);
+            return clusterInfos.get(0).timeSkew(range);
         }
 
-        Map<String, List<RingInstance>> instancesByClusterId = instances.stream().collect(Collectors.groupingBy(instance -> {
-            String clusterId = instance.clusterId();
-            Preconditions.checkState(clusterId != null,
-                                     "RingInstance must define its clusterId for coordinated write");
-            return clusterId;
-        }));
-        long localNow = System.currentTimeMillis();
-        long maxDiff = 0;
-        TimeSkewResponse largestSkew = null;
-        for (Map.Entry<String, List<RingInstance>> entry : instancesByClusterId.entrySet())
-        {
-            String clusterId = entry.getKey();
-            List<RingInstance> instancesOfCluster = entry.getValue();
-            ClusterInfo clusterInfo = cluster(clusterId);
-            Preconditions.checkState(clusterInfo != null, "ClusterInfo not found with clusterId: " + clusterId);
-            TimeSkewResponse response = clusterInfo.getTimeSkew(instancesOfCluster);
-            long d = Math.abs(response.currentTime - localNow);
-            if (Math.abs(response.currentTime - localNow) > maxDiff)
-            {
-                maxDiff = d;
-                largestSkew = response;
-            }
-        }
-        return largestSkew;
+        return clusterInfos.stream()
+                           .map(clusterInfo -> clusterInfo.timeSkew(range))
+                            // Find the timeSkew with the lowest remote currentTime, i.e. largest difference with the local current time.
+                           .min(Comparator.comparingLong(timeSkew -> timeSkew.currentTime))
+                           // It should never reach the elseThrow block. Because CassandraClusterInfoGroup constructor prevent creating with an empty list
+                           .orElseThrow(() -> new IllegalStateException("CassandraClusterInfoGroup should have non-empty list of clusterInfos"));
     }
 
     @Override

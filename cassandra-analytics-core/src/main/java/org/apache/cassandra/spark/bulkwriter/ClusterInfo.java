@@ -20,8 +20,10 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
-import java.util.List;
+import java.math.BigInteger;
 import java.util.Map;
+
+import com.google.common.collect.Range;
 
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -47,7 +49,12 @@ public interface ClusterInfo extends StartupValidatable, Serializable
 
     void checkBulkWriterIsEnabledOrThrow();
 
-    TimeSkewResponse getTimeSkew(List<RingInstance> replicas);
+    /**
+     * Get the time skew information from the replicas of the range
+     * @param range token range used to look up the relevant replicas
+     * @return {@link TimeSkewResponse} retrieved from Sidecar
+     */
+    TimeSkewResponse timeSkew(Range<BigInteger> range);
 
     /**
      * Return the keyspace schema string of the enclosing keyspace for bulk write in the cluster
