@@ -44,7 +44,6 @@ import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.serializers.Int32Serializer;
-import org.apache.cassandra.spark.TestDataLayer;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.FileType;
@@ -54,6 +53,7 @@ import org.apache.cassandra.spark.reader.common.AbstractCompressionMetadata;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.spark.stats.Stats;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
+import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -213,8 +213,7 @@ public class IndexReaderTests
                     {
                         pathList = stream.collect(Collectors.toList());
                     }
-                    TestDataLayer dataLayer = new TestDataLayer(pathList, table);
-                    List<SSTable> ssTables = dataLayer.listSSTables().collect(Collectors.toList());
+                    List<SSTable> ssTables = pathList.stream().map(TestSSTable::at).collect(Collectors.toList());
                     assertFalse(ssTables.isEmpty());
                     AtomicReference<Throwable> error = new AtomicReference<>();
                     CountDownLatch latch = new CountDownLatch(ssTables.size());

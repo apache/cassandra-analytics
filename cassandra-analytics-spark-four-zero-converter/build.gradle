@@ -17,16 +17,24 @@
  * under the License.
  */
 
-rootProject.name = 'cassandra-analytics-core'
+plugins {
+    id('java-library')
+}
 
-include 'cassandra-analytics-common'
-include 'cassandra-bridge'
-include 'cassandra-four-zero'
-include 'cassandra-four-zero-bridge'
-include 'cassandra-four-zero-types'
-include 'cassandra-analytics-core'
-include 'cassandra-analytics-core-example'
-include 'cassandra-analytics-integration-framework'
-include 'cassandra-analytics-integration-tests'
-include 'cassandra-analytics-spark-converter'
-include 'cassandra-analytics-spark-four-zero-converter'
+configurations {
+    all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
+    all*.exclude(group: 'log4j', module: 'log4j')
+}
+
+dependencies {
+    compileOnly project(":cassandra-analytics-common")
+    compileOnly project(":cassandra-four-zero-types")
+    compileOnly project(":cassandra-analytics-spark-converter")
+    compileOnly(project(path: ':cassandra-four-zero', configuration: 'shadow'))
+    compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+    compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+}
+
+jar {
+    archiveFileName = "four-zero-sparksql.jar"
+}

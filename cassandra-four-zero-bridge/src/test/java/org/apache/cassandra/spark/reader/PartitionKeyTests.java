@@ -32,6 +32,7 @@ import org.apache.cassandra.db.marshal.CompositeType;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverterImplementation;
 import org.apache.cassandra.spark.utils.ComparisonUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
@@ -43,12 +44,13 @@ import static org.quicktheories.generators.SourceDSL.arbitrary;
 public class PartitionKeyTests
 {
     private static final CassandraBridgeImplementation BRIDGE = new CassandraBridgeImplementation();
+    private static final SparkSqlTypeConverter TYPE_CONVERTER = new SparkSqlTypeConverterImplementation();
 
     @Test
     @SuppressWarnings("static-access")
     public void testBuildPartitionKey()
     {
-        SparkSqlTypeConverter typeConverter = BRIDGE.typeConverter();
+        SparkSqlTypeConverter typeConverter = TYPE_CONVERTER;
         qt().forAll(arbitrary().pick(BRIDGE.supportedTypes())).checkAssert(partitionKeyType -> {
             CqlTable table = TestSchema.builder(BRIDGE)
                                        .withPartitionKey("a", partitionKeyType)
@@ -97,7 +99,7 @@ public class PartitionKeyTests
 
             assertEquals(columnA, buffers[0].getInt());
             assertEquals(columnB, partitionKeyType.deserializeToJavaType(buffers[1]));
-            assertEquals(columnC, BRIDGE.typeConverter().toSparkType(BRIDGE.text()).toTestRowType(BRIDGE.text().deserializeToJavaType(buffers[2])));
+            assertEquals(columnC, TYPE_CONVERTER.toSparkType(BRIDGE.text()).toTestRowType(BRIDGE.text().deserializeToJavaType(buffers[2])));
         });
     }
 }

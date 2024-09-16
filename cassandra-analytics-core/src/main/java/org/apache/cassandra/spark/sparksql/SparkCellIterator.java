@@ -114,7 +114,7 @@ public class SparkCellIterator implements Iterator<Cell>, AutoCloseable
         stats.openedSparkCellIterator();
         firstProjectedValueColumnPositionOrZero = maybeGetPositionOfFirstProjectedValueColumnOrZero();
 
-        sparkSqlTypeConverter = dataLayer.bridge().typeConverter();
+        sparkSqlTypeConverter = dataLayer.typeConverter();
         sparkTypes = new SparkType[cqlTable.numFields()];
         for (int index = 0; index < cqlTable.numFields(); index++)
         {

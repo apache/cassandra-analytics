@@ -78,9 +78,7 @@ import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
-import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverterImplementation;
 import org.apache.cassandra.spark.data.complex.CqlTuple;
 import org.apache.cassandra.spark.data.complex.CqlUdt;
 import org.apache.cassandra.spark.reader.CompactionStreamScanner;
@@ -181,11 +179,6 @@ public class CassandraBridgeImplementation extends CassandraBridge
     public CassandraTypes cassandraTypes()
     {
         return CassandraTypesImplementation.INSTANCE;
-    }
-
-    public SparkSqlTypeConverter typeConverter()
-    {
-        return SparkSqlTypeConverterImplementation.INSTANCE;
     }
 
     @Override

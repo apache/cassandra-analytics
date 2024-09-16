@@ -54,7 +54,7 @@ public class PartitionSizeIterator implements PartitionReader<InternalRow>
         this.startTimeNanos = System.nanoTime();
         this.it = dataLayer.openPartitionSizeIterator(partitionId);
         stats.openedPartitionSizeIterator(System.nanoTime() - startTimeNanos);
-        this.sparkSqlTypeConverter = dataLayer.bridge().typeConverter();
+        this.sparkSqlTypeConverter = dataLayer.typeConverter();
     }
 
     /**

@@ -56,6 +56,9 @@ configurations {
     fourzerotypes {
         description = 'Cassandra 4.0 Data Types'
     }
+    fourzerosparksql {
+        description = 'Cassandra 4.0 SparkSQL Converter'
+    }
 }
 
 dependencies {
@@ -65,6 +68,7 @@ dependencies {
     fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     fourzerobridge(project(path: ':cassandra-four-zero-bridge'))
     fourzerotypes(project(path: ':cassandra-four-zero-types'))
+    fourzerosparksql(project(path: ':cassandra-analytics-spark-four-zero-converter'))
     implementation(project(':cassandra-analytics-spark-converter'))
 
     // Including newer JNA which works with "Modern" Linux/GLIBC.
@@ -89,8 +93,9 @@ dependencies {
     compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
 
     testImplementation(group: 'com.google.guava', name: 'guava', version: '19.0')
-
+    testImplementation project(path: ':cassandra-bridge', configuration: 'testArtifacts')
     testImplementation(project(':cassandra-analytics-spark-converter'))
+    testImplementation(project(':cassandra-analytics-spark-four-zero-converter'))
     testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
@@ -114,6 +119,7 @@ dependencies {
 jar {
     dependsOn(configurations.fourzero)
     dependsOn(configurations.fourzerobridge)
+    dependsOn(configurations.fourzerosparksql)
     dependsOn(configurations.fourzerotypes)
 
     writeBuildVersion(version, project.projectDir)
@@ -123,6 +129,7 @@ jar {
         from(configurations.fourzero.singleFile)
         from(configurations.fourzerobridge.singleFile)
         from(configurations.fourzerotypes.singleFile)
+        from(configurations.fourzerosparksql.singleFile)
     }
 }
 

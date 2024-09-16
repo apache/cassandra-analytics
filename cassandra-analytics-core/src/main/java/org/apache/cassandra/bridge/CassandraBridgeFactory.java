@@ -33,12 +33,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.tuple.Pair;
 
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.jetbrains.annotations.NotNull;
 
 public final class CassandraBridgeFactory
 {
-    private static final Map<String, CassandraBridge> CASSANDRA_BRIDGES = new ConcurrentHashMap<>(CassandraVersion.values().length);
+    private static final Map<String, Pair<CassandraBridge, SparkSqlTypeConverter>> CASSANDRA_BRIDGES =
+    new ConcurrentHashMap<>(CassandraVersion.values().length);
 
     private CassandraBridgeFactory()
     {
@@ -76,11 +79,31 @@ public final class CassandraBridgeFactory
     }
 
     @NotNull
+    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraVersionFeatures features)
+    {
+        return getSparkSql(getCassandraVersion(features));
+    }
+
+    @NotNull
     public static CassandraBridge get(@NotNull CassandraVersion version)
     {
         String jarBaseName = version.jarBaseName();
         Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
-        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create);
+        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).getLeft();
+    }
+
+    @NotNull
+    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraBridge bridge)
+    {
+        return getSparkSql(bridge.getVersion());
+    }
+
+    @NotNull
+    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraVersion version)
+    {
+        String jarBaseName = version.jarBaseName();
+        Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
+        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).getRight();
     }
 
     /**
@@ -130,6 +153,12 @@ public final class CassandraBridgeFactory
         return jarResourceName(label, "types");
     }
 
+    @NotNull
+    private static String sparkSqlResourceName(@NotNull String label)
+    {
+        return jarResourceName(label, "sparksql");
+    }
+
     private static String jarResourceName(String... parts)
     {
         return "/bridges/" + String.join("-", parts) + ".jar";
@@ -137,7 +166,7 @@ public final class CassandraBridgeFactory
 
     @NotNull
     @SuppressWarnings("unchecked")
-    private static CassandraBridge create(@NotNull String label)
+    private static Pair<CassandraBridge, SparkSqlTypeConverter> create(@NotNull String label)
     {
         try
         {
@@ -156,11 +185,23 @@ public final class CassandraBridgeFactory
             File typesJar = Files.createTempFile(null, ".jar").toFile();
             FileUtils.copyInputStreamToFile(contents, typesJar);
 
-            URL[] urls = {casandraJar.toURI().toURL(), bridgeJar.toURI().toURL(), typesJar.toURI().toURL()};
+            name = sparkSqlResourceName(label);
+            contents = CassandraBridgeFactory.class.getResourceAsStream(name);
+            File sparkSqlJar = Files.createTempFile(null, ".jar").toFile();
+            FileUtils.copyInputStreamToFile(contents, sparkSqlJar);
+
+            URL[] urls = {casandraJar.toURI().toURL(), bridgeJar.toURI().toURL(), typesJar.toURI().toURL(), sparkSqlJar.toURI().toURL()};
             ClassLoader loader = new PostDelegationClassLoader(urls, Thread.currentThread().getContextClassLoader());
             Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass("org.apache.cassandra.bridge.CassandraBridgeImplementation");
             Constructor<CassandraBridge> constructor = bridge.getConstructor();
-            return constructor.newInstance();
+            CassandraBridge bridgeInstance = constructor.newInstance();
+
+            Class<SparkSqlTypeConverter> typeConverter = (Class<SparkSqlTypeConverter>)
+                                                  loader
+                                                  .loadClass("org.apache.cassandra.spark.data.converter.SparkSqlTypeConverterImplementation");
+            Constructor<SparkSqlTypeConverter> typeConverterConstructor = typeConverter.getConstructor();
+            SparkSqlTypeConverter typeConverterInstance = typeConverterConstructor.newInstance();
+            return Pair.of(bridgeInstance, typeConverterInstance);
         }
         catch (IOException | ClassNotFoundException | NoSuchMethodException | InstantiationException
                | IllegalAccessException | InvocationTargetException exception)

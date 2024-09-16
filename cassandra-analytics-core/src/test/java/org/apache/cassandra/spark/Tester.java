@@ -51,6 +51,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.quicktheories.core.Gen;
 
+import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
@@ -448,7 +449,7 @@ public final class Tester
                                  "Actual Columns and Required Columns should be the same");
                 }
 
-                TestSchema.TestRow actualRow = schema.toTestRow(row, requiredColumns);
+                TestSchema.TestRow actualRow = schema.toTestRow(row, requiredColumns, getSparkSql(version));
                 if (numRandomRows > 0)
                 {
                     // If we wrote random data, verify values exist
