@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.reader;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -58,7 +59,9 @@ public class SSTableCache
     private final Cache<SSTable, Map<MetadataType, MetadataComponent>> stats = buildCache(propOrDefault("sbr.cache.stats.maxEntries", 16384),
                                                                                           propOrDefault("sbr.cache.stats.expireAfterMins", 60));
     private final Cache<SSTable, BloomFilter>                         filter = buildCache(propOrDefault("sbr.cache.filter.maxEntries", 16384),
-                                                                                          propOrDefault("sbr.cache.filter.expireAfterMins", 60));
+                                                                  propOrDefault("sbr.cache.filter.expireAfterMins", 60));
+    private final Cache<SSTable, CompressionMetadata>                 compression = buildCache(propOrDefault("sbr.cache.compression.maxEntries", 128),
+                                                                                                 propOrDefault("sbr.cache.compression.expireAfterMins", 15));
 
     private static int propOrDefault(String name, int defaultValue)
     {
@@ -106,6 +109,27 @@ public class SSTableCache
     public BloomFilter bloomFilter(@NotNull SSTable ssTable, Descriptor descriptor) throws IOException
     {
         return get(filter, ssTable, () -> ReaderUtils.readFilter(ssTable, descriptor.version.hasOldBfFormat()));
+    }
+
+    public CompressionMetadata compressionMetaData(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
+    {
+        if (!"true".equalsIgnoreCase(System.getProperty("sbr.cache.compression.enabled", "true")))
+        {
+            return readCompressionMetaData(ssTable, hasMaxCompressedLength);
+        }
+        return get(compression, ssTable, () -> readCompressionMetaData(ssTable, hasMaxCompressedLength));
+    }
+
+    public static CompressionMetadata readCompressionMetaData(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
+    {
+        try (InputStream cis = ssTable.openCompressionStream())
+        {
+            if (cis != null)
+            {
+                return CompressionMetadata.fromInputStream(cis, hasMaxCompressedLength);
+            }
+        }
+        return null;
     }
 
     boolean containsSummary(@NotNull SSTable ssTable)

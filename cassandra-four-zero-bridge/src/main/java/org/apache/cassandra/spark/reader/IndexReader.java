@@ -96,7 +96,7 @@ public class IndexReader implements IIndexReader
             }
 
             // read CompressionMetadata if it exists
-            CompressionMetadata compressionMetadata = getCompressionMetadata(ssTable, version.hasMaxCompressedLength());
+            CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetaData(ssTable, version.hasMaxCompressedLength());
             if (compressionMetadata != null)
             {
                 stats.indexCompressionFileRead(System.nanoTime() - now);
@@ -131,20 +131,6 @@ public class IndexReader implements IIndexReader
         {
             consumer.onFinished(System.nanoTime() - startTimeNanos);
         }
-    }
-
-    @Nullable
-    public static CompressionMetadata getCompressionMetadata(SSTable ssTable,
-                                                             boolean hasMaxCompressedLength) throws IOException
-    {
-        try (InputStream cis = ssTable.openCompressionStream())
-        {
-            if (cis != null)
-            {
-                return CompressionMetadata.fromInputStream(cis, hasMaxCompressedLength);
-            }
-        }
-        return null;
     }
 
     @SuppressWarnings("InfiniteLoopStatement")

@@ -52,11 +52,12 @@ import org.jetbrains.annotations.Nullable;
 public class SidecarProvisionedSSTable extends SSTable
 {
     private static final long serialVersionUID = 6452703925812602832L;
+    @Deprecated // use SSTableCache
     @VisibleForTesting
     public static final Cache<String, byte[]> COMPRESSION_CACHE = CacheBuilder.newBuilder()
-                                                                               .expireAfterAccess(1, TimeUnit.HOURS)
-                                                                               .maximumSize(2048)
-                                                                               .build();
+                                                                              .expireAfterAccess(1, TimeUnit.HOURS)
+                                                                              .maximumSize(2048)
+                                                                              .build();
     private final SidecarClient sidecar;
     private final SidecarInstance instance;
     private final Sidecar.ClientConfig sidecarClientConfig;

@@ -419,11 +419,13 @@ public final class Sidecar
                                     maxSizeCacheCompressionMetadataBytes);
         }
 
+        @Deprecated
         public long maxSizeCacheCompressionMetadataBytes()
         {
             return maxSizeCacheCompressionMetadataBytes;
         }
 
+        @Deprecated
         public boolean cacheCompressionMetadata()
         {
             return cacheCompressionMetadata;

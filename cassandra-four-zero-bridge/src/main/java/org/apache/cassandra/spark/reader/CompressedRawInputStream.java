@@ -95,6 +95,17 @@ public final class CompressedRawInputStream extends RawInputStream
                                             stats);
     }
 
+    static CompressedRawInputStream from(@Nullable SSTable ssTable,
+                                         DataInputStream dataInputStream,
+                                         CompressionMetadata compressionMetadata,
+                                         Stats stats)
+    {
+        return new CompressedRawInputStream(ssTable,
+                                            dataInputStream,
+                                            compressionMetadata,
+                                            stats);
+    }
+
     @Override
     public boolean isEOF()
     {
