@@ -21,14 +21,16 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.time.Instant;
 import java.util.Map;
 
 import com.google.common.collect.Range;
 
-import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.exception.SidecarApiCallException;
+import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.apache.cassandra.spark.validation.StartupValidatable;
 import org.jetbrains.annotations.Nullable;
 
@@ -50,11 +52,13 @@ public interface ClusterInfo extends StartupValidatable, Serializable
     void checkBulkWriterIsEnabledOrThrow();
 
     /**
-     * Get the time skew information from the replicas of the range
+     * Validate whether the time skew of the replicas of the range is acceptable
      * @param range token range used to look up the relevant replicas
-     * @return {@link TimeSkewResponse} retrieved from Sidecar
+     * @param localNow current time in local
+     * @throws SidecarApiCallException when fails to retrieve time skew information
+     * @throws TimeSkewTooLargeException when the time skew has exceeded the allowance
      */
-    TimeSkewResponse timeSkew(Range<BigInteger> range);
+    void validateTimeSkew(Range<BigInteger> range, Instant localNow) throws SidecarApiCallException, TimeSkewTooLargeException;
 
     /**
      * Return the keyspace schema string of the enclosing keyspace for bulk write in the cluster

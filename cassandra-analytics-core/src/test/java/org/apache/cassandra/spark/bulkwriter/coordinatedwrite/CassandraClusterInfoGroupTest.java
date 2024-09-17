@@ -30,7 +30,6 @@ import java.util.stream.IntStream;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
-import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
@@ -42,7 +41,6 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -92,13 +90,11 @@ class CassandraClusterInfoGroupTest
                                                                                              () -> Partitioner.Murmur3Partitioner,
                                                                                              RingInstance::new);
         when(clusterInfo.getTokenRangeMapping(anyBoolean())).thenReturn(expectedTokenRangeMapping);
-        when(clusterInfo.timeSkew(any())).thenReturn(mock(TimeSkewResponse.class));
         when(clusterInfo.getLowestCassandraVersion()).thenReturn("lowestCassandraVersion");
         when(clusterInfo.clusterWriteAvailability()).thenReturn(Collections.emptyMap());
         CassandraClusterInfoGroup group = mockClusterGroup(1, index -> clusterInfo);
         // Since there is a single clusterInfo in the group. It behaves as a simple delegation to the sole clusterInfo
         assertThat(group.clusterWriteAvailability()).isSameAs(clusterInfo.clusterWriteAvailability());
-        assertThat(group.timeSkew(null)).isSameAs(clusterInfo.timeSkew(null));
         assertThat(group.getLowestCassandraVersion()).isSameAs(clusterInfo.getLowestCassandraVersion());
         assertThat(group.getTokenRangeMapping(true)).isSameAs(clusterInfo.getTokenRangeMapping(true));
     }
@@ -129,7 +125,7 @@ class CassandraClusterInfoGroupTest
     void testAggregateWriteAvailability()
     {
         Map<RingInstance, WriteAvailability> cluster1Availability = ImmutableMap.of(mock(RingInstance.class), WriteAvailability.AVAILABLE);
-        Map<RingInstance, WriteAvailability> cluster2Availability = ImmutableMap.of(mock(RingInstance.class), WriteAvailability.AVAILABLE);
+        Map<RingInstance, WriteAvailability> cluster2Availability = ImmutableMap.of(mock(RingInstance.class), WriteAvailability.UNAVAILABLE_DOWN);
         CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
             Map<RingInstance, WriteAvailability> availability = (index % 2 == 0) ? cluster1Availability : cluster2Availability;
             CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
@@ -139,7 +135,7 @@ class CassandraClusterInfoGroupTest
         assertThat(group.clusterWriteAvailability())
         .describedAs("clusterWriteAvailability retrieved from group contains entries from both clusters")
         .hasSize(2)
-        .containsValues(WriteAvailability.AVAILABLE, WriteAvailability.AVAILABLE);
+        .containsValues(WriteAvailability.AVAILABLE, WriteAvailability.UNAVAILABLE_DOWN);
     }
 
     @Test
@@ -169,19 +165,23 @@ class CassandraClusterInfoGroupTest
     @Test
     void testCheckBulkWriterIsEnabledOrThrow()
     {
-        CassandraClusterInfoGroup badGroup = mockClusterGroup(2, index -> {
-            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
-            if (index == 0)
-            {
-                doThrow(new RuntimeException("not enabled")).when(clusterInfo).checkBulkWriterIsEnabledOrThrow();
-            }
-            return clusterInfo;
-        });
+        for (int i = 0; i < 2; i++)
+        {
+            int notEnabledClusterIndex = i;
+            CassandraClusterInfoGroup badGroup = mockClusterGroup(2, index -> {
+                CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+                if (index == notEnabledClusterIndex)
+                {
+                    doThrow(new RuntimeException("not enabled")).when(clusterInfo).checkBulkWriterIsEnabledOrThrow();
+                }
+                return clusterInfo;
+            });
 
-        assertThatThrownBy(badGroup::checkBulkWriterIsEnabledOrThrow)
-        .isExactlyInstanceOf(RuntimeException.class)
-        .hasMessage("Failed to perform action on cluster: cluster0")
-        .hasRootCauseMessage("not enabled");
+            assertThatThrownBy(badGroup::checkBulkWriterIsEnabledOrThrow)
+            .isExactlyInstanceOf(RuntimeException.class)
+            .hasMessage("Failed to perform action on cluster: cluster" + notEnabledClusterIndex)
+            .hasRootCauseMessage("not enabled");
+        }
     }
 
     @Test

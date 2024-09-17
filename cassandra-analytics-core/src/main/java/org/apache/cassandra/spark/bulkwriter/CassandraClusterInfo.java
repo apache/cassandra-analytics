@@ -21,6 +21,8 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Closeable;
 import java.math.BigInteger;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -53,6 +55,7 @@ import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
+import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.FutureUtils;
 
@@ -189,8 +192,9 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     @Override
-    public TimeSkewResponse timeSkew(Range<BigInteger> range)
+    public void validateTimeSkew(Range<BigInteger> range, Instant localNow) throws SidecarApiCallException, TimeSkewTooLargeException
     {
+        TimeSkewResponse timeSkew;
         try
         {
             TokenRangeMapping<RingInstance> topology = getTokenRangeMapping(true);
@@ -202,11 +206,21 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                                                       .distinct() // remove duplications
                                                       .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort()))
                                                       .collect(Collectors.toList());
-            return getCassandraContext().getSidecarClient().timeSkew(instances).get();
+            timeSkew = getCassandraContext().getSidecarClient().timeSkew(instances).get();
         }
         catch (InterruptedException | ExecutionException exception)
         {
-            throw new RuntimeException(exception);
+            throw new SidecarApiCallException("Unable to retrieve time skew information. clusterId=" + clusterId(), exception);
+        }
+
+        Instant remoteNow = Instant.ofEpochMilli(timeSkew.currentTime);
+        Duration allowedDuration = Duration.ofMinutes(timeSkew.allowableSkewInMinutes);
+        if (localNow.isBefore(remoteNow.minus(allowedDuration)) || localNow.isAfter(remoteNow.plus(allowedDuration)))
+        {
+            final String message = String.format("Time skew between Spark and Cassandra is too large. "
+                                                 + "allowableSkewInMinutes=%d, localTime=%s, remoteCassandraTime=%s, clusterId=%s",
+                                                 timeSkew.allowableSkewInMinutes, localNow, remoteNow, clusterId());
+            throw new TimeSkewTooLargeException(message);
         }
     }
 

@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.Collections;
@@ -48,7 +47,6 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.bulkwriter.util.TaskContextUtils;
@@ -153,9 +151,7 @@ public class RecordWriter
         writeValidator.setPhase("Environment Validation");
         writeValidator.validateClOrFail(initialTokenRangeMapping);
         writeValidator.setPhase("UploadAndCommit");
-
-        // for all replicas in this partition
-        validateAcceptableTimeSkewOrThrow(taskTokenRange);
+        writerContext.cluster().validateTimeSkew(taskTokenRange, Instant.now());
 
         Iterator<Tuple2<DecoratedKey, Object[]>> dataIterator = new JavaInterruptibleIterator<>(taskContext, sourceIterator);
         int partitionId = taskContext.partitionId();
@@ -355,21 +351,6 @@ public class RecordWriter
     private Range<BigInteger> getTokenRange(TaskContext taskContext)
     {
         return writerContext.job().getTokenPartitioner().getTokenRange(taskContext.partitionId());
-    }
-
-    private void validateAcceptableTimeSkewOrThrow(Range<BigInteger> range)
-    {
-        TimeSkewResponse timeSkewResponse = writerContext.cluster().timeSkew(range);
-        Instant localNow = Instant.now();
-        Instant remoteNow = Instant.ofEpochMilli(timeSkewResponse.currentTime);
-        Duration allowedDuration = Duration.ofMinutes(timeSkewResponse.allowableSkewInMinutes);
-        if (localNow.isBefore(remoteNow.minus(allowedDuration)) || localNow.isAfter(remoteNow.plus(allowedDuration)))
-        {
-            final String message = String.format("Time skew between Spark and Cassandra is too large. "
-                                                 + "Allowable skew is %d minutes. Spark executor time is %s, Cassandra instance time is %s",
-                                                 timeSkewResponse.allowableSkewInMinutes, localNow, remoteNow);
-            throw new UnsupportedOperationException(message);
-        }
     }
 
     private void writeRow(Tuple2<DecoratedKey, Object[]> keyAndRowData,

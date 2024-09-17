@@ -20,9 +20,9 @@
 package org.apache.cassandra.spark.bulkwriter.coordinatedwrite;
 
 import java.math.BigInteger;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -38,7 +38,6 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.spark.bulkwriter.CassandraContext;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
@@ -47,6 +46,8 @@ import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.exception.SidecarApiCallException;
+import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -159,23 +160,13 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
         runOnEach(ClusterInfo::checkBulkWriterIsEnabledOrThrow);
     }
 
-    /**
-     * @return the largest time skew retrieved from the target clusters
-     */
     @Override
-    public TimeSkewResponse timeSkew(Range<BigInteger> range)
+    public void validateTimeSkew(Range<BigInteger> range, Instant localNow) throws SidecarApiCallException, TimeSkewTooLargeException
     {
-        if (clusterInfos.size() == 1)
+        for (ClusterInfo ci : clusterInfos)
         {
-            return clusterInfos.get(0).timeSkew(range);
+            ci.validateTimeSkew(range, localNow);
         }
-
-        return clusterInfos.stream()
-                           .map(clusterInfo -> clusterInfo.timeSkew(range))
-                            // Find the timeSkew with the lowest remote currentTime, i.e. largest difference with the local current time.
-                           .min(Comparator.comparingLong(timeSkew -> timeSkew.currentTime))
-                           // It should never reach the elseThrow block. Because CassandraClusterInfoGroup constructor prevent creating with an empty list
-                           .orElseThrow(() -> new IllegalStateException("CassandraClusterInfoGroup should have non-empty list of clusterInfos"));
     }
 
     @Override
