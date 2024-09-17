@@ -64,8 +64,9 @@ public class SSTableCache
                                                                                           propOrDefault("sbr.cache.stats.expireAfterMins", 60));
     private final Cache<SSTable, BloomFilter>                         filter = buildCache(propOrDefault("sbr.cache.filter.maxEntries", 16384),
                                                                                           propOrDefault("sbr.cache.filter.expireAfterMins", 60));
-    private final Cache<SSTable, Optional<CompressionMetadata>>       compressionMetadata = buildCache(propOrDefault("sbr.cache.compressionInfo.maxEntries", 128),
-                                                                                                       propOrDefault("sbr.cache.compressionInfo.expireAfterMins", 15));
+    private final Cache<SSTable, Optional<CompressionMetadata>>       compressionMetadata = buildCache(
+    propOrDefault("sbr.cache.compressionInfo.maxEntries", 128),
+    propOrDefault("sbr.cache.compressionInfo.expireAfterMins", 15));
 
     private static int propOrDefault(String name, int defaultValue)
     {
