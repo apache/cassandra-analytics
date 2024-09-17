@@ -47,8 +47,8 @@ public class CassandraClusterInfoTest
         Instant localNow = Instant.now();
         int allowanceMinutes = 10;
         Instant remoteNow = localNow.plus(Duration.ofMinutes(1));
-        ClusterInfo ci = mockClusterInfoForTimeSkewTest(allowanceMinutes, remoteNow);
-        ci.validateTimeSkew(Range.openClosed(BigInteger.valueOf(10), BigInteger.valueOf(20)), localNow);
+        CassandraClusterInfo ci = mockClusterInfoForTimeSkewTest(allowanceMinutes, remoteNow);
+        ci.validateTimeSkewWithLocalNow(Range.openClosed(BigInteger.valueOf(10), BigInteger.valueOf(20)), localNow);
     }
 
     @Test
@@ -57,8 +57,8 @@ public class CassandraClusterInfoTest
         Instant localNow = Instant.now();
         int allowanceMinutes = 10;
         Instant remoteNow = localNow.plus(Duration.ofMinutes(11)); // 11 > allowanceMinutes
-        ClusterInfo ci = mockClusterInfoForTimeSkewTest(allowanceMinutes, remoteNow);
-        assertThatThrownBy(() -> ci.validateTimeSkew(Range.openClosed(BigInteger.valueOf(10), BigInteger.valueOf(20)), localNow))
+        CassandraClusterInfo ci = mockClusterInfoForTimeSkewTest(allowanceMinutes, remoteNow);
+        assertThatThrownBy(() -> ci.validateTimeSkewWithLocalNow(Range.openClosed(BigInteger.valueOf(10), BigInteger.valueOf(20)), localNow))
         .isExactlyInstanceOf(TimeSkewTooLargeException.class);
     }
 

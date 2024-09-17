@@ -192,7 +192,13 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     @Override
-    public void validateTimeSkew(Range<BigInteger> range, Instant localNow) throws SidecarApiCallException, TimeSkewTooLargeException
+    public void validateTimeSkew(Range<BigInteger> range) throws SidecarApiCallException, TimeSkewTooLargeException
+    {
+        validateTimeSkewWithLocalNow(range, Instant.now());
+    }
+
+    @VisibleForTesting
+    void validateTimeSkewWithLocalNow(Range<BigInteger> range, Instant localNow) throws SidecarApiCallException, TimeSkewTooLargeException
     {
         TimeSkewResponse timeSkew;
         try

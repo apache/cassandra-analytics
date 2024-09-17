@@ -161,12 +161,9 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterInfoP
     }
 
     @Override
-    public void validateTimeSkew(Range<BigInteger> range, Instant localNow) throws SidecarApiCallException, TimeSkewTooLargeException
+    public void validateTimeSkew(Range<BigInteger> range) throws SidecarApiCallException, TimeSkewTooLargeException
     {
-        for (ClusterInfo ci : clusterInfos)
-        {
-            ci.validateTimeSkew(range, localNow);
-        }
+        clusterInfos.forEach(ci -> ci.validateTimeSkew(range));
     }
 
     @Override

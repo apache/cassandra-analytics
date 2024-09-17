@@ -54,11 +54,10 @@ public interface ClusterInfo extends StartupValidatable, Serializable
     /**
      * Validate whether the time skew of the replicas of the range is acceptable
      * @param range token range used to look up the relevant replicas
-     * @param localNow current time in local
      * @throws SidecarApiCallException when fails to retrieve time skew information
      * @throws TimeSkewTooLargeException when the time skew has exceeded the allowance
      */
-    void validateTimeSkew(Range<BigInteger> range, Instant localNow) throws SidecarApiCallException, TimeSkewTooLargeException;
+    void validateTimeSkew(Range<BigInteger> range) throws SidecarApiCallException, TimeSkewTooLargeException;
 
     /**
      * Return the keyspace schema string of the enclosing keyspace for bulk write in the cluster

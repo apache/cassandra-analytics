@@ -151,7 +151,7 @@ public class RecordWriter
         writeValidator.setPhase("Environment Validation");
         writeValidator.validateClOrFail(initialTokenRangeMapping);
         writeValidator.setPhase("UploadAndCommit");
-        writerContext.cluster().validateTimeSkew(taskTokenRange, Instant.now());
+        writerContext.cluster().validateTimeSkew(taskTokenRange);
 
         Iterator<Tuple2<DecoratedKey, Object[]>> dataIterator = new JavaInterruptibleIterator<>(taskContext, sourceIterator);
         int partitionId = taskContext.partitionId();

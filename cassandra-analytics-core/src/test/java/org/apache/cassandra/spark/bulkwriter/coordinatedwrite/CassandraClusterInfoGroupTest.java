@@ -20,7 +20,6 @@
 package org.apache.cassandra.spark.bulkwriter.coordinatedwrite;
 
 import java.math.BigInteger;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
@@ -219,8 +218,7 @@ class CassandraClusterInfoGroupTest
         for (int i = 0; i < 2; i++)
         {
             int clusterIndexWithLargeTimeSkew = i;
-            Instant localNow = Instant.ofEpochMilli(1726604289530L);
-            Instant remoteNow = localNow.plus(Duration.ofMinutes(20));
+            Instant remoteNow = Instant.ofEpochMilli(1726604289530L); // time in the past that guarantees to exceed the skew allowance
             CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
                 if (index == clusterIndexWithLargeTimeSkew)
                 {
@@ -234,13 +232,12 @@ class CassandraClusterInfoGroupTest
                 }
             });
 
-            assertThatThrownBy(() -> group.validateTimeSkew(Range.openClosed(BigInteger.valueOf(10), BigInteger.valueOf(20)), localNow))
+            assertThatThrownBy(() -> group.validateTimeSkew(Range.openClosed(BigInteger.valueOf(10), BigInteger.valueOf(20))))
             .isExactlyInstanceOf(TimeSkewTooLargeException.class)
-            .hasMessage("Time skew between Spark and Cassandra is too large. " +
-                        "allowableSkewInMinutes=10, " +
-                        "localTime=2024-09-17T20:18:09.530Z, " +
-                        "remoteCassandraTime=2024-09-17T20:38:09.530Z, " +
-                        "clusterId=cluster" + clusterIndexWithLargeTimeSkew);
+            .hasMessageContaining("Time skew between Spark and Cassandra is too large. ")
+            .hasMessageContaining("allowableSkewInMinutes=10, ")
+            .hasMessageContaining("remoteCassandraTime=2024-09-17T20:18:09.530Z, ")
+            .hasMessageContaining("clusterId=cluster" + clusterIndexWithLargeTimeSkew);
         }
 
     }
