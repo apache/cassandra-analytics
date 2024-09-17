@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.spark.bulkwriter.coordinatedwrite;
 
+import java.math.BigInteger;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -28,22 +30,27 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
+import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfoTest;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
 import org.apache.cassandra.spark.bulkwriter.TokenRangeMappingUtils;
 import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
+import org.threeten.extra.Minutes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 class CassandraClusterInfoGroupTest
@@ -204,6 +211,38 @@ class CassandraClusterInfoGroupTest
         assertThat(topology).isEqualTo(expected);
         TokenRangeMapping<RingInstance> cachedTopology = group.getTokenRangeMapping(true);
         assertThat(cachedTopology).isSameAs(topology);
+    }
+
+    @Test
+    void testTimeSkewTooLarge()
+    {
+        for (int i = 0; i < 2; i++)
+        {
+            int clusterIndexWithLargeTimeSkew = i;
+            Instant localNow = Instant.ofEpochMilli(1726604289530L);
+            Instant remoteNow = localNow.plus(Minutes.of(20));
+            CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
+                if (index == clusterIndexWithLargeTimeSkew)
+                {
+                    CassandraClusterInfo ci = spy(CassandraClusterInfoTest.mockClusterInfoForTimeSkewTest(10, remoteNow));
+                    when(ci.clusterId()).thenReturn("cluster" + index);
+                    return ci;
+                }
+                else
+                {
+                    return mockClusterInfo("cluster" + index);
+                }
+            });
+
+            assertThatThrownBy(() -> group.validateTimeSkew(Range.openClosed(BigInteger.valueOf(10), BigInteger.valueOf(20)), localNow))
+            .isExactlyInstanceOf(TimeSkewTooLargeException.class)
+            .hasMessage("Time skew between Spark and Cassandra is too large. " +
+                        "allowableSkewInMinutes=10, " +
+                        "localTime=2024-09-17T20:18:09.530Z, " +
+                        "remoteCassandraTime=2024-09-17T20:38:09.530Z, " +
+                        "clusterId=cluster" + clusterIndexWithLargeTimeSkew);
+        }
+
     }
 
     private CassandraClusterInfoGroup mockClusterGroup(int size,

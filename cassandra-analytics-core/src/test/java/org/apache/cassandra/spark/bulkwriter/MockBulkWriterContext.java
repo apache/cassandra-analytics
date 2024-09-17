@@ -34,7 +34,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -86,6 +85,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
     private CassandraBridge bridge = CassandraBridgeFactory.get(CassandraVersion.FOURZERO);
+    private TimeSkewTooLargeException timeSkewTooLargeException;
 
     @Override
     public void publish(Map<String, String> stats)
@@ -100,8 +100,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public static final String DEFAULT_CASSANDRA_VERSION = "cassandra-4.0.2";
 
     private final UUID jobId;
-    private Supplier<Long> timeProvider = System::currentTimeMillis;
-
     private boolean skipClean = false;
     public int refreshClusterInfoCallCount = 0;  // CHECKSTYLE IGNORE: Public mutable field
     private final Map<CassandraInstance, List<UploadRequest>> uploads = new ConcurrentHashMap<>();
@@ -169,20 +167,23 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         this.jobId = java.util.UUID.randomUUID();
     }
 
-    public void setTimeProvider(Supplier<Long> timeProvider)
-    {
-        this.timeProvider = timeProvider;
-    }
-
     @Override
     public void shutdown()
     {
     }
 
+    public void setTimeSkewTooLargeException(TimeSkewTooLargeException exception)
+    {
+        this.timeSkewTooLargeException = exception;
+    }
+
     @Override
     public void validateTimeSkew(Range<BigInteger> range, Instant localNow) throws SidecarApiCallException, TimeSkewTooLargeException
     {
-        // do nothing; time skew is acceptable
+        if (timeSkewTooLargeException != null)
+        {
+            throw timeSkewTooLargeException;
+        }
     }
 
     @Override

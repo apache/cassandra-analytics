@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.spark.exception;
 
+import java.time.Instant;
+
 /**
  * Exception for the case when the time drift between local (spark) and remote (cassandra) is too large
  */
@@ -26,8 +28,14 @@ public class TimeSkewTooLargeException extends AnalyticsException
 {
     private static final long serialVersionUID = -6748770894292325624L;
 
-    public TimeSkewTooLargeException(String message)
+    public TimeSkewTooLargeException(int allowableDurationMinutes, Instant localNow, Instant remoteNow, String clusterId)
     {
-        super(message);
+        super(makeExceptionMessage("Time skew between Spark and Cassandra is too large", allowableDurationMinutes, localNow, remoteNow, clusterId));
+    }
+
+    private static String makeExceptionMessage(String summary, int allowableDurationMinutes, Instant localNow, Instant remoteNow, String clusterId)
+    {
+        return String.format("%s. allowableSkewInMinutes=%d, localTime=%s, remoteCassandraTime=%s, clusterId=%s",
+                             summary, allowableDurationMinutes, localNow, remoteNow, clusterId);
     }
 }

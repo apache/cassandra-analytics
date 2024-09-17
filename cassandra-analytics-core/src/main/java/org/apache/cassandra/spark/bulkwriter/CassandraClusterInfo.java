@@ -92,7 +92,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         LOGGER.info("Getting Cassandra versions from all nodes");
         this.nodeSettings = new AtomicReference<>(null);
         this.allNodeSettingFutures = Sidecar.allNodeSettings(cassandraContext.getSidecarClient(),
-                                                             cassandraContext.clusterConfig);
+                                                             cassandraContext.getCluster());
     }
 
     @Override
@@ -217,10 +217,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         Duration allowedDuration = Duration.ofMinutes(timeSkew.allowableSkewInMinutes);
         if (localNow.isBefore(remoteNow.minus(allowedDuration)) || localNow.isAfter(remoteNow.plus(allowedDuration)))
         {
-            final String message = String.format("Time skew between Spark and Cassandra is too large. "
-                                                 + "allowableSkewInMinutes=%d, localTime=%s, remoteCassandraTime=%s, clusterId=%s",
-                                                 timeSkew.allowableSkewInMinutes, localNow, remoteNow, clusterId());
-            throw new TimeSkewTooLargeException(message);
+            throw new TimeSkewTooLargeException(timeSkew.allowableSkewInMinutes, localNow, remoteNow, clusterId());
         }
     }
 
