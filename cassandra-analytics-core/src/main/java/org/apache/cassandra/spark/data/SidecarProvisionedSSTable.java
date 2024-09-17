@@ -19,18 +19,10 @@
 
 package org.apache.cassandra.spark.data;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import org.apache.commons.io.IOUtils;
 
 import o.a.c.sidecar.client.shaded.common.response.ListSnapshotFilesResponse;
 import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
@@ -39,7 +31,6 @@ import org.apache.cassandra.clients.SidecarStreamConsumerAdapter;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.stats.Stats;
-import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.utils.streaming.BufferingInputStream;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
@@ -52,11 +43,6 @@ import org.jetbrains.annotations.Nullable;
 public class SidecarProvisionedSSTable extends SSTable
 {
     private static final long serialVersionUID = 6452703925812602832L;
-    @VisibleForTesting
-    public static final Cache<String, byte[]> COMPRESSION_CACHE = CacheBuilder.newBuilder()
-                                                                               .expireAfterAccess(1, TimeUnit.HOURS)
-                                                                               .maximumSize(2048)
-                                                                               .build();
     private final SidecarClient sidecar;
     private final SidecarInstance instance;
     private final Sidecar.ClientConfig sidecarClientConfig;
@@ -151,23 +137,6 @@ public class SidecarProvisionedSSTable extends SSTable
         if (snapshotFile == null)
         {
             return null;
-        }
-
-        if (fileType == FileType.COMPRESSION_INFO
-            && sidecarClientConfig.cacheCompressionMetadata()
-            && snapshotFile.size < sidecarClientConfig.maxSizeCacheCompressionMetadataBytes())
-        {
-            String key = String.format("%s/%s/%s/%s/%s", instance.hostname(), keyspace, table, snapshotName, snapshotFile.fileName);
-            byte[] bytes;
-            try
-            {
-                bytes = COMPRESSION_CACHE.get(key, () -> IOUtils.toByteArray(open(snapshotFile, fileType)));
-            }
-            catch (ExecutionException exception)
-            {
-                throw new RuntimeException(ThrowableUtils.rootCause(exception));
-            }
-            return new ByteArrayInputStream(bytes);
         }
 
         return open(snapshotFile, fileType);

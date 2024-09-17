@@ -24,7 +24,6 @@ import java.io.EOFException;
 import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -628,22 +627,19 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         SSTableStreamReader() throws IOException
         {
             lastToken = sparkRangeFilter != null ? sparkRangeFilter.tokenRange().upperEndpoint() : null;
-            try (@Nullable InputStream compressionInfoInputStream = ssTable.openCompressionStream())
-            {
-                DataInputStream dataInputStream = new DataInputStream(ssTable.openDataStream());
+            @Nullable CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(ssTable, version.hasMaxCompressedLength());
+            DataInputStream dataInputStream = new DataInputStream(ssTable.openDataStream());
 
-                if (compressionInfoInputStream != null)
-                {
-                    dataStream = CompressedRawInputStream.fromInputStream(ssTable,
-                                                                          dataInputStream,
-                                                                          compressionInfoInputStream,
-                                                                          version.hasMaxCompressedLength(),
-                                                                          stats);
-                }
-                else
-                {
-                    dataStream = new RawInputStream(dataInputStream, new byte[64 * 1024], stats);
-                }
+            if (compressionMetadata != null)
+            {
+                dataStream = CompressedRawInputStream.from(ssTable,
+                                                           dataInputStream,
+                                                           compressionMetadata,
+                                                           stats);
+            }
+            else
+            {
+                dataStream = new RawInputStream(dataInputStream, new byte[64 * 1024], stats);
             }
             dis = new DataInputStream(dataStream);
             if (startOffset != null)

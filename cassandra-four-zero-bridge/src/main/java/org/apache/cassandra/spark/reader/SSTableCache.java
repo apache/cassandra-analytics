@@ -20,10 +20,13 @@
 package org.apache.cassandra.spark.reader;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -35,11 +38,13 @@ import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
 import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.schema.TableMetadata;
+import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.utils.BloomFilter;
 import org.apache.cassandra.utils.Pair;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Basic cache to reduce wasteful requests on the DataLayer for cacheable SSTable metadata,
@@ -59,15 +64,35 @@ public class SSTableCache
                                                                                           propOrDefault("sbr.cache.stats.expireAfterMins", 60));
     private final Cache<SSTable, BloomFilter>                         filter = buildCache(propOrDefault("sbr.cache.filter.maxEntries", 16384),
                                                                                           propOrDefault("sbr.cache.filter.expireAfterMins", 60));
+    // if compression is disabled then the CompressionInfo.db file will not exist
+    // therefore we can cache as Optional to a) avoid null errors in the cache and b) record that the component does not exist
+    private final Cache<SSTable, Optional<CompressionMetadata>>       compressionMetadata = buildCache(
+    propOrDefault("sbr.cache.compressionInfo.maxEntries", 128),
+    propOrDefault("sbr.cache.compressionInfo.expireAfterMins", 15));
 
     private static int propOrDefault(String name, int defaultValue)
+    {
+        return propOrDefault(name, defaultValue, Integer::parseInt);
+    }
+
+    private static long propOrDefault(String name, long defaultValue)
+    {
+        return propOrDefault(name, defaultValue, Long::parseLong);
+    }
+
+    private static boolean propOrDefault(String name, boolean defaultValue)
+    {
+        return propOrDefault(name, defaultValue, Boolean::parseBoolean);
+    }
+
+    private static <T> T propOrDefault(String name, T defaultValue, Function<String, T> parser)
     {
         String str = System.getProperty(name);
         if (str != null)
         {
             try
             {
-                return Integer.parseInt(str);
+                return parser.apply(str);
             }
             catch (NumberFormatException exception)
             {
@@ -108,6 +133,32 @@ public class SSTableCache
         return get(filter, ssTable, () -> ReaderUtils.readFilter(ssTable, descriptor.version.hasOldBfFormat()));
     }
 
+    @Nullable
+    public CompressionMetadata compressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
+    {
+        if (propOrDefault("sbr.cache.compressionInfo.enabled", true))
+        {
+            long maxSize = propOrDefault("sbr.cache.compressionInfo.maxSize", 0L);
+            if (maxSize <= 0 || ssTable.length(FileType.COMPRESSION_INFO) < maxSize)
+            {
+                return get(compressionMetadata, ssTable, () -> readCompressionMetadata(ssTable, hasMaxCompressedLength)).orElse(null);
+            }
+        }
+        return readCompressionMetadata(ssTable, hasMaxCompressedLength).orElse(null);
+    }
+
+    private static Optional<CompressionMetadata> readCompressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
+    {
+        try (InputStream cis = ssTable.openCompressionStream())
+        {
+            if (cis != null)
+            {
+                return Optional.of(CompressionMetadata.fromInputStream(cis, hasMaxCompressedLength));
+            }
+        }
+        return Optional.empty();
+    }
+
     boolean containsSummary(@NotNull SSTable ssTable)
     {
         return contains(summary, ssTable);
@@ -121,6 +172,11 @@ public class SSTableCache
     boolean containsStats(@NotNull SSTable ssTable)
     {
         return contains(stats, ssTable);
+    }
+
+    boolean containsCompressionMetadata(@NotNull SSTable ssTable)
+    {
+        return contains(compressionMetadata, ssTable);
     }
 
     boolean containsFilter(@NotNull SSTable ssTable)
