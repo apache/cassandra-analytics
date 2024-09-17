@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.reader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +44,7 @@ import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.utils.BloomFilter;
 import org.apache.cassandra.utils.Pair;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Basic cache to reduce wasteful requests on the DataLayer for cacheable SSTable metadata,
@@ -62,8 +64,8 @@ public class SSTableCache
                                                                                           propOrDefault("sbr.cache.stats.expireAfterMins", 60));
     private final Cache<SSTable, BloomFilter>                         filter = buildCache(propOrDefault("sbr.cache.filter.maxEntries", 16384),
                                                                                           propOrDefault("sbr.cache.filter.expireAfterMins", 60));
-    private final Cache<SSTable, CompressionMetadata>                 compression = buildCache(propOrDefault("sbr.cache.compressionInfo.maxEntries", 128),
-                                                                                               propOrDefault("sbr.cache.compressionInfo.expireAfterMins", 15));
+    private final Cache<SSTable, Optional<CompressionMetadata>>       compressionMetadata = buildCache(propOrDefault("sbr.cache.compressionInfo.maxEntries", 128),
+                                                                                                       propOrDefault("sbr.cache.compressionInfo.expireAfterMins", 15));
 
     private static int propOrDefault(String name, int defaultValue)
     {
@@ -128,6 +130,7 @@ public class SSTableCache
         return get(filter, ssTable, () -> ReaderUtils.readFilter(ssTable, descriptor.version.hasOldBfFormat()));
     }
 
+    @Nullable
     public CompressionMetadata compressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
     {
         if (propOrDefault("sbr.cache.compressionInfo.enabled", true))
@@ -135,22 +138,22 @@ public class SSTableCache
             long maxSize = propOrDefault("sbr.cache.compressionInfo.maxSize", 0L);
             if (maxSize <= 0 || ssTable.length(FileType.COMPRESSION_INFO) < maxSize)
             {
-                return get(compression, ssTable, () -> readCompressionMetadata(ssTable, hasMaxCompressedLength));
+                return get(compressionMetadata, ssTable, () -> readCompressionMetadata(ssTable, hasMaxCompressedLength)).orElse(null);
             }
         }
-        return readCompressionMetadata(ssTable, hasMaxCompressedLength);
+        return readCompressionMetadata(ssTable, hasMaxCompressedLength).orElse(null);
     }
 
-    public static CompressionMetadata readCompressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
+    public static Optional<CompressionMetadata> readCompressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
     {
         try (InputStream cis = ssTable.openCompressionStream())
         {
             if (cis != null)
             {
-                return CompressionMetadata.fromInputStream(cis, hasMaxCompressedLength);
+                return Optional.of(CompressionMetadata.fromInputStream(cis, hasMaxCompressedLength));
             }
         }
-        return null;
+        return Optional.empty();
     }
 
     boolean containsSummary(@NotNull SSTable ssTable)
@@ -166,6 +169,11 @@ public class SSTableCache
     boolean containsStats(@NotNull SSTable ssTable)
     {
         return contains(stats, ssTable);
+    }
+
+    boolean containsCompressionMetadata(@NotNull SSTable ssTable)
+    {
+        return contains(compressionMetadata, ssTable);
     }
 
     boolean containsFilter(@NotNull SSTable ssTable)
