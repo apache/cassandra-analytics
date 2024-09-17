@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter.coordinatedwrite;
 
 import java.math.BigInteger;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
@@ -43,7 +44,6 @@ import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
-import org.threeten.extra.Minutes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -220,7 +220,7 @@ class CassandraClusterInfoGroupTest
         {
             int clusterIndexWithLargeTimeSkew = i;
             Instant localNow = Instant.ofEpochMilli(1726604289530L);
-            Instant remoteNow = localNow.plus(Minutes.of(20));
+            Instant remoteNow = localNow.plus(Duration.ofMinutes(20));
             CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
                 if (index == clusterIndexWithLargeTimeSkew)
                 {

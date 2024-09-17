@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -31,7 +32,6 @@ import org.junit.jupiter.api.Test;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
-import org.threeten.extra.Minutes;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -46,7 +46,7 @@ public class CassandraClusterInfoTest
     {
         Instant localNow = Instant.now();
         int allowanceMinutes = 10;
-        Instant remoteNow = localNow.plus(Minutes.of(1));
+        Instant remoteNow = localNow.plus(Duration.ofMinutes(1));
         ClusterInfo ci = mockClusterInfoForTimeSkewTest(allowanceMinutes, remoteNow);
         ci.validateTimeSkew(Range.openClosed(BigInteger.valueOf(10), BigInteger.valueOf(20)), localNow);
     }
@@ -56,7 +56,7 @@ public class CassandraClusterInfoTest
     {
         Instant localNow = Instant.now();
         int allowanceMinutes = 10;
-        Instant remoteNow = localNow.plus(Minutes.of(11)); // 11 > allowanceMinutes
+        Instant remoteNow = localNow.plus(Duration.ofMinutes(11)); // 11 > allowanceMinutes
         ClusterInfo ci = mockClusterInfoForTimeSkewTest(allowanceMinutes, remoteNow);
         assertThatThrownBy(() -> ci.validateTimeSkew(Range.openClosed(BigInteger.valueOf(10), BigInteger.valueOf(20)), localNow))
         .isExactlyInstanceOf(TimeSkewTooLargeException.class);
