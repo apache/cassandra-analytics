@@ -88,11 +88,11 @@ public final class CompressedRawInputStream extends RawInputStream
                                                     boolean hasCompressedLength,
                                                     Stats stats) throws IOException
     {
-        return new CompressedRawInputStream(ssTable,
-                                            dataInputStream,
-                                            CompressionMetadata.fromInputStream(compressionInfoInputStream,
-                                                                                hasCompressedLength),
-                                            stats);
+        return from(ssTable,
+                    dataInputStream,
+                    CompressionMetadata.fromInputStream(compressionInfoInputStream,
+                                                        hasCompressedLength),
+                    stats);
     }
 
     static CompressedRawInputStream from(@Nullable SSTable ssTable,

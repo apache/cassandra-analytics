@@ -61,7 +61,7 @@ public class SSTableCache
     private final Cache<SSTable, Map<MetadataType, MetadataComponent>> stats = buildCache(propOrDefault("sbr.cache.stats.maxEntries", 16384),
                                                                                           propOrDefault("sbr.cache.stats.expireAfterMins", 60));
     private final Cache<SSTable, BloomFilter>                         filter = buildCache(propOrDefault("sbr.cache.filter.maxEntries", 16384),
-                                                                  propOrDefault("sbr.cache.filter.expireAfterMins", 60));
+                                                                                          propOrDefault("sbr.cache.filter.expireAfterMins", 60));
     private final Cache<SSTable, CompressionMetadata>                 compression = buildCache(propOrDefault("sbr.cache.compressionInfo.maxEntries", 128),
                                                                                                propOrDefault("sbr.cache.compressionInfo.expireAfterMins", 15));
 
@@ -128,7 +128,7 @@ public class SSTableCache
         return get(filter, ssTable, () -> ReaderUtils.readFilter(ssTable, descriptor.version.hasOldBfFormat()));
     }
 
-    public CompressionMetadata compressionMetaData(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
+    public CompressionMetadata compressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
     {
         if (propOrDefault("sbr.cache.compressionInfo.enabled", true))
         {
