@@ -23,11 +23,6 @@ import java.io.InputStream;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 
 import o.a.c.sidecar.client.shaded.common.response.ListSnapshotFilesResponse;
 import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
@@ -48,12 +43,6 @@ import org.jetbrains.annotations.Nullable;
 public class SidecarProvisionedSSTable extends SSTable
 {
     private static final long serialVersionUID = 6452703925812602832L;
-    @Deprecated // use SSTableCache
-    @VisibleForTesting
-    public static final Cache<String, byte[]> COMPRESSION_CACHE = CacheBuilder.newBuilder()
-                                                                              .expireAfterAccess(1, TimeUnit.HOURS)
-                                                                              .maximumSize(2048)
-                                                                              .build();
     private final SidecarClient sidecar;
     private final SidecarInstance instance;
     private final Sidecar.ClientConfig sidecarClientConfig;
