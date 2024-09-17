@@ -26,7 +26,6 @@ import org.apache.cassandra.spark.bulkwriter.DataTransport;
 
 import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.DEFAULT_SIDECAR_PORT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -114,24 +113,5 @@ public class SidecarClientConfigTest
 
         userAgentStr = Sidecar.transportModeBasedWriterUserAgent(DataTransport.S3_COMPAT);
         assertTrue(userAgentStr.endsWith(" writer-s3"));
-    }
-
-    @Test
-    public void testCompressionCacheDefaults()
-    {
-        Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of());
-        assertTrue(clientConfig.cacheCompressionMetadata());
-        assertEquals(8L * 1024L * 1024L, clientConfig.maxSizeCacheCompressionMetadataBytes());
-    }
-
-    @Test
-    public void testCompressionCache()
-    {
-        Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of(
-        "cachecompressionmetadata", "false",
-        "maxsizecachecompressionmetadatabytes", "4194304")
-        );
-        assertFalse(clientConfig.cacheCompressionMetadata());
-        assertEquals(4L * 1024L * 1024L, clientConfig.maxSizeCacheCompressionMetadataBytes());
     }
 }

@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -36,6 +37,7 @@ import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
 import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.schema.TableMetadata;
+import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.utils.BloomFilter;
@@ -60,17 +62,32 @@ public class SSTableCache
                                                                                           propOrDefault("sbr.cache.stats.expireAfterMins", 60));
     private final Cache<SSTable, BloomFilter>                         filter = buildCache(propOrDefault("sbr.cache.filter.maxEntries", 16384),
                                                                   propOrDefault("sbr.cache.filter.expireAfterMins", 60));
-    private final Cache<SSTable, CompressionMetadata>                 compression = buildCache(propOrDefault("sbr.cache.compression.maxEntries", 128),
-                                                                                                 propOrDefault("sbr.cache.compression.expireAfterMins", 15));
+    private final Cache<SSTable, CompressionMetadata>                 compression = buildCache(propOrDefault("sbr.cache.compressionInfo.maxEntries", 128),
+                                                                                               propOrDefault("sbr.cache.compressionInfo.expireAfterMins", 15));
 
     private static int propOrDefault(String name, int defaultValue)
+    {
+        return propOrDefault(name, defaultValue, Integer::parseInt);
+    }
+
+    private static long propOrDefault(String name, long defaultValue)
+    {
+        return propOrDefault(name, defaultValue, Long::parseLong);
+    }
+
+    private static boolean propOrDefault(String name, boolean defaultValue)
+    {
+        return propOrDefault(name, defaultValue, Boolean::parseBoolean);
+    }
+
+    private static <T> T propOrDefault(String name, T defaultValue, Function<String, T> parser)
     {
         String str = System.getProperty(name);
         if (str != null)
         {
             try
             {
-                return Integer.parseInt(str);
+                return parser.apply(str);
             }
             catch (NumberFormatException exception)
             {
@@ -113,14 +130,18 @@ public class SSTableCache
 
     public CompressionMetadata compressionMetaData(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
     {
-        if (!"true".equalsIgnoreCase(System.getProperty("sbr.cache.compression.enabled", "true")))
+        if (propOrDefault("sbr.cache.compressionInfo.enabled", true))
         {
-            return readCompressionMetaData(ssTable, hasMaxCompressedLength);
+            long maxSize = propOrDefault("sbr.cache.compressionInfo.maxSize", 0L);
+            if (maxSize <= 0 || ssTable.length(FileType.COMPRESSION_INFO) < maxSize)
+            {
+                return get(compression, ssTable, () -> readCompressionMetadata(ssTable, hasMaxCompressedLength));
+            }
         }
-        return get(compression, ssTable, () -> readCompressionMetaData(ssTable, hasMaxCompressedLength));
+        return readCompressionMetadata(ssTable, hasMaxCompressedLength);
     }
 
-    public static CompressionMetadata readCompressionMetaData(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
+    public static CompressionMetadata readCompressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
     {
         try (InputStream cis = ssTable.openCompressionStream())
         {

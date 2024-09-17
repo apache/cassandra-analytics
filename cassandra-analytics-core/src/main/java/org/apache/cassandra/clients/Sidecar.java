@@ -58,12 +58,10 @@ import org.apache.cassandra.spark.validation.SslValidation;
 import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.cassandra.spark.validation.TrustStoreValidation;
 
-import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CACHE_COMPRESSION_METADATA;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_SIZE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_BUFFER_SIZE;
-import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_SIZE_CACHE_COMPRESSION_METADATA_BYTES;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_MILLIS_TO_SLEEP;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_POOL_SIZE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_RETRIES;
@@ -212,8 +210,6 @@ public final class Sidecar
         public static final String CHUNK_BUFFER_SIZE_BYTES_KEY = "chunkBufferSizeBytes";
         public static final String MAX_POOL_SIZE_KEY = "maxPoolSize";
         public static final String TIMEOUT_SECONDS_KEY = "timeoutSeconds";
-        public static final String CACHE_COMPRESSION_METADATA_KEY = "cacheCompressionMetadata";
-        public static final String MAX_SIZE_CACHE_COMPRESSION_METADATA_KEY = "maxSizeCacheCompressionMetadataBytes";
 
         private final int userProvidedPort;
         private final int maxRetries;
@@ -225,8 +221,6 @@ public final class Sidecar
         private final long chunkSize;
         private final Map<FileType, Long> maxBufferOverride;
         private final Map<FileType, Long> chunkBufferOverride;
-        private final boolean cacheCompressionMetadata;
-        private final long maxSizeCacheCompressionMetadataBytes;
 
         // CHECKSTYLE IGNORE: Constructor with many parameters
         private ClientConfig(int userProvidedPort,
@@ -238,9 +232,7 @@ public final class Sidecar
                              int maxPoolSize,
                              int timeoutSeconds,
                              Map<FileType, Long> maxBufferOverride,
-                             Map<FileType, Long> chunkBufferOverride,
-                             boolean cacheCompressionMetadata,
-                             long maxSizeCacheCompressionMetadataBytes)
+                             Map<FileType, Long> chunkBufferOverride)
         {
             this.userProvidedPort = userProvidedPort;
             this.maxRetries = maxRetries;
@@ -252,8 +244,6 @@ public final class Sidecar
             this.timeoutSeconds = timeoutSeconds;
             this.maxBufferOverride = maxBufferOverride;
             this.chunkBufferOverride = chunkBufferOverride;
-            this.cacheCompressionMetadata = cacheCompressionMetadata;
-            this.maxSizeCacheCompressionMetadataBytes = maxSizeCacheCompressionMetadataBytes;
         }
 
         public int userProvidedPort()
@@ -342,9 +332,7 @@ public final class Sidecar
                                        DEFAULT_MAX_POOL_SIZE,
                                        DEFAULT_TIMEOUT_SECONDS,
                                        DEFAULT_MAX_BUFFER_OVERRIDE,
-                                       DEFAULT_CHUNK_BUFFER_OVERRIDE,
-                                       DEFAULT_CACHE_COMPRESSION_METADATA,
-                                       DEFAULT_MAX_SIZE_CACHE_COMPRESSION_METADATA_BYTES);
+                                       DEFAULT_CHUNK_BUFFER_OVERRIDE);
         }
 
         public static ClientConfig create(Map<String, String> options)
@@ -359,9 +347,7 @@ public final class Sidecar
                           MapUtils.getInt(options, MAX_POOL_SIZE_KEY, DEFAULT_MAX_POOL_SIZE),
                           MapUtils.getInt(options, TIMEOUT_SECONDS_KEY, DEFAULT_TIMEOUT_SECONDS),
                           buildMaxBufferOverride(options, DEFAULT_MAX_BUFFER_OVERRIDE),
-                          buildChunkBufferOverride(options, DEFAULT_CHUNK_BUFFER_OVERRIDE),
-                          MapUtils.getBoolean(options, CACHE_COMPRESSION_METADATA_KEY, DEFAULT_CACHE_COMPRESSION_METADATA),
-                          MapUtils.getLong(options, MAX_SIZE_CACHE_COMPRESSION_METADATA_KEY, DEFAULT_MAX_SIZE_CACHE_COMPRESSION_METADATA_BYTES)
+                          buildChunkBufferOverride(options, DEFAULT_CHUNK_BUFFER_OVERRIDE)
             );
         }
 
@@ -401,9 +387,7 @@ public final class Sidecar
                                           int maxPoolSize,
                                           int timeoutSeconds,
                                           Map<FileType, Long> maxBufferOverride,
-                                          Map<FileType, Long> chunkBufferOverride,
-                                          boolean cacheCompressionMetadata,
-                                          long maxSizeCacheCompressionMetadataBytes)
+                                          Map<FileType, Long> chunkBufferOverride)
         {
             return new ClientConfig(userProvidedPort,
                                     maxRetries,
@@ -414,21 +398,7 @@ public final class Sidecar
                                     maxPoolSize,
                                     timeoutSeconds,
                                     maxBufferOverride,
-                                    chunkBufferOverride,
-                                    cacheCompressionMetadata,
-                                    maxSizeCacheCompressionMetadataBytes);
-        }
-
-        @Deprecated
-        public long maxSizeCacheCompressionMetadataBytes()
-        {
-            return maxSizeCacheCompressionMetadataBytes;
-        }
-
-        @Deprecated
-        public boolean cacheCompressionMetadata()
-        {
-            return cacheCompressionMetadata;
+                                    chunkBufferOverride);
         }
     }
 }
