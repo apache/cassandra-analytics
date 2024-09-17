@@ -71,7 +71,7 @@ public class CassandraClusterInfoTest
     {
         private CassandraContext cassandraContext;
 
-        public MockClusterInfoForTimeSkew(int allowanceMinutes, Instant remoteNow)
+        MockClusterInfoForTimeSkew(int allowanceMinutes, Instant remoteNow)
         {
             super(null);
             mockCassandraContext(allowanceMinutes, remoteNow);
