@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.util.ThreadUtil;
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
+import org.apache.cassandra.spark.transports.storage.extensions.CoordinationSignalListener;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
 import org.apache.cassandra.spark.transports.storage.extensions.ObjectFailureListener;
@@ -47,6 +48,7 @@ public class ExampleStorageTransportExtension implements StorageTransportExtensi
     private long tokenCount = 0;
     private CredentialChangeListener credentialChangeListener;
     private ObjectFailureListener objectFailureListener;
+    private CoordinationSignalListener coordinationSignalListener;
     private boolean shouldFail;
 
     @Override
@@ -150,5 +152,36 @@ public class ExampleStorageTransportExtension implements StorageTransportExtensi
                                          "readAccessKeyId-" + tokenCount,
                                          "readSecretKey-" + tokenCount,
                                          "readSessionToken-" + tokenCount));
+    }
+
+    @Override
+    public void onStageSucceeded(String clusterId, long objectsCount, long rowsCount, long elapsedMillis)
+    {
+        LOGGER.info("Job {} has all objects staged at cluster {} after {}ms", jobId, clusterId, elapsedMillis);
+    }
+
+    @Override
+    public void onStageFailed(String clusterId, Throwable cause)
+    {
+        LOGGER.error("Cluster {} failed to stage objects", clusterId, cause);
+    }
+
+    @Override
+    public void onApplySucceeded(String clusterId, long objectsCount, long rowsCount, long elapsedMillis)
+    {
+        LOGGER.info("Job {} has all objects applied at cluster {} after {}ms", jobId, clusterId, elapsedMillis);
+    }
+
+    @Override
+    public void onApplyFailed(String clusterId, Throwable cause)
+    {
+        LOGGER.error("Cluster {} failed to apply objects", clusterId, cause);
+    }
+
+    @Override
+    public void setCoordinationSignalListener(CoordinationSignalListener listener)
+    {
+        this.coordinationSignalListener = listener;
+        LOGGER.info("CoordinationSignalListener initialized. listener={}", listener);
     }
 }

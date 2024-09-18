@@ -40,7 +40,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSecrets;
 import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload;
-import o.a.c.sidecar.client.shaded.common.request.data.RestoreJobSummaryResponsePayload;
+import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobSummaryResponsePayload;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.sidecar.client.SidecarClient;

@@ -37,6 +37,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.TestInstance;
@@ -75,6 +76,7 @@ import org.apache.cassandra.sidecar.common.server.JmxClient;
 import org.apache.cassandra.sidecar.common.server.dns.DnsResolver;
 import org.apache.cassandra.sidecar.common.server.utils.DriverUtils;
 import org.apache.cassandra.sidecar.common.server.utils.SidecarVersionProvider;
+import org.apache.cassandra.sidecar.common.server.utils.ThrowableUtils;
 import org.apache.cassandra.sidecar.config.JmxConfiguration;
 import org.apache.cassandra.sidecar.config.KeyStoreConfiguration;
 import org.apache.cassandra.sidecar.config.S3ClientConfiguration;
@@ -88,10 +90,10 @@ import org.apache.cassandra.sidecar.config.yaml.SchemaKeyspaceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.ServiceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SslConfigurationImpl;
-import org.apache.cassandra.sidecar.exceptions.ThrowableUtils;
 import org.apache.cassandra.sidecar.metrics.instance.InstanceHealthMetrics;
 import org.apache.cassandra.sidecar.server.MainModule;
 import org.apache.cassandra.sidecar.server.Server;
+import org.apache.cassandra.sidecar.server.SidecarServerEvents;
 import org.apache.cassandra.sidecar.utils.CassandraVersionProvider;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.cassandra.testing.IClusterExtension;
@@ -100,6 +102,7 @@ import org.apache.cassandra.testing.TestUtils;
 import org.apache.cassandra.testing.TestVersion;
 import org.apache.cassandra.testing.TestVersionSupplier;
 
+import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_API_CALL_TIMEOUT_MILLIS;
 import static org.apache.cassandra.sidecar.testing.MtlsTestHelper.CASSANDRA_INTEGRATION_TEST_ENABLE_MTLS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -154,6 +157,7 @@ public abstract class SharedClusterIntegrationTestBase
     protected TestVersion testVersion;
     protected MtlsTestHelper mtlsTestHelper;
     private IsolatedDTestClassLoaderWrapper classLoaderWrapper;
+    private Injector sidecarServerInjector;
 
     static
     {
@@ -345,14 +349,30 @@ public abstract class SharedClusterIntegrationTestBase
         VertxTestContext context = new VertxTestContext();
         AbstractModule testModule = new IntegrationTestModule(instances, classLoaderWrapper, mtlsTestHelper,
                                                               dnsResolver, configurationOverrides());
-        Injector injector = Guice.createInjector(Modules.override(new MainModule()).with(testModule));
-        Server sidecarServer = injector.getInstance(Server.class);
+        sidecarServerInjector = Guice.createInjector(Modules.override(new MainModule()).with(testModule));
+        Server sidecarServer = sidecarServerInjector.getInstance(Server.class);
         sidecarServer.start()
                      .onSuccess(s -> context.completeNow())
                      .onFailure(context::failNow);
 
         context.awaitCompletion(5, TimeUnit.SECONDS);
         return sidecarServer;
+    }
+
+    protected void waitForSchemaReady(long timeout, TimeUnit timeUnit)
+    {
+        assertThat(sidecarServerInjector)
+        .describedAs("Sidecar is started")
+        .isNotNull();
+
+        CountDownLatch latch = new CountDownLatch(1);
+        Vertx vertx = sidecarServerInjector.getInstance(Vertx.class);
+        vertx.eventBus()
+             .localConsumer(SidecarServerEvents.ON_SIDECAR_SCHEMA_INITIALIZED.address(), msg -> latch.countDown());
+
+        assertThat(Uninterruptibles.awaitUninterruptibly(latch, timeout, timeUnit))
+        .describedAs("Sidecar schema is not initialized after " + timeout + ' ' + timeUnit)
+        .isTrue();
     }
 
     /**
@@ -588,7 +608,9 @@ public abstract class SharedClusterIntegrationTestBase
                 LOGGER.info("Not enabling mTLS for testing purposes. Set '{}' to 'true' if you would " +
                             "like mTLS enabled.", CASSANDRA_INTEGRATION_TEST_ENABLE_MTLS);
             }
-            S3ClientConfiguration s3ClientConfig = new S3ClientConfigurationImpl("s3-client", 4, 60L, buildTestS3ProxyConfig());
+            S3ClientConfiguration s3ClientConfig = new S3ClientConfigurationImpl("s3-client", 4, 60L,
+                                                                                 5242880, DEFAULT_API_CALL_TIMEOUT_MILLIS,
+                                                                                 buildTestS3ProxyConfig());
             SidecarConfigurationImpl.Builder builder = SidecarConfigurationImpl.builder()
                                                                                .serviceConfiguration(conf)
                                                                                .sslConfiguration(sslConfiguration)

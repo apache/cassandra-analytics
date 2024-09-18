@@ -23,7 +23,7 @@ package org.apache.cassandra.spark.transports.storage.extensions;
  * Extension methods that are invoked in Spark driver only
  * Package-private interface only to be extended by {@link StorageTransportExtension}
  */
-interface DriverStorageTransportExtension
+interface DriverStorageTransportExtension extends CoordinatedTransportExtension
 {
     /**
      * Notifies the extension that data transport has been started. This method will be called from the driver.

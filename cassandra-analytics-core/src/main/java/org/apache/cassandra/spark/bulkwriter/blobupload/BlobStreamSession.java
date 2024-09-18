@@ -34,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload;
-import o.a.c.sidecar.client.shaded.common.request.data.RestoreJobSummaryResponsePayload;
+import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobSummaryResponsePayload;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.SSTableDescriptor;
