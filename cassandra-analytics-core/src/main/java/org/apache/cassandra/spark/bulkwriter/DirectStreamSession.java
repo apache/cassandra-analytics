@@ -140,7 +140,7 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
         streamResult.setCommitResults(cr);
         LOGGER.debug("StreamResult: {}", streamResult);
         // Check consistency given the no. failures
-        BulkWriteValidator.validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, WRITE_PHASE, writerContext.job());
+        BulkWriteValidator.validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, WRITE_PHASE, writerContext.job(), writerContext.cluster());
         return streamResult;
     }
 

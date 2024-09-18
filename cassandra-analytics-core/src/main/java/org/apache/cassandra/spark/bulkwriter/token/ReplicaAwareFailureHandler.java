@@ -155,7 +155,8 @@ public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
     public synchronized List<ConsistencyFailurePerRange>
     getFailedRanges(TokenRangeMapping<Instance> tokenRangeMapping,
                     ConsistencyLevel cl,
-                    @Nullable String localDC)
+                    @Nullable String localDC,
+                    ReplicationFactor replicationFactor)
     {
         Preconditions.checkArgument((cl.isLocal() && localDC != null) || (!cl.isLocal() && localDC == null),
                                     "Not a valid pair of consistency level configuration. " +
@@ -180,7 +181,7 @@ public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
 
             tokenRangeMapping.getWriteReplicasOfRange(range, localDC)
                              .forEach((subrange, liveAndDown) -> {
-                                 if (!checkSubrange(cl, localDC, tokenRangeMapping.replicationFactor(), liveAndDown, failedReplicas))
+                                 if (!checkSubrange(cl, localDC, replicationFactor, liveAndDown, failedReplicas))
                                  {
                                      failedRanges.add(new ConsistencyFailurePerRange(subrange, errorMap));
                                  }
@@ -212,12 +213,5 @@ public class ReplicaAwareFailureHandler<Instance extends CassandraInstance>
                                                       .collect(Collectors.toSet());
 
         return cl.canBeSatisfied(succeededReplicas, pendingReplicas, replicationFactor, localDC);
-    }
-
-    public boolean hasFailed(TokenRangeMapping<Instance> tokenRange,
-                             ConsistencyLevel cl,
-                             String localDC)
-    {
-        return !getFailedRanges(tokenRange, cl, localDC).isEmpty();
     }
 }

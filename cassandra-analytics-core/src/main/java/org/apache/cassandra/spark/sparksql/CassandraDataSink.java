@@ -22,12 +22,11 @@ package org.apache.cassandra.spark.sparksql;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.BulkWriterContext;
+import org.apache.cassandra.spark.bulkwriter.BulkWriterContextFactory;
 import org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation;
-import org.apache.cassandra.spark.bulkwriter.CassandraBulkWriterContext;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.LoadNotSupportedException;
 import org.apache.cassandra.spark.utils.ScalaConversionUtils;
-import org.apache.spark.SparkContext;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
@@ -35,7 +34,6 @@ import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.sources.BaseRelation;
 import org.apache.spark.sql.sources.CreatableRelationProvider;
 import org.apache.spark.sql.sources.DataSourceRegister;
-import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 import scala.collection.immutable.Map;
 
@@ -71,9 +69,7 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
         switch (saveMode)
         {
             case Append:
-                // Initialize the job group ID for later use if we need to cancel the job
-                // TODO: Can we get a more descriptive "description" in here from the end user somehow?
-                BulkWriterContext writerContext = createBulkWriterContext(
+                BulkWriterContext writerContext = factory().createBulkWriterContext(
                 sqlContext.sparkContext(),
                 ScalaConversionUtils.<String, String>mapAsJavaMap(parameters),
                 data.schema());
@@ -82,6 +78,8 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
                     JobInfo jobInfo = writerContext.job();
                     String description = "Cassandra Bulk Load for table " + jobInfo.qualifiedTableName();
                     CassandraBulkSourceRelation relation = new CassandraBulkSourceRelation(writerContext, sqlContext);
+                    // Initialize the job group ID for later use if we need to cancel the job
+                    // TODO: Can we get a more descriptive "description" in here from the end user somehow?
                     sqlContext.sparkContext().setJobGroup(jobInfo.getId(), description, false);
                     relation.insert(data, false);
                     return relation;
@@ -103,10 +101,8 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
     }
 
     @NotNull
-    protected BulkWriterContext createBulkWriterContext(@NotNull SparkContext sparkContext,
-                                                        @NotNull java.util.Map<String, String> options,
-                                                        @NotNull StructType schema)
+    protected BulkWriterContextFactory factory()
     {
-        return CassandraBulkWriterContext.fromOptions(sparkContext, options, schema);
+        return BulkWriterContextFactory.INSTANCE;
     }
 }

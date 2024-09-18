@@ -125,6 +125,7 @@ jobs:
           name: Build dependencies for jdk8 builds
           command: |
             ./scripts/build-dependencies.sh
+            JDK_VERSION=1.8 SPARK_VERSION=2 SCALA_VERSION=2.12 ./gradlew codeCheckTasks
       - persist_to_workspace:
           root: dependencies
           paths:
@@ -142,6 +143,7 @@ jobs:
           name: Build dependencies for jdk11 builds
           command: |
             CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
+            ./gradlew codeCheckTasks
       - persist_to_workspace:
           root: dependencies
           paths:

@@ -233,7 +233,6 @@ public class RingInstanceTest
                                                             ntsOptions(new String[]{DATACENTER_1 }, new int[]{3 }));
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = TokenRangeMappingUtils.setupTokenRangeMap(partitioner, repFactor, instances);
         TokenRangeMapping<RingInstance> tokenRange = new TokenRangeMapping<>(partitioner,
-                                                                             repFactor,
                                                                              tokenRanges,
                                                                              Collections.emptySet());
 
@@ -243,7 +242,7 @@ public class RingInstanceTest
         replicationFactor3.addFailure(Range.openClosed(tokens[0].add(BigInteger.ONE),
                                                        tokens[0].add(BigInteger.valueOf(2L))), instance2, "Failure 2");
 
-        assertTrue(replicationFactor3.getFailedRanges(tokenRange, CL.LOCAL_QUORUM, DATACENTER_1).isEmpty());
+        assertTrue(replicationFactor3.getFailedRanges(tokenRange, CL.LOCAL_QUORUM, DATACENTER_1, repFactor).isEmpty());
     }
 
     @NotNull

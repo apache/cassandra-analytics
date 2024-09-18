@@ -81,7 +81,6 @@ public final class TokenRangeMappingUtils
 
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
         return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
-                                       replicationFactor,
                                        tokenRanges,
                                        new HashSet<>(instances));
     }
@@ -118,7 +117,6 @@ public final class TokenRangeMappingUtils
         ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
         Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
         return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
-                                       replicationFactor,
                                        tokenRanges,
                                        new HashSet<>(instances));
     }
@@ -202,7 +200,11 @@ public final class TokenRangeMappingUtils
 
     public static TokenRangeReplicasResponse mockSimpleTokenRangeReplicasResponse(int instancesCount, int replicationFactor)
     {
-        long startToken = 0;
+        return mockSimpleTokenRangeReplicasResponse(0L, instancesCount, replicationFactor);
+    }
+
+    public static TokenRangeReplicasResponse mockSimpleTokenRangeReplicasResponse(long startToken, int instancesCount, int replicationFactor)
+    {
         long rangeLength = 100;
         List<ReplicaInfo> replicaInfoList = new ArrayList<>(instancesCount);
         Map<String, ReplicaMetadata> replicaMetadata = new HashMap<>(instancesCount);

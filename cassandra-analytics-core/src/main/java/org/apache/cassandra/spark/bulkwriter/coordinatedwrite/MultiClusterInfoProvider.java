@@ -17,17 +17,29 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.exception;
+package org.apache.cassandra.spark.bulkwriter.coordinatedwrite;
+
+import java.util.List;
+
+import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * Exception due to Cassandra Sidecar Api call failure
+ * Provider for multiple ClusterInfo and lookup
  */
-public class SidecarApiCallException extends AnalyticsException
+public interface MultiClusterInfoProvider
 {
-    private static final long serialVersionUID = 3304206898661966469L;
+    /**
+     * @return the list of ClusterInfo
+     */
+    List<ClusterInfo> clusters();
 
-    public SidecarApiCallException(String message, Throwable cause)
-    {
-        super(message, cause);
-    }
+    /**
+     * Look up a ClusterInfo based on clusterId
+     * @param clusterId cluster id
+     * @return the ClusterInfo associated with the clusterId, or null if not found
+     */
+    @Nullable
+    ClusterInfo cluster(@NotNull String clusterId);
 }

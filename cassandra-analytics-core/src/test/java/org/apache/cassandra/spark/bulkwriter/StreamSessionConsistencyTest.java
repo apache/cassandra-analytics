@@ -45,10 +45,12 @@ import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 
+import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -64,8 +66,9 @@ public class StreamSessionConsistencyTest
     // range [101, 199] is replicated to those instances. i1 has token 0/1, which are before the range
     private static final List<String> EXPECTED_INSTANCES = ImmutableList.of("DC1-i2", "DC1-i3", "DC1-i4", "DC2-i2", "DC2-i3", "DC2-i4");
     private static final Range<BigInteger> RANGE = Range.range(BigInteger.valueOf(101L), BoundType.CLOSED, BigInteger.valueOf(199L), BoundType.CLOSED);
+    private static final ImmutableMap<String, Integer> rfOptions = ImmutableMap.of("DC1", 3, "DC2", 3);
     private static final TokenRangeMapping<RingInstance> TOKEN_RANGE_MAPPING =
-    TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3, "DC2", 3), 6);
+    TokenRangeMappingUtils.buildTokenRangeMapping(0, rfOptions, 6);
     private static final Map<String, Object> COLUMN_BIND_VALUES = ImmutableMap.of("id", 0, "date", 1, "course", "course", "marks", 2);
 
     @TempDir
@@ -90,6 +93,7 @@ public class StreamSessionConsistencyTest
         digestAlgorithm = new XXHash32DigestAlgorithm();
         tableWriter = new MockTableWriter(folder);
         writerContext = new MockBulkWriterContext(TOKEN_RANGE_MAPPING, "cassandra-4.0.0", consistencyLevel);
+        writerContext.setReplicationFactor(new ReplicationFactor(NetworkTopologyStrategy, rfOptions));
         transportContext = (TransportContext.DirectDataBulkWriterContext) writerContext.transportContext();
     }
 

@@ -54,10 +54,11 @@ public class BulkWriteValidator
                                         ReplicaAwareFailureHandler<RingInstance> failureHandler,
                                         Logger logger,
                                         String phase,
-                                        JobInfo job)
+                                        JobInfo job,
+                                        ClusterInfo cluster)
     {
         List<ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange> failedRanges =
-        failureHandler.getFailedRanges(tokenRangeMapping, job.getConsistencyLevel(), job.getLocalDC());
+        failureHandler.getFailedRanges(tokenRangeMapping, job.getConsistencyLevel(), job.getLocalDC(), cluster.replicationFactor());
 
         if (failedRanges.isEmpty())
         {
@@ -142,7 +143,7 @@ public class BulkWriteValidator
             updateInstanceAvailability();
         }
         // Fails if the failures violate consistency requirements
-        validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, phase, job);
+        validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, phase, job, cluster);
     }
 
     private void updateInstanceAvailability()

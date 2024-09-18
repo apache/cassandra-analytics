@@ -184,7 +184,7 @@ public class BlobStreamSession extends StreamSession<TransportContext.CloudStora
         LOGGER.info("StreamResult: {}", streamResult);
         // If the number of successful createSliceRequests cannot satisfy the configured consistency level,
         // an exception is thrown and the task is failed. Spark might retry the task.
-        BulkWriteValidator.validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, WRITE_PHASE, writerContext.job());
+        BulkWriteValidator.validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, WRITE_PHASE, writerContext.job(), writerContext.cluster());
         return streamResult;
     }
 

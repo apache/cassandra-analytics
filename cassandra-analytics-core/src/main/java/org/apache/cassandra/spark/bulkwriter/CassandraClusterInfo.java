@@ -20,7 +20,11 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Closeable;
+import java.math.BigInteger;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,9 +55,9 @@ import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
+import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.FutureUtils;
-import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
@@ -68,6 +73,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     protected transient volatile TokenRangeMapping<RingInstance> tokenRangeReplicas;
     protected transient volatile String keyspaceSchema;
+    protected transient volatile ReplicationFactor replicationFactor;
     protected transient volatile CassandraContext cassandraContext;
     protected final transient AtomicReference<NodeSettings> nodeSettings;
     protected final transient List<CompletableFuture<NodeSettings>> allNodeSettingFutures;
@@ -86,7 +92,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         LOGGER.info("Getting Cassandra versions from all nodes");
         this.nodeSettings = new AtomicReference<>(null);
         this.allNodeSettingFutures = Sidecar.allNodeSettings(cassandraContext.getSidecarClient(),
-                                                             cassandraContext.clusterConfig);
+                                                             cassandraContext.getCluster());
     }
 
     @Override
@@ -186,19 +192,38 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     @Override
-    public TimeSkewResponse getTimeSkew(List<RingInstance> replicas)
+    public void validateTimeSkew(Range<BigInteger> range) throws SidecarApiCallException, TimeSkewTooLargeException
     {
+        validateTimeSkewWithLocalNow(range, Instant.now());
+    }
+
+    @VisibleForTesting
+    void validateTimeSkewWithLocalNow(Range<BigInteger> range, Instant localNow) throws SidecarApiCallException, TimeSkewTooLargeException
+    {
+        TimeSkewResponse timeSkew;
         try
         {
-            List<SidecarInstance> instances = replicas
-                                              .stream()
-                                              .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort()))
-                                              .collect(Collectors.toList());
-            return getCassandraContext().getSidecarClient().timeSkew(instances).get();
+            TokenRangeMapping<RingInstance> topology = getTokenRangeMapping(true);
+            List<SidecarInstance> instances = topology.getSubRanges(range)
+                                                      .asMapOfRanges()
+                                                      .values()
+                                                      .stream()
+                                                      .flatMap(Collection::stream)
+                                                      .distinct() // remove duplications
+                                                      .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort()))
+                                                      .collect(Collectors.toList());
+            timeSkew = getCassandraContext().getSidecarClient().timeSkew(instances).get();
         }
         catch (InterruptedException | ExecutionException exception)
         {
-            throw new RuntimeException(exception);
+            throw new SidecarApiCallException("Unable to retrieve time skew information. clusterId=" + clusterId(), exception);
+        }
+
+        Instant remoteNow = Instant.ofEpochMilli(timeSkew.currentTime);
+        Duration allowedDuration = Duration.ofMinutes(timeSkew.allowableSkewInMinutes);
+        if (localNow.isBefore(remoteNow.minus(allowedDuration)) || localNow.isAfter(remoteNow.plus(allowedDuration)))
+        {
+            throw new TimeSkewTooLargeException(timeSkew.allowableSkewInMinutes, localNow, remoteNow, clusterId());
         }
     }
 
@@ -240,18 +265,6 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         }
     }
 
-    @NotNull
-    protected ReplicationFactor getReplicationFactor()
-    {
-        String keyspaceSchema = getKeyspaceSchema(true);
-        if (keyspaceSchema == null)
-        {
-            throw new RuntimeException(String.format("Could not retrieve keyspace schema information for keyspace %s",
-                                                     conf.keyspace));
-        }
-        return CqlUtils.extractReplicationFactor(keyspaceSchema, conf.keyspace);
-    }
-
     @Override
     public String getKeyspaceSchema(boolean cached)
     {
@@ -280,6 +293,30 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     @Override
+    public ReplicationFactor replicationFactor()
+    {
+        ReplicationFactor rf = replicationFactor;
+        if (rf != null)
+        {
+            return rf;
+        }
+
+        String keyspaceSchema = getKeyspaceSchema(true);
+        if (keyspaceSchema == null)
+        {
+            throw new RuntimeException("Could not retrieve keyspace schema information for keyspace " + conf.keyspace);
+        }
+        synchronized (this)
+        {
+            if (replicationFactor == null)
+            {
+                replicationFactor = CqlUtils.extractReplicationFactor(keyspaceSchema, conf.keyspace);
+            }
+            return replicationFactor;
+        }
+    }
+
+    @Override
     public TokenRangeMapping<RingInstance> getTokenRangeMapping(boolean cached)
     {
         TokenRangeMapping<RingInstance> topology = this.tokenRangeReplicas;
@@ -293,7 +330,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         // We can avoid synchronization here
         if (topology != null)
         {
-            topology = getTokenRangeReplicas();
+            topology = getTokenRangeReplicasFromSidecar();
             this.tokenRangeReplicas = topology;
             return topology;
         }
@@ -303,7 +340,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         {
             try
             {
-                this.tokenRangeReplicas = getTokenRangeReplicas();
+                this.tokenRangeReplicas = getTokenRangeReplicasFromSidecar();
             }
             catch (Exception exception)
             {
@@ -363,12 +400,11 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         return WriteAvailability.determineFromNodeState(instance.nodeState(), instance.nodeStatus());
     }
 
-    private TokenRangeMapping<RingInstance> getTokenRangeReplicas()
+    private TokenRangeMapping<RingInstance> getTokenRangeReplicasFromSidecar()
     {
         return TokenRangeMapping.create(this::getTokenRangesAndReplicaSets,
                                         this::getPartitioner,
-                                        this::getReplicationFactor,
-                                        RingInstance::new);
+                                        metadata -> new RingInstance(metadata, clusterId()));
     }
 
     public String getVersionFromFeature()

@@ -30,11 +30,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -42,7 +40,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
 import org.apache.commons.lang3.tuple.Pair;
 
-import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
@@ -59,7 +56,10 @@ import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.QualifiedTableName;
+import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.exception.SidecarApiCallException;
+import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
@@ -84,6 +84,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
     private CassandraBridge bridge = CassandraBridgeFactory.get(CassandraVersion.FOURZERO);
+    private TimeSkewTooLargeException timeSkewTooLargeException;
 
     @Override
     public void publish(Map<String, String> stats)
@@ -98,9 +99,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public static final String DEFAULT_CASSANDRA_VERSION = "cassandra-4.0.2";
 
     private final UUID jobId;
-    private Supplier<Long> timeProvider = System::currentTimeMillis;
-
-    private CountDownLatch uploadsLatch = new CountDownLatch(0);
     private boolean skipClean = false;
     public int refreshClusterInfoCallCount = 0;  // CHECKSTYLE IGNORE: Public mutable field
     private final Map<CassandraInstance, List<UploadRequest>> uploads = new ConcurrentHashMap<>();
@@ -113,8 +111,8 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private final TokenPartitioner tokenPartitioner;
     private final String cassandraVersion;
     private CommitResultSupplier crSupplier = (uuids, dc) -> new DirectDataTransferApi.RemoteCommitResult(true, Collections.emptyList(), uuids, null);
-
     private Predicate<CassandraInstance> uploadRequestConsumer = instance -> true;
+    private ReplicationFactor replicationFactor;
 
     public MockBulkWriterContext(TokenRangeMapping<RingInstance> tokenRangeMapping)
     {
@@ -168,35 +166,23 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         this.jobId = java.util.UUID.randomUUID();
     }
 
-    public Supplier<Long> getTimeProvider()
-    {
-        return timeProvider;
-    }
-
-    public void setTimeProvider(Supplier<Long> timeProvider)
-    {
-        this.timeProvider = timeProvider;
-    }
-
-    public CountDownLatch getUploadsLatch()
-    {
-        return uploadsLatch;
-    }
-
-    public void setUploadsLatch(CountDownLatch uploadsLatch)
-    {
-        this.uploadsLatch = uploadsLatch;
-    }
-
     @Override
     public void shutdown()
     {
     }
 
-    @Override
-    public TimeSkewResponse getTimeSkew(List<RingInstance> replicas)
+    public void setTimeSkewTooLargeException(TimeSkewTooLargeException exception)
     {
-        return new TimeSkewResponse(timeProvider.get(), 60);
+        this.timeSkewTooLargeException = exception;
+    }
+
+    @Override
+    public void validateTimeSkew(Range<BigInteger> range) throws SidecarApiCallException, TimeSkewTooLargeException
+    {
+        if (timeSkewTooLargeException != null)
+        {
+            throw timeSkewTooLargeException;
+        }
     }
 
     @Override
@@ -204,6 +190,17 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     {
         // TODO: Fix me
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public ReplicationFactor replicationFactor()
+    {
+        return replicationFactor;
+    }
+
+    public void setReplicationFactor(ReplicationFactor replicationFactor)
+    {
+        this.replicationFactor = replicationFactor;
     }
 
     @Override

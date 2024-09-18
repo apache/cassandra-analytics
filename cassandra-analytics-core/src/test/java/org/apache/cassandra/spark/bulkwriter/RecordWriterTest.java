@@ -21,6 +21,8 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -46,6 +48,8 @@ import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.ReplicationFactor;
+import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 import org.apache.spark.sql.types.DataType;
@@ -59,11 +63,11 @@ import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHAR;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCqlType;
+import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.startsWith;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -100,9 +104,12 @@ class RecordWriterTest
     {
         digestAlgorithm = new XXHash32DigestAlgorithm();
         tw = new MockTableWriter(folder.getRoot());
-        tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(100000, ImmutableMap.of("DC1", 3), 12);
+        ImmutableMap<String, Integer> rfOption = ImmutableMap.of("DC1", 3);
+        ReplicationFactor rf = new ReplicationFactor(NetworkTopologyStrategy, rfOption);
+        tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(100000, rfOption, 12);
         writerContext = new MockBulkWriterContext(tokenRangeMapping);
         writerContext.setSstableDataSizeInMB(1); // defaults to the minimum sstable data size allowed to set
+        writerContext.setReplicationFactor(rf);
         tc = new TestTaskContext();
         range = writerContext.job().getTokenPartitioner().getTokenRange(tc.partitionId());
         tokenizer = new Tokenizer(writerContext);
@@ -387,26 +394,18 @@ class RecordWriterTest
     @Test
     void testBadTimeSkewFails()
     {
-        // Mock context returns a 60-minute allowable time skew, so we use something just outside the limits
-        long sixtyOneMinutesInMillis = TimeUnit.MINUTES.toMillis(61);
+        Instant localNow = Instant.ofEpochMilli(1726604289530L);
+        Instant remoteNow = localNow.minus(2, ChronoUnit.HOURS);
         rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc,
                               (wc, path, dp, pid) -> new SortedSSTableWriter(tw, folder, digestAlgorithm, pid));
-        writerContext.setTimeProvider(() -> System.currentTimeMillis() - sixtyOneMinutesInMillis);
+        writerContext.setTimeSkewTooLargeException(new TimeSkewTooLargeException(60, localNow, remoteNow, "test-cluster"));
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
-        assertThat(ex.getMessage(), startsWith("Time skew between Spark and Cassandra is too large. Allowable skew is 60 minutes. Spark executor time is "));
-    }
-
-    @Test
-    void testTimeSkewWithinLimitsSucceeds()
-    {
-        // Mock context returns a 60-minute allowable time skew, so we use something just inside the limits
-        long fiftyNineMinutesInMillis = TimeUnit.MINUTES.toMillis(59);
-        long remoteTime = System.currentTimeMillis() - fiftyNineMinutesInMillis;
-        rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, SortedSSTableWriter::new);
-        writerContext.setTimeProvider(() -> remoteTime);  // Return a very low "current time" to make sure we fail if skew is too bad
-        Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
-        rw.write(data);
+        TimeSkewTooLargeException ex = assertThrows(TimeSkewTooLargeException.class, () -> rw.write(data));
+        assertEquals(ex.getMessage(), "Time skew between Spark and Cassandra is too large. " +
+                                      "allowableSkewInMinutes=60, " +
+                                      "localTime=2024-09-17T20:18:09.530Z, " +
+                                      "remoteCassandraTime=2024-09-17T18:18:09.530Z, " +
+                                      "clusterId=test-cluster");
     }
 
     private void validateSuccessfulWrite(MockBulkWriterContext writerContext,

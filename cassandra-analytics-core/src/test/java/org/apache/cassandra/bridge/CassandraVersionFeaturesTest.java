@@ -58,5 +58,6 @@ public class CassandraVersionFeaturesTest
         assertEquals(major, features.getMajorVersion(), "Wrong major version for " + version + ",");
         assertEquals(minor, features.getMinorVersion(), "Wrong minor version for " + version + ",");
         assertEquals(suffix, features.getSuffix(), "Wrong version suffix for " + version + ",");
+        assertEquals(version, features.getRawVersionString());
     }
 }

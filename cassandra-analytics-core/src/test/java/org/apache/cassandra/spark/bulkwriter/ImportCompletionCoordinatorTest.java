@@ -59,12 +59,14 @@ import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.QualifiedTableName;
+import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 
 import static org.apache.cassandra.spark.bulkwriter.ImportCompletionCoordinator.estimateTimeoutNanos;
+import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -115,7 +117,10 @@ class ImportCompletionCoordinatorTest
 
         CassandraContext mockCassandraContext = mock(CassandraContext.class);
         when(mockClusterInfo.getCassandraContext()).thenReturn(mockCassandraContext);
-        topology = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), TOTAL_INSTANCES);
+        ImmutableMap<String, Integer> rfOptions = ImmutableMap.of("DC1", 3);
+        ReplicationFactor rf = new ReplicationFactor(NetworkTopologyStrategy, rfOptions);
+        when(mockClusterInfo.replicationFactor()).thenReturn(rf);
+        topology = TokenRangeMappingUtils.buildTokenRangeMapping(0, rfOptions, TOTAL_INSTANCES);
         when(mockClusterInfo.getTokenRangeMapping(anyBoolean())).thenReturn(topology);
         when(mockWriterContext.job()).thenReturn(mockJobInfo);
 

@@ -20,12 +20,16 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
-import java.util.List;
+import java.math.BigInteger;
 import java.util.Map;
 
-import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
+import com.google.common.collect.Range;
+
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.exception.SidecarApiCallException;
+import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.apache.cassandra.spark.validation.StartupValidatable;
 import org.jetbrains.annotations.Nullable;
 
@@ -46,7 +50,13 @@ public interface ClusterInfo extends StartupValidatable, Serializable
 
     void checkBulkWriterIsEnabledOrThrow();
 
-    TimeSkewResponse getTimeSkew(List<RingInstance> replicas);
+    /**
+     * Validate whether the time skew of the replicas of the range is acceptable
+     * @param range token range used to look up the relevant replicas
+     * @throws SidecarApiCallException when fails to retrieve time skew information
+     * @throws TimeSkewTooLargeException when the time skew has exceeded the allowance
+     */
+    void validateTimeSkew(Range<BigInteger> range) throws SidecarApiCallException, TimeSkewTooLargeException;
 
     /**
      * Return the keyspace schema string of the enclosing keyspace for bulk write in the cluster
@@ -54,6 +64,11 @@ public interface ClusterInfo extends StartupValidatable, Serializable
      * @return keyspace schema string
      */
     String getKeyspaceSchema(boolean cached);
+
+    /**
+     * @return ReplicationFactor of the enclosing keyspace for bulk write in the cluster
+     */
+    ReplicationFactor replicationFactor();
 
     CassandraContext getCassandraContext();
 
