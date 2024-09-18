@@ -21,7 +21,6 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.time.Instant;
 import java.util.Map;
 
 import com.google.common.collect.Range;

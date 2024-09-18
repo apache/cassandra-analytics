@@ -20,7 +20,6 @@
 package org.apache.cassandra.spark.bulkwriter.coordinatedwrite;
 
 import java.math.BigInteger;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
