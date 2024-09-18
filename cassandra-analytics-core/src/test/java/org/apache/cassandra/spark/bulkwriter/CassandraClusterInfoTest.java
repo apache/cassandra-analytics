@@ -33,6 +33,7 @@ import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
@@ -48,23 +49,36 @@ public class CassandraClusterInfoTest
         int allowanceMinutes = 10;
         Instant remoteNow = localNow.plus(Duration.ofMinutes(1));
         CassandraClusterInfo ci = mockClusterInfoForTimeSkewTest(allowanceMinutes, remoteNow);
-        ci.validateTimeSkewWithLocalNow(Range.openClosed(BigInteger.valueOf(10), BigInteger.valueOf(20)), localNow);
+        assertThatNoException()
+        .describedAs("Acceptable time skew should validate without exception")
+        .isThrownBy(() -> ci.validateTimeSkewWithLocalNow(range(10, 20), localNow));
     }
 
     @Test
     void testTimeSkewTooLarge()
     {
-        Instant localNow = Instant.now();
+        Instant localNow = Instant.ofEpochMilli(1726604289530L);
         int allowanceMinutes = 10;
         Instant remoteNow = localNow.plus(Duration.ofMinutes(11)); // 11 > allowanceMinutes
         CassandraClusterInfo ci = mockClusterInfoForTimeSkewTest(allowanceMinutes, remoteNow);
-        assertThatThrownBy(() -> ci.validateTimeSkewWithLocalNow(Range.openClosed(BigInteger.valueOf(10), BigInteger.valueOf(20)), localNow))
-        .isExactlyInstanceOf(TimeSkewTooLargeException.class);
+        assertThatThrownBy(() -> ci.validateTimeSkewWithLocalNow(range(10, 20), localNow))
+        .describedAs("Time skew with too large a value should throw TimeSkewTooLargeException")
+        .isExactlyInstanceOf(TimeSkewTooLargeException.class)
+        .hasMessage("Time skew between Spark and Cassandra is too large. " +
+                    "allowableSkewInMinutes=10, " +
+                    "localTime=2024-09-17T20:18:09.530Z, " +
+                    "remoteCassandraTime=2024-09-17T20:29:09.530Z, " +
+                    "clusterId=null");
     }
 
     public static CassandraClusterInfo mockClusterInfoForTimeSkewTest(int allowanceMinutes, Instant remoteNow)
     {
         return new MockClusterInfoForTimeSkew(allowanceMinutes, remoteNow);
+    }
+
+    private static Range<BigInteger> range(long start, long end)
+    {
+        return Range.openClosed(BigInteger.valueOf(start), BigInteger.valueOf(end));
     }
 
     private static class MockClusterInfoForTimeSkew extends CassandraClusterInfo
