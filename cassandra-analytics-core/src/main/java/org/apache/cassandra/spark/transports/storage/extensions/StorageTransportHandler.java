@@ -102,7 +102,7 @@ public class StorageTransportHandler implements CredentialChangeListener, Object
         }
         catch (ClientException e)
         {
-            throw new RuntimeException("Failed to update secretes for restore job. restoreJobId: " + jobId, e);
+            throw new RuntimeException("Failed to update secrets for restore job. restoreJobId: " + jobId, e);
         }
     }
 
@@ -111,12 +111,11 @@ public class StorageTransportHandler implements CredentialChangeListener, Object
         UpdateRestoreJobRequestPayload requestPayload = new UpdateRestoreJobRequestPayload(null, null, status, null);
         try
         {
-            // TODO: send to all clusters\
             transportContext.dataTransferApi().updateRestoreJob(requestPayload);
         }
         catch (ClientException e)
         {
-            throw new RuntimeException("Failed to update secretes for restore job. restoreJobId: " + jobId, e);
+            throw new RuntimeException("Failed to send coordination signal for restore job. restoreJobId: " + jobId + ", status=" + status, e);
         }
     }
 

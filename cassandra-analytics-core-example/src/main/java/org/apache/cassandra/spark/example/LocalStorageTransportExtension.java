@@ -126,7 +126,7 @@ public class LocalStorageTransportExtension implements StorageTransportExtension
     @Override
     public void onStageFailed(String clusterId, Throwable cause)
     {
-        LOGGER.error("Cluster {} failed to stage objects", clusterId, cause);
+        LOGGER.error("Job {} failed to stage objects at cluster {}", jobId, clusterId, cause);
     }
 
     @Override

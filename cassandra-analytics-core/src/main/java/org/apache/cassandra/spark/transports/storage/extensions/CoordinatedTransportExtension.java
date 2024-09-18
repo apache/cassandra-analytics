@@ -36,7 +36,7 @@ import org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation;
  *     {@link #onStageSucceeded(String, long, long, long)} is called per cluster to notify the extension.</li>
  *     <li>Extension invokes {@link CoordinationSignalListener#onApplyReady(String)},
  *     when it decides it is time to apply/import SSTables on all clusters.</li>
- *     <li>ECassandra Analytics calls Sidecars to import data.
+ *     <li>Cassandra Analytics calls Sidecars to import data.
  *     {@link #onApplySucceeded(String, long, long, long)} is called per cluster to notify the extension.</li>
  *     <li>{@link DriverStorageTransportExtension#onAllObjectsPersisted(long, long, long)}
  *     is called to indicate the completion.</li>
