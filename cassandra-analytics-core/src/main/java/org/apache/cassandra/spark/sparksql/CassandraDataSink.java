@@ -103,6 +103,6 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
     @NotNull
     protected BulkWriterContextFactory factory()
     {
-        return BulkWriterContextFactory.INSTANCE;
+        return new BulkWriterContextFactory();
     }
 }
