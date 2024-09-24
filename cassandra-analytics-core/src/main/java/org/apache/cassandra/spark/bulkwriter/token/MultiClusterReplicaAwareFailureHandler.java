@@ -58,7 +58,7 @@ public class MultiClusterReplicaAwareFailureHandler<I extends CassandraInstance>
     public MultiClusterReplicaAwareFailureHandler(Partitioner partitioner)
     {
         this.partitioner = partitioner;
-        this.defaultFailureHandler = new SingleClusterReplicaAwareFailureHandler<>(partitioner);
+        this.defaultFailureHandler = new SingleClusterReplicaAwareFailureHandler<>(partitioner, null);
     }
 
     @Override
@@ -66,19 +66,23 @@ public class MultiClusterReplicaAwareFailureHandler<I extends CassandraInstance>
     {
         if (instance.hasClusterId())
         {
+            Preconditions.checkState(defaultFailureHandler.isEmpty(),
+                                     "Cannot track failures from both instances with and without clusterId");
             String clusterId = instance.clusterId();
             ReplicaAwareFailureHandler<I> handler = failureHandlerPerCluster
-                                                    .computeIfAbsent(clusterId, k -> new SingleClusterReplicaAwareFailureHandler<>(partitioner));
+                                                    .computeIfAbsent(clusterId, k -> new SingleClusterReplicaAwareFailureHandler<>(partitioner, clusterId));
             handler.addFailure(tokenRange, instance, errMessage);
         }
         else
         {
+            Preconditions.checkState(failureHandlerPerCluster.isEmpty(),
+                                     "Cannot track failures from both instances with and without clusterId");
             defaultFailureHandler.addFailure(tokenRange, instance, errMessage);
         }
     }
 
     @Override
-    public Set<I> getFailedInstances()
+    public synchronized Set<I> getFailedInstances()
     {
         if (failureHandlerPerCluster.isEmpty())
         {
@@ -86,7 +90,7 @@ public class MultiClusterReplicaAwareFailureHandler<I extends CassandraInstance>
         }
 
         // failed instances merged from all clusters
-        HashSet<I> failedInstances = new HashSet<>(defaultFailureHandler.getFailedInstances());
+        HashSet<I> failedInstances = new HashSet<>();
         failureHandlerPerCluster.values().forEach(handler -> failedInstances.addAll(handler.getFailedInstances()));
         return failedInstances;
     }
@@ -111,7 +115,7 @@ public class MultiClusterReplicaAwareFailureHandler<I extends CassandraInstance>
         CassandraClusterInfoGroup group = (CassandraClusterInfoGroup) cluster;
         failureHandlerPerCluster.forEach((clusterId, handler) -> {
             ClusterConf clusterConf = Objects.requireNonNull(coordinatedWriteConf.cluster(clusterId),
-                                                             () -> "ClusterConf is absent for " + clusterId);
+                                                             () -> "ClusterConf is not found for " + clusterId);
             ClusterInfo clusterInfo = Objects.requireNonNull(group.cluster(clusterId),
                                                              () -> "ClusterInfo is not found for " + clusterId);
             ReplicationFactor rf = clusterInfo.replicationFactor();

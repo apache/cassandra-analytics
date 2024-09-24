@@ -22,16 +22,21 @@ package org.apache.cassandra.spark.bulkwriter.token;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import javax.annotation.concurrent.GuardedBy;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
 import com.google.common.collect.TreeRangeMap;
 
+import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
+import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.common.model.NodeStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -46,15 +51,39 @@ import org.jetbrains.annotations.Nullable;
 class SingleClusterReplicaAwareFailureHandler<I extends CassandraInstance> extends ReplicaAwareFailureHandler<I>
 {
     // failures captures per each range; note that failures do not necessarily fail a range, as long as consistency level is considered
+    @GuardedBy("this")
     private final RangeMap<BigInteger, FailuresPerInstance> rangeFailuresMap = TreeRangeMap.create();
 
-    SingleClusterReplicaAwareFailureHandler(Partitioner partitioner)
+    @GuardedBy("this")
+    private boolean isEmpty = true;
+
+    @Nullable
+    private String clusterId;
+
+    SingleClusterReplicaAwareFailureHandler(Partitioner partitioner, String clusterId)
     {
+        this.clusterId = clusterId;
         rangeFailuresMap.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), new FailuresPerInstance());
     }
 
+    /**
+     * Check whether the handler contains any failure
+     * @return true if there is at least a failure; false otherwise.
+     */
+    public boolean isEmpty()
+    {
+        return isEmpty;
+    }
+
     @Override
-    public void addFailure(Range<BigInteger> tokenRange, I instance, String errMessage)
+    public List<ReplicaAwareFailureHandler<I>.ConsistencyFailurePerRange>
+    getFailedRanges(TokenRangeMapping<I> tokenRangeMapping, JobInfo job, ClusterInfo cluster)
+    {
+        return getFailedRangesInternal(tokenRangeMapping, job.getConsistencyLevel(), job.getLocalDC(), cluster.replicationFactor());
+    }
+
+    @Override
+    public synchronized void addFailure(Range<BigInteger> tokenRange, I instance, String errMessage)
     {
         RangeMap<BigInteger, FailuresPerInstance> overlappingFailures = rangeFailuresMap.subRangeMap(tokenRange);
         RangeMap<BigInteger, FailuresPerInstance> mappingsToAdd = TreeRangeMap.create();
@@ -66,12 +95,19 @@ class SingleClusterReplicaAwareFailureHandler<I extends CassandraInstance> exten
             mappingsToAdd.put(entry.getKey(), newErrorMap);
         }
         rangeFailuresMap.putAll(mappingsToAdd);
+        isEmpty = false;
     }
 
     @Override
-    public Set<I> getFailedInstances()
+    public synchronized Set<I> getFailedInstances()
     {
-        return rangeFailuresMap.asMapOfRanges().values()
+        if (isEmpty)
+        {
+            return Collections.emptySet();
+        }
+
+        return rangeFailuresMap.asMapOfRanges()
+                               .values()
                                .stream()
                                .map(FailuresPerInstance::instances)
                                .flatMap(Collection::stream)
@@ -79,15 +115,21 @@ class SingleClusterReplicaAwareFailureHandler<I extends CassandraInstance> exten
     }
 
     @Override
-    protected List<ReplicaAwareFailureHandler<I>.ConsistencyFailurePerRange> getFailedRangesInternal(TokenRangeMapping<I> tokenRangeMapping,
-                                                                                                     ConsistencyLevel cl,
-                                                                                                     @Nullable String localDC,
-                                                                                                     ReplicationFactor replicationFactor)
+    protected synchronized List<ReplicaAwareFailureHandler<I>.ConsistencyFailurePerRange>
+    getFailedRangesInternal(TokenRangeMapping<I> tokenRangeMapping,
+                            ConsistencyLevel cl,
+                            @Nullable String localDC,
+                            ReplicationFactor replicationFactor)
     {
         Preconditions.checkArgument((cl.isLocal() && localDC != null) || (!cl.isLocal() && localDC == null),
                                     "Not a valid pair of consistency level configuration. " +
                                     "Consistency level: " + cl + " localDc: " + localDC);
         List<ConsistencyFailurePerRange> failedRanges = new ArrayList<>();
+
+        if (isEmpty)
+        {
+            return failedRanges;
+        }
 
         for (Map.Entry<Range<BigInteger>, FailuresPerInstance> failedRangeEntry : rangeFailuresMap.asMapOfRanges().entrySet())
         {
@@ -104,7 +146,14 @@ class SingleClusterReplicaAwareFailureHandler<I extends CassandraInstance> exten
                 continue;
             }
 
-            tokenRangeMapping.getWriteReplicasOfRange(range, localDC)
+            tokenRangeMapping.getWriteReplicasOfRange(range, instance -> {
+                                 boolean shouldKeep = instance.datacenter().equalsIgnoreCase(localDC);
+                                 if (shouldKeep && clusterId != null)
+                                 {
+                                     shouldKeep = clusterId.equalsIgnoreCase(instance.clusterId());
+                                 }
+                                 return shouldKeep;
+                             })
                              .forEach((subrange, liveAndDown) -> {
                                  if (!checkSubrange(cl, localDC, replicationFactor, liveAndDown, failedReplicas))
                                  {

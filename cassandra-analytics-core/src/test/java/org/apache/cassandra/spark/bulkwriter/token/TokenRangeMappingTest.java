@@ -35,6 +35,7 @@ import org.apache.cassandra.spark.bulkwriter.TokenRangeMappingUtils;
 import org.apache.cassandra.spark.common.model.NodeState;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
+import static org.apache.cassandra.spark.TestUtils.range;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -219,17 +220,12 @@ class TokenRangeMappingTest
         return createTestMapping(0L, instanceCount, partitioner, null);
     }
 
-    private TokenRangeMapping<RingInstance> createTestMapping(long startToken, int instanceCount, Partitioner partitioner, String clusterId)
+    public static TokenRangeMapping<RingInstance> createTestMapping(long startToken, int instanceCount, Partitioner partitioner, String clusterId)
     {
         return TokenRangeMapping.create(
         () -> TokenRangeMappingUtils.mockSimpleTokenRangeReplicasResponse(startToken, instanceCount, 3),
         () -> partitioner,
         metadata -> new RingInstance(metadata, clusterId));
-    }
-
-    private Range<BigInteger> range(long start, long end)
-    {
-        return Range.openClosed(BigInteger.valueOf(start), BigInteger.valueOf(end));
     }
 
     private List<RingInstance> getSoleValue(Map<?, List<RingInstance>> map)

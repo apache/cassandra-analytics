@@ -38,6 +38,7 @@ import java.util.stream.Stream;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Range;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -363,5 +364,15 @@ public final class TestUtils
         return StringUtils.repeat(str, size / str.length() + 1)
                           .substring(0, size)
                           .getBytes(StandardCharsets.UTF_8);
+    }
+
+    public static Range<BigInteger> range(long start, long end)
+    {
+        return range(BigInteger.valueOf(start), BigInteger.valueOf(end));
+    }
+
+    public static Range<BigInteger> range(BigInteger start, BigInteger end)
+    {
+        return Range.openClosed(start, end);
     }
 }

@@ -29,9 +29,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
@@ -204,21 +206,35 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
      * @param localDc local DC name to filter out non-local-DC instances. The parameter is optional. When not present, i.e. null, no filtering is applied
      * @return the write replicas of sub-ranges
      */
+    @VisibleForTesting
     public Map<Range<BigInteger>, Set<I>> getWriteReplicasOfRange(Range<BigInteger> range, @Nullable String localDc)
     {
+        return getWriteReplicasOfRange(range, instance -> instance.datacenter().equalsIgnoreCase(localDc));
+    }
+
+    /**
+     * Get write replica-sets of sub-ranges that overlap with the input range.
+     *
+     * @param range range to check. The range can potentially overlap with multiple ranges.
+     *              For example, a down node adds one failure of a token range that covers multiple primary token ranges that replicate to it.
+     * @param instanceFilter predicate to filter the instances
+     * @return the write replicas of sub-ranges
+     */
+    public Map<Range<BigInteger>, Set<I>> getWriteReplicasOfRange(Range<BigInteger> range, @Nullable Predicate<I> instanceFilter)
+    {
         Map<Range<BigInteger>, List<I>> subRangeReplicas = instancesByTokenRange.subRangeMap(range).asMapOfRanges();
-        Function<List<I>, Set<I>> inDcInstances = instances -> {
-            if (localDc != null)
+        Function<List<I>, Set<I>> filterAndTransform = instances -> {
+            if (instanceFilter != null)
             {
                 return instances.stream()
-                                .filter(instance -> instance.datacenter().equalsIgnoreCase(localDc))
+                                .filter(instanceFilter)
                                 .collect(Collectors.toSet());
             }
             return new HashSet<>(instances);
         };
         return subRangeReplicas.entrySet()
                                .stream()
-                               .collect(Collectors.toMap(Map.Entry::getKey, entry -> inDcInstances.apply(entry.getValue())));
+                               .collect(Collectors.toMap(Map.Entry::getKey, entry -> filterAndTransform.apply(entry.getValue())));
     }
 
     // Used for writes

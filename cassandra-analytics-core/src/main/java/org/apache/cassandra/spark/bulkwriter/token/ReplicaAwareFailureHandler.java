@@ -80,6 +80,12 @@ public abstract class ReplicaAwareFailureHandler<I extends CassandraInstance>
         {
             errorMessagesPerInstance.asMap().forEach(instanceErrorsConsumer);
         }
+
+        @Override
+        public String toString()
+        {
+            return errorMessagesPerInstance.toString();
+        }
     }
 
     public class ConsistencyFailurePerRange
@@ -103,12 +109,9 @@ public abstract class ReplicaAwareFailureHandler<I extends CassandraInstance>
      * @return list of failed token ranges that break consistency. This should ideally be empty for a
      * successful operation.
      */
-    public synchronized List<ConsistencyFailurePerRange> getFailedRanges(TokenRangeMapping<I> tokenRangeMapping,
-                                                                         JobInfo job,
-                                                                         ClusterInfo cluster)
-    {
-        return getFailedRangesInternal(tokenRangeMapping, job.getConsistencyLevel(), job.getLocalDC(), cluster.replicationFactor());
-    }
+    public abstract List<ConsistencyFailurePerRange> getFailedRanges(TokenRangeMapping<I> tokenRangeMapping,
+                                                                     JobInfo job,
+                                                                     ClusterInfo cluster);
 
     /**
      * Adds a new token range as a failed token range, with errors on given instance.

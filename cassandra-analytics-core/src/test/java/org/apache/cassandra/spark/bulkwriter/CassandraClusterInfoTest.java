@@ -19,20 +19,19 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.math.BigInteger;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 
+import static org.apache.cassandra.spark.TestUtils.range;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -74,11 +73,6 @@ public class CassandraClusterInfoTest
     public static CassandraClusterInfo mockClusterInfoForTimeSkewTest(int allowanceMinutes, Instant remoteNow)
     {
         return new MockClusterInfoForTimeSkew(allowanceMinutes, remoteNow);
-    }
-
-    private static Range<BigInteger> range(long start, long end)
-    {
-        return Range.openClosed(BigInteger.valueOf(start), BigInteger.valueOf(end));
     }
 
     private static class MockClusterInfoForTimeSkew extends CassandraClusterInfo
