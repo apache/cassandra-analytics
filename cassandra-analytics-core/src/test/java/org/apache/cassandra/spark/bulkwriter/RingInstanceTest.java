@@ -34,9 +34,9 @@ import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.jetbrains.annotations.NotNull;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class RingInstanceTest
 {
@@ -118,14 +118,14 @@ public class RingInstanceTest
     }
 
     @Test
-    public void testHasClusterId()
+    public void testGetClusterId()
     {
         RingEntry ringEntry = mockRingEntry();
         RingInstance instance = new RingInstance(ringEntry);
-        assertFalse(instance.hasClusterId());
+        assertNull(instance.clusterId());
 
         RingInstance instanceWithClusterId = new RingInstance(ringEntry, "cluster1");
-        assertTrue(instanceWithClusterId.hasClusterId());
+        assertNotNull(instanceWithClusterId.clusterId());
         assertEquals("cluster1", instanceWithClusterId.clusterId());
     }
 

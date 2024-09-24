@@ -23,6 +23,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,9 +59,9 @@ class SingleClusterReplicaAwareFailureHandler<I extends CassandraInstance> exten
     private boolean isEmpty = true;
 
     @Nullable
-    private String clusterId;
+    private final String clusterId;
 
-    SingleClusterReplicaAwareFailureHandler(Partitioner partitioner, String clusterId)
+    SingleClusterReplicaAwareFailureHandler(Partitioner partitioner, @Nullable String clusterId)
     {
         this.clusterId = clusterId;
         rangeFailuresMap.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), new FailuresPerInstance());
@@ -175,16 +176,20 @@ class SingleClusterReplicaAwareFailureHandler<I extends CassandraInstance> exten
                                   Set<I> liveAndDown,
                                   Set<I> failedReplicas)
     {
-        Set<I> liveReplicas = liveAndDown.stream()
-                                         .filter(instance -> instance.nodeStatus() == NodeStatus.UP)
-                                         .collect(Collectors.toSet());
-        Set<I> pendingReplicas = liveAndDown.stream()
-                                            .filter(instance -> instance.nodeState().isPending)
-                                            .collect(Collectors.toSet());
+        Set<I> pendingReplicas = new HashSet<>();
         // success is assumed if not failed
-        Set<I> succeededReplicas = liveReplicas.stream()
-                                               .filter(instance -> !failedReplicas.contains(instance))
-                                               .collect(Collectors.toSet());
+        Set<I> succeededReplicas = new HashSet<>();
+        for (I instance : liveAndDown)
+        {
+            if (instance.nodeStatus() == NodeStatus.UP && !failedReplicas.contains(instance))
+            {
+                succeededReplicas.add(instance);
+            }
+            if (instance.nodeState().isPending)
+            {
+                pendingReplicas.add(instance);
+            }
+        }
 
         return cl.canBeSatisfied(succeededReplicas, pendingReplicas, replicationFactor, localDC);
     }

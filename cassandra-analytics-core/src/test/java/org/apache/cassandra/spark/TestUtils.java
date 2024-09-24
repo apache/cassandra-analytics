@@ -68,13 +68,26 @@ import static org.quicktheories.generators.SourceDSL.arbitrary;
 
 public final class TestUtils
 {
-    private static final SparkSession SPARK = SparkSession.builder()
-                                                          .appName("Java Test")
-                                                          .config("spark.master", "local")
-                                                          // Spark is not case-sensitive by default, but we want to make it case-sensitive for
-                                                          // the quoted identifiers tests where we test mixed case
-                                                          .config("spark.sql.caseSensitive", "True")
-                                                          .getOrCreate();
+    private static class Holder
+    {
+        private static final SparkSession SPARK_SESSION = createSession();
+
+        static SparkSession createSession()
+        {
+            return SparkSession.builder()
+                               .appName("Java Test")
+                               .config("spark.master", "local")
+                               // Spark is not case-sensitive by default, but we want to make it case-sensitive for
+                               // the quoted identifiers tests where we test mixed case
+                               .config("spark.sql.caseSensitive", "True")
+                               .getOrCreate();
+        }
+    }
+
+    private static SparkSession session()
+    {
+        return Holder.SPARK_SESSION;
+    }
 
     private TestUtils()
     {
@@ -163,15 +176,17 @@ public final class TestUtils
                                                      Set<CqlField.CqlUdt> udts,
                                                      @Nullable String statsClass)
     {
-        DataFrameReader frameReader = SPARK.read().format("org.apache.cassandra.spark.sparksql.LocalPartitionSizeSource")
-                                           .option("keyspace", keyspace)
-                                           .option("createStmt", createStmt)
-                                           .option("dirs", dir.toAbsolutePath().toString())
-                                           .option("version", version.toString())
-                                           .option("useBufferingInputStream", true)  // Use in the test system to test the BufferingInputStream
-                                           .option("partitioner", partitioner.name())
-                                           .option("udts", udts.stream().map(f -> f.createStatement(bridge.cassandraTypes(), keyspace))
-                                                               .collect(Collectors.joining("\n")));
+        DataFrameReader frameReader = session()
+                                      .read()
+                                      .format("org.apache.cassandra.spark.sparksql.LocalPartitionSizeSource")
+                                      .option("keyspace", keyspace)
+                                      .option("createStmt", createStmt)
+                                      .option("dirs", dir.toAbsolutePath().toString())
+                                      .option("version", version.toString())
+                                      .option("useBufferingInputStream", true)  // Use in the test system to test the BufferingInputStream
+                                      .option("partitioner", partitioner.name())
+                                      .option("udts", udts.stream().map(f -> f.createStatement(bridge.cassandraTypes(), keyspace))
+                                                          .collect(Collectors.joining("\n")));
         if (statsClass != null)
         {
             frameReader = frameReader.option("statsClass", statsClass);
@@ -181,11 +196,12 @@ public final class TestUtils
 
     public static Dataset<Row> read(Path path, StructType schema)
     {
-        return SPARK.read()
-                    .format("parquet")
-                    .option("path", path.toString())
-                    .schema(schema)
-                    .load();
+        return session()
+               .read()
+               .format("parquet")
+               .option("path", path.toString())
+               .schema(schema)
+               .load();
     }
 
     // CHECKSTYLE IGNORE: Method with many parameters
@@ -201,18 +217,19 @@ public final class TestUtils
                                                 @Nullable String filterExpression,
                                                 @Nullable String... columns)
     {
-        DataFrameReader frameReader = SPARK.read()
-                                           .format("org.apache.cassandra.spark.sparksql.LocalDataSource")
-                                           .option("keyspace", keyspace)
-                                           .option("createStmt", createStatement)
-                                           .option("dirs", directory.toAbsolutePath().toString())
-                                           .option("version", version.toString())
-                                           .option("useBufferingInputStream", true)  // Use in the test system to test the BufferingInputStream
-                                           .option("partitioner", partitioner.name())
-                                           .option(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), addLastModifiedTimestampColumn)
-                                           .option("udts", udts.stream()
-                                                               .map(udt -> udt.createStatement(bridge.cassandraTypes(), keyspace))
-                                                               .collect(Collectors.joining("\n")));
+        DataFrameReader frameReader = session()
+                                      .read()
+                                      .format("org.apache.cassandra.spark.sparksql.LocalDataSource")
+                                      .option("keyspace", keyspace)
+                                      .option("createStmt", createStatement)
+                                      .option("dirs", directory.toAbsolutePath().toString())
+                                      .option("version", version.toString())
+                                      .option("useBufferingInputStream", true)  // Use in the test system to test the BufferingInputStream
+                                      .option("partitioner", partitioner.name())
+                                      .option(SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.optionName(), addLastModifiedTimestampColumn)
+                                      .option("udts", udts.stream()
+                                                          .map(udt -> udt.createStatement(bridge.cassandraTypes(), keyspace))
+                                                          .collect(Collectors.joining("\n")));
         if (statsClass != null)
         {
             frameReader = frameReader.option("statsClass", statsClass);

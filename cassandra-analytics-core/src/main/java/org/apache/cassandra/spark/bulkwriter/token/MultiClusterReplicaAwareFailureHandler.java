@@ -30,7 +30,6 @@ import java.util.Set;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
-import org.apache.commons.lang.NotImplementedException;
 
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
@@ -64,11 +63,11 @@ public class MultiClusterReplicaAwareFailureHandler<I extends CassandraInstance>
     @Override
     public synchronized void addFailure(Range<BigInteger> tokenRange, I instance, String errMessage)
     {
-        if (instance.hasClusterId())
+        String clusterId = instance.clusterId();
+        if (clusterId != null)
         {
             Preconditions.checkState(defaultFailureHandler.isEmpty(),
                                      "Cannot track failures from both instances with and without clusterId");
-            String clusterId = instance.clusterId();
             ReplicaAwareFailureHandler<I> handler = failureHandlerPerCluster
                                                     .computeIfAbsent(clusterId, k -> new SingleClusterReplicaAwareFailureHandler<>(partitioner, clusterId));
             handler.addFailure(tokenRange, instance, errMessage);
@@ -131,6 +130,6 @@ public class MultiClusterReplicaAwareFailureHandler<I extends CassandraInstance>
                             @Nullable String localDC,
                             ReplicationFactor replicationFactor)
     {
-        throw new NotImplementedException("Not implemented for MultiClusterReplicaAwareFailureHandler");
+        throw new UnsupportedOperationException("Not implemented for MultiClusterReplicaAwareFailureHandler");
     }
 }
