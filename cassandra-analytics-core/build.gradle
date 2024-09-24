@@ -147,6 +147,10 @@ test {
             destination = destDir
         }
     }
+
+    testLogging {
+        events "started", "passed", "skipped", "failed"
+    }
 }
 
 /* Start: JaCoCo check */
