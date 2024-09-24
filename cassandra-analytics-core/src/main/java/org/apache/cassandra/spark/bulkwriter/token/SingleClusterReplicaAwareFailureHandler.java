@@ -147,7 +147,7 @@ class SingleClusterReplicaAwareFailureHandler<I extends CassandraInstance> exten
             }
 
             tokenRangeMapping.getWriteReplicasOfRange(range, instance -> {
-                                 boolean shouldKeep = instance.datacenter().equalsIgnoreCase(localDC);
+                                 boolean shouldKeep = localDC == null || instance.datacenter().equalsIgnoreCase(localDC);
                                  if (shouldKeep && clusterId != null)
                                  {
                                      shouldKeep = clusterId.equalsIgnoreCase(instance.clusterId());
