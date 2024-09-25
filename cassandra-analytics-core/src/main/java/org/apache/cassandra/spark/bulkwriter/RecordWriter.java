@@ -46,6 +46,7 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.bulkwriter.util.TaskContextUtils;
@@ -96,7 +97,7 @@ public class RecordWriter
         this.columnNames = columnNames;
         this.taskContextSupplier = taskContextSupplier;
         this.tableWriterFactory = tableWriterFactory;
-        this.failureHandler = new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
+        this.failureHandler = new MultiClusterReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
         this.digestAlgorithm = this.writerContext.job().digestAlgorithmSupplier().get();
         this.streamFutures = new HashMap<>();

@@ -80,6 +80,7 @@ public class RingInstance implements CassandraInstance, Serializable
     }
 
     @Override
+    @Nullable
     public String clusterId()
     {
         return clusterId;

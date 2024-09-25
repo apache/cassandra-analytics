@@ -29,11 +29,6 @@ public interface CassandraInstance extends TokenOwner
      */
     @Nullable String clusterId();
 
-    default boolean hasClusterId()
-    {
-        return clusterId() != null;
-    }
-
     String nodeName();
 
     String datacenter();

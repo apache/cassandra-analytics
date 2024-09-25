@@ -56,7 +56,7 @@ import org.apache.cassandra.spark.bulkwriter.blobupload.BlobStreamResult;
 import org.apache.cassandra.spark.bulkwriter.blobupload.CreatedRestoreSlice;
 import org.apache.cassandra.spark.bulkwriter.blobupload.StorageClient;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
-import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
+import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -124,7 +124,7 @@ class ImportCompletionCoordinatorTest
         when(mockClusterInfo.getTokenRangeMapping(anyBoolean())).thenReturn(topology);
         when(mockWriterContext.job()).thenReturn(mockJobInfo);
 
-        writerValidator = new BulkWriteValidator(mockWriterContext, new ReplicaAwareFailureHandler<>(Partitioner.Murmur3Partitioner));
+        writerValidator = new BulkWriteValidator(mockWriterContext, new MultiClusterReplicaAwareFailureHandler<>(Partitioner.Murmur3Partitioner));
 
         // clients will not be used in this test class; mock is at the API method level
         BlobDataTransferApi api = new BlobDataTransferApi(mockJobInfo, mock(SidecarClient.class), mock(StorageClient.class));

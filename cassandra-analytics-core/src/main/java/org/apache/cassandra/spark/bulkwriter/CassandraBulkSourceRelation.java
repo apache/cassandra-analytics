@@ -39,6 +39,7 @@ import o.a.c.sidecar.client.shaded.common.data.RestoreJobStatus;
 import o.a.c.sidecar.client.shaded.common.request.data.CreateRestoreJobRequestPayload;
 import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPayload;
 import org.apache.cassandra.spark.bulkwriter.blobupload.BlobStreamResult;
+import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
@@ -78,7 +79,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         this.sqlContext = sqlContext;
         this.sparkContext = JavaSparkContext.fromSparkContext(sqlContext.sparkContext());
         this.broadcastContext = sparkContext.<BulkWriterContext>broadcast(writerContext);
-        ReplicaAwareFailureHandler<RingInstance> failureHandler = new ReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
+        ReplicaAwareFailureHandler<RingInstance> failureHandler = new MultiClusterReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
         this.simpleTaskScheduler = new SimpleTaskScheduler();
     }

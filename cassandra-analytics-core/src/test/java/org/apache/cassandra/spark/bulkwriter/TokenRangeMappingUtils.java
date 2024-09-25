@@ -217,13 +217,13 @@ public final class TokenRangeMappingUtils
                 replicas.add("localhost" + (i + r) % instancesCount + ":9042");
             }
             Map<String, List<String>> replicasPerDc = new HashMap<>();
-            replicasPerDc.put("ignored", replicas);
+            replicasPerDc.put("dc1", replicas);
             ReplicaInfo ri = new ReplicaInfo(String.valueOf(startToken), String.valueOf(endToken), replicasPerDc);
             replicaInfoList.add(ri);
             String address = "localhost" + i;
             int port = 9042;
             String addressWithPort = address + ":" + port;
-            ReplicaMetadata rm = new ReplicaMetadata("NORMAL", "UP", address, address, 9042, "ignored");
+            ReplicaMetadata rm = new ReplicaMetadata("NORMAL", "UP", address, address, 9042, "dc1");
             replicaMetadata.put(addressWithPort, rm);
             startToken = endToken;
         }

@@ -227,6 +227,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         return consistencyLevel;
     }
 
+    // todo: yifan - unused?
     public void setConsistencyLevel(ConsistencyLevel.CL consistencyLevel)
     {
         this.consistencyLevel = consistencyLevel;

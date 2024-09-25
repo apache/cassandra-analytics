@@ -38,8 +38,6 @@ public class BulkWriterContextFactory
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BulkWriterContextFactory.class);
 
-    public static final BulkWriterContextFactory INSTANCE = new BulkWriterContextFactory();
-
     @NotNull
     public BulkWriterContext createBulkWriterContext(@NotNull SparkContext sparkContext,
                                                      @NotNull Map<String, String> options,
@@ -47,9 +45,9 @@ public class BulkWriterContextFactory
     {
         Preconditions.checkNotNull(schema);
 
-        BulkWriterContext bulkWriterContext;
-        BulkSparkConf conf = new BulkSparkConf(sparkContext.getConf(), options);
+        BulkSparkConf conf = createBulkSparkConf(sparkContext, options);
         int sparkDefaultParallelism = sparkContext.defaultParallelism();
+        BulkWriterContext bulkWriterContext;
         if (conf.isCoordinatedWriteConfigured())
         {
             LOGGER.info("Initializing bulk writer context for multi-clusters coordinated write");
@@ -65,6 +63,12 @@ public class BulkWriterContextFactory
                                             ScalaFunctions.wrapLambda(bulkWriterContext::shutdown));
         publishInitialJobStats(bulkWriterContext, sparkContext.version());
         return bulkWriterContext;
+    }
+
+    @NotNull
+    protected BulkSparkConf createBulkSparkConf(@NotNull SparkContext sparkContext, @NotNull Map<String, String> options)
+    {
+        return new BulkSparkConf(sparkContext.getConf(), options);
     }
 
     @NotNull
