@@ -23,25 +23,25 @@ import java.nio.file.Path;
 import java.util.List;
 
 import org.apache.cassandra.spark.common.Digest;
-import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.jetbrains.annotations.Nullable;
 
 public interface DirectDataTransferApi
 {
     RemoteCommitResult commitSSTables(CassandraInstance instance,
                                       String migrationId,
-                                      List<String> uuids) throws ClientException;
+                                      List<String> uuids) throws SidecarApiCallException;
 
     void cleanUploadSession(CassandraInstance instance,
                             String sessionID,
-                            String jobID) throws ClientException;
+                            String jobID) throws SidecarApiCallException;
 
     void uploadSSTableComponent(Path componentFile,
                                 int ssTableIdx,
                                 CassandraInstance instance,
                                 String sessionID,
-                                Digest digest) throws ClientException;
+                                Digest digest) throws SidecarApiCallException;
 
     class RemoteCommitResult
     {

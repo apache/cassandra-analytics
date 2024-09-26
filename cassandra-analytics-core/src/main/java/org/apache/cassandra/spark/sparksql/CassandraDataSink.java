@@ -25,7 +25,7 @@ import org.apache.cassandra.spark.bulkwriter.BulkWriterContext;
 import org.apache.cassandra.spark.bulkwriter.BulkWriterContextFactory;
 import org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
-import org.apache.cassandra.spark.bulkwriter.LoadNotSupportedException;
+import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
 import org.apache.cassandra.spark.utils.ScalaConversionUtils;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -35,7 +35,6 @@ import org.apache.spark.sql.sources.BaseRelation;
 import org.apache.spark.sql.sources.CreatableRelationProvider;
 import org.apache.spark.sql.sources.DataSourceRegister;
 import org.jetbrains.annotations.NotNull;
-import scala.collection.immutable.Map;
 
 public class CassandraDataSink implements DataSourceRegister, CreatableRelationProvider
 {
@@ -56,47 +55,45 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
      * @param saveMode   must be {@link SaveMode#Append}
      * @param parameters the writer options
      * @param data       the data to persist into the Cassandra table
-     * @throws LoadNotSupportedException if the @<code>saveMode</code> is not supported: {@link SaveMode#Overwrite},
-     *                                   {@link SaveMode#ErrorIfExists}, or {@link SaveMode#Ignore}
+     * @throws UnsupportedAnalyticsOperationException if the {@code saveMode} is not supported. Only {@link SaveMode#Append} is supported
      */
     @Override
     @NotNull
     public BaseRelation createRelation(@NotNull SQLContext sqlContext,
                                        @NotNull SaveMode saveMode,
-                                       @NotNull Map<String, String> parameters,
+                                       @NotNull scala.collection.immutable.Map<String, String> parameters,
                                        @NotNull Dataset<Row> data)
     {
         switch (saveMode)
         {
             case Append:
-                BulkWriterContext writerContext = factory().createBulkWriterContext(
-                sqlContext.sparkContext(),
-                ScalaConversionUtils.<String, String>mapAsJavaMap(parameters),
-                data.schema());
+                BulkWriterContext writerContext = null;
                 try
                 {
+                    writerContext = factory().createBulkWriterContext(sqlContext.sparkContext(),
+                                                                      toJavaMap(parameters),
+                                                                      data.schema());
                     JobInfo jobInfo = writerContext.job();
-                    String description = "Cassandra Bulk Load for table " + jobInfo.qualifiedTableName();
                     CassandraBulkSourceRelation relation = new CassandraBulkSourceRelation(writerContext, sqlContext);
                     // Initialize the job group ID for later use if we need to cancel the job
                     // TODO: Can we get a more descriptive "description" in here from the end user somehow?
+                    String description = "Cassandra bulk write for table " + jobInfo.qualifiedTableName();
                     sqlContext.sparkContext().setJobGroup(jobInfo.getId(), description, false);
                     relation.insert(data, false);
                     return relation;
                 }
-                catch (Exception exception)
-                {
-                    throw new RuntimeException(exception);
-                }
                 finally
                 {
-                    writerContext.shutdown();
+                    if (writerContext != null)
+                    {
+                        writerContext.shutdown();
+                    }
                     sqlContext.sparkContext().clearJobGroup();
                 }
             case Overwrite:
-                throw new LoadNotSupportedException("SaveMode.Overwrite is not supported on Cassandra as it needs privileged TRUNCATE operation");
+                throw new UnsupportedAnalyticsOperationException("SaveMode.Overwrite is not supported on Cassandra as it needs privileged TRUNCATE operation");
             default:
-                throw new LoadNotSupportedException("SaveMode." + saveMode + " is not supported");
+                throw new UnsupportedAnalyticsOperationException("SaveMode." + saveMode + " is not supported");
         }
     }
 
@@ -104,5 +101,12 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
     protected BulkWriterContextFactory factory()
     {
         return new BulkWriterContextFactory();
+    }
+
+    // Util method to convert from Scala map to Java map. FQCN is used for code clarity.
+    private static java.util.Map<String, String> toJavaMap(scala.collection.immutable.Map<String, String> map)
+    {
+        // preserve the type arguments as required by jdk 1.8
+        return ScalaConversionUtils.<String, String>mapAsJavaMap(map);
     }
 }

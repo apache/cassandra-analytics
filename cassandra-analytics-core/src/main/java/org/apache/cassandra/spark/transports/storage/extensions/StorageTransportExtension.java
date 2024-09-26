@@ -38,6 +38,7 @@ import org.apache.spark.SparkConf;
  *    3. Invoke {@link #getStorageConfiguration()}
  *    4. Invoke {@link #setCredentialChangeListener(CredentialChangeListener)}
  *    5. Invoke {@link #setObjectFailureListener(ObjectFailureListener)}
+ *    6. Invoke {@link #setCoordinationSignalListener(CoordinationSignalListener)}
  */
 public interface StorageTransportExtension extends CommonStorageTransportExtension,
                                                    ExecutorStorageTransportExtension,

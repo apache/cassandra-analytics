@@ -93,16 +93,18 @@ public class LocalStorageTransportExtension implements StorageTransportExtension
 
     private StorageCredentialPair generateTokens()
     {
-        return new StorageCredentialPair(new StorageCredentials("writeKey",
+        return new StorageCredentialPair("writeRegion",
+                                         new StorageCredentials("writeKey",
                                                                 "writeSecret",
                                                                 "writeSessionToken"),
+                                         "readRegion",
                                          new StorageCredentials("readKey",
                                                                 "readSecret",
                                                                 "readSessionToken"));
     }
 
     @Override
-    public void onStageSucceeded(String clusterId, long objectsCount, long rowsCount, long elapsedMillis)
+    public void onStageSucceeded(String clusterId, long elapsedMillis)
     {
 
     }
@@ -114,7 +116,7 @@ public class LocalStorageTransportExtension implements StorageTransportExtension
     }
 
     @Override
-    public void onApplySucceeded(String clusterId, long objectsCount, long rowsCount, long elapsedMillis)
+    public void onApplySucceeded(String clusterId, long elapsedMillis)
     {
 
     }

@@ -27,7 +27,7 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CassandraCoordinatedBulkWriterContext;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraCoordinatedBulkWriterContext;
 import org.apache.cassandra.spark.utils.ScalaFunctions;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.types.StructType;

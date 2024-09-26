@@ -26,6 +26,11 @@ public class SidecarApiCallException extends AnalyticsException
 {
     private static final long serialVersionUID = 3304206898661966469L;
 
+    public SidecarApiCallException(String message)
+    {
+        super(message);
+    }
+
     public SidecarApiCallException(String message, Throwable cause)
     {
         super(message, cause);

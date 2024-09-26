@@ -145,9 +145,11 @@ public class ExampleStorageTransportExtension implements StorageTransportExtensi
 
     private StorageCredentialPair generateTokens(long tokenCount)
     {
-        return new StorageCredentialPair(new StorageCredentials("writeAccessKeyId-" + tokenCount,
+        return new StorageCredentialPair("writeRegion",
+                                         new StorageCredentials("writeAccessKeyId-" + tokenCount,
                                                                 "writeSecretKey-" + tokenCount,
                                                                 "writeSessionToken-" + tokenCount),
+                                         "readRegion",
                                          new StorageCredentials(
                                          "readAccessKeyId-" + tokenCount,
                                          "readSecretKey-" + tokenCount,
@@ -155,7 +157,7 @@ public class ExampleStorageTransportExtension implements StorageTransportExtensi
     }
 
     @Override
-    public void onStageSucceeded(String clusterId, long objectsCount, long rowsCount, long elapsedMillis)
+    public void onStageSucceeded(String clusterId, long elapsedMillis)
     {
         LOGGER.info("Job {} has all objects staged at cluster {} after {}ms", jobId, clusterId, elapsedMillis);
     }
@@ -167,7 +169,7 @@ public class ExampleStorageTransportExtension implements StorageTransportExtensi
     }
 
     @Override
-    public void onApplySucceeded(String clusterId, long objectsCount, long rowsCount, long elapsedMillis)
+    public void onApplySucceeded(String clusterId, long elapsedMillis)
     {
         LOGGER.info("Job {} has all objects applied at cluster {} after {}ms", jobId, clusterId, elapsedMillis);
     }

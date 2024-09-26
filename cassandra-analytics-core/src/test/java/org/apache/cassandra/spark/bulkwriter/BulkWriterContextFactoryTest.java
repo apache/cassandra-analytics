@@ -25,7 +25,7 @@ import com.google.common.collect.Maps;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CassandraCoordinatedBulkWriterContext;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraCoordinatedBulkWriterContext;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.spark.SparkConf;

@@ -48,7 +48,7 @@ interface DriverStorageTransportExtension extends CoordinatedTransportExtension
     void setObjectFailureListener(ObjectFailureListener objectFailureListener);
 
     /**
-     * Notifies the extension that all the objects have been persisted to the blob store successfully.
+     * Notifies the extension that all the objects have been persisted to the cloud storage successfully.
      * This method is called from driver when all executor tasks complete.
      *
      * @param objectsCount the total count of objects persisted

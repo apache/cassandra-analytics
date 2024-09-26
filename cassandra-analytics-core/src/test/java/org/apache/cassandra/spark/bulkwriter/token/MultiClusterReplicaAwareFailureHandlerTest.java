@@ -34,8 +34,8 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CassandraClusterInfoGroup;
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
@@ -63,14 +63,14 @@ class MultiClusterReplicaAwareFailureHandlerTest
         assertThatNoException().isThrownBy(() -> handler.addFailure(range(0, 10), instance, "failure"));
         assertThatThrownBy(() -> handler.addFailure(range(0, 10), instanceWithClusterId, "failure"))
         .isExactlyInstanceOf(IllegalStateException.class)
-        .hasMessage("Cannot track failures from both instances with and without clusterId");
+        .hasMessage("Cannot set value for non-null cluster when the container is used for non-coordinated-write");
 
         // create a new handler and add failures in the other order
         handler = new MultiClusterReplicaAwareFailureHandler<>(partitioner);
         assertThatNoException().isThrownBy(() -> handler.addFailure(range(0, 10), instanceWithClusterId, "failure"));
         assertThatThrownBy(() -> handler.addFailure(range(0, 10), instance, "failure"))
         .isExactlyInstanceOf(IllegalStateException.class)
-        .hasMessage("Cannot track failures from both instances with and without clusterId");
+        .hasMessage("Cannot set value for null cluster when the container is used for coordinated-write");
     }
 
     @Test
@@ -149,7 +149,7 @@ class MultiClusterReplicaAwareFailureHandlerTest
                                                      ImmutableMap.of(DATACENTER_1, 3));
         ClusterInfo clusterInfo = mock(ClusterInfo.class);
         when(clusterInfo.replicationFactor()).thenReturn(rf);
-        when(group.cluster(any())).thenReturn(clusterInfo); // return the same clusterinfo for both clusters (for test simplicity)
+        when(group.getValueOrThrow(any())).thenReturn(clusterInfo); // return the same clusterinfo for both clusters (for test simplicity)
         test.accept(new FailureHandlerTextContext(consolidatedTopology, jobInfo, group));
     }
 }
