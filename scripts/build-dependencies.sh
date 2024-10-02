@@ -19,5 +19,13 @@
 
 SCRIPT_DIR=$( dirname -- "$( readlink -f -- "$0"; )"; )
 
+if grep -q "^analyticsJDKLevel=11$" $SCRIPT_DIR/../gradle.properties; then
+    echo "analyticsJDKLevel is set to 11"
+    export CASSANDRA_USE_JDK11=true
+else
+    echo "analyticsJDKLevel is not set to 11"
+    export CASSANDRA_USE_JDK11=false
+fi
+
 ${SCRIPT_DIR}/build-dtest-jars.sh
 ${SCRIPT_DIR}/build-sidecar.sh
