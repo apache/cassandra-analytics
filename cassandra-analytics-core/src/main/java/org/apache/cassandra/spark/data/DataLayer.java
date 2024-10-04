@@ -275,9 +275,7 @@ public abstract class DataLayer implements Serializable
                                              partitioner(),
                                              sstables(partitionId, sparkRangeFilter, filtersInRange),
                                              sparkRangeFilter,
-                                             filtersInRange.stream()
-                                                           .map(filter -> (PartitionKeyFilter) filter)
-                                                           .collect(Collectors.toList()),
+                                             filtersInRange,
                                              columnFilter,
                                              timeProvider(),
                                              readIndexOffset(),

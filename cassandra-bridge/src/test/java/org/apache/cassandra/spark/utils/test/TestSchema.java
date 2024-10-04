@@ -191,7 +191,7 @@ public final class TestSchema
                                  .mapToObj(index -> columns.get(index).cloneWithPosition(partitionKeys.size() + clusteringKeys.size() + index))
                                  .sorted(Comparator.comparing(CqlField::name))
                                  .collect(Collectors.toList())
-                        );
+                );
             }
             else
             {
@@ -668,7 +668,7 @@ public final class TestSchema
             // NOTE: CassandraBridge must be set before calling this class,
             //       so we can convert 4.0 Date type to LocalDate to be used in CQLSSTableWriter
             assert version != null && start <= end && end <= values.length
-            : String.format("version: %s, start: %s, end: %s", version, start, end);
+                : String.format("version: %s, start: %s, end: %s", version, start, end);
             Object[] result = new Object[end - start];
             for (int sourceIndex = start, destinationIndex = 0; sourceIndex < end; sourceIndex++, destinationIndex++)
             {
