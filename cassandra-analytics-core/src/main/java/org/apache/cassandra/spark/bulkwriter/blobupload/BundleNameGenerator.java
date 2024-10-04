@@ -43,20 +43,22 @@ public class BundleNameGenerator
      * @param seed a random integer to derive the prefix character
      * @return starting character to be used while naming zipped SSTables file
      */
-    private char generatePrefixChar(int seed)
+    static char generatePrefixChar(int seed)
     {
-        int group = seed % 62;
+        int group = Math.abs(seed % 62);
         if (group <= 25)
         {
             return (char) ('a' + group);
         }
         else if (group <= 51)
         {
-            return (char) ('A' + group - 26);
+            int offset = group - 26;
+            return (char) ('A' + offset);
         }
         else
         {
-            return (char) ('0' + group - 52);
+            int offset = group - 52;
+            return (char) ('0' + offset);
         }
     }
 
