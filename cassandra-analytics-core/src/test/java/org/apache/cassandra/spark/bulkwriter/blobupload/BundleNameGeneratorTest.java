@@ -20,12 +20,14 @@
 package org.apache.cassandra.spark.bulkwriter.blobupload;
 
 import java.math.BigInteger;
-import java.util.stream.IntStream;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Fail.fail;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.quicktheories.QuickTheory.qt;
+import static org.quicktheories.generators.SourceDSL.integers;
 
 class BundleNameGeneratorTest
 {
@@ -59,17 +61,17 @@ class BundleNameGeneratorTest
     }
 
     @Test
-    void testGenerateBundleNamePrefixChar()
+    void testGenerateValidBundleNamePrefixChar()
     {
-        IntStream.rangeClosed(Integer.MIN_VALUE, Integer.MAX_VALUE)
-        .forEach(i -> {
-            char prefix = BundleNameGenerator.generatePrefixChar(i);
-            if (!(prefix >= 'a' && prefix <= 'z') &&
-                !(prefix >= 'A' && prefix <= 'Z') &&
-                !(prefix >= '0' && prefix <= '9'))
-            {
-                fail("Seed " + i + " produces invalid prefix " + prefix);
-            }
-        });
+        qt().withTestingTime(5, TimeUnit.SECONDS)
+            .withUnlimitedExamples()
+            .forAll(integers().all())
+            .checkAssert(i -> {
+                char prefix = BundleNameGenerator.generatePrefixChar(i);
+                assertTrue((prefix >= 'a' && prefix <= 'z')
+                           || (prefix >= 'A' && prefix <= 'Z')
+                           || (prefix >= '0' && prefix <= '9'),
+                           "Seed " + i + " produces invalid prefix " + prefix);
+            });
     }
 }
