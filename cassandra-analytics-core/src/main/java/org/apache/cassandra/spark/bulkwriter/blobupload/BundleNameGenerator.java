@@ -33,33 +33,20 @@ public class BundleNameGenerator
         this.commonName = '_' + jobId + '_' + sessionId + '_';
     }
 
+    static final char[] PREFIX_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".toCharArray();
     /**
-     * We want to introduce variability in starting character of zip file name, to guarantee entropy on the object name to
+     * Prefix char is to introduce variability in the file name, to increase entropy on the object name to
      * avoid 503s from S3 to workaround the throughput limit that is based on the object name.
      * <p>
-     * We use 62 for mod, because 62 = 26 (lower case alphabets) + 26 (upper case alphabets) + 10 (digits)
-     * For e.g. seed = 512 will map to lower case alphabet q
+     * The prefix char is picked from the chars pool, i.e. a-z|A-Z|0-9, by modding the seed
      * </p>
      * @param seed a random integer to derive the prefix character
      * @return starting character to be used while naming zipped SSTables file
      */
     static char generatePrefixChar(int seed)
     {
-        int group = Math.abs(seed % 62);
-        if (group <= 25)
-        {
-            return (char) ('a' + group);
-        }
-        else if (group <= 51)
-        {
-            int offset = group - 26;
-            return (char) ('A' + offset);
-        }
-        else
-        {
-            int offset = group - 52;
-            return (char) ('0' + offset);
-        }
+        int idx = Math.abs(seed % PREFIX_CHARS.length);
+        return PREFIX_CHARS[idx];
     }
 
     public String generate(BigInteger startToken, BigInteger endToken)
