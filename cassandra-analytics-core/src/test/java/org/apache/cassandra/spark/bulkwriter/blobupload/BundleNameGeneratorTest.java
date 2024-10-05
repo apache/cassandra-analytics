@@ -20,10 +20,14 @@
 package org.apache.cassandra.spark.bulkwriter.blobupload;
 
 import java.math.BigInteger;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.quicktheories.QuickTheory.qt;
+import static org.quicktheories.generators.SourceDSL.integers;
 
 class BundleNameGeneratorTest
 {
@@ -54,5 +58,20 @@ class BundleNameGeneratorTest
         {
             assertEquals(expectedResults[i], nameGenerator.generate(BigInteger.valueOf(i), BigInteger.valueOf(i + 1)).charAt(0));
         }
+    }
+
+    @Test
+    void testGenerateValidBundleNamePrefixChar()
+    {
+        qt().withTestingTime(5, TimeUnit.SECONDS)
+            .withUnlimitedExamples()
+            .forAll(integers().all())
+            .checkAssert(i -> {
+                char prefix = BundleNameGenerator.generatePrefixChar(i);
+                assertTrue((prefix >= 'a' && prefix <= 'z')
+                           || (prefix >= 'A' && prefix <= 'Z')
+                           || (prefix >= '0' && prefix <= '9'),
+                           "Seed " + i + " produces invalid prefix " + prefix);
+            });
     }
 }
