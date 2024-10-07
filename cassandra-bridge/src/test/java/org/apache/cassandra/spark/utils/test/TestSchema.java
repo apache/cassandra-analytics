@@ -222,7 +222,7 @@ public final class TestSchema
     private final boolean quoteIdentifiers;
 
     @SuppressWarnings("unchecked")
-    private static SparkSqlTypeConverter getSparkSql()
+    public static SparkSqlTypeConverter getSparkSql()
     {
         try
         {

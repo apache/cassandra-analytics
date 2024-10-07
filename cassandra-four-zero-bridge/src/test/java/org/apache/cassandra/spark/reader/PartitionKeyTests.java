@@ -32,7 +32,6 @@ import org.apache.cassandra.db.marshal.CompositeType;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
-import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverterImplementation;
 import org.apache.cassandra.spark.utils.ComparisonUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
@@ -44,13 +43,12 @@ import static org.quicktheories.generators.SourceDSL.arbitrary;
 public class PartitionKeyTests
 {
     private static final CassandraBridgeImplementation BRIDGE = new CassandraBridgeImplementation();
-    private static final SparkSqlTypeConverter TYPE_CONVERTER = new SparkSqlTypeConverterImplementation();
+    private static final SparkSqlTypeConverter TYPE_CONVERTER = TestSchema.getSparkSql();
 
     @Test
     @SuppressWarnings("static-access")
     public void testBuildPartitionKey()
     {
-        SparkSqlTypeConverter typeConverter = TYPE_CONVERTER;
         qt().forAll(arbitrary().pick(BRIDGE.supportedTypes())).checkAssert(partitionKeyType -> {
             CqlTable table = TestSchema.builder(BRIDGE)
                                        .withPartitionKey("a", partitionKeyType)
@@ -67,8 +65,8 @@ public class PartitionKeyTests
             assertTrue(ComparisonUtils.equals(value, cassandraValue));
 
             // convert SparkSQL types back into test row types to compare
-            Object sparkSqlValue = typeConverter.convert(partitionKeyType, cassandraValue, false);
-            assertTrue(ComparisonUtils.equals(value, typeConverter.toTestRowType(partitionKeyType, sparkSqlValue)));
+            Object sparkSqlValue = TYPE_CONVERTER.convert(partitionKeyType, cassandraValue, false);
+            assertTrue(ComparisonUtils.equals(value, TYPE_CONVERTER.toTestRowType(partitionKeyType, sparkSqlValue)));
         });
     }
 
