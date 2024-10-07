@@ -37,6 +37,7 @@ import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverterImplementation;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
@@ -167,6 +168,7 @@ public class SparkRowIteratorTests
                                         TestSchema.TestRow[] testRows) throws IOException
     {
         CassandraBridge bridge = CassandraBridgeFactory.get(version);
+        SparkSqlTypeConverter typeConverter = CassandraBridgeFactory.getSparkSql(bridge.getVersion());
         CqlTable cqlTable = schema.buildTable();
         int numRows = testRows.length;
         int numColumns = cqlTable.fields().size() - cqlTable.numPartitionKeys() - cqlTable.numClusteringKeys();
@@ -187,7 +189,7 @@ public class SparkRowIteratorTests
         when(dataLayer.bridge()).thenReturn(bridge);
         when(dataLayer.stats()).thenReturn(Stats.DoNothingStats.INSTANCE);
         when(dataLayer.requestedFeatures()).thenCallRealMethod();
-        SparkSqlTypeConverter typeConverter = dataLayer.typeConverter();
+        when(dataLayer.typeConverter()).thenReturn(typeConverter);
 
         // Mock scanner
         StreamScanner scanner = mock(StreamScanner.class);

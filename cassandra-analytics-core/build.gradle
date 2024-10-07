@@ -96,6 +96,7 @@ dependencies {
     testImplementation project(path: ':cassandra-bridge', configuration: 'testArtifacts')
     testImplementation(project(':cassandra-analytics-spark-converter'))
     testImplementation(project(':cassandra-analytics-spark-four-zero-converter'))
+    testImplementation(project(':cassandra-four-zero-types'))
     testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
