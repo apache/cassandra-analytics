@@ -33,7 +33,6 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.jetbrains.annotations.NotNull;
@@ -41,8 +40,20 @@ import org.jetbrains.annotations.NotNull;
 public final class CassandraBridgeFactory
 {
     // maps Cassandra version-specific jar name (e.g. 'four-zero') to matching CassandraBridge and SparkSqlTypeConverter
-    private static final Map<String, Pair<CassandraBridge, SparkSqlTypeConverter>> CASSANDRA_BRIDGES =
+    private static final Map<String, VersionSpecificBridge> CASSANDRA_BRIDGES =
     new ConcurrentHashMap<>(CassandraVersion.values().length);
+
+    public static class VersionSpecificBridge
+    {
+        public final CassandraBridge cassandraBridge;
+        public final SparkSqlTypeConverter sparkSqlTypeConverter;
+
+        public VersionSpecificBridge(CassandraBridge cassandraBridge, SparkSqlTypeConverter sparkSqlTypeConverter)
+        {
+            this.cassandraBridge = cassandraBridge;
+            this.sparkSqlTypeConverter = sparkSqlTypeConverter;
+        }
+    }
 
     private CassandraBridgeFactory()
     {
@@ -84,7 +95,7 @@ public final class CassandraBridgeFactory
     {
         String jarBaseName = version.jarBaseName();
         Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
-        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).getLeft();
+        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).cassandraBridge;
     }
 
     @NotNull
@@ -104,7 +115,7 @@ public final class CassandraBridgeFactory
     {
         String jarBaseName = version.jarBaseName();
         Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
-        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).getRight();
+        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).sparkSqlTypeConverter;
     }
 
     /**
@@ -167,7 +178,7 @@ public final class CassandraBridgeFactory
 
     @NotNull
     @SuppressWarnings("unchecked")
-    private static Pair<CassandraBridge, SparkSqlTypeConverter> create(@NotNull String label)
+    private static VersionSpecificBridge create(@NotNull String label)
     {
         try
         {
@@ -202,7 +213,7 @@ public final class CassandraBridgeFactory
                                                   .loadClass("org.apache.cassandra.spark.data.converter.SparkSqlTypeConverterImplementation");
             Constructor<SparkSqlTypeConverter> typeConverterConstructor = typeConverter.getConstructor();
             SparkSqlTypeConverter typeConverterInstance = typeConverterConstructor.newInstance();
-            return Pair.of(bridgeInstance, typeConverterInstance);
+            return new VersionSpecificBridge(bridgeInstance, typeConverterInstance);
         }
         catch (IOException | ClassNotFoundException | NoSuchMethodException | InstantiationException
                | IllegalAccessException | InvocationTargetException exception)
