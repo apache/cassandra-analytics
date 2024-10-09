@@ -157,6 +157,9 @@ public abstract class DataLayer implements Serializable
      */
     public abstract CassandraBridge bridge();
 
+    /**
+     * @return SparkSQL type converter that maps version-specific Cassandra types to SparkSQL types
+     */
     public SparkSqlTypeConverter typeConverter()
     {
         return CassandraBridgeFactory.getSparkSql(version());
