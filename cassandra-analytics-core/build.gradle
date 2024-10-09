@@ -93,7 +93,7 @@ dependencies {
     compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
 
     testImplementation(group: 'com.google.guava', name: 'guava', version: '19.0')
-    testImplementation(testFixtures(project(":cassandra-bridge")))
+    testImplementation project(path: ':cassandra-bridge', configuration: 'testArtifacts')
     testImplementation(project(':cassandra-analytics-spark-converter'))
     testImplementation(project(':cassandra-analytics-spark-four-zero-converter'))
     testImplementation(project(':cassandra-four-zero-types'))

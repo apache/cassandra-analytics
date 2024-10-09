@@ -43,7 +43,7 @@ dependencies {
     compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: "${project.jacksonVersion}")
     compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
 
-    testImplementation(testFixtures(project(":cassandra-bridge")))
+    testImplementation project(path: ':cassandra-bridge', configuration: 'testArtifacts')
     testImplementation project(":cassandra-analytics-common")
     testImplementation project(":cassandra-four-zero-types")
     testImplementation(project(':cassandra-bridge'))
