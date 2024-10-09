@@ -40,6 +40,7 @@ import org.jetbrains.annotations.NotNull;
 
 public final class CassandraBridgeFactory
 {
+    // maps Cassandra version-specific jar name (e.g. 'four-zero') to matching CassandraBridge and SparkSqlTypeConverter
     private static final Map<String, Pair<CassandraBridge, SparkSqlTypeConverter>> CASSANDRA_BRIDGES =
     new ConcurrentHashMap<>(CassandraVersion.values().length);
 
