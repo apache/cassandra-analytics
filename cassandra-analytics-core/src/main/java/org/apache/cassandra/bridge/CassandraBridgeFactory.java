@@ -80,17 +80,17 @@ public final class CassandraBridgeFactory
     }
 
     @NotNull
-    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraVersionFeatures features)
-    {
-        return getSparkSql(getCassandraVersion(features));
-    }
-
-    @NotNull
     public static CassandraBridge get(@NotNull CassandraVersion version)
     {
         String jarBaseName = version.jarBaseName();
         Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
         return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).getLeft();
+    }
+
+    @NotNull
+    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraVersionFeatures features)
+    {
+        return getSparkSql(getCassandraVersion(features));
     }
 
     @NotNull
