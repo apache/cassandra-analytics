@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -50,7 +51,6 @@ import org.apache.cassandra.spark.exception.ImportFailedException;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
 import org.mockito.ArgumentCaptor;
-import org.sparkproject.guava.util.concurrent.Uninterruptibles;
 
 import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
 import static org.assertj.core.api.Assertions.assertThat;

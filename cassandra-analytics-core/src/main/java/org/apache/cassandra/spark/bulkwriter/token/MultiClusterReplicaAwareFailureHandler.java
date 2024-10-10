@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.bulkwriter.token;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -86,10 +87,11 @@ public class MultiClusterReplicaAwareFailureHandler<I extends CassandraInstance>
                     JobInfo job,
                     ClusterInfo cluster)
     {
-        SingleClusterReplicaAwareFailureHandler<I> singleCluster = failureHandlers.getValueOrNull(null);
-        if (singleCluster != null)
+        if (!job.isCoordinatedWriteEnabled())
         {
-            return singleCluster.getFailedRanges(tokenRangeMapping, job, cluster);
+            // if the retrieved failure handler is null, it indicates no failure has been added, i.e. no failed ranges
+            SingleClusterReplicaAwareFailureHandler<I> singleCluster = failureHandlers.getValueOrNull(null);
+            return singleCluster == null ? Collections.emptyList() : singleCluster.getFailedRanges(tokenRangeMapping, job, cluster);
         }
 
         List<ReplicaAwareFailureHandler<I>.ConsistencyFailurePerRange> failurePerRanges = new ArrayList<>();
