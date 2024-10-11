@@ -71,6 +71,7 @@ import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -110,7 +111,7 @@ class CloudStorageStreamSessionTest
         ClusterInfo clusterInfo = mock(ClusterInfo.class);
         when(clusterInfo.getTokenRangeMapping(anyBoolean())).thenReturn(topology);
         when(spiedWriterContext.cluster()).thenReturn(clusterInfo);
-        StorageTransportConfiguration storageTransportConfiguration = mock(StorageTransportConfiguration.class);
+        StorageTransportConfiguration storageTransportConfiguration = mock(StorageTransportConfiguration.class, RETURNS_DEEP_STUBS);
         when(transportContext.transportConfiguration()).thenReturn(storageTransportConfiguration);
 
         StorageTransportExtension transportExtension = mock(StorageTransportExtension.class);

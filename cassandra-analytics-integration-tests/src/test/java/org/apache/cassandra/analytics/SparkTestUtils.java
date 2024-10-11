@@ -211,7 +211,7 @@ public class SparkTestUtils
         Throwable thrown = catchThrowable(dfWriter::save);
 
         assertThat(thrown).isInstanceOf(RuntimeException.class)
-                          .hasMessageContaining("java.lang.RuntimeException: Bulk Write to Cassandra has failed");
+                          .hasMessageContaining("Bulk Write to Cassandra has failed");
 
         Throwable cause = thrown;
 
