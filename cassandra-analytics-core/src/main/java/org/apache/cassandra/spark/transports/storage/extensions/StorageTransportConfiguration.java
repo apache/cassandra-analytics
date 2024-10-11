@@ -68,10 +68,10 @@ public class StorageTransportConfiguration
         this.readAccessConfigurations.addAll(readAccessConfigByCluster);
     }
 
-    public StorageTransportConfiguration(String prefix,
-                                         Map<String, String> tags,
-                                         StorageAccessConfiguration writeAccessConfiguration,
-                                         MultiClusterContainer<StorageAccessConfiguration> readAccessConfigurations)
+    private StorageTransportConfiguration(String prefix,
+                                          Map<String, String> tags,
+                                          StorageAccessConfiguration writeAccessConfiguration,
+                                          MultiClusterContainer<StorageAccessConfiguration> readAccessConfigurations)
     {
         this.prefix = prefix;
         this.writeAccessConfiguration = writeAccessConfiguration;
