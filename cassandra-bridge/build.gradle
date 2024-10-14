@@ -47,6 +47,7 @@ dependencies {
     compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: "${project.jacksonVersion}")
     compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: "${project.jacksonVersion}")
     compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
+    compileOnly(group: 'commons-io', name: 'commons-io', version: "${project.commonsIoVersion}")
 
     testImplementation(project(path: ":cassandra-analytics-spark-converter"))
     testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
