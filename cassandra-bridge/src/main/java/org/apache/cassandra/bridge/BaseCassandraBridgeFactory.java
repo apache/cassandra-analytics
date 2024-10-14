@@ -37,6 +37,10 @@ import org.jetbrains.annotations.NotNull;
 
 public class BaseCassandraBridgeFactory
 {
+    protected BaseCassandraBridgeFactory()
+    {
+        throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
 
     @NotNull
     public static CassandraVersion getCassandraVersion(@NotNull String version)
@@ -86,7 +90,8 @@ public class BaseCassandraBridgeFactory
     }
 
     @SuppressWarnings("unchecked")
-    public static CassandraBridge loadCassandraBridge(String label) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException
+    public static CassandraBridge loadCassandraBridge(String label)
+    throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException
     {
         ClassLoader loader = buildClassLoader(cassandraResourceName(label), bridgeResourceName(label), typesResourceName(label));
         Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass(CassandraBridge.IMPLEMENTATION_FQCN);

@@ -49,6 +49,7 @@ public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
 
     private CassandraBridgeFactory()
     {
+        super();
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
@@ -104,7 +105,11 @@ public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
     {
         try
         {
-            ClassLoader loader = buildClassLoader(cassandraResourceName(label), bridgeResourceName(label), typesResourceName(label), sparkSqlResourceName(label));
+            ClassLoader loader = buildClassLoader(
+            cassandraResourceName(label),
+            bridgeResourceName(label),
+            typesResourceName(label),
+            sparkSqlResourceName(label));
             Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass(CassandraBridge.IMPLEMENTATION_FQCN);
             Constructor<CassandraBridge> constructor = bridge.getConstructor();
             CassandraBridge bridgeInstance = constructor.newInstance();
