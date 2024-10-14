@@ -32,6 +32,9 @@ import org.apache.spark.sql.types.DataType;
  */
 public interface SparkSqlTypeConverter extends TypeConverter
 {
+    // Implementations of SparkSqlTypeConverter must be named as such to load dynamically using the {@link CassandraBridgeFactory}
+    String IMPLEMENTATION_FQCN = "org.apache.cassandra.spark.data.converter.SparkSqlTypeConverterImplementation";
+
     /**
      * @param cqlField Cassandra CQL field
      * @param row      SparkSQL `org.apache.spark.sql.catalyst.expressions.GenericInternalRow` row

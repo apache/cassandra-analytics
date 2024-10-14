@@ -74,6 +74,9 @@ public abstract class CassandraBridge
     @VisibleForTesting
     public static final Object UNSET_MARKER = new Object();
 
+    // Implementations of CassandraBridge must be named as such to load dynamically using the {@link CassandraBridgeFactory}
+    public static final String IMPLEMENTATION_FQCN = "org.apache.cassandra.bridge.CassandraBridgeImplementation";
+
     public abstract CassandraTypes cassandraTypes();
 
     public abstract AbstractMap.SimpleEntry<ByteBuffer, BigInteger> getPartitionKey(@NotNull CqlTable table,

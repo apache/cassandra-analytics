@@ -37,7 +37,6 @@ import org.jetbrains.annotations.NotNull;
 
 public class BaseCassandraBridgeFactory
 {
-    public static final String CASSANDRA_BRIDGE_CLASSNAME = "org.apache.cassandra.bridge.CassandraBridgeImplementation";
 
     @NotNull
     public static CassandraVersion getCassandraVersion(@NotNull String version)
@@ -90,7 +89,7 @@ public class BaseCassandraBridgeFactory
     public static CassandraBridge loadCassandraBridge(String label) throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException
     {
         ClassLoader loader = buildClassLoader(cassandraResourceName(label), bridgeResourceName(label), typesResourceName(label));
-        Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass(CASSANDRA_BRIDGE_CLASSNAME);
+        Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass(CassandraBridge.IMPLEMENTATION_FQCN);
         Constructor<CassandraBridge> constructor = bridge.getConstructor();
         return constructor.newInstance();
     }

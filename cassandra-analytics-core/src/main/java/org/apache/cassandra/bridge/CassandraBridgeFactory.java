@@ -31,8 +31,6 @@ import org.jetbrains.annotations.NotNull;
 
 public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
 {
-    public static final String SPARK_SQL_CLASSNAME = "org.apache.cassandra.spark.data.converter.SparkSqlTypeConverterImplementation";
-
     // maps Cassandra version-specific jar name (e.g. 'four-zero') to matching CassandraBridge and SparkSqlTypeConverter
     private static final Map<String, VersionSpecificBridge> CASSANDRA_BRIDGES =
     new ConcurrentHashMap<>(CassandraVersion.values().length);
@@ -107,13 +105,13 @@ public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
         try
         {
             ClassLoader loader = buildClassLoader(cassandraResourceName(label), bridgeResourceName(label), typesResourceName(label), sparkSqlResourceName(label));
-            Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass(CASSANDRA_BRIDGE_CLASSNAME);
+            Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass(CassandraBridge.IMPLEMENTATION_FQCN);
             Constructor<CassandraBridge> constructor = bridge.getConstructor();
             CassandraBridge bridgeInstance = constructor.newInstance();
 
             Class<SparkSqlTypeConverter> typeConverter = (Class<SparkSqlTypeConverter>)
                                                          loader
-                                                         .loadClass(SPARK_SQL_CLASSNAME);
+                                                         .loadClass(SparkSqlTypeConverter.IMPLEMENTATION_FQCN);
             Constructor<SparkSqlTypeConverter> typeConverterConstructor = typeConverter.getConstructor();
             SparkSqlTypeConverter typeConverterInstance = typeConverterConstructor.newInstance();
             return new VersionSpecificBridge(bridgeInstance, typeConverterInstance);
