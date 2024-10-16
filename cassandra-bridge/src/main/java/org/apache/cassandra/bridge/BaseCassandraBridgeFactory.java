@@ -27,11 +27,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Optional;
 
 import com.google.common.base.Preconditions;
-import org.apache.commons.io.FileUtils;
 
 import org.jetbrains.annotations.NotNull;
 
@@ -119,12 +120,11 @@ public class BaseCassandraBridgeFactory
 
     public static File copyClassResourceToFile(String resource)
     {
-        try
+        try (InputStream contents = BaseCassandraBridgeFactory.class.getResourceAsStream(resource);)
         {
-            InputStream contents = BaseCassandraBridgeFactory.class.getResourceAsStream(resource);
-            File jarFile = Files.createTempFile(null, ".jar").toFile();
-            FileUtils.copyInputStreamToFile(contents, jarFile);
-            return jarFile;
+            Path jarPath = Files.createTempFile(null, ".jar");
+            Files.copy(contents, jarPath, StandardCopyOption.REPLACE_EXISTING);
+            return jarPath.toFile();
         }
         catch (IOException e)
         {

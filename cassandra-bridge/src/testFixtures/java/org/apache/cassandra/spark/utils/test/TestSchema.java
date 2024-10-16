@@ -39,8 +39,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import com.google.common.collect.ImmutableMap;
-
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.CqlField;
@@ -206,7 +204,7 @@ public final class TestSchema
     public final String table;
     public final String createStatement;
     public final ReplicationFactor rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
-                                                              ImmutableMap.of("DC1", 3));
+                                                              Collections.singletonMap("DC1", 3));
     public final String insertStatement;
     public final String updateStatement;
     public final String deleteStatement;
