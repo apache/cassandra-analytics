@@ -26,7 +26,7 @@ import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.StreamScanner;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.connector.read.PartitionReader;

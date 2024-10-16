@@ -29,7 +29,7 @@ import o.a.c.sidecar.client.shaded.common.response.ListSnapshotFilesResponse;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;

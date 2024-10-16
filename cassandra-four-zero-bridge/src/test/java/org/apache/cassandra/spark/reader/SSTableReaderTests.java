@@ -74,7 +74,7 @@ import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.Throwing;

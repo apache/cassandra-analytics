@@ -50,7 +50,7 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.test.TestSchema;

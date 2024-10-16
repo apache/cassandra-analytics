@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.data.SSTablesSupplier;
 import org.apache.cassandra.spark.reader.SparkSSTableReader;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.jetbrains.annotations.NotNull;
 
 /**

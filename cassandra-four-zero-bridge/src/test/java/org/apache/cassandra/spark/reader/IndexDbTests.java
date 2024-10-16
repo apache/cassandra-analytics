@@ -45,7 +45,7 @@ import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;

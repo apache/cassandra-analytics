@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.reader.common;
+package org.apache.cassandra.analytics.reader.common;
 
 import java.io.IOException;
 import java.util.Objects;
@@ -30,12 +30,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
 import org.apache.cassandra.spark.reader.IndexConsumer;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.StreamScanner;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.spark.reader.common.IIndexReader;
 import org.jetbrains.annotations.NotNull;
 
 /**

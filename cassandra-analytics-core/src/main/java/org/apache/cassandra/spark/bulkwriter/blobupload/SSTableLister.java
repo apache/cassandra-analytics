@@ -45,7 +45,7 @@ import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.data.SSTable;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.jetbrains.annotations.NotNull;
 
 /**
