@@ -19,61 +19,57 @@
 
 package org.apache.cassandra.spark.transports.storage;
 
-import java.io.Serializable;
 import java.util.Objects;
 
-import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.kryo.io.Input;
-import com.esotericsoftware.kryo.io.Output;
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSecrets;
 
 /**
  * A class representing the pair of credentials needed to complete an analytics operation using the Storage transport.
- * It is possible that both credentials (read and write) will be the same, but also that they could represent
+ * It is possible that both credentials (read and write) are the same, but also that they could represent
  * the credentials needed for two different buckets when using cross-region synchronization to transfer data
  * between regions.
  */
-public class StorageCredentialPair implements Serializable
+public class StorageCredentialPair
 {
-    private static final long serialVersionUID = 6084829690503608102L;
-    StorageCredentials writeCredentials;
-    StorageCredentials readCredentials;
+    private final String writeRegion;
+    public final StorageCredentials writeCredentials;
+    private final String readRegion;
+    public final StorageCredentials readCredentials;
 
     /**
      * Create a new instance of a StorageCredentialPair
      *
-     * @param writeCredentials the credentials used for writing to the storage endpoint.
-     * @param readCredentials  the credentials used to read from the storage endpoint.
+     * @param writeRegion the name of the region where write/upload happens
+     * @param writeCredentials the credentials used for writing to the storage endpoint
+     * @param readRegion the name of the region where read/download happens
+     * @param readCredentials  the credentials used to read from the storage endpoint
      */
-    public StorageCredentialPair(StorageCredentials writeCredentials, StorageCredentials readCredentials)
+    public StorageCredentialPair(String writeRegion,
+                                 StorageCredentials writeCredentials,
+                                 String readRegion,
+                                 StorageCredentials readCredentials)
     {
+        this.writeRegion = writeRegion;
         this.writeCredentials = writeCredentials;
+        this.readRegion = readRegion;
         this.readCredentials = readCredentials;
     }
 
-    public StorageCredentials getWriteCredentials()
+    public RestoreJobSecrets toRestoreJobSecrets()
     {
-        return writeCredentials;
-    }
-
-    public StorageCredentials getReadCredentials()
-    {
-        return readCredentials;
+        return new RestoreJobSecrets(readCredentials.toSidecarCredentials(readRegion),
+                                     writeCredentials.toSidecarCredentials(writeRegion));
     }
 
     @Override
     public String toString()
     {
         return "StorageCredentialPair{"
-               + "writeCredentials=" + writeCredentials
+               + "writeRegion=" + writeRegion
+               + ", writeCredentials=" + writeCredentials
+               + ", readRegion=" + readRegion
                + ", readCredentials=" + readCredentials
                + '}';
-    }
-
-    public RestoreJobSecrets toRestoreJobSecrets(String readRegion, String writeRegion)
-    {
-        return new RestoreJobSecrets(readCredentials.toSidecarCredentials(readRegion),
-                                     writeCredentials.toSidecarCredentials(writeRegion));
     }
 
     @Override
@@ -88,29 +84,15 @@ public class StorageCredentialPair implements Serializable
             return false;
         }
         StorageCredentialPair that = (StorageCredentialPair) o;
-        return Objects.equals(writeCredentials, that.writeCredentials) && Objects.equals(readCredentials, that.readCredentials);
+        return Objects.equals(writeRegion, that.writeRegion)
+               && Objects.equals(writeCredentials, that.writeCredentials)
+               && Objects.equals(readRegion, that.readRegion)
+               && Objects.equals(readCredentials, that.readCredentials);
     }
 
+    @Override
     public int hashCode()
     {
-        return Objects.hash(writeCredentials, readCredentials);
-    }
-
-    public static class Serializer extends com.esotericsoftware.kryo.Serializer<StorageCredentialPair>
-    {
-
-        public void write(Kryo kryo, Output out, StorageCredentialPair object)
-        {
-            kryo.writeObject(out, object.writeCredentials);
-            kryo.writeObject(out, object.readCredentials);
-        }
-
-        public StorageCredentialPair read(Kryo kryo, Input in, Class<StorageCredentialPair> type)
-        {
-            return new StorageCredentialPair(
-            kryo.readObject(in, StorageCredentials.class),
-            kryo.readObject(in, StorageCredentials.class)
-            );
-        }
+        return Objects.hash(writeRegion, writeCredentials, readRegion, readCredentials);
     }
 }

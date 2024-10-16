@@ -20,22 +20,24 @@
 package org.apache.cassandra.spark.transports.storage.extensions;
 
 import java.util.Objects;
-import java.util.UUID;
 import java.util.function.Consumer;
 
+import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSecrets;
-import o.a.c.sidecar.client.shaded.common.data.RestoreJobStatus;
 import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPayload;
 import org.apache.cassandra.spark.bulkwriter.CancelJobEvent;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.TransportContext;
-import org.apache.cassandra.spark.common.client.ClientException;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCloudStorageDataTransferApi;
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
+import org.jetbrains.annotations.Nullable;
 
-public class StorageTransportHandler implements CredentialChangeListener, ObjectFailureListener, CoordinationSignalListener
+import static org.apache.cassandra.spark.transports.storage.extensions.TransportExtensionUtils.validateReceivedJobId;
+
+public class StorageTransportHandler implements CredentialChangeListener, ObjectFailureListener
 {
     private final TransportContext.CloudStorageTransportContext transportContext;
     private final Consumer<CancelJobEvent> cancelConsumer;
@@ -53,79 +55,43 @@ public class StorageTransportHandler implements CredentialChangeListener, Object
     }
 
     @Override
-    public void onCredentialsChanged(String jobId, StorageCredentialPair newCredentials)
+    public void onCredentialsChanged(String jobId, @Nullable String clusterId, StorageCredentialPair newCredentials)
     {
-        validateReceivedJobId(jobId);
-        if (Objects.equals(transportContext.transportConfiguration().getStorageCredentialPair(), newCredentials))
+        validateReceivedJobId(jobId, jobInfo);
+        Preconditions.checkState(!jobInfo.isCoordinatedWriteEnabled() || clusterId != null,
+                                 "ClusterId cannot be null for coordinated write enabled jobs");
+        if (Objects.equals(transportContext.transportConfiguration().getStorageCredentialPair(clusterId), newCredentials))
         {
-            LOGGER.info("The received new credential is the same as the existing one. Skip updating.");
+            LOGGER.info("The received new credential is the same as the existing one. Skip updating. clusterId={}", clusterId);
             return;
         }
 
-        LOGGER.info("Refreshing cloud storage credentials. jobId={}, credentials={}", jobId, newCredentials);
-        transportContext.transportConfiguration().setBlobCredentialPair(newCredentials);
-        updateCredentials(jobInfo.getRestoreJobId(), newCredentials);
+        LOGGER.info("Refreshing cloud storage credentials. jobId={} credentials={} clusterId={}", jobId, newCredentials, clusterId);
+        transportContext.transportConfiguration().setStorageCredentialPair(clusterId, newCredentials);
+        updateCredentials(clusterId, newCredentials);
     }
 
     @Override
     public void onObjectFailed(String jobId, String bucket, String key, String errorMessage)
     {
-        validateReceivedJobId(jobId);
+        validateReceivedJobId(jobId, jobInfo);
         LOGGER.error("Object with bucket {} and key {} failed to be transported correctly. Cancelling job. Error was: {}", bucket, key, errorMessage);
         cancelConsumer.accept(new CancelJobEvent(errorMessage));
     }
 
-    @Override
-    public void onStageReady(String jobId)
-    {
-        validateReceivedJobId(jobId);
-        LOGGER.info("Received stage ready signal for coordinated write. jobId={}", jobId);
-        sendCoordinationSignal(jobInfo.getRestoreJobId(), RestoreJobStatus.STAGE_READY);
-    }
-
-    @Override
-    public void onApplyReady(String jobId)
-    {
-        validateReceivedJobId(jobId);
-        LOGGER.info("Received apply ready signal for coordinated write. jobId={}", jobId);
-        sendCoordinationSignal(jobInfo.getRestoreJobId(), RestoreJobStatus.IMPORT_READY);
-    }
-
-    private void updateCredentials(UUID jobId, StorageCredentialPair credentialPair)
+    private void updateCredentials(@Nullable String clusterId, StorageCredentialPair credentialPair)
     {
         StorageTransportConfiguration conf = transportContext.transportConfiguration();
-        RestoreJobSecrets secrets = credentialPair.toRestoreJobSecrets(conf.getReadRegion(), conf.getWriteRegion());
+        RestoreJobSecrets secrets = credentialPair.toRestoreJobSecrets();
         UpdateRestoreJobRequestPayload requestPayload = new UpdateRestoreJobRequestPayload(null, secrets, null, null);
-        try
+        if (clusterId != null)
+        {
+            CoordinatedCloudStorageDataTransferApi dataTransferApi = (CoordinatedCloudStorageDataTransferApi) transportContext.dataTransferApi();
+            dataTransferApi.getValueOrThrow(clusterId).updateRestoreJob(requestPayload);
+        }
+        else
         {
             transportContext.dataTransferApi().updateRestoreJob(requestPayload);
-        }
-        catch (ClientException e)
-        {
-            throw new RuntimeException("Failed to update secrets for restore job. restoreJobId: " + jobId, e);
-        }
-    }
-
-    private void sendCoordinationSignal(UUID jobId, RestoreJobStatus status)
-    {
-        UpdateRestoreJobRequestPayload requestPayload = new UpdateRestoreJobRequestPayload(null, null, status, null);
-        try
-        {
-            transportContext.dataTransferApi().updateRestoreJob(requestPayload);
-        }
-        catch (ClientException e)
-        {
-            throw new RuntimeException("Failed to send coordination signal for restore job. restoreJobId: " + jobId + ", status=" + status, e);
-        }
-    }
-
-    private void validateReceivedJobId(String jobId)
-    {
-        String actualJobId = jobInfo.getId();
-        if (!Objects.equals(jobId, actualJobId))
-        {
-            throw new IllegalStateException("Received jobId does not match with the actual one. Received: " + jobId
-                                            + "; actual: " + actualJobId);
         }
     }
 }

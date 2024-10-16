@@ -22,7 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.io.Serializable;
 import java.util.UUID;
 
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.jetbrains.annotations.NotNull;
@@ -107,4 +107,12 @@ public interface JobInfo extends Serializable
      */
     @Nullable
     CoordinatedWriteConf coordinatedWriteConf();
+
+    /**
+     * @return true if coordinated write is enabled, i.e. coordinatedWriteConf() returns non-null value; false, otherwise
+     */
+    default boolean isCoordinatedWriteEnabled()
+    {
+        return coordinatedWriteConf() != null;
+    }
 }

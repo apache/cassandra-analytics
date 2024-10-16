@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark;
 
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -34,6 +35,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.secrets.SslConfig;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
@@ -42,6 +44,7 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
+import org.apache.cassandra.spark.transports.storage.StorageAccessConfiguration;
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
@@ -371,25 +374,74 @@ public class KryoSerializationTests
     @Test
     public void testStorageTransportConfiguration()
     {
-        final StorageTransportConfiguration config = new StorageTransportConfiguration(
+        StorageTransportConfiguration config = new StorageTransportConfiguration(
         "writeBucket",
         "writeRegion",
         "readBucket",
         "readRegion",
         "prefix",
-        new StorageCredentialPair(
-        new StorageCredentials("keyId1", "secret1", "sessionToken1"),
-        new StorageCredentials("keyId2", "secret2", "sessionToken2")
+        new StorageCredentialPair("writeRegion",
+                                  new StorageCredentials("keyId1", "secret1", "sessionToken1"),
+                                  "readRegion",
+                                  new StorageCredentials("keyId2", "secret2", "sessionToken2")
         ),
         ImmutableMap.of("tag1", "tagVal1", "tag2", "tagVal2")
         );
 
-        StorageTransportConfiguration deserialized;
-        try (Output out = serialize(config))
+        testSerDeserStorageTransportConfiguration(config);
+    }
+
+    @Test
+    public void testStorageTransportConfigurationWithMultiClusters()
+    {
+        MultiClusterContainer<StorageAccessConfiguration> readAccesses = new MultiClusterContainer<>();
+        readAccesses.setValue("cluster1",
+                              new StorageAccessConfiguration("readRegion1", "readBucket",
+                                                             new StorageCredentials("keyId1", "secret1", "sessionToken1")));
+        readAccesses.setValue("cluster2",
+                              new StorageAccessConfiguration("readRegion2", "readBucket",
+                                                               new StorageCredentials("keyId1", "secret1", "sessionToken1")));
+        StorageTransportConfiguration config = new StorageTransportConfiguration(
+        "prefix",
+        ImmutableMap.of("tag1", "tagVal1", "tag2", "tagVal2"),
+        new StorageAccessConfiguration("writeRegion", "writeBucket",
+                                       new StorageCredentials("keyId1", "secret1", "sessionToken1")),
+        ImmutableMap.of("cluster1",
+                        new StorageAccessConfiguration("readRegion1", "readBucket",
+                                                       new StorageCredentials("keyId1", "secret1", "sessionToken1")),
+                        "cluster2",
+                        new StorageAccessConfiguration("readRegion2", "readBucket",
+                                                       new StorageCredentials("keyId1", "secret1", "sessionToken1")))
+        );
+
+        testSerDeserStorageTransportConfiguration(config);
+    }
+
+    @Test
+    public void testMultiClusterContainer()
+    {
+        MultiClusterContainer<String> stringContainer = new MultiClusterContainer<>();
+        stringContainer.addAll(ImmutableMap.of("cluster1", "foo", "cluster2", "bar"));
+        testSerDeser(stringContainer, MultiClusterContainer.class);
+
+        MultiClusterContainer<BigInteger> bigIntContainer = new MultiClusterContainer<>();
+        bigIntContainer.addAll(ImmutableMap.of("cluster1", BigInteger.valueOf(123L), "cluster2", BigInteger.valueOf(321L)));
+        testSerDeser(bigIntContainer, MultiClusterContainer.class);
+    }
+
+    private void testSerDeserStorageTransportConfiguration(StorageTransportConfiguration config)
+    {
+        testSerDeser(config, StorageTransportConfiguration.class);
+    }
+
+    private static <T> void testSerDeser(Object origin, Class<T> type)
+    {
+        T deserialized;
+        try (Output out = serialize(origin))
         {
-            deserialized = deserialize(out, StorageTransportConfiguration.class);
+            deserialized = deserialize(out, type);
         }
-        assertEquals(config, deserialized);
+        assertEquals(origin, deserialized);
     }
 
     static

@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.transports.storage.extensions;
 
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * A listener interface that is notified on access token changes
@@ -36,5 +37,23 @@ public interface CredentialChangeListener
      * @param jobId     the unique identifier for the job
      * @param newTokens a map of access tokens used to authenticate to the storage transport
      */
-    void onCredentialsChanged(String jobId, StorageCredentialPair newTokens);
+    default void onCredentialsChanged(String jobId, StorageCredentialPair newTokens)
+    {
+        onCredentialsChanged(jobId, null, newTokens);
+    }
+
+    /**
+     * The method is called when new access tokens are available for the job with ID {@code jobId}
+     * in the cluster of {@code clusterId}.
+     * The previous set of credentials and the newly-provided set must both be valid simultaneously
+     * for the Spark job to have time to rotate credentials without interruption.
+     * These tokens should be provided with plenty of time for the job to distribute them to
+     * the consumers of the storage transport endpoint to update their tokens before expiration.
+     *
+     * @param jobId     the unique identifier for the job
+     * @param clusterId the unique identifier for the cluster.
+     *                  When its value is null, it behaves the same as {@link #onCredentialsChanged(String, StorageCredentialPair)}
+     * @param newTokens a map of access tokens used to authenticate to the storage transport
+     */
+    void onCredentialsChanged(String jobId, @Nullable String clusterId, StorageCredentialPair newTokens);
 }

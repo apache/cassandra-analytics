@@ -34,8 +34,8 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CassandraClusterInfoGroup;
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
@@ -63,14 +63,14 @@ class MultiClusterReplicaAwareFailureHandlerTest
         assertThatNoException().isThrownBy(() -> handler.addFailure(range(0, 10), instance, "failure"));
         assertThatThrownBy(() -> handler.addFailure(range(0, 10), instanceWithClusterId, "failure"))
         .isExactlyInstanceOf(IllegalStateException.class)
-        .hasMessage("Cannot track failures from both instances with and without clusterId");
+        .hasMessage("Cannot set value for non-null cluster when the container is used for non-coordinated-write");
 
         // create a new handler and add failures in the other order
         handler = new MultiClusterReplicaAwareFailureHandler<>(partitioner);
         assertThatNoException().isThrownBy(() -> handler.addFailure(range(0, 10), instanceWithClusterId, "failure"));
         assertThatThrownBy(() -> handler.addFailure(range(0, 10), instance, "failure"))
         .isExactlyInstanceOf(IllegalStateException.class)
-        .hasMessage("Cannot track failures from both instances with and without clusterId");
+        .hasMessage("Cannot set value for null cluster when the container is used for coordinated-write");
     }
 
     @Test
@@ -102,7 +102,7 @@ class MultiClusterReplicaAwareFailureHandlerTest
             handler.addFailure(range, writeReplicasPerCluster.get("cluster1").get(0), "failure in cluster1");
             handler.addFailure(range, writeReplicasPerCluster.get("cluster2").get(0), "failure in cluster2");
             assertThat(handler.getFailedRanges(ctx.topology, ctx.jobInfo, ctx.clusterInfo))
-            .describedAs("Each cluster has only 1 failure of the range, which is acceptable for LOCAL_QUORUM.")
+            .describedAs("Each cluster should have only 1 failure of the range, which is acceptable for LOCAL_QUORUM.")
             .isEmpty();
 
             // now cluster1 has 2 failures
@@ -110,7 +110,7 @@ class MultiClusterReplicaAwareFailureHandlerTest
             List<ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange>
             failedRanges = handler.getFailedRanges(ctx.topology, ctx.jobInfo, ctx.clusterInfo);
             assertThat(failedRanges)
-            .describedAs("Cluster1 has failed range")
+            .describedAs("Cluster1 should have failed range")
             .hasSize(1);
             Set<RingInstance> failedInstances = failedRanges.get(0).failuresPerInstance.instances();
             assertThat(failedInstances)
@@ -122,7 +122,7 @@ class MultiClusterReplicaAwareFailureHandlerTest
             handler.addFailure(range, writeReplicasPerCluster.get("cluster2").get(1), "another failure in cluster2");
             failedRanges = handler.getFailedRanges(ctx.topology, ctx.jobInfo, ctx.clusterInfo);
             assertThat(failedRanges)
-            .describedAs("Both clusters have failed ranges")
+            .describedAs("Both clusters should have failed ranges")
             .hasSize(2);
             Set<RingInstance> failedInstancesInCluster2 = failedRanges.get(1).failuresPerInstance.instances();
             assertThat(failedInstancesInCluster2)
@@ -144,12 +144,13 @@ class MultiClusterReplicaAwareFailureHandlerTest
         when(cc.localDc()).thenReturn(DATACENTER_1);
         when(cwc.cluster(any())).thenReturn(cc);
         when(jobInfo.coordinatedWriteConf()).thenReturn(cwc);
+        when(jobInfo.isCoordinatedWriteEnabled()).thenReturn(true);
         CassandraClusterInfoGroup group = mock(CassandraClusterInfoGroup.class);
         ReplicationFactor rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
                                                      ImmutableMap.of(DATACENTER_1, 3));
         ClusterInfo clusterInfo = mock(ClusterInfo.class);
         when(clusterInfo.replicationFactor()).thenReturn(rf);
-        when(group.cluster(any())).thenReturn(clusterInfo); // return the same clusterinfo for both clusters (for test simplicity)
+        when(group.getValueOrThrow(any())).thenReturn(clusterInfo); // return the same clusterinfo for both clusters (for test simplicity)
         test.accept(new FailureHandlerTextContext(consolidatedTopology, jobInfo, group));
     }
 }

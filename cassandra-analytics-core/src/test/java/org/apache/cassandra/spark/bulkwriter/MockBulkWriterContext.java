@@ -43,12 +43,11 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.Digest;
-import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.BulkFeatures;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.common.schema.ColumnType;
@@ -225,12 +224,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public ConsistencyLevel.CL getConsistencyLevel()
     {
         return consistencyLevel;
-    }
-
-    // todo: yifan - unused?
-    public void setConsistencyLevel(ConsistencyLevel.CL consistencyLevel)
-    {
-        this.consistencyLevel = consistencyLevel;
     }
 
     @Override
@@ -481,12 +474,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
                     }
 
                     @Override
-                    public void cleanUploadSession(CassandraInstance instance, String sessionID, String jobID) throws ClientException
+                    public void cleanUploadSession(CassandraInstance instance, String sessionID, String jobID) throws SidecarApiCallException
                     {
                         cleanCalledForInstance.add(instance);
                         if (cleanShouldThrow)
                         {
-                            throw new ClientException("Clean was called but was set to throw");
+                            throw new SidecarApiCallException("Clean was called but was set to throw");
                         }
                     }
 
@@ -495,7 +488,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
                                                        int ssTableIdx,
                                                        CassandraInstance instance,
                                                        String sessionID,
-                                                       Digest digest) throws ClientException
+                                                       Digest digest) throws SidecarApiCallException
                     {
                         boolean uploadSucceeded = uploadRequestConsumer.test(instance);
                         uploads.compute(instance, (k, pathList) -> {
@@ -508,7 +501,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
                         });
                         if (!uploadSucceeded)
                         {
-                            throw new ClientException("Failed upload");
+                            throw new SidecarApiCallException("Failed upload");
                         }
                     }
                 };

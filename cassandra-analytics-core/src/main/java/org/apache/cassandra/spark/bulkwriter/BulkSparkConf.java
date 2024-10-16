@@ -41,9 +41,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.apache.cassandra.spark.bulkwriter.blobupload.StorageClientConfig;
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf;
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf.SimpleClusterConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.StorageClientConfig;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf.SimpleClusterConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.common.SidecarInstanceFactory;
@@ -289,7 +289,7 @@ public class BulkSparkConf implements Serializable
 
     public boolean isCoordinatedWriteConfigured()
     {
-        return coordinatedWriteConf != null;
+        return coordinatedWriteConf() != null;
     }
 
     public CoordinatedWriteConf coordinatedWriteConf()

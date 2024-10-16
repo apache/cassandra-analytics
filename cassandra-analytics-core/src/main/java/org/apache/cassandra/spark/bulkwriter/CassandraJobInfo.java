@@ -21,7 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.util.UUID;
 
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.jetbrains.annotations.NotNull;
@@ -50,6 +50,10 @@ public class CassandraJobInfo implements JobInfo
     @Override
     public String getLocalDC()
     {
+        if (isCoordinatedWriteEnabled())
+        {
+            throw new UnsupportedOperationException("Read localDc per cluster from coordinatedWriteConf, when coordinated write is enabled");
+        }
         return conf.localDC;
     }
 

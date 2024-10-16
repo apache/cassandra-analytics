@@ -25,7 +25,7 @@ import java.util.concurrent.ExecutorService;
 
 import com.google.common.collect.Range;
 
-import org.apache.cassandra.spark.bulkwriter.blobupload.BlobDataTransferApi;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
@@ -74,10 +74,11 @@ public interface TransportContext
     interface CloudStorageTransportContext extends TransportContext
     {
         /**
-         * @return data transfer API client for the S3_COMPAT mode
+         * @return CloudStorageDataTransferApi for the S3_COMPAT mode
          * Implementation note: never return null result
          */
-        BlobDataTransferApi dataTransferApi();
+        @NotNull
+        CloudStorageDataTransferApi dataTransferApi();
 
         /**
          * @return configuration for S3_COMPAT

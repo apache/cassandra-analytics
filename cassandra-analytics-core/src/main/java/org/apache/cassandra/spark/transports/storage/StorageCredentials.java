@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.transports.storage;
 
-import java.io.Serializable;
 import java.util.Objects;
 
 import com.esotericsoftware.kryo.Kryo;
@@ -31,10 +30,8 @@ import com.esotericsoftware.kryo.io.Output;
  * Storage credentials can be either an access key ID and secret key, or also include a sessionToken when using
  * temporary a temporary IAM credential.
  */
-public class StorageCredentials implements Serializable
+public class StorageCredentials
 {
-
-    private static final long serialVersionUID = 7704978447772194970L;
     private final String accessKeyId;
     private final String secretKey;
     private final String sessionToken;

@@ -21,9 +21,11 @@ package org.apache.cassandra.analytics;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -45,12 +47,17 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
  */
 class CassandraAnalyticsSimpleTest extends SharedClusterSparkIntegrationTestBase
 {
-    static final QualifiedName QUALIFIED_NAME = new QualifiedName(TEST_KEYSPACE, "test");
-
     @ParameterizedTest
     @MethodSource("options")
-    void runSampleJob(Integer ttl, Long timestamp)
+    void runSampleJob(Integer ttl, Long timestamp, QualifiedName tableName)
     {
+        createTestTable(tableName, CREATE_TEST_TABLE_STATEMENT);
+
+        // The table is created in cassandra. However, sidecar keyspace endpoint relies on java driver to refresh schema,
+        // which introduces certain delay (1 second refresh interval).
+        // Wait for a while here to ensure sidecar is aware of schema.
+        Uninterruptibles.sleepUninterruptibly(2, TimeUnit.SECONDS);
+
         Map<String, String> writerOptions = new HashMap<>();
         if (ttl != null)
         {
@@ -67,16 +74,16 @@ class CassandraAnalyticsSimpleTest extends SharedClusterSparkIntegrationTestBase
         Dataset<Row> dfWrite = DataGenerationUtils.generateCourseData(spark, ROW_COUNT, false, ttl, timestamp);
 
         // Write the data using Bulk Writer
-        bulkWriterDataFrameWriter(dfWrite, QUALIFIED_NAME, writerOptions).save();
+        bulkWriterDataFrameWriter(dfWrite, tableName, writerOptions).save();
 
         // Validate using CQL
-        sparkTestUtils.validateWrites(dfWrite.collectAsList(), queryAllData(QUALIFIED_NAME));
+        sparkTestUtils.validateWrites(dfWrite.collectAsList(), queryAllData(tableName));
 
         // Remove columns from write DF to perform validations
         Dataset<Row> written = writeToReadDfFunc(ttl != null, timestamp != null).apply(dfWrite);
 
         // Read data back using Bulk Reader
-        Dataset<Row> read = bulkReaderDataFrame(QUALIFIED_NAME).load();
+        Dataset<Row> read = bulkReaderDataFrame(tableName).load();
 
         // Validate that written and read dataframes are the same
         checkSmallDataFrameEquality(written, read);
@@ -86,7 +93,6 @@ class CassandraAnalyticsSimpleTest extends SharedClusterSparkIntegrationTestBase
     protected void initializeSchemaForTest()
     {
         createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
-        createTestTable(QUALIFIED_NAME, CREATE_TEST_TABLE_STATEMENT);
     }
 
     @Override
@@ -99,10 +105,10 @@ class CassandraAnalyticsSimpleTest extends SharedClusterSparkIntegrationTestBase
     static Stream<Arguments> options()
     {
         return Stream.of(
-        Arguments.of(null, null),
-        Arguments.of(1000, null),
-        Arguments.of(null, 1432815430948567L),
-        Arguments.of(1000, 1432815430948567L)
+        Arguments.of(null, null, new QualifiedName(TEST_KEYSPACE, "test_no_tll_timestamp")),
+        Arguments.of(1000, null, new QualifiedName(TEST_KEYSPACE, "test_ttl_1000")),
+        Arguments.of(null, 1432815430948567L, new QualifiedName(TEST_KEYSPACE, "test_timestamp")),
+        Arguments.of(1000, 1432815430948567L, new QualifiedName(TEST_KEYSPACE, "test_ttl_1000_timestamp"))
         );
     }
 

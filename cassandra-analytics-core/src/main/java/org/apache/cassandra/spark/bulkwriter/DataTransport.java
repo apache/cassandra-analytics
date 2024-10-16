@@ -19,7 +19,7 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import org.apache.cassandra.spark.bulkwriter.blobupload.CassandraCloudStorageTransportContext;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.CassandraCloudStorageTransportContext;
 import org.jetbrains.annotations.NotNull;
 
 public enum DataTransport implements TransportContext.TransportContextProvider

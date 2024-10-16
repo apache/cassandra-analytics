@@ -33,9 +33,9 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.common.Digest;
-import org.apache.cassandra.spark.common.client.ClientException;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.QualifiedTableName;
+import org.apache.cassandra.spark.exception.SidecarApiCallException;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
@@ -66,7 +66,7 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
                                        int ssTableIdx,
                                        CassandraInstance instance,
                                        String sessionID,
-                                       Digest digest) throws ClientException
+                                       Digest digest) throws SidecarApiCallException
     {
         String componentName = updateComponentName(componentFile, ssTableIdx);
         String uploadId = getUploadId(sessionID, job.getRestoreJobId().toString());
@@ -86,7 +86,7 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
         {
             LOGGER.warn("Failed to upload file={}, keyspace={}, table={}, uploadId={}, componentName={}, instance={}",
                         componentFile, qt.keyspace(), qt.table(), uploadId, componentName, instance);
-            throw new ClientException(
+            throw new SidecarApiCallException(
             String.format("Failed to upload file=%s into keyspace=%s, table=%s, componentName=%s with uploadId=%s to instance=%s",
                           componentFile, qt.keyspace(), qt.table(), componentName, uploadId, instance), exception);
         }
@@ -95,7 +95,7 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
     @Override
     public RemoteCommitResult commitSSTables(CassandraInstance instance,
                                              String migrationId,
-                                             List<String> uuids) throws ClientException
+                                             List<String> uuids) throws SidecarApiCallException
     {
         if (uuids.size() != 1)
         {
@@ -124,12 +124,12 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
         }
         catch (ExecutionException | InterruptedException exception)
         {
-            throw new ClientException("Failed to commit sorted string tables", exception);
+            throw new SidecarApiCallException("Failed to commit sorted string tables", exception);
         }
     }
 
     @Override
-    public void cleanUploadSession(CassandraInstance instance, String sessionID, String jobID) throws ClientException
+    public void cleanUploadSession(CassandraInstance instance, String sessionID, String jobID) throws SidecarApiCallException
     {
         String uploadId = getUploadId(sessionID, jobID);
         try
@@ -139,7 +139,7 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
         catch (ExecutionException | InterruptedException exception)
         {
             LOGGER.warn("Failed to clean upload uploadId={}, instance={}", uploadId, instance);
-            throw new ClientException("Failed to clean the upload session with ID " + uploadId, exception);
+            throw new SidecarApiCallException("Failed to clean the upload session with ID " + uploadId, exception);
         }
     }
 

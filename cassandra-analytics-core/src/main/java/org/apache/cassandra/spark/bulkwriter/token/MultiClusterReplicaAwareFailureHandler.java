@@ -21,11 +21,9 @@ package org.apache.cassandra.spark.bulkwriter.token;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import com.google.common.base.Preconditions;
@@ -33,9 +31,10 @@ import com.google.common.collect.Range;
 
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CassandraClusterInfoGroup;
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf;
-import org.apache.cassandra.spark.bulkwriter.coordinatedwrite.CoordinatedWriteConf.ClusterConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf.ClusterConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -48,49 +47,37 @@ import org.jetbrains.annotations.Nullable;
  */
 public class MultiClusterReplicaAwareFailureHandler<I extends CassandraInstance> extends ReplicaAwareFailureHandler<I>
 {
-    // default failure handler for CassandraInstance w/o specifying the belonging clusterId
-    private final SingleClusterReplicaAwareFailureHandler<I> defaultFailureHandler;
-    private final Map<String, SingleClusterReplicaAwareFailureHandler<I>> failureHandlerPerCluster = new HashMap<>();
-
+    private final MultiClusterContainer<SingleClusterReplicaAwareFailureHandler<I>> failureHandlers = new MultiClusterContainer<>();
     private final Partitioner partitioner;
 
     public MultiClusterReplicaAwareFailureHandler(Partitioner partitioner)
     {
         this.partitioner = partitioner;
-        this.defaultFailureHandler = new SingleClusterReplicaAwareFailureHandler<>(partitioner, null);
     }
 
     @Override
     public synchronized void addFailure(Range<BigInteger> tokenRange, I instance, String errMessage)
     {
         String clusterId = instance.clusterId();
-        if (clusterId != null)
-        {
-            Preconditions.checkState(defaultFailureHandler.isEmpty(),
-                                     "Cannot track failures from both instances with and without clusterId");
-            ReplicaAwareFailureHandler<I> handler = failureHandlerPerCluster
-                                                    .computeIfAbsent(clusterId, k -> new SingleClusterReplicaAwareFailureHandler<>(partitioner, clusterId));
-            handler.addFailure(tokenRange, instance, errMessage);
-        }
-        else
-        {
-            Preconditions.checkState(failureHandlerPerCluster.isEmpty(),
-                                     "Cannot track failures from both instances with and without clusterId");
-            defaultFailureHandler.addFailure(tokenRange, instance, errMessage);
-        }
+        failureHandlers.updateValue(clusterId, handler -> {
+            SingleClusterReplicaAwareFailureHandler<I> h = handler;
+            if (handler == null)
+            {
+                h = new SingleClusterReplicaAwareFailureHandler<>(partitioner, clusterId);
+            }
+            h.addFailure(tokenRange, instance, errMessage);
+            return h;
+        });
     }
 
     @Override
     public synchronized Set<I> getFailedInstances()
     {
-        if (failureHandlerPerCluster.isEmpty())
-        {
-            return defaultFailureHandler.getFailedInstances();
-        }
-
         // failed instances merged from all clusters
         HashSet<I> failedInstances = new HashSet<>();
-        failureHandlerPerCluster.values().forEach(handler -> failedInstances.addAll(handler.getFailedInstances()));
+        failureHandlers.forEach((ignored, handler) -> {
+            failedInstances.addAll(handler.getFailedInstances());
+        });
         return failedInstances;
     }
 
@@ -100,9 +87,11 @@ public class MultiClusterReplicaAwareFailureHandler<I extends CassandraInstance>
                     JobInfo job,
                     ClusterInfo cluster)
     {
-        if (failureHandlerPerCluster.isEmpty())
+        if (!job.isCoordinatedWriteEnabled())
         {
-            return defaultFailureHandler.getFailedRanges(tokenRangeMapping, job, cluster);
+            // if the retrieved failure handler is null, it indicates no failure has been added, i.e. no failed ranges
+            SingleClusterReplicaAwareFailureHandler<I> singleCluster = failureHandlers.getValueOrNull(null);
+            return singleCluster == null ? Collections.emptyList() : singleCluster.getFailedRanges(tokenRangeMapping, job, cluster);
         }
 
         List<ReplicaAwareFailureHandler<I>.ConsistencyFailurePerRange> failurePerRanges = new ArrayList<>();
@@ -112,11 +101,9 @@ public class MultiClusterReplicaAwareFailureHandler<I extends CassandraInstance>
         Preconditions.checkState(cluster instanceof CassandraClusterInfoGroup,
                                  "Not a CassandraClusterInfoGroup for multi-cluster write");
         CassandraClusterInfoGroup group = (CassandraClusterInfoGroup) cluster;
-        failureHandlerPerCluster.forEach((clusterId, handler) -> {
-            ClusterConf clusterConf = Objects.requireNonNull(coordinatedWriteConf.cluster(clusterId),
-                                                             () -> "ClusterConf is not found for " + clusterId);
-            ClusterInfo clusterInfo = Objects.requireNonNull(group.cluster(clusterId),
-                                                             () -> "ClusterInfo is not found for " + clusterId);
+        failureHandlers.forEach((clusterId, handler) -> {
+            ClusterConf clusterConf = coordinatedWriteConf.cluster(clusterId);
+            ClusterInfo clusterInfo = group.getValueOrThrow(clusterId);
             ReplicationFactor rf = clusterInfo.replicationFactor();
             failurePerRanges.addAll(handler.getFailedRangesInternal(tokenRangeMapping, job.getConsistencyLevel(), clusterConf.localDc(), rf));
         });
