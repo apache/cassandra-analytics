@@ -206,4 +206,21 @@ public final class FutureUtils
                       .filter(Objects::nonNull)
                       .collect(Collectors.toList());
     }
+
+    public static <T> T get(CompletableFuture<T> future)
+    {
+        try
+        {
+            return future.get();
+        }
+        catch (ExecutionException e)
+        {
+            throw new RuntimeException(ThrowableUtils.rootCause(e));
+        }
+        catch (InterruptedException e)
+        {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException(e);
+        }
+    }
 }

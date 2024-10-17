@@ -51,6 +51,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public class ReplicationFactor implements Serializable
 {
+    public static final Serializer SERIALIZER = new Serializer();
     private static final long serialVersionUID = -2017022813595983257L;
     private static final Logger LOGGER = LoggerFactory.getLogger(ReplicationFactor.class);
 

@@ -289,7 +289,7 @@ public abstract class PartitionedDataLayer extends DataLayer
         {
             // Could not find enough primary replicas to meet consistency level
             assert replicaSet.backup().isEmpty();
-            throw new NotEnoughReplicasException(consistencyLevel, range, minReplicas, replicas.size(), datacenter);
+            throw new NotEnoughReplicasException(consistencyLevel, range.lowerEndpoint(), range.upperEndpoint(), minReplicas, replicas.size(), datacenter);
         }
 
         ExecutorService executor = executorService();
@@ -387,7 +387,7 @@ public abstract class PartitionedDataLayer extends DataLayer
             int count = (int) range.getValue().stream().filter(primaryReplicas::contains).count();
             if (count < minReplicas)
             {
-                throw new NotEnoughReplicasException(consistencyLevel, range.getKey(), minReplicas, count, dc);
+                throw new NotEnoughReplicasException(consistencyLevel, range.getKey().lowerEndpoint(), range.getKey().upperEndpoint(), minReplicas, count, dc);
             }
         }
     }

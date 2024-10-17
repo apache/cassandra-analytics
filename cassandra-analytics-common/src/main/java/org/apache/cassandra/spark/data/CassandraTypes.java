@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -37,6 +38,8 @@ public abstract class CassandraTypes
 {
     public static final Pattern COLLECTION_PATTERN = Pattern.compile("^(set|list|map|tuple)<(.+)>$", Pattern.CASE_INSENSITIVE);
     public static final Pattern FROZEN_PATTERN = Pattern.compile("^frozen<(.*)>$", Pattern.CASE_INSENSITIVE);
+
+    private final UDTs udts = new UDTs();
 
     /**
      * Returns the quoted identifier, if the {@code identifier} has mixed case or if the {@code identifier}
@@ -143,6 +146,32 @@ public abstract class CassandraTypes
     public CqlField.CqlType parseType(String type)
     {
         return parseType(type, Collections.emptyMap());
+    }
+
+    public CqlField.CqlType parseType(final String keyspace, final String type)
+    {
+        return parseType(type, udts.ofKeyspace(keyspace));
+    }
+
+    public void updateUDTs(String keyspace, CqlField.CqlUdt udt)
+    {
+        udts.put(keyspace, udt);
+    }
+
+    private static class UDTs
+    {
+        Map<String, Map<String, CqlField.CqlUdt>> udtByKeyspaceByTypeName = new ConcurrentHashMap<>();
+
+        void put(String keyspace, CqlField.CqlUdt udt)
+        {
+            Map<String, CqlField.CqlUdt> udtByName = udtByKeyspaceByTypeName.computeIfAbsent(keyspace, x -> new ConcurrentHashMap<>());
+            udtByName.put(udt.cqlName(), udt);
+        }
+
+        Map<String, CqlField.CqlUdt> ofKeyspace(String keyspace)
+        {
+            return udtByKeyspaceByTypeName.getOrDefault(keyspace, Collections.emptyMap());
+        }
     }
 
     public CqlField.CqlType parseType(String type, Map<String, CqlField.CqlUdt> udts)

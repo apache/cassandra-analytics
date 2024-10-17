@@ -19,6 +19,7 @@
 
 rootProject.name = 'cassandra-analytics-core'
 
+include 'cassandra-analytics-cdc'
 include 'cassandra-analytics-common'
 include 'cassandra-bridge'
 include 'cassandra-four-zero'

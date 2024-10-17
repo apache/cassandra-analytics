@@ -24,11 +24,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.cassandra.db.marshal.AbstractType;
+import org.apache.cassandra.db.marshal.ByteBufferAccessor;
 import org.apache.cassandra.db.marshal.ListType;
 import org.apache.cassandra.db.marshal.MapType;
 import org.apache.cassandra.db.marshal.SetType;
 import org.apache.cassandra.db.marshal.UserType;
 import org.apache.cassandra.db.rows.Cell;
+import org.apache.cassandra.serializers.CollectionSerializer;
+import org.apache.cassandra.transport.ProtocolVersion;
 
 /**
  * ComplexTypeBuffer is a util class for reconstructing multi-cell data into complex types such as unfrozen lists, maps, sets, or UDTs.
@@ -46,7 +49,7 @@ public abstract class ComplexTypeBuffer
         this.buffers = new ArrayList<>(bufferSize);
     }
 
-    static ComplexTypeBuffer newBuffer(AbstractType<?> type, int cellCount)
+    public static ComplexTypeBuffer newBuffer(AbstractType<?> type, int cellCount)
     {
         ComplexTypeBuffer buffer;
         if (type instanceof SetType)
@@ -72,7 +75,7 @@ public abstract class ComplexTypeBuffer
         return buffer;
     }
 
-    void addCell(Cell cell)
+    public void addCell(Cell cell)
     {
         add(cell.buffer());  // Copy over value
     }
@@ -94,5 +97,22 @@ public abstract class ComplexTypeBuffer
         }
         // Cast to ByteBuffer required when compiling with Java 8
         return (ByteBuffer) result.flip();
+    }
+
+    /**
+     * Pack the cell ByteBuffers into a single ByteBuffer using Cassandra's packing algorithm.
+     * It is similar to {@link #build()}, but encoding the data differently.
+     *
+     * @return a single ByteBuffer with all cell ByteBuffers encoded.
+     */
+    public ByteBuffer pack()
+    {
+        // See CollectionSerializer.deserialize for why using the protocol v3 variant is the right thing to do.
+        return CollectionSerializer.pack(buffers, ByteBufferAccessor.instance, elements(), ProtocolVersion.V3);
+    }
+
+    protected int elements()
+    {
+        return buffers.size();
     }
 }

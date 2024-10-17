@@ -84,12 +84,17 @@ public class SchemaBuilder
     private final CassandraTypes cassandraTypes;
     private final int indexCount;
 
-    public SchemaBuilder(CqlTable table, Partitioner partitioner)
+    public SchemaBuilder(CqlTable table, Partitioner partitioner, boolean enableCdc)
     {
-        this(table, partitioner, null);
+        this(table, partitioner, null, enableCdc);
     }
 
-    public SchemaBuilder(CqlTable table, Partitioner partitioner, UUID tableId)
+    public SchemaBuilder(CqlTable table, Partitioner partitioner)
+    {
+        this(table, partitioner, null, false);
+    }
+
+    public SchemaBuilder(CqlTable table, Partitioner partitioner, UUID tableId, boolean enableCdc)
     {
         this(table.createStatement(),
              table.keyspace(),
@@ -97,13 +102,14 @@ public class SchemaBuilder
              partitioner,
              table::udtCreateStmts,
              tableId,
-             0);
+             0,
+             enableCdc);
     }
 
     @VisibleForTesting
     public SchemaBuilder(String createStmt, String keyspace, ReplicationFactor replicationFactor)
     {
-        this(createStmt, keyspace, replicationFactor, Partitioner.Murmur3Partitioner, bridge -> Collections.emptySet(), null, 0);
+        this(createStmt, keyspace, replicationFactor, Partitioner.Murmur3Partitioner, bridge -> Collections.emptySet(), null, 0, false);
     }
 
     @VisibleForTesting
@@ -112,7 +118,7 @@ public class SchemaBuilder
                          ReplicationFactor replicationFactor,
                          Partitioner partitioner)
     {
-        this(createStmt, keyspace, replicationFactor, partitioner, bridge -> Collections.emptySet(), null, 0);
+        this(createStmt, keyspace, replicationFactor, partitioner, bridge -> Collections.emptySet(), null, 0, false);
     }
 
     public SchemaBuilder(String createStmt,
@@ -121,7 +127,8 @@ public class SchemaBuilder
                          Partitioner partitioner,
                          Function<CassandraTypes, Set<String>> udtStatementsProvider,
                          @Nullable UUID tableId,
-                         int indexCount)
+                         int indexCount,
+                         boolean enableCdc)
     {
         this.createStmt = createStmt;
         this.keyspace = keyspace;
@@ -136,7 +143,7 @@ public class SchemaBuilder
                              this.createStmt,
                              partitioner,
                              this.replicationFactor,
-                             tableId,
+                             tableId, enableCdc,
                              this::validateColumnMetaData));
         this.keyspaceMetadata = updated.left;
         this.metadata = updated.right;
@@ -152,6 +159,7 @@ public class SchemaBuilder
                                                                       Partitioner partitioner,
                                                                       ReplicationFactor replicationFactor,
                                                                       UUID tableId,
+                                                                      boolean enableCdc,
                                                                       Consumer<ColumnMetadata> columnValidator)
     {
         // Set up and open keyspace if needed
@@ -190,7 +198,18 @@ public class SchemaBuilder
         {
             builder.id(TableId.fromUUID(tableId));
         }
+
         TableMetadata tableMetadata = builder.build();
+
+        if (tableMetadata.params.cdc != enableCdc)
+        {
+            tableMetadata = tableMetadata.unbuild()
+                                         .params(tableMetadata.params.unbuild()
+                                                                     .cdc(enableCdc)
+                                                                     .build())
+                                         .build();
+        }
+
         tableMetadata.columns().forEach(columnValidator);
         setupTableAndUdt(schema, keyspace, tableMetadata, types);
 

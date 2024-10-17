@@ -58,6 +58,7 @@ import org.apache.cassandra.spark.utils.ByteBufferUtils;
 public class TokenPartitioner implements Serializable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(TokenPartitioner.class);
+    public static final Serializer SERIALIZER = new Serializer();
 
     private List<Range<BigInteger>> subRanges;
     private CassandraRing ring;

@@ -53,6 +53,8 @@ dependencies {
     compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
 
     testFixturesImplementation(project(path: ":cassandra-analytics-spark-converter"))
+    testFixturesImplementation "org.quicktheories:quicktheories:${project.rootProject.quickTheoriesVersion}"
+    testFixturesImplementation(group: 'com.google.guava', name: 'guava', version: '31.1-jre')
     testFixturesImplementation(group: 'com.intellij', name: 'annotations', version: "${project.rootProject.intellijVersion}")
     testFixturesImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
     testFixturesImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
@@ -63,7 +65,3 @@ dependencies {
     testFixturesImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
 }
 
-tasks.register('testJar', Jar) {
-    archiveBaseName = "${project.name}-bridge-test"
-    from sourceSets.test.output
-}

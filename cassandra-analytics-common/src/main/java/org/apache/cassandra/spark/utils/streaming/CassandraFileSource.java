@@ -45,9 +45,9 @@ public interface CassandraFileSource<T extends CassandraFile>
     void request(long start, long end, StreamConsumer consumer);
 
     /**
-     * @return SSTable this source refers to
+     * @return CassandraFile this source refers to
      */
-    T sstable();
+    T cassandraFile();
 
     /**
      * @return the SSTable file component type this source refers to

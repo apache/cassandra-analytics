@@ -19,7 +19,16 @@
 
 package org.apache.cassandra.spark.utils;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Stream;
+
 import com.google.common.base.Preconditions;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public final class ArrayUtils
 {
@@ -38,5 +47,37 @@ public final class ArrayUtils
             System.arraycopy(source, index, result, 0, length);
         }
         return result;
+    }
+
+    public static <T> List<T> combine(@NotNull List<T>... lists)
+    {
+        final List<T> result = new ArrayList<>(Arrays.stream(lists).filter(Objects::nonNull).mapToInt(List::size).sum());
+        for (List<T> list : lists)
+        {
+            if (list != null)
+            {
+                result.addAll(list);
+            }
+        }
+        return result;
+    }
+
+    public static <T> Stream<T> concatToStream(@NotNull List<T>... lists)
+    {
+        if (lists.length == 0)
+        {
+            return Stream.empty();
+        }
+        Stream<T> curr = lists[0].stream();
+        for (int i = 1; i < lists.length; i++)
+        {
+            curr = Stream.concat(curr, lists[i].stream());
+        }
+        return curr;
+    }
+
+    public static <T> List<T> orElse(@Nullable List<T> v1, @NotNull final List<T> v2)
+    {
+        return v1 == null ? v2 : v1;
     }
 }

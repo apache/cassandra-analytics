@@ -142,7 +142,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         Set<String> udts = CqlUtils.extractUdts(keyspaceSchema, keyspace);
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(keyspaceSchema, keyspace);
         int indexCount = CqlUtils.extractIndexCount(keyspaceSchema, keyspace, table);
-        CqlTable cqlTable = bridge().buildSchema(createTableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount);
+        CqlTable cqlTable = bridge().buildSchema(createTableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
 
         TableInfoProvider tableInfoProvider = new CqlTableInfoProvider(createTableSchema, cqlTable);
         TableSchema tableSchema = initializeTableSchema(bulkSparkConf(), structType, tableInfoProvider, lowestCassandraVersion());

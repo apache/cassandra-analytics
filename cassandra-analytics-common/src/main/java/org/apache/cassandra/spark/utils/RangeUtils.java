@@ -190,4 +190,13 @@ public final class RangeUtils
     {
         return Range.openClosed(range.lowerEndpoint(), range.upperEndpoint());
     }
+
+    /**
+     * @param bi a {@link BigInteger}
+     * @return the size of the array returned when {@link BigInteger#toByteArray()} is called.
+     */
+    public static int bigIntegerByteArraySize(BigInteger bi)
+    {
+        return bi.bitLength() / 8 + 1;
+    }
 }

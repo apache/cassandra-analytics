@@ -67,6 +67,7 @@ import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrat
 public class CassandraRing implements Serializable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraRing.class);
+    public static final Serializer SERIALIZER = new Serializer();
 
     private Partitioner partitioner;
     private String keyspace;

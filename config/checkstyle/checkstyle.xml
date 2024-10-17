@@ -135,7 +135,7 @@
             <property name="max" value="120" />
         </module>
         <module name="ParameterNumber">
-            <property name="max" value="8" />
+            <property name="max" value="13" />
             <property name="ignoreOverriddenMethods" value="true" />
         </module>
 

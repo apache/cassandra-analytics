@@ -30,7 +30,10 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Supplier;
+
+import org.apache.cassandra.spark.data.CqlField;
 
 public final class ByteBufferUtils
 {
@@ -127,6 +130,12 @@ public final class ByteBufferUtils
         }
 
         return new String(hexCharacters);
+    }
+
+    public static String toHexString(CqlField.CqlType type, Object value)
+    {
+        ByteBuffer buf = value == null ? null : type.serialize(value);
+        return ByteBufferUtils.toHexString(buf);
     }
 
     public static String toHexString(ByteBuffer buffer)
@@ -237,6 +246,29 @@ public final class ByteBufferUtils
             ++index;
         }
         return null;
+    }
+
+    /**
+     * Concatenates partition keys - if there are multiple - into a composite ByteBuffer.
+     *
+     * @param partitionKeys list of partition keys CqlField schema objects
+     * @param values        value for each partition key
+     * @return ByteBuffer of composite partition keys
+     */
+    public static ByteBuffer buildPartitionKey(List<CqlField> partitionKeys, Object... values)
+    {
+        if (partitionKeys.size() == 1)
+        {
+            // only 1 partition key
+            final CqlField key = partitionKeys.get(0);
+            return key.serialize(values[key.position()]);
+        }
+
+        // composite partition key
+        final ByteBuffer[] buffers = partitionKeys.stream()
+                                                  .map(f -> f.serialize(values[f.position()]))
+                                                  .toArray(ByteBuffer[]::new);
+        return build(false, buffers);
     }
 
     /**

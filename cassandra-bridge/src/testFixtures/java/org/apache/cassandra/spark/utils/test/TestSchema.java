@@ -21,7 +21,6 @@ package org.apache.cassandra.spark.utils.test;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,20 +40,22 @@ import java.util.stream.Stream;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.cdc.api.Row;
+import org.apache.cassandra.cdc.api.RangeTombstoneData;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.ComparisonUtils;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
-import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import static org.apache.cassandra.spark.utils.ByteBufferUtils.toHexString;
 
 /**
  * Helper class to create and test various schemas
@@ -78,6 +79,7 @@ public final class TestSchema
         private boolean withCompression = true;
         private boolean quoteIdentifiers = false;
         private int ttlSecs = 0;
+        private boolean withCdc = false;
 
         public Builder(CassandraBridge bridge)
         {
@@ -169,6 +171,12 @@ public final class TestSchema
             return this;
         }
 
+        public Builder withCdc(boolean withCdc)
+        {
+            this.withCdc = withCdc;
+            return this;
+        }
+
         public TestSchema build()
         {
             if (!partitionKeys.isEmpty())
@@ -218,6 +226,7 @@ public final class TestSchema
     private final int minCollectionSize;
     private final Integer blobSize;
     private final boolean quoteIdentifiers;
+    public final boolean withCdc;
 
     @SuppressWarnings("unchecked")
     public static SparkSqlTypeConverter getSparkSql()
@@ -283,6 +292,7 @@ public final class TestSchema
         this.updateStatement = buildUpdateStatement();
         this.deleteStatement = buildDeleteStatement(builder.deleteFields);
         this.udts = getUdtsFromFields();
+        this.withCdc = builder.withCdc;
     }
 
     // We take allFields as a parameter here to ensure it's been created before use
@@ -537,6 +547,11 @@ public final class TestSchema
         return testRows;
     }
 
+    public TestRow randomPartitionDelete()
+    {
+        return randomRow(field -> !field.isPartitionKey());
+    }
+
     public TestRow randomRow()
     {
         return randomRow(false);
@@ -588,7 +603,7 @@ public final class TestSchema
         }
     }
 
-    public TestRow toTestRow(Row row, Set<String> requiredColumns, SparkSqlTypeConverter typeConverter)
+    public TestRow toTestRow(org.apache.spark.sql.Row row, Set<String> requiredColumns, SparkSqlTypeConverter typeConverter)
     {
         Object[] values = new Object[requiredColumns != null ? requiredColumns.size() : allFields.size()];
         int skipped = 0;
@@ -606,13 +621,73 @@ public final class TestSchema
     }
 
     @SuppressWarnings("SameParameterValue")
-    public final class TestRow implements CassandraBridge.IRow
+    public final class TestRow implements Row
     {
         private final Object[] values;
+        private boolean isTombstoned;
+        private boolean isInsert;
+        private List<RangeTombstoneData> rangeTombstones;
+        private int ttl;
 
         private TestRow(Object[] values)
         {
+            this(values, false, true);
+        }
+
+        private TestRow(Object[] values, boolean isTombstoned, boolean isInsert)
+        {
             this.values = values;
+            this.isTombstoned = isTombstoned;
+            this.isInsert = isInsert;
+        }
+
+        public void setRangeTombstones(List<RangeTombstoneData> rangeTombstones)
+        {
+            this.rangeTombstones = rangeTombstones;
+        }
+
+        @Override
+        public List<RangeTombstoneData> rangeTombstones()
+        {
+            return rangeTombstones;
+        }
+
+        @Override
+        public boolean isDeleted()
+        {
+            return isTombstoned;
+        }
+
+        public void delete()
+        {
+            isTombstoned = true;
+        }
+
+        @Override
+        public boolean isInsert()
+        {
+            return isInsert;
+        }
+
+        public void setTTL(int ttl)
+        {
+            this.ttl = ttl;
+        }
+
+        @Override
+        public int ttl()
+        {
+            return ttl;
+        }
+
+        public void fromUpdate()
+        {
+            isInsert = false;
+        }
+
+        public void fromInsert()
+        {
+            isInsert = true;
         }
 
         public TestRow copy(String field, Object value)
@@ -653,6 +728,15 @@ public final class TestSchema
                 result[field.position() - skipped] = values[field.position()];
             }
             return new TestRow(result);
+        }
+
+        public Object[] rawValues(int start, int end)
+        {
+            assert end <= values.length && start <= end
+            : String.format("start: %s, end: %s", version, start, end);
+            final Object[] result = new Object[end - start];
+            System.arraycopy(values, start, result, 0, end - start);
+            return result;
         }
 
         public Object[] allValues()
@@ -740,23 +824,28 @@ public final class TestSchema
                             .allMatch(field -> values[field.position()] == null);
         }
 
-        public String getKey()
+        public String getPartitionHexKey()
+        {
+            StringBuilder str = new StringBuilder();
+            for (int key = 0; key < partitionKeys.size(); key++)
+            {
+                CqlField.CqlType type = partitionKeys.get(key).type();
+                str.append(toHexString(type, get(key))).append(':');
+            }
+            return str.toString();
+        }
+
+        public String getPrimaryHexKey()
         {
             StringBuilder str = new StringBuilder();
             for (int key = 0; key < partitionKeys.size() + clusteringKeys.size(); key++)
             {
                 CqlField.CqlType type = key < partitionKeys.size()
-                        ? partitionKeys.get(key).type()
-                        : clusteringKeys.get(key - partitionKeys.size()).type();
-                str.append(toHexString(type, get(key))).append(":");
+                                        ? partitionKeys.get(key).type()
+                                        : clusteringKeys.get(key - partitionKeys.size()).type();
+                str.append(toHexString(type, get(key))).append(':');
             }
             return str.toString();
-        }
-
-        private String toHexString(CqlField.CqlType type, Object value)
-        {
-            ByteBuffer buf = value == null ? null : type.serialize(value);
-            return ByteBufferUtils.toHexString(buf);
         }
 
         @Override

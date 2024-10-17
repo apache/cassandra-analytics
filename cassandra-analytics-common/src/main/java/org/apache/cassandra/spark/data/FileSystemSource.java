@@ -31,11 +31,12 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.spark.utils.streaming.CassandraFile;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.streaming.StreamBuffer;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
 
-class FileSystemSource implements CassandraFileSource<SSTable>, AutoCloseable
+public class FileSystemSource<T extends CassandraFile> implements CassandraFileSource<T>, AutoCloseable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileSystemSource.class);
     static final ExecutorService FILE_IO_EXECUTOR =
@@ -43,14 +44,14 @@ class FileSystemSource implements CassandraFileSource<SSTable>, AutoCloseable
                                                                       .setDaemon(true)
                                                                       .build());
 
-    private final FileSystemSSTable ssTable;
+    private final T cassandraFile;
     private final RandomAccessFile file;
     private final FileType fileType;
     private final long length;
 
-    FileSystemSource(FileSystemSSTable sstable, FileType fileType, Path path) throws IOException
+    public FileSystemSource(T cassandraFile, FileType fileType, Path path) throws IOException
     {
-        this.ssTable = sstable;
+        this.cassandraFile = cassandraFile;
         this.fileType = fileType;
         this.length = Files.size(path);
         this.file = new RandomAccessFile(path.toFile(), "r");
@@ -114,9 +115,9 @@ class FileSystemSource implements CassandraFileSource<SSTable>, AutoCloseable
         });
     }
 
-    public FileSystemSSTable sstable()
+    public T cassandraFile()
     {
-        return ssTable;
+        return cassandraFile;
     }
 
     public FileType fileType()

@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.data.complex;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -27,11 +28,17 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.ListType;
+import org.apache.cassandra.db.rows.BufferCell;
+import org.apache.cassandra.db.rows.CellPath;
+import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.serializers.ListSerializer;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.utils.RandomUtils;
+import org.apache.cassandra.utils.UUIDGen;
+
+import static org.apache.cassandra.spark.data.CqlField.NO_TTL;
 
 public class CqlList extends CqlCollection implements CqlField.CqlList
 {
@@ -91,5 +98,28 @@ public class CqlList extends CqlCollection implements CqlField.CqlList
         return ((List<?>) value).stream()
                                 .map(element -> type().convertForCqlWriter(element, version))
                                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public void addCell(final org.apache.cassandra.db.rows.Row.Builder rowBuilder,
+                        ColumnMetadata cd,
+                        long timestamp,
+                        int ttl,
+                        int now,
+                        Object value)
+    {
+        for (Object o : (List<?>) value)
+        {
+            if (ttl != NO_TTL)
+            {
+                rowBuilder.addCell(BufferCell.expiring(cd, timestamp, ttl, now, type().serialize(o),
+                                                       CellPath.create(ByteBuffer.wrap(UUIDGen.getTimeUUIDBytes()))));
+            }
+            else
+            {
+                rowBuilder.addCell(BufferCell.live(cd, timestamp, type().serialize(o),
+                                                   CellPath.create(ByteBuffer.wrap(UUIDGen.getTimeUUIDBytes()))));
+            }
+        }
     }
 }
