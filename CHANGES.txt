@@ -1,4 +1,5 @@
 1.0.0
+ * Remove SparkSQL dependency from CassandraBridge so that it can be used independent from Spark (CASSANDRA-19980)
  * Support aggregated consistency validation for multiple clusters (CASSANDRA-19933)
  * Add transport extension for coordinated write (CASSANDRA-19923)
  * Support data partitioning for multiple clusters coordinated write (CASSANDRA-19910)
