@@ -87,5 +87,8 @@ public interface StreamScanner<T> extends Closeable
     /**
      * @return {@code true} if the scanner has more columns to consume, {@code false} otherwise
      */
-    boolean hasMoreColumns();
+    default boolean hasMoreColumns()
+    {
+        return true;
+    }
 }

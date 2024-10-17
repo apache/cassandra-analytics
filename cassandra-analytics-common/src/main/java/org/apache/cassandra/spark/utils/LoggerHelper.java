@@ -46,6 +46,11 @@ public final class LoggerHelper
         this.fixedArgumentss = extractArguments(fixedArguments);
     }
 
+    public boolean isTraceEnabled()
+    {
+        return logger.isTraceEnabled();
+    }
+
     private static String buildKey(Object... args)
     {
         Preconditions.checkArgument(args.length % 2 == 0, "Expect even number of key/value pairs in fixedArgs");

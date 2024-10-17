@@ -30,9 +30,16 @@ public class MapBuffer extends ComplexTypeBuffer
     }
 
     @Override
-    void addCell(Cell cell)
+    public void addCell(Cell cell)
     {
         add(cell.path().get(0));  // Map - copy over key and value
         super.addCell(cell);
+    }
+
+    @Override
+    protected int elements()
+    {
+        // divide 2 because we add key and value to the buffer, which makes it twice as big as the map entries.
+        return super.elements() / 2;
     }
 }

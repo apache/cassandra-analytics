@@ -59,7 +59,7 @@ public class KryoRegister implements KryoRegistrator
     {
         // Cassandra-version-agnostic Kryo serializers
         KRYO_SERIALIZERS.put(LocalDataLayer.class, new LocalDataLayer.Serializer());
-        KRYO_SERIALIZERS.put(CassandraInstance.class, new CassandraInstance.Serializer());
+        KRYO_SERIALIZERS.put(CassandraInstance.class, CassandraInstance.SERIALIZER);
         KRYO_SERIALIZERS.put(ReplicationFactor.class, new ReplicationFactor.Serializer());
         KRYO_SERIALIZERS.put(CassandraRing.class, new CassandraRing.Serializer());
         KRYO_SERIALIZERS.put(TokenPartitioner.class, new TokenPartitioner.Serializer());

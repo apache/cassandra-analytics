@@ -66,7 +66,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
-public final class TestUtils
+public final class TestUtils extends CommonTestUtils
 {
     private static class Holder
     {
@@ -91,6 +91,7 @@ public final class TestUtils
 
     private TestUtils()
     {
+        super();
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
@@ -287,11 +288,6 @@ public final class TestUtils
     public static List<CassandraVersion> testableVersions()
     {
         return ImmutableList.copyOf(CassandraVersion.implementedVersions());
-    }
-
-    public static Gen<CqlField.NativeType> cql3Type(CassandraBridge bridge)
-    {
-        return arbitrary().pick(bridge.supportedTypes());
     }
 
     public static Gen<CqlField.SortOrder> sortOrder()

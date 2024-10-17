@@ -188,7 +188,7 @@ public class SidecarProvisionedSSTable extends SSTable
             }
 
             @Override
-            public SidecarProvisionedSSTable sstable()
+            public SidecarProvisionedSSTable cassandraFile()
             {
                 return thisSSTable;
             }

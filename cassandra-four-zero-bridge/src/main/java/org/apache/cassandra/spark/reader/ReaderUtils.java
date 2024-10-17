@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,9 +49,6 @@ import org.apache.cassandra.db.marshal.TypeParser;
 import org.apache.cassandra.db.marshal.UTF8Type;
 import org.apache.cassandra.db.rows.EncodingStats;
 import org.apache.cassandra.dht.IPartitioner;
-import org.apache.cassandra.dht.Murmur3Partitioner;
-import org.apache.cassandra.dht.RandomPartitioner;
-import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
 import org.apache.cassandra.io.sstable.Descriptor;
@@ -70,13 +66,14 @@ import org.apache.cassandra.utils.BloomFilter;
 import org.apache.cassandra.utils.BloomFilterSerializer;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.Pair;
+import org.apache.cassandra.utils.TokenUtils;
 import org.apache.cassandra.utils.vint.VIntCoding;
 import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.utils.FBUtilities.updateChecksumInt;
 
 @SuppressWarnings("WeakerAccess")
-public final class ReaderUtils
+public final class ReaderUtils extends TokenUtils
 {
     private static final int CHECKSUM_LENGTH = 4;  // CRC32
     private static final Constructor<?> SERIALIZATION_HEADER =
@@ -93,35 +90,8 @@ public final class ReaderUtils
 
     private ReaderUtils()
     {
+        super();
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
-    }
-
-    public static long tokenToLong(Token token)
-    {
-        if (token instanceof Murmur3Partitioner.LongToken)
-        {
-            return (long) token.getTokenValue();
-        }
-        if (token instanceof RandomPartitioner.BigIntegerToken)
-        {
-            return ((RandomPartitioner.BigIntegerToken) token).getTokenValue().longValue();
-        }
-
-        throw new UnsupportedOperationException("Unexpected token type: " + token.getClass().getName());
-    }
-
-    public static BigInteger tokenToBigInteger(Token token)
-    {
-        if (token instanceof Murmur3Partitioner.LongToken)
-        {
-            return BigInteger.valueOf((long) token.getTokenValue());
-        }
-        if (token instanceof RandomPartitioner.BigIntegerToken)
-        {
-            return ((RandomPartitioner.BigIntegerToken) token).getTokenValue();
-        }
-
-        throw new UnsupportedOperationException("Unexpected token type: " + token.getClass().getName());
     }
 
     static ByteBuffer encodeCellName(TableMetadata metadata,

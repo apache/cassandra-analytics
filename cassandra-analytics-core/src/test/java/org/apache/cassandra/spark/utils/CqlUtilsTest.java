@@ -329,7 +329,7 @@ public class CqlUtilsTest extends VersionRunner
                                                                   ImmutableMap.of("datacenter1", 3)),
                                             Partitioner.Murmur3Partitioner,
                                             Collections.emptySet(),
-                                            null, 0);
+                                            null, 0, false);
         assertEquals("ks", table.keyspace());
         assertEquals("tb", table.table());
         assertEquals("key", table.getField("key").name());
@@ -560,7 +560,7 @@ public class CqlUtilsTest extends VersionRunner
                            new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
                                                  ImmutableMap.of("datacenter1", 3)),
                            Partitioner.Murmur3Partitioner,
-                           Collections.emptySet(), null, 0);
+                           Collections.emptySet(), null, 0, false);
     }
 
     @ParameterizedTest

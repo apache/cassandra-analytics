@@ -1,0 +1,83 @@
+import java.nio.file.Paths
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+plugins {
+    id('java-library')
+    id('maven-publish')
+}
+
+configurations {
+    all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
+    all*.exclude(group: 'log4j', module: 'log4j')
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            groupId project.group
+            artifactId "${archivesBaseName}"
+            version System.getenv("CODE_VERSION") ?: "${version}"
+        }
+    }
+}
+
+dependencies {
+    implementation project(":cassandra-analytics-common")
+    implementation project(":cassandra-four-zero-types")
+    implementation project(path: ':cassandra-four-zero', configuration: 'shadow')
+
+    implementation "org.apache.commons:commons-lang3:${project.commonsLang3Version}"
+    implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"
+    implementation "com.esotericsoftware:kryo-shaded:${kryoVersion}"
+    implementation "com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+
+    testImplementation project(":cassandra-analytics-common")
+
+    // pull in cassandra-bridge so we can re-use TestSchema to generate arbitrary schemas for the cdc tests
+    testImplementation project(":cassandra-bridge")
+    testImplementation(testFixtures(project(':cassandra-bridge')))
+    testImplementation project(":cassandra-four-zero-bridge")
+    testImplementation project(path: ':cassandra-four-zero', configuration: 'shadow')
+    testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
+    testImplementation(group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.26')
+    testImplementation "org.quicktheories:quicktheories:${project.rootProject.quickTheoriesVersion}"
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${project.junitVersion}"
+    testImplementation "org.junit.jupiter:junit-jupiter-params:${project.junitVersion}"
+    testImplementation "org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}"
+}
+
+test {
+    useJUnitPlatform()
+    reports {
+        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "cdc").toFile()
+        junitXml {
+            enabled true
+            destination = destDir
+        }
+        html {
+            enabled true
+            destination = destDir
+        }
+    }
+}

@@ -95,7 +95,7 @@ public class BufferingInputStreamTests
                 request.request(start, end, consumer);
             }
 
-            public SSTable sstable()
+            public SSTable cassandraFile()
             {
                 return null;
             }
@@ -265,7 +265,7 @@ public class BufferingInputStreamTests
             }
 
             @Override
-            public SSTable sstable()
+            public SSTable cassandraFile()
             {
                 return null;
             }
@@ -316,7 +316,7 @@ public class BufferingInputStreamTests
             }
 
             @Override
-            public SSTable sstable()
+            public SSTable cassandraFile()
             {
                 return null;
             }

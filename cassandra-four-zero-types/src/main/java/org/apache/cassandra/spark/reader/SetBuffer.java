@@ -29,7 +29,7 @@ public class SetBuffer extends ComplexTypeBuffer
     }
 
     @Override
-    void addCell(Cell cell)
+    public void addCell(Cell cell)
     {
         add(cell.path().get(0));  // Set - copy over key
     }
