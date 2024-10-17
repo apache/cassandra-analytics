@@ -143,7 +143,7 @@ public abstract class CassandraBridge
                                 Partitioner partitioner,
                                 Set<String> udts)
     {
-        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, udts, null, 0);
+        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, udts, null, 0, false);
     }
 
     public abstract CqlTable buildSchema(String createStatement,
@@ -152,7 +152,8 @@ public abstract class CassandraBridge
                                          Partitioner partitioner,
                                          Set<String> udts,
                                          @Nullable UUID tableId,
-                                         int indexCount);
+                                         int indexCount,
+                                         boolean enableCdc);
 
     /**
      * Returns the quoted identifier, if the {@code identifier} has mixed case or if the {@code identifier}
@@ -402,11 +403,6 @@ public abstract class CassandraBridge
     public abstract SSTableSummary getSSTableSummary(@NotNull String keyspace,
                                                      @NotNull String table,
                                                      @NotNull SSTable ssTable);
-
-    public interface IRow
-    {
-        Object get(int position);
-    }
 
     // Version-Specific Test Utility Methods
 

@@ -49,6 +49,7 @@ dependencies {
     compileOnly("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
 
     testImplementation("com.google.guava:guava:${guavaVersion}")
+    testImplementation("com.esotericsoftware:kryo-shaded:${kryoVersion}")
     testImplementation("com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}")
     testImplementation("com.fasterxml.jackson.core:jackson-core:${jacksonVersion}")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")

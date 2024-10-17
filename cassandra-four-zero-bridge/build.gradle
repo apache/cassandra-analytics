@@ -50,6 +50,7 @@ dependencies {
     testImplementation project(":cassandra-analytics-spark-converter")
     testImplementation project(":cassandra-analytics-spark-four-zero-converter")
     testImplementation(project(path: ':cassandra-four-zero', configuration: 'shadow'))
+    testImplementation(testFixtures(project(':cassandra-bridge')))
     testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")

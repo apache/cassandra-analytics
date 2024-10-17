@@ -27,12 +27,17 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.MapType;
+import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.serializers.MapSerializer;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.utils.Pair;
+import org.apache.cassandra.db.rows.BufferCell;
+import org.apache.cassandra.db.rows.CellPath;
+
+import static org.apache.cassandra.spark.data.CqlField.NO_TTL;
 
 public class CqlMap extends CqlCollection implements CqlField.CqlMap
 {
@@ -108,5 +113,28 @@ public class CqlMap extends CqlCollection implements CqlField.CqlMap
         return map.entrySet().stream()
                 .collect(Collectors.toMap(element -> keyType().convertForCqlWriter(element.getKey(), version),
                                           element -> valueType().convertForCqlWriter(element.getValue(), version)));
+    }
+
+    @Override
+    public void addCell(final org.apache.cassandra.db.rows.Row.Builder rowBuilder,
+                        ColumnMetadata cd,
+                        long timestamp,
+                        int ttl,
+                        int now,
+                        Object value)
+    {
+        for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet())
+        {
+            if (ttl != NO_TTL)
+            {
+                rowBuilder.addCell(BufferCell.expiring(cd, timestamp, ttl, now, valueType().serialize(entry.getValue()),
+                                                       CellPath.create(keyType().serialize(entry.getKey()))));
+            }
+            else
+            {
+                rowBuilder.addCell(BufferCell.live(cd, timestamp, valueType().serialize(entry.getValue()),
+                                                   CellPath.create(keyType().serialize(entry.getKey()))));
+            }
+        }
     }
 }

@@ -221,7 +221,7 @@ public class BufferingInputStreamHttpTest
                 return chunkBufferSize != null ? chunkBufferSize : CassandraFileSource.super.chunkBufferSize();
             }
 
-            public SSTable sstable()
+            public SSTable cassandraFile()
             {
                 return null;
             }

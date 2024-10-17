@@ -20,10 +20,8 @@
 package org.apache.cassandra.spark.data.partitioner;
 
 import java.math.BigInteger;
+
 import org.jetbrains.annotations.NotNull;
-
-import com.google.common.collect.Range;
-
 import org.jetbrains.annotations.Nullable;
 
 public class NotEnoughReplicasException extends RuntimeException
@@ -34,14 +32,15 @@ public class NotEnoughReplicasException extends RuntimeException
     }
 
     public NotEnoughReplicasException(@NotNull ConsistencyLevel consistencyLevel,
-                                      @NotNull Range<BigInteger> range,
+                                      @Nullable BigInteger lower,
+                                      @Nullable BigInteger upper,
                                       int minRequired,
                                       int numInstances,
                                       @Nullable String dataCenter)
     {
         super(String.format("Insufficient replicas found to achieve consistency level %s for token range %s - %s, "
                           + "required %d but only %d found, dataCenter=%s",
-                            consistencyLevel.name(), range.lowerEndpoint(), range.upperEndpoint(),
+                            consistencyLevel.name(), lower, upper,
                             minRequired, numInstances, dataCenter));
     }
 

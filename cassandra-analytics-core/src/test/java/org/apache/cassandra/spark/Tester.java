@@ -373,7 +373,7 @@ public final class Tester
                     {
                         testRow = schema.randomRow(nullifyValueColumn);
                     }
-                    while (rows.containsKey(testRow.getKey()));  // Don't write duplicate rows
+                    while (rows.containsKey(testRow.getPrimaryHexKey()));  // Don't write duplicate rows
 
                     for (Consumer<TestSchema.TestRow> writeListener : writeListeners)
                     {
@@ -384,7 +384,7 @@ public final class Tester
                     {
                         sum.get(sumField).add((Number) testRow.get(sumField));
                     }
-                    rows.put(testRow.getKey(), testRow);
+                    rows.put(testRow.getPrimaryHexKey(), testRow);
 
                     Object[] values = testRow.allValues();
                     if (upsert)
@@ -453,7 +453,7 @@ public final class Tester
                 if (numRandomRows > 0)
                 {
                     // If we wrote random data, verify values exist
-                    String key = actualRow.getKey();
+                    String key = actualRow.getPrimaryHexKey();
                     assertTrue(rows.containsKey(key), "Unexpected row read in Spark");
                     assertEquals(rows.get(key).withColumns(requiredColumns), actualRow,
                                  "Row read in Spark does not match expected");
@@ -504,7 +504,7 @@ public final class Tester
         {
             testRow = rowProvider.get();
         }
-        while (rows.containsKey(testRow.getKey()));  // Don't write duplicate rows
+        while (rows.containsKey(testRow.getPrimaryHexKey()));  // Don't write duplicate rows
         return testRow;
     }
 

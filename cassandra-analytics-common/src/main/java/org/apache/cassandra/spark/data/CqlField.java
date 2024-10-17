@@ -43,6 +43,7 @@ import org.jetbrains.annotations.NotNull;
 public class CqlField implements Serializable, Comparable<CqlField>
 {
     private static final long serialVersionUID = 42L;
+    public static final int NO_TTL = 0;
 
     public static final Comparator<String> STRING_COMPARATOR = String::compareTo;
     public static final Comparator<Byte> BYTE_COMPARATOR = CqlField::compareBytes;
