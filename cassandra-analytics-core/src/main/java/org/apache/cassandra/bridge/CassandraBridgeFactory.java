@@ -19,48 +19,38 @@
 
 package org.apache.cassandra.bridge;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.net.URL;
-import java.nio.file.Files;
-import java.util.Arrays;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.base.Preconditions;
-import org.apache.commons.io.FileUtils;
 
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.jetbrains.annotations.NotNull;
 
-public final class CassandraBridgeFactory
+public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
 {
-    private static final Map<String, CassandraBridge> CASSANDRA_BRIDGES = new ConcurrentHashMap<>(CassandraVersion.values().length);
+    // maps Cassandra version-specific jar name (e.g. 'four-zero') to matching CassandraBridge and SparkSqlTypeConverter
+    private static final Map<String, VersionSpecificBridge> CASSANDRA_BRIDGES =
+    new ConcurrentHashMap<>(CassandraVersion.values().length);
+
+    public static class VersionSpecificBridge
+    {
+        public final CassandraBridge cassandraBridge;
+        public final SparkSqlTypeConverter sparkSqlTypeConverter;
+
+        public VersionSpecificBridge(CassandraBridge cassandraBridge, SparkSqlTypeConverter sparkSqlTypeConverter)
+        {
+            this.cassandraBridge = cassandraBridge;
+            this.sparkSqlTypeConverter = sparkSqlTypeConverter;
+        }
+    }
 
     private CassandraBridgeFactory()
     {
+        super();
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
-    }
-
-    @NotNull
-    public static CassandraVersion getCassandraVersion(@NotNull String version)
-    {
-        CassandraVersionFeatures features = CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version);
-        Preconditions.checkArgument(features != null, "Cassandra version " + version + " is not supported");
-        return getCassandraVersion(features);
-    }
-
-    @NotNull
-    public static CassandraVersion getCassandraVersion(@NotNull CassandraVersionFeatures features)
-    {
-        Optional<CassandraVersion> version = Arrays.stream(CassandraVersion.values())
-                                                   .filter(value -> value.versionNumber() == features.getMajorVersion())
-                                                   .findAny();
-        Preconditions.checkArgument(version.isPresent(), "Cassandra features " + features + " are not supported");
-        return version.get();
     }
 
     @NotNull
@@ -80,89 +70,58 @@ public final class CassandraBridgeFactory
     {
         String jarBaseName = version.jarBaseName();
         Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
-        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create);
-    }
-
-    /**
-     * Ensures that every supported Cassandra version has a corresponding Cassandra bridge implementation embedded
-     * into this library's binary as a separate JAR file in the {@code bridges} directory, fails fast otherwise
-     *
-     * @param expectedCassandraVersions the expected cassandra versions
-     * @throws IllegalStateException If a Cassandra bridge implementation is missing for a supported Cassandra version
-     */
-    public static void validateBridges(CassandraVersion[] expectedCassandraVersions)
-    {
-        for (CassandraVersion version : expectedCassandraVersions)
-        {
-            String jarBaseName = version.jarBaseName();
-            String cassandraResourceName = cassandraResourceName(jarBaseName);
-            URL locator = CassandraBridgeFactory.class.getResource(cassandraResourceName);
-            if (locator == null)
-            {
-                throw new IllegalStateException("Missing Cassandra implementation for version " + version);
-            }
-
-            String bridgeResourceName = bridgeResourceName(jarBaseName);
-            locator = CassandraBridgeFactory.class.getResource(bridgeResourceName);
-
-            if (locator == null)
-            {
-                throw new IllegalStateException("Missing Cassandra bridge implementation for version " + version);
-            }
-        }
+        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).cassandraBridge;
     }
 
     @NotNull
-    private static String cassandraResourceName(@NotNull String label)
+    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraVersionFeatures features)
     {
-        return "/bridges/" + label + ".jar";
+        return getSparkSql(getCassandraVersion(features));
     }
 
     @NotNull
-    private static String bridgeResourceName(@NotNull String label)
+    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraBridge bridge)
     {
-        return jarResourceName(label, "bridge");
+        return getSparkSql(bridge.getVersion());
     }
 
     @NotNull
-    private static String typesResourceName(@NotNull String label)
+    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraVersion version)
     {
-        return jarResourceName(label, "types");
+        String jarBaseName = version.jarBaseName();
+        Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
+        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).sparkSqlTypeConverter;
     }
 
-    private static String jarResourceName(String... parts)
+    @NotNull
+    private static String sparkSqlResourceName(@NotNull String label)
     {
-        return "/bridges/" + String.join("-", parts) + ".jar";
+        return jarResourceName(label, "sparksql");
     }
 
     @NotNull
     @SuppressWarnings("unchecked")
-    private static CassandraBridge create(@NotNull String label)
+    private static VersionSpecificBridge create(@NotNull String label)
     {
         try
         {
-            String name = cassandraResourceName(label);
-            InputStream contents = CassandraBridgeFactory.class.getResourceAsStream(name);
-            File casandraJar = Files.createTempFile(null, ".jar").toFile();
-            FileUtils.copyInputStreamToFile(contents, casandraJar);
-
-            name = bridgeResourceName(label);
-            contents = CassandraBridgeFactory.class.getResourceAsStream(name);
-            File bridgeJar = Files.createTempFile(null, ".jar").toFile();
-            FileUtils.copyInputStreamToFile(contents, bridgeJar);
-
-            name = typesResourceName(label);
-            contents = CassandraBridgeFactory.class.getResourceAsStream(name);
-            File typesJar = Files.createTempFile(null, ".jar").toFile();
-            FileUtils.copyInputStreamToFile(contents, typesJar);
-
-            URL[] urls = {casandraJar.toURI().toURL(), bridgeJar.toURI().toURL(), typesJar.toURI().toURL()};
-            ClassLoader loader = new PostDelegationClassLoader(urls, Thread.currentThread().getContextClassLoader());
-            Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass("org.apache.cassandra.bridge.CassandraBridgeImplementation");
+            ClassLoader loader = buildClassLoader(
+            cassandraResourceName(label),
+            bridgeResourceName(label),
+            typesResourceName(label),
+            sparkSqlResourceName(label));
+            Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass(CassandraBridge.IMPLEMENTATION_FQCN);
             Constructor<CassandraBridge> constructor = bridge.getConstructor();
-            return constructor.newInstance();
+            CassandraBridge bridgeInstance = constructor.newInstance();
+
+            Class<SparkSqlTypeConverter> typeConverter = (Class<SparkSqlTypeConverter>)
+                                                         loader
+                                                         .loadClass(SparkSqlTypeConverter.IMPLEMENTATION_FQCN);
+            Constructor<SparkSqlTypeConverter> typeConverterConstructor = typeConverter.getConstructor();
+            SparkSqlTypeConverter typeConverterInstance = typeConverterConstructor.newInstance();
+            return new VersionSpecificBridge(bridgeInstance, typeConverterInstance);
         }
-        catch (IOException | ClassNotFoundException | NoSuchMethodException | InstantiationException
+        catch (ClassNotFoundException | NoSuchMethodException | InstantiationException
                | IllegalAccessException | InvocationTargetException exception)
         {
             throw new RuntimeException("Failed to create Cassandra bridge for label " + label, exception);

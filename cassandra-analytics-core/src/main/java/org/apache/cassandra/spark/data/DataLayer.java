@@ -33,8 +33,10 @@ import org.apache.commons.lang.StringUtils;
 
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.config.SchemaFeature;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.EmptyStreamScanner;
 import org.apache.cassandra.spark.reader.IndexEntry;
@@ -44,7 +46,7 @@ import org.apache.cassandra.spark.sparksql.NoMatchFoundException;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.spark.sql.sources.EqualTo;
 import org.apache.spark.sql.sources.Filter;
@@ -74,7 +76,7 @@ public abstract class DataLayer implements Serializable
         {
             MetadataBuilder metadata = fieldMetaData(field);
             structType = structType.add(field.name(),
-                                        bridge().typeConverter().sparkSqlType(field, bigNumberConfig(field)),
+                                        typeConverter().sparkSqlType(field, bigNumberConfig(field)),
                                         true,
                                         metadata.build());
         }
@@ -98,7 +100,7 @@ public abstract class DataLayer implements Serializable
             // Pass Cassandra field metadata in StructField metadata
             MetadataBuilder metadata = fieldMetaData(field);
             structType = structType.add(field.name(),
-                                        bridge().typeConverter().sparkSqlType(field, bigNumberConfig(field)),
+                                        typeConverter().sparkSqlType(field, bigNumberConfig(field)),
                                         true,
                                         metadata.build());
         }
@@ -154,6 +156,14 @@ public abstract class DataLayer implements Serializable
      * @return version-specific CassandraBridge wrapping shaded packages
      */
     public abstract CassandraBridge bridge();
+
+    /**
+     * @return SparkSQL type converter that maps version-specific Cassandra types to SparkSQL types
+     */
+    public SparkSqlTypeConverter typeConverter()
+    {
+        return CassandraBridgeFactory.getSparkSql(version());
+    }
 
     public abstract int partitionCount();
 

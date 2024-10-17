@@ -35,7 +35,7 @@ import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.PartitionedDataLayer;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.reader.SparkSSTableReader;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;

@@ -78,9 +78,7 @@ import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
-import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverterImplementation;
 import org.apache.cassandra.spark.data.complex.CqlTuple;
 import org.apache.cassandra.spark.data.complex.CqlUdt;
 import org.apache.cassandra.spark.reader.CompactionStreamScanner;
@@ -91,11 +89,11 @@ import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.SchemaBuilder;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.reader.SummaryDbUtils;
-import org.apache.cassandra.spark.reader.common.IndexIterator;
+import org.apache.cassandra.analytics.reader.common.IndexIterator;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.SparkClassLoaderOverride;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.tools.JsonTransformer;
@@ -181,11 +179,6 @@ public class CassandraBridgeImplementation extends CassandraBridge
     public CassandraTypes cassandraTypes()
     {
         return CassandraTypesImplementation.INSTANCE;
-    }
-
-    public SparkSqlTypeConverter typeConverter()
-    {
-        return SparkSqlTypeConverterImplementation.INSTANCE;
     }
 
     @Override

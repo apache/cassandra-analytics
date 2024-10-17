@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.spark.utils.test;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -37,14 +39,14 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import com.google.common.collect.ImmutableMap;
-
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.ComparisonUtils;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
@@ -53,7 +55,6 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.apache.cassandra.spark.utils.ByteBufferUtils;
 
 /**
  * Helper class to create and test various schemas
@@ -203,7 +204,7 @@ public final class TestSchema
     public final String table;
     public final String createStatement;
     public final ReplicationFactor rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
-                                                              ImmutableMap.of("DC1", 3));
+                                                              Collections.singletonMap("DC1", 3));
     public final String insertStatement;
     public final String updateStatement;
     public final String deleteStatement;
@@ -217,6 +218,26 @@ public final class TestSchema
     private final int minCollectionSize;
     private final Integer blobSize;
     private final boolean quoteIdentifiers;
+
+    @SuppressWarnings("unchecked")
+    public static SparkSqlTypeConverter getSparkSql()
+    {
+        try
+        {
+            // in the tests the SparkSqlTypeConverterImplementation should already be on the classpath.
+            Class<SparkSqlTypeConverter> bridge = (Class<SparkSqlTypeConverter>)
+                                                  TestSchema.class
+                                                  .getClassLoader()
+                                                  .loadClass("org.apache.cassandra.spark.data.converter.SparkSqlTypeConverterImplementation");
+            Constructor<SparkSqlTypeConverter> constructor = bridge.getConstructor();
+            return constructor.newInstance();
+        }
+        catch (ClassNotFoundException | InvocationTargetException | NoSuchMethodException | InstantiationException |
+               IllegalAccessException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
 
     public static Builder builder(CassandraBridge bridge)
     {
@@ -550,14 +571,14 @@ public final class TestSchema
         return new TestRow(values);
     }
 
-    public TestRow toTestRow(InternalRow row)
+    public TestRow toTestRow(InternalRow row, SparkSqlTypeConverter typeConverter)
     {
         if (row instanceof GenericInternalRow)
         {
             Object[] values = new Object[allFields.size()];
             for (CqlField field : allFields)
             {
-                values[field.position()] = bridge.typeConverter().sparkSqlRowValue(field, (GenericInternalRow) row, field.position());
+                values[field.position()] = typeConverter.sparkSqlRowValue(field, (GenericInternalRow) row, field.position());
             }
             return new TestRow(values);
         }
@@ -567,7 +588,7 @@ public final class TestSchema
         }
     }
 
-    public TestRow toTestRow(Row row, Set<String> requiredColumns)
+    public TestRow toTestRow(Row row, Set<String> requiredColumns, SparkSqlTypeConverter typeConverter)
     {
         Object[] values = new Object[requiredColumns != null ? requiredColumns.size() : allFields.size()];
         int skipped = 0;
@@ -579,7 +600,7 @@ public final class TestSchema
                 continue;
             }
             int position = field.position() - skipped;
-            values[position] = row.get(position) != null ? bridge.typeConverter().sparkSqlRowValue(field, row, position) : null;
+            values[position] = row.get(position) != null ? typeConverter.sparkSqlRowValue(field, row, position) : null;
         }
         return new TestRow(values);
     }

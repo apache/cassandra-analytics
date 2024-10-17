@@ -34,15 +34,21 @@ dependencies {
     compileOnly(project(':cassandra-bridge'))
     compileOnly project(":cassandra-analytics-spark-converter")
 
-    compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-    compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-
     compileOnly(project(path: ':cassandra-four-zero', configuration: 'shadow'))
 
+    compileOnly(group: 'org.slf4j', name: 'slf4j-api', version: "${project.slf4jApiVersion}")
+    compileOnly(group: 'com.esotericsoftware', name: 'kryo-shaded', version: "${project.kryoVersion}")
+    compileOnly(group: 'com.google.guava', name: 'guava', version: "${project.guavaVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: "${project.jacksonVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: "${project.jacksonVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
+
+    testImplementation(testFixtures(project(':cassandra-bridge')))
     testImplementation project(":cassandra-analytics-common")
     testImplementation project(":cassandra-four-zero-types")
     testImplementation(project(':cassandra-bridge'))
     testImplementation project(":cassandra-analytics-spark-converter")
+    testImplementation project(":cassandra-analytics-spark-four-zero-converter")
     testImplementation(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")

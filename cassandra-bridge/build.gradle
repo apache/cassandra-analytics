@@ -18,8 +18,12 @@
  */
 
 plugins {
-    id('java-library')
-    id('maven-publish')
+    // A Java Library
+    id 'java-library'
+    // which produces test fixtures
+    id 'java-test-fixtures'
+    // and is published
+    id 'maven-publish'
 }
 
 java {
@@ -40,14 +44,26 @@ publishing {
 
 dependencies {
     api(project(':cassandra-analytics-common'))
-    api(project(':cassandra-analytics-spark-converter'))
-    compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-    compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
 
-    testImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${jacksonVersion}")
-    testImplementation(group: 'com.google.guava', name: 'guava', version: '31.1-jre')
-    testImplementation(group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.26')
-    testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
-    testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
-    testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
+    implementation(group: 'org.slf4j', name: 'slf4j-api', version: "${project.slf4jApiVersion}")
+    compileOnly(group: 'com.esotericsoftware', name: 'kryo-shaded', version: "${project.kryoVersion}")
+    compileOnly(group: 'com.google.guava', name: 'guava', version: "${project.guavaVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: "${project.jacksonVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: "${project.jacksonVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
+
+    testFixturesImplementation(project(path: ":cassandra-analytics-spark-converter"))
+    testFixturesImplementation(group: 'com.intellij', name: 'annotations', version: "${project.rootProject.intellijVersion}")
+    testFixturesImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+    testFixturesImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+    testFixturesImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${jacksonVersion}")
+    testFixturesImplementation(group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.26')
+    testFixturesImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
+    testFixturesImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
+    testFixturesImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
+}
+
+tasks.register('testJar', Jar) {
+    archiveBaseName = "${project.name}-bridge-test"
+    from sourceSets.test.output
 }

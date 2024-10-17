@@ -17,13 +17,13 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.reader.common;
+package org.apache.cassandra.analytics.reader.common;
 
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.jetbrains.annotations.NotNull;
 

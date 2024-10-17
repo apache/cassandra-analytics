@@ -39,12 +39,13 @@ import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
 
+import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
 import static org.apache.cassandra.spark.TestUtils.countSSTables;
 import static org.apache.cassandra.spark.TestUtils.getFileType;
 import static org.apache.cassandra.spark.TestUtils.runTest;
@@ -129,7 +130,7 @@ public class SSTableReaderTests
                     // extract value column
                     ByteBuffer b = rowData.getValue();
                     Set<?> set = new HashSet<>(Arrays.asList(((GenericArrayData) bridge.set(bridge.aInt())
-                                                                                       .deserializeToType(bridge.typeConverter(), b))
+                                                                                       .deserializeToType(getSparkSql(bridge), b))
                                                              .array()));
                     assertEquals(expectedColValue, set);
                     count++;

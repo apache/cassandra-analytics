@@ -31,7 +31,8 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.reader.common.RawInputStream;
+import org.apache.cassandra.analytics.stats.Stats;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.stats;
+package org.apache.cassandra.analytics.stats;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -30,6 +30,7 @@ import org.apache.cassandra.spark.data.SSTablesSupplier;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
+import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
 import org.apache.cassandra.spark.utils.streaming.CassandraFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

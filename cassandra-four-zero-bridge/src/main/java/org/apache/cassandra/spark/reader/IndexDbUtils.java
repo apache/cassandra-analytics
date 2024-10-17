@@ -30,7 +30,7 @@ import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.io.sstable.IndexSummary;
 import org.apache.cassandra.spark.data.SSTable;
-import org.apache.cassandra.spark.stats.Stats;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.jetbrains.annotations.NotNull;
