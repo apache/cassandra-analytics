@@ -251,6 +251,10 @@ jobs:
           path: build/reports
           destination: reports
 
+      - store_artifacts:
+          path: cassandra-analytics-integration-tests
+          destination: int-tests-misc
+
       - store_test_results:
           path: build/test-reports
 
@@ -304,6 +308,10 @@ jobs:
       - store_artifacts:
           path: build/reports
           destination: reports
+
+      - store_artifacts:
+          path: cassandra-analytics-integration-tests
+          destination: int-tests-misc
 
       - store_test_results:
           path: build/test-reports
