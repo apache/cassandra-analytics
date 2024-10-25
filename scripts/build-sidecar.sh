@@ -87,8 +87,9 @@ else
   git clean -fd
 fi
 
-# publish to maven local at {SIDECAR_JAR_DIR}
-./gradlew -Pversion=${SIDECAR_BUILD_VERSION} -Dmaven.repo.local=${SIDECAR_JAR_DIR} publishToMavenLocal
+# publish to maven local at {SIDECAR_JAR_DIR};
+# run jar task first to make sure sidecar.version is generated and included in the artifacts
+./gradlew -Pversion=${SIDECAR_BUILD_VERSION} -Dmaven.repo.local=${SIDECAR_JAR_DIR} jar publishToMavenLocal
 
 if [ "x${LOCAL_SIDECAR_REPO}" == "x" ]; then
   # Delete the cloned sidecar source after publishing to avoid confusing IDE
