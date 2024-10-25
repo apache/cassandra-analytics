@@ -42,8 +42,8 @@ import org.jetbrains.annotations.Nullable;
 public class MultiClusterContainer<T> implements Serializable, MultiClusterSupport<T>
 {
     private static final long serialVersionUID = 8387168256773834417L;
-    // A special key used by non-coordinated write
-    private static final Object SENTINEL_KEY = new Object();
+    // A special (non-string) key used by non-coordinated write; The actual value (Integer) is serializable constant to ensure ser/deser stability
+    private static final Object SENTINEL_KEY = Integer.MAX_VALUE;
 
     // For coordinated write, the key should be String values of clusterId
     private final Map<Object, T> byCluster = new ConcurrentHashMap<>();

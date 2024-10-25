@@ -81,7 +81,6 @@ public class StorageTransportHandler implements CredentialChangeListener, Object
 
     private void updateCredentials(@Nullable String clusterId, StorageCredentialPair credentialPair)
     {
-        StorageTransportConfiguration conf = transportContext.transportConfiguration();
         RestoreJobSecrets secrets = credentialPair.toRestoreJobSecrets();
         UpdateRestoreJobRequestPayload requestPayload = UpdateRestoreJobRequestPayload.builder().withSecrets(secrets).build();
         if (clusterId != null)

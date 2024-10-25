@@ -385,8 +385,7 @@ public class KryoSerializationTests
                                   "readRegion",
                                   new StorageCredentials("keyId2", "secret2", "sessionToken2")
         ),
-        ImmutableMap.of("tag1", "tagVal1", "tag2", "tagVal2")
-        );
+        ImmutableMap.of("tag1", "tagVal1", "tag2", "tagVal2"));
 
         testSerDeserStorageTransportConfiguration(config);
     }
@@ -404,8 +403,7 @@ public class KryoSerializationTests
                                                        new StorageCredentials("keyId1", "secret1", "sessionToken1")),
                         "cluster2",
                         new StorageAccessConfiguration("readRegion2", "readBucket",
-                                                       new StorageCredentials("keyId1", "secret1", "sessionToken1")))
-        );
+                                                       new StorageCredentials("keyId1", "secret1", "sessionToken1"))));
 
         testSerDeserStorageTransportConfiguration(config);
     }
