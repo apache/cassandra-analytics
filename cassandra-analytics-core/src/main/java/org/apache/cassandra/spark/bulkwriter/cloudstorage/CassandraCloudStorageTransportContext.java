@@ -24,6 +24,7 @@ import java.math.BigInteger;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +40,6 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.Coordinate
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
-import org.apache.parquet.Preconditions;
 import org.jetbrains.annotations.NotNull;
 
 public class CassandraCloudStorageTransportContext implements TransportContext.CloudStorageTransportContext

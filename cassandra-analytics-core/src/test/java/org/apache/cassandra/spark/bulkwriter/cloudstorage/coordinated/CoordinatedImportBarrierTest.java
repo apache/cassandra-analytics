@@ -69,9 +69,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
-class TwoPhaseImportCoordinatorTest
+class CoordinatedImportBarrierTest
 {
-    TwoPhaseImportCoordinator barrier;
+    CoordinatedImportBarrier barrier;
     UUID jobId;
     JobInfo mockJobInfo;
     CassandraCoordinatedBulkWriterContext mockWriterContext;
@@ -114,9 +114,9 @@ class TwoPhaseImportCoordinatorTest
         stagedClusters = ArgumentCaptor.forClass(String.class);
         appliedClusters = ArgumentCaptor.forClass(String.class);
         doNothing().when(mockExtension).onStageSucceeded(stagedClusters.capture(), anyLong());
-        doNothing().when(mockExtension).onApplySucceeded(appliedClusters.capture(), anyLong());
+        doNothing().when(mockExtension).onImportSucceeded(appliedClusters.capture(), anyLong());
 
-        barrier = TwoPhaseImportCoordinator.of(0, mockJobInfo, dataTransferApi, mockExtension);
+        barrier = CoordinatedImportBarrier.of(0, mockJobInfo, dataTransferApi, mockExtension);
     }
 
     @Test
@@ -144,7 +144,7 @@ class TwoPhaseImportCoordinatorTest
         assertThat(stagedClusters.getAllValues()).containsExactlyInAnyOrder(clusterId1, clusterId2);
 
         // signal apply read
-        barrier.onApplyReady(jobId.toString());
+        barrier.onImportReady(jobId.toString());
 
         loopAssert(() -> appliedClusters.getAllValues().size() == 2, "waiting for all cluster to import successfully");
         assertThat(appliedClusters.getAllValues()).containsExactlyInAnyOrder(clusterId1, clusterId2);
@@ -167,9 +167,9 @@ class TwoPhaseImportCoordinatorTest
         // signal stage ready
         barrier.onStageReady(jobId.toString());
 
-        loopAssert(() -> barrier.importFailure() != null, "waiting for barrier to fail");
+        loopAssert(() -> barrier.failure() != null, "waiting for barrier to fail");
         assertThat(barrier.succeeded()).isFalse();
-        assertThat(barrier.importFailure())
+        assertThat(barrier.failure())
         .isExactlyInstanceOf(ImportFailedException.class)
         .hasRootCauseExactlyInstanceOf(SidecarApiCallException.class)
         .hasRootCauseMessage("failed to send signal");
@@ -198,9 +198,9 @@ class TwoPhaseImportCoordinatorTest
         // signal stage ready
         barrier.onStageReady(jobId.toString());
 
-        loopAssert(() -> barrier.importFailure() != null, "waiting for barrier to fail");
+        loopAssert(() -> barrier.failure() != null, "waiting for barrier to fail");
         assertThat(barrier.succeeded()).isFalse();
-        assertThat(barrier.importFailure())
+        assertThat(barrier.failure())
         .isExactlyInstanceOf(ImportFailedException.class)
         .hasRootCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
         .hasRootCauseMessage("Some of the token ranges cannot satisfy with consistency level. " +
@@ -230,11 +230,11 @@ class TwoPhaseImportCoordinatorTest
         assertThat(stagedClusters.getAllValues()).containsExactlyInAnyOrder(clusterId1, clusterId2);
 
         // signal apply read
-        barrier.onApplyReady(jobId.toString());
+        barrier.onImportReady(jobId.toString());
 
-        loopAssert(() -> barrier.importFailure() != null, "waiting for barrier to fail");
+        loopAssert(() -> barrier.failure() != null, "waiting for barrier to fail");
         assertThat(barrier.succeeded()).isFalse();
-        assertThat(barrier.importFailure())
+        assertThat(barrier.failure())
         .isExactlyInstanceOf(ImportFailedException.class)
         .hasRootCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
         .hasRootCauseMessage("Some of the token ranges cannot satisfy with consistency level. " +

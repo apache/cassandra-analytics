@@ -39,5 +39,5 @@ public interface CoordinationSignalListener
      *
      * @param jobId the unique identifier for the job
      */
-    void onApplyReady(String jobId);
+    void onImportReady(String jobId);
 }

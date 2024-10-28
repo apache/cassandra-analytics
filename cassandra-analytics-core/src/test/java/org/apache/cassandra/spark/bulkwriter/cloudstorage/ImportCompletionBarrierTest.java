@@ -56,7 +56,7 @@ import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
 import org.apache.cassandra.spark.bulkwriter.TokenRangeMappingUtils;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionCoordinator.RequestAndInstance;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionBarrier.RequestAndInstance;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -68,7 +68,7 @@ import org.apache.cassandra.spark.transports.storage.extensions.StorageTransport
 import org.mockito.ArgumentCaptor;
 import org.mockito.stubbing.Answer;
 
-import static org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionCoordinator.estimateTimeoutNanos;
+import static org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionBarrier.estimateTimeoutNanos;
 import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -88,7 +88,7 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class ImportCompletionCoordinatorTest
+class ImportCompletionBarrierTest
 {
     private static final int TOTAL_INSTANCES = 10;
 
@@ -146,9 +146,9 @@ class ImportCompletionCoordinatorTest
     void testAwaitForCompletionWithNoErrors()
     {
         List<CloudStorageStreamResult> resultList = buildBlobStreamResult(0, false, 0);
-        ImportCompletionCoordinator.of(0, mockWriterContext, dataTransferApi,
-                                       writerValidator, resultList, mockExtension, onCancelJob)
-                                   .await();
+        ImportCompletionBarrier.of(0, mockWriterContext, dataTransferApi,
+                                   writerValidator, resultList, mockExtension, onCancelJob)
+                               .await();
         validateAllSlicesWereCalledAtMostOnce(resultList);
         assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
                      "All objects should be applied and reported for exactly once");
@@ -159,9 +159,9 @@ class ImportCompletionCoordinatorTest
     void testAwaitForCompletionWithNoErrorsAndSlowImport()
     {
         List<CloudStorageStreamResult> resultList = buildBlobStreamResult(0, true, 0);
-        ImportCompletionCoordinator.of(0, mockWriterContext, dataTransferApi,
-                                       writerValidator, resultList, mockExtension, onCancelJob)
-                                   .await();
+        ImportCompletionBarrier.of(0, mockWriterContext, dataTransferApi,
+                                   writerValidator, resultList, mockExtension, onCancelJob)
+                               .await();
         validateAllSlicesWereCalledAtMostOnce(resultList);
         assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
                      "All objects should be applied and reported for exactly once");
@@ -173,9 +173,9 @@ class ImportCompletionCoordinatorTest
     {
         // There is 1 failure in each replica set. 2 out of 3 replicas succeeds.
         List<CloudStorageStreamResult> resultList = buildBlobStreamResult(1, false, 0);
-        ImportCompletionCoordinator.of(0, mockWriterContext, dataTransferApi,
-                                       writerValidator, resultList, mockExtension, onCancelJob)
-                                   .await();
+        ImportCompletionBarrier.of(0, mockWriterContext, dataTransferApi,
+                                   writerValidator, resultList, mockExtension, onCancelJob)
+                               .await();
         validateAllSlicesWereCalledAtMostOnce(resultList);
         assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
                      "All objects should be applied and reported for exactly once");
@@ -191,9 +191,9 @@ class ImportCompletionCoordinatorTest
         String errorMessage = "ranges with QUORUM for job " + jobId + " in phase WaitForImportCompletion";
         List<CloudStorageStreamResult> resultList = buildBlobStreamResult(2, false, 0);
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            ImportCompletionCoordinator.of(0, mockWriterContext, dataTransferApi,
-                                           writerValidator, resultList, mockExtension, onCancelJob)
-                                       .await();
+            ImportCompletionBarrier.of(0, mockWriterContext, dataTransferApi,
+                                       writerValidator, resultList, mockExtension, onCancelJob)
+                                   .await();
         });
         assertNotNull(exception.getMessage());
         assertTrue(exception.getMessage().contains("Failed to write"), "Actual error message: " + exception.getMessage());
@@ -212,9 +212,9 @@ class ImportCompletionCoordinatorTest
         // The check won't be satisfied too since there is not enough available instances.
         List<CloudStorageStreamResult> resultList = buildBlobStreamResult(0, false, 2);
         RuntimeException exception = assertThrows(RuntimeException.class, () -> {
-            ImportCompletionCoordinator.of(0, mockWriterContext, dataTransferApi,
-                                           writerValidator, resultList, mockExtension, onCancelJob)
-                                       .await();
+            ImportCompletionBarrier.of(0, mockWriterContext, dataTransferApi,
+                                       writerValidator, resultList, mockExtension, onCancelJob)
+                                   .await();
         });
         assertNotNull(exception.getMessage());
         assertTrue(exception.getMessage().contains(errorMessage));
@@ -238,8 +238,8 @@ class ImportCompletionCoordinatorTest
         List<CloudStorageStreamResult> resultList = buildBlobStreamResultWithNoProgressImports(
         /* Stuck slice per replica set */ 1,
         /* importTimeMillis */ 0L);
-        ImportCompletionCoordinator coordinator = ImportCompletionCoordinator.of(0, mockWriterContext, dataTransferApi,
-                                                                                 writerValidator, resultList, mockExtension, onCancelJob);
+        ImportCompletionBarrier coordinator = ImportCompletionBarrier.of(0, mockWriterContext, dataTransferApi,
+                                                                         writerValidator, resultList, mockExtension, onCancelJob);
         coordinator.await();
         assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
                      "All objects should be applied and reported for exactly once");
@@ -259,8 +259,8 @@ class ImportCompletionCoordinatorTest
         List<CloudStorageStreamResult> resultList = buildBlobStreamResultWithNoProgressImports(
         /* Stuck slice per replica set */ 1,
         /* importTimeMillis */ 100L);
-        ImportCompletionCoordinator coordinator = ImportCompletionCoordinator.of(System.nanoTime(), mockWriterContext, dataTransferApi,
-                                                                                 writerValidator, resultList, mockExtension, onCancelJob);
+        ImportCompletionBarrier coordinator = ImportCompletionBarrier.of(System.nanoTime(), mockWriterContext, dataTransferApi,
+                                                                         writerValidator, resultList, mockExtension, onCancelJob);
         coordinator.await();
         // the import should complete as soon as CL is satisfied
         assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
@@ -284,8 +284,8 @@ class ImportCompletionCoordinatorTest
         /* Stuck slice per replica set */ 1,
         /* importTimeMillis */ 100L);
         long startNanos = System.nanoTime();
-        ImportCompletionCoordinator coordinator = ImportCompletionCoordinator.of(startNanos, mockWriterContext, dataTransferApi,
-                                                                                 writerValidator, resultList, mockExtension, onCancelJob);
+        ImportCompletionBarrier coordinator = ImportCompletionBarrier.of(startNanos, mockWriterContext, dataTransferApi,
+                                                                         writerValidator, resultList, mockExtension, onCancelJob);
         coordinator.await();
         assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
                      "All objects should be applied and reported for exactly once");
@@ -318,9 +318,9 @@ class ImportCompletionCoordinatorTest
                                                                   TOTAL_INSTANCES + 1)); // adding a new instance; expansion
         List<CloudStorageStreamResult> resultList = buildBlobStreamResult(0, false, 0);
         AtomicReference<CassandraTopologyMonitor> monitorRef = new AtomicReference<>(null);
-        ImportCompletionCoordinator coordinator = new ImportCompletionCoordinator(0, mockWriterContext, dataTransferApi,
-                                                                                  writerValidator, resultList, mockExtension, onCancel,
-                                                                                  (clusterInfo, onCancelJob) -> {
+        ImportCompletionBarrier coordinator = new ImportCompletionBarrier(0, mockWriterContext, dataTransferApi,
+                                                                          writerValidator, resultList, mockExtension, onCancel,
+                                                                          (clusterInfo, onCancelJob) -> {
                                                                                       monitorRef.set(new CassandraTopologyMonitor(clusterInfo, onCancelJob));
                                                                                       return monitorRef.get();
                                                                                   });
@@ -328,7 +328,7 @@ class ImportCompletionCoordinatorTest
         ImportFailedException importFailedException = assertThrows(ImportFailedException.class, coordinator::await);
         assertEquals("Topology changed during bulk write", importFailedException.getMessage());
         assertTrue(isCancelled.get());
-        ImportFailedException failure = coordinator.importFailure();
+        ImportFailedException failure = coordinator.failure();
         assertNotNull(failure);
         // todo
         assertEquals(importFailedException, failure);

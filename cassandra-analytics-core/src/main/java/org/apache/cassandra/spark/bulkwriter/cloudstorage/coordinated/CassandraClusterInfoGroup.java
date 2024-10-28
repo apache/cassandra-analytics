@@ -47,6 +47,7 @@ import org.apache.cassandra.spark.bulkwriter.CassandraContext;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
 import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
+import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -76,11 +77,13 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
      * @param conf bulk write conf
      * @return new {@link CassandraClusterInfoGroup} instance
      */
-    public static CassandraClusterInfoGroup createFromBulkSparkConf(BulkSparkConf conf)
+    public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf)
     {
         CoordinatedWriteConf coordinatedWriteConf = conf.coordinatedWriteConf();
         Preconditions.checkArgument(coordinatedWriteConf != null,
-                                    "CoordinatedWriteConf must present for CassandraCoordinatedBulkWriterContext");
+                                    "In order to create an instance of CassandraCoordinatedBulkWriterContext, " +
+                                    "you must provide the appropriate coordinated write configuration by " +
+                                    "setting the `" + WriterOptions.COORDINATED_WRITE_CONFIG + "` writer option.");
         for (String clusterId : coordinatedWriteConf.clusters().keySet())
         {
             Preconditions.checkState(!StringUtils.isEmpty(clusterId),

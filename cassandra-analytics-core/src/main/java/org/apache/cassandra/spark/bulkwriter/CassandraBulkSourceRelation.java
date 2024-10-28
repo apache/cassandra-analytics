@@ -42,10 +42,10 @@ import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPa
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageStreamResult;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportBarrier;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionCoordinator;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionBarrier;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCloudStorageDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.TwoPhaseImportCoordinator;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedImportBarrier;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
@@ -201,37 +201,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
             long totalBytesWritten = streamResults.stream().mapToLong(res -> res.bytesWritten).sum();
             boolean hasClusterTopologyChanged = writeResults.stream().anyMatch(WriteResult::isClusterResizeDetected);
 
-            onCloudStorageTransport(context -> {
-                LOGGER.info("Waiting for Cassandra to complete import slices. rowCount={} totalBytes={} hasClusterTopologyChanged={}",
-                            rowCount,
-                            totalBytesWritten,
-                            hasClusterTopologyChanged);
-
-                // Update with the stream result from tasks.
-                // Some token ranges might fail on instances, but the CL is still satisfied at this step
-                writeValidator.updateFailureHandler(streamResults);
-
-                // todo: assert that coordinated write mode should not produce any stream error?
-
-                List<CloudStorageStreamResult> resultsAsCloudStorageStreamResults = streamResults.stream()
-                                                                                                 .map(CloudStorageStreamResult.class::cast)
-                                                                                                 .collect(Collectors.toList());
-
-                int objectCount = resultsAsCloudStorageStreamResults.stream()
-                                                                    .mapToInt(res -> res.objectCount)
-                                                                    .sum();
-                // report the number of objects persisted on s3
-                long elapsedInMillis = elapsedTimeMillis();
-                LOGGER.info("Notifying extension all objects have been persisted. objectCount={} rowCount={} timeElapsedInMillis={}",
-                            objectCount, rowCount, elapsedInMillis);
-                context.transportExtensionImplementation()
-                       .onAllObjectsPersisted(objectCount, rowCount, elapsedTimeMillis());
-
-                setSliceCountForRestoreJob(context, objectCount);
-
-                awaitImportCompletion(context, resultsAsCloudStorageStreamResults);
-                markRestoreJobAsSucceeded(context);
-            });
+            onCloudStorageTransport(context -> waitForImportCompletion(context, rowCount, totalBytesWritten, hasClusterTopologyChanged, streamResults));
 
             LOGGER.info("Bulk writer job complete. rowCount={} totalBytes={} hasClusterTopologyChanged={}",
                         rowCount, totalBytesWritten, hasClusterTopologyChanged);
@@ -270,6 +240,52 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         }
     }
 
+    private void waitForImportCompletion(TransportContext.CloudStorageTransportContext context,
+                                         long rowCount,
+                                         long totalBytesWritten,
+                                         boolean hasClusterTopologyChanged,
+                                         List<StreamResult> streamResults)
+    {
+        LOGGER.info("Waiting for Cassandra to complete import slices. rowCount={} totalBytes={} hasClusterTopologyChanged={}",
+                    rowCount,
+                    totalBytesWritten,
+                    hasClusterTopologyChanged);
+
+        List<StreamError> allErrors = streamResults.stream().flatMap(r -> r.failures.stream()).collect(Collectors.toList());
+        if (writerContext.job().isCoordinatedWriteEnabled())
+        {
+            if (!allErrors.isEmpty())
+            {
+                // log a warning and move on
+                LOGGER.warn("Stream errors are unexpected when coordinated-write is enabled. streamErrors={}", allErrors);
+            }
+        }
+        else
+        {
+            // Update with the stream result from tasks.
+            // Some token ranges might fail on instances, but the CL is still satisfied at this step
+            writeValidator.updateFailureHandler(allErrors);
+        }
+
+        List<CloudStorageStreamResult> resultsAsCloudStorageStreamResults = streamResults.stream()
+                                                                                         .map(CloudStorageStreamResult.class::cast)
+                                                                                         .collect(Collectors.toList());
+
+        int objectCount = resultsAsCloudStorageStreamResults.stream()
+                                                            .mapToInt(res -> res.objectCount)
+                                                            .sum();
+        long elapsedInMillis = elapsedTimeMillis();
+        LOGGER.info("Notifying extension all objects and rows have been persisted. objectCount={} rowCount={} timeElapsedInMillis={}",
+                    objectCount, rowCount, elapsedInMillis);
+        context.transportExtensionImplementation()
+               .onAllObjectsPersisted(objectCount, rowCount, elapsedTimeMillis());
+
+        setSliceCountForRestoreJob(context, objectCount);
+
+        awaitImportCompletion(context, resultsAsCloudStorageStreamResults);
+        markRestoreJobAsSucceeded(context);
+    }
+
     private void awaitImportCompletion(TransportContext.CloudStorageTransportContext context,
                                        List<CloudStorageStreamResult> resultsAsCloudStorageStreamResults)
     {
@@ -277,9 +293,9 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         // for coordinated write, the import barrier is created when starting the job
         if (!writerContext.job().isCoordinatedWriteEnabled())
         {
-            importBarrier = ImportCompletionCoordinator.of(startTimeNanos, writerContext, context.dataTransferApi(),
-                                                           writeValidator, resultsAsCloudStorageStreamResults,
-                                                           context.transportExtensionImplementation(), this::cancelJob);
+            importBarrier = ImportCompletionBarrier.of(startTimeNanos, writerContext, context.dataTransferApi(),
+                                                       writeValidator, resultsAsCloudStorageStreamResults,
+                                                       context.transportExtensionImplementation(), this::cancelJob);
         }
         Objects.requireNonNull(importBarrier, "importBarrier is not initialized");
         importBarrier.await();
@@ -362,7 +378,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                 Preconditions.checkState(dataTransferApi instanceof CoordinatedCloudStorageDataTransferApi,
                                          "CoordinatedCloudStorageDataTransferApi is required for coordinated write");
                 CoordinatedCloudStorageDataTransferApi api = (CoordinatedCloudStorageDataTransferApi) dataTransferApi;
-                TwoPhaseImportCoordinator coordinator = TwoPhaseImportCoordinator.of(startTimeNanos, job, api, impl);
+                CoordinatedImportBarrier coordinator = CoordinatedImportBarrier.of(startTimeNanos, job, api, impl);
                 this.importBarrier = coordinator;
                 impl.setCoordinationSignalListener(coordinator);
                 createRestoreJobsOnAllClusters(ctx, job.coordinatedWriteConf(), api);
@@ -422,6 +438,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     private void createRestoreJob(TransportContext.CloudStorageTransportContext context)
     {
         StorageTransportConfiguration conf = context.transportConfiguration();
+        // todo: refactor to move away from using 'null'
         RestoreJobSecrets secrets = conf.getStorageCredentialPair(null)
                                         .toRestoreJobSecrets();
         JobInfo job = writerContext.job();

@@ -37,25 +37,34 @@ import static org.mockito.Mockito.when;
 
 class CloudStorageDataTransferApiFactoryTest
 {
+    private CloudStorageDataTransferApiFactory factory = CloudStorageDataTransferApiFactory.INSTANCE;
+
     @Test
     void testCreateCloudStorageDataTransferApi()
     {
-        CloudStorageDataTransferApiFactory factory = CloudStorageDataTransferApiFactory.INSTANCE;
-        CloudStorageDataTransferApi api;
         CassandraClusterInfo clusterInfo = mock(CassandraClusterInfo.class, RETURNS_DEEP_STUBS);
         when(clusterInfo.getCassandraContext().getSidecarClient()).thenReturn(mock(SidecarClient.class));
-        api = factory.createDataTransferApi(mock(StorageClient.class), mock(JobInfo.class), clusterInfo);
+        CloudStorageDataTransferApi api = factory.createDataTransferApi(mock(StorageClient.class), mock(JobInfo.class), clusterInfo);
         assertThat(api).isInstanceOf(CloudStorageDataTransferApiImpl.class);
+    }
 
+    @Test
+    void testCreateCloudStorageDataTransferApiFails()
+    {
         CassandraClusterInfoGroup emptyGroup = mock(CassandraClusterInfoGroup.class);
         when(emptyGroup.size()).thenReturn(0);
         assertThatThrownBy(() -> factory.createDataTransferApi(mock(StorageClient.class), mock(JobInfo.class), emptyGroup))
         .isExactlyInstanceOf(IllegalArgumentException.class)
         .hasMessage("dataTransferApiByCluster cannot be empty");
+    }
 
+    @Test
+    void testCreateCoordinatedCloudStorageDataTransferApi()
+    {
+        CassandraClusterInfo clusterInfo = mock(CassandraClusterInfo.class, RETURNS_DEEP_STUBS);
         when(clusterInfo.clusterId()).thenReturn("clusterId");
         CassandraClusterInfoGroup group = CassandraClusterInfoGroup.createFrom(Collections.singletonList(clusterInfo));
-        api = factory.createDataTransferApi(mock(StorageClient.class), mock(JobInfo.class), group);
+        CloudStorageDataTransferApi api = factory.createDataTransferApi(mock(StorageClient.class), mock(JobInfo.class), group);
         assertThat(api).isInstanceOf(CoordinatedCloudStorageDataTransferApi.class);
     }
 }

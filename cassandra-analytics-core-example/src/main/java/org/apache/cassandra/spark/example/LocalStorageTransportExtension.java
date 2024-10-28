@@ -132,13 +132,13 @@ public class LocalStorageTransportExtension implements StorageTransportExtension
     }
 
     @Override
-    public void onApplySucceeded(String clusterId, long elapsedMillis)
+    public void onImportSucceeded(String clusterId, long elapsedMillis)
     {
         LOGGER.info("Job {} has all objects applied at cluster {} after {}ms", jobId, clusterId, elapsedMillis);
     }
 
     @Override
-    public void onApplyFailed(String clusterId, Throwable cause)
+    public void onImportFailed(String clusterId, Throwable cause)
     {
         LOGGER.error("Cluster {} failed to apply objects", clusterId, cause);
     }

@@ -116,13 +116,13 @@ public class LocalStorageTransportExtension implements StorageTransportExtension
     }
 
     @Override
-    public void onApplySucceeded(String clusterId, long elapsedMillis)
+    public void onImportSucceeded(String clusterId, long elapsedMillis)
     {
 
     }
 
     @Override
-    public void onApplyFailed(String clusterId, Throwable cause)
+    public void onImportFailed(String clusterId, Throwable cause)
     {
 
     }

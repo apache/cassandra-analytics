@@ -72,6 +72,6 @@ public class LocalCoordinatedStorageTransportExtension extends LocalStorageTrans
     @Override
     public void onStageSucceeded(String clusterId, long elapsedMillis)
     {
-        coordinationSignalListener.onApplyReady(jobId);
+        coordinationSignalListener.onImportReady(jobId);
     }
 }

@@ -54,7 +54,7 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
     @Override
     protected ClusterInfo buildClusterInfo()
     {
-        clusterInfoGroup = CassandraClusterInfoGroup.createFromBulkSparkConf(bulkSparkConf());
+        clusterInfoGroup = CassandraClusterInfoGroup.fromBulkSparkConf(bulkSparkConf());
         clusterInfoGroup.startupValidate();
         return clusterInfoGroup;
     }

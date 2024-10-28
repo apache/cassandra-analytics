@@ -45,7 +45,7 @@ import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 
-import static org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup.createFromBulkSparkConf;
+import static org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup.fromBulkSparkConf;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -237,7 +237,7 @@ class CassandraClusterInfoGroupTest
     void testCreateClusterInfoListFailsDueToAbsentConfiguration()
     {
         BulkSparkConf conf = mock(BulkSparkConf.class);
-        assertThatThrownBy(() -> createFromBulkSparkConf(conf))
+        assertThatThrownBy(() -> fromBulkSparkConf(conf))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("CoordinatedWriteConf must present for CassandraCoordinatedBulkWriterContext");
     }
@@ -247,7 +247,7 @@ class CassandraClusterInfoGroupTest
     {
         BulkSparkConf conf = mock(BulkSparkConf.class, RETURNS_DEEP_STUBS);
         when(conf.coordinatedWriteConf().clusters()).thenReturn(Collections.emptyMap());
-        assertThatThrownBy(() -> createFromBulkSparkConf(conf))
+        assertThatThrownBy(() -> fromBulkSparkConf(conf))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("No cluster info is built from");
     }
@@ -258,7 +258,7 @@ class CassandraClusterInfoGroupTest
         BulkSparkConf conf = mock(BulkSparkConf.class);
         CoordinatedWriteConf.ClusterConf clusterConf = new CoordinatedWriteConf.SimpleClusterConf(Collections.singletonList("localhost:9043"), "localDc");
         when(conf.coordinatedWriteConf()).thenReturn(new CoordinatedWriteConf(Collections.singletonMap("", clusterConf)));
-        assertThatThrownBy(() -> createFromBulkSparkConf(conf))
+        assertThatThrownBy(() -> fromBulkSparkConf(conf))
         .isInstanceOf(IllegalStateException.class)
         .describedAs("The exception message should include the original json to help spot the wrong configuration (empty clusterId)")
         .hasMessage("Found coordinatedWriteConf with empty or null clusterId. " +

@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter.cloudstorage;
 
 import org.apache.cassandra.spark.exception.ImportFailedException;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * A barrier to block for import operations.
@@ -38,7 +39,8 @@ public interface ImportBarrier
      * Check whether the import operation has failed. The method does not block.
      * @return ImportFailedException if import has failed; null otherwise
      */
-    ImportFailedException importFailure();
+    @Nullable
+    ImportFailedException failure();
 
     /**
      * Wait indefinitely for the import operation to complete

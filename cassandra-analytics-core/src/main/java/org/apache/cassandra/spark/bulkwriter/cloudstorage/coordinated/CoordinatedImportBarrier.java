@@ -53,9 +53,9 @@ import static org.apache.cassandra.spark.transports.storage.extensions.Transport
  * 5. Finally, the two phase import completes.
  * The procedure is programed in {@link #awaitInternal()}
  */
-public class TwoPhaseImportCoordinator implements ImportBarrier, CoordinationSignalListener
+public class CoordinatedImportBarrier implements ImportBarrier, CoordinationSignalListener
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(TwoPhaseImportCoordinator.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CoordinatedImportBarrier.class);
 
     private final long startTimeNanos;
     private final CoordinatedCloudStorageDataTransferApi dataTransferApi;
@@ -70,10 +70,10 @@ public class TwoPhaseImportCoordinator implements ImportBarrier, CoordinationSig
     private volatile ImportFailedException importFailedException = null;
 
     @VisibleForTesting
-    TwoPhaseImportCoordinator(long startTimeNanos,
-                              JobInfo job,
-                              CoordinatedCloudStorageDataTransferApi dataTransferApi,
-                              StorageTransportExtension extension)
+    CoordinatedImportBarrier(long startTimeNanos,
+                             JobInfo job,
+                             CoordinatedCloudStorageDataTransferApi dataTransferApi,
+                             StorageTransportExtension extension)
     {
         this.startTimeNanos = startTimeNanos;
         this.job = job;
@@ -83,15 +83,15 @@ public class TwoPhaseImportCoordinator implements ImportBarrier, CoordinationSig
         this.extension = extension;
     }
 
-    public static TwoPhaseImportCoordinator of(long startTimeNanos,
-                                               JobInfo job,
-                                               CoordinatedCloudStorageDataTransferApi dataTransferApi,
-                                               StorageTransportExtension extension)
+    public static CoordinatedImportBarrier of(long startTimeNanos,
+                                              JobInfo job,
+                                              CoordinatedCloudStorageDataTransferApi dataTransferApi,
+                                              StorageTransportExtension extension)
     {
-        return new TwoPhaseImportCoordinator(startTimeNanos,
-                                             job,
-                                             dataTransferApi,
-                                             extension);
+        return new CoordinatedImportBarrier(startTimeNanos,
+                                            job,
+                                            dataTransferApi,
+                                            extension);
     }
 
     @Override
@@ -101,7 +101,7 @@ public class TwoPhaseImportCoordinator implements ImportBarrier, CoordinationSig
     }
 
     @Override
-    public ImportFailedException importFailure()
+    public ImportFailedException failure()
     {
         return importFailedException;
     }
@@ -130,10 +130,10 @@ public class TwoPhaseImportCoordinator implements ImportBarrier, CoordinationSig
     }
 
     @Override
-    public void onApplyReady(String jobId)
+    public void onImportReady(String jobId)
     {
         validateReceivedJobId(jobId, job);
-        LOGGER.info("Received ApplyReady signal for coordinated write. Notifying Sidecars. jobId={}", jobId);
+        LOGGER.info("Received ImportReady signal for coordinated write. Notifying Sidecars. jobId={}", jobId);
         importReady.complete(RestoreJobStatus.IMPORT_READY);
     }
 
@@ -156,8 +156,8 @@ public class TwoPhaseImportCoordinator implements ImportBarrier, CoordinationSig
         sendCoordinationSignal(RestoreJobStatus.IMPORT_READY);
         // driver polls for all clusters to finish importing
         pollForPhaseCompletion(importCompletedClusters,
-                               extension::onApplySucceeded,
-                               extension::onApplyFailed);
+                               extension::onImportSucceeded,
+                               extension::onImportFailed);
     }
 
     private void waitForStageReady()

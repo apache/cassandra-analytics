@@ -87,14 +87,12 @@ public class BulkWriteValidator
         this.phase = phase;
     }
 
-    public synchronized void updateFailureHandler(List<? extends StreamResult> results)
+    public synchronized void updateFailureHandler(List<StreamError> streamErrors)
     {
-        results.stream()
-               .flatMap(res -> res.failures.stream())
-               .forEach(err -> {
-                   LOGGER.info("Populate stream error from tasks. {}", err);
-                   failureHandler.addFailure(err.failedRange, err.instance, err.errMsg);
-               });
+        streamErrors.forEach(err -> {
+            LOGGER.info("Populate stream error from tasks. {}", err);
+            failureHandler.addFailure(err.failedRange, err.instance, err.errMsg);
+        });
     }
 
     public static void updateFailureHandler(CommitResult commitResult,
