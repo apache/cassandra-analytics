@@ -239,7 +239,9 @@ class CassandraClusterInfoGroupTest
         BulkSparkConf conf = mock(BulkSparkConf.class);
         assertThatThrownBy(() -> fromBulkSparkConf(conf))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("CoordinatedWriteConf must present for CassandraCoordinatedBulkWriterContext");
+        .hasMessage("In order to create an instance of CassandraCoordinatedBulkWriterContext, " +
+                    "you must provide the appropriate coordinated write configuration by " +
+                    "setting the `COORDINATED_WRITE_CONFIG` writer option.");
     }
 
     @Test
