@@ -19,28 +19,29 @@
 
 package org.apache.cassandra.cdc;
 
+import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.concurrent.NotThreadSafe;
 
 import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.bridge.CdcBridge;
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.cdc.api.CdcOptions;
 import org.apache.cassandra.cdc.api.CommitLogProvider;
 import org.apache.cassandra.cdc.api.CassandraSource;
 import org.apache.cassandra.cdc.api.CommitLog;
-import org.apache.cassandra.cdc.msg.jdk.CdcEvent;
-import org.apache.cassandra.cdc.scanner.jdk.CdcScannerBuilder;
-import org.apache.cassandra.cdc.scanner.jdk.CdcSortedStreamScanner;
+import org.apache.cassandra.cdc.msg.CdcEvent;
+import org.apache.cassandra.cdc.scanner.CdcScannerBuilder;
+import org.apache.cassandra.cdc.scanner.CdcStreamScanner;
 import org.apache.cassandra.cdc.state.CdcState;
-import org.apache.cassandra.cdc.stats.CdcStats;
+import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.NotEnoughReplicasException;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
@@ -51,7 +52,6 @@ import org.jetbrains.annotations.Nullable;
  * Iterator for reading a single CDC microbatch.
  * Not thread safe, MicroBatchIterator should be initialized and consumed in a single thread.
  */
-@NotThreadSafe
 public class MicroBatchIterator implements Iterator<CdcEvent>, AutoCloseable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(MicroBatchIterator.class);
@@ -59,19 +59,21 @@ public class MicroBatchIterator implements Iterator<CdcEvent>, AutoCloseable
     @Nullable
     protected final TokenRange tokenRange;
     protected final CdcScannerBuilder builder;
-    protected final CdcSortedStreamScanner scanner;
+    protected final CdcStreamScanner scanner;
     private CdcEvent curr = null;
     private boolean exhausted = false;
 
     @VisibleForTesting
-    public MicroBatchIterator(CdcState startState,
+    public MicroBatchIterator(CdcBridge cdcBridge,
+                              CdcState startState,
                               CassandraSource cassandraSource,
                               Supplier<Set<String>> keyspaceSupplier,
                               CdcOptions cdcOptions,
                               AsyncExecutor asyncExecutor,
                               CommitLogProvider commitLogProvider)
     {
-        this(0,
+        this(cdcBridge,
+             0,
              null,
              startState,
              cassandraSource,
@@ -79,10 +81,11 @@ public class MicroBatchIterator implements Iterator<CdcEvent>, AutoCloseable
              cdcOptions,
              asyncExecutor,
              commitLogProvider,
-             CdcStats.STUB);
+             ICdcStats.STUB);
     }
 
-    public MicroBatchIterator(int partitionId,
+    public MicroBatchIterator(CdcBridge cdcBridge,
+                              int partitionId,
                               @Nullable TokenRange tokenRange,
                               CdcState startState,
                               CassandraSource cassandraSource,
@@ -90,7 +93,7 @@ public class MicroBatchIterator implements Iterator<CdcEvent>, AutoCloseable
                               CdcOptions cdcOptions,
                               AsyncExecutor asyncExecutor,
                               CommitLogProvider commitLogProvider,
-                              CdcStats stats) throws NotEnoughReplicasException
+                              ICdcStats stats) throws NotEnoughReplicasException
     {
         stats.watermarkerSize(startState.size());
         this.tokenRange = tokenRange;
@@ -117,7 +120,8 @@ public class MicroBatchIterator implements Iterator<CdcEvent>, AutoCloseable
             }
         }
 
-        this.builder = new CdcScannerBuilder(partitionId,
+        this.builder = new CdcScannerBuilder(cdcBridge,
+                                             partitionId,
                                              cdcOptions,
                                              stats,
                                              tokenRange,
@@ -156,13 +160,20 @@ public class MicroBatchIterator implements Iterator<CdcEvent>, AutoCloseable
             return true;
         }
 
-        if (this.scanner.next())
+        try
         {
-            this.curr = this.scanner.data();
+            if (this.scanner.next())
+            {
+                this.curr = this.scanner.data();
+            }
+            else
+            {
+                exhausted = true;
+            }
         }
-        else
+        catch (IOException e)
         {
-            exhausted = true;
+            throw new RuntimeException(e);
         }
 
         return this.curr != null;

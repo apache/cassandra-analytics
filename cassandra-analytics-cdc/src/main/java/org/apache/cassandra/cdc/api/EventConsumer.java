@@ -21,7 +21,7 @@ package org.apache.cassandra.cdc.api;
 
 import java.util.function.Consumer;
 
-import org.apache.cassandra.cdc.msg.jdk.CdcEvent;
+import org.apache.cassandra.cdc.msg.CdcEvent;
 
 public interface EventConsumer extends Consumer<CdcEvent>
 {

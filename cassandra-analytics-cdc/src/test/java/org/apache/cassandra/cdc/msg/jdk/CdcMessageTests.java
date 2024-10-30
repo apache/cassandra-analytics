@@ -24,7 +24,7 @@ import java.util.Date;
 import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.cdc.msg.AbstractCdcEvent;
+import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.spark.data.types.BigInt;
 import org.apache.cassandra.spark.data.types.Text;
 import org.apache.cassandra.spark.data.types.Timestamp;
@@ -51,7 +51,7 @@ public class CdcMessageTests
         ImmutableList.of(),
         ImmutableList.of(new Column("c", Text.INSTANCE, colC), new Column("d", Timestamp.INSTANCE, colD)),
         now,
-        AbstractCdcEvent.Kind.INSERT,
+        CdcEvent.Kind.INSERT,
         ImmutableList.of(), null, null
         );
         assertEquals(4, msg.allColumns().size());

@@ -33,9 +33,8 @@ import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CollectionElement;
-import org.apache.cassandra.cdc.msg.AbstractCdcEvent;
-import org.apache.cassandra.cdc.msg.jdk.CdcEvent;
-import org.apache.cassandra.cdc.msg.jdk.Value;
+import org.apache.cassandra.cdc.msg.CdcEvent;
+import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.db.rows.CellPath;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.test.TestSchema;
@@ -143,7 +142,7 @@ public class CollectionDeletionTests
 
                             if (elementDeletionIndices.containsKey(i)) // verify deletion
                             {
-                                assertEquals(AbstractCdcEvent.Kind.COMPLEX_ELEMENT_DELETE, event.getKind());
+                                assertEquals(CdcEvent.Kind.COMPLEX_ELEMENT_DELETE, event.getKind());
                                 Map<String, List<ByteBuffer>> cellTombstonesPerCol = event.getTombstonedCellsInComplex();
                                 assertNotNull(cellTombstonesPerCol);
                                 Map<String, Value> valueColMap = event.getValueColumns()
@@ -162,7 +161,7 @@ public class CollectionDeletionTests
                             }
                             else // verify update
                             {
-                                assertEquals(AbstractCdcEvent.Kind.INSERT, event.getKind());
+                                assertEquals(CdcEvent.Kind.INSERT, event.getKind());
                                 assertNotNull(event.getValueColumns());
                             }
                         }

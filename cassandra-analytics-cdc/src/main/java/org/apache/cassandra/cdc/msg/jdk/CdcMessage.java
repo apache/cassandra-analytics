@@ -31,10 +31,10 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableList;
 
-import org.apache.cassandra.bridge.CassandraTypesImplementation;
-import org.apache.cassandra.cdc.msg.AbstractCdcEvent;
+import org.apache.cassandra.cdc.msg.CdcEvent;
+import org.apache.cassandra.cdc.msg.Value;
+import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.data.complex.CqlCollection;
 import org.apache.cassandra.spark.utils.ArrayUtils;
 import org.jetbrains.annotations.Nullable;
 
@@ -53,31 +53,31 @@ public class CdcMessage
     private final List<Column> staticColumns;
     private final List<Column> valueColumns;
     private final long maxTimestampMicros;
-    private final AbstractCdcEvent.Kind operationType;
+    private final CdcEvent.Kind operationType;
     private final Map<String, Column> columns;
     private final List<RangeTombstoneMsg> rangeTombstoneList;
     @Nullable
-    private final AbstractCdcEvent.TimeToLive ttl;
+    private final CdcEvent.TimeToLive ttl;
     @Nullable
     private final Map<String, List<Object>> complexCellDeletion;
 
-    public CdcMessage(CdcEvent event)
+    public CdcMessage(JdkMessageConverter messageConverter, CdcEvent event)
     {
         this(event.keyspace,
              event.table,
-             toColumns(event.getPartitionKeys()),
-             toColumns(event.getClusteringKeys()),
-             toColumns(event.getStaticColumns()),
-             toColumns(event.getValueColumns()),
+             toColumns(messageConverter, event.getPartitionKeys()),
+             toColumns(messageConverter, event.getClusteringKeys()),
+             toColumns(messageConverter, event.getStaticColumns()),
+             toColumns(messageConverter, event.getValueColumns()),
              event.getTimestamp(TimeUnit.MICROSECONDS),
              event.getKind(),
-             orElse(event.getRangeTombstoneList(), ImmutableList.of()).stream().map(RangeTombstone::toCdcMessage).collect(Collectors.toList()),
-             complexCellDeletion(event.getTombstonedCellsInComplex(), typeProvider(event)),
+             orElse(event.getRangeTombstoneList(), ImmutableList.of()).stream().map(messageConverter::toCdcMessage).collect(Collectors.toList()),
+             complexCellDeletion(event.getTombstonedCellsInComplex(), typeProvider(messageConverter.types, event)),
              event.getTtl());
     }
 
     @SuppressWarnings("unchecked")
-    private static Function<String, CqlField.CqlType> typeProvider(CdcEvent event)
+    private static Function<String, CqlField.CqlType> typeProvider(CassandraTypes types, CdcEvent event)
     {
         final List<Value> cols = ArrayUtils.combine(event.getPartitionKeys(),
                                                     event.getClusteringKeys(),
@@ -87,7 +87,7 @@ public class CdcMessage
                                                       .stream()
                                                       .collect(Collectors
                                                                .toMap(v -> v.columnName,
-                                                                      v -> CassandraTypesImplementation.INSTANCE.parseType(event.keyspace, v.columnType)
+                                                                      v -> types.parseType(event.keyspace, v.columnType)
                                                                ));
         return typeMap::get;
     }
@@ -99,10 +99,10 @@ public class CdcMessage
                       List<Column> staticColumns,
                       List<Column> valueColumns,
                       long maxTimestampMicros,
-                      AbstractCdcEvent.Kind operationType,
+                      CdcEvent.Kind operationType,
                       List<RangeTombstoneMsg> rangeTombstoneList,
                       @Nullable Map<String, List<Object>> complexCellDeletion,
-                      @Nullable AbstractCdcEvent.TimeToLive ttl)
+                      @Nullable CdcEvent.TimeToLive ttl)
     {
         this.keyspace = keyspace;
         this.table = table;
@@ -134,19 +134,19 @@ public class CdcMessage
                .entrySet()
                .stream()
                .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
-                   final CqlCollection type = (CqlCollection) typeProvider.apply(entry.getKey());
+                   final CqlField.CqlCollection type = (CqlField.CqlCollection) typeProvider.apply(entry.getKey());
                    return entry.getValue().stream().map(ByteBuffer::duplicate).map(buf -> type.type().deserializeToJavaType(buf)).collect(Collectors.toList());
                }));
     }
 
-    private static List<Column> toColumns(List<Value> values)
+    private static List<Column> toColumns(JdkMessageConverter messageConverter, List<Value> values)
     {
         if (values == null)
         {
             return ImmutableList.of();
         }
         return values.stream()
-                     .map(Value::toCdcMessage)
+                     .map(messageConverter::toCdcMessage)
                      .collect(Collectors.toList());
     }
 
@@ -181,7 +181,7 @@ public class CdcMessage
     }
 
     @Nullable
-    public AbstractCdcEvent.TimeToLive ttl()
+    public CdcEvent.TimeToLive ttl()
     {
         return ttl;
     }
@@ -202,7 +202,7 @@ public class CdcMessage
         return maxTimestampMicros;
     }
 
-    public AbstractCdcEvent.Kind operationType()
+    public CdcEvent.Kind operationType()
     {
         return operationType;
     }

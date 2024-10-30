@@ -55,6 +55,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.bridge.CdcBridge;
+import org.apache.cassandra.bridge.CdcBridgeImplementation;
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.cdc.api.CdcOptions;
 import org.apache.cassandra.cdc.api.CommitLog;
@@ -63,11 +64,12 @@ import org.apache.cassandra.cdc.api.EventConsumer;
 import org.apache.cassandra.cdc.api.Marker;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.api.StatePersister;
-import org.apache.cassandra.cdc.msg.AbstractCdcEvent;
-import org.apache.cassandra.cdc.msg.jdk.CdcEvent;
-import org.apache.cassandra.cdc.msg.jdk.Value;
+import org.apache.cassandra.cdc.msg.CdcEvent;
+import org.apache.cassandra.cdc.msg.Value;
+import org.apache.cassandra.cdc.msg.jdk.JdkMessageConverter;
 import org.apache.cassandra.cdc.state.CdcState;
 import org.apache.cassandra.db.marshal.ByteBufferAccessor;
+import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.serializers.CollectionSerializer;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
@@ -118,6 +120,8 @@ public class CdcTests
                                                                                 .build());
     public static final AsyncExecutor ASYNC_EXECUTOR = AsyncExecutor.wrap(EXECUTOR);
     public static final CassandraBridge BRIDGE = new CassandraBridgeImplementation();
+    public static final JdkMessageConverter MESSAGE_CONVERTER = new JdkMessageConverter(BRIDGE.cassandraTypes());
+    public static final CdcBridge CDC_BRIDGE = new CdcBridgeImplementation();
 
     private static final int TTL = 42;
 
@@ -207,6 +211,15 @@ public class CdcTests
             TestSchema testSchema = TestSchema.basicBuilder(BRIDGE).build();
 
             CqlTable table = testSchema.buildTable();
+            BRIDGE.buildSchema(table.createStatement(),
+                               table.keyspace(),
+                               table.replicationFactor(),
+                               Partitioner.Murmur3Partitioner,
+                               table.udtCreateStmts(BRIDGE.cassandraTypes()),
+                               null,
+                               0,
+                               true);
+            UUID tableId = Schema.instance.getTableMetadata(table.keyspace(), table.table()).id.asUUID();
             SchemaSupplier schemaSupplier = () -> CompletableFuture.completedFuture(ImmutableSet.of(table));
             final AtomicReference<byte[]> state = new AtomicReference<>();
             StatePersister statePersister = new StatePersister()
@@ -226,23 +239,26 @@ public class CdcTests
                     {
                         return Collections.emptyList();
                     }
-                    return Collections.singletonList(CdcState.deserialize(state.get()));
+                    return Collections.singletonList(CdcState.deserialize(CdcKryoRegister.kryo(), BRIDGE.compressionUtil(), state.get()));
                 }
             };
 
             Map<String, TestSchema.TestRow> writtenRows = new HashMap<>();
-            Runnable writer = () -> IntStream.range(0, batchSize)
-                                             .forEach(i -> {
-                                                 TestSchema.TestRow testRow = CdcTester.newUniqueRow(testSchema, writtenRows);
-                                                 CdcBridge.log(table, CdcTester.testCommitLog, testRow, TimeUtils.nowMicros());
-                                                 writtenRows.put(testRow.getPrimaryHexKey(), testRow);
-                                             });
-
+            Runnable writer = () -> {
+                IntStream.range(0, batchSize)
+                         .forEach(i -> {
+                             TestSchema.TestRow testRow = CdcTester.newUniqueRow(testSchema, writtenRows);
+                             CDC_BRIDGE.log(table, CdcTester.testCommitLog, testRow, TimeUtils.nowMicros());
+                             writtenRows.put(testRow.getPrimaryHexKey(), testRow);
+                         });
+                CdcTester.testCommitLog.sync();
+            };
 
             final long startTime = System.currentTimeMillis();
             try (Cdc cdc = Cdc.builder("101", 0, eventConsumer, schemaSupplier)
                               .withExecutor(CdcTests.ASYNC_EXECUTOR)
                               .withStatePersister(statePersister)
+                              .withTableIdLookup((ks, tb) -> tableId)
                               .withCommitLogProvider(CdcTests.logProvider(CdcTests.directory))
                               .withCdcOptions(CdcTests.TEST_OPTIONS)
                               .build())
@@ -278,7 +294,6 @@ public class CdcTests
                 Thread.currentThread().interrupt();
                 throw new RuntimeException(e);
             }
-
 
             // verify state is correct
             CdcState endState = statePersister.loadCanonicalState("101", 0, null);
@@ -680,7 +695,7 @@ public class CdcTests
                     {
                         assertEquals(1, event.getPartitionKeys().size());
                         assertEquals("pk", event.getPartitionKeys().get(0).columnName);
-                        UUID pk = (UUID) event.getPartitionKeys().get(0).toCdcMessage().value();
+                        UUID pk = (UUID) MESSAGE_CONVERTER.toCdcMessage(event.getPartitionKeys().get(0)).value();
                         assertNull(event.getClusteringKeys());
                         assertNull(event.getStaticColumns());
                         assertEquals(ImmutableList.of("c2"),
@@ -730,7 +745,7 @@ public class CdcTests
             .withCdcEventChecker((testRows, events) -> {
                 for (CdcEvent event : events)
                 {
-                    assertEquals(AbstractCdcEvent.Kind.DELETE, event.getKind());
+                    assertEquals(CdcEvent.Kind.DELETE, event.getKind());
                     assertEquals(1, event.getPartitionKeys().size());
                     assertEquals("pk", event.getPartitionKeys().get(0).columnName);
                     assertNull(event.getClusteringKeys());

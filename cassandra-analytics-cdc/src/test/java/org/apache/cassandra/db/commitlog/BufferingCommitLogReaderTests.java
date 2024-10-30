@@ -30,7 +30,6 @@ import java.util.function.Consumer;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.bridge.CdcBridge;
 import org.apache.cassandra.cdc.CdcTester;
 import org.apache.cassandra.cdc.CdcTests;
 import org.apache.cassandra.cdc.api.CommitLog;
@@ -44,6 +43,7 @@ import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.cdc.CdcTests.BRIDGE;
+import static org.apache.cassandra.cdc.CdcTests.CDC_BRIDGE;
 import static org.apache.cassandra.cdc.CdcTests.directory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -79,7 +79,7 @@ public class BufferingCommitLogReaderTests
                 row = schema.randomRow();
             }
             keys.add(row.getLong("pk"));
-            CdcBridge.log(TimeProvider.DEFAULT, cqlTable, CdcTester.testCommitLog, row, TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
+            CDC_BRIDGE.log(TimeProvider.DEFAULT, cqlTable, CdcTester.testCommitLog, row, TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
         }
         CdcTester.testCommitLog.sync();
 
@@ -141,7 +141,7 @@ public class BufferingCommitLogReaderTests
             BufferingCommitLogReader.Result result = reader.result();
             for (PartitionUpdateWrapper update : result.updates())
             {
-                long key = Objects.requireNonNull(update.partitionKey()).getKey().getLong();
+                long key = Objects.requireNonNull(update.partitionKey()).getLong();
                 assertFalse(keysRead.contains(key));
                 keysRead.add(key);
                 assertTrue(keys.contains(key));

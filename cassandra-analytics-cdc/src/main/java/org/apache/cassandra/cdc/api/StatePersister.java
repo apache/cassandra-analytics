@@ -35,7 +35,6 @@ public interface StatePersister
 {
     StatePersister STUB = new StatePersister()
     {
-
         public void persist(String jobId, int partitionId, @Nullable TokenRange tokenRange, ByteBuffer buf)
         {
 

@@ -22,6 +22,8 @@ package org.apache.cassandra.cdc.msg.jdk;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.cassandra.cdc.msg.RangeTombstone;
+
 public class RangeTombstoneMsg
 {
     private final List<Column> startBound;
@@ -29,13 +31,14 @@ public class RangeTombstoneMsg
     public final boolean startInclusive;
     public final boolean endInclusive;
 
-    public RangeTombstoneMsg(RangeTombstone tombstone)
+    public RangeTombstoneMsg(JdkMessageConverter valueConverter,
+                             RangeTombstone tombstone)
     {
         this.startBound = tombstone.getStartBound().stream()
-                                   .map(Value::toCdcMessage)
+                                   .map(valueConverter::toCdcMessage)
                                    .collect(Collectors.toList());
         this.endBound = tombstone.getEndBound().stream()
-                                 .map(Value::toCdcMessage)
+                                 .map(valueConverter::toCdcMessage)
                                  .collect(Collectors.toList());
         this.startInclusive = tombstone.startInclusive;
         this.endInclusive = tombstone.endInclusive;

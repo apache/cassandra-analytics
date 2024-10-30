@@ -39,10 +39,10 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.bridge.CdcBridge;
+import org.apache.cassandra.bridge.CdcBridgeImplementation;
 import org.apache.cassandra.cdc.api.CassandraSource;
 import org.apache.cassandra.cdc.api.CdcOptions;
-import org.apache.cassandra.cdc.msg.jdk.CdcEvent;
+import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.state.CdcState;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -52,6 +52,7 @@ import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.cdc.CdcTests.CDC_BRIDGE;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -69,7 +70,7 @@ public class CdcTester
 
     public static void setup(Path testDirectory, int commitLogSegmentSize, boolean enableCompression)
     {
-        CdcBridge.setup(testDirectory, commitLogSegmentSize, enableCompression);
+        CdcBridgeImplementation.setup(testDirectory, commitLogSegmentSize, enableCompression);
         testCommitLog = new FourZeroCommitLog(testDirectory);
     }
 
@@ -247,7 +248,7 @@ public class CdcTester
 
     public void logRow(CqlTable schema, TestSchema.TestRow row, long timestamp)
     {
-        CdcBridge.log(TimeProvider.DEFAULT, schema, testCommitLog, row, timestamp);
+        CDC_BRIDGE.log(TimeProvider.DEFAULT, schema, testCommitLog, row, timestamp);
         count++;
     }
 
@@ -285,7 +286,8 @@ public class CdcTester
             CdcState state = CdcState.BLANK;
             while (cdcEvents.size() < expectedNumRows)
             {
-                try (MicroBatchIterator it = new MicroBatchIterator(state,
+                try (MicroBatchIterator it = new MicroBatchIterator(CDC_BRIDGE,
+                                                                    state,
                                                                     cassandraSource,
                                                                     () -> ImmutableSet.of(schema.keyspace),
                                                                     cdcOptions,

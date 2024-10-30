@@ -30,8 +30,7 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.cdc.msg.AbstractCdcEvent;
-import org.apache.cassandra.cdc.msg.jdk.CdcEvent;
+import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.ComparisonUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
@@ -149,7 +148,7 @@ public class PartitionDeletionTests
 
                         if (partitionDeletionIndices.contains(i)) // verify partition deletion
                         {
-                            assertEquals(AbstractCdcEvent.Kind.PARTITION_DELETE, event.getKind());
+                            assertEquals(CdcEvent.Kind.PARTITION_DELETE, event.getKind());
                             assertNull(event.getClusteringKeys(), "Partition deletion has no clustering keys");
 
                             assertNull(event.getStaticColumns());
@@ -169,7 +168,7 @@ public class PartitionDeletionTests
                         }
                         else // verify update
                         {
-                            assertEquals(AbstractCdcEvent.Kind.INSERT, event.getKind());
+                            assertEquals(CdcEvent.Kind.INSERT, event.getKind());
                             if (hasClustering)
                             {
                                 assertNotNull(event.getClusteringKeys());

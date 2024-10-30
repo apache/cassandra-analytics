@@ -40,10 +40,27 @@ publishing {
     }
 }
 
+configurations {
+    fourzero {
+        description = 'Cassandra 4.0 dependency'
+    }
+    fourzerobridge {
+        description = 'Bridge to Cassandra 4.0'
+    }
+    fourzerotypes {
+        description = 'Cassandra 4.0 Data Types'
+    }
+}
+
 dependencies {
+    api(project(':cassandra-bridge'))
+
     implementation project(":cassandra-analytics-common")
-    implementation project(":cassandra-four-zero-types")
-    implementation project(path: ':cassandra-four-zero', configuration: 'shadow')
+    fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
+    fourzerobridge(project(path: ':cassandra-four-zero-bridge'))
+    fourzerotypes(project(path: ':cassandra-four-zero-types'))
+
+    implementation "com.google.guava:guava:16.0.1"
 
     implementation "org.apache.commons:commons-lang3:${project.commonsLang3Version}"
     implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"
@@ -58,6 +75,7 @@ dependencies {
     testImplementation project(":cassandra-bridge")
     testImplementation(testFixtures(project(':cassandra-bridge')))
     testImplementation project(":cassandra-four-zero-bridge")
+    testImplementation project(":cassandra-four-zero-types")
     testImplementation project(path: ':cassandra-four-zero', configuration: 'shadow')
     testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
     testImplementation(group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.26')
@@ -67,7 +85,28 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}"
 }
 
+jar {
+    dependsOn(configurations.fourzero)
+    dependsOn(configurations.fourzerobridge)
+    dependsOn(configurations.fourzerotypes)
+
+    exclude('META-INF/*')
+    into('bridges') {
+        from(configurations.fourzero.singleFile)
+        from(configurations.fourzerobridge.singleFile)
+        from(configurations.fourzerotypes.singleFile)
+    }
+}
+
 test {
+    minHeapSize = '1024m'
+    maxHeapSize = '3072m'
+    maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
+    forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+
+    // Make it so unit tests run on a JAr with Cassandra bridge implementations built in
+    dependsOn(tasks.jar)
+    classpath += files(jar.archiveFile)
     useJUnitPlatform()
     reports {
         def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "cdc").toFile()

@@ -92,6 +92,8 @@ import org.apache.cassandra.spark.utils.SparkClassLoaderOverride;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.tools.JsonTransformer;
 import org.apache.cassandra.tools.Util;
+import org.apache.cassandra.util.CompressionUtil;
+import org.apache.cassandra.utils.CompressionUtilImplementation;
 import org.apache.cassandra.utils.Pair;
 import org.apache.cassandra.utils.UUIDGen;
 import org.jetbrains.annotations.NotNull;
@@ -248,6 +250,12 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                 boolean enableCdc)
     {
         return new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner, cassandraTypes -> udts, tableId, indexCount, enableCdc).build();
+    }
+
+    @Override
+    public CompressionUtil compressionUtil()
+    {
+        return CompressionUtilImplementation.INSTANCE;
     }
 
     @Override

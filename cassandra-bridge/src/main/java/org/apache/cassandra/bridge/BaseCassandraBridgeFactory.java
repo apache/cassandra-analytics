@@ -120,8 +120,12 @@ public class BaseCassandraBridgeFactory
 
     public static File copyClassResourceToFile(String resource)
     {
-        try (InputStream contents = BaseCassandraBridgeFactory.class.getResourceAsStream(resource);)
+        try (InputStream contents = BaseCassandraBridgeFactory.class.getResourceAsStream(resource))
         {
+            if (contents == null)
+            {
+                throw new NullPointerException("Could not find resource: " + resource);
+            }
             Path jarPath = Files.createTempFile(null, ".jar");
             Files.copy(contents, jarPath, StandardCopyOption.REPLACE_EXISTING);
             return jarPath.toFile();

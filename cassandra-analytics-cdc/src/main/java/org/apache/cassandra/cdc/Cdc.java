@@ -22,6 +22,7 @@ package org.apache.cassandra.cdc;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -31,12 +32,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.ImmutableSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.esotericsoftware.kryo.io.Output;
-import org.apache.cassandra.bridge.CassandraSchema;
+import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CdcBridge;
+import org.apache.cassandra.bridge.CdcBridgeFactory;
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.cdc.api.CassandraSource;
 import org.apache.cassandra.cdc.api.CdcOptions;
@@ -47,15 +49,14 @@ import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.api.StatePersister;
 import org.apache.cassandra.cdc.api.TableIdLookup;
 import org.apache.cassandra.cdc.api.TokenRangeSupplier;
-import org.apache.cassandra.cdc.msg.jdk.CdcEvent;
+import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.state.CdcState;
-import org.apache.cassandra.cdc.stats.CdcStats;
+import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.partitioner.NotEnoughReplicasException;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.apache.cassandra.spark.utils.KryoUtils;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
-import org.apache.cassandra.utils.CompressionUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -75,7 +76,7 @@ public class Cdc implements Closeable
     private final CdcOptions cdcOptions;
     private final AsyncExecutor asyncExecutor;
     private final CommitLogProvider commitLogProvider;
-    private final CdcStats stats;
+    private final ICdcStats stats;
     private final EventConsumer eventConsumer;
 
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
@@ -83,7 +84,7 @@ public class Cdc implements Closeable
 
     private volatile CdcState currState = null;
     protected volatile long batchStartNanos;
-    protected volatile Set<CqlTable> cdcEnabledTables = ImmutableSet.of();
+    protected volatile Set<CqlTable> cdcEnabledTables = Collections.emptySet();
 
     protected Cdc(@NotNull String jobId,
                   int partitionId,
@@ -95,7 +96,7 @@ public class Cdc implements Closeable
                   @NotNull CdcOptions cdcOptions,
                   @NotNull AsyncExecutor asyncExecutor,
                   @NotNull CommitLogProvider commitLogProvider,
-                  @NotNull CdcStats stats,
+                  @NotNull ICdcStats stats,
                   @NotNull EventConsumer eventConsumer)
     {
         this.jobId = jobId;
@@ -292,7 +293,8 @@ public class Cdc implements Closeable
 
     protected MicroBatchIterator newMicroBatchIterator(@Nullable TokenRange tokenRange, CdcState startState) throws NotEnoughReplicasException
     {
-        return new MicroBatchIterator(partitionId,
+        return new MicroBatchIterator(cdcBridge(),
+                                      partitionId,
                                       tokenRange,
                                       startState,
                                       cassandraSource,
@@ -350,13 +352,26 @@ public class Cdc implements Closeable
         return maxEpochs > 0 && this.currState.epoch >= maxEpochs;
     }
 
+    // cdc bridge
+
+    protected CassandraBridge bridge()
+    {
+        return CdcBridgeFactory.get(cdcOptions.version());
+    }
+
+    protected CdcBridge cdcBridge()
+    {
+        return CdcBridgeFactory.getCdcBridge(cdcOptions.version());
+    }
+
+
     // persist state
 
     public ByteBuffer serializeStateToBytes() throws IOException
     {
         try (Output out = KryoUtils.serialize(CdcKryoRegister.kryo(), this.currState, CdcState.SERIALIZER))
         {
-            return CompressionUtil.INSTANCE.compress(out.getBuffer());
+            return bridge().compressionUtil().compress(out.getBuffer());
         }
     }
 
@@ -416,7 +431,7 @@ public class Cdc implements Closeable
                 }
 
                 // update Schema instance with latest schema
-                CassandraSchema.updateCdcSchema(tables, cdcOptions.partitioner(), tableIdLookup);
+                cdcBridge().updateCdcSchema(tables, cdcOptions.partitioner(), tableIdLookup);
                 return null;
             })
             .whenComplete((aVoid, throwable) -> {

@@ -20,15 +20,10 @@
 package org.apache.cassandra.cdc.stats;
 
 import org.apache.cassandra.cdc.api.CommitLog;
-import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 
-public abstract class CdcStats implements ICdcStats, BufferingInputStreamStats<CommitLog>
+public abstract class CdcStats implements ICdcStats
 {
-    public static final CdcStats STUB = new CdcStats()
-    {
-    };
-
     // SSTableInputStream
 
     public void inputStreamEnd(CassandraFileSource<CommitLog> source, long runTimeNanos, long totalNanosBlocked)

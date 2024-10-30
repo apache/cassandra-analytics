@@ -17,17 +17,18 @@
  * under the License.
  */
 
-package org.apache.cassandra.cdc.api;
+package org.apache.cassandra.util;
 
-import org.apache.cassandra.cdc.msg.CdcEvent;
-import org.apache.cassandra.cdc.msg.RangeTombstone;
-import org.apache.cassandra.cdc.msg.Value;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 
-public interface MessageConverter<T, R, E>
+public interface CompressionUtil
 {
-    T toCdcMessage(Value value);
+    ByteBuffer compress(byte[] ar) throws IOException;
 
-    R toCdcMessage(RangeTombstone value);
+    ByteBuffer compress(ByteBuffer input) throws IOException;
 
-    E toCdcMessage(CdcEvent event);
+    ByteBuffer uncompress(byte[] bytes) throws IOException;
+
+    ByteBuffer uncompress(ByteBuffer input) throws IOException;
 }

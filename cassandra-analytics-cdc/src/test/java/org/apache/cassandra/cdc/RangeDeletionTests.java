@@ -31,9 +31,8 @@ import com.google.common.base.Preconditions;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.cdc.api.RangeTombstoneData;
-import org.apache.cassandra.cdc.msg.AbstractCdcEvent;
-import org.apache.cassandra.cdc.msg.jdk.CdcEvent;
-import org.apache.cassandra.cdc.msg.jdk.RangeTombstone;
+import org.apache.cassandra.cdc.msg.CdcEvent;
+import org.apache.cassandra.cdc.msg.RangeTombstone;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.ComparisonUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
@@ -130,7 +129,7 @@ public class RangeDeletionTests
 
                     if (rangeTombstones.containsKey(i)) // verify deletion
                     {
-                        assertEquals(AbstractCdcEvent.Kind.RANGE_DELETE, event.getKind());
+                        assertEquals(CdcEvent.Kind.RANGE_DELETE, event.getKind());
                         // the bounds are added in its dedicated column.
                         assertNull(event.getClusteringKeys(), "Clustering keys should be absent for range deletion");
                         assertNull(event.getStaticColumns());
@@ -166,7 +165,7 @@ public class RangeDeletionTests
                     }
                     else // verify update
                     {
-                        assertEquals(AbstractCdcEvent.Kind.INSERT, event.getKind());
+                        assertEquals(CdcEvent.Kind.INSERT, event.getKind());
                         assertNotNull(event.getClusteringKeys());
                         if (hasStatic)
                         {

@@ -28,13 +28,13 @@ import java.util.function.Function;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.cdc.msg.AbstractCdcEvent;
-import org.apache.cassandra.cdc.msg.jdk.CdcEvent;
+import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
 import static org.apache.cassandra.cdc.CdcTester.testWith;
 import static org.apache.cassandra.cdc.CdcTests.BRIDGE;
+import static org.apache.cassandra.cdc.CdcTests.MESSAGE_CONVERTER;
 import static org.apache.cassandra.cdc.CdcTests.directory;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -119,7 +119,7 @@ public class RowDeletionTests
                         {
                             CdcEvent event = events.get(i);
                             long lmtInMillis = event.getTimestamp(TimeUnit.MILLISECONDS);
-                            UUID pk = (UUID) event.getPartitionKeys().get(0).toCdcMessage().value();
+                            UUID pk = (UUID) MESSAGE_CONVERTER.toCdcMessage(event.getPartitionKeys().get(0)).value();
                             assertTrue(lmtInMillis >= minTimestamp, "Last modification time should have a lower bound of " + minTimestamp);
                             assertEquals(1, event.getPartitionKeys().size(), "Regardless of being row deletion or not, the partition key must present");
                             if (hasClustering) // and ck to be set.
@@ -135,7 +135,7 @@ public class RowDeletionTests
                             {
                                 assertNull(event.getStaticColumns(), "None primary key columns should be null");
                                 assertNull(event.getValueColumns(), "None primary key columns should be null");
-                                assertEquals(AbstractCdcEvent.Kind.ROW_DELETE, event.getKind());
+                                assertEquals(CdcEvent.Kind.ROW_DELETE, event.getKind());
                             }
                             else // verify update
                             {
@@ -148,7 +148,7 @@ public class RowDeletionTests
                                     assertNull(event.getStaticColumns());
                                 }
                                 assertNotNull(event.getValueColumns());
-                                assertEquals(AbstractCdcEvent.Kind.INSERT, event.getKind());
+                                assertEquals(CdcEvent.Kind.INSERT, event.getKind());
                             }
                         }
                     })

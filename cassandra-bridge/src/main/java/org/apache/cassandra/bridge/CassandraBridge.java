@@ -61,6 +61,7 @@ import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.TimeProvider;
+import org.apache.cassandra.util.CompressionUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -70,10 +71,6 @@ import org.jetbrains.annotations.Nullable;
 @SuppressWarnings({ "WeakerAccess", "unused" })
 public abstract class CassandraBridge
 {
-    // Used to indicate if a column is unset; used in generating mutations for CommitLog
-    @VisibleForTesting
-    public static final Object UNSET_MARKER = new Object();
-
     // Implementations of CassandraBridge must be named as such to load dynamically using the {@link CassandraBridgeFactory}
     public static final String IMPLEMENTATION_FQCN = "org.apache.cassandra.bridge.CassandraBridgeImplementation";
 
@@ -424,13 +421,27 @@ public abstract class CassandraBridge
 
     // Compression Utils
 
-    public abstract ByteBuffer compress(byte[] bytes) throws IOException;
+    public ByteBuffer compress(byte[] bytes) throws IOException
+    {
+        return compressionUtil().compress(bytes);
+    }
 
-    public abstract ByteBuffer compress(ByteBuffer input) throws IOException;
+    public ByteBuffer compress(ByteBuffer input) throws IOException
+    {
+        return compressionUtil().compress(input);
+    }
 
-    public abstract ByteBuffer uncompress(byte[] bytes) throws IOException;
+    public ByteBuffer uncompress(byte[] bytes) throws IOException
+    {
+        return compressionUtil().uncompress(bytes);
+    }
 
-    public abstract ByteBuffer uncompress(ByteBuffer input) throws IOException;
+    public ByteBuffer uncompress(ByteBuffer input) throws IOException
+    {
+        return compressionUtil().uncompress(input);
+    }
+
+    public abstract CompressionUtil compressionUtil();
 
     // Kryo/Java (De-)Serialization
 

@@ -34,16 +34,14 @@ import com.google.common.collect.ImmutableSet;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.bridge.CdcBridge;
 import org.apache.cassandra.bridge.CollectionElement;
 import org.apache.cassandra.cdc.api.CassandraSource;
 import org.apache.cassandra.cdc.api.RangeTombstoneData;
-import org.apache.cassandra.cdc.msg.AbstractCdcEvent;
-import org.apache.cassandra.cdc.msg.jdk.CdcEvent;
+import org.apache.cassandra.cdc.msg.CdcEvent;
+import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.cdc.msg.jdk.CdcMessage;
 import org.apache.cassandra.cdc.msg.jdk.Column;
 import org.apache.cassandra.cdc.msg.jdk.RangeTombstoneMsg;
-import org.apache.cassandra.cdc.msg.jdk.Value;
 import org.apache.cassandra.cdc.state.CdcState;
 import org.apache.cassandra.db.rows.CellPath;
 import org.apache.cassandra.spark.data.CqlField;
@@ -60,6 +58,8 @@ import static org.apache.cassandra.cdc.CdcTester.testCommitLog;
 import static org.apache.cassandra.cdc.CdcTester.testWith;
 import static org.apache.cassandra.cdc.CdcTests.ASYNC_EXECUTOR;
 import static org.apache.cassandra.cdc.CdcTests.BRIDGE;
+import static org.apache.cassandra.cdc.CdcTests.CDC_BRIDGE;
+import static org.apache.cassandra.cdc.CdcTests.MESSAGE_CONVERTER;
 import static org.apache.cassandra.cdc.CdcTests.directory;
 import static org.apache.cassandra.cdc.CdcTests.logProvider;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
@@ -89,8 +89,8 @@ public class MicroBatchIteratorTests
             return testRow;
         },
         (event, rows, nowMicros) -> {
-            CdcMessage msg = event.toCdcMessage();
-            assertEquals(msg.operationType(), AbstractCdcEvent.Kind.COMPLEX_ELEMENT_DELETE);
+            CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+            assertEquals(msg.operationType(), CdcEvent.Kind.COMPLEX_ELEMENT_DELETE);
             String expected = deletedValues.get(Objects.requireNonNull(msg.partitionKeys().get(0).value()).toString());
             assertNotNull(msg.getComplexCellDeletion());
             assertEquals(expected, msg.getComplexCellDeletion().get("b").get(0).toString());
@@ -114,8 +114,8 @@ public class MicroBatchIteratorTests
                     return testRow;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = event.toCdcMessage();
-                    assertEquals(msg.operationType(), AbstractCdcEvent.Kind.COMPLEX_ELEMENT_DELETE);
+                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    assertEquals(msg.operationType(), CdcEvent.Kind.COMPLEX_ELEMENT_DELETE);
                     String expected = deletedValues.get(Objects.requireNonNull(msg.partitionKeys().get(0).value()).toString());
                     assertNotNull(msg.getComplexCellDeletion());
                     assertEquals(expected, msg.getComplexCellDeletion().get("b").get(0).toString());
@@ -144,8 +144,8 @@ public class MicroBatchIteratorTests
                     return testRow;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = event.toCdcMessage();
-                    assertEquals(msg.operationType(), AbstractCdcEvent.Kind.RANGE_DELETE);
+                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    assertEquals(msg.operationType(), CdcEvent.Kind.RANGE_DELETE);
                     List<RangeTombstoneMsg> tombstones = msg.rangeTombstones();
                     TestSchema.TestRow row = rows.get(msg.column("a").value().toString());
                     assertEquals(1, tombstones.size());
@@ -184,8 +184,8 @@ public class MicroBatchIteratorTests
                     return row;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = event.toCdcMessage();
-                    assertEquals(msg.operationType(), AbstractCdcEvent.Kind.ROW_DELETE);
+                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    assertEquals(msg.operationType(), CdcEvent.Kind.ROW_DELETE);
                     assertEquals(msg.lastModifiedTimeMicros(), nowMicros);
                     String key = event.getHexKey();
                     assertTrue(rows.containsKey(key));
@@ -211,8 +211,8 @@ public class MicroBatchIteratorTests
                     return row;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = event.toCdcMessage();
-                    assertEquals(msg.operationType(), AbstractCdcEvent.Kind.INSERT);
+                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    assertEquals(msg.operationType(), CdcEvent.Kind.INSERT);
                     assertEquals(msg.lastModifiedTimeMicros(), nowMicros);
                     String key = event.getHexKey();
                     assertTrue(rows.containsKey(key));
@@ -240,8 +240,8 @@ public class MicroBatchIteratorTests
                     return row;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = event.toCdcMessage();
-                    assertEquals(msg.operationType(), AbstractCdcEvent.Kind.PARTITION_DELETE);
+                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    assertEquals(msg.operationType(), CdcEvent.Kind.PARTITION_DELETE);
                     assertEquals(msg.lastModifiedTimeMicros(), nowMicros);
                     String key = event.getHexKey();
                     assertTrue(rows.containsKey(key));
@@ -316,8 +316,8 @@ public class MicroBatchIteratorTests
                     return row;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = event.toCdcMessage();
-                    assertEquals(msg.operationType(), AbstractCdcEvent.Kind.UPDATE);
+                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    assertEquals(msg.operationType(), CdcEvent.Kind.UPDATE);
                     assertEquals(msg.lastModifiedTimeMicros(), nowMicros);
                     String key = event.getHexKey();
                     assertTrue(rows.containsKey(key));
@@ -368,8 +368,8 @@ public class MicroBatchIteratorTests
         long nowMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
         int numRows = DEFAULT_NUM_ROWS;
         TestSchema schema = schemaBuilder
-                                  .withCdc(true)
-                                  .build();
+                            .withCdc(true)
+                            .build();
         CqlTable cqlTable = schema.buildTable();
         new SchemaBuilder(cqlTable, Partitioner.Murmur3Partitioner, schema.withCdc);
         schema.setCassandraVersion(CassandraVersion.FOURZERO);
@@ -380,16 +380,15 @@ public class MicroBatchIteratorTests
             for (int i = 0; i < numRows; i++)
             {
                 TestSchema.TestRow row = rowGenerator.newRow(schema, i, rows);
-                CdcBridge.log(TimeProvider.DEFAULT, cqlTable, testCommitLog, row, nowMicros);
+                CDC_BRIDGE.log(TimeProvider.DEFAULT, cqlTable, testCommitLog, row, nowMicros);
             }
             testCommitLog.sync();
 
             int count = 0;
             long start = System.currentTimeMillis();
-//            Uninterruptibles.sleepUninterruptibly(5, TimeUnit.SECONDS);
             CdcState state = CdcState.BLANK;
-            try (MicroBatchIterator it = new MicroBatchIterator(
-            state,
+            try (MicroBatchIterator it = new MicroBatchIterator(CDC_BRIDGE,
+                                                                state,
                                                                 CassandraSource.DEFAULT,
                                                                 () -> ImmutableSet.of(schema.keyspace),
                                                                 CdcTests.TEST_OPTIONS,

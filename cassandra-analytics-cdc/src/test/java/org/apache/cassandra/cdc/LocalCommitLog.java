@@ -93,7 +93,7 @@ public class LocalCommitLog implements CommitLog
         return instance;
     }
 
-    public void close() throws Exception
+    public void close() throws IOException
     {
         if (source != null)
         {

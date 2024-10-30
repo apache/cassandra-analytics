@@ -32,6 +32,7 @@ import org.apache.cassandra.cdc.api.StatePersister;
 import org.apache.cassandra.cdc.api.TableIdLookup;
 import org.apache.cassandra.cdc.api.TokenRangeSupplier;
 import org.apache.cassandra.cdc.stats.CdcStats;
+import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -53,7 +54,7 @@ public class CdcBuilder
     @NotNull
     private CdcOptions cdcOptions = CdcOptions.DEFAULT;
     @NotNull
-    private CdcStats stats = CdcStats.STUB;
+    private ICdcStats stats = ICdcStats.STUB;
     @Nullable
     private AsyncExecutor asyncExecutor = null;
     @Nullable

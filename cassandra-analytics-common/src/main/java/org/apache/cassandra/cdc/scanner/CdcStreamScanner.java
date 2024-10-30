@@ -17,17 +17,13 @@
  * under the License.
  */
 
-package org.apache.cassandra.cdc.api;
+package org.apache.cassandra.cdc.scanner;
 
 import org.apache.cassandra.cdc.msg.CdcEvent;
-import org.apache.cassandra.cdc.msg.RangeTombstone;
-import org.apache.cassandra.cdc.msg.Value;
+import org.apache.cassandra.cdc.state.CdcState;
+import org.apache.cassandra.spark.reader.StreamScanner;
 
-public interface MessageConverter<T, R, E>
+public interface CdcStreamScanner extends StreamScanner<CdcEvent>
 {
-    T toCdcMessage(Value value);
-
-    R toCdcMessage(RangeTombstone value);
-
-    E toCdcMessage(CdcEvent event);
+    CdcState endState();
 }
