@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -55,6 +56,7 @@ class CassandraAnalyticsSimpleTest extends SharedClusterSparkIntegrationTestBase
 
     @ParameterizedTest
     @MethodSource("options")
+    @Timeout(value = 30) // 30 seconds
     void runSampleJob(Integer ttl, Long timestamp, QualifiedName tableName)
     {
         Map<String, String> writerOptions = new HashMap<>();
