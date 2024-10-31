@@ -23,11 +23,11 @@ import org.apache.cassandra.spark.exception.ImportFailedException;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * A barrier to block for import operations.
+ * A coordinator conducts import.
  * It is responsible to ensure that all bulk written data is imported into Cassandra cluster in the consistency safe way.
  * {@link ImportFailedException} is thrown upon import failure, due to various reasons like timeout, consistency level not satisfied, etc.
  */
-public interface ImportBarrier
+public interface ImportCoordinator
 {
     /**
      * Check whether the import operation has succeeded. The method does not block.

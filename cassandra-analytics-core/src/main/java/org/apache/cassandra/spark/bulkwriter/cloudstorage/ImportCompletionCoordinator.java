@@ -58,9 +58,9 @@ import static org.apache.cassandra.clients.Sidecar.toSidecarInstance;
 import static org.apache.cassandra.spark.bulkwriter.cloudstorage.CreatedRestoreSlice.ConsistencyLevelCheckResult.NOT_SATISFIED;
 import static org.apache.cassandra.spark.bulkwriter.cloudstorage.CreatedRestoreSlice.ConsistencyLevelCheckResult.SATISFIED;
 
-public final class ImportCompletionBarrier implements ImportBarrier
+public final class ImportCompletionCoordinator implements ImportCoordinator
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ImportCompletionBarrier.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ImportCompletionCoordinator.class);
 
     private final long startTimeNanos;
     private final CloudStorageDataTransferApi dataTransferApi;
@@ -84,27 +84,27 @@ public final class ImportCompletionBarrier implements ImportBarrier
     private int totalSlices;
     private AtomicInteger satisfiedSlices;
 
-    private ImportCompletionBarrier(long startTimeNanos,
-                                    BulkWriterContext writerContext,
-                                    CloudStorageDataTransferApi dataTransferApi,
-                                    BulkWriteValidator writeValidator,
-                                    List<CloudStorageStreamResult> cloudStorageStreamResultList,
-                                    StorageTransportExtension extension,
-                                    Consumer<CancelJobEvent> onCancelJob)
+    private ImportCompletionCoordinator(long startTimeNanos,
+                                        BulkWriterContext writerContext,
+                                        CloudStorageDataTransferApi dataTransferApi,
+                                        BulkWriteValidator writeValidator,
+                                        List<CloudStorageStreamResult> cloudStorageStreamResultList,
+                                        StorageTransportExtension extension,
+                                        Consumer<CancelJobEvent> onCancelJob)
     {
         this(startTimeNanos, writerContext, dataTransferApi, writeValidator,
              cloudStorageStreamResultList, extension, onCancelJob, CassandraTopologyMonitor::new);
     }
 
     @VisibleForTesting
-    ImportCompletionBarrier(long startTimeNanos,
-                            BulkWriterContext writerContext,
-                            CloudStorageDataTransferApi dataTransferApi,
-                            BulkWriteValidator writeValidator,
-                            List<CloudStorageStreamResult> cloudStorageStreamResultList,
-                            StorageTransportExtension extension,
-                            Consumer<CancelJobEvent> onCancelJob,
-                            BiFunction<ClusterInfo, Consumer<CancelJobEvent>, CassandraTopologyMonitor> monitorCreator)
+    ImportCompletionCoordinator(long startTimeNanos,
+                                BulkWriterContext writerContext,
+                                CloudStorageDataTransferApi dataTransferApi,
+                                BulkWriteValidator writeValidator,
+                                List<CloudStorageStreamResult> cloudStorageStreamResultList,
+                                StorageTransportExtension extension,
+                                Consumer<CancelJobEvent> onCancelJob,
+                                BiFunction<ClusterInfo, Consumer<CancelJobEvent>, CassandraTopologyMonitor> monitorCreator)
     {
         this.startTimeNanos = startTimeNanos;
         this.job = writerContext.job();
@@ -124,18 +124,18 @@ public final class ImportCompletionBarrier implements ImportBarrier
     }
 
 
-    public static ImportCompletionBarrier of(long startTimeNanos,
-                                             BulkWriterContext writerContext,
-                                             CloudStorageDataTransferApi dataTransferApi,
-                                             BulkWriteValidator writeValidator,
-                                             List<CloudStorageStreamResult> resultsAsCloudStorageStreamResults,
-                                             StorageTransportExtension extension,
-                                             Consumer<CancelJobEvent> onCancelJob)
+    public static ImportCompletionCoordinator of(long startTimeNanos,
+                                                 BulkWriterContext writerContext,
+                                                 CloudStorageDataTransferApi dataTransferApi,
+                                                 BulkWriteValidator writeValidator,
+                                                 List<CloudStorageStreamResult> resultsAsCloudStorageStreamResults,
+                                                 StorageTransportExtension extension,
+                                                 Consumer<CancelJobEvent> onCancelJob)
     {
-        return new ImportCompletionBarrier(startTimeNanos,
-                                           writerContext, dataTransferApi,
-                                           writeValidator, resultsAsCloudStorageStreamResults,
-                                           extension, onCancelJob);
+        return new ImportCompletionCoordinator(startTimeNanos,
+                                               writerContext, dataTransferApi,
+                                               writeValidator, resultsAsCloudStorageStreamResults,
+                                               extension, onCancelJob);
     }
 
     @Override

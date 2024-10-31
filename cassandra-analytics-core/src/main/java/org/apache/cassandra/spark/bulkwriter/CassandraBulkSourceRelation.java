@@ -41,11 +41,11 @@ import o.a.c.sidecar.client.shaded.common.request.data.CreateRestoreJobRequestPa
 import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPayload;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageStreamResult;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportBarrier;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionBarrier;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCoordinator;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionCoordinator;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCloudStorageDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedImportBarrier;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedImportCoordinator;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
@@ -79,7 +79,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     private final Broadcast<BulkWriterContext> broadcastContext;
     private final BulkWriteValidator writeValidator;
     private final SimpleTaskScheduler simpleTaskScheduler;
-    private ImportBarrier importBarrier = null; // value is only set when using S3_COMPAT
+    private ImportCoordinator importCoordinator = null; // value is only set when using S3_COMPAT
     private long startTimeNanos;
 
     @SuppressWarnings("RedundantTypeArguments")
@@ -256,8 +256,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         {
             if (!allErrors.isEmpty())
             {
-                // log a warning and move on
-                LOGGER.warn("Stream errors are unexpected when coordinated-write is enabled. streamErrors={}", allErrors);
+                throw new IllegalStateException("Stream errors are unexpected when coordinated-write is enabled. streamErrors=" + allErrors);
             }
         }
         else
@@ -289,16 +288,16 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     private void awaitImportCompletion(TransportContext.CloudStorageTransportContext context,
                                        List<CloudStorageStreamResult> resultsAsCloudStorageStreamResults)
     {
-        // create the importBarrier for non-coordinated-write mode.
-        // for coordinated write, the import barrier is created when starting the job
+        // create for non-coordinated-write mode.
+        // for coordinated write, the import coordinator is created when starting the job
         if (!writerContext.job().isCoordinatedWriteEnabled())
         {
-            importBarrier = ImportCompletionBarrier.of(startTimeNanos, writerContext, context.dataTransferApi(),
-                                                       writeValidator, resultsAsCloudStorageStreamResults,
-                                                       context.transportExtensionImplementation(), this::cancelJob);
+            importCoordinator = ImportCompletionCoordinator.of(startTimeNanos, writerContext, context.dataTransferApi(),
+                                                               writeValidator, resultsAsCloudStorageStreamResults,
+                                                               context.transportExtensionImplementation(), this::cancelJob);
         }
-        Objects.requireNonNull(importBarrier, "importBarrier is not initialized");
-        importBarrier.await();
+        Objects.requireNonNull(importCoordinator, "importCoordinator is not initialized");
+        importCoordinator.await();
     }
 
     private void publishSuccessfulJobStats(long rowCount, long totalBytesWritten, boolean hasClusterTopologyChanged)
@@ -378,8 +377,8 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                 Preconditions.checkState(dataTransferApi instanceof CoordinatedCloudStorageDataTransferApi,
                                          "CoordinatedCloudStorageDataTransferApi is required for coordinated write");
                 CoordinatedCloudStorageDataTransferApi api = (CoordinatedCloudStorageDataTransferApi) dataTransferApi;
-                CoordinatedImportBarrier coordinator = CoordinatedImportBarrier.of(startTimeNanos, job, api, impl);
-                this.importBarrier = coordinator;
+                CoordinatedImportCoordinator coordinator = CoordinatedImportCoordinator.of(startTimeNanos, job, api, impl);
+                this.importCoordinator = coordinator;
                 impl.setCoordinationSignalListener(coordinator);
                 createRestoreJobsOnAllClusters(ctx, job.coordinatedWriteConf(), api);
             }
@@ -536,7 +535,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
             LOGGER.info("Scheduled job timeout. timeoutSeconds={}", timeoutSeconds);
             simpleTaskScheduler.schedule("Job timeout", Duration.ofSeconds(timeoutSeconds), () -> {
                 // only cancel on timeout when has not succeeded (consistency level not reached)
-                if (importBarrier == null || !importBarrier.succeeded())
+                if (importCoordinator == null || !importCoordinator.succeeded())
                 {
                     cancelJob(new CancelJobEvent("Job times out after " + timeoutSeconds + " seconds"));
                 }

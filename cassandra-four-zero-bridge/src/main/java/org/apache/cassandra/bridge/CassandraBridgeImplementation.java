@@ -110,6 +110,12 @@ public class CassandraBridgeImplementation extends CassandraBridge
 
     private final Map<Class<?>, Serializer<?>> kryoSerializers;
 
+    public static void main(String[] args)
+    {
+        System.out.println(UUIDGen.unixTimestamp(UUID.fromString("ac3f2f40-8637-11ef-a12b-2d1e10948b4b")));
+
+    }
+
     static
     {
         CassandraBridgeImplementation.setup();

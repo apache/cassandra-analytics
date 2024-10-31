@@ -36,7 +36,7 @@ import o.a.c.sidecar.client.shaded.common.data.RestoreJobStatus;
 import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPayload;
 import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobProgressResponsePayload;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportBarrier;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCoordinator;
 import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 import org.apache.cassandra.spark.exception.ImportFailedException;
 import org.apache.cassandra.spark.transports.storage.extensions.CoordinationSignalListener;
@@ -53,9 +53,9 @@ import static org.apache.cassandra.spark.transports.storage.extensions.Transport
  * 5. Finally, the two phase import completes.
  * The procedure is programed in {@link #awaitInternal()}
  */
-public class CoordinatedImportBarrier implements ImportBarrier, CoordinationSignalListener
+public class CoordinatedImportCoordinator implements ImportCoordinator, CoordinationSignalListener
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CoordinatedImportBarrier.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(CoordinatedImportCoordinator.class);
 
     private final long startTimeNanos;
     private final CoordinatedCloudStorageDataTransferApi dataTransferApi;
@@ -70,10 +70,10 @@ public class CoordinatedImportBarrier implements ImportBarrier, CoordinationSign
     private volatile ImportFailedException importFailedException = null;
 
     @VisibleForTesting
-    CoordinatedImportBarrier(long startTimeNanos,
-                             JobInfo job,
-                             CoordinatedCloudStorageDataTransferApi dataTransferApi,
-                             StorageTransportExtension extension)
+    CoordinatedImportCoordinator(long startTimeNanos,
+                                 JobInfo job,
+                                 CoordinatedCloudStorageDataTransferApi dataTransferApi,
+                                 StorageTransportExtension extension)
     {
         this.startTimeNanos = startTimeNanos;
         this.job = job;
@@ -83,15 +83,15 @@ public class CoordinatedImportBarrier implements ImportBarrier, CoordinationSign
         this.extension = extension;
     }
 
-    public static CoordinatedImportBarrier of(long startTimeNanos,
-                                              JobInfo job,
-                                              CoordinatedCloudStorageDataTransferApi dataTransferApi,
-                                              StorageTransportExtension extension)
+    public static CoordinatedImportCoordinator of(long startTimeNanos,
+                                                  JobInfo job,
+                                                  CoordinatedCloudStorageDataTransferApi dataTransferApi,
+                                                  StorageTransportExtension extension)
     {
-        return new CoordinatedImportBarrier(startTimeNanos,
-                                            job,
-                                            dataTransferApi,
-                                            extension);
+        return new CoordinatedImportCoordinator(startTimeNanos,
+                                                job,
+                                                dataTransferApi,
+                                                extension);
     }
 
     @Override

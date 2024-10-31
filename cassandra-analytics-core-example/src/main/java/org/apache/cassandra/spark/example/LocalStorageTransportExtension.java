@@ -134,7 +134,7 @@ public class LocalStorageTransportExtension implements StorageTransportExtension
     @Override
     public void onImportSucceeded(String clusterId, long elapsedMillis)
     {
-        LOGGER.info("Job {} has all objects applied at cluster {} after {}ms", jobId, clusterId, elapsedMillis);
+        LOGGER.info("Job {} has all objects imported at cluster {} after {}ms", jobId, clusterId, elapsedMillis);
     }
 
     @Override
