@@ -58,6 +58,12 @@ import static org.apache.cassandra.clients.Sidecar.toSidecarInstance;
 import static org.apache.cassandra.spark.bulkwriter.cloudstorage.CreatedRestoreSlice.ConsistencyLevelCheckResult.NOT_SATISFIED;
 import static org.apache.cassandra.spark.bulkwriter.cloudstorage.CreatedRestoreSlice.ConsistencyLevelCheckResult.SATISFIED;
 
+/**
+ * Import coordinator that wait for import of all slices to complete.
+ * 1. It queries all relevant sidecar instance to learned whether slices are imported or not
+ * 2. It aggregates the results locally to determine whether consistency level has been satisfied or not.
+ * The procedure is programed in {@link #await()}
+ */
 public final class ImportCompletionCoordinator implements ImportCoordinator
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(ImportCompletionCoordinator.class);
