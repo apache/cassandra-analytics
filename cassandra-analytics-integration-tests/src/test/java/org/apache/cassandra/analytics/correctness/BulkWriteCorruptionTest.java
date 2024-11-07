@@ -41,6 +41,9 @@ import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.SharedClusterSparkIntegrationTestBase;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.BulkWriterContext;
+import org.apache.cassandra.spark.common.Digest;
+import org.apache.cassandra.spark.common.model.CassandraInstance;
+import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -55,20 +58,54 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 
-public class BulkWriteDiskCorruptionTest extends SharedClusterSparkIntegrationTestBase
+public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBase
 {
-    private static final QualifiedName QUALIFIED_NAME = new QualifiedName(TEST_KEYSPACE, "test_write_disk_corruption");
+    enum CorruptionMode
+    {
+        DISK,
+        WIRE
+    }
+
+    private static final QualifiedName QUALIFIED_NAME = new QualifiedName(TEST_KEYSPACE, "test_write_corruption");
 
     static
     {
-        // Intercepts SortedSSTableWriter#validateSSTables to corrupt file on purpose.
         // Install the class rebase the earliest, before JVM loads the class
-        BBHelperInterceptSortedSSTableWriterValidateSSTables.install();
+        BBHelperFileCorrupter.install();
     }
 
     @Test
     void testDiskCorruption()
     {
+        Exception failure = bulkWriteWithCorruption(CorruptionMode.DISK);
+        assertThat(failure)
+        .isExactlyInstanceOf(RuntimeException.class)
+        .hasMessageContaining("Bulk Write to Cassandra has failed")
+        .rootCause()
+        .isExactlyInstanceOf(LZ4Exception.class)
+        .hasMessageContaining("Malformed input");
+    }
+
+    @Test
+    void testDataTransferCorruption()
+    {
+        Exception failure = bulkWriteWithCorruption(CorruptionMode.WIRE);
+        assertThat(failure)
+        .isExactlyInstanceOf(RuntimeException.class)
+        .hasMessageContaining("Bulk Write to Cassandra has failed")
+        .rootCause()
+        .isExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
+        .hasMessageContaining("Cause=org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException")
+        .hasMessageContaining("HttpResponseImpl{statusCode=455, " +
+                              "statusMessage='Client Error (455)', " +
+                              "contentAsString='{\"status\":\"Client Error (455)\",\"code\":455," +
+                              "\"message\":\"Digest mismatch."); // root cause is due to digest mismatch
+    }
+
+    private Exception bulkWriteWithCorruption(CorruptionMode corruptionMode)
+    {
+        BBHelperFileCorrupter.CORRUPTION_MODE = corruptionMode;
+
         Map<String, String> writerOptions = new HashMap<>();
 
         SparkSession spark = getOrCreateSparkSession();
@@ -80,17 +117,12 @@ public class BulkWriteDiskCorruptionTest extends SharedClusterSparkIntegrationTe
         try
         {
             bulkWriterDataFrameWriter(dfWrite, QUALIFIED_NAME, writerOptions).save();
-            fail("Bulk write should fail");
         }
         catch (Exception ex)
         {
-            assertThat(ex)
-            .isExactlyInstanceOf(RuntimeException.class)
-            .hasMessageContaining("Bulk Write to Cassandra has failed")
-            .rootCause()
-            .isExactlyInstanceOf(LZ4Exception.class)
-            .hasMessageContaining("Malformed input");
+            return ex;
         }
+        throw new IllegalStateException("Bulk write should fail");
     }
 
     @Override
@@ -107,8 +139,10 @@ public class BulkWriteDiskCorruptionTest extends SharedClusterSparkIntegrationTe
                     .nodesPerDc(1);
     }
 
-    public static class BBHelperInterceptSortedSSTableWriterValidateSSTables
+    public static class BBHelperFileCorrupter
     {
+        static CorruptionMode CORRUPTION_MODE = CorruptionMode.DISK;
+
         public static void install()
         {
             TypePool typePool = TypePool.Default.ofSystemLoader();
@@ -116,24 +150,60 @@ public class BulkWriteDiskCorruptionTest extends SharedClusterSparkIntegrationTe
             .rebase(typePool.describe("org.apache.cassandra.spark.bulkwriter.SortedSSTableWriter").resolve(),
                     ClassFileLocator.ForClassLoader.ofSystemLoader())
             .method(named("validateSSTables").and(takesArguments(BulkWriterContext.class, Path.class, Set.class)))
-            .intercept(MethodDelegation.to(BBHelperInterceptSortedSSTableWriterValidateSSTables.class))
+            .intercept(MethodDelegation.to(BBHelperFileCorrupter.class))
             .make()
-            .load(BBHelperInterceptSortedSSTableWriterValidateSSTables.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION);
+            .load(BBHelperFileCorrupter.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION);
+
+            new ByteBuddy()
+            .rebase(typePool.describe("org.apache.cassandra.spark.bulkwriter.SidecarDataTransferApi").resolve(),
+                    ClassFileLocator.ForClassLoader.ofSystemLoader())
+            .method(named("uploadSSTableComponent"))
+            .intercept(MethodDelegation.to(BBHelperFileCorrupter.class))
+            .make()
+            .load(BBHelperFileCorrupter.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION);
         }
 
+        // Intercepts SortedSSTableWriter#validateSSTables to corrupt file on purpose.
         @SuppressWarnings("unused")
         public static void validateSSTables(BulkWriterContext context,
                                             Path outputDirectory,
                                             Set<Path> dataFilePaths,
                                             @SuperCall Callable<?> orig) throws Exception
         {
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDirectory, "*Data.db"))
+            if (CORRUPTION_MODE == CorruptionMode.DISK)
             {
-                Path dataFile = stream.iterator().next();
-                try (RandomAccessFile file = new RandomAccessFile(dataFile.toFile(), "rw"))
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDirectory, "*Data.db"))
+                {
+                    Path dataFile = stream.iterator().next();
+                    try (RandomAccessFile file = new RandomAccessFile(dataFile.toFile(), "rw"))
+                    {
+                        file.seek(file.length() / 2);
+                        file.writeChars("THIS IS CORRUPT DATA AND SHOULD NOT BE READABLE");
+                    }
+                    catch (Exception e)
+                    {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+            orig.call();
+        }
+
+        // Intercepts SidecarDataTransferApi#uploadSSTableComponent to corrupt file on purpose.
+        @SuppressWarnings("unused")
+        public static void uploadSSTableComponent(Path componentFile,
+                                                  int ssTableIdx,
+                                                  CassandraInstance instance,
+                                                  String sessionID,
+                                                  Digest digest,
+                                                  @SuperCall Callable<?> orig) throws Exception
+        {
+            if (CORRUPTION_MODE == CorruptionMode.WIRE)
+            {
+                try (RandomAccessFile file = new RandomAccessFile(componentFile.toFile(), "rw"))
                 {
                     file.seek(file.length() / 2);
-                    file.writeChars("THIS IS CORRUPT DATA AND SHOULD NOT BE READABLE");
+                    file.writeChars("THIS IS CORRUPT DATA AND SHOULD FAIL DIGEST VALIDATION");
                 }
                 catch (Exception e)
                 {

@@ -19,16 +19,25 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Arrays;
 
 import com.google.common.collect.ImmutableMap;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.CqlTable;
+import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
+import org.apache.cassandra.spark.utils.CqlUtils;
+import org.apache.cassandra.spark.utils.CqlUtilsTest;
+import org.apache.cassandra.spark.utils.ResourceUtils;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 
@@ -40,10 +49,16 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.StringStartsWith.startsWith;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TableSchemaTest
 {
+    @TempDir
+    private static Path tempPath;
+
     public TableSchemaTest()
     {
         Pair<StructType, ImmutableMap<String, CqlField.CqlType>> validPair = TableSchemaTestCommon.buildMatchedDataframeAndCqlColumns(
@@ -222,6 +237,21 @@ public class TableSchemaTest
                 .withDataFrameSchema(missingFieldsDataFrame)
                 .build());
         assertThat(iex.getMessage(), is(equalTo("Missing some required key components in DataFrame => date")));
+    }
+
+    @Test
+    public void testSecondaryIndexIsUnsupported() throws Exception
+    {
+        Path fullSchemaSampleFile = ResourceUtils.writeResourceToPath(CqlUtilsTest.class.getClassLoader(), tempPath, "cql/fullSchema.cql");
+        String fullSchemaSample = FileUtils.readFileToString(fullSchemaSampleFile.toFile(), StandardCharsets.UTF_8);
+        int indexCount = CqlUtils.extractIndexCount(fullSchemaSample, "cycling", "rank_by_year_and_name");
+        assertEquals(3, indexCount);
+        CqlTable table = mock(CqlTable.class);
+        when(table.indexCount()).thenReturn(indexCount);
+        TableInfoProvider tableInfoProvider = new CqlTableInfoProvider("", table);
+        UnsupportedAnalyticsOperationException ex = assertThrows(UnsupportedAnalyticsOperationException.class,
+                                                                 () -> TableSchema.validateNoSecondaryIndexes(tableInfoProvider));
+        assertEquals("Bulkwriter doesn't support secondary indexes", ex.getMessage());
     }
 
     private TableSchemaTestCommon.MockTableSchemaBuilder getValidSchemaBuilder()

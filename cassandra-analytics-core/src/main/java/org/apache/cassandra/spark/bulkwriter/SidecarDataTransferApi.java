@@ -85,10 +85,10 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
         catch (ExecutionException | InterruptedException exception)
         {
             LOGGER.warn("Failed to upload file={}, keyspace={}, table={}, uploadId={}, componentName={}, instance={}",
-                        componentFile, qt.keyspace(), qt.table(), uploadId, componentName, instance);
+                        componentFile, qt.keyspace(), qt.table(), uploadId, componentName, instance, exception);
             throw new SidecarApiCallException(
-            String.format("Failed to upload file=%s into keyspace=%s, table=%s, componentName=%s with uploadId=%s to instance=%s",
-                          componentFile, qt.keyspace(), qt.table(), componentName, uploadId, instance), exception);
+            String.format("Failed to upload file=%s into keyspace=%s, table=%s, componentName=%s with uploadId=%s to instance=%s. Cause=%s",
+                          componentFile, qt.keyspace(), qt.table(), componentName, uploadId, instance, exception.getMessage()), exception);
         }
     }
 

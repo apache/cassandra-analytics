@@ -38,6 +38,7 @@ import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 public class BulkWriteValidator
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BulkWriteValidator.class);
+    private static final int ERROR_MESSAGE_MAX_LENGTH = 1024 * 64;
 
     private final ClusterInfo cluster;
     private final ReplicaAwareFailureHandler<RingInstance> failureHandler;
@@ -68,10 +69,11 @@ public class BulkWriteValidator
         }
         else
         {
-            String message = String.format("Failed to write %s ranges with %s for job %s in phase %s.",
+            String header = String.format("Failed to write %s ranges with %s for job %s in phase %s. ",
                                            failedRanges.size(), job.getConsistencyLevel(), job.getId(), phase);
+            String errorDetails = aggregateErrors(failedRanges);
+            String message = header + errorDetails;
             logger.error(message);
-            logFailedRanges(logger, phase, failedRanges);
             throw new ConsistencyNotSatisfiedException(message);
         }
     }
@@ -110,19 +112,24 @@ public class BulkWriteValidator
         });
     }
 
-    private static void logFailedRanges(Logger logger, String phase,
-                                        List<ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange> failedRanges)
+    // aggregate the stream errors in order to provide a better insight on failure
+    private static String aggregateErrors(List<ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange> failedRanges)
     {
+        StringBuilder sb = new StringBuilder();
         for (ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange failedRange : failedRanges)
         {
-            failedRange.failuresPerInstance.forEachInstance((instance, errors) -> {
-                logger.error("Failed in phase {} for {} on {}. Failure: {}",
-                             phase,
-                             failedRange.range,
-                             instance.toString(),
-                             errors);
-            });
+            for (Map.Entry<RingInstance, Collection<String>> entry : failedRange.failuresPerInstance.entrySet())
+            {
+                sb.append("Instance: ").append(entry.getKey()).append("All failures: ").append(entry.getValue());
+                if (sb.length() > ERROR_MESSAGE_MAX_LENGTH)
+                {
+                    sb.setLength(ERROR_MESSAGE_MAX_LENGTH - 3);
+                    sb.append("...");
+                    return sb.toString();
+                }
+            }
         }
+        return sb.toString();
     }
 
     public void updateFailureHandler(Range<BigInteger> failedRange, RingInstance instance, String reason)

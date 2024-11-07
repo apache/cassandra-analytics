@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter.token;
 import java.math.BigInteger;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
@@ -76,9 +77,9 @@ public abstract class ReplicaAwareFailureHandler<I extends CassandraInstance>
                    && !errorMessagesPerInstance.get(instance).isEmpty();
         }
 
-        public void forEachInstance(BiConsumer<I, Collection<String>> instanceErrorsConsumer)
+        public Set<Map.Entry<I, Collection<String>>> entrySet()
         {
-            errorMessagesPerInstance.asMap().forEach(instanceErrorsConsumer);
+            return errorMessagesPerInstance.asMap().entrySet();
         }
 
         @Override

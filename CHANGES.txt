@@ -1,4 +1,5 @@
 1.0.0
+ * Expose detailed bulk write failure message for better insight (CASSANDRA-20066)
  * Add dataTransferApi and TwoPhaseImportCoordinator for coordinated write (CASSANDRA-19994)
  * Remove SparkSQL dependency from CassandraBridge so that it can be used independent from Spark (CASSANDRA-19980)
  * Support aggregated consistency validation for multiple clusters (CASSANDRA-19933)

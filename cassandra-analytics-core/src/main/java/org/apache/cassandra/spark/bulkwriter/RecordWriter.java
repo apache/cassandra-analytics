@@ -210,7 +210,8 @@ public class RecordWriter
                          partitionId,
                          job.getId(),
                          taskContext.stageAttemptNumber(),
-                         taskContext.attemptNumber());
+                         taskContext.attemptNumber(),
+                         exception);
 
             if (exception instanceof InterruptedException)
             {

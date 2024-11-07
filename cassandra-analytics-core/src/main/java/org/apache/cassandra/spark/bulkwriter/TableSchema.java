@@ -37,6 +37,7 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
@@ -281,20 +282,21 @@ public class TableSchema implements Serializable
                                                        TTLOption ttlOption, TimestampOption timestampOption)
     {
         // Make sure all fields in DF schema are part of table
-        List<String> unknownFields = dfFields.stream()
-                                       .filter(columnName -> !tableInfo.columnExists(columnName))
-                                       .filter(columnName -> !columnName.equals(ttlOption.columnName()))
-                                       .filter(columnName -> !columnName.equals(timestampOption.columnName()))
-                                       .collect(Collectors.toList());
+        List<String> unknownFields = dfFields
+                                     .stream()
+                                     .filter(columnName -> !tableInfo.columnExists(columnName))
+                                     .filter(columnName -> !columnName.equals(ttlOption.columnName()))
+                                     .filter(columnName -> !columnName.equals(timestampOption.columnName()))
+                                     .collect(Collectors.toList());
 
         Preconditions.checkArgument(unknownFields.isEmpty(), "Unknown fields in data frame => " + unknownFields);
     }
 
-    private static void validateNoSecondaryIndexes(TableInfoProvider tableInfo)
+    static void validateNoSecondaryIndexes(TableInfoProvider tableInfo)
     {
         if (tableInfo.hasSecondaryIndex())
         {
-            throw new RuntimeException("Bulkwriter doesn't support secondary indexes");
+            throw new UnsupportedAnalyticsOperationException("Bulkwriter doesn't support secondary indexes");
         }
     }
 
