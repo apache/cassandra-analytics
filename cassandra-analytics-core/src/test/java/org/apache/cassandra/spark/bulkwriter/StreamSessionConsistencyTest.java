@@ -55,7 +55,6 @@ import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrat
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -168,9 +167,11 @@ public class StreamSessionConsistencyTest
         {
             ExecutionException exception = assertThrows(ExecutionException.class, fut::get);
             assertInstanceOf(ConsistencyNotSatisfiedException.class, exception.getCause());
-            assertEquals("Failed to write 1 ranges with " + consistencyLevel
-                         + " for job " + writerContext.job().getId()
-                         + " in phase UploadAndCommit.", exception.getCause().getMessage());
+            Assertions.assertThat(exception)
+                      .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
+                      .hasMessageContaining("Failed to write 1 ranges with " + consistencyLevel
+                                            + " for job " + writerContext.job().getId()
+                                            + " in phase UploadAndCommit.");
         }
         else
         {
