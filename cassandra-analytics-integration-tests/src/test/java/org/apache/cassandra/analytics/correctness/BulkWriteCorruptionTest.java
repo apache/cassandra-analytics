@@ -56,7 +56,6 @@ import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBase
 {
@@ -104,7 +103,7 @@ public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBa
 
     private Exception bulkWriteWithCorruption(CorruptionMode corruptionMode)
     {
-        BBHelperFileCorrupter.CORRUPTION_MODE = corruptionMode;
+        BBHelperFileCorrupter.corruptionMode = corruptionMode;
 
         Map<String, String> writerOptions = new HashMap<>();
 
@@ -141,7 +140,7 @@ public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBa
 
     public static class BBHelperFileCorrupter
     {
-        static CorruptionMode CORRUPTION_MODE = CorruptionMode.DISK;
+        static CorruptionMode corruptionMode = CorruptionMode.DISK;
 
         public static void install()
         {
@@ -170,7 +169,7 @@ public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBa
                                             Set<Path> dataFilePaths,
                                             @SuperCall Callable<?> orig) throws Exception
         {
-            if (CORRUPTION_MODE == CorruptionMode.DISK)
+            if (corruptionMode == CorruptionMode.DISK)
             {
                 try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDirectory, "*Data.db"))
                 {
@@ -198,7 +197,7 @@ public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBa
                                                   Digest digest,
                                                   @SuperCall Callable<?> orig) throws Exception
         {
-            if (CORRUPTION_MODE == CorruptionMode.WIRE)
+            if (corruptionMode == CorruptionMode.WIRE)
             {
                 try (RandomAccessFile file = new RandomAccessFile(componentFile.toFile(), "rw"))
                 {
