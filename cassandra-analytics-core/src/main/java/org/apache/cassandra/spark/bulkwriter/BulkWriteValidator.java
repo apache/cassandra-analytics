@@ -120,7 +120,7 @@ public class BulkWriteValidator
         {
             for (Map.Entry<RingInstance, Collection<String>> entry : failedRange.failuresPerInstance.entrySet())
             {
-                sb.append("Instance: ").append(entry.getKey()).append("All failures: ").append(entry.getValue());
+                sb.append("Instance: ").append(entry.getKey()).append(" All failures: ").append(entry.getValue());
                 if (sb.length() > ERROR_MESSAGE_MAX_LENGTH)
                 {
                     sb.setLength(ERROR_MESSAGE_MAX_LENGTH - 3);

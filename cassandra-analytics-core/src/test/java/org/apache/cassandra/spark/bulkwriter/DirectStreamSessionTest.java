@@ -44,6 +44,7 @@ import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.ReplicationFactor;
+import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 import org.assertj.core.api.Assertions;
@@ -252,8 +253,10 @@ public class DirectStreamSessionTest
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         ExecutionException exception = assertThrows(ExecutionException.class,
                                                     () -> ss.finalizeStreamAsync().get());
-        assertEquals("Failed to write 1 ranges with LOCAL_QUORUM for job " + writerContext.job().getId()
-                     + " in phase UploadAndCommit.", exception.getCause().getMessage());
+        Assertions.assertThat(exception)
+                  .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
+                  .hasMessageContaining("Failed to write 1 ranges with LOCAL_QUORUM for job " + writerContext.job().getId()
+                                        + " in phase UploadAndCommit.");
         executor.assertFuturesCalled();
         assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));
         List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::nodeName).collect(Collectors.toList());

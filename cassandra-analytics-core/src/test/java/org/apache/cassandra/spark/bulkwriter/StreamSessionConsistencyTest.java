@@ -49,6 +49,7 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
+import org.assertj.core.api.Assertions;
 
 import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -126,9 +127,11 @@ public class StreamSessionConsistencyTest
         if (shouldFail)
         {
             ExecutionException exception = assertThrows(ExecutionException.class, fut::get);
-            assertEquals("Failed to write 1 ranges with " + consistencyLevel
-                         + " for job " + writerContext.job().getId()
-                         + " in phase UploadAndCommit.", exception.getCause().getMessage());
+            Assertions.assertThat(exception)
+                      .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
+                      .hasMessageContaining("Failed to write 1 ranges with " + consistencyLevel
+                                            + " for job " + writerContext.job().getId()
+                                            + " in phase UploadAndCommit.");
         }
         else
         {
