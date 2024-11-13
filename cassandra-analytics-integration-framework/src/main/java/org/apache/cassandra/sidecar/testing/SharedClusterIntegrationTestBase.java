@@ -174,7 +174,7 @@ public abstract class SharedClusterIntegrationTestBase
         logger.info("Testing with version={}", testVersion);
 
         classLoaderWrapper = new IsolatedDTestClassLoaderWrapper();
-        classLoaderWrapper.initializeDTestJarClassLoader(testVersion, SharedClusterIntegrationTestBase.class);
+        classLoaderWrapper.initializeDTestJarClassLoader(testVersion, TestVersion.class);
 
         beforeClusterProvisioning();
         cluster = provisionClusterWithRetries(this.testVersion);

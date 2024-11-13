@@ -85,15 +85,15 @@ public final class SqlToCqlTypeConverter implements Serializable
     private static final BytesConverter BYTES_CONVERTER = new BytesConverter();
     private static final BigDecimalConverter BIG_DECIMAL_CONVERTER = new BigDecimalConverter();
     private static final IntegerConverter INTEGER_CONVERTER = new IntegerConverter();
-    private static final TimestampConverter TIMESTAMP_CONVERTER = new TimestampConverter();
+    public static final TimestampConverter TIMESTAMP_CONVERTER = new TimestampConverter();
     private static final MicroSecondsTimestampConverter MICROSECONDS_TIMESTAMP_CONVERTER =
     new MicroSecondsTimestampConverter();
-    private static final TimeConverter TIME_CONVERTER = new TimeConverter();
+    public static final TimeConverter TIME_CONVERTER = new TimeConverter();
     private static final UUIDConverter UUID_CONVERTER = new UUIDConverter();
     private static final BigIntegerConverter BIG_INTEGER_CONVERTER = new BigIntegerConverter();
     private static final TimeUUIDConverter TIME_UUID_CONVERTER = new TimeUUIDConverter();
     private static final InetAddressConverter INET_ADDRESS_CONVERTER = new InetAddressConverter();
-    private static final DateConverter DATE_CONVERTER = new DateConverter();
+    public static final DateConverter DATE_CONVERTER = new DateConverter();
 
     private SqlToCqlTypeConverter()
     {
@@ -469,7 +469,7 @@ public final class SqlToCqlTypeConverter implements Serializable
         }
     }
 
-    static class TimestampConverter extends NullableConverter<Date>
+    public static class TimestampConverter extends NullableConverter<Date>
     {
         /**
          * Returns a Date representing the number of milliseconds since the standard base time known as the epoch
@@ -505,7 +505,7 @@ public final class SqlToCqlTypeConverter implements Serializable
         }
     }
 
-    static class DateConverter extends NullableConverter<Integer>
+    public static class DateConverter extends NullableConverter<Integer>
     {
         @Override
         public String toString()
@@ -547,7 +547,7 @@ public final class SqlToCqlTypeConverter implements Serializable
         }
     }
 
-    static class TimeConverter extends NullableConverter<Long>
+    public static class TimeConverter extends NullableConverter<Long>
     {
         @Override
         @SuppressWarnings("deprecation")

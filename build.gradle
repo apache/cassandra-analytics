@@ -54,7 +54,6 @@ if (!actualJdkVersion.startsWith(ext.jdkLabel))
 
 ext.dependencyLocation = (System.getenv("CASSANDRA_DEP_DIR") ?: "${rootDir}/dependencies") + "/"
 
-
 def buildDir = layout.buildDirectory.get().asFile.toPath()
 def ratExcludeFilePath = buildDir.resolve(".rat-excludes.txt")
 System.out.println("Rat exclude file:" + ratExcludeFilePath)

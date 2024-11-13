@@ -109,7 +109,7 @@ public final class TestUtils
         System.setProperty("cassandra.consistent.simultaneousmoves.allow", "true");
         // End gossip delay settings
         // Set the location of dtest jars
-        System.setProperty("cassandra.test.dtest_jar_path", System.getProperty("cassandra.test.dtest_jar_path", "dtest-jars"));
+        System.setProperty("cassandra.test.dtest_jar_path", System.getProperty("cassandra.test.dtest_jar_path", "dependencies"));
         // Disable tcnative in netty as it can cause jni issues and logs lots errors
         System.setProperty("cassandra.disable_tcactive_openssl", "true");
         // As we enable gossip by default, make the checks happen faster

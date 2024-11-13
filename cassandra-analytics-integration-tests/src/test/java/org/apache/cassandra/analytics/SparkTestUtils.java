@@ -21,6 +21,7 @@ package org.apache.cassandra.analytics;
 
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -63,11 +64,20 @@ public class SparkTestUtils
      * Maps a row queried from Cassandra, represented as an object array, and it produces a string representation
      * to perform validation of data written by a bulk writer job
      */
-    public static final Function<Object[], String> VALIDATION_DEFAULT_COLUMNS_MAPPER = columns -> String.format("%s:%s:%s", columns[0], columns[1], columns[2]);
+    public static final Function<Object[], String> VALIDATION_DEFAULT_COLUMNS_MAPPER
+    = columns -> String.format(String.join(":", Collections.nCopies(columns.length, "%s")), columns);
     /**
      * Maps a {@link Row} to a string representation used to validate data written by a bulk writer job
      */
-    public static final Function<Row, String> VALIDATION_DEFAULT_ROW_MAPPER = row -> String.format("%s:%s:%d", row.get(0), row.get(1), row.getInt(2));
+    public static final Function<Row, String> VALIDATION_DEFAULT_ROW_MAPPER = row -> {
+        int size = row.size();
+        Object[] data = new Object[size];
+        for (int i = 0; i < size; i++)
+        {
+            data[i] = row.get(i);
+        }
+        return String.format(String.join(":", Collections.nCopies(size, "%s")), data);
+    };
     protected ICluster<? extends IInstance> cluster;
     protected DnsResolver dnsResolver;
     protected int sidecarPort;
@@ -187,6 +197,7 @@ public class SparkTestUtils
                               // Spark is not case-sensitive by default, but we want to make it case-sensitive for
                               // the quoted identifiers tests where we test mixed case
                               .set("spark.sql.caseSensitive", "True")
+                              .set("spark.driver.bindAddress", "127.0.0.1")
                               .set("spark.master", "local[8,4]")
                               .set("spark.cassandra_analytics.sidecar.request.retries", "5")
                               .set("spark.cassandra_analytics.sidecar.request.retries.delay.milliseconds", "500")

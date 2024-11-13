@@ -70,6 +70,7 @@ dependencies {
     testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${sparkVersion}")
 
     testImplementation(project(path: ":cassandra-analytics-integration-framework"))
+    testImplementation(project(path: ":cassandra-analytics-spark-converter"))
 
     testImplementation(platform(group: 'software.amazon.awssdk', name:'bom', version:"${project.aswSdkVersion}"))
     testImplementation('software.amazon.awssdk:s3')
