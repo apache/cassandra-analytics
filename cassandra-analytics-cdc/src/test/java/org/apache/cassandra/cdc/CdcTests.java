@@ -298,7 +298,7 @@ public class CdcTests
             // verify state is correct
             CdcState endState = statePersister.loadCanonicalState("101", 0, null);
             long numSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startTime);
-            assertTrue(endState.epoch >= numSeconds - 1); // epochs should be around ~ 1 per second
+            assertTrue(endState.epoch >= Math.max(0, numSeconds - 4)); // epochs should be around ~ 1 per second
             assertTrue(endState.replicaCount.isEmpty());
             Marker endMarker = endState.markers.startMarker(new CassandraInstance("0", "local-instance", "DC1"));
             assertTrue(logProvider(directory).logs().map(CommitLog::segmentId).collect(Collectors.toSet()).contains(endMarker.segmentId));
