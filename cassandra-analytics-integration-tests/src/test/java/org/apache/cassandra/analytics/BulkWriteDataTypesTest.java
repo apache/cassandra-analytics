@@ -36,6 +36,8 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -51,8 +53,6 @@ import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructType;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
-import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
 import scala.collection.mutable.WrappedArray;
 
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
