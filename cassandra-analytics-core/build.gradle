@@ -69,7 +69,7 @@ dependencies {
     fourzerobridge(project(path: ':cassandra-four-zero-bridge'))
     fourzerotypes(project(path: ':cassandra-four-zero-types'))
     fourzerosparksql(project(path: ':cassandra-analytics-spark-four-zero-converter'))
-    implementation(project(':cassandra-analytics-spark-converter'))
+    api(project(':cassandra-analytics-spark-converter'))
 
     // Including newer JNA which works with "Modern" Linux/GLIBC.
     // End users can exclude this and include their own if necessary.
