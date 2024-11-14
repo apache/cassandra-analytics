@@ -21,7 +21,6 @@ package org.apache.cassandra.analytics;
 
 import java.net.UnknownHostException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -64,20 +63,11 @@ public class SparkTestUtils
      * Maps a row queried from Cassandra, represented as an object array, and it produces a string representation
      * to perform validation of data written by a bulk writer job
      */
-    public static final Function<Object[], String> VALIDATION_DEFAULT_COLUMNS_MAPPER
-    = columns -> String.format(String.join(":", Collections.nCopies(columns.length, "%s")), columns);
+    public static final Function<Object[], String> VALIDATION_DEFAULT_COLUMNS_MAPPER = columns -> String.format("%s:%s:%s", columns[0], columns[1], columns[2]);
     /**
      * Maps a {@link Row} to a string representation used to validate data written by a bulk writer job
      */
-    public static final Function<Row, String> VALIDATION_DEFAULT_ROW_MAPPER = row -> {
-        int size = row.size();
-        Object[] data = new Object[size];
-        for (int i = 0; i < size; i++)
-        {
-            data[i] = row.get(i);
-        }
-        return String.format(String.join(":", Collections.nCopies(size, "%s")), data);
-    };
+    public static final Function<Row, String> VALIDATION_DEFAULT_ROW_MAPPER = row -> String.format("%s:%s:%d", row.get(0), row.get(1), row.getInt(2));
     protected ICluster<? extends IInstance> cluster;
     protected DnsResolver dnsResolver;
     protected int sidecarPort;

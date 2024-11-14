@@ -55,8 +55,6 @@ import org.testcontainers.shaded.com.google.common.collect.ImmutableMap;
 import org.testcontainers.shaded.com.google.common.collect.ImmutableSet;
 import scala.collection.mutable.WrappedArray;
 
-import static org.apache.cassandra.analytics.SparkTestUtils.VALIDATION_DEFAULT_COLUMNS_MAPPER;
-import static org.apache.cassandra.analytics.SparkTestUtils.VALIDATION_DEFAULT_ROW_MAPPER;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.apache.spark.sql.types.DataTypes.BinaryType;
@@ -451,8 +449,17 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
         final String createTableSchema;
         final String expectedFailureMessage;
         final int numRows = 10_000;
-        Function<Object[], String> columnMapperValidation = VALIDATION_DEFAULT_COLUMNS_MAPPER;
-        Function<Row, String> rowMapperValidation = VALIDATION_DEFAULT_ROW_MAPPER;
+        Function<Object[], String> columnMapperValidation =
+        columns -> String.format(String.join(":", Collections.nCopies(columns.length, "%s")), columns);
+        Function<Row, String> rowMapperValidation = row -> {
+            int size = row.size();
+            Object[] data = new Object[size];
+            for (int i = 0; i < size; i++)
+            {
+                data[i] = row.get(i);
+            }
+            return String.format(String.join(":", Collections.nCopies(size, "%s")), data);
+        };
 
         TypeTestSetup(String tableName,
                       List<String> columns,
