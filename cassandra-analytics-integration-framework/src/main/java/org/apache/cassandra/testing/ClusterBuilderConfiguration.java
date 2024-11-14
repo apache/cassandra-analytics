@@ -41,7 +41,7 @@ public class ClusterBuilderConfiguration
     public BiConsumer<ClassLoader, Integer> instanceInitializer = null;
     public String partitioner;
     public Map<String, Object> additionalInstanceConfig = null;
-    public int tokenCount;
+    public int tokenCount = 1;
 
     /**
      * Adds a features to the list of default features.
