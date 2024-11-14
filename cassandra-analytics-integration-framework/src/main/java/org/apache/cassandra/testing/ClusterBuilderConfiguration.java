@@ -20,6 +20,7 @@
 package org.apache.cassandra.testing;
 
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.function.BiConsumer;
 
 import com.google.common.base.Preconditions;
@@ -39,6 +40,8 @@ public class ClusterBuilderConfiguration
     public final EnumSet<Feature> features = EnumSet.of(Feature.GOSSIP, Feature.JMX, Feature.NATIVE_PROTOCOL);
     public BiConsumer<ClassLoader, Integer> instanceInitializer = null;
     public String partitioner;
+    public Map<String, Object> additionalInstanceConfig = null;
+    public int tokenCount;
 
     /**
      * Adds a features to the list of default features.
@@ -147,6 +150,30 @@ public class ClusterBuilderConfiguration
     public ClusterBuilderConfiguration partitioner(String partitioner)
     {
         this.partitioner = partitioner;
+        return this;
+    }
+
+    /**
+     * Sets the {@code additionalInstanceConfig} and returns a reference to this Builder enabling method chaining.
+     *
+     * @param additionalInstanceConfig additional config to set for the instances
+     * @return a reference to this Builder
+     */
+    public ClusterBuilderConfiguration additionalInstanceConfig(Map<String, Object> additionalInstanceConfig)
+    {
+        this.additionalInstanceConfig = additionalInstanceConfig;
+        return this;
+    }
+
+    /**
+     * Sets the {@code tokenCount} of each instance in the cluster and returns a reference to this Builder enabling method chaining.
+     *
+     * @param tokenCount number of tokens
+     * @return a reference to this Builder
+     */
+    public ClusterBuilderConfiguration tokenCount(int tokenCount)
+    {
+        this.tokenCount = tokenCount;
         return this;
     }
 }

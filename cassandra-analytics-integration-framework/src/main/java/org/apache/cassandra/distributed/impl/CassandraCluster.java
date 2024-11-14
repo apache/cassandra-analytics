@@ -98,6 +98,7 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
                       .withDynamicPortAllocation(configuration.dynamicPortAllocation) // to allow parallel test runs
                       .withSharedClasses(EXTRA.or(clusterBuilder.getSharedClasses()))
                       .withDCs(dcCount)
+                      .withTokenCount(configuration.tokenCount)
                       .withDataDirCount(configuration.numDataDirsPerInstance);
 
         TokenSupplier tokenSupplier;
@@ -115,6 +116,10 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
         {
             tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(nodesPerDc, newNodesPerDc, dcCount, 1);
             instanceConfigUpdater = config -> configuration.features.forEach(config::with);
+        }
+        if (configuration.additionalInstanceConfig != null)
+        {
+            instanceConfigUpdater = instanceConfigUpdater.andThen(config -> configuration.additionalInstanceConfig.forEach(config::set));
         }
         clusterBuilder.withTokenSupplier(tokenSupplier)
                       .withConfig(instanceConfigUpdater);
