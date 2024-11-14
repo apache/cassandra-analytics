@@ -69,6 +69,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         this.sparkDefaultParallelism = sparkDefaultParallelism;
         // Note: build sequence matters
         this.clusterInfo = buildClusterInfo();
+        this.clusterInfo.startupValidate();
         this.lowestCassandraVersion = findLowestCassandraVersion();
         this.bridge = buildCassandraBridge();
         this.jobInfo = buildJobInfo();

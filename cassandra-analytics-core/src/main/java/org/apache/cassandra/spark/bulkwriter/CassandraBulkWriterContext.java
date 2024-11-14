@@ -40,10 +40,7 @@ public class CassandraBulkWriterContext extends AbstractBulkWriterContext
     @Override
     protected ClusterInfo buildClusterInfo()
     {
-        ClusterInfo clusterInfo = new CassandraClusterInfo(bulkSparkConf());
-        // perform validation at the earliest. The subsequent statements can invoke network calls
-        clusterInfo.startupValidate();
-        return clusterInfo;
+        return new CassandraClusterInfo(bulkSparkConf());
     }
 
     @Override

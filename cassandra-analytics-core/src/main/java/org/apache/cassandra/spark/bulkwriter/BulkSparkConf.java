@@ -151,7 +151,7 @@ public class BulkSparkConf implements Serializable
     // create sidecarInstances from sidecarContactPointsValue and effectiveSidecarPort
     private final String sidecarContactPointsValue; // It takes comma separated values
     private transient Set<SidecarInstance> sidecarContactPoints; // not serialized
-    private final String coordinatedWriteConfJson;
+    protected final String coordinatedWriteConfJson;
     private transient CoordinatedWriteConf coordinatedWriteConf; // it is transient; deserialized from coordinatedWriteConfJson in executors
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)

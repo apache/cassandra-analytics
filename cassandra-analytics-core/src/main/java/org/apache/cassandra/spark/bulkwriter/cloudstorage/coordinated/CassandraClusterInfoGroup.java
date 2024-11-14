@@ -79,6 +79,14 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
      */
     public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf)
     {
+        return fromBulkSparkConf(conf, clusterId -> new CassandraClusterInfo(conf, clusterId));
+    }
+
+    /**
+     * Similar to {@link #fromBulkSparkConf(BulkSparkConf)} but takes additional function to create {@link ClusterInfo}
+     */
+    public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf, Function<String, ClusterInfo> clusterInfoFactory)
+    {
         CoordinatedWriteConf coordinatedWriteConf = conf.coordinatedWriteConf();
         Preconditions.checkArgument(coordinatedWriteConf != null,
                                     "In order to create an instance of CassandraCoordinatedBulkWriterContext, " +
@@ -94,7 +102,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
                                          .clusters()
                                          .keySet()
                                          .stream()
-                                         .map(clusterId -> new CassandraClusterInfo(conf, clusterId))
+                                         .map(clusterInfoFactory)
                                          .collect(Collectors.toList());
         Preconditions.checkState(!clusterInfos.isEmpty(), "No cluster info is built from %s", coordinatedWriteConf);
         return new CassandraClusterInfoGroup(clusterInfos);

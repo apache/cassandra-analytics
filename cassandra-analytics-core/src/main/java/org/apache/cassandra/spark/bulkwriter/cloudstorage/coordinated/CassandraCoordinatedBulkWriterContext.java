@@ -36,7 +36,6 @@ import org.jetbrains.annotations.NotNull;
 public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterContext
 {
     private static final long serialVersionUID = -2296507634642008675L;
-    private CassandraClusterInfoGroup clusterInfoGroup;
 
     public CassandraCoordinatedBulkWriterContext(@NotNull BulkSparkConf conf,
                                                  @NotNull StructType structType,
@@ -54,7 +53,7 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
     @Override
     protected ClusterInfo buildClusterInfo()
     {
-        clusterInfoGroup = CassandraClusterInfoGroup.fromBulkSparkConf(bulkSparkConf());
+        CassandraClusterInfoGroup clusterInfoGroup = CassandraClusterInfoGroup.fromBulkSparkConf(bulkSparkConf());
         clusterInfoGroup.startupValidate();
         return clusterInfoGroup;
     }
@@ -73,7 +72,7 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
         coordinatedWriteConf.clusters().forEach((clusterId, clusterConf) -> {
             // localDc is not empty and replication option contains localDc
             String localDc = clusterConf.localDc();
-            ClusterInfo cluster = clusterInfoGroup.getValueOrNull(clusterId);
+            ClusterInfo cluster = clusterInfoGroup().getValueOrNull(clusterId);
             boolean isReplicatedToLocalDc = !StringUtils.isEmpty(localDc)
                                             && cluster != null
                                             && cluster.replicationFactor().getOptions().containsKey(localDc);
@@ -81,5 +80,10 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
                                      "Keyspace %s is not replicated on datacenter %s in %s",
                                      conf.keyspace, localDc, clusterId);
         });
+    }
+
+    protected CassandraClusterInfoGroup clusterInfoGroup()
+    {
+        return (CassandraClusterInfoGroup) cluster();
     }
 }

@@ -122,6 +122,11 @@ public class CassandraContext implements StartupValidatable, Closeable
         return conf;
     }
 
+    protected String clusterId()
+    {
+        return clusterId;
+    }
+
     // Startup Validation
 
     @Override

@@ -194,8 +194,6 @@ subprojects {
         includeGroup("org.apache.cassandra.sidecar")
       }
     }
-    // uncomment the line below for local development
-    //mavenLocal()
   }
 
   dependencies {
