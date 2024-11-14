@@ -323,7 +323,8 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
         setup.columnMapperValidation = columns -> {
             Map<String, ByteBuffer> map = (Map<String, ByteBuffer>) columns[1];
             String value = map.entrySet().stream()
-                              .map(entry -> String.format("%s=%s", entry.getKey(), new String(ByteBufferUtils.getArray(entry.getValue()), StandardCharsets.UTF_8)))
+                              .map(entry -> String.format("%s=%s", entry.getKey(),
+                                                          new String(ByteBufferUtils.getArray(entry.getValue()), StandardCharsets.UTF_8)))
                               .collect(Collectors.joining(", ", "[", "]"));
             return String.format("%s:%s", columns[0], value);
         };
@@ -427,8 +428,10 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
     = recordNumber -> ImmutableMap.of(String.format("course%06d", recordNumber), Collections.singletonList(recordNumber),
                                       String.format("course%06d", recordNumber + 1), Collections.singletonList(recordNumber + 1));
     static final Function<Integer, Object> STRING_ARRAY_BINARY_MAP_MAPPER
-    = recordNumber -> ImmutableMap.of(String.format("course%06d", recordNumber), Collections.singletonList(("course" + recordNumber).getBytes(StandardCharsets.UTF_8)),
-                                      String.format("course%06d", recordNumber + 1), Collections.singletonList(("course" + (recordNumber + 1)).getBytes(StandardCharsets.UTF_8)));
+    = recordNumber -> ImmutableMap.of(String.format("course%06d", recordNumber),
+                                      Collections.singletonList(("course" + recordNumber).getBytes(StandardCharsets.UTF_8)),
+                                      String.format("course%06d", recordNumber + 1),
+                                      Collections.singletonList(("course" + (recordNumber + 1)).getBytes(StandardCharsets.UTF_8)));
     static final Function<Integer, Object> LONG_MAPPER = recordNumber -> (long) recordNumber;
     static final Function<Integer, Object> STRING_MAPPER = recordNumber -> "course" + recordNumber;
     static final Function<Integer, Object> BINARY_MAPPER = recordNumber -> ("course" + recordNumber).getBytes(StandardCharsets.UTF_8);
@@ -451,11 +454,11 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
         Function<Object[], String> columnMapperValidation = VALIDATION_DEFAULT_COLUMNS_MAPPER;
         Function<Row, String> rowMapperValidation = VALIDATION_DEFAULT_ROW_MAPPER;
 
-        public TypeTestSetup(String tableName,
-                             List<String> columns,
-                             List<DataType> columnTypes,
-                             List<Function<Integer, Object>> valueFunction,
-                             String createTableSchema)
+        TypeTestSetup(String tableName,
+                      List<String> columns,
+                      List<DataType> columnTypes,
+                      List<Function<Integer, Object>> valueFunction,
+                      String createTableSchema)
         {
             this.tableName = tableName;
             this.columns = columns;
@@ -465,12 +468,12 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
             this.expectedFailureMessage = null;
         }
 
-        public TypeTestSetup(String tableName,
-                             List<String> columns,
-                             List<DataType> columnTypes,
-                             List<Function<Integer, Object>> valueFunction,
-                             String createTableSchema,
-                             String expectedFailureMessage)
+        TypeTestSetup(String tableName,
+                      List<String> columns,
+                      List<DataType> columnTypes,
+                      List<Function<Integer, Object>> valueFunction,
+                      String createTableSchema,
+                      String expectedFailureMessage)
         {
             this.tableName = tableName;
             this.columns = columns;
