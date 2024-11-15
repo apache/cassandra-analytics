@@ -71,7 +71,7 @@ public class BulkWriteValidator
         {
             String header = String.format("Failed to write %s ranges with %s for job %s in phase %s. ",
                                            failedRanges.size(), job.getConsistencyLevel(), job.getId(), phase);
-            String errorDetails = aggregateErrors(failedRanges);
+            String errorDetails = logEachErrorAndAggregate(logger, phase, failedRanges);
             String message = header + errorDetails;
             logger.error(message);
             throw new ConsistencyNotSatisfiedException(message);
@@ -113,20 +113,23 @@ public class BulkWriteValidator
     }
 
     // aggregate the stream errors in order to provide a better insight on failure
-    private static String aggregateErrors(List<ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange> failedRanges)
+    private static String logEachErrorAndAggregate(Logger logger,
+                                                   String phase,
+                                                   List<ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange> failedRanges)
     {
         StringBuilder sb = new StringBuilder();
         for (ReplicaAwareFailureHandler<RingInstance>.ConsistencyFailurePerRange failedRange : failedRanges)
         {
             for (Map.Entry<RingInstance, Collection<String>> entry : failedRange.failuresPerInstance.entrySet())
             {
-                sb.append("Instance: ").append(entry.getKey()).append(" All failures: ").append(entry.getValue());
+                logger.error("Failed in phase {} for {} on {}. Failure: {}", phase, failedRange.range, entry.getKey(), entry.getValue());
                 if (sb.length() > ERROR_MESSAGE_MAX_LENGTH)
                 {
                     sb.setLength(ERROR_MESSAGE_MAX_LENGTH - 3);
                     sb.append("...");
-                    return sb.toString();
+                    continue;
                 }
+                sb.append("Instance: ").append(entry.getKey()).append(" All failures: ").append(entry.getValue());
             }
         }
         return sb.toString();

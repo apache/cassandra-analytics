@@ -52,7 +52,8 @@ else
   if [[ "$CLEAN" == "true" ]]; then
     echo "Clean up $DTEST_JAR_DIR"
     rm -rf "$DTEST_JAR_DIR/cassandra-build"
-    rm -rf "$DTEST_JAR_DIR/dtest*.jar"
+    rm "$DTEST_JAR_DIR"/dtest*.jar
+exit 0
   fi
 
   source "$SCRIPT_DIR/functions.sh"

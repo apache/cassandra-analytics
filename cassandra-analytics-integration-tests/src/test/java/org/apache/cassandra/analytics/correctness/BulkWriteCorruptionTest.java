@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.jupiter.api.Test;
 
@@ -70,7 +71,7 @@ public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBa
     static
     {
         // Install the class rebase the earliest, before JVM loads the class
-        BBHelperFileCorrupter.install();
+        BBHelperForFileCorruption.install();
     }
 
     @Test
@@ -95,33 +96,49 @@ public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBa
         .rootCause()
         .isExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
         .hasMessageContaining("Cause=org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException")
+        .hasMessageContaining("after 5 attempts") // upload exhausted after 5 attempts
         .hasMessageContaining("HttpResponseImpl{statusCode=455, " +
                               "statusMessage='Client Error (455)', " +
                               "contentAsString='{\"status\":\"Client Error (455)\",\"code\":455," +
                               "\"message\":\"Digest mismatch."); // root cause is due to digest mismatch
     }
 
+    @Test
+    void testDataTransferPassAfterOneFailedTask()
+    {
+        Dataset<Row> dfWrite = startBulkWrite(CorruptionMode.WIRE, 1);
+        // Validate using CQL
+        sparkTestUtils.validateWrites(dfWrite.collectAsList(), queryAllData(QUALIFIED_NAME));
+    }
+
     private Exception bulkWriteWithCorruption(CorruptionMode corruptionMode)
     {
-        BBHelperFileCorrupter.corruptionMode = corruptionMode;
-
-        Map<String, String> writerOptions = new HashMap<>();
-
-        SparkSession spark = getOrCreateSparkSession();
-
-        // Generate some data
-        Dataset<Row> dfWrite = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
-
         // Write the data using Bulk Writer
         try
         {
-            bulkWriterDataFrameWriter(dfWrite, QUALIFIED_NAME, writerOptions).save();
+            startBulkWrite(corruptionMode, Integer.MAX_VALUE);
         }
         catch (Exception ex)
         {
             return ex;
         }
         throw new IllegalStateException("Bulk write should fail");
+    }
+
+    private Dataset<Row> startBulkWrite(CorruptionMode corruptionMode, int failedAttempts)
+    {
+        BBHelperForFileCorruption.corruptionMode = corruptionMode;
+        BBHelperForFileCorruption.failedDataTransferAttempts.set(failedAttempts);
+
+        Map<String, String> writerOptions = new HashMap<>();
+        writerOptions.put("bulk_writer_cl", "ALL");
+
+        SparkSession spark = getOrCreateSparkSession();
+
+        // Generate some data
+        Dataset<Row> dfWrite = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
+        bulkWriterDataFrameWriter(dfWrite, QUALIFIED_NAME, writerOptions).save();
+        return dfWrite;
     }
 
     @Override
@@ -138,9 +155,10 @@ public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBa
                     .nodesPerDc(1);
     }
 
-    public static class BBHelperFileCorrupter
+    public static class BBHelperForFileCorruption
     {
         static CorruptionMode corruptionMode = CorruptionMode.DISK;
+        static AtomicInteger failedDataTransferAttempts = new AtomicInteger(Integer.MAX_VALUE);
 
         public static void install()
         {
@@ -149,17 +167,17 @@ public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBa
             .rebase(typePool.describe("org.apache.cassandra.spark.bulkwriter.SortedSSTableWriter").resolve(),
                     ClassFileLocator.ForClassLoader.ofSystemLoader())
             .method(named("validateSSTables").and(takesArguments(BulkWriterContext.class, Path.class, Set.class)))
-            .intercept(MethodDelegation.to(BBHelperFileCorrupter.class))
+            .intercept(MethodDelegation.to(BBHelperForFileCorruption.class))
             .make()
-            .load(BBHelperFileCorrupter.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION);
+            .load(BBHelperForFileCorruption.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION);
 
             new ByteBuddy()
             .rebase(typePool.describe("org.apache.cassandra.spark.bulkwriter.SidecarDataTransferApi").resolve(),
                     ClassFileLocator.ForClassLoader.ofSystemLoader())
             .method(named("uploadSSTableComponent"))
-            .intercept(MethodDelegation.to(BBHelperFileCorrupter.class))
+            .intercept(MethodDelegation.to(BBHelperForFileCorruption.class))
             .make()
-            .load(BBHelperFileCorrupter.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION);
+            .load(BBHelperForFileCorruption.class.getClassLoader(), ClassLoadingStrategy.Default.INJECTION);
         }
 
         // Intercepts SortedSSTableWriter#validateSSTables to corrupt file on purpose.
@@ -197,7 +215,7 @@ public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBa
                                                   Digest digest,
                                                   @SuperCall Callable<?> orig) throws Exception
         {
-            if (corruptionMode == CorruptionMode.WIRE)
+            if (corruptionMode == CorruptionMode.WIRE && failedDataTransferAttempts.getAndDecrement() > 0)
             {
                 try (RandomAccessFile file = new RandomAccessFile(componentFile.toFile(), "rw"))
                 {
