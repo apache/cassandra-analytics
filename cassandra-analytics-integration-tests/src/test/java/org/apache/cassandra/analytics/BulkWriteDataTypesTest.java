@@ -20,16 +20,16 @@ package org.apache.cassandra.analytics;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
+import java.sql.Timestamp;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -53,7 +53,7 @@ import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructType;
-import scala.collection.mutable.WrappedArray;
+import scala.collection.mutable.Seq;
 
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
@@ -312,9 +312,10 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
                                                 Arrays.asList(INTEGER_MAPPER, STRING_BINARY_MAP_MAPPER),
                                                 "CREATE TABLE %s (id int, mapdata frozen<map<text,blob>>, PRIMARY KEY (id, mapdata))");
         setup.rowMapperValidation = row -> {
-            Map<String, byte[]> map = row.getJavaMap(1);
+            Map<?, ?> map = row.getJavaMap(1);
             String value = map.entrySet().stream()
-                              .map(entry -> String.format("%s=%s", entry.getKey(), new String(entry.getValue(), StandardCharsets.UTF_8)))
+                              .map(entry -> String.format("%s=%s", entry.getKey(),
+                                                          new String((byte[]) entry.getValue(), StandardCharsets.UTF_8)))
                               .collect(Collectors.joining(", ", "[", "]"));
             return String.format("%s:%s", row.get(0), value);
         };
@@ -329,6 +330,7 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
         return setup;
     }
 
+    @SuppressWarnings("unchecked")
     static TypeTestSetup mapListSchemaSetup()
     {
         TypeTestSetup setup = new TypeTestSetup("map_list_column",
@@ -337,12 +339,12 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
                                                 Arrays.asList(INTEGER_MAPPER, STRING_ARRAY_INTEGER_MAP_MAPPER),
                                                 "CREATE TABLE %s (id int, mapdata map<text,frozen<list<int>>>, PRIMARY KEY (id))");
         setup.rowMapperValidation = row -> {
-            Map<String, WrappedArray<Integer>> map = row.getJavaMap(1);
+            Map<?, ?> map = row.getJavaMap(1);
             Map<String, List<Integer>> value = map.entrySet()
                                                   .stream()
-                                                  .sorted(Map.Entry.comparingByKey())
-                                                  .collect(Collectors.toMap(Map.Entry::getKey,
-                                                                            e -> ScalaConversionUtils.mutableSeqAsJavaList(e.getValue()),
+                                                  .sorted(Comparator.comparing(e -> (String) e.getKey()))
+                                                  .collect(Collectors.toMap(e -> (String) e.getKey(),
+                                                                            e -> ScalaConversionUtils.mutableSeqAsJavaList((Seq<Integer>) e.getValue()),
                                                                             (x, y) -> y,
                                                                             LinkedHashMap::new));
             return String.format("%s:%s", row.get(0), value);
@@ -359,7 +361,7 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
                                                 Arrays.asList(INTEGER_MAPPER, STRING_ARRAY_BINARY_MAP_MAPPER),
                                                 "CREATE TABLE %s (id int, mapdata map<text,frozen<list<blob>>>, PRIMARY KEY (id))");
         setup.rowMapperValidation = row -> {
-            Map<String, WrappedArray<byte[]>> map = row.getJavaMap(1);
+            Map<String, Seq<byte[]>> map = row.getJavaMap(1);
             Function<byte[], String> unwrapBytes = b -> new String(b, StandardCharsets.UTF_8);
             String value = map.entrySet().stream()
                               .map(entry -> String.format("%s=%s", entry.getKey(),
@@ -436,9 +438,9 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
     static final Function<Integer, Object> TIME_UUID_MAPPER = recordNumber -> UUIDs.timeBased().toString();
     static final Function<Integer, Object> RANDOM_UUID_MAPPER = recordNumber -> UUID.randomUUID().toString();
     static final Function<Integer, Object> TIMESTAMP_MAPPER
-    = recordNumber -> new Date(1731457509115L).toInstant().plus(recordNumber, ChronoUnit.SECONDS);
+    = recordNumber -> Timestamp.from(new Date(1731457509115L).toInstant().plus(recordNumber, ChronoUnit.SECONDS));
     static final Function<Integer, Object> DATE_MAPPER
-    = recordNumber -> ((Instant) TIMESTAMP_MAPPER.apply(recordNumber)).atZone(TimeZone.getTimeZone("UTC").toZoneId()).toLocalDate();
+    = recordNumber -> java.sql.Date.valueOf(((Timestamp) TIMESTAMP_MAPPER.apply(recordNumber)).toLocalDateTime().toLocalDate());
 
     static class TypeTestSetup
     {
