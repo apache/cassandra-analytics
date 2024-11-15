@@ -123,7 +123,7 @@ public class BulkWriteValidator
             for (Map.Entry<RingInstance, Collection<String>> entry : failedRange.failuresPerInstance.entrySet())
             {
                 logger.error("Failed in phase {} for {} on {}. Failure: {}", phase, failedRange.range, entry.getKey(), entry.getValue());
-                if (sb.length() > ERROR_MESSAGE_MAX_LENGTH)
+                if (sb.length() >= ERROR_MESSAGE_MAX_LENGTH)
                 {
                     sb.setLength(ERROR_MESSAGE_MAX_LENGTH - 3);
                     sb.append("...");
