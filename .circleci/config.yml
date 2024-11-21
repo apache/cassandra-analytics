@@ -153,6 +153,12 @@ jobs:
           scala: "2.12"
           jdk: "11"
           use_jdk11: "true"
+      - run:
+          name: Move Jacoco results to unique folder
+          command: |
+            UNIQUE_ID="${CIRCLE_WORKFLOW_ID}-${CIRCLE_JOB}-${CIRCLE_NODE_INDEX}"
+            echo "Unique ID: $UNIQUE_ID"
+            ./scripts/get-jacoco-results.sh "jacoco-results/${UNIQUE_ID}"
 
       - store_artifacts:
           path: build/test-reports
@@ -164,6 +170,11 @@ jobs:
 
       - store_test_results:
           path: build/test-reports
+
+      - persist_to_workspace:
+          root: ./jacoco-results
+          paths:
+            - "**/*"
 
   int-c4-spark3-2_12-jdk11:
     parallelism: 8
@@ -212,6 +223,12 @@ jobs:
           scala: "2.13"
           jdk: "11"
           use_jdk11: "true"
+      - run:
+          name: Move Jacoco results to unique folder
+          command: |
+            UNIQUE_ID="${CIRCLE_WORKFLOW_ID}-${CIRCLE_JOB}-${CIRCLE_NODE_INDEX}"
+            echo "Unique ID: $UNIQUE_ID"
+            ./scripts/get-jacoco-results.sh "jacoco-results/${UNIQUE_ID}"
 
       - store_artifacts:
           path: build/test-reports
@@ -223,6 +240,11 @@ jobs:
 
       - store_test_results:
           path: build/test-reports
+
+      - persist_to_workspace:
+          root: ./jacoco-results
+          paths:
+            - "**/*"
 
   spark3-2_13-jdk11-bti:
     docker:
@@ -268,6 +290,12 @@ jobs:
           jdk: "11"
           use_jdk11: "true"
           cassandra: "4.1.4"
+      - run:
+          name: Move Jacoco results to unique folder
+          command: |
+            UNIQUE_ID="${CIRCLE_WORKFLOW_ID}-${CIRCLE_JOB}-${CIRCLE_NODE_INDEX}"
+            echo "Unique ID: $UNIQUE_ID"
+            ./scripts/get-jacoco-results.sh "jacoco-results/${UNIQUE_ID}"
 
       - store_artifacts:
           path: build/test-reports
@@ -279,6 +307,11 @@ jobs:
 
       - store_test_results:
           path: build/test-reports
+
+      - persist_to_workspace:
+          root: ./jacoco-results
+          paths:
+            - "**/*"
 
   int-c5-spark3-2_13-jdk11:
     parallelism: 8
@@ -297,6 +330,12 @@ jobs:
           jdk: "11"
           use_jdk11: "true"
           cassandra: "5.0.5"
+      - run:
+          name: Move Jacoco results to unique folder
+          command: |
+            UNIQUE_ID="${CIRCLE_WORKFLOW_ID}-${CIRCLE_JOB}-${CIRCLE_NODE_INDEX}"
+            echo "Unique ID: $UNIQUE_ID"
+            ./scripts/get-jacoco-results.sh "jacoco-results/${UNIQUE_ID}"
 
       - store_artifacts:
           path: build/test-reports
@@ -308,6 +347,22 @@ jobs:
 
       - store_test_results:
           path: build/test-reports
+
+      - persist_to_workspace:
+          root: ./jacoco-results
+          paths:
+            - "**/*"
+
+  # Delta coverage plugin requires java 11 so we only validate in java 11 builds
+  validate_delta_coverage:
+    docker:
+      - image: cimg/openjdk:11.0
+    steps:
+      - install_common
+      - checkout
+      - attach_workspace:
+          at: jacoco-results
+      - run: ./gradlew --info deltaCoverage
 
 workflows:
   version: 2
@@ -332,3 +387,9 @@ workflows:
       - int-c5-spark3-2_13-jdk11:
           requires:
             - build-deps-jdk11
+      - validate_delta_coverage:
+          requires:
+            - spark3-2_12-jdk11
+            - spark3-2_13-jdk11
+            - int-spark3-2_12-jdk11
+            - int-spark3-2_13-jdk11
