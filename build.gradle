@@ -29,10 +29,12 @@ plugins {
 
   // Release Audit Tool (RAT) plugin for checking project licenses
   id("org.nosphere.apache.rat") version "0.8.1"
+  id("io.github.surpsg.delta-coverage") version "2.4.0"
 }
 
 repositories {
   mavenCentral()
+  maven { url "https://plugins.gradle.org/m2/" }
 }
 
 ext.scalaLabel = System.getenv("SCALA_VERSION") ?: "${scala}"
@@ -254,5 +256,26 @@ subprojects {
   tasks.register('printCodeVersion') {
     println()
     println(version)
+  }
+
+  deltaCoverageReport {
+    diffSource {
+      git.compareWith("refs/remotes/upstream/trunk")
+      git.useNativeGit.set(true)
+    }
+
+    violationRules {
+      failOnViolation.set(true)
+      rule(io.github.surpsg.deltacoverage.gradle.CoverageEntity.LINE) {
+        minCoverageRatio.set(0.9d)
+      }
+      rule(io.github.surpsg.deltacoverage.gradle.CoverageEntity.BRANCH) {
+        minCoverageRatio.set(0.7d)
+      }
+    }
+
+    reports {
+      html.set(true)
+    }
   }
 }
