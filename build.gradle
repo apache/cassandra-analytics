@@ -34,7 +34,6 @@ plugins {
 
 repositories {
   mavenCentral()
-  maven { url "https://plugins.gradle.org/m2/" }
 }
 
 ext.scalaLabel = System.getenv("SCALA_VERSION") ?: "${scala}"
