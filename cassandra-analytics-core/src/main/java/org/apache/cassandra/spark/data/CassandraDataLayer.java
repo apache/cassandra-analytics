@@ -339,7 +339,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     private CompletionStage<Map<String, AvailabilityHint>> createSnapshot(ClientConfig options, RingResponse ring)
     {
         Map<String, PartitionedDataLayer.AvailabilityHint> availabilityHints = new ConcurrentHashMap<>(ring.size());
-        Map<String, Boolean> uniqueInstances = new ConcurrentHashMap<>();
+        Map<String, Boolean> uniqueInstances = new HashMap<>();
 
         // Fire off create snapshot request across the entire cluster
         List<CompletableFuture<Void>> futures =
