@@ -33,6 +33,8 @@ import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.cdc.api.Marker;
 import org.apache.cassandra.cdc.api.CdcOptions;
 import org.apache.cassandra.cdc.api.CommitLogMarkers;
+import org.apache.cassandra.cdc.api.PerInstanceCommitLogMarkers;
+import org.apache.cassandra.cdc.api.PerRangeCommitLogMarkers;
 import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.db.commitlog.PartitionUpdateWrapper;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
@@ -42,9 +44,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * The CdcState object describes the cdc state that must be persisted between microbatches to make cdc recoverable.
+ * The CdcState object describes the cdc state that must be persisted between micro-batches to make cdc recoverable.
  * The key elements are of the state are:
- * 1) the commit log markers, indiciating the maximal position reached for a given CassandraInstance.
+ * 1) the commit log markers, indicating the maximal position reached for a given CassandraInstance.
  * Cdc should resume from this position after a restart to prevent replay published updates.
  * 2) the replica count, holds an MD5 digest and replica count for all updates that were not published because
  * insufficient replica copies were read in a previous microbatch.
@@ -151,7 +153,7 @@ public class CdcState
         private final CdcState start;
         private long epoch;
         @NotNull
-        private final CommitLogMarkers.PerInstanceBuilder markerBuilder;
+        private final PerInstanceCommitLogMarkers.PerInstanceBuilder markerBuilder;
         @Nullable
         private TokenRange range;
         @NotNull
@@ -322,7 +324,7 @@ public class CdcState
             return CommitLogMarkers.of(markers1, markers2);
         }
 
-        CommitLogMarkers.PerRangeBuilder builder = CommitLogMarkers.perRangeBuilder();
+        PerRangeCommitLogMarkers.PerRangeBuilder builder = CommitLogMarkers.perRangeBuilder();
         markers1.values().forEach(marker -> builder.add(range1, marker));
         markers2.values().forEach(marker -> builder.add(range2, marker));
         return builder.build();

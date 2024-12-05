@@ -85,7 +85,7 @@ public class CommitLogMarkerTests
         CassandraInstance inst3 = new CassandraInstance("2", "local3-i1", "DC1");
 
         // build per range commit log markers
-        CommitLogMarkers.PerRangeBuilder builder = CommitLogMarkers.perRangeBuilder();
+        PerRangeCommitLogMarkers.PerRangeBuilder builder = CommitLogMarkers.perRangeBuilder();
         builder.add(TokenRange.closed(BigInteger.ZERO, BigInteger.valueOf(5000)), inst1.markerAt(500, 10000));
         builder.add(TokenRange.closed(BigInteger.valueOf(5000), BigInteger.valueOf(10000)), inst1.markerAt(600, 20000));
         builder.add(TokenRange.closed(BigInteger.valueOf(10000), BigInteger.valueOf(15000)), inst2.markerAt(99999, 0));
@@ -93,7 +93,7 @@ public class CommitLogMarkerTests
         builder.add(TokenRange.closed(BigInteger.valueOf(20000), BigInteger.valueOf(25000)), inst3.markerAt(0, 0));
         builder.add(TokenRange.closed(BigInteger.valueOf(25000), BigInteger.valueOf(30000)), inst3.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE));
         builder.add(TokenRange.closed(BigInteger.valueOf(20000), BigInteger.valueOf(30000)), inst3.markerAt(500, 500));
-        CommitLogMarkers.PerRange markers = builder.build();
+        PerRangeCommitLogMarkers markers = builder.build();
 
         // verify start marker is the min
         assertEquals(inst1.markerAt(500, 10000), markers.startMarker(inst1));
@@ -171,7 +171,7 @@ public class CommitLogMarkerTests
         );
 
         byte[] ar = serialize(markers);
-        CommitLogMarkers deserialized = deserialize(ar, CommitLogMarkers.PerInstance.class);
+        CommitLogMarkers deserialized = deserialize(ar, PerInstanceCommitLogMarkers.class);
         assertNotNull(deserialized);
         assertEquals(markers, deserialized);
         assertEquals(inst1.markerAt(500, 10000), deserialized.startMarker(inst1));
@@ -186,7 +186,7 @@ public class CommitLogMarkerTests
         CassandraInstance inst2 = new CassandraInstance("1", "local2-i1", "DC1");
         CassandraInstance inst3 = new CassandraInstance("2", "local3-i1", "DC1");
 
-        CommitLogMarkers.PerRangeBuilder builder = CommitLogMarkers.perRangeBuilder();
+        PerRangeCommitLogMarkers.PerRangeBuilder builder = CommitLogMarkers.perRangeBuilder();
         builder.add(TokenRange.closed(BigInteger.ZERO, BigInteger.valueOf(5000)), inst1.markerAt(500, 10000));
         builder.add(TokenRange.closed(BigInteger.valueOf(5000), BigInteger.valueOf(10000)), inst1.markerAt(600, 20000));
         builder.add(TokenRange.closed(BigInteger.valueOf(10000), BigInteger.valueOf(15000)), inst2.markerAt(99999, 0));
@@ -194,10 +194,10 @@ public class CommitLogMarkerTests
         builder.add(TokenRange.closed(BigInteger.valueOf(20000), BigInteger.valueOf(25000)), inst3.markerAt(0, 0));
         builder.add(TokenRange.closed(BigInteger.valueOf(25000), BigInteger.valueOf(30000)), inst3.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE));
         builder.add(TokenRange.closed(BigInteger.valueOf(20000), BigInteger.valueOf(30000)), inst3.markerAt(500, 500));
-        CommitLogMarkers.PerRange markers = builder.build();
+        PerRangeCommitLogMarkers markers = builder.build();
 
         byte[] ar = serialize(markers);
-        CommitLogMarkers deserialized = deserialize(ar, CommitLogMarkers.PerRange.class);
+        CommitLogMarkers deserialized = deserialize(ar, PerRangeCommitLogMarkers.class);
         assertNotNull(deserialized);
         assertEquals(markers, deserialized);
         assertEquals(inst1.markerAt(500, 10000), deserialized.startMarker(inst1));

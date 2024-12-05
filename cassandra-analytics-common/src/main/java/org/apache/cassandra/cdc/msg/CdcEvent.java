@@ -86,35 +86,22 @@ public class CdcEvent
     protected final CassandraSource cassandraSource;
 
     // CHECKSTYLE IGNORE: Constructor with many parameters
-    public CdcEvent(List<Value> partitionKeys,
-                    List<Value> clusteringKeys,
-                    List<Value> staticColumns,
-                    List<Value> valueColumns,
-                    long maxTimestampMicros,
-                    TimeToLive timeToLive,
-                    Map<String, List<ByteBuffer>> tombstonedCellsInComplex,
-                    List<RangeTombstone> rangeTombstoneList,
-                    boolean track,
-                    String trackingId,
-                    String keyspace,
-                    String table,
-                    Kind kind,
-                    CassandraSource cassandraSource)
+    protected CdcEvent(CdcEventBuilder builder)
     {
-        this.partitionKeys = partitionKeys;
-        this.clusteringKeys = clusteringKeys;
-        this.staticColumns = staticColumns;
-        this.valueColumns = valueColumns;
-        this.maxTimestampMicros = maxTimestampMicros;
-        this.timeToLive = timeToLive;
-        this.tombstonedCellsInComplex = tombstonedCellsInComplex;
-        this.rangeTombstoneList = rangeTombstoneList;
-        this.track = track;
-        this.trackingId = trackingId;
-        this.keyspace = keyspace;
-        this.table = table;
-        this.kind = kind;
-        this.cassandraSource = cassandraSource;
+        this.partitionKeys = builder.partitionKeys;
+        this.clusteringKeys = builder.clusteringKeys;
+        this.staticColumns = builder.staticColumns;
+        this.valueColumns = builder.valueColumns;
+        this.maxTimestampMicros = builder.maxTimestampMicros;
+        this.timeToLive = builder.timeToLive;
+        this.tombstonedCellsInComplex = builder.tombstonedCellsInComplex;
+        this.rangeTombstoneList = builder.rangeTombstoneList;
+        this.track = builder.track;
+        this.trackingId = builder.trackingId;
+        this.keyspace = builder.keyspace;
+        this.table = builder.table;
+        this.kind = builder.kind;
+        this.cassandraSource = builder.cassandraSource;
     }
 
     /**

@@ -54,7 +54,7 @@ public class CdcEventBuilder
     protected List<RangeTombstone> rangeTombstoneList = null;
     @Nullable
     protected RangeTombstoneBuilder<?> rangeTombstoneBuilder = null;
-    public boolean track = false;
+    public boolean track;
     @Nullable
     public String trackingId;
     public String keyspace;
@@ -192,21 +192,6 @@ public class CdcEventBuilder
     public CdcEvent build()
     {
         validateRangeTombstoneMarkers();
-        return new CdcEvent(
-        partitionKeys,
-        clusteringKeys,
-        staticColumns,
-        valueColumns,
-        maxTimestampMicros,
-        timeToLive,
-        tombstonedCellsInComplex,
-        rangeTombstoneList,
-        track,
-        trackingId,
-        keyspace,
-        table,
-        kind,
-        cassandraSource
-        );
+        return new CdcEvent(this);
     }
 }
