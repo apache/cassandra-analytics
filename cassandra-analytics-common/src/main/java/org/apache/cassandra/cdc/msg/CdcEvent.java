@@ -21,7 +21,6 @@ package org.apache.cassandra.cdc.msg;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -181,12 +180,7 @@ public class CdcEvent
     @Nullable
     public Map<String, List<ByteBuffer>> getTombstonedCellsInComplex()
     {
-        if (tombstonedCellsInComplex == null)
-        {
-            return null;
-        }
-
-        return new HashMap<>(tombstonedCellsInComplex);
+        return tombstonedCellsInComplex;
     }
 
     /**

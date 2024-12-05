@@ -41,26 +41,26 @@ import org.jetbrains.annotations.Nullable;
 public class CdcBuilder
 {
     @NotNull
-    private final String jobId;
-    private final int partitionId;
+    final String jobId;
+    final int partitionId;
     @NotNull
-    private TokenRangeSupplier tokenRangeSupplier = () -> null;
+    TokenRangeSupplier tokenRangeSupplier = () -> null;
     @NotNull
-    private SchemaSupplier schemaSupplier;
+    SchemaSupplier schemaSupplier;
     @NotNull
-    private CassandraSource cassandraSource = CassandraSource.DEFAULT;
+    CassandraSource cassandraSource = CassandraSource.DEFAULT;
     @NotNull
-    private StatePersister statePersister = StatePersister.STUB;
+    StatePersister statePersister = StatePersister.STUB;
     @NotNull
-    private CdcOptions cdcOptions = CdcOptions.DEFAULT;
+    CdcOptions cdcOptions = CdcOptions.DEFAULT;
     @NotNull
-    private ICdcStats stats = ICdcStats.STUB;
+    ICdcStats stats = ICdcStats.STUB;
     @Nullable
-    private AsyncExecutor asyncExecutor = null;
+    AsyncExecutor asyncExecutor = null;
     @Nullable
-    private CommitLogProvider commitLogProvider = null;
+    CommitLogProvider commitLogProvider = null;
     @NotNull
-    private EventConsumer eventConsumer;
+    EventConsumer eventConsumer;
     @NotNull
     public TableIdLookup tableIdLookup = TableIdLookup.STUB;
 
@@ -160,17 +160,6 @@ public class CdcBuilder
         Preconditions.checkNotNull(asyncExecutor, "An AsyncExecutor must be supplied");
         Preconditions.checkNotNull(eventConsumer, "An event consumer supplier must be supplied");
         Preconditions.checkNotNull(schemaSupplier, "An schema supplier must be supplied");
-        return new Cdc(jobId,
-                       partitionId,
-                       tokenRangeSupplier,
-                       schemaSupplier,
-                       tableIdLookup,
-                       cassandraSource,
-                       statePersister,
-                       cdcOptions,
-                       asyncExecutor,
-                       commitLogProvider,
-                       stats,
-                       eventConsumer);
+        return new Cdc(this);
     }
 }

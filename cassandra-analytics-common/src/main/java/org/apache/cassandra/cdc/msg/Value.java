@@ -24,15 +24,17 @@ import java.util.function.Function;
 
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
+import org.jetbrains.annotations.Nullable;
 
 public class Value
 {
     public final String keyspace;
     public final String columnName;
     public final String columnType;
+    @Nullable
     private final ByteBuffer value;
 
-    public Value(String keyspace, String columnName, String columnType, ByteBuffer value)
+    public Value(String keyspace, String columnName, String columnType, @Nullable ByteBuffer value)
     {
         this.keyspace = keyspace;
         this.columnName = columnName;
@@ -43,14 +45,11 @@ public class Value
     /**
      * @return the value as byte array
      */
+    @Nullable
     public byte[] getBytes()
     {
         // if bb is null, we should return null; Null means deletion
-        if (value == null)
-        {
-            return null;
-        }
-        return ByteBufferUtils.getArray(value);
+        return value == null ? null : ByteBufferUtils.getArray(value);
     }
 
     public CqlField.CqlType getCqlType(Function<String, CqlField.CqlType> typeMapping)
@@ -66,12 +65,9 @@ public class Value
     /**
      * @return the duplicated {@link ByteBuffer} of the value
      */
+    @Nullable
     public ByteBuffer getValue()
     {
-        if (value == null)
-        {
-            return null;
-        }
-        return value.duplicate();
+        return value == null ? null : value.duplicate();
     }
 }

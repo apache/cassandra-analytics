@@ -82,35 +82,24 @@ public class Cdc implements Closeable
     private final AtomicBoolean isRunning = new AtomicBoolean(false);
     private final AtomicReference<CompletableFuture<Void>> active = new AtomicReference<>(null);
 
-    private volatile CdcState currState = null;
+    private volatile CdcState currentState = null;
     protected volatile long batchStartNanos;
     protected volatile Set<CqlTable> cdcEnabledTables = Collections.emptySet();
 
-    protected Cdc(@NotNull String jobId,
-                  int partitionId,
-                  @NotNull TokenRangeSupplier tokenRangeSupplier,
-                  @NotNull SchemaSupplier schemaSupplier,
-                  @NotNull TableIdLookup tableIdLookup,
-                  @NotNull CassandraSource cassandraSource,
-                  @NotNull StatePersister statePersister,
-                  @NotNull CdcOptions cdcOptions,
-                  @NotNull AsyncExecutor asyncExecutor,
-                  @NotNull CommitLogProvider commitLogProvider,
-                  @NotNull ICdcStats stats,
-                  @NotNull EventConsumer eventConsumer)
+    protected Cdc(@NotNull CdcBuilder builder)
     {
-        this.jobId = jobId;
-        this.partitionId = partitionId;
-        this.tokenRangeSupplier = tokenRangeSupplier;
-        this.tableIdLookup = tableIdLookup;
-        this.schemaSupplier = schemaSupplier;
-        this.cassandraSource = cassandraSource;
-        this.statePersister = statePersister;
-        this.cdcOptions = cdcOptions;
-        this.asyncExecutor = asyncExecutor;
-        this.commitLogProvider = commitLogProvider;
-        this.stats = stats;
-        this.eventConsumer = eventConsumer;
+        this.jobId = builder.jobId;
+        this.partitionId = builder.partitionId;
+        this.tokenRangeSupplier = builder.tokenRangeSupplier;
+        this.tableIdLookup = builder.tableIdLookup;
+        this.schemaSupplier = builder.schemaSupplier;
+        this.cassandraSource = builder.cassandraSource;
+        this.statePersister = builder.statePersister;
+        this.cdcOptions = builder.cdcOptions;
+        this.asyncExecutor = builder.asyncExecutor;
+        this.commitLogProvider = builder.commitLogProvider;
+        this.stats = builder.stats;
+        this.eventConsumer = builder.eventConsumer;
     }
 
     public static CdcBuilder builder(@NotNull String jobId,
@@ -133,19 +122,19 @@ public class Cdc implements Closeable
 
     public long epoch()
     {
-        return currState.epoch;
+        return currentState.epoch;
     }
 
     @NotNull
     public CommitLogMarkers markers()
     {
-        return this.currState.markers;
+        return this.currentState.markers;
     }
 
     public void start()
     {
         TokenRange tokenRange = tokenRangeSupplier.get();
-        this.currState = statePersister.loadCanonicalState(jobId, partitionId, tokenRange);
+        this.currentState = statePersister.loadCanonicalState(jobId, partitionId, tokenRange);
 
         if (!isRunning.get()
             && isRunning.compareAndSet(false, true))
@@ -213,7 +202,6 @@ public class Cdc implements Closeable
             return;
         }
 
-
         active.getAndUpdate((curr) -> {
             if (curr == null)
             {
@@ -264,13 +252,13 @@ public class Cdc implements Closeable
             if (handleError(t))
             {
                 LOGGER.warn("CdcConsumer epoch failed with recoverable error, scheduling next run jobId={} partition={} epoch={}",
-                            jobId, partitionId, currState.epoch, t);
+                            jobId, partitionId, currentState.epoch, t);
                 scheduleNextRun();
             }
             else
             {
                 LOGGER.error("CdcConsumer epoch failed with unrecoverable error jobId={} partition={} epoch={}",
-                             jobId, partitionId, currState.epoch, t);
+                             jobId, partitionId, currentState.epoch, t);
                 stop();
             }
         }
@@ -288,7 +276,7 @@ public class Cdc implements Closeable
 
     protected MicroBatchIterator newMicroBatchIterator() throws NotEnoughReplicasException
     {
-        return newMicroBatchIterator(null, currState);
+        return newMicroBatchIterator(null, currentState);
     }
 
     protected MicroBatchIterator newMicroBatchIterator(@Nullable TokenRange tokenRange, CdcState startState) throws NotEnoughReplicasException
@@ -319,7 +307,7 @@ public class Cdc implements Closeable
         TokenRange tokenRange = tokenRangeSupplier.get();
 
         // purge if full before starting otherwise it will keep failing when trying to add more entries to CdcState
-        CdcState startState = this.currState.purgeIfFull(stats, cdcOptions);
+        CdcState startState = this.currentState.purgeIfFull(stats, cdcOptions);
 
         try (MicroBatchIterator it = newMicroBatchIterator(tokenRange, startState))
         {
@@ -337,7 +325,7 @@ public class Cdc implements Closeable
             // only update state after persisting so failures
             // persisting or committing to the transport layer
             // cause the next microbatch to restart
-            this.currState = endState;
+            this.currentState = endState;
         }
     }
 
@@ -349,7 +337,7 @@ public class Cdc implements Closeable
     protected boolean epochsExceeded()
     {
         final int maxEpochs = cdcOptions.maxEpochs();
-        return maxEpochs > 0 && this.currState.epoch >= maxEpochs;
+        return maxEpochs > 0 && this.currentState.epoch >= maxEpochs;
     }
 
     // cdc bridge
@@ -364,12 +352,11 @@ public class Cdc implements Closeable
         return CdcBridgeFactory.getCdcBridge(cdcOptions.version());
     }
 
-
     // persist state
 
     public ByteBuffer serializeStateToBytes() throws IOException
     {
-        try (Output out = KryoUtils.serialize(CdcKryoRegister.kryo(), this.currState, CdcState.SERIALIZER))
+        try (Output out = KryoUtils.serialize(CdcKryoRegister.kryo(), this.currentState, CdcState.SERIALIZER))
         {
             return bridge().compressionUtil().compress(out.getBuffer());
         }

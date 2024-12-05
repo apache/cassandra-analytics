@@ -54,19 +54,11 @@ public class RangeTombstone
 
     public List<Value> getStartBound()
     {
-        if (startBound == null)
-        {
-            return null;
-        }
-        return new ArrayList<>(startBound);
+        return startBound;
     }
 
     public List<Value> getEndBound()
     {
-        if (endBound == null)
-        {
-            return null;
-        }
-        return new ArrayList<>(endBound);
+        return endBound;
     }
 }

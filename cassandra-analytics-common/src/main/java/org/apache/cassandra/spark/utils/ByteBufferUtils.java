@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import org.apache.cassandra.spark.data.CqlField;
+import org.jetbrains.annotations.Nullable;
 
 public final class ByteBufferUtils
 {
@@ -138,7 +139,7 @@ public final class ByteBufferUtils
         return ByteBufferUtils.toHexString(buf);
     }
 
-    public static String toHexString(ByteBuffer buffer)
+    public static String toHexString(@Nullable ByteBuffer buffer)
     {
         if (buffer == null)
         {

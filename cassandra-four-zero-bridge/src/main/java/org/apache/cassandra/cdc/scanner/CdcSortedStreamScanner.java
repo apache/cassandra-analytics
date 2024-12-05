@@ -213,7 +213,6 @@ public class CdcSortedStreamScanner implements AutoCloseable, CdcStreamScanner
                && rangeDeletionBuilder == null; // no range deletion being built
     }
 
-
     public void close()
     {
         updates.clear();

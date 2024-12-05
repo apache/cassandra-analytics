@@ -31,7 +31,7 @@ public class Column
     @Nullable
     private final Object value;
 
-    public Column(String name, CqlField.CqlType type, ByteBuffer buf)
+    public Column(String name, CqlField.CqlType type, @Nullable ByteBuffer buf)
     {
         this(name, type, buf == null ? null : type.deserializeToJavaType(buf));
     }

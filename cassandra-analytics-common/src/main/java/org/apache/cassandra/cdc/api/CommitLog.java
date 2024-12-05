@@ -120,7 +120,7 @@ public interface CommitLog extends Closeable, CassandraFile, Comparable<CommitLo
 
     default Marker maxMarker()
     {
-        return markerAt(segmentId(), (int) maxOffset());
+        return markerAt(segmentId(), Math.toIntExact(maxOffset()));
     }
 
     default Marker markerAt(long section, int offset)

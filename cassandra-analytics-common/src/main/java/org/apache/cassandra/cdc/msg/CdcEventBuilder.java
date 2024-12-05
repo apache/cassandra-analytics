@@ -160,7 +160,6 @@ public class CdcEventBuilder
         this.cassandraSource = cassandraSource;
     }
 
-
     // adds the serialized cellpath to the tombstone
     public void addCellTombstoneInComplex(String columnName, ByteBuffer key)
     {

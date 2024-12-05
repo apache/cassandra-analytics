@@ -109,7 +109,7 @@ public class Marker implements Comparable<Marker>, Serializable
 
     public String toString()
     {
-        return String.format("{" +
+        return String.format('{' +
                              "\"segmentId\": %d, " +
                              "\"position\": %d" +
                              " }", segmentId, position);
