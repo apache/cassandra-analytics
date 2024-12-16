@@ -370,6 +370,13 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
+    # Delta coverage plugin requires java 11 so we only validate in java 11 builds
+    validate_delta_coverage:
+      docker:
+        - image: cimg/openjdk:11.0
+      steps:
+        - run: ./gradlew deltaCoverage
+
 workflows:
   version: 2
   build-and-test:
@@ -400,3 +407,9 @@ workflows:
       - int-spark3-2_13-jdk11:
           requires:
             - build-deps-jdk11
+      - validate_delta_coverage:
+          requires:
+            - spark3-2_12-jdk11
+            - spark3-2_13-jdk11
+            - int-spark3-2_12-jdk11
+            - int-spark3-2_13-jdk11
