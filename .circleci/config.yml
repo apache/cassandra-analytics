@@ -375,6 +375,8 @@ jobs:
     docker:
       - image: cimg/openjdk:11.0
     steps:
+      - install_common
+      - checkout
       - run: ./gradlew deltaCoverage
 
 workflows:
