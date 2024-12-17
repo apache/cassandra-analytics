@@ -377,6 +377,8 @@ jobs:
     steps:
       - install_common
       - checkout
+      - attach_workspace:
+          at: dependencies
       - run: ./gradlew deltaCoverage
 
 workflows:
