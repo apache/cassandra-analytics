@@ -379,7 +379,7 @@ jobs:
       - checkout
       - attach_workspace:
           at: dependencies
-      - run: ./gradlew deltaCoverage
+      - run: ./gradlew --info deltaCoverage
 
 workflows:
   version: 2
