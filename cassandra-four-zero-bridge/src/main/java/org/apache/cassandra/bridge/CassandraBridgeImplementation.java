@@ -21,6 +21,7 @@ package org.apache.cassandra.bridge;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
@@ -32,21 +33,29 @@ import java.nio.file.Path;
 import java.util.AbstractMap;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
+import org.apache.cassandra.analytics.reader.common.IndexIterator;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.ByteBufferAccessor;
@@ -55,6 +64,7 @@ import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
+import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.io.compress.ICompressor;
 import org.apache.cassandra.io.compress.LZ4Compressor;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
@@ -62,6 +72,9 @@ import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.SSTableTombstoneWriter;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
+import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
+import org.apache.cassandra.io.sstable.metadata.MetadataType;
+import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.TableMetadataRef;
@@ -72,9 +85,10 @@ import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
-import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.data.TypeConverter;
 import org.apache.cassandra.spark.data.complex.CqlTuple;
 import org.apache.cassandra.spark.data.complex.CqlUdt;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.CompactionStreamScanner;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.IndexReader;
@@ -83,18 +97,20 @@ import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.SchemaBuilder;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.reader.SummaryDbUtils;
-import org.apache.cassandra.analytics.reader.common.IndexIterator;
+import org.apache.cassandra.spark.sparksql.CellIterator;
+import org.apache.cassandra.spark.sparksql.RowIterator;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
-import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.SparkClassLoaderOverride;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.tools.JsonTransformer;
 import org.apache.cassandra.tools.Util;
 import org.apache.cassandra.util.CompressionUtil;
+import org.apache.cassandra.utils.BloomFilter;
 import org.apache.cassandra.utils.CompressionUtilImplementation;
-import org.apache.cassandra.utils.Pair;
+import org.apache.cassandra.utils.TokenUtils;
 import org.apache.cassandra.utils.UUIDGen;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -102,13 +118,9 @@ import org.jetbrains.annotations.Nullable;
 @SuppressWarnings("unused")
 public class CassandraBridgeImplementation extends CassandraBridge
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CassandraBridgeImplementation.class);
+
     private final Map<Class<?>, Serializer<?>> kryoSerializers;
-
-    public static void main(String[] args)
-    {
-        System.out.println(UUIDGen.unixTimestamp(UUID.fromString("ac3f2f40-8637-11ef-a12b-2d1e10948b4b")));
-
-    }
 
     static
     {
@@ -265,6 +277,244 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
+    public long lastRepairTime(String keyspace, String table, SSTable ssTable) throws IOException
+    {
+        Map<MetadataType, MetadataComponent> componentMap = ReaderUtils.deserializeStatsMetadata(keyspace, table, ssTable, EnumSet.of(MetadataType.STATS));
+        StatsMetadata statsMetadata = (StatsMetadata) componentMap.get(MetadataType.STATS);
+        if (statsMetadata == null)
+        {
+            throw new IllegalStateException("Could not read StatsMetadata");
+        }
+        return statsMetadata.repairedAt;
+    }
+
+    @Override
+    public Pair<BigInteger, BigInteger> firstLastToken(SSTable ssTable, Partitioner partitioner, int minIndexInterval, int maxIndexInterval) throws IOException
+    {
+        IPartitioner iPartitioner = getPartitioner(partitioner);
+
+        // attempt Summary.db file first
+        Pair<BigInteger, BigInteger> firstAndLast = null;
+        try
+        {
+            SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(ssTable, iPartitioner, minIndexInterval, maxIndexInterval);
+            if (summary != null)
+            {
+                BigInteger first = TokenUtils.tokenToBigInteger(summary.first().getToken());
+                BigInteger last = TokenUtils.tokenToBigInteger(summary.last().getToken());
+                firstAndLast = Pair.of(first, last);
+            }
+        }
+        catch (IOException e)
+        {
+            // this can happen if the minIndexInterval and maxIndexInterval do not match the expected serialized in the Summary.db file
+            LOGGER.warn("IOException reading Summary.db file", e);
+        }
+
+        if (firstAndLast == null)
+        {
+            // try Index.db file
+            LOGGER.warn("Failed to read Summary.db file, falling back to Index.db file");
+            Pair<DecoratedKey, DecoratedKey> keys = ReaderUtils.keysFromIndex(iPartitioner, ssTable);
+            Token first = keys.left.getToken();
+            Token last = keys.right.getToken();
+            if (first == null || last == null)
+            {
+                throw new RuntimeException("Unable to extract first and last keys from Summary.db or Index.db");
+            }
+            firstAndLast = Pair.of(TokenUtils.tokenToBigInteger(first), TokenUtils.tokenToBigInteger(last));
+        }
+
+        return firstAndLast;
+    }
+
+    @Override
+    public List<Boolean> overlaps(SSTable ssTable,
+                                  Partitioner partitioner,
+                                  int minIndexInterval,
+                                  int maxIndexInterval,
+                                  List<TokenRange> ranges) throws IOException
+    {
+        Pair<BigInteger, BigInteger> firstAndLastKeys = firstLastToken(ssTable, partitioner, minIndexInterval, maxIndexInterval);
+        TokenRange sstableRange = TokenRange.closed(firstAndLastKeys.left, firstAndLastKeys.right);
+        return ranges.stream()
+                     .map(range -> range.isConnected(sstableRange))
+                     .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<BigInteger> toTokens(Partitioner partitioner, @NotNull List<ByteBuffer> partitionKeys)
+    {
+        IPartitioner iPartitioner = getPartitioner(partitioner);
+        return partitionKeys
+               .stream()
+               .map(key -> {
+                   DecoratedKey decoratedKey = iPartitioner.decorateKey(key);
+                   return TokenUtils.tokenToBigInteger(decoratedKey.getToken());
+               })
+               .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ByteBuffer> encodePartitionKeys(Partitioner partitioner, String keyspace, String createTableStmt, List<List<String>> keys)
+    {
+        CqlTable table = new SchemaBuilder(createTableStmt, keyspace, ReplicationFactor.simple(1), partitioner).build();
+        return keys.stream().map(key -> buildPartitionKey(table, key)).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Boolean> maybeContains(Partitioner partitioner,
+                                       String keyspace,
+                                       String table,
+                                       SSTable ssTable,
+                                       List<ByteBuffer> partitionKeys) throws IOException
+    {
+        if (partitionKeys.isEmpty())
+        {
+            return List.of();
+        }
+        IPartitioner iPartitioner = getPartitioner(partitioner);
+        Descriptor descriptor = ReaderUtils.constructDescriptor(keyspace, table, ssTable);
+        return maybeContains(descriptor, ssTable, partitionKeys.stream().map(iPartitioner::decorateKey).collect(Collectors.toList()));
+    }
+
+    private List<Boolean> maybeContains(Descriptor descriptor, SSTable ssTable, Collection<DecoratedKey> partitionKeys) throws IOException
+    {
+        if (partitionKeys.isEmpty())
+        {
+            return List.of();
+        }
+        BloomFilter filter = ReaderUtils.readFilter(ssTable, descriptor);
+        return partitionKeys.stream()
+                            .map(filter::isPresent)
+                            .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<Boolean> contains(Partitioner partitioner, String keyspace, String table, SSTable ssTable, List<ByteBuffer> partitionKeys) throws IOException
+    {
+        if (partitionKeys.isEmpty())
+        {
+            return List.of();
+        }
+
+        IPartitioner iPartitioner = getPartitioner(partitioner);
+        List<DecoratedKey> decoratedKeys = partitionKeys.stream().map(iPartitioner::decorateKey).collect(Collectors.toList());
+        Descriptor descriptor = ReaderUtils.constructDescriptor(keyspace, table, ssTable);
+        List<Boolean> result = maybeContains(descriptor, ssTable, decoratedKeys);
+        if (result.stream().noneMatch(found -> found))
+        {
+            // no matches in the bloom filter, so we can exit early
+            return result;
+        }
+
+        List<Pair<BigInteger, Integer>> sortedTokens = IntStream.of(0, decoratedKeys.size())
+                                                                .mapToObj(idx -> {
+                                                                    DecoratedKey key = decoratedKeys.get(idx);
+                                                                    BigInteger token = TokenUtils.tokenToBigInteger(key.getToken());
+                                                                    return Pair.of(token, idx);
+                                                                })
+                                                                .sorted(Comparator.comparing(Pair::getLeft))
+                                                                .collect(Collectors.toList());
+        try (InputStream primaryIndex = ssTable.openPrimaryIndexStream())
+        {
+            if (primaryIndex == null)
+            {
+                throw new IOException("Could not read Index.db file");
+            }
+
+            final int[] position = new int[]{0};
+            ReaderUtils.readPrimaryIndex(primaryIndex, (buffer) -> {
+                DecoratedKey key = iPartitioner.decorateKey(buffer);
+                BigInteger token = TokenUtils.tokenToBigInteger(key.getToken());
+
+                Pair<BigInteger, Integer> current = sortedTokens.get(position[0]);
+                BigInteger currentToken = current.getLeft();
+                DecoratedKey currentKey = decoratedKeys.get(current.getRight());
+
+                int compare = token.compareTo(currentToken);
+                if (compare == 0 && key.equals(currentKey))  // token and key matches
+                {
+                    result.set(position[0], true);
+                    position[0] = position[0] + 1;
+                }
+                else if (compare > 0)
+                {
+                    // we passed the token without finding the key
+                    result.set(position[0], false);
+                    position[0] = position[0] + 1;
+                }
+
+                // if we've found all the keys we can exit early
+                return position[0] >= decoratedKeys.size();
+            });
+        }
+
+        return result;
+    }
+
+    @Override
+    public void readPartitionKeys(Partitioner partitioner,
+                                  String keyspace,
+                                  String createStmt,
+                                  SSTablesSupplier ssTables,
+                                  @Nullable TokenRange tokenRange,
+                                  @Nullable List<ByteBuffer> partitionKeys,
+                                  @Nullable String[] requiredColumns,
+                                  Consumer<Map<String, Object>> rowConsumer) throws IOException
+    {
+        IPartitioner iPartitioner = getPartitioner(partitioner);
+        SchemaBuilder schemaBuilder = new SchemaBuilder(createStmt, keyspace, ReplicationFactor.simple(1), partitioner);
+        TableMetadata metadata = schemaBuilder.tableMetaData();
+        CqlTable table = schemaBuilder.build();
+        List<BigInteger> tokens = partitionKeys == null ? Collections.emptyList() : toTokens(partitioner, partitionKeys);
+        List<PartitionKeyFilter> partitionKeyFilters = partitionKeys == null ? Collections.emptyList() :
+                                                       IntStream
+                                                       .range(0, partitionKeys.size())
+                                                       .mapToObj(i -> PartitionKeyFilter.create(partitionKeys.get(i), tokens.get(i)))
+                                                       .sorted()
+                                                       .collect(Collectors.toList());
+
+        try (CellIterator it = new CellIterator(0,
+                                                table,
+                                                Stats.DoNothingStats.INSTANCE,
+                                                TypeConverter.STUB,
+                                                partitionKeyFilters,
+                                                (t) -> PruneColumnFilter.of(requiredColumns),
+                                                (partitionId1, partitionKeyFilters1, columnFilter1) ->
+                                                new CompactionStreamScanner(
+                                                metadata,
+                                                partitioner,
+                                                TimeProvider.DEFAULT,
+                                                ssTables.openAll((ssTable, isRepairPrimary) ->
+                                                                 org.apache.cassandra.spark.reader.SSTableReader.builder(metadata, ssTable)
+                                                                                                                .withPartitionKeyFilters(partitionKeyFilters1)
+                                                                                                                .build())
+                                                ))
+        {
+            @Override
+            public boolean isInPartition(int partitionId, BigInteger token, ByteBuffer partitionKey)
+            {
+                return true;
+            }
+
+            @Override
+            public boolean equals(CqlField field, Object obj1, Object obj2)
+            {
+                return Objects.equals(obj1, obj2);
+            }
+        })
+        {
+            RowIterator<Map<String, Object>> rowIterator = RowIterator.rowMapIterator(it, Stats.DoNothingStats.INSTANCE, requiredColumns);
+
+            while (rowIterator.next())
+            {
+                rowConsumer.accept(rowIterator.get());
+            }
+        }
+    }
+
+    @Override
     public synchronized void writeSSTable(Partitioner partitioner,
                                           String keyspace,
                                           String table,
@@ -339,7 +589,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
         try
         {
             SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(metadata, ssTable);
-            Pair<DecoratedKey, DecoratedKey> keys = Pair.create(summary.first(), summary.last());
+            Pair<DecoratedKey, DecoratedKey> keys = Pair.of(summary.first(), summary.last());
             if (keys.left == null || keys.right == null)
             {
                 keys = ReaderUtils.keysFromIndex(metadata, ssTable);

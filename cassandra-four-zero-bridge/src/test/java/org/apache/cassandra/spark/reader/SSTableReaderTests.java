@@ -76,11 +76,11 @@ import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
+import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.Throwing;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
-import org.apache.cassandra.utils.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -276,9 +276,9 @@ public class SSTableReaderTests
                     Pair<DecoratedKey, DecoratedKey> firstAndLast;
                     try (InputStream is = new BufferedInputStream(new FileInputStream(indexFile.toFile())))
                     {
-                        Pair<ByteBuffer, ByteBuffer> keys = ReaderUtils.readPrimaryIndex(is, true, Collections.emptyList());
-                        firstAndLast = Pair.create(BRIDGE.getPartitioner(partitioner).decorateKey(keys.left),
-                                                   BRIDGE.getPartitioner(partitioner).decorateKey(keys.right));
+                        Pair<ByteBuffer, ByteBuffer> keys = ReaderUtils.primaryIndexReadFirstAndLastKey(is);
+                        firstAndLast = Pair.of(BRIDGE.getPartitioner(partitioner).decorateKey(keys.left),
+                                               BRIDGE.getPartitioner(partitioner).decorateKey(keys.right));
                     }
                     BigInteger first = ReaderUtils.tokenToBigInteger(firstAndLast.left.getToken());
                     BigInteger last = ReaderUtils.tokenToBigInteger(firstAndLast.right.getToken());
@@ -753,25 +753,25 @@ public class SSTableReaderTests
     {
         // Standard SSTable data file name
         assertEquals(new File("./keyspace/table/na-1-big-Data.db"),
-                              SSTableReader.constructFilename("keyspace", "table", "na-1-big-Data.db"));
+                     ReaderUtils.constructFilename("keyspace", "table", "na-1-big-Data.db"));
 
         // Non-standard SSTable data file name
         assertEquals(new File("./keyspace/table/na-1-big-Data.db"),
-                              SSTableReader.constructFilename("keyspace", "table", "keyspace-table-na-1-big-Data.db"));
+                     ReaderUtils.constructFilename("keyspace", "table", "keyspace-table-na-1-big-Data.db"));
 
         // Malformed SSTable data file names
         assertEquals(new File("./keyspace/table/keyspace-table-qwerty-na-1-big-Data.db"),
-                              SSTableReader.constructFilename("keyspace", "table", "keyspace-table-qwerty-na-1-big-Data.db"));
+                     ReaderUtils.constructFilename("keyspace", "table", "keyspace-table-qwerty-na-1-big-Data.db"));
         assertEquals(new File("./keyspace/table/keyspace-qwerty-na-1-big-Data.db"),
-                              SSTableReader.constructFilename("keyspace", "table", "keyspace-qwerty-na-1-big-Data.db"));
+                     ReaderUtils.constructFilename("keyspace", "table", "keyspace-qwerty-na-1-big-Data.db"));
         assertEquals(new File("./keyspace/table/qwerty-table-na-1-big-Data.db"),
-                              SSTableReader.constructFilename("keyspace", "table", "qwerty-table-na-1-big-Data.db"));
+                     ReaderUtils.constructFilename("keyspace", "table", "qwerty-table-na-1-big-Data.db"));
         assertEquals(new File("./keyspace/table/keyspace-na-1-big-Data.db"),
-                              SSTableReader.constructFilename("keyspace", "table", "keyspace-na-1-big-Data.db"));
+                     ReaderUtils.constructFilename("keyspace", "table", "keyspace-na-1-big-Data.db"));
         assertEquals(new File("./keyspace/table/table-na-1-big-Data.db"),
-                              SSTableReader.constructFilename("keyspace", "table", "table-na-1-big-Data.db"));
+                     ReaderUtils.constructFilename("keyspace", "table", "table-na-1-big-Data.db"));
         assertEquals(new File("./keyspace/table/qwerty.db"),
-                              SSTableReader.constructFilename("keyspace", "table", "qwerty.db"));
+                     ReaderUtils.constructFilename("keyspace", "table", "qwerty.db"));
     }
 
     @Test

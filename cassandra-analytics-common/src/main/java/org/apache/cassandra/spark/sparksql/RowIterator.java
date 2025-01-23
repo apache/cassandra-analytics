@@ -20,9 +20,16 @@
 package org.apache.cassandra.spark.sparksql;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.CqlTable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -56,6 +63,55 @@ public abstract class RowIterator<T>
         this.openTimeNanos = System.nanoTime();
         this.requiredColumns = requiredColumns;
         this.builder = newBuilder(decorator);
+    }
+
+    /**
+     * @param it              CellIterator cell iterate instance to iterate over each cell in the data.
+     * @param stats           stats instance to emit KPIs
+     * @param requiredColumns optional column filter to select a subset of columns, if null then all columns are returned.
+     * @return a basic RowIterator that transforms Object[] to a Map keyed on column name
+     */
+    public static RowIterator<Map<String, Object>> rowMapIterator(CellIterator it, Stats stats, @Nullable String[] requiredColumns)
+    {
+        final CqlTable cqlTable = it.cqlTable();
+        final boolean hasProjectedValueColumns = it.hasProjectedValueColumns();
+        return new RowIterator<>(it, stats, requiredColumns, Function.identity())
+        {
+            @Override
+            public PartialRowBuilder<Map<String, Object>> newPartialBuilder()
+            {
+                Objects.requireNonNull(requiredColumns, "requiredColumns must be non-null to use PartialRowBuilder");
+                Map<String, Integer> columnIndex = IntStream.range(0, requiredColumns.length)
+                                                            .boxed()
+                                                            .collect(Collectors.toMap(i -> requiredColumns[i], Function.identity()));
+
+                return new PartialRowBuilder<>(
+                requiredColumns, it.cqlTable(), hasProjectedValueColumns,
+                (valueArray) -> {
+                    Map<String, Object> row = new HashMap<>(requiredColumns.length);
+                    for (String field : requiredColumns)
+                    {
+                        row.put(field, valueArray[columnIndex.get(field)]);
+                    }
+                    return row;
+                });
+            }
+
+            @Override
+            public FullRowBuilder<Map<String, Object>> newFullRowBuilder()
+            {
+                return new FullRowBuilder<>(
+                cqlTable, hasProjectedValueColumns,
+                (valueArray) -> {
+                    Map<String, Object> row = new HashMap<>(cqlTable.numFields());
+                    for (CqlField field : cqlTable.fields())
+                    {
+                        row.put(field.name(), valueArray[field.position()]);
+                    }
+                    return row;
+                });
+            }
+        };
     }
 
     @NotNull

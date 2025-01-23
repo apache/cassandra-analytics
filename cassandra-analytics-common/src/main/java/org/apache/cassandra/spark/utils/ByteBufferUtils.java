@@ -30,10 +30,13 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CharsetDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.CqlTable;
 import org.jetbrains.annotations.Nullable;
 
 public final class ByteBufferUtils
@@ -89,6 +92,16 @@ public final class ByteBufferUtils
         buffer.duplicate().get(bytes);
 
         return bytes;
+    }
+
+    public static String readShortLengthString(ByteBuffer buf)
+    {
+        int len = buf.getShort();
+        byte[] ar = new byte[len];
+        buf.get(ar);
+        String str = new String(ar, StandardCharsets.UTF_8);
+        buf.get();
+        return str;
     }
 
     /**
@@ -270,6 +283,28 @@ public final class ByteBufferUtils
                                                   .map(f -> f.serialize(values[f.position()]))
                                                   .toArray(ByteBuffer[]::new);
         return build(false, buffers);
+    }
+
+    public static Map<String, Object> decodePartitionKey(CqlTable table, ByteBuffer partitionKey)
+    {
+        Map<String, Object> result = new HashMap<>(table.numPartitionKeys());
+        if (table.numPartitionKeys() == 1)
+        {
+            // Not a composite partition key
+            CqlField field = table.partitionKeys().get(0);
+            Object value = field.deserializeToJavaType(partitionKey, field.type().isFrozen());
+            result.put(field.name(), value);
+        }
+        else
+        {
+            // Split composite partition keys
+            for (CqlField field : table.partitionKeys())
+            {
+                Object value = field.deserializeToJavaType(partitionKey, field.type().isFrozen());
+                result.put(field.name(), value);
+            }
+        }
+        return result;
     }
 
     /**

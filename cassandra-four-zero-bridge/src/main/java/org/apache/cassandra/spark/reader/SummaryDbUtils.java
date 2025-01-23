@@ -76,9 +76,14 @@ public final class SummaryDbUtils
 
     public static Summary readSummary(@NotNull TableMetadata metadata, @NotNull SSTable ssTable) throws IOException
     {
+        return readSummary(ssTable, metadata.partitioner, metadata.params.minIndexInterval, metadata.params.maxIndexInterval);
+    }
+
+    public static Summary readSummary(@NotNull SSTable ssTable, IPartitioner partitioner, int minIndexInterval, int maxIndexInterval) throws IOException
+    {
         try (InputStream in = ssTable.openSummaryStream())
         {
-            return readSummary(in, metadata.partitioner, metadata.params.minIndexInterval, metadata.params.maxIndexInterval);
+            return readSummary(in, partitioner, minIndexInterval, maxIndexInterval);
         }
     }
 

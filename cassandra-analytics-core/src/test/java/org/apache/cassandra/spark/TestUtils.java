@@ -388,4 +388,16 @@ public final class TestUtils extends CommonTestUtils
     {
         return Range.openClosed(start, end);
     }
+
+    public static void createDirectory(Path directory)
+    {
+        try
+        {
+            Files.createDirectory(directory);
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+    }
 }

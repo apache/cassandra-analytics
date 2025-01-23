@@ -119,6 +119,11 @@ public final class RandomUtils
         return randomAlphanumeric(RandomUtils.nextInt(minLengthInclusive, maxLengthExclusive));
     }
 
+    public static String randomAlphanumeric()
+    {
+        return randomAlphanumeric(32);
+    }
+
     public static String randomAlphanumeric(int length)
     {
         StringBuilder sb = new StringBuilder(length);

@@ -25,6 +25,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import java.util.Objects;
+
+import com.google.common.collect.ImmutableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,6 +96,12 @@ public class ReplicationFactor implements Serializable
             }
             throw new IllegalArgumentException();
         }
+    }
+
+    public static ReplicationFactor simple(int rf)
+    {
+        return new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
+                                     ImmutableMap.of("replication_factor", rf));
     }
 
     @NotNull
