@@ -22,11 +22,11 @@ package org.apache.cassandra.spark.sparksql;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 
-abstract class RowBuilderDecorator implements RowBuilder
+abstract class RowBuilderDecorator implements RowBuilder<GenericInternalRow>
 {
-    protected final RowBuilder delegate;
+    protected final RowBuilder<GenericInternalRow> delegate;
 
-    RowBuilderDecorator(RowBuilder delegate)
+    RowBuilderDecorator(RowBuilder<GenericInternalRow> delegate)
     {
         this.delegate = delegate;
     }

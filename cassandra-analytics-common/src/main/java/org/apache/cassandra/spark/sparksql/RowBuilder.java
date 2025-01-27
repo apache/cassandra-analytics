@@ -20,9 +20,8 @@
 package org.apache.cassandra.spark.sparksql;
 
 import org.apache.cassandra.spark.data.CqlTable;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 
-public interface RowBuilder
+public interface RowBuilder<T>
 {
     CqlTable getCqlTable();
 
@@ -54,5 +53,5 @@ public interface RowBuilder
      */
     int expandRow(int extraColumns);
 
-    GenericInternalRow build();
+    T build();
 }

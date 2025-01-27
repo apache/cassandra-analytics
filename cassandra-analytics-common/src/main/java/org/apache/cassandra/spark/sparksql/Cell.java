@@ -19,12 +19,12 @@
 
 package org.apache.cassandra.spark.sparksql;
 
-class Cell
+public class Cell
 {
-    final Object[] values;
-    final int position;
-    final boolean isNewRow;
-    final long timestamp;
+    public final Object[] values;
+    public final int position;
+    public final boolean isNewRow;
+    public final long timestamp;
 
     Cell(Object[] values, int position, boolean isNewRow, long timestamp)
     {

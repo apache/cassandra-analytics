@@ -19,19 +19,16 @@
 
 package org.apache.cassandra.spark.sparksql;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
-import org.apache.cassandra.analytics.stats.Stats;
-import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
@@ -39,43 +36,32 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Wrapper iterator around SparkCellIterator to normalize cells into Spark SQL rows
+ *
+ * @param <T> type of row returned by Iterator.
  */
-abstract class AbstractSparkRowIterator
+abstract class AbstractSparkRowIterator<T> extends RowIterator<T>
 {
-    private final Stats stats;
-    private final SparkCellIterator it;
-    private final long openTimeNanos;
-    private final RowBuilder builder;
-
-    protected final List<SchemaFeature> requestedFeatures;
-    protected final CqlTable cqlTable;
-    protected final StructType columnFilter;
-    protected final boolean hasProjectedValueColumns;
-
-    private Cell cell = null;
-    private InternalRow row = null;
-
     AbstractSparkRowIterator(int partitionId,
                              @NotNull DataLayer dataLayer,
                              @Nullable StructType requiredSchema,
-                             @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+                             @NotNull List<PartitionKeyFilter> partitionKeyFilters,
+                             Function<RowBuilder<T>, RowBuilder<T>> decorator)
     {
-        this.stats = dataLayer.stats();
-        this.cqlTable = dataLayer.cqlTable();
-        this.columnFilter = useColumnFilter(requiredSchema, cqlTable) ? requiredSchema : null;
-        this.it = buildCellIterator(partitionId, dataLayer, columnFilter, partitionKeyFilters);
-        this.stats.openedSparkRowIterator();
-        this.openTimeNanos = System.nanoTime();
-        this.requestedFeatures = dataLayer.requestedFeatures();
-        this.hasProjectedValueColumns = it.hasProjectedValueColumns();
-        this.builder = newBuilder();
+        super(
+        buildCellIterator(partitionId, dataLayer.cqlTable(), requiredSchema, dataLayer, partitionKeyFilters),
+        dataLayer.stats(),
+        requiredSchema == null ? null : requiredSchema.fieldNames(),
+        decorator
+        );
     }
 
-    protected SparkCellIterator buildCellIterator(int partitionId,
-                                                  @NotNull DataLayer dataLayer,
-                                                  @Nullable StructType columnFilter,
-                                                  @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+    protected static CellIterator buildCellIterator(int partitionId,
+                                                    CqlTable cqlTable,
+                                                    @Nullable StructType requiredSchema,
+                                                    @NotNull DataLayer dataLayer,
+                                                    @NotNull List<PartitionKeyFilter> partitionKeyFilters)
     {
+        StructType columnFilter = useColumnFilter(requiredSchema, cqlTable) ? requiredSchema : null;
         return new SparkCellIterator(partitionId, dataLayer, columnFilter, partitionKeyFilters);
     }
 
@@ -92,66 +78,21 @@ abstract class AbstractSparkRowIterator
                        .anyMatch(field -> !requiredFields.contains(field));
     }
 
-    abstract RowBuilder newBuilder();
+    public abstract T mapper(Object[] result);
 
-    public InternalRow get()
+    @Override
+    public PartialRowBuilder<T> newPartialBuilder()
     {
-        return row;
-    }
-
-    public boolean next() throws IOException
-    {
-        // We are finished if not already reading a row (if cell != null, it can happen if previous row was incomplete)
-        // and SparkCellIterator has no next value
-        if (cell == null && !it.hasNextThrows())
+        if (requiredColumns == null)
         {
-            return false;
+            throw new NullPointerException("requiredColumns must be non-null for PartialRowBuilder");
         }
-
-        // Pivot values to normalize each cell into single SparkSQL or 'CQL' type row
-        do
-        {
-            if (cell == null)
-            {
-                // Read next cell
-                cell = it.next();
-            }
-
-            if (builder.isFirstCell())
-            {
-                // On first iteration, copy all partition keys, clustering keys, static columns
-                assert cell.isNewRow;
-                builder.copyKeys(cell);
-            }
-            else if (cell.isNewRow)
-            {
-                // Current row is incomplete, so we have moved to new row before reaching end
-                // break out to return current incomplete row and handle next row in next iteration
-                break;
-            }
-
-            builder.onCell(cell);
-
-            if (hasProjectedValueColumns)
-            {
-                // If schema has value column
-                builder.copyValue(cell);
-            }
-            cell = null;
-            // Keep reading more cells until we read the entire row
-        } while (builder.hasMoreCells() && it.hasNextThrows());
-
-        // Build row and reset builder for next row
-        row = builder.build();
-        builder.reset();
-
-        stats.nextRow();
-        return true;
+        return new PartialRowBuilder<>(requiredColumns, cqlTable, hasProjectedValueColumns, this::mapper);
     }
 
-    public void close() throws IOException
+    @Override
+    public FullRowBuilder<T> newFullRowBuilder()
     {
-        stats.closedSparkRowIterator(System.nanoTime() - openTimeNanos);
-        it.close();
+        return new FullRowBuilder<>(cqlTable, hasProjectedValueColumns, this::mapper);
     }
 }

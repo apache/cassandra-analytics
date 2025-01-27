@@ -70,7 +70,7 @@ public class PartitionSizeIterator implements PartitionReader<InternalRow>
             IndexEntry entry = it.data();
             Object[] values = new Object[numPartitionKeys + 2];
 
-            SparkCellIterator.readPartitionKey(sparkSqlTypeConverter, entry.getPartitionKey(), cqlTable, values, stats);
+            CellIterator.readPartitionKey(sparkSqlTypeConverter, entry.getPartitionKey(), cqlTable, values, stats);
             values[numPartitionKeys] = entry.getUncompressed();
             values[numPartitionKeys + 1] = entry.getCompressed();
 

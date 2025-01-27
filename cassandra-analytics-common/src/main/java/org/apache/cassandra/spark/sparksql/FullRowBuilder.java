@@ -19,34 +19,36 @@
 
 package org.apache.cassandra.spark.sparksql;
 
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.IntStream;
+import java.util.Optional;
+import java.util.function.Function;
 
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 
 /**
  * FullRowBuilder expects all fields in the schema to be returned, i.e. no prune column filter
+ *
+ * @param <T> type of row returned by builder
  */
-class FullRowBuilder implements RowBuilder
+public class FullRowBuilder<T> implements RowBuilder<T>
 {
     static final Object[] EMPTY_RESULT = new Object[0];
-    final int numColumns;
-    final int numCells;
-    final boolean hasProjectedValueColumns;
-    int extraColumns;
-    Object[] result;
-    int count;
+    protected final int numColumns;
+    protected final int numCells;
+    protected final boolean hasProjectedValueColumns;
+    protected int extraColumns;
+    protected Object[] result;
+    protected int count;
     private final CqlTable cqlTable;
+    protected final Function<Object[], T> mapper;
 
-    FullRowBuilder(CqlTable cqlTable, boolean hasProjectedValueColumns)
+    FullRowBuilder(CqlTable cqlTable, boolean hasProjectedValueColumns, Function<Object[], T> mapper)
     {
         this.cqlTable = cqlTable;
         this.numColumns = cqlTable.numFields();
         this.hasProjectedValueColumns = hasProjectedValueColumns;
         this.numCells = cqlTable.numNonValueColumns() + (hasProjectedValueColumns ? 1 : 0);
+        this.mapper = mapper;
     }
 
     @Override
@@ -133,16 +135,13 @@ class FullRowBuilder implements RowBuilder
     @Override
     public int fieldIndex(String name)
     {
-        List<CqlField> fields = cqlTable.fields();
-        return IntStream.range(0, fields.size())
-                        .filter(i -> Objects.equals(fields.get(i).name(), name))
-                        .findFirst()
-                        .orElse(-1);
+        return Optional.ofNullable(cqlTable.getField(name))
+                       .map(CqlField::position)
+                       .orElse(-1);
     }
 
-    @Override
-    public GenericInternalRow build()
+    public T build()
     {
-        return new GenericInternalRow(result);
+        return mapper.apply(result);
     }
 }
