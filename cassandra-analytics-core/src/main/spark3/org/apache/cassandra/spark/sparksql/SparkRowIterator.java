@@ -80,8 +80,8 @@ public class SparkRowIterator extends AbstractSparkRowIterator<GenericInternalRo
         return builder;
     }
 
-    public GenericInternalRow mapper(Object[] result)
+    public GenericInternalRow rowBuilder(Object[] valueArray)
     {
-        return new GenericInternalRow(result);
+        return new GenericInternalRow(valueArray);
     }
 }

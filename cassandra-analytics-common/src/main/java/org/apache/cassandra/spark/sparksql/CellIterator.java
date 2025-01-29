@@ -293,7 +293,25 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
         readPartitionKey(typeConverter, rowData.getPartitionKey(), cqlTable, this.values, stats);
     }
 
+    /**
+     * @param partitionId  partition id of this bulk reader partition
+     * @param token        Cassandra token of partition key
+     * @param partitionKey raw ByteBuffer of partition key
+     * @return true if this partitionKey is within the token range of this bulk reader partition.
+     * Partition keys outside the token range can be ignored by this iterator.
+     */
     public abstract boolean isInPartition(int partitionId, BigInteger token, ByteBuffer partitionKey);
+
+    /**
+     * Return true if two values are equal for a given CqlField, this is primarily used to
+     * detect if the iterator has transitioned to a new clustering key (and so new primary key), so should emit in a new row.
+     *
+     * @param field CqlField of the column being compared.
+     * @param obj1  first value
+     * @param obj2  second value
+     * @return true if obj1 equals obj2 for a given CqlType.
+     */
+    public abstract boolean equals(CqlField field, Object obj1, Object obj2);
 
     public static void readPartitionKey(TypeConverter typeConverter,
                                         ByteBuffer partitionKey,
@@ -318,8 +336,6 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
             }
         }
     }
-
-    public abstract boolean equals(CqlField field, Object obj1, Object obj2);
 
     /**
      * Deserialize clustering key components and update 'values' array if changed. Mark isNewRow true if we move to new CQL row.

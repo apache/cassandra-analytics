@@ -28,6 +28,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * Wrapper iterator around CellIterator to normalize cells into Spark SQL rows
+ *
  * @param <T> type of row returned by Iterator.
  */
 public abstract class RowIterator<T>
@@ -76,8 +77,14 @@ public abstract class RowIterator<T>
         return builder;
     }
 
+    /**
+     * @return an instance of a PartialRowBuilder that builds a row with a subset of columns in the schema and maps to the generic type.
+     */
     public abstract PartialRowBuilder<T> newPartialBuilder();
 
+    /**
+     * @return an instance of a FullRowBuilder that builds a row with all columns in the schema and maps to the generic type.
+     */
     public abstract FullRowBuilder<T> newFullRowBuilder();
 
     public boolean next() throws IOException

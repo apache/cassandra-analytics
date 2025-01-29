@@ -48,9 +48,9 @@ public class PartialRowBuilder<T> extends FullRowBuilder<T>
     public PartialRowBuilder(@NotNull String[] requiredSchema,
                              CqlTable table,
                              boolean hasProjectedValueColumns,
-                             Function<Object[], T> mapper)
+                             Function<Object[], T> rowBuilder)
     {
-        super(table, hasProjectedValueColumns, mapper);
+        super(table, hasProjectedValueColumns, rowBuilder);
         this.requiredSchema = requiredSchema;
         this.columnIndex = new HashMap<>(requiredSchema.length);
         for (int i = 0; i < requiredSchema.length; i++)

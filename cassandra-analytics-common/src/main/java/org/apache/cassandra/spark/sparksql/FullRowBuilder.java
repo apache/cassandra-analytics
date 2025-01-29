@@ -40,15 +40,15 @@ public class FullRowBuilder<T> implements RowBuilder<T>
     protected Object[] result;
     protected int count;
     private final CqlTable cqlTable;
-    protected final Function<Object[], T> mapper;
+    protected final Function<Object[], T> rowBuilder;
 
-    FullRowBuilder(CqlTable cqlTable, boolean hasProjectedValueColumns, Function<Object[], T> mapper)
+    FullRowBuilder(CqlTable cqlTable, boolean hasProjectedValueColumns, Function<Object[], T> rowBuilder)
     {
         this.cqlTable = cqlTable;
         this.numColumns = cqlTable.numFields();
         this.hasProjectedValueColumns = hasProjectedValueColumns;
         this.numCells = cqlTable.numNonValueColumns() + (hasProjectedValueColumns ? 1 : 0);
-        this.mapper = mapper;
+        this.rowBuilder = rowBuilder;
     }
 
     @Override
@@ -142,6 +142,6 @@ public class FullRowBuilder<T> implements RowBuilder<T>
 
     public T build()
     {
-        return mapper.apply(result);
+        return rowBuilder.apply(result);
     }
 }
