@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.function.Function;
 
 import org.apache.cassandra.analytics.stats.Stats;
-import org.apache.cassandra.spark.data.CqlTable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -38,12 +37,10 @@ public abstract class RowIterator<T>
     private final long openTimeNanos;
     private final RowBuilder<T> builder;
 
-    protected final CqlTable cqlTable;
     // NOTE: requiredColumns might contain additional decorated fields like last_modified_timestamp,
     // but PruneColumnFilter is pushed down to the SSTableReader so only contains the real table fields
     @Nullable
     protected final String[] requiredColumns;
-    protected final boolean hasProjectedValueColumns;
 
     protected T row;
     private Cell cell = null;
@@ -56,9 +53,7 @@ public abstract class RowIterator<T>
         this.stats = stats;
         this.it = it;
         this.openTimeNanos = System.nanoTime();
-        this.cqlTable = it.cqlTable;
         this.requiredColumns = requiredColumns;
-        this.hasProjectedValueColumns = it.hasProjectedValueColumns;
         this.builder = newBuilder(decorator);
     }
 
@@ -118,7 +113,7 @@ public abstract class RowIterator<T>
 
             builder.onCell(cell);
 
-            if (hasProjectedValueColumns)
+            if (it.hasProjectedValueColumns())
             {
                 // If schema has value column
                 builder.copyValue(cell);

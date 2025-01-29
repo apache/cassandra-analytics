@@ -70,7 +70,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
 
     protected final int partitionId;
     protected final int firstProjectedValueColumnPositionOrZero;
-    protected final boolean hasProjectedValueColumns;
+    private final boolean hasProjectedValueColumns;
     protected final TypeConverter typeConverter;
 
     public interface ScannerSupplier
@@ -123,6 +123,16 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
         rowData = scanner.data();
         stats.openedSparkCellIterator();
         firstProjectedValueColumnPositionOrZero = maybeGetPositionOfFirstProjectedValueColumnOrZero();
+    }
+
+    public CqlTable cqlTable()
+    {
+        return cqlTable;
+    }
+
+    public boolean hasProjectedValueColumns()
+    {
+        return hasProjectedValueColumns;
     }
 
     @Override

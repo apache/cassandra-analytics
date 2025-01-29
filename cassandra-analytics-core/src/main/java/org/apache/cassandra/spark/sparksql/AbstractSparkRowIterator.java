@@ -85,12 +85,12 @@ abstract class AbstractSparkRowIterator<T> extends RowIterator<T>
     public PartialRowBuilder<T> newPartialBuilder()
     {
         Objects.requireNonNull(requiredColumns, "requiredColumns must be non-null for PartialRowBuilder");
-        return new PartialRowBuilder<>(requiredColumns, cqlTable, hasProjectedValueColumns, this::mapper);
+        return new PartialRowBuilder<>(requiredColumns, it.cqlTable(), it.hasProjectedValueColumns(), this::mapper);
     }
 
     @Override
     public FullRowBuilder<T> newFullRowBuilder()
     {
-        return new FullRowBuilder<>(cqlTable, hasProjectedValueColumns, this::mapper);
+        return new FullRowBuilder<>(it.cqlTable(), it.hasProjectedValueColumns(), this::mapper);
     }
 }
