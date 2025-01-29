@@ -62,7 +62,7 @@ public class SparkRowIterator extends AbstractSparkRowIterator<InternalRow> impl
     @NotNull
     protected RowBuilder<InternalRow> newBuilder(Function<RowBuilder<InternalRow>, RowBuilder<InternalRow>> decorator)
     {
-        RowBuilder<InternalRow> builder = new FullRowBuilder<>(cqlTable, hasProjectedValueColumns, this::mapper);
+        RowBuilder<InternalRow> builder = new FullRowBuilder<>(it.cqlTable(), it.hasProjectedValueColumns(), this::mapper);
         builder = decorator.apply(builder);
         builder.reset();
         return builder;
