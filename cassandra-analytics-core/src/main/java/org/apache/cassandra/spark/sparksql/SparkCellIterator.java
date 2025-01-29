@@ -57,9 +57,10 @@ public class SparkCellIterator extends CellIterator
               dataLayer::openCompactionScanner);
         this.dataLayer = dataLayer;
         this.sparkTypes = new SparkType[cqlTable.numFields()];
+        SparkSqlTypeConverter sparkSqlTypeConverter = ((SparkSqlTypeConverter) this.typeConverter);
         for (int index = 0; index < cqlTable.numFields(); index++)
         {
-            this.sparkTypes[index] = ((SparkSqlTypeConverter) this.typeConverter).toSparkType(cqlTable.field(index).type());
+            this.sparkTypes[index] = sparkSqlTypeConverter.toSparkType(cqlTable.field(index).type());
         }
     }
 
@@ -87,7 +88,7 @@ public class SparkCellIterator extends CellIterator
     }
 
     @Override
-    public String decodeString(@Nullable ByteBuffer buffer)
+    protected String decodeString(@Nullable ByteBuffer buffer)
     {
         return buffer != null ? FastThreadLocalUtf8Decoder.stringThrowRuntime(buffer) : null;
     }

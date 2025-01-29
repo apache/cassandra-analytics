@@ -75,9 +75,15 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
 
     public interface ScannerSupplier
     {
+        /**
+         * @param partitionId         arbitrary id uniquely identifying this partiton of the bulk read
+         * @param partitionKeyFilters list of partition key filters to push-down,
+         * @param columnFilter        optional column filter to only read certain columns
+         * @return a StreamScanner to iterate over each cell of the data.g
+         */
         StreamScanner<RowData> get(int partitionId,
                                    @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                                   PruneColumnFilter columnFilter);
+                                   @Nullable PruneColumnFilter columnFilter);
     }
 
     public CellIterator(int partitionId,
@@ -117,11 +123,6 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
         rowData = scanner.data();
         stats.openedSparkCellIterator();
         firstProjectedValueColumnPositionOrZero = maybeGetPositionOfFirstProjectedValueColumnOrZero();
-    }
-
-    public boolean hasProjectedValueColumns()
-    {
-        return hasProjectedValueColumns;
     }
 
     @Override
@@ -231,7 +232,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
         return false;
     }
 
-    public String decodeString(@Nullable ByteBuffer buffer) throws CharacterCodingException
+    protected String decodeString(@Nullable ByteBuffer buffer) throws CharacterCodingException
     {
         return buffer == null ? null : ByteBufferUtils.string(buffer);
     }
