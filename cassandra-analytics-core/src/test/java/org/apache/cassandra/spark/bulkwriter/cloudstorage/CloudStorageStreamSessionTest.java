@@ -214,7 +214,7 @@ class CloudStorageStreamSessionTest
         @Override
         public BundleStorageObject uploadBundle(StorageCredentials writeCredentials, Bundle bundle)
         {
-            uploadedBundleManifest.put(bundle.startToken, bundle);
+            uploadedBundleManifest.put(bundle.firstToken, bundle);
             return BundleStorageObject.builder()
                                       .bundle(bundle)
                                       .storageObjectChecksum("dummy")

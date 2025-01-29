@@ -42,7 +42,7 @@ public class Bundle
 {
     private static final String MANIFEST_FILE_NAME = "manifest.json";
 
-    public final BigInteger startToken;
+    public final BigInteger firstToken;
     public final BigInteger endToken;
     public final long bundleUncompressedSize;
     public final long bundleCompressedSize;
@@ -63,7 +63,7 @@ public class Bundle
 
     protected Bundle(Builder builder)
     {
-        this.startToken = builder.startToken;
+        this.firstToken = builder.firstToken;
         this.endToken = builder.endToken;
         this.bundleManifest = builder.bundleManifest;
         this.bundleUncompressedSize = builder.bundleUncompressedSize;
@@ -128,7 +128,7 @@ public class Bundle
                + ", bundleFile: " + bundleFile
                + ", uncompressedSize: " + bundleUncompressedSize
                + ", compressedSize: " + bundleCompressedSize
-               + ", startToken: " + startToken
+               + ", startToken: " + firstToken
                + ", endToken: " + endToken + '}';
     }
 
@@ -139,7 +139,7 @@ public class Bundle
     {
         private final BundleManifest bundleManifest;
 
-        private BigInteger startToken;
+        private BigInteger firstToken;
         private BigInteger endToken;
         private Path bundleStagingDirectory;
         private Path bundleDirectory; // path of the directory that include sstables and manifest file to be bundled
@@ -231,7 +231,7 @@ public class Bundle
 
             populateBundleManifestAndPersist();
 
-            String bundleName = bundleNameGenerator.generate(startToken, endToken);
+            String bundleName = bundleNameGenerator.generate(firstToken, endToken);
             bundleFile = bundleStagingDirectory.resolve(bundleName);
             bundleCompressedSize = SSTablesBundler.zip(bundleDirectory, bundleFile);
         }
@@ -260,12 +260,12 @@ public class Bundle
         {
             if (bundleManifest.isEmpty())
             {
-                startToken = entry.startToken();
+                firstToken = entry.startToken();
                 endToken = entry.endToken();
             }
             else
             {
-                startToken = startToken.min(entry.startToken());
+                firstToken = firstToken.min(entry.startToken());
                 endToken = endToken.max(entry.endToken());
             }
             bundleManifest.addEntry(entry);

@@ -64,7 +64,7 @@ class BundleTest
                               .bundleStagingDirectory(stagingDir)
                               .build();
         assertEquals(totalSize, bundle.bundleUncompressedSize);
-        assertEquals(BigInteger.ONE, bundle.startToken);
+        assertEquals(BigInteger.ONE, bundle.firstToken);
         assertEquals(BigInteger.TEN, bundle.endToken);
         assertNotNull(bundle.bundleFile);
         assertTrue(Files.exists(bundle.bundleFile));

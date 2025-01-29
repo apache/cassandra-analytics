@@ -43,6 +43,7 @@ import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.sidecar.config.S3ClientConfiguration;
 import org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl.Builder;
+import org.apache.cassandra.sidecar.db.schema.SidecarSchema;
 import org.apache.cassandra.sidecar.server.MainModule;
 import org.apache.cassandra.sidecar.server.Server;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
@@ -55,7 +56,8 @@ import org.apache.spark.sql.SparkSession;
 
 import static org.apache.cassandra.analytics.SparkTestUtils.sidecarInstancesOptionStream;
 import static org.apache.cassandra.analytics.testcontainer.BulkWriteS3CompatModeSimpleTest.BUCKET_NAME;
-import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_API_CALL_TIMEOUT_MILLIS;
+import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_API_CALL_TIMEOUT;
+import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_THREAD_KEEP_ALIVE;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -125,13 +127,13 @@ public class CoordinatedBulkWriteSimpleTest extends CoordinatedWriteTestBase
         }
     }
 
-    private Server startSidecarWithInstances(Iterable<? extends IInstance> instances, S3MockContainer s3Mock) throws Exception
+    private Server startSidecarWithInstances(Iterable<? extends IInstance> instances, S3MockContainer s3Mock)
     {
         VertxTestContext context = new VertxTestContext();
         Function<Builder, Builder> sidecarConfigurator = builder -> {
             S3MockProxyConfigurationImpl s3MockProxyConfiguration = new S3MockProxyConfigurationImpl(s3Mock.getHttpEndpoint());
-            S3ClientConfiguration s3ClientConfig = new S3ClientConfigurationImpl("s3-client", 4, 60L,
-                                                                                 5242880, DEFAULT_API_CALL_TIMEOUT_MILLIS,
+            S3ClientConfiguration s3ClientConfig = new S3ClientConfigurationImpl("s3-client", 4, DEFAULT_THREAD_KEEP_ALIVE,
+                                                                                 5242880, DEFAULT_API_CALL_TIMEOUT,
                                                                                  s3MockProxyConfiguration);
             builder.s3ClientConfiguration(s3ClientConfig);
             return builder;
@@ -143,12 +145,19 @@ public class CoordinatedBulkWriteSimpleTest extends CoordinatedWriteTestBase
                                                               sidecarConfigurator);
         sidecarServerInjector = Guice.createInjector(Modules.override(new MainModule()).with(testModule));
         Server sidecarServer = sidecarServerInjector.getInstance(Server.class);
-        sidecarServer.start()
-                     .onSuccess(s -> context.completeNow())
-                     .onFailure(context::failNow);
+        sidecarServer.start().onFailure(context::failNow);
 
-        context.awaitCompletion(5, TimeUnit.SECONDS);
-        return sidecarServer;
+        SidecarSchema sidecarSchema = sidecarServerInjector.getInstance(SidecarSchema.class);
+        for (int i = 0; i < 60; i ++)
+        {
+            Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
+            if (sidecarSchema.isInitialized())
+            {
+                context.completeNow();
+                return sidecarServer;
+            }
+        }
+        throw new AssertionError("Sidecar server failed to init schema");
     }
 
     private ClusterBuilderConfiguration clusterConfiguration()

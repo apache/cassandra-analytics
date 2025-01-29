@@ -67,24 +67,29 @@ import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
 import org.apache.cassandra.distributed.shared.JMXUtil;
 import org.apache.cassandra.sidecar.cluster.CassandraAdapterDelegate;
-import org.apache.cassandra.sidecar.cluster.InstancesConfig;
-import org.apache.cassandra.sidecar.cluster.InstancesConfigImpl;
+import org.apache.cassandra.sidecar.cluster.InstancesMetadata;
+import org.apache.cassandra.sidecar.cluster.InstancesMetadataImpl;
 import org.apache.cassandra.sidecar.cluster.instance.InstanceMetadata;
 import org.apache.cassandra.sidecar.cluster.instance.InstanceMetadataImpl;
 import org.apache.cassandra.sidecar.common.server.CQLSessionProvider;
 import org.apache.cassandra.sidecar.common.server.JmxClient;
 import org.apache.cassandra.sidecar.common.server.dns.DnsResolver;
 import org.apache.cassandra.sidecar.common.server.utils.DriverUtils;
+import org.apache.cassandra.sidecar.common.server.utils.MillisecondBoundConfiguration;
+import org.apache.cassandra.sidecar.common.server.utils.SecondBoundConfiguration;
 import org.apache.cassandra.sidecar.common.server.utils.SidecarVersionProvider;
 import org.apache.cassandra.sidecar.common.server.utils.ThrowableUtils;
 import org.apache.cassandra.sidecar.config.JmxConfiguration;
 import org.apache.cassandra.sidecar.config.KeyStoreConfiguration;
+import org.apache.cassandra.sidecar.config.PeriodicTaskConfiguration;
 import org.apache.cassandra.sidecar.config.S3ClientConfiguration;
 import org.apache.cassandra.sidecar.config.S3ProxyConfiguration;
 import org.apache.cassandra.sidecar.config.ServiceConfiguration;
 import org.apache.cassandra.sidecar.config.SidecarConfiguration;
 import org.apache.cassandra.sidecar.config.SslConfiguration;
+import org.apache.cassandra.sidecar.config.yaml.CoordinationConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.KeyStoreConfigurationImpl;
+import org.apache.cassandra.sidecar.config.yaml.PeriodicTaskConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SchemaKeyspaceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.ServiceConfigurationImpl;
@@ -102,7 +107,8 @@ import org.apache.cassandra.testing.TestUtils;
 import org.apache.cassandra.testing.TestVersion;
 import org.apache.cassandra.testing.TestVersionSupplier;
 
-import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_API_CALL_TIMEOUT_MILLIS;
+import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_API_CALL_TIMEOUT;
+import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_THREAD_KEEP_ALIVE;
 import static org.apache.cassandra.sidecar.testing.MtlsTestHelper.CASSANDRA_INTEGRATION_TEST_ENABLE_MTLS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -545,12 +551,12 @@ public abstract class SharedClusterIntegrationTestBase
 
         @Provides
         @Singleton
-        public InstancesConfig instancesConfig(Vertx vertx,
-                                               SidecarConfiguration configuration,
-                                               CassandraVersionProvider cassandraVersionProvider,
-                                               SidecarVersionProvider sidecarVersionProvider,
-                                               CQLSessionProvider cqlSessionProvider,
-                                               DnsResolver dnsResolver)
+        public InstancesMetadata instancesConfig(Vertx vertx,
+                                                 SidecarConfiguration configuration,
+                                                 CassandraVersionProvider cassandraVersionProvider,
+                                                 SidecarVersionProvider sidecarVersionProvider,
+                                                 CQLSessionProvider cqlSessionProvider,
+                                                 DnsResolver dnsResolver)
         {
             JmxConfiguration jmxConfiguration = configuration.serviceConfiguration().jmxConfiguration();
             List<InstanceMetadata> instanceMetadataList =
@@ -564,19 +570,24 @@ public abstract class SharedClusterIntegrationTestBase
                                                                 dnsResolver,
                                                                 wrapper))
                          .collect(Collectors.toList());
-            return new InstancesConfigImpl(instanceMetadataList, dnsResolver);
+            return new InstancesMetadataImpl(instanceMetadataList, dnsResolver);
         }
 
         @Provides
         @Singleton
         public SidecarConfiguration sidecarConfiguration()
         {
+            // claim lease fast for testing
+            PeriodicTaskConfiguration clusterClaimTaskConfig = new PeriodicTaskConfigurationImpl(true,
+                                                                                                 MillisecondBoundConfiguration.parse("1s"),
+                                                                                                 MillisecondBoundConfiguration.parse("1s"));
             ServiceConfiguration conf = ServiceConfigurationImpl.builder()
                                                                 .host("0.0.0.0") // binds to all interfaces, potential security issue if left running for long
                                                                 .port(0) // let the test find an available port
                                                                 .schemaKeyspaceConfiguration(SchemaKeyspaceConfigurationImpl.builder()
                                                                                                                             .isEnabled(true)
                                                                                                                             .build())
+                                                                .coordinationConfiguration(new CoordinationConfigurationImpl(clusterClaimTaskConfig))
                                                                 .build();
 
 
@@ -589,13 +600,13 @@ public abstract class SharedClusterIntegrationTestBase
                 new KeyStoreConfigurationImpl(mtlsTestHelper.trustStorePath(),
                                               mtlsTestHelper.trustStorePassword(),
                                               mtlsTestHelper.trustStoreType(),
-                                              -1);
+                                              SecondBoundConfiguration.ZERO);
 
                 KeyStoreConfiguration keyStoreConfiguration =
                 new KeyStoreConfigurationImpl(mtlsTestHelper.serverKeyStorePath(),
                                               mtlsTestHelper.serverKeyStorePassword(),
                                               mtlsTestHelper.serverKeyStoreType(),
-                                              -1);
+                                              SecondBoundConfiguration.ZERO);
 
                 sslConfiguration = SslConfigurationImpl.builder()
                                                        .enabled(true)
@@ -608,8 +619,8 @@ public abstract class SharedClusterIntegrationTestBase
                 LOGGER.info("Not enabling mTLS for testing purposes. Set '{}' to 'true' if you would " +
                             "like mTLS enabled.", CASSANDRA_INTEGRATION_TEST_ENABLE_MTLS);
             }
-            S3ClientConfiguration s3ClientConfig = new S3ClientConfigurationImpl("s3-client", 4, 60L,
-                                                                                 5242880, DEFAULT_API_CALL_TIMEOUT_MILLIS,
+            S3ClientConfiguration s3ClientConfig = new S3ClientConfigurationImpl("s3-client", 4, DEFAULT_THREAD_KEEP_ALIVE,
+                                                                                 5242880, DEFAULT_API_CALL_TIMEOUT,
                                                                                  buildTestS3ProxyConfig());
             SidecarConfigurationImpl.Builder builder = SidecarConfigurationImpl.builder()
                                                                                .serviceConfiguration(conf)
@@ -708,7 +719,7 @@ public abstract class SharedClusterIntegrationTestBase
                                                               .host(ipAddress)
                                                               .port(config.jmxPort())
                                                               .connectionMaxRetries(jmxConfiguration.maxRetries())
-                                                              .connectionRetryDelayMillis(jmxConfiguration.retryDelayMillis()));
+                                                              .connectionRetryDelay(jmxConfiguration.retryDelay()));
             MetricRegistry metricRegistry = new MetricRegistry();
             CassandraAdapterDelegate delegate = new CassandraAdapterDelegate(vertx,
                                                                              config.num(),
@@ -725,6 +736,10 @@ public abstract class SharedClusterIntegrationTestBase
                                        .host(hostName)
                                        .port(port)
                                        .dataDirs(Arrays.asList(dataDirectories))
+                                       .cdcDir(config.getString("cdc_raw_directory"))
+                                       .commitlogDir(config.getString("commitlog_directory"))
+                                       .hintsDir(config.getString("hints_directory"))
+                                       .savedCachesDir(config.getString("saved_caches_directory"))
                                        .stagingDir(stagingDir)
                                        .delegate(delegate)
                                        .metricRegistry(metricRegistry)

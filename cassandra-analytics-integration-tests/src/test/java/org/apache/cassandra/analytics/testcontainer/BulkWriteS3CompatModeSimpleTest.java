@@ -40,7 +40,8 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 
-import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_API_CALL_TIMEOUT_MILLIS;
+import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_API_CALL_TIMEOUT;
+import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_THREAD_KEEP_ALIVE;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
@@ -88,8 +89,8 @@ class BulkWriteS3CompatModeSimpleTest extends SharedClusterSparkIntegrationTestB
     protected Function<SidecarConfigurationImpl.Builder, SidecarConfigurationImpl.Builder> configurationOverrides()
     {
         return builder -> {
-            S3ClientConfiguration s3ClientConfig = new S3ClientConfigurationImpl("s3-client", 4, 60L,
-                                                                                 5242880, DEFAULT_API_CALL_TIMEOUT_MILLIS,
+            S3ClientConfiguration s3ClientConfig = new S3ClientConfigurationImpl("s3-client", 4, DEFAULT_THREAD_KEEP_ALIVE,
+                                                                                 5242880, DEFAULT_API_CALL_TIMEOUT,
                                                                                  buildTestS3ProxyConfig());
             builder.s3ClientConfiguration(s3ClientConfig);
             return builder;
