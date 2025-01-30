@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.sparksql.RowBuilder;
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
@@ -58,7 +59,7 @@ public interface SchemaFeature
      * @param builder the row builder
      * @return a new decorated builder
      */
-    <T> RowBuilder<T> decorate(RowBuilder<T> builder);
+    <T extends InternalRow> RowBuilder<T> decorate(RowBuilder<T> builder);
 
     /**
      * The option name used in the Spark options

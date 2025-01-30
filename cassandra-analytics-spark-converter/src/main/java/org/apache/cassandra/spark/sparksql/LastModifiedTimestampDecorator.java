@@ -19,17 +19,18 @@
 
 package org.apache.cassandra.spark.sparksql;
 
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.catalyst.InternalRow;
 
 /**
  * Wrap a builder to append last modified timestamp
+ * @param <T> type of row returned by this builder
  */
-public class LastModifiedTimestampDecorator extends RowBuilderDecorator
+public class LastModifiedTimestampDecorator<T extends InternalRow> extends RowBuilderDecorator<T>
 {
     private final int lmtColumnPosition;
     private long lastModified = 0L;
 
-    public LastModifiedTimestampDecorator(RowBuilder<GenericInternalRow> delegate, String fieldName)
+    public LastModifiedTimestampDecorator(RowBuilder<T> delegate, String fieldName)
     {
         super(delegate);
         int width = internalExpandRow();
@@ -60,7 +61,7 @@ public class LastModifiedTimestampDecorator extends RowBuilderDecorator
     }
 
     @Override
-    public GenericInternalRow build()
+    public T build()
     {
         // Append last modified timestamp
         Object[] result = array();

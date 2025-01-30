@@ -26,7 +26,7 @@ import java.util.stream.Collectors;
 
 import org.apache.cassandra.spark.sparksql.LastModifiedTimestampDecorator;
 import org.apache.cassandra.spark.sparksql.RowBuilder;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 
@@ -43,11 +43,10 @@ public enum SchemaFeatureSet implements SchemaFeature
                 return DataTypes.TimestampType;
             }
 
-            @SuppressWarnings("unchecked")
             @Override
-            public <T> RowBuilder<T> decorate(RowBuilder<T> builder)
+            public <T extends InternalRow> RowBuilder<T> decorate(RowBuilder<T> builder)
             {
-                return (RowBuilder<T>) new LastModifiedTimestampDecorator((RowBuilder<GenericInternalRow>) builder, fieldName());
+                return new LastModifiedTimestampDecorator<>(builder, fieldName());
             }
         };
 

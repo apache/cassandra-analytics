@@ -96,7 +96,7 @@ import org.apache.cassandra.spark.validation.CassandraValidation;
 import org.apache.cassandra.spark.validation.SidecarValidation;
 import org.apache.cassandra.spark.validation.StartupValidatable;
 import org.apache.cassandra.spark.validation.StartupValidator;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.util.ShutdownHookManager;
 import org.jetbrains.annotations.NotNull;
@@ -1017,11 +1017,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 return SchemaFeatureSet.LAST_MODIFIED_TIMESTAMP.fieldDataType();
             }
 
-            @SuppressWarnings("unchecked") // LastModifiedTimestampDecorator is only for GenericInternalRow
             @Override
-            public <T> RowBuilder<T> decorate(RowBuilder<T> builder)
+            public <T extends InternalRow> RowBuilder<T> decorate(RowBuilder<T> builder)
             {
-                return (RowBuilder<T>) new LastModifiedTimestampDecorator((RowBuilder<GenericInternalRow>) builder, alias);
+                return new LastModifiedTimestampDecorator<>(builder, alias);
             }
 
             @Override

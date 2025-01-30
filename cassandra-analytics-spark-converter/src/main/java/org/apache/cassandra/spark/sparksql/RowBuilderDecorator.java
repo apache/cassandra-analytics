@@ -20,13 +20,13 @@
 package org.apache.cassandra.spark.sparksql;
 
 import org.apache.cassandra.spark.data.CqlTable;
-import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.catalyst.InternalRow;
 
-abstract class RowBuilderDecorator implements RowBuilder<GenericInternalRow>
+abstract class RowBuilderDecorator<T extends InternalRow> implements RowBuilder<T>
 {
-    protected final RowBuilder<GenericInternalRow> delegate;
+    protected final RowBuilder<T> delegate;
 
-    RowBuilderDecorator(RowBuilder<GenericInternalRow> delegate)
+    RowBuilderDecorator(RowBuilder<T> delegate)
     {
         this.delegate = delegate;
     }
@@ -116,7 +116,7 @@ abstract class RowBuilderDecorator implements RowBuilder<GenericInternalRow>
     }
 
     @Override
-    public GenericInternalRow build()
+    public T build()
     {
         return delegate.build();
     }
