@@ -247,7 +247,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<RowData>, C
                         return true;
                     }
 
-                    // For non-compact tables, set up a ClusteringColumnDataState to emit a Rid that emulates a
+                    // For non-compact tables, set up a ClusteringColumnDataState to emit a RowData that emulates a
                     // pre-3.0 CQL row marker. This is necessary for backwards compatibility with 2.1 & 2.0 output,
                     // and also for tables with only primary key columns defined.
                     // An empty PKLI is the 3.0 equivalent of having no row marker (e.g. row modifications via
@@ -319,7 +319,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<RowData>, C
 
     /**
      * Maps clustering values to column data, to emulate CQL row markers which were removed in Cassandra 3.0,
-     * but which we must still emit Rid for in order to preserve backwards compatibility
+     * but which we must still emit RowData for in order to preserve backwards compatibility
      * and to handle tables containing only primary key columns
      */
     protected final class ClusteringColumnDataState implements ColumnDataState

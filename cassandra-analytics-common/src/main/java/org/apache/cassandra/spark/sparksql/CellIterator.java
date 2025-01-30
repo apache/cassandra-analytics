@@ -188,7 +188,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
             }
 
             // Deserialize clustering keys - if moved to new CQL row - and update 'values' Object[] array
-            ByteBuffer columnNameBuf = Objects.requireNonNull(rowData.getColumnName(), "ColumnName buffer in Rid is null, this is unexpected");
+            ByteBuffer columnNameBuf = Objects.requireNonNull(rowData.getColumnName(), "ColumnName buffer in RowData is null, this is unexpected");
             maybeRebuildClusteringKeys(columnNameBuf);
 
             // Deserialize CQL field column name

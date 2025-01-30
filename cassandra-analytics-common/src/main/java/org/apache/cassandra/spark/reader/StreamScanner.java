@@ -48,7 +48,7 @@ import java.io.IOException;
  * at which point the implementation should make a copy of the provided bytes.
  * <p>
  * Upon return from the next() call the current values of the scanner can be obtained by calling
- * the methods in Rid, getPartitionKey(), getColumnName(), getValue().
+ * the methods in getPartitionKey(), getColumnName(), getValue().
  *
  * @param <T> type of object returned by rid() method.
  */

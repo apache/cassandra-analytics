@@ -1,4 +1,5 @@
 1.0.0
+ * Refactor to decouple RowIterator and CellIterator from Spark so bulk reads can be performed outside of Spark (CASSANDRA-20259)
  * CEP-44 Kafka integration for Cassandra CDC using Sidecar (CASSANDRA-19962)
  * Expose detailed bulk write failure message for better insight (CASSANDRA-20066)
  * Add dataTransferApi and TwoPhaseImportCoordinator for coordinated write (CASSANDRA-19994)
