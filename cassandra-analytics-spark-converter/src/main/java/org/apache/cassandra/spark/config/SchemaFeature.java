@@ -58,7 +58,7 @@ public interface SchemaFeature
      * @param builder the row builder
      * @return a new decorated builder
      */
-    RowBuilder decorate(RowBuilder builder);
+    <T> RowBuilder<T> decorate(RowBuilder<T> builder);
 
     /**
      * The option name used in the Spark options

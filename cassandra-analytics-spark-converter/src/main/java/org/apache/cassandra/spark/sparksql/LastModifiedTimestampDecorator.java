@@ -29,7 +29,7 @@ public class LastModifiedTimestampDecorator extends RowBuilderDecorator
     private final int lmtColumnPosition;
     private long lastModified = 0L;
 
-    public LastModifiedTimestampDecorator(RowBuilder delegate, String fieldName)
+    public LastModifiedTimestampDecorator(RowBuilder<GenericInternalRow> delegate, String fieldName)
     {
         super(delegate);
         int width = internalExpandRow();
