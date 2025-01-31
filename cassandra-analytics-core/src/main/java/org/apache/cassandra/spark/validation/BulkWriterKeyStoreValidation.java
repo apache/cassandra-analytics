@@ -17,21 +17,20 @@
  * under the License.
  */
 
-rootProject.name = 'cassandra-analytics-core'
+package org.apache.cassandra.spark.validation;
 
-include 'cassandra-analytics-cdc'
-include 'cassandra-analytics-cdc-sidecar'
-include 'cassandra-analytics-common'
-include 'cassandra-bridge'
-include 'cassandra-four-zero'
-include 'cassandra-four-zero-bridge'
-include 'cassandra-four-zero-types'
-include 'cassandra-analytics-core'
-include 'cassandra-analytics-core-example'
-include 'cassandra-analytics-integration-framework'
-include 'cassandra-analytics-integration-tests'
-include 'cassandra-analytics-sidecar-client'
-include 'cassandra-analytics-spark-converter'
-include 'cassandra-analytics-spark-four-zero-converter'
-include 'cassandra-analytics-cdc-codec'
+import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
+import org.jetbrains.annotations.NotNull;
 
+public class BulkWriterKeyStoreValidation extends KeyStoreValidation
+{
+    public BulkWriterKeyStoreValidation(@NotNull BulkSparkConf configuration)
+    {
+        super(
+        configuration.hasKeystoreAndKeystorePassword(),
+        configuration.getKeyStoreTypeOrDefault(),
+        configuration.getKeyStorePassword() == null ? null : configuration.getKeyStorePassword().toCharArray(),
+        configuration::getKeyStore
+        );
+    }
+}

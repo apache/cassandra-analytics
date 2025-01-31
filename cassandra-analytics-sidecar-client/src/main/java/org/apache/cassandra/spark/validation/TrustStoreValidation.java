@@ -28,7 +28,6 @@ import java.util.Enumeration;
 import java.util.function.Supplier;
 
 import org.apache.cassandra.secrets.SecretsProvider;
-import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.utils.Throwing;
 import org.jetbrains.annotations.NotNull;
 
@@ -44,18 +43,23 @@ public class TrustStoreValidation implements StartupValidation
 
     public TrustStoreValidation(@NotNull SecretsProvider secrets)
     {
-        configured = secrets.hasTrustStoreSecrets();
-        type = secrets.trustStoreType();
-        password = secrets.trustStorePassword();
-        stream = Throwing.supplier(() -> secrets.trustStoreInputStream());
+        this(
+        secrets.hasTrustStoreSecrets(),
+        secrets.trustStoreType(),
+        secrets.trustStorePassword(),
+        Throwing.supplier(secrets::trustStoreInputStream)
+        );
     }
 
-    public TrustStoreValidation(@NotNull BulkSparkConf configuration)
+    protected TrustStoreValidation(boolean configured,
+                                   String type,
+                                   char[] password,
+                                   Supplier<InputStream> stream)
     {
-        configured = configuration.hasTruststoreAndTruststorePassword();
-        type = configuration.getTrustStoreTypeOrDefault();
-        password = configuration.getTrustStorePasswordOrDefault().toCharArray();
-        stream = () -> configuration.getTrustStore();
+        this.configured = configured;
+        this.type = type;
+        this.password = password;
+        this.stream = stream;
     }
 
     @Override
@@ -75,7 +79,7 @@ public class TrustStoreValidation implements StartupValidation
                 throw new RuntimeException("TrustStore is empty");
             }
 
-            for (Enumeration<String> aliases = trustStore.aliases(); aliases.hasMoreElements();)
+            for (Enumeration<String> aliases = trustStore.aliases(); aliases.hasMoreElements(); )
             {
                 Certificate certificate = trustStore.getCertificate(aliases.nextElement());
                 if (certificate != null)
