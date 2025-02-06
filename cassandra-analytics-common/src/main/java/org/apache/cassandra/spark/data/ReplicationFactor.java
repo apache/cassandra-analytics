@@ -98,7 +98,7 @@ public class ReplicationFactor implements Serializable
         }
     }
 
-    public static ReplicationFactor simple(int rf)
+    public static ReplicationFactor simpleStrategy(int rf)
     {
         return new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
                                      ImmutableMap.of("replication_factor", rf));

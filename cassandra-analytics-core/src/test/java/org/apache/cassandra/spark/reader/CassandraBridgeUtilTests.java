@@ -53,7 +53,7 @@ import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
 import static org.apache.cassandra.spark.Tester.DEFAULT_NUM_ROWS;
-import static org.apache.cassandra.spark.utils.ByteBufferUtils.readShortLengthString;
+import static org.apache.cassandra.spark.utils.ByteBufferUtils.readShortLengthCompositeTypeString;
 import static org.apache.cassandra.spark.utils.RandomUtils.randomAlphanumeric;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -104,9 +104,9 @@ public class CassandraBridgeUtilTests
                                                  .withColumn("e", bridge.aInt())
                                                  .build();
             ByteBuffer pk3 = bridge.encodePartitionKey(partitioner, "ks", threePkSchema.createStatement, keys);
-            assertEquals(keys.get(0), readShortLengthString(pk3));
-            assertEquals(keys.get(1), readShortLengthString(pk3));
-            assertEquals(keys.get(2), readShortLengthString(pk3));
+            assertEquals(keys.get(0), readShortLengthCompositeTypeString(pk3));
+            assertEquals(keys.get(1), readShortLengthCompositeTypeString(pk3));
+            assertEquals(keys.get(2), readShortLengthCompositeTypeString(pk3));
         });
     }
 

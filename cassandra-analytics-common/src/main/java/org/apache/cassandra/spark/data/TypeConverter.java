@@ -23,7 +23,7 @@ import org.jetbrains.annotations.NotNull;
 
 public interface TypeConverter
 {
-    TypeConverter STUB = (cqlType, value, isFrozen) -> value;
+    TypeConverter IDENTITY = (cqlType, value, isFrozen) -> value;
 
     /**
      * Converts deserialized Cassandra Java value to desired equivalent type.

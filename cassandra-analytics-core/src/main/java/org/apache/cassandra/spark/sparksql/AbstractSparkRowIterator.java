@@ -21,7 +21,6 @@ package org.apache.cassandra.spark.sparksql;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -87,10 +86,10 @@ abstract class AbstractSparkRowIterator<T> extends RowIterator<T>
      */
     public abstract T rowBuilder(Object[] valueArray);
 
+    @SuppressWarnings("DataFlowIssue") // Null check performed within PartialRowBuilder constructor
     @Override
     public PartialRowBuilder<T> newPartialBuilder()
     {
-        Objects.requireNonNull(requiredColumns, "requiredColumns must be non-null for PartialRowBuilder");
         return new PartialRowBuilder<>(requiredColumns, it.cqlTable(), it.hasProjectedValueColumns(), this::rowBuilder);
     }
 

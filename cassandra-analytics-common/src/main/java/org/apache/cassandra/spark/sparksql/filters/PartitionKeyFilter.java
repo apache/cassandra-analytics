@@ -138,8 +138,13 @@ public final class PartitionKeyFilter implements Serializable, Comparable<Partit
     }
 
     @Override
-    public int compareTo(@NotNull PartitionKeyFilter o)
+    public int compareTo(@NotNull PartitionKeyFilter other)
     {
-        return token.compareTo(o.token);
+        int compare = token.compareTo(other.token);
+        if (compare == 0)
+        {
+            return key().compareTo(other.key());
+        }
+        return compare;
     }
 }

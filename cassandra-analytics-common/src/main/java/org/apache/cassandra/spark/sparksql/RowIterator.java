@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.sparksql;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -73,14 +72,13 @@ public abstract class RowIterator<T>
      */
     public static RowIterator<Map<String, Object>> rowMapIterator(CellIterator it, Stats stats, @Nullable String[] requiredColumns)
     {
-        final CqlTable cqlTable = it.cqlTable();
-        final boolean hasProjectedValueColumns = it.hasProjectedValueColumns();
+        CqlTable cqlTable = it.cqlTable();
+        boolean hasProjectedValueColumns = it.hasProjectedValueColumns();
         return new RowIterator<>(it, stats, requiredColumns, Function.identity())
         {
             @Override
             public PartialRowBuilder<Map<String, Object>> newPartialBuilder()
             {
-                Objects.requireNonNull(requiredColumns, "requiredColumns must be non-null to use PartialRowBuilder");
                 Map<String, Integer> columnIndex = IntStream.range(0, requiredColumns.length)
                                                             .boxed()
                                                             .collect(Collectors.toMap(i -> requiredColumns[i], Function.identity()));

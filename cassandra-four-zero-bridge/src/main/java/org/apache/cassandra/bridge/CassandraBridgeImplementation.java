@@ -358,7 +358,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     @Override
     public List<ByteBuffer> encodePartitionKeys(Partitioner partitioner, String keyspace, String createTableStmt, List<List<String>> keys)
     {
-        CqlTable table = new SchemaBuilder(createTableStmt, keyspace, ReplicationFactor.simple(1), partitioner).build();
+        CqlTable table = new SchemaBuilder(createTableStmt, keyspace, ReplicationFactor.simpleStrategy(1), partitioner).build();
         return keys.stream().map(key -> buildPartitionKey(table, key)).collect(Collectors.toList());
     }
 
@@ -464,7 +464,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                   Consumer<Map<String, Object>> rowConsumer) throws IOException
     {
         IPartitioner iPartitioner = getPartitioner(partitioner);
-        SchemaBuilder schemaBuilder = new SchemaBuilder(createStmt, keyspace, ReplicationFactor.simple(1), partitioner);
+        SchemaBuilder schemaBuilder = new SchemaBuilder(createStmt, keyspace, ReplicationFactor.simpleStrategy(1), partitioner);
         TableMetadata metadata = schemaBuilder.tableMetaData();
         CqlTable table = schemaBuilder.build();
         List<BigInteger> tokens = partitionKeys == null ? Collections.emptyList() : toTokens(partitioner, partitionKeys);
@@ -478,7 +478,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
         try (CellIterator it = new CellIterator(0,
                                                 table,
                                                 Stats.DoNothingStats.INSTANCE,
-                                                TypeConverter.STUB,
+                                                TypeConverter.IDENTITY,
                                                 partitionKeyFilters,
                                                 (t) -> PruneColumnFilter.of(requiredColumns),
                                                 (partitionId1, partitionKeyFilters1, columnFilter1) ->
