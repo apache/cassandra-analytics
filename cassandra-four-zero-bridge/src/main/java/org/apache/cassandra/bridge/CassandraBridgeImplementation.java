@@ -64,7 +64,6 @@ import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
-import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.io.compress.ICompressor;
 import org.apache.cassandra.io.compress.LZ4Compressor;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
@@ -289,54 +288,14 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public Pair<BigInteger, BigInteger> firstLastToken(SSTable ssTable, Partitioner partitioner, int minIndexInterval, int maxIndexInterval) throws IOException
-    {
-        IPartitioner iPartitioner = getPartitioner(partitioner);
-
-        // attempt Summary.db file first
-        Pair<BigInteger, BigInteger> firstAndLast = null;
-        try
-        {
-            SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(ssTable, iPartitioner, minIndexInterval, maxIndexInterval);
-            if (summary != null)
-            {
-                BigInteger first = TokenUtils.tokenToBigInteger(summary.first().getToken());
-                BigInteger last = TokenUtils.tokenToBigInteger(summary.last().getToken());
-                firstAndLast = Pair.of(first, last);
-            }
-        }
-        catch (IOException e)
-        {
-            // this can happen if the minIndexInterval and maxIndexInterval do not match the expected serialized in the Summary.db file
-            LOGGER.warn("IOException reading Summary.db file", e);
-        }
-
-        if (firstAndLast == null)
-        {
-            // try Index.db file
-            LOGGER.warn("Failed to read Summary.db file, falling back to Index.db file");
-            Pair<DecoratedKey, DecoratedKey> keys = ReaderUtils.keysFromIndex(iPartitioner, ssTable);
-            Token first = keys.left.getToken();
-            Token last = keys.right.getToken();
-            if (first == null || last == null)
-            {
-                throw new RuntimeException("Unable to extract first and last keys from Summary.db or Index.db");
-            }
-            firstAndLast = Pair.of(TokenUtils.tokenToBigInteger(first), TokenUtils.tokenToBigInteger(last));
-        }
-
-        return firstAndLast;
-    }
-
-    @Override
     public List<Boolean> overlaps(SSTable ssTable,
                                   Partitioner partitioner,
                                   int minIndexInterval,
                                   int maxIndexInterval,
-                                  List<TokenRange> ranges) throws IOException
+                                  List<TokenRange> ranges)
     {
-        Pair<BigInteger, BigInteger> firstAndLastKeys = firstLastToken(ssTable, partitioner, minIndexInterval, maxIndexInterval);
-        TokenRange sstableRange = TokenRange.closed(firstAndLastKeys.left, firstAndLastKeys.right);
+        SSTableSummary summary = getSSTableSummary(partitioner, ssTable, minIndexInterval, maxIndexInterval);
+        TokenRange sstableRange = TokenRange.closed(summary.firstToken, summary.lastToken);
         return ranges.stream()
                      .map(range -> range.isConnected(sstableRange))
                      .collect(Collectors.toList());
@@ -595,15 +554,32 @@ public class CassandraBridgeImplementation extends CassandraBridge
         {
             throw new RuntimeException("Could not create table metadata needed for reading SSTable summaries for keyspace: " + keyspace);
         }
+        return getSSTableSummary(metadata.partitioner, ssTable, metadata.params.minIndexInterval, metadata.params.maxIndexInterval);
+    }
+
+    @Override
+    public SSTableSummary getSSTableSummary(@NotNull Partitioner partitioner,
+                                            @NotNull SSTable ssTable,
+                                            int minIndexInterval,
+                                            int maxIndexInterval)
+    {
+        return getSSTableSummary(getPartitioner(partitioner), ssTable, minIndexInterval, maxIndexInterval);
+    }
+
+    protected SSTableSummary getSSTableSummary(@NotNull IPartitioner partitioner,
+                                               @NotNull SSTable ssTable,
+                                               int minIndexInterval,
+                                               int maxIndexInterval)
+    {
         try
         {
-            SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(metadata, ssTable);
-            Pair<DecoratedKey, DecoratedKey> keys = Pair.of(summary.first(), summary.last());
-            if (keys.left == null || keys.right == null)
+            SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(ssTable, partitioner, minIndexInterval, maxIndexInterval);
+            Pair<DecoratedKey, DecoratedKey> keys = summary == null ? null : Pair.of(summary.first(), summary.last());
+            if (summary == null)
             {
-                keys = ReaderUtils.keysFromIndex(metadata, ssTable);
+                keys = ReaderUtils.keysFromIndex(partitioner, ssTable);
             }
-            if (keys.left == null || keys.right == null)
+            if (keys == null)
             {
                 throw new RuntimeException("Could not load SSTable first or last tokens for SSTable: " + ssTable.getDataFileName());
             }

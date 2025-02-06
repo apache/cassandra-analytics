@@ -32,6 +32,7 @@ import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Helper methods for reading the Summary.db SSTable file component
@@ -79,6 +80,7 @@ public final class SummaryDbUtils
         return readSummary(ssTable, metadata.partitioner, metadata.params.minIndexInterval, metadata.params.maxIndexInterval);
     }
 
+    @Nullable
     public static Summary readSummary(@NotNull SSTable ssTable, IPartitioner partitioner, int minIndexInterval, int maxIndexInterval) throws IOException
     {
         try (InputStream in = ssTable.openSummaryStream())
@@ -97,6 +99,7 @@ public final class SummaryDbUtils
      * @return Summary object
      * @throws IOException io exception
      */
+    @Nullable
     static Summary readSummary(InputStream summaryStream,
                                IPartitioner partitioner,
                                int minIndexInterval,

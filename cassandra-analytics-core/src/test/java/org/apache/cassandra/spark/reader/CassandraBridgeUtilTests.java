@@ -43,13 +43,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
-import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
@@ -148,10 +148,10 @@ public class CassandraBridgeUtilTests
             Path summaryDbFile = ssTable.fileComponentPath(FileType.SUMMARY);
             for (int j = 0; j < 2; j++) // loop around after deleting Summary.db file to verify we can check using Index.db file
             {
-                Pair<BigInteger, BigInteger> firstLastToken = bridge.firstLastToken(ssTable, partitioner, 128, 256);
-                assertEquals(sortedTokens.get(0), firstLastToken.left);
-                assertEquals(sortedTokens.get(2), firstLastToken.right);
-                TokenRange sstableRange = TokenRange.closed(firstLastToken.left, firstLastToken.right);
+                SSTableSummary summary = bridge.getSSTableSummary(partitioner, ssTable, 128, 256);
+                assertEquals(sortedTokens.get(0), summary.firstToken);
+                assertEquals(sortedTokens.get(2), summary.lastToken);
+                TokenRange sstableRange = TokenRange.closed(summary.firstToken, summary.lastToken);
                 for (BigInteger token : sortedTokens)
                 {
                     assertTrue(sstableRange.contains(token));

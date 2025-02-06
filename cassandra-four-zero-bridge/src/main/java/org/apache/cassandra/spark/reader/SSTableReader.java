@@ -248,7 +248,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         this.version = descriptor.version;
 
         SummaryDbUtils.Summary summary = null;
-        Pair<DecoratedKey, DecoratedKey> keys = Pair.of(null, null);
+        Pair<DecoratedKey, DecoratedKey> keys = null;
         try
         {
             now = System.nanoTime();
@@ -261,7 +261,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             LOGGER.warn("Failed to read Summary.db file ssTable='{}'", ssTable, exception);
         }
 
-        if (keys.left == null || keys.right == null)
+        if (keys == null)
         {
             LOGGER.warn("Could not load first and last key from Summary.db file, so attempting Index.db fileName={}",
                         ssTable.getDataFileName());
@@ -270,7 +270,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             stats.readIndexDb(ssTable, System.nanoTime() - now);
         }
 
-        if (keys.left == null || keys.right == null)
+        if (keys == null)
         {
             throw new IOException("Could not load SSTable first or last tokens");
         }

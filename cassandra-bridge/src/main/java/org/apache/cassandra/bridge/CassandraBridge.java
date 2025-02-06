@@ -61,7 +61,6 @@ import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
-import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.util.CompressionUtil;
 import org.jetbrains.annotations.NotNull;
@@ -403,6 +402,11 @@ public abstract class CassandraBridge
                                                      @NotNull String table,
                                                      @NotNull SSTable ssTable);
 
+    public abstract SSTableSummary getSSTableSummary(@NotNull Partitioner partitioner,
+                                                     @NotNull SSTable ssTable,
+                                                     int minIndexInterval,
+                                                     int maxIndexInterval);
+
     // Version-Specific Test Utility Methods
 
     @VisibleForTesting
@@ -457,19 +461,6 @@ public abstract class CassandraBridge
     public abstract long lastRepairTime(@NotNull String keyspace,
                                         @NotNull String table,
                                         @NotNull SSTable ssTable) throws IOException;
-
-    /**
-     * @param ssTable          SSTable instance
-     * @param partitioner      Cassandra partitioner
-     * @param minIndexInterval minIndexInterval configured in the TableMetaData
-     * @param maxIndexInterval maxIndexInterval configured in the TableMetadata
-     * @return the first and last token by attempting to read from the Summary.db file first then failing back to the Index.db.
-     * @throws IOException
-     */
-    public abstract Pair<BigInteger, BigInteger> firstLastToken(@NotNull SSTable ssTable,
-                                                                @NotNull Partitioner partitioner,
-                                                                int minIndexInterval,
-                                                                int maxIndexInterval) throws IOException;
 
     /**
      * @param ssTable          SSTable instance

@@ -72,6 +72,7 @@ import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.TokenUtils;
 import org.apache.cassandra.utils.vint.VIntCoding;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.utils.FBUtilities.updateChecksumInt;
 
@@ -199,12 +200,14 @@ public final class ReaderUtils extends TokenUtils
         return CompositeType.build(ByteBufferAccessor.instance, isStatic, values);
     }
 
+    @Nullable
     public static Pair<DecoratedKey, DecoratedKey> keysFromIndex(@NotNull TableMetadata metadata,
                                                                  @NotNull SSTable ssTable) throws IOException
     {
         return keysFromIndex(metadata.partitioner, ssTable);
     }
 
+    @Nullable
     public static Pair<DecoratedKey, DecoratedKey> keysFromIndex(@NotNull IPartitioner partitioner,
                                                                  @NotNull SSTable ssTable) throws IOException
     {
@@ -216,7 +219,7 @@ public final class ReaderUtils extends TokenUtils
                 return Pair.of(partitioner.decorateKey(keys.left), partitioner.decorateKey(keys.right));
             }
         }
-        return Pair.of(null, null);
+        return null;
     }
 
     public static boolean anyFilterKeyInIndex(@NotNull SSTable ssTable,

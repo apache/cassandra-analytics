@@ -116,6 +116,7 @@ public class SSTableCache
         return get(summary, ssTable, () -> SummaryDbUtils.readSummary(metadata, ssTable));
     }
 
+    @Nullable
     public Pair<DecoratedKey, DecoratedKey> keysFromIndex(@NotNull TableMetadata metadata,
                                                           @NotNull SSTable ssTable) throws IOException
     {
