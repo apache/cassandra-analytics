@@ -23,8 +23,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.data.CqlField;
@@ -76,20 +74,17 @@ public abstract class RowIterator<T>
         boolean hasProjectedValueColumns = it.hasProjectedValueColumns();
         return new RowIterator<>(it, stats, requiredColumns, Function.identity())
         {
+            @SuppressWarnings("DataFlowIssue") // requiredColumns null checked in PartialRowBuilder constructor
             @Override
             public PartialRowBuilder<Map<String, Object>> newPartialBuilder()
             {
-                Map<String, Integer> columnIndex = IntStream.range(0, requiredColumns.length)
-                                                            .boxed()
-                                                            .collect(Collectors.toMap(i -> requiredColumns[i], Function.identity()));
-
                 return new PartialRowBuilder<>(
                 requiredColumns, it.cqlTable(), hasProjectedValueColumns,
                 (valueArray) -> {
                     Map<String, Object> row = new HashMap<>(requiredColumns.length);
-                    for (String field : requiredColumns)
+                    for (int i = 0; i < requiredColumns.length; i++)
                     {
-                        row.put(field, valueArray[columnIndex.get(field)]);
+                        row.put(requiredColumns[i], valueArray[i]);
                     }
                     return row;
                 });
