@@ -454,7 +454,9 @@ public abstract class CassandraBridge
      * @return last repair time for a given SSTable by reading the Statistics.db file.
      * @throws IOException
      */
-    public abstract long lastRepairTime(String keyspace, String table, SSTable ssTable) throws IOException;
+    public abstract long lastRepairTime(@NotNull String keyspace,
+                                        @NotNull String table,
+                                        @NotNull SSTable ssTable) throws IOException;
 
     /**
      * @param ssTable          SSTable instance
@@ -464,8 +466,8 @@ public abstract class CassandraBridge
      * @return the first and last token by attempting to read from the Summary.db file first then failing back to the Index.db.
      * @throws IOException
      */
-    public abstract Pair<BigInteger, BigInteger> firstLastToken(SSTable ssTable,
-                                                                Partitioner partitioner,
+    public abstract Pair<BigInteger, BigInteger> firstLastToken(@NotNull SSTable ssTable,
+                                                                @NotNull Partitioner partitioner,
                                                                 int minIndexInterval,
                                                                 int maxIndexInterval) throws IOException;
 
@@ -478,11 +480,11 @@ public abstract class CassandraBridge
      * @return a list boolean value if corresponding token range in `ranges` list parameter overlaps with the SSTable.
      * The SSTable may or may not contain data for the range.
      */
-    public abstract List<Boolean> overlaps(SSTable ssTable,
-                                           Partitioner partitioner,
+    public abstract List<Boolean> overlaps(@NotNull SSTable ssTable,
+                                           @NotNull Partitioner partitioner,
                                            int minIndexInterval,
                                            int maxIndexInterval,
-                                           List<TokenRange> ranges) throws IOException;
+                                           @NotNull List<TokenRange> ranges) throws IOException;
 
     /**
      * @param partitioner     Cassandra partitioner
@@ -491,7 +493,10 @@ public abstract class CassandraBridge
      * @param partitionKeys   list of
      * @return list of tokens corresponding to each input `partitionKeys`
      */
-    public List<BigInteger> toTokens(@NotNull Partitioner partitioner, @NotNull String keyspace, @NotNull String createTableStmt, @NotNull List<List<String>> partitionKeys)
+    public List<BigInteger> toTokens(@NotNull Partitioner partitioner,
+                                     @NotNull String keyspace,
+                                     @NotNull String createTableStmt,
+                                     @NotNull List<List<String>> partitionKeys)
     {
         return toTokens(partitioner, encodePartitionKeys(partitioner, keyspace, createTableStmt, partitionKeys));
     }
@@ -501,7 +506,8 @@ public abstract class CassandraBridge
      * @param partitionKeys list of encoded partition keys
      * @return list of tokens corresponding to each input `partitionKeys`
      */
-    public List<BigInteger> toTokens(@NotNull Partitioner partitioner, @NotNull List<ByteBuffer> partitionKeys)
+    public List<BigInteger> toTokens(@NotNull Partitioner partitioner,
+                                     @NotNull List<ByteBuffer> partitionKeys)
     {
         Tokenizer tokenizer = tokenizer(partitioner);
         return partitionKeys
@@ -523,7 +529,10 @@ public abstract class CassandraBridge
      * @param partitionKey    partition key
      * @return encoded ByteBuffer for the input `partitionKey`
      */
-    public ByteBuffer encodePartitionKey(Partitioner partitioner, String keyspace, String createTableStmt, List<String> partitionKey)
+    public ByteBuffer encodePartitionKey(@NotNull Partitioner partitioner,
+                                         @NotNull String keyspace,
+                                         @NotNull String createTableStmt,
+                                         @NotNull List<String> partitionKey)
     {
         return encodePartitionKeys(partitioner, keyspace, createTableStmt, Collections.singletonList(partitionKey)).get(0);
     }
@@ -535,7 +544,10 @@ public abstract class CassandraBridge
      * @param partitionKeys   list of partition keys
      * @return a list encoded ByteBuffers corresponding to the partition keys input in `partitionKeys`
      */
-    public abstract List<ByteBuffer> encodePartitionKeys(Partitioner partitioner, String keyspace, String createTableStmt, List<List<String>> partitionKeys);
+    public abstract List<ByteBuffer> encodePartitionKeys(@NotNull Partitioner partitioner,
+                                                         @NotNull String keyspace,
+                                                         @NotNull String createTableStmt,
+                                                         @NotNull List<List<String>> partitionKeys);
 
     /**
      * @param partitioner   Cassandra partitioner
@@ -548,11 +560,11 @@ public abstract class CassandraBridge
      * corresponding to the partition keys input in `partitionKeys`.
      * @throws IOException
      */
-    public abstract List<Boolean> maybeContains(Partitioner partitioner,
-                                                String keyspace,
-                                                String table,
-                                                SSTable ssTable,
-                                                List<ByteBuffer> partitionKeys) throws IOException;
+    public abstract List<Boolean> maybeContains(@NotNull Partitioner partitioner,
+                                                @NotNull String keyspace,
+                                                @NotNull String table,
+                                                @NotNull SSTable ssTable,
+                                                @NotNull List<ByteBuffer> partitionKeys) throws IOException;
 
     /**
      * @param partitioner   Cassandra partitioner
@@ -563,11 +575,11 @@ public abstract class CassandraBridge
      * @return list of booleans returning true if an SSTable contains a partition key, corresponding to the partition keys input in `partitionKeys`.
      * @throws IOException
      */
-    public abstract List<Boolean> contains(Partitioner partitioner,
-                                           String keyspace,
-                                           String table,
-                                           SSTable ssTable,
-                                           List<ByteBuffer> partitionKeys) throws IOException;
+    public abstract List<Boolean> contains(@NotNull Partitioner partitioner,
+                                           @NotNull String keyspace,
+                                           @NotNull String table,
+                                           @NotNull SSTable ssTable,
+                                           @NotNull List<ByteBuffer> partitionKeys) throws IOException;
 
     /**
      * Convenience method around `readPartitionKeys` to accept partition keys as string values and encode with the correct types.
@@ -579,11 +591,11 @@ public abstract class CassandraBridge
      * @param rowConsumer Consumer interface to consume rows as they are read to avoid buffering all rows in memory for consumption.
      * @throws IOException
      */
-    public void readStringPartitionKeys(Partitioner partitioner,
-                                        String keyspace,
-                                        String createStmt,
-                                        Set<SSTable> ssTables,
-                                        Consumer<Map<String, Object>> rowConsumer) throws IOException
+    public void readStringPartitionKeys(@NotNull Partitioner partitioner,
+                                        @NotNull String keyspace,
+                                        @NotNull String createStmt,
+                                        @NotNull Set<SSTable> ssTables,
+                                        @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
     {
         readStringPartitionKeys(partitioner, keyspace, createStmt, ssTables, null, null, null, rowConsumer);
     }
@@ -601,14 +613,14 @@ public abstract class CassandraBridge
      * @param rowConsumer       Consumer interface to consume rows as they are read to avoid buffering all rows in memory for consumption.
      * @throws IOException
      */
-    public void readStringPartitionKeys(Partitioner partitioner,
-                                        String keyspace,
-                                        String createStmt,
-                                        Set<SSTable> ssTables,
+    public void readStringPartitionKeys(@NotNull Partitioner partitioner,
+                                        @NotNull String keyspace,
+                                        @NotNull String createStmt,
+                                        @NotNull Set<SSTable> ssTables,
                                         @Nullable TokenRange tokenRange,
                                         @Nullable List<List<String>> partitionKeys,
                                         @Nullable String[] pruneColumnFilter,
-                                        Consumer<Map<String, Object>> rowConsumer) throws IOException
+                                        @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
     {
         readPartitionKeys(partitioner,
                           keyspace,
@@ -620,35 +632,35 @@ public abstract class CassandraBridge
                           rowConsumer);
     }
 
-    public void readPartitionKeys(Partitioner partitioner,
-                                  String keyspace,
-                                  String createStmt,
-                                  Set<SSTable> ssTables,
-                                  Consumer<Map<String, Object>> rowConsumer) throws IOException
+    public void readPartitionKeys(@NotNull Partitioner partitioner,
+                                  @NotNull String keyspace,
+                                  @NotNull String createStmt,
+                                  @NotNull Set<SSTable> ssTables,
+                                  @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
     {
         readPartitionKeys(partitioner, keyspace, createStmt, ssTables, null, null, null, rowConsumer);
     }
 
-    public void readPartitionKeys(Partitioner partitioner,
-                                  String keyspace,
-                                  String createStmt,
-                                  Set<SSTable> ssTables,
+    public void readPartitionKeys(@NotNull Partitioner partitioner,
+                                  @NotNull String keyspace,
+                                  @NotNull String createStmt,
+                                  @NotNull Set<SSTable> ssTables,
                                   @Nullable TokenRange tokenRange,
                                   @Nullable List<ByteBuffer> partitionKeys,
                                   @Nullable String[] pruneColumnFilter,
-                                  Consumer<Map<String, Object>> rowConsumer) throws IOException
+                                  @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
     {
         readPartitionKeys(partitioner, keyspace, createStmt, new BasicSupplier(ssTables), tokenRange, partitionKeys, pruneColumnFilter, rowConsumer);
     }
 
-    public abstract void readPartitionKeys(Partitioner partitioner,
-                                           String keyspace,
-                                           String createStmt,
-                                           SSTablesSupplier ssTables,
+    public abstract void readPartitionKeys(@NotNull Partitioner partitioner,
+                                           @NotNull String keyspace,
+                                           @NotNull String createStmt,
+                                           @NotNull SSTablesSupplier ssTables,
                                            @Nullable TokenRange tokenRange,
                                            @Nullable List<ByteBuffer> partitionKeys,
                                            @Nullable String[] pruneColumnFilter,
-                                           Consumer<Map<String, Object>> rowConsumer) throws IOException;
+                                           @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException;
 
     // Kryo/Java (De-)Serialization
 

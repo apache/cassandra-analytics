@@ -381,7 +381,8 @@ public class CassandraBridgeImplementation extends CassandraBridge
         {
             return List.of();
         }
-        BloomFilter filter = ReaderUtils.readFilter(ssTable, descriptor);
+        // closing `SharedCloseableImpl` instances is known to cause SIGSEGV errors
+        @SuppressWarnings("resource") BloomFilter filter = ReaderUtils.readFilter(ssTable, descriptor);
         return partitionKeys.stream()
                             .map(filter::isPresent)
                             .collect(Collectors.toList());
@@ -405,14 +406,15 @@ public class CassandraBridgeImplementation extends CassandraBridge
             return result;
         }
 
-        List<Pair<BigInteger, Integer>> sortedTokens = IntStream.of(0, decoratedKeys.size())
-                                                                .mapToObj(idx -> {
-                                                                    DecoratedKey key = decoratedKeys.get(idx);
-                                                                    BigInteger token = TokenUtils.tokenToBigInteger(key.getToken());
-                                                                    return Pair.of(token, idx);
-                                                                })
-                                                                .sorted(Comparator.comparing(Pair::getLeft))
-                                                                .collect(Collectors.toList());
+        // sorted by token with index into original partitionKeys list
+        List<Pair<BigInteger, Integer>> sortedByTokens = IntStream.range(0, decoratedKeys.size())
+                                                                  .mapToObj(idx -> {
+                                                                      DecoratedKey key = decoratedKeys.get(idx);
+                                                                      BigInteger token = TokenUtils.tokenToBigInteger(key.getToken());
+                                                                      return Pair.of(token, idx);
+                                                                  })
+                                                                  .sorted(Comparator.comparing(Pair::getLeft))
+                                                                  .collect(Collectors.toList());
         try (InputStream primaryIndex = ssTable.openPrimaryIndexStream())
         {
             if (primaryIndex == null)
@@ -425,26 +427,36 @@ public class CassandraBridgeImplementation extends CassandraBridge
                 DecoratedKey key = iPartitioner.decorateKey(buffer);
                 BigInteger token = TokenUtils.tokenToBigInteger(key.getToken());
 
-                Pair<BigInteger, Integer> current = sortedTokens.get(position[0]);
-                BigInteger currentToken = current.getLeft();
-                DecoratedKey currentKey = decoratedKeys.get(current.getRight());
-
-                int compare = token.compareTo(currentToken);
-                if (compare == 0 && key.equals(currentKey))  // token and key matches
+                Pair<BigInteger, Integer> current = sortedByTokens.get(position[0]);
+                int compare = token.compareTo(current.getLeft());
+                while (compare > 0)
                 {
-                    result.set(position[0], true);
-                    position[0] = position[0] + 1;
+                    // we passed without finding the key
+                    result.set(current.getRight(), false);
+                    position[0]++;
+                    if (position[0] >= decoratedKeys.size())
+                    {
+                        // if we've found all the keys we can exit early
+                        return true;
+                    }
+                    current = sortedByTokens.get(position[0]);
+                    compare = token.compareTo(current.getLeft());
                 }
-                else if (compare > 0)
+
+                ByteBuffer currentKey = partitionKeys.get(current.getRight());
+                if (compare == 0 && buffer.equals(currentKey))  // token and key matches
                 {
-                    // we passed the token without finding the key
-                    result.set(position[0], false);
-                    position[0] = position[0] + 1;
+                    result.set(current.getRight(), true);
+                    position[0]++;
                 }
 
                 // if we've found all the keys we can exit early
                 return position[0] >= decoratedKeys.size();
             });
+
+            // mark as false any keys we didn't reach
+            IntStream.range(position[0], sortedByTokens.size())
+                     .forEach(i -> result.set(sortedByTokens.get(i).getRight(), false));
         }
 
         return result;

@@ -24,6 +24,7 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -116,14 +117,14 @@ public class CassandraBridgeUtilTests
         runTest((partitioner, bridge, schema, testDir) -> {
             // write SSTable
             List<String> keys = IntStream.range(0, 3).mapToObj(i -> randomAlphanumeric()).collect(Collectors.toList());
-            List<ByteBuffer> buffers = keys
-                                       .stream()
-                                       .map(key -> bridge.encodePartitionKey(partitioner,
-                                                                             schema.keyspace,
-                                                                             schema.createStatement,
-                                                                             Collections.singletonList(key)
-                                       ))
-                                       .collect(Collectors.toList());
+            List<ByteBuffer> buffers = bridge.encodePartitionKeys(
+            partitioner,
+            schema.keyspace,
+            schema.createStatement,
+            keys.stream()
+                .map(Collections::singletonList)
+                .collect(Collectors.toList())
+            );
             List<BigInteger> sortedTokens = buffers
                                             .stream()
                                             .map(partitioner::hash)
@@ -165,6 +166,61 @@ public class CassandraBridgeUtilTests
 
                 // delete Summary.db file and check we can read the Index.db file too
                 Files.deleteIfExists(summaryDbFile);
+            }
+        });
+    }
+
+    @Test
+    public void testContains()
+    {
+        runTest((partitioner, bridge, schema, testDir) -> {
+            // write SSTable
+            Set<String> keys = IntStream.range(0, 25).mapToObj(i -> randomAlphanumeric()).collect(Collectors.toSet());
+            List<ByteBuffer> buffers = bridge.encodePartitionKeys(
+            partitioner,
+            schema.keyspace,
+            schema.createStatement,
+            keys.stream()
+                .map(Collections::singletonList)
+                .collect(Collectors.toList())
+            );
+            assertTrue(TestSSTable.allIn(testDir).isEmpty());
+            writeSSTable(partitioner, bridge, schema, testDir,
+                         (writer) -> keys.forEach(key -> writer.write(key, randomAlphanumeric(), randomAlphanumeric())));
+            assertEquals(1, TestSSTable.allIn(testDir).size());
+
+            TestSSTable ssTable = (TestSSTable) TestSSTable.firstIn(testDir);
+
+            // should return all positives for the keys contained in the SSTable
+            List<Boolean> result = bridge.maybeContains(partitioner, schema.keyspace, schema.table, ssTable, buffers);
+            assertEquals(result.size(), buffers.size());
+            assertTrue(result.stream().allMatch(boolValue -> boolValue));
+
+            // random keys should return some negatives for keys not contained in the SSTable
+            List<String> otherKeys = IntStream.range(0, DEFAULT_NUM_ROWS).mapToObj(i -> randomAlphanumeric(keys)).collect(Collectors.toList());
+            List<ByteBuffer> randomBuffers = bridge.encodePartitionKeys(
+            partitioner,
+            schema.keyspace,
+            schema.createStatement,
+            otherKeys.stream()
+                     .map(Collections::singletonList)
+                     .collect(Collectors.toList())
+            );
+            List<Boolean> randomResult = bridge.maybeContains(partitioner, schema.keyspace, schema.table, ssTable, randomBuffers);
+            assertEquals(randomResult.size(), otherKeys.size());
+            assertTrue(randomResult.stream().anyMatch(boolValue -> !boolValue));
+
+            // perform exact contains query to confirm expected keys exist and random keys don't
+            assertTrue(bridge.contains(partitioner, schema.keyspace, schema.table, ssTable, buffers).stream().allMatch(aBoolean -> aBoolean));
+            assertTrue(bridge.contains(partitioner, schema.keyspace, schema.table, ssTable, randomBuffers).stream().noneMatch(aBoolean -> aBoolean));
+            List<ByteBuffer> allKeys = new ArrayList<>();
+            allKeys.addAll(buffers);
+            allKeys.addAll(randomBuffers);
+            List<Boolean> exactResult = bridge.contains(partitioner, schema.keyspace, schema.table, ssTable, allKeys);
+            assertEquals(allKeys.size(), exactResult.size());
+            for (int i = 0; i < exactResult.size(); i++)
+            {
+                assertEquals(i < buffers.size(), exactResult.get(i));
             }
         });
     }
