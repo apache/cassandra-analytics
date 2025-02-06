@@ -343,16 +343,13 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public List<BigInteger> toTokens(Partitioner partitioner, @NotNull List<ByteBuffer> partitionKeys)
+    public Tokenizer tokenizer(Partitioner partitioner)
     {
         IPartitioner iPartitioner = getPartitioner(partitioner);
-        return partitionKeys
-               .stream()
-               .map(key -> {
-                   DecoratedKey decoratedKey = iPartitioner.decorateKey(key);
-                   return TokenUtils.tokenToBigInteger(decoratedKey.getToken());
-               })
-               .collect(Collectors.toList());
+        return partitionKey -> {
+            DecoratedKey decoratedKey = iPartitioner.decorateKey(partitionKey);
+            return TokenUtils.tokenToBigInteger(decoratedKey.getToken());
+        };
     }
 
     @Override

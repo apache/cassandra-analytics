@@ -491,7 +491,7 @@ public abstract class CassandraBridge
      * @param partitionKeys   list of
      * @return list of tokens corresponding to each input `partitionKeys`
      */
-    public List<BigInteger> toTokens(Partitioner partitioner, String keyspace, String createTableStmt, List<List<String>> partitionKeys)
+    public List<BigInteger> toTokens(@NotNull Partitioner partitioner, @NotNull String keyspace, @NotNull String createTableStmt, @NotNull List<List<String>> partitionKeys)
     {
         return toTokens(partitioner, encodePartitionKeys(partitioner, keyspace, createTableStmt, partitionKeys));
     }
@@ -501,7 +501,20 @@ public abstract class CassandraBridge
      * @param partitionKeys list of encoded partition keys
      * @return list of tokens corresponding to each input `partitionKeys`
      */
-    public abstract List<BigInteger> toTokens(Partitioner partitioner, @NotNull List<ByteBuffer> partitionKeys);
+    public List<BigInteger> toTokens(@NotNull Partitioner partitioner, @NotNull List<ByteBuffer> partitionKeys)
+    {
+        Tokenizer tokenizer = tokenizer(partitioner);
+        return partitionKeys
+               .stream()
+               .map(tokenizer::toToken)
+               .collect(Collectors.toList());
+    }
+
+    /**
+     * @param partitioner Cassandra partitioner
+     * @return a Tokenizer instance for the provided Partitioner that maps a partition key to the token.
+     */
+    public abstract Tokenizer tokenizer(@NotNull Partitioner partitioner);
 
     /**
      * @param partitioner     Cassandra partitioner
