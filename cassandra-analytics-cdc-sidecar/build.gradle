@@ -29,6 +29,16 @@ configurations {
     all*.exclude(group: 'log4j', module: 'log4j')
 }
 
+java {
+    withJavadocJar()
+    withSourcesJar()
+
+    // Allows publishing the test jar
+    registerFeature("test") {
+        usingSourceSet(sourceSets.test)
+    }
+}
+
 publishing {
     publications {
         maven(MavenPublication) {
@@ -40,13 +50,31 @@ publishing {
     }
 }
 
+configurations {
+    fourzero {
+        description = 'Cassandra 4.0 dependency'
+    }
+    fourzerobridge {
+        description = 'Bridge to Cassandra 4.0'
+    }
+    fourzerotypes {
+        description = 'Cassandra 4.0 Data Types'
+    }
+}
+
 dependencies {
     api(project(':cassandra-bridge'))
 
+    fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
+    fourzerobridge(project(path: ':cassandra-four-zero-bridge'))
+    fourzerotypes(project(path: ':cassandra-four-zero-types'))
+
     implementation project(":cassandra-analytics-common")
     implementation project(':cassandra-analytics-cdc')
+    implementation project(':cassandra-analytics-sidecar-client')
+    compileOnlyApi("com.datastax.cassandra:cassandra-driver-core:${project.cassandraDriverVersion}") // Cassandra driver is required only if user supplies the CassandraClientSource
 
-    implementation "com.google.guava:guava:16.0.1"
+    implementation "com.google.guava:guava:${project.guavaVersion}"
 
     implementation "org.apache.commons:commons-lang3:${project.commonsLang3Version}"
     implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"
@@ -71,4 +99,32 @@ dependencies {
     testImplementation "org.junit.jupiter:junit-jupiter-api:${project.junitVersion}"
     testImplementation "org.junit.jupiter:junit-jupiter-params:${project.junitVersion}"
     testImplementation "org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}"
+    testImplementation "org.mockito:mockito-core:${project.rootProject.mockitoVersion}"
+    testImplementation "org.mockito:mockito-inline:${project.rootProject.mockitoVersion}"
+}
+
+jar {
+    dependsOn(configurations.fourzero)
+    dependsOn(configurations.fourzerobridge)
+    dependsOn(configurations.fourzerotypes)
+
+    writeBuildVersion(version, project.projectDir)
+
+    exclude('META-INF/*')
+    into('bridges') {
+        from(configurations.fourzero.singleFile)
+        from(configurations.fourzerobridge.singleFile)
+        from(configurations.fourzerotypes.singleFile)
+    }
+}
+
+private void writeBuildVersion(version, projectDir) {
+    def prop = new Properties()
+    prop.setProperty('build-version', "${version}")
+    def hash = System.getenv('GIT_HASH') ?: 'unknown'
+    prop.setProperty('build-rev', hash)
+    def propFile = new File("${projectDir}/src/main/resources/cassandra-analytics-cdc-build.properties")
+    propFile.createNewFile()
+    prop.store(propFile.newWriter(), null)
+    logger.info("Wrote to file={}, version={}, hash={}", propFile, version, hash)
 }

@@ -89,7 +89,7 @@ public class KeyStoreValidation implements StartupValidation
                 throw new RuntimeException("KeyStore is empty");
             }
 
-            for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements(); )
+            for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements();)
             {
                 latestAlias = aliases.nextElement();
                 Certificate cert = keyStore.getCertificate(latestAlias);
@@ -99,7 +99,7 @@ public class KeyStoreValidation implements StartupValidation
                 }
             }
 
-            for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements(); )
+            for (Enumeration<String> aliases = keyStore.aliases(); aliases.hasMoreElements();)
             {
                 Key key = keyStore.getKey(aliases.nextElement(), password);
                 if (key != null && key instanceof PrivateKey)

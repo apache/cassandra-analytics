@@ -70,12 +70,12 @@ public class Cdc implements Closeable
     private final int partitionId;
     private final TokenRangeSupplier tokenRangeSupplier;
     private final TableIdLookup tableIdLookup;
-    private final SchemaSupplier schemaSupplier;
+    protected final SchemaSupplier schemaSupplier;
     private final CassandraSource cassandraSource;
     private final StatePersister statePersister;
     private final CdcOptions cdcOptions;
-    private final AsyncExecutor asyncExecutor;
-    private final CommitLogProvider commitLogProvider;
+    protected final AsyncExecutor asyncExecutor;
+    protected final CommitLogProvider commitLogProvider;
     private final ICdcStats stats;
     private final EventConsumer eventConsumer;
 

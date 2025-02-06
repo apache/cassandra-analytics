@@ -62,5 +62,4 @@ dependencies {
 
     // This dependency must be built by running `scripts/build-dependencies.sh`
     api(group: "${sidecarClientGroup}", name: "${sidecarClientName}", version: "${sidecarVersion}")
-
 }

@@ -46,7 +46,7 @@ public class CdcBuilder
     @NotNull
     TokenRangeSupplier tokenRangeSupplier = () -> null;
     @NotNull
-    SchemaSupplier schemaSupplier;
+    protected SchemaSupplier schemaSupplier;
     @NotNull
     CassandraSource cassandraSource = CassandraSource.DEFAULT;
     @NotNull
@@ -56,11 +56,11 @@ public class CdcBuilder
     @NotNull
     ICdcStats stats = ICdcStats.STUB;
     @Nullable
-    AsyncExecutor asyncExecutor = null;
+    protected AsyncExecutor asyncExecutor = null;
     @Nullable
-    CommitLogProvider commitLogProvider = null;
+    protected CommitLogProvider commitLogProvider = null;
     @NotNull
-    EventConsumer eventConsumer;
+    protected EventConsumer eventConsumer;
     @NotNull
     public TableIdLookup tableIdLookup = TableIdLookup.STUB;
 

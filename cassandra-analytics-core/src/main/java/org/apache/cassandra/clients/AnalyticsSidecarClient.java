@@ -36,6 +36,10 @@ import org.apache.cassandra.spark.validation.StartupValidator;
 
 public class AnalyticsSidecarClient
 {
+    private AnalyticsSidecarClient()
+    {
+    }
+
     public static SidecarClient from(SidecarInstancesProvider sidecarInstancesProvider, BulkSparkConf conf)
     {
         Vertx vertx = Vertx.vertx(new VertxOptions().setUseDaemonThread(true)

@@ -1,0 +1,163 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+package org.apache.cassandra.cdc.sidecar;
+
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+
+import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
+import org.apache.cassandra.cdc.api.CommitLog;
+import org.apache.cassandra.cdc.stats.ICdcStats;
+import org.apache.cassandra.clients.Sidecar;
+import org.apache.cassandra.secrets.SecretsProvider;
+import org.apache.cassandra.sidecar.client.SidecarClient;
+import org.apache.cassandra.sidecar.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
+import org.apache.cassandra.sidecar.client.StreamBuffer;
+import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
+import org.apache.cassandra.spark.exceptions.TransportFailureException;
+import org.apache.cassandra.spark.utils.ThrowableUtils;
+import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
+
+public class SidecarCdcClient
+{
+    final Sidecar.ClientConfig config;
+    final SidecarClient sidecarClient;
+    final ICdcStats stats;
+
+    public SidecarCdcClient(Sidecar.ClientConfig config,
+                            SidecarClient sidecarClient,
+                            ICdcStats stats)
+    {
+        this.config = config;
+        this.sidecarClient = sidecarClient;
+        this.stats = stats;
+    }
+
+    public CompletableFuture<List<CommitLog>> listCdcCommitLogSegments(CassandraInstance instance)
+    {
+        return sidecarClient.listCdcSegments(toSidecarInstance(instance))
+                            .thenApply(
+                            response ->
+                            response.segmentInfos()
+                                    .stream()
+                                    .map(segment -> (CommitLog) new SidecarCdcCommitLogSegment(this, instance, segment, config))
+                                    .collect(Collectors.toList())
+                            ).exceptionally(throwable -> {
+            final Throwable cause = ThrowableUtils.rootCause(throwable);
+            if (cause instanceof TransportFailureException.Nonretryable
+                && ((TransportFailureException.Nonretryable) cause).isNotFound())
+            {
+                // Rescue the 404 not found exception - it is a permitted error
+                return List.of();
+            }
+            // Rethrow the other exception
+            if (throwable instanceof Error)
+            {
+                throw (Error) throwable;
+            }
+            throw new RuntimeException(cause);
+        });
+    }
+
+    public void streamCdcCommitLogSegment(CassandraInstance instance, String segment, HttpRange httpRange, StreamConsumer streamConsumer)
+    {
+        sidecarClient.streamCdcSegments(toSidecarInstance(instance), segment, httpRange, new org.apache.cassandra.sidecar.client.StreamConsumer()
+        {
+            @Override
+            public void onRead(StreamBuffer streamBuffer)
+            {
+                streamConsumer.onRead(new org.apache.cassandra.spark.utils.streaming.StreamBuffer()
+                {
+                    @Override
+                    public void getBytes(int index, ByteBuffer destination, int length)
+                    {
+                        streamBuffer.copyBytes(index, destination, length);
+                    }
+
+                    @Override
+                    public void getBytes(int index, byte[] destination, int destinationIndex, int length)
+                    {
+                        streamBuffer.copyBytes(index, destination, destinationIndex, length);
+                    }
+
+                    @Override
+                    public byte getByte(int index)
+                    {
+                        return streamBuffer.getByte(index);
+                    }
+
+                    @Override
+                    public int readableBytes()
+                    {
+                        return streamBuffer.readableBytes();
+                    }
+
+                    @Override
+                    public void release()
+                    {
+                        streamBuffer.release();
+                    }
+                });
+            }
+
+            @Override
+            public void onComplete()
+            {
+                streamConsumer.onEnd();
+            }
+
+            @Override
+            public void onError(Throwable throwable)
+            {
+                streamConsumer.onError(throwable);
+            }
+        });
+    }
+
+    protected SidecarInstance toSidecarInstance(CassandraInstance instance)
+    {
+        return new SidecarInstance()
+        {
+            @Override
+            public int port()
+            {
+                return config.effectivePort();
+            }
+
+            @Override
+            public String hostname()
+            {
+                return instance.nodeName();
+            }
+        };
+    }
+
+    public static SidecarCdcClient from(SidecarInstancesProvider sidecarInstancesProvider,
+                                        Sidecar.ClientConfig config,
+                                        SecretsProvider secretsProvider,
+                                        ICdcStats stats) throws IOException
+    {
+        return new SidecarCdcClient(config, Sidecar.from(sidecarInstancesProvider, config, secretsProvider), stats);
+    }
+}
