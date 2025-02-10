@@ -545,7 +545,8 @@ public abstract class CassandraBridge
      * @param keyspace      keyspace name
      * @param table         table name
      * @param ssTable       SSTable instance
-     * @return version independent BloomFilter instance to answer if SSTable might contain a partition key (might return false-positives but never false-negatives)
+     * @return version independent BloomFilter instance to answer if SSTable might contain a partition key
+     * (might return false-positives but never false-negatives)
      * @throws IOException
      */
     public abstract BloomFilter openBloomFilter(@NotNull Partitioner partitioner,
