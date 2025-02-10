@@ -42,6 +42,7 @@ import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.apache.cassandra.bridge.BloomFilter;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.bridge.TokenRange;
@@ -192,7 +193,8 @@ public class CassandraBridgeUtilTests
             TestSSTable ssTable = (TestSSTable) TestSSTable.firstIn(testDir);
 
             // should return all positives for the keys contained in the SSTable
-            List<Boolean> result = bridge.maybeContains(partitioner, schema.keyspace, schema.table, ssTable, buffers);
+            BloomFilter filter = bridge.openBloomFilter(partitioner, schema.keyspace, schema.table, ssTable);
+            List<Boolean> result = buffers.stream().map(filter::mightContain).collect(Collectors.toList());
             assertEquals(result.size(), buffers.size());
             assertTrue(result.stream().allMatch(boolValue -> boolValue));
 
@@ -206,7 +208,8 @@ public class CassandraBridgeUtilTests
                      .map(Collections::singletonList)
                      .collect(Collectors.toList())
             );
-            List<Boolean> randomResult = bridge.maybeContains(partitioner, schema.keyspace, schema.table, ssTable, randomBuffers);
+            BloomFilter randomBloomFilter = bridge.openBloomFilter(partitioner, schema.keyspace, schema.table, ssTable);
+            List<Boolean> randomResult = randomBuffers.stream().map(randomBloomFilter::mightContain).collect(Collectors.toList());
             assertEquals(randomResult.size(), otherKeys.size());
             assertTrue(randomResult.stream().anyMatch(boolValue -> !boolValue));
 

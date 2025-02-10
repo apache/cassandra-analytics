@@ -319,32 +319,24 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public List<Boolean> maybeContains(Partitioner partitioner,
-                                       String keyspace,
-                                       String table,
-                                       SSTable ssTable,
-                                       List<ByteBuffer> partitionKeys) throws IOException
+    public org.apache.cassandra.bridge.BloomFilter openBloomFilter(Partitioner partitioner,
+                                                                   String keyspace,
+                                                                   String table,
+                                                                   SSTable ssTable) throws IOException
     {
-        if (partitionKeys.isEmpty())
-        {
-            return List.of();
-        }
         IPartitioner iPartitioner = getPartitioner(partitioner);
         Descriptor descriptor = ReaderUtils.constructDescriptor(keyspace, table, ssTable);
-        return maybeContains(descriptor, ssTable, partitionKeys.stream().map(iPartitioner::decorateKey).collect(Collectors.toList()));
+        // closing `SharedCloseableImpl` instances is known to cause SIGSEGV errors
+        BloomFilter filter = openBloomFilter(descriptor, ssTable);
+        return partitionKey -> {
+            DecoratedKey decoratedKey = iPartitioner.decorateKey(partitionKey);
+            return filter.isPresent(decoratedKey);
+        };
     }
 
-    private List<Boolean> maybeContains(Descriptor descriptor, SSTable ssTable, Collection<DecoratedKey> partitionKeys) throws IOException
+    private BloomFilter openBloomFilter(Descriptor descriptor, SSTable ssTable) throws IOException
     {
-        if (partitionKeys.isEmpty())
-        {
-            return List.of();
-        }
-        // closing `SharedCloseableImpl` instances is known to cause SIGSEGV errors
-        @SuppressWarnings("resource") BloomFilter filter = ReaderUtils.readFilter(ssTable, descriptor);
-        return partitionKeys.stream()
-                            .map(filter::isPresent)
-                            .collect(Collectors.toList());
+        return ReaderUtils.readFilter(ssTable, descriptor);
     }
 
     @Override
@@ -358,7 +350,8 @@ public class CassandraBridgeImplementation extends CassandraBridge
         IPartitioner iPartitioner = getPartitioner(partitioner);
         List<DecoratedKey> decoratedKeys = partitionKeys.stream().map(iPartitioner::decorateKey).collect(Collectors.toList());
         Descriptor descriptor = ReaderUtils.constructDescriptor(keyspace, table, ssTable);
-        List<Boolean> result = maybeContains(descriptor, ssTable, decoratedKeys);
+        BloomFilter filter = openBloomFilter(descriptor, ssTable);
+        List<Boolean> result = decoratedKeys.stream().map(filter::isPresent).collect(Collectors.toList());
         if (result.stream().noneMatch(found -> found))
         {
             // no matches in the bloom filter, so we can exit early

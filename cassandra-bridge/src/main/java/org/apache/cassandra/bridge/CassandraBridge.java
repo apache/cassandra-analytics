@@ -545,17 +545,13 @@ public abstract class CassandraBridge
      * @param keyspace      keyspace name
      * @param table         table name
      * @param ssTable       SSTable instance
-     * @param partitionKeys list of partition keys
-     * @return list of booleans returning true if an SSTable might contain a partition key
-     * (might return false-positives but never false-negatives),
-     * corresponding to the partition keys input in `partitionKeys`.
+     * @return version independent BloomFilter instance to answer if SSTable might contain a partition key (might return false-positives but never false-negatives)
      * @throws IOException
      */
-    public abstract List<Boolean> maybeContains(@NotNull Partitioner partitioner,
+    public abstract BloomFilter openBloomFilter(@NotNull Partitioner partitioner,
                                                 @NotNull String keyspace,
                                                 @NotNull String table,
-                                                @NotNull SSTable ssTable,
-                                                @NotNull List<ByteBuffer> partitionKeys) throws IOException;
+                                                @NotNull SSTable ssTable) throws IOException;
 
     /**
      * @param partitioner   Cassandra partitioner
