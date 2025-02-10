@@ -75,6 +75,11 @@ public final class PartitionKeyFilter implements Serializable, Comparable<Partit
         return key.compareTo(key()) == 0;
     }
 
+    public boolean filter(@NotNull ByteBuffer key)
+    {
+        return key().compareTo(key) == 0;
+    }
+
     @NotNull
     public static PartitionKeyFilter create(@NotNull ByteBuffer filterKey, @NotNull BigInteger filterKeyTokenValue)
     {

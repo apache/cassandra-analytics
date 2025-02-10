@@ -72,7 +72,7 @@ public abstract class RowIterator<T>
     {
         CqlTable cqlTable = it.cqlTable();
         boolean hasProjectedValueColumns = it.hasProjectedValueColumns();
-        return new RowIterator<>(it, stats, requiredColumns, Function.identity())
+        return new RowIterator<Map<String, Object>>(it, stats, requiredColumns, Function.identity())
         {
             @SuppressWarnings("DataFlowIssue") // requiredColumns null checked in PartialRowBuilder constructor
             @Override

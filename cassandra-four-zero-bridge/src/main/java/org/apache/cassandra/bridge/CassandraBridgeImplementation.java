@@ -344,7 +344,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     {
         if (partitionKeys.isEmpty())
         {
-            return List.of();
+            return Collections.emptyList();
         }
 
         IPartitioner iPartitioner = getPartitioner(partitioner);
