@@ -21,7 +21,6 @@ package org.apache.cassandra.spark.reader;
 
 import java.io.DataInputStream;
 import java.io.EOFException;
-import java.io.File;
 import java.io.IOError;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -40,7 +39,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Streams;
 import org.slf4j.Logger;
@@ -84,9 +82,9 @@ import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
+import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.apache.cassandra.utils.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -156,9 +154,12 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             return this;
         }
 
-        public Builder withPartitionKeyFilters(@NotNull Collection<PartitionKeyFilter> partitionKeyFilters)
+        public Builder withPartitionKeyFilters(@Nullable Collection<PartitionKeyFilter> partitionKeyFilters)
         {
-            this.partitionKeyFilters.addAll(partitionKeyFilters);
+            if (partitionKeyFilters != null)
+            {
+                this.partitionKeyFilters.addAll(partitionKeyFilters);
+            }
             return this;
         }
 
@@ -243,25 +244,24 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         this.isRepaired = isRepaired;
         this.sparkRangeFilter = sparkRangeFilter;
 
-        File file = constructFilename(metadata.keyspace, metadata.name, ssTable.getDataFileName());
-        Descriptor descriptor = Descriptor.fromFilename(file);
+        Descriptor descriptor = ReaderUtils.constructDescriptor(metadata.keyspace, metadata.name, ssTable);
         this.version = descriptor.version;
 
         SummaryDbUtils.Summary summary = null;
-        Pair<DecoratedKey, DecoratedKey> keys = Pair.create(null, null);
+        Pair<DecoratedKey, DecoratedKey> keys = null;
         try
         {
             now = System.nanoTime();
             summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
             stats.readSummaryDb(ssTable, System.nanoTime() - now);
-            keys = Pair.create(summary.first(), summary.last());
+            keys = Pair.of(summary.first(), summary.last());
         }
         catch (IOException exception)
         {
             LOGGER.warn("Failed to read Summary.db file ssTable='{}'", ssTable, exception);
         }
 
-        if (keys.left == null || keys.right == null)
+        if (keys == null)
         {
             LOGGER.warn("Could not load first and last key from Summary.db file, so attempting Index.db fileName={}",
                         ssTable.getDataFileName());
@@ -270,7 +270,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             stats.readIndexDb(ssTable, System.nanoTime() - now);
         }
 
-        if (keys.left == null || keys.right == null)
+        if (keys == null)
         {
             throw new IOException("Could not load SSTable first or last tokens");
         }
@@ -404,30 +404,6 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         reader.set(new SSTableStreamReader());
         stats.openedSSTable(ssTable, System.nanoTime() - startTimeNanos);
         this.openedNanos = System.nanoTime();
-    }
-
-    /**
-     * Constructs full file path for a given combination of keyspace, table, and data file name,
-     * while adjusting for data files with non-standard names prefixed with keyspace and table
-     *
-     * @param keyspace Name of the keyspace
-     * @param table    Name of the table
-     * @param filename Name of the data file
-     * @return A full file path, adjusted for non-standard file names
-     */
-    @VisibleForTesting
-    @NotNull
-    static File constructFilename(@NotNull String keyspace, @NotNull String table, @NotNull String filename)
-    {
-        String[] components = filename.split("-");
-        if (components.length == 6
-                && components[0].equals(keyspace)
-                && components[1].equals(table))
-        {
-            filename = filename.substring(keyspace.length() + table.length() + 2);
-        }
-
-        return new File(String.format("./%s/%s", keyspace, table), filename);
     }
 
     private static Map<ByteBuffer, DroppedColumn> buildDroppedColumns(String keyspace,

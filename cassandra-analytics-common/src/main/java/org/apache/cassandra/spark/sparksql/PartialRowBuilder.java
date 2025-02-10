@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.sparksql;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -51,6 +52,7 @@ public class PartialRowBuilder<T> extends FullRowBuilder<T>
                              Function<Object[], T> rowBuilder)
     {
         super(table, hasProjectedValueColumns, rowBuilder);
+        Objects.requireNonNull(requiredSchema, "requiredColumns must be non-null to use PartialRowBuilder");
         this.requiredSchema = requiredSchema;
         this.columnIndex = new HashMap<>(requiredSchema.length);
         for (int i = 0; i < requiredSchema.length; i++)

@@ -59,7 +59,7 @@ import static org.quicktheories.generators.SourceDSL.arbitrary;
 
 public final class Tester
 {
-    static final int DEFAULT_NUM_ROWS = 200;
+    public static final int DEFAULT_NUM_ROWS = 200;
 
     @NotNull
     private final List<CassandraVersion> versions;

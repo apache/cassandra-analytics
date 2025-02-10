@@ -23,6 +23,7 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.IntStream;
 
@@ -117,6 +118,26 @@ public final class RandomUtils
     public static String randomAlphanumeric(int minLengthInclusive, int maxLengthExclusive)
     {
         return randomAlphanumeric(RandomUtils.nextInt(minLengthInclusive, maxLengthExclusive));
+    }
+
+    public static String randomAlphanumeric(Set<String> alreadyExist)
+    {
+        return randomAlphanumeric(alreadyExist, 32);
+    }
+
+    public static String randomAlphanumeric(Set<String> alreadyExist, int length)
+    {
+        String str = randomAlphanumeric(length);
+        while (alreadyExist.contains(str))
+        {
+            str = randomAlphanumeric(length);
+        }
+        return str;
+    }
+
+    public static String randomAlphanumeric()
+    {
+        return randomAlphanumeric(32);
     }
 
     public static String randomAlphanumeric(int length)

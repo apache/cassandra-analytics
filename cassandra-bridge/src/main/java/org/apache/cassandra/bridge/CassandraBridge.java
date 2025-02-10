@@ -46,6 +46,7 @@ import com.google.common.collect.ImmutableMap;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
+import org.apache.cassandra.spark.data.BasicSupplier;
 import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
@@ -401,6 +402,11 @@ public abstract class CassandraBridge
                                                      @NotNull String table,
                                                      @NotNull SSTable ssTable);
 
+    public abstract SSTableSummary getSSTableSummary(@NotNull Partitioner partitioner,
+                                                     @NotNull SSTable ssTable,
+                                                     int minIndexInterval,
+                                                     int maxIndexInterval);
+
     // Version-Specific Test Utility Methods
 
     @VisibleForTesting
@@ -442,6 +448,207 @@ public abstract class CassandraBridge
     }
 
     public abstract CompressionUtil compressionUtil();
+
+    // additional SSTable utils methods
+
+    /**
+     * @param keyspace keyspace name
+     * @param table    table name
+     * @param ssTable  SSTable instance
+     * @return last repair time for a given SSTable by reading the Statistics.db file.
+     * @throws IOException
+     */
+    public abstract long lastRepairTime(@NotNull String keyspace,
+                                        @NotNull String table,
+                                        @NotNull SSTable ssTable) throws IOException;
+
+    /**
+     * @param ssTable          SSTable instance
+     * @param minIndexInterval minIndexInterval configured in the TableMetaData
+     * @param partitioner      Cassandra partitioner
+     * @param maxIndexInterval maxIndexInterval configured in the TableMetadata
+     * @param ranges           a list of token ranges
+     * @return a list boolean value if corresponding token range in `ranges` list parameter overlaps with the SSTable.
+     * The SSTable may or may not contain data for the range.
+     */
+    public abstract List<Boolean> overlaps(@NotNull SSTable ssTable,
+                                           @NotNull Partitioner partitioner,
+                                           int minIndexInterval,
+                                           int maxIndexInterval,
+                                           @NotNull List<TokenRange> ranges) throws IOException;
+
+    /**
+     * @param partitioner     Cassandra partitioner
+     * @param keyspace        Cassandra keyspace
+     * @param createTableStmt CQL table create statement
+     * @param partitionKeys   list of
+     * @return list of tokens corresponding to each input `partitionKeys`
+     */
+    public List<BigInteger> toTokens(@NotNull Partitioner partitioner,
+                                     @NotNull String keyspace,
+                                     @NotNull String createTableStmt,
+                                     @NotNull List<List<String>> partitionKeys)
+    {
+        return toTokens(partitioner, encodePartitionKeys(partitioner, keyspace, createTableStmt, partitionKeys));
+    }
+
+    /**
+     * @param partitioner   Cassandra partitioner
+     * @param partitionKeys list of encoded partition keys
+     * @return list of tokens corresponding to each input `partitionKeys`
+     */
+    public List<BigInteger> toTokens(@NotNull Partitioner partitioner,
+                                     @NotNull List<ByteBuffer> partitionKeys)
+    {
+        Tokenizer tokenizer = tokenizer(partitioner);
+        return partitionKeys
+               .stream()
+               .map(tokenizer::toToken)
+               .collect(Collectors.toList());
+    }
+
+    /**
+     * @param partitioner Cassandra partitioner
+     * @return a Tokenizer instance for the provided Partitioner that maps a partition key to the token.
+     */
+    public abstract Tokenizer tokenizer(@NotNull Partitioner partitioner);
+
+    /**
+     * @param partitioner     Cassandra partitioner
+     * @param keyspace        keyspace name
+     * @param createTableStmt CQL create table statement
+     * @param partitionKey    partition key
+     * @return encoded ByteBuffer for the input `partitionKey`
+     */
+    public ByteBuffer encodePartitionKey(@NotNull Partitioner partitioner,
+                                         @NotNull String keyspace,
+                                         @NotNull String createTableStmt,
+                                         @NotNull List<String> partitionKey)
+    {
+        return encodePartitionKeys(partitioner, keyspace, createTableStmt, Collections.singletonList(partitionKey)).get(0);
+    }
+
+    /**
+     * @param partitioner     Cassandra partitioner
+     * @param keyspace        keyspace name
+     * @param createTableStmt CQL create table statement
+     * @param partitionKeys   list of partition keys
+     * @return a list encoded ByteBuffers corresponding to the partition keys input in `partitionKeys`
+     */
+    public abstract List<ByteBuffer> encodePartitionKeys(@NotNull Partitioner partitioner,
+                                                         @NotNull String keyspace,
+                                                         @NotNull String createTableStmt,
+                                                         @NotNull List<List<String>> partitionKeys);
+
+    /**
+     * @param partitioner   Cassandra partitioner
+     * @param keyspace      keyspace name
+     * @param table         table name
+     * @param ssTable       SSTable instance
+     * @return version independent BloomFilter instance to answer if SSTable might contain a partition key
+     * (might return false-positives but never false-negatives)
+     * @throws IOException
+     */
+    public abstract BloomFilter openBloomFilter(@NotNull Partitioner partitioner,
+                                                @NotNull String keyspace,
+                                                @NotNull String table,
+                                                @NotNull SSTable ssTable) throws IOException;
+
+    /**
+     * @param partitioner   Cassandra partitioner
+     * @param keyspace      keyspace name
+     * @param table         table name
+     * @param ssTable       SSTable instance
+     * @param partitionKeys list of partition keys
+     * @return list of booleans returning true if an SSTable contains a partition key, corresponding to the partition keys input in `partitionKeys`.
+     * @throws IOException
+     */
+    public abstract List<Boolean> contains(@NotNull Partitioner partitioner,
+                                           @NotNull String keyspace,
+                                           @NotNull String table,
+                                           @NotNull SSTable ssTable,
+                                           @NotNull List<ByteBuffer> partitionKeys) throws IOException;
+
+    /**
+     * Convenience method around `readPartitionKeys` to accept partition keys as string values and encode with the correct types.
+     *
+     * @param partitioner Cassandra partitioner
+     * @param keyspace    keyspace name
+     * @param createStmt  create table CQL statement
+     * @param ssTables    set of SSTables to read
+     * @param rowConsumer Consumer interface to consume rows as they are read to avoid buffering all rows in memory for consumption.
+     * @throws IOException
+     */
+    public void readStringPartitionKeys(@NotNull Partitioner partitioner,
+                                        @NotNull String keyspace,
+                                        @NotNull String createStmt,
+                                        @NotNull Set<SSTable> ssTables,
+                                        @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
+    {
+        readStringPartitionKeys(partitioner, keyspace, createStmt, ssTables, null, null, null, rowConsumer);
+    }
+
+    /**
+     * Convenience method around `readPartitionKeys` to accept partition keys as string values and encode with the correct types.
+     *
+     * @param partitioner       Cassandra partitioner
+     * @param keyspace          keyspace name
+     * @param createStmt        create table CQL statement
+     * @param ssTables          set of SSTables to read
+     * @param tokenRange        optional token range to limit the bulk read to a restricted token range.
+     * @param partitionKeys     list of partition keys, if more than one partition keys they must be correctly ordered in the inner list.
+     * @param pruneColumnFilter optional filter to select a subset of columns, this can offer performance improvement if skipping over large blobs or columns.
+     * @param rowConsumer       Consumer interface to consume rows as they are read to avoid buffering all rows in memory for consumption.
+     * @throws IOException
+     */
+    public void readStringPartitionKeys(@NotNull Partitioner partitioner,
+                                        @NotNull String keyspace,
+                                        @NotNull String createStmt,
+                                        @NotNull Set<SSTable> ssTables,
+                                        @Nullable TokenRange tokenRange,
+                                        @Nullable List<List<String>> partitionKeys,
+                                        @Nullable String[] pruneColumnFilter,
+                                        @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
+    {
+        readPartitionKeys(partitioner,
+                          keyspace,
+                          createStmt,
+                          new BasicSupplier(ssTables),
+                          tokenRange,
+                          partitionKeys == null ? null : encodePartitionKeys(partitioner, keyspace, createStmt, partitionKeys),
+                          pruneColumnFilter,
+                          rowConsumer);
+    }
+
+    public void readPartitionKeys(@NotNull Partitioner partitioner,
+                                  @NotNull String keyspace,
+                                  @NotNull String createStmt,
+                                  @NotNull Set<SSTable> ssTables,
+                                  @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
+    {
+        readPartitionKeys(partitioner, keyspace, createStmt, ssTables, null, null, null, rowConsumer);
+    }
+
+    public void readPartitionKeys(@NotNull Partitioner partitioner,
+                                  @NotNull String keyspace,
+                                  @NotNull String createStmt,
+                                  @NotNull Set<SSTable> ssTables,
+                                  @Nullable TokenRange tokenRange,
+                                  @Nullable List<ByteBuffer> partitionKeys,
+                                  @Nullable String[] pruneColumnFilter,
+                                  @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
+    {
+        readPartitionKeys(partitioner, keyspace, createStmt, new BasicSupplier(ssTables), tokenRange, partitionKeys, pruneColumnFilter, rowConsumer);
+    }
+
+    public abstract void readPartitionKeys(@NotNull Partitioner partitioner,
+                                           @NotNull String keyspace,
+                                           @NotNull String createStmt,
+                                           @NotNull SSTablesSupplier ssTables,
+                                           @Nullable TokenRange tokenRange,
+                                           @Nullable List<ByteBuffer> partitionKeys,
+                                           @Nullable String[] pruneColumnFilter,
+                                           @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException;
 
     // Kryo/Java (De-)Serialization
 

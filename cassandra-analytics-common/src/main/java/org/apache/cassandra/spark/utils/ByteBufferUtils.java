@@ -91,6 +91,16 @@ public final class ByteBufferUtils
         return bytes;
     }
 
+    public static String readShortLengthCompositeTypeString(ByteBuffer buf)
+    {
+        int len = buf.getShort();
+        byte[] ar = new byte[len];
+        buf.get(ar);
+        String str = new String(ar, StandardCharsets.UTF_8);
+        buf.get(); // CompositeType pads with a null byte at the end
+        return str;
+    }
+
     /**
      * Decode ByteBuffer into String using provided CharsetDecoder.
      *

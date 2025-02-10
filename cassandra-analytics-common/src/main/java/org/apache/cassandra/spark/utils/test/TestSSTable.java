@@ -98,7 +98,7 @@ public final class TestSSTable extends SSTable
     @Override
     protected InputStream openInputStream(FileType fileType)
     {
-        Path filePath = FileType.resolveComponentFile(fileType, dataFile);
+        Path filePath = fileComponentPath(fileType);
         try
         {
             return filePath != null ? new BufferedInputStream(new FileInputStream(filePath.toFile())) : null;
@@ -109,14 +109,19 @@ public final class TestSSTable extends SSTable
         }
     }
 
+    public Path fileComponentPath(FileType fileType)
+    {
+        return FileType.resolveComponentFile(fileType, dataFile);
+    }
+
     public long length(FileType fileType)
     {
-        return IOUtils.size(FileType.resolveComponentFile(fileType, dataFile));
+        return IOUtils.size(fileComponentPath(fileType));
     }
 
     public boolean isMissing(FileType fileType)
     {
-        return FileType.resolveComponentFile(fileType, dataFile) == null;
+        return fileComponentPath(fileType) == null;
     }
 
     @Override

@@ -19,9 +19,12 @@
 
 package org.apache.cassandra.spark.sparksql.filters;
 
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Prune column push-down filter to skip reading columns that are not needed
@@ -33,6 +36,12 @@ public class PruneColumnFilter
     public PruneColumnFilter(@NotNull Set<String> requiredColumns)
     {
         this.requiredColumns = requiredColumns;
+    }
+
+    @Nullable
+    public static PruneColumnFilter of(@Nullable String[] requiredColumns)
+    {
+        return requiredColumns == null ? null : new PruneColumnFilter(new HashSet<>(Arrays.asList(requiredColumns)));
     }
 
     public Set<String> requiredColumns()

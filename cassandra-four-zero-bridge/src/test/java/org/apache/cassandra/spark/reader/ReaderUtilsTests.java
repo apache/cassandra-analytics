@@ -55,10 +55,10 @@ import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
+import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
-import org.apache.cassandra.utils.Pair;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -98,7 +98,7 @@ public class ReaderUtilsTests
 
                     String dataFile = TestSSTable.firstIn(directory.path()).getDataFileName();
                     Descriptor descriptor = Descriptor.fromFilename(
-                            new File(String.format("./%s/%s", schema.keyspace, schema.table), dataFile));
+                    new File(String.format("./%s/%s", schema.keyspace, schema.table), dataFile));
                     Path statsFile = TestSSTable.firstIn(directory.path(), FileType.STATISTICS);
 
                     // Deserialize stats meta data and verify components match expected values
@@ -178,9 +178,9 @@ public class ReaderUtilsTests
                     Pair<DecoratedKey, DecoratedKey> indexKeys;
                     try (InputStream in = new BufferedInputStream(Files.newInputStream(indexFile)))
                     {
-                        Pair<ByteBuffer, ByteBuffer> keys = ReaderUtils.readPrimaryIndex(in, true, Collections.emptyList());
-                        indexKeys = Pair.create(Murmur3Partitioner.instance.decorateKey(keys.left),
-                                                Murmur3Partitioner.instance.decorateKey(keys.right));
+                        Pair<ByteBuffer, ByteBuffer> keys = ReaderUtils.primaryIndexReadFirstAndLastKey(in);
+                        indexKeys = Pair.of(Murmur3Partitioner.instance.decorateKey(keys.left),
+                                            Murmur3Partitioner.instance.decorateKey(keys.right));
                     }
                     assertNotNull(indexKeys);
                     assertEquals(indexKeys.left, summaryKeys.first());

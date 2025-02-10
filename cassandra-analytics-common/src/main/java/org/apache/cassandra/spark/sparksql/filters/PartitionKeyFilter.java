@@ -33,7 +33,7 @@ import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.jetbrains.annotations.NotNull;
 
-public final class PartitionKeyFilter implements Serializable
+public final class PartitionKeyFilter implements Serializable, Comparable<PartitionKeyFilter>
 {
     @NotNull
     private BigInteger token;
@@ -140,5 +140,16 @@ public final class PartitionKeyFilter implements Serializable
         final PartitionKeyFilter that = (PartitionKeyFilter) other;
         return filterKey.equals(that.filterKey)
                && token.equals(that.token);
+    }
+
+    @Override
+    public int compareTo(@NotNull PartitionKeyFilter other)
+    {
+        int compare = token.compareTo(other.token);
+        if (compare == 0)
+        {
+            return key().compareTo(other.key());
+        }
+        return compare;
     }
 }

@@ -40,9 +40,9 @@ import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
+import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.utils.BloomFilter;
-import org.apache.cassandra.utils.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -116,6 +116,7 @@ public class SSTableCache
         return get(summary, ssTable, () -> SummaryDbUtils.readSummary(metadata, ssTable));
     }
 
+    @Nullable
     public Pair<DecoratedKey, DecoratedKey> keysFromIndex(@NotNull TableMetadata metadata,
                                                           @NotNull SSTable ssTable) throws IOException
     {

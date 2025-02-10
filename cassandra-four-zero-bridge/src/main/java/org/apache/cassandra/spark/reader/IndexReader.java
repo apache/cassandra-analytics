@@ -64,7 +64,7 @@ public class IndexReader implements IIndexReader
         long startTimeNanos = now;
         try
         {
-            File file = SSTableReader.constructFilename(metadata.keyspace, metadata.name, ssTable.getDataFileName());
+            File file = ReaderUtils.constructFilename(metadata.keyspace, metadata.name, ssTable.getDataFileName());
             Descriptor descriptor = Descriptor.fromFilename(file);
             Version version = descriptor.version;
 

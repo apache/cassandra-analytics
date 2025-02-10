@@ -17,23 +17,27 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.data;
+package org.apache.cassandra.bridge;
 
-import org.jetbrains.annotations.NotNull;
+import java.nio.ByteBuffer;
+import java.util.function.Predicate;
 
-public interface TypeConverter
+/**
+ * Version independent interface to front bloom filter.
+ */
+public interface BloomFilter extends Predicate<ByteBuffer>
 {
-    TypeConverter IDENTITY = (cqlType, value, isFrozen) -> value;
-
     /**
-     * Converts deserialized Cassandra Java value to desired equivalent type.
-     * E.g. SparkSQL uses `org.apache.spark.unsafe.types.UTF8String` to wrap strings.
-     * E.g. SparkSQL starts counting dates from 1970-01-01 = 0, but Cassandra starts at 1970-01-01 = Integer.MIN_VALUE.
-     *
-     * @param cqlType  cql type
-     * @param value    cassandra value
-     * @param isFrozen true if type or parent type is a frozen type
-     * @return equivalent value in new data format.
+     * @param partitionKey serialzied partition key.
+     * @return true if SSTable might contain a given partition key, might return false-positives but never false-negatives.
      */
-    Object convert(CqlField.CqlType cqlType, @NotNull Object value, boolean isFrozen);
+    default boolean mightContain(ByteBuffer partitionKey)
+    {
+        return test(partitionKey);
+    }
+
+    default boolean doesNotContain(ByteBuffer partitionKey)
+    {
+        return !mightContain(partitionKey);
+    }
 }
