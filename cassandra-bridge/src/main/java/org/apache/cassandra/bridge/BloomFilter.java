@@ -31,4 +31,9 @@ public interface BloomFilter
      * @return true if SSTable might contain a given partition key, might return false-positives but never false-negatives.
      */
     boolean mightContain(ByteBuffer partitionKey);
+
+    default boolean doesNotContain(ByteBuffer partitionKey)
+    {
+        return !mightContain(partitionKey);
+    }
 }

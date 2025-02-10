@@ -58,6 +58,7 @@ import static org.apache.cassandra.spark.Tester.DEFAULT_NUM_ROWS;
 import static org.apache.cassandra.spark.utils.ByteBufferUtils.readShortLengthCompositeTypeString;
 import static org.apache.cassandra.spark.utils.RandomUtils.randomAlphanumeric;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.quicktheories.QuickTheory.qt;
@@ -223,7 +224,18 @@ public class CassandraBridgeUtilTests
             assertEquals(allKeys.size(), exactResult.size());
             for (int i = 0; i < exactResult.size(); i++)
             {
-                assertEquals(i < buffers.size(), exactResult.get(i));
+                boolean contains = exactResult.get(i);
+                assertEquals(i < buffers.size(), contains);
+                if (filter.doesNotContain(allKeys.get(i)))
+                {
+                    // if bloom filter returns true for `doesNotContain` then contains should always be false
+                    assertFalse(contains);
+                }
+                if (contains)
+                {
+                    // bloom filter should always return true if SSTable contains key
+                    assertTrue(filter.mightContain(allKeys.get(i)));
+                }
             }
         });
     }
