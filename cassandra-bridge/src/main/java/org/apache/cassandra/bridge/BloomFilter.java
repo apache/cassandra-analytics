@@ -20,17 +20,21 @@
 package org.apache.cassandra.bridge;
 
 import java.nio.ByteBuffer;
+import java.util.function.Predicate;
 
 /**
  * Version independent interface to front bloom filter.
  */
-public interface BloomFilter
+public interface BloomFilter extends Predicate<ByteBuffer>
 {
     /**
      * @param partitionKey serialzied partition key.
      * @return true if SSTable might contain a given partition key, might return false-positives but never false-negatives.
      */
-    boolean mightContain(ByteBuffer partitionKey);
+    default boolean mightContain(ByteBuffer partitionKey)
+    {
+        return test(partitionKey);
+    }
 
     default boolean doesNotContain(ByteBuffer partitionKey)
     {
