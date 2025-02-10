@@ -42,7 +42,6 @@ publishing {
 
 dependencies {
     implementation("org.slf4j:slf4j-api:${slf4jApiVersion}")
-    implementation "org.apache.avro:avro:${avroVersion}"
     compileOnly("com.esotericsoftware:kryo-shaded:${kryoVersion}")
     compileOnly("com.google.guava:guava:${guavaVersion}")
     compileOnly("com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}")
