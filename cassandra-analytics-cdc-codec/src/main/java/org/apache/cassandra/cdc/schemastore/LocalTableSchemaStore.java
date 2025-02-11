@@ -115,7 +115,7 @@ public class LocalTableSchemaStore implements SchemaStore
             Path path;
             if (schemas.getScheme().equals("jar"))
             {
-                jarFs = FileSystems.newFileSystem(schemas, Map.of());
+                jarFs = FileSystems.newFileSystem(schemas, new HashMap<>());
                 path = jarFs.getPath("table_schemas");
             }
             else
