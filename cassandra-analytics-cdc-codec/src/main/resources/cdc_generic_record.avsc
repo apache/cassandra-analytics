@@ -1,0 +1,136 @@
+{
+  "type": "record",
+  "name": "CassandraCDC",
+  "namespace": "org.apache.cassandra",
+  "doc": "primary_keys and partition_keys are added dynamically in RowSerializer",
+  "fields": [
+    {
+      "name": "timestampMicros",
+      "type": "long"
+    },
+    {
+      "name": "sourceTable",
+      "type": "string"
+    },
+    {
+      "name": "sourceKeyspace",
+      "type": "string"
+    },
+    {
+      "name": "schemaUuid",
+      "type": "string"
+    },
+    {
+      "name": "truncatedFields",
+      "type": {
+        "type": "array",
+        "items": "string"
+      }
+    },
+    {
+      "name": "version",
+      "type": ["null","string"],
+      "default": null,
+      "doc": "to allow serde of evolving schemas"
+    },
+    {
+      "name": "operationType",
+      "type": {
+        "type": "enum",
+        "name": "OperationType",
+        "namespace": "com.apple.mg",
+        "symbols": [
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "DELETE_RANGE",
+          "DELETE_PARTITION"
+        ]
+      }
+    },
+    {
+      "name": "isPartial",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "updateFields",
+      "doc": "used to differentiate between absent data, and data being updated to a null value (when isPartial = true)",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": "string"
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "range",
+      "doc": "clustering keys only - logical AND of predicates",
+      "type": [
+        "null",
+        {
+          "type": "array",
+          "items": {
+            "type": "record",
+            "name": "RangePredicate",
+            "namespace": "com.apple.mg",
+            "fields": [
+              {
+                "name": "field",
+                "type": "string"
+              },
+              {
+                "name": "rangePredicateType",
+                "type": {
+                  "type": "enum",
+                  "name": "RangePredicateType",
+                  "namespace": "com.apple.mg",
+                  "symbols": [
+                    "LT",
+                    "LTE",
+                    "EQ",
+                    "GTE",
+                    "GT",
+                    "IN"
+                  ]
+                }
+              },
+              {
+                "name": "value",
+                "doc": "table schema (same as primary payload) with only a single field populated",
+                "type": "bytes"
+              }
+            ]
+          }
+        }
+      ],
+      "default": null
+    },
+    {
+      "name": "ttl",
+      "doc": "TTL (if any) of the associated row",
+      "type": [
+        "null",
+        {
+          "type": "record",
+          "name": "TTL",
+          "namespace": "com.apple.mg",
+          "fields": [
+            {
+              "name": "ttl",
+              "type": "int",
+              "doc": "Relative time in seconds as set in the CQL query"
+            },
+            {
+              "name": "deletedAt",
+              "type": "int",
+              "doc": "Future timestamp in seconds"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "type" : "record",
+  "name" : "example",
+  "namespace" : "foo.namespace",
+  "doc" : "This is an example avro schema for a foo.namespace.example table",
+  "fields" : [ {
+    "name" : "id",
+    "type" : [ {
+      "type" : "string",
+      "logicalType" : "uuid"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "details",
+    "type" : [ "bytes", "null" ],
+    "doc" : "doc"
+  } ],
+  "primary_keys" : [ "id" ],
+  "partition_keys" : [ "id" ]
+}
