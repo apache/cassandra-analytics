@@ -32,11 +32,6 @@ configurations {
 java {
     withJavadocJar()
     withSourcesJar()
-
-    // Allows publishing the test jar
-    registerFeature("test") {
-        usingSourceSet(sourceSets.test)
-    }
 }
 
 publishing {
