@@ -108,7 +108,7 @@ jar {
     dependsOn(configurations.fourzerobridge)
     dependsOn(configurations.fourzerotypes)
 
-    writeBuildVersion(version, project.projectDir)
+//    writeBuildVersion(version, project.projectDir)
 
     exclude('META-INF/*')
     into('bridges') {
@@ -118,13 +118,13 @@ jar {
     }
 }
 
-private void writeBuildVersion(version, projectDir) {
-    def prop = new Properties()
-    prop.setProperty('build-version', "${version}")
-    def hash = System.getenv('GIT_HASH') ?: 'unknown'
-    prop.setProperty('build-rev', hash)
-    def propFile = new File("${projectDir}/src/main/resources/cassandra-analytics-cdc-build.properties")
-    propFile.createNewFile()
-    prop.store(propFile.newWriter(), null)
-    logger.info("Wrote to file={}, version={}, hash={}", propFile, version, hash)
-}
+//private void writeBuildVersion(version, projectDir) {
+//    def prop = new Properties()
+//    prop.setProperty('build-version', "${version}")
+//    def hash = System.getenv('GIT_HASH') ?: 'unknown'
+//    prop.setProperty('build-rev', hash)
+//    def propFile = new File("${projectDir}/src/main/resources/cassandra-analytics-cdc-build.properties")
+//    propFile.createNewFile()
+//    prop.store(propFile.newWriter(), null)
+//    logger.info("Wrote to file={}, version={}, hash={}", propFile, version, hash)
+//}
