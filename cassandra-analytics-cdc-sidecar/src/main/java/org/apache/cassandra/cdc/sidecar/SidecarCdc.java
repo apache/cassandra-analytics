@@ -30,7 +30,7 @@ import org.apache.cassandra.spark.utils.FutureUtils;
 import org.jetbrains.annotations.NotNull;
 
 /**
- *
+ * SidecarCdc implementation that uses the Sidecar HTTP APIs to list and stream commit log segments.
  */
 public class SidecarCdc extends Cdc
 {
