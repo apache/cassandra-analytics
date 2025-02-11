@@ -21,6 +21,7 @@ package org.apache.cassandra.cdc.sidecar;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -69,7 +70,7 @@ public class SidecarCdcClient
                 && ((TransportFailureException.Nonretryable) cause).isNotFound())
             {
                 // Rescue the 404 not found exception - it is a permitted error
-                return List.of();
+                return Collections.emptyList();
             }
             // Rethrow the other exception
             if (throwable instanceof Error)

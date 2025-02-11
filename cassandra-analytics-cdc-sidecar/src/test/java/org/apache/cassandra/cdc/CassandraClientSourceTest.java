@@ -21,6 +21,8 @@ package org.apache.cassandra.cdc;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -49,7 +51,7 @@ public class CassandraClientSourceTest
     @Test
     public void testGetReadQuery()
     {
-        String query = CassandraClientSource.getReadQuery("testKeyspace", "testTable", List.of("a", "b"), List.of("c", "d", "e"));
+        String query = CassandraClientSource.getReadQuery("testKeyspace", "testTable", Arrays.asList("a", "b"), Arrays.asList("c", "d", "e"));
         String expectedQuery = "SELECT a,b from testKeyspace.testTable where c = ? , d = ? , e = ?";
         assertEquals(expectedQuery, query);
     }
@@ -57,7 +59,7 @@ public class CassandraClientSourceTest
     @Test
     public void testGetPrimaryKeyObjects()
     {
-        List<Value> primaryKeyColumns = List.of(
+        List<Value> primaryKeyColumns = Arrays.asList(
         new TestValue("ks", "a", "int", TYPES.aInt().serialize(1)),
         new TestValue("ks", "b", "text", ByteBuffer.wrap("test".getBytes(StandardCharsets.UTF_8)))
         );
@@ -72,8 +74,8 @@ public class CassandraClientSourceTest
         CassandraClientSource cassandraSource = new CassandraClientSource(getMockSession(), TYPES);
 
         // column with name "a" of type int with value 1
-        List<Value> primaryKeyColumns = List.of(new TestValue("ks", "a", "int", TYPES.aInt().serialize(1)));
-        List<ByteBuffer> result = cassandraSource.readFromCassandra("testKeyspace", "testTable", List.of("b"), primaryKeyColumns);
+        List<Value> primaryKeyColumns = Collections.singletonList(new TestValue("ks", "a", "int", TYPES.aInt().serialize(1)));
+        List<ByteBuffer> result = cassandraSource.readFromCassandra("testKeyspace", "testTable", Collections.singletonList("b"), primaryKeyColumns);
         assertEquals(100, result.get(0).getInt(result.get(0).position()));
     }
 

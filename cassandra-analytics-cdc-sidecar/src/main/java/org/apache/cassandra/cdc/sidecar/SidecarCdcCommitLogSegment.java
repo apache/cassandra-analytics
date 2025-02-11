@@ -53,7 +53,7 @@ public class SidecarCdcCommitLogSegment implements CommitLog
         this.stats = sidecar.stats;
 
         final SidecarCdcCommitLogSegment thisLog = this;
-        this.source = new CassandraFileSource<>()
+        this.source = new CassandraFileSource<CommitLog>()
         {
             public void request(long start, long end, StreamConsumer consumer)
             {

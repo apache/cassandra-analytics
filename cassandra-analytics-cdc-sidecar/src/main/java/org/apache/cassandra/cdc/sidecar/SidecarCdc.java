@@ -51,7 +51,7 @@ public class SidecarCdc extends Cdc
                                                        .filter(rf -> rf.getOptions().containsKey(dc()))
                                                        .max(Comparator.comparingInt(rf -> rf.getOptions().get(dc())));
 
-        if (rfOp.isEmpty())
+        if (!rfOp.isPresent())
         {
             throw new RuntimeException("Could not find replication factor for any keyspace");
         }
