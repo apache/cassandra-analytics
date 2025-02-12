@@ -24,6 +24,7 @@ import java.io.IOException;
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.cdc.CdcBuilder;
+import org.apache.cassandra.cdc.api.CdcOptions;
 import org.apache.cassandra.cdc.api.EventConsumer;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.api.TokenRangeSupplier;
@@ -41,9 +42,12 @@ public class SidecarCdcBuilder extends CdcBuilder
     protected SidecarCdcClient sidecarCdcClient;
     protected SidecarDownMonitor downMonitor = SidecarDownMonitor.STUB;
     protected ReplicationFactorSupplier replicationFactorSupplier = ReplicationFactorSupplier.DEFAULT;
+    protected SidecarCdcStats sidecarCdcStats = SidecarCdcStats.STUB;
+    protected SidecarCdcCassandraClient cassandraClient = SidecarCdcCassandraClient.STUB;
 
     SidecarCdcBuilder(@NotNull String jobId,
                       int partitionId,
+                      CdcOptions cdcOptions,
                       ClusterConfigProvider clusterConfigProvider,
                       EventConsumer eventConsumer,
                       SchemaSupplier schemaSupplier,
@@ -56,6 +60,7 @@ public class SidecarCdcBuilder extends CdcBuilder
         this(
         jobId,
         partitionId,
+        cdcOptions,
         clusterConfigProvider,
         eventConsumer,
         schemaSupplier,
@@ -68,6 +73,7 @@ public class SidecarCdcBuilder extends CdcBuilder
 
     SidecarCdcBuilder(@NotNull String jobId,
                       int partitionId,
+                      CdcOptions cdcOptions,
                       ClusterConfigProvider clusterConfigProvider,
                       EventConsumer eventConsumer,
                       SchemaSupplier schemaSupplier,
@@ -79,6 +85,7 @@ public class SidecarCdcBuilder extends CdcBuilder
         super(jobId, partitionId, eventConsumer, schemaSupplier);
         this.clusterConfigProvider = clusterConfigProvider;
         this.sidecarCdcClient = new SidecarCdcClient(clientConfig, sidecarClient, cdcStats);
+        withCdcOptions(cdcOptions);
         withTokenRangeSupplier(tokenRangeSupplier);
         rebuildCommitLogProvider();
     }
@@ -106,16 +113,41 @@ public class SidecarCdcBuilder extends CdcBuilder
         return this;
     }
 
-    protected void rebuildCommitLogProvider()
-    {
-        this.commitLogProvider = new SidecarCommitLogProvider(clusterConfigProvider, sidecarCdcClient, downMonitor, replicationFactorSupplier);
-    }
-
-    protected SidecarCdcBuilder withReplicationFactorSupplier(ReplicationFactorSupplier replicationFactorSupplier)
+    public SidecarCdcBuilder withReplicationFactorSupplier(ReplicationFactorSupplier replicationFactorSupplier)
     {
         this.replicationFactorSupplier = replicationFactorSupplier;
         rebuildCommitLogProvider();
         return this;
+    }
+
+    @Override
+    public CdcBuilder withCdcOptions(@NotNull CdcOptions cdcOptions)
+    {
+        super.withCdcOptions(cdcOptions);
+        return withSidecarCdcCassandraClient(cassandraClient); // rebuild SidecarStatePersister with new cdcOptions
+    }
+
+    public SidecarCdcBuilder withSidecarCdcStats(SidecarCdcStats sidecarCdcStats)
+    {
+        this.sidecarCdcStats = sidecarCdcStats;
+        return withSidecarCdcCassandraClient(cassandraClient); // rebuild SidecarStatePersister with new SidecarCdcStats
+    }
+
+    public SidecarCdcBuilder withSidecarCdcCassandraClient(SidecarCdcCassandraClient cassandraClient)
+    {
+        this.cassandraClient = cassandraClient;
+        return withSidecarStatePersister(new SidecarStatePersister(cdcOptions, sidecarCdcStats, cassandraClient, jobId, partitionId));
+    }
+
+    public SidecarCdcBuilder withSidecarStatePersister(SidecarStatePersister statePersister)
+    {
+        withStatePersister(statePersister);
+        return this;
+    }
+
+    protected void rebuildCommitLogProvider()
+    {
+        this.commitLogProvider = new SidecarCommitLogProvider(clusterConfigProvider, sidecarCdcClient, downMonitor, replicationFactorSupplier);
     }
 
     @Override

@@ -76,13 +76,13 @@ public class CassandraClientSource implements CassandraSource
     }
 
     @Override
-    public List<ByteBuffer> readFromCassandra(String keySpace, String table,
+    public List<ByteBuffer> readFromCassandra(String keyspace, String table,
                                               List<String> columnsToFetch,
                                               List<Value> primaryKeyColumns)
     {
         // Create the read query & prepare statement
         List<String> primaryKeyColumnNames = getPrimaryKeyColumnNames(primaryKeyColumns);
-        String readQuery = getReadQuery(keySpace, table, columnsToFetch, primaryKeyColumnNames);
+        String readQuery = getReadQuery(keyspace, table, columnsToFetch, primaryKeyColumnNames);
         PreparedStatement preparedStatement;
         try
         {
@@ -114,7 +114,7 @@ public class CassandraClientSource implements CassandraSource
     }
 
     @VisibleForTesting
-    static String getReadQuery(String keySpace,
+    static String getReadQuery(String keyspace,
                                String table,
                                List<String> columnsToFetch,
                                List<String> primaryKeyColumns)
@@ -123,7 +123,7 @@ public class CassandraClientSource implements CassandraSource
         String primaryKeyCondition = primaryKeyColumns.stream()
                                                       .map(primaryKeyColumn -> primaryKeyColumn + " = ?")
                                                       .collect(Collectors.joining(" , "));
-        return String.format(READ_QUERY_FORMAT, columnsToSelect, keySpace, table, primaryKeyCondition);
+        return String.format(READ_QUERY_FORMAT, columnsToSelect, keyspace, table, primaryKeyCondition);
     }
 
     @VisibleForTesting

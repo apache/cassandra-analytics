@@ -41,8 +41,8 @@ import org.jetbrains.annotations.Nullable;
 public class CdcBuilder
 {
     @NotNull
-    final String jobId;
-    final int partitionId;
+    protected final String jobId;
+    protected final int partitionId;
     @NotNull
     TokenRangeSupplier tokenRangeSupplier = () -> null;
     @NotNull
@@ -52,7 +52,7 @@ public class CdcBuilder
     @NotNull
     StatePersister statePersister = StatePersister.STUB;
     @NotNull
-    CdcOptions cdcOptions = CdcOptions.DEFAULT;
+    protected CdcOptions cdcOptions = CdcOptions.DEFAULT;
     @NotNull
     ICdcStats stats = ICdcStats.STUB;
     @Nullable
