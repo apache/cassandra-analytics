@@ -106,7 +106,7 @@ public class SidecarStatePersister implements StatePersister
         int count = sizes.size();
         int len = sizes.stream().mapToInt(i -> i).sum();
         LOGGER.debug("Read CDC state from Cassandra jobId={} start={} end={} stateCount={} stateSize={}",
-                     jobId, tokenRange.lowerEndpoint(), tokenRange.upperEndpoint(), count, len);
+                     jobId, tokenRange == null ? "null" : tokenRange.lowerEndpoint(), tokenRange == null ? "null" : tokenRange.upperEndpoint(), count, len);
         sidecarCdcStats.captureCdcConsumerReadFromState(count, len);
         return result;
     }
@@ -118,6 +118,9 @@ public class SidecarStatePersister implements StatePersister
                .loadStateForRange(jobId, tokenRange);
     }
 
+    /**
+     * Start the SidecarStatePersister to flush to Cassandra every `persistDelay()`
+     */
     public synchronized void start()
     {
         if (timerId >= 0)
@@ -128,15 +131,29 @@ public class SidecarStatePersister implements StatePersister
         this.timerId = asyncExecutor.periodicTimer(this::persistToCassandra, sidecarCdcOptions.persistDelay().toMillis());
     }
 
-    public synchronized void stop()
+    /**
+     * Stop the SidecarStatePersister gracefully, blocking to await for any pending flushes to complete.
+     */
+    public void stop()
+    {
+        stop(true);
+    }
+
+    public synchronized void stop(boolean flush)
     {
         if (this.timerId < 0)
         {
             // not running
             return;
         }
+
         asyncExecutor.cancelTimer(this.timerId);
         this.timerId = -1;
+
+        if (flush)
+        {
+            flush();
+        }
     }
 
     // internal methods
