@@ -28,7 +28,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,6 +42,7 @@ import org.apache.cassandra.cdc.CdcKryoRegister;
 import org.apache.cassandra.cdc.api.CdcOptions;
 import org.apache.cassandra.cdc.api.StatePersister;
 import org.apache.cassandra.cdc.state.CdcState;
+import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.util.CompressionUtil;
 import org.jetbrains.annotations.NotNull;
@@ -56,23 +59,24 @@ public class SidecarStatePersister implements StatePersister
     protected final ConcurrentHashMap<PersistWrapper.Key, PersistWrapper> latestState = new ConcurrentHashMap<>();
     protected final ConcurrentLinkedQueue<TimedFutureWrapper> activeFlush = new ConcurrentLinkedQueue<>();
     private final ThreadLocalMonotonicTimestampGenerator timestampGenerator = new ThreadLocalMonotonicTimestampGenerator();
+    private final SidecarCdcOptions sidecarCdcOptions;
     private final CdcOptions cdcOptions;
     private final SidecarCdcCassandraClient cassandraClient;
-    private final String jobId;
-    private final int partitionId;
     private final SidecarCdcStats sidecarCdcStats;
+    private final AsyncExecutor asyncExecutor;
+    volatile long timerId = -1L;
 
-    public SidecarStatePersister(CdcOptions cdcOptions,
+    public SidecarStatePersister(SidecarCdcOptions sidecarCdcOptions,
+                                 CdcOptions cdcOptions,
                                  SidecarCdcStats sidecarCdcStats,
                                  SidecarCdcCassandraClient cassandraClient,
-                                 String jobId,
-                                 int partitionId)
+                                 AsyncExecutor asyncExecutor)
     {
+        this.sidecarCdcOptions = sidecarCdcOptions;
         this.cdcOptions = cdcOptions;
         this.sidecarCdcStats = sidecarCdcStats;
         this.cassandraClient = cassandraClient;
-        this.jobId = jobId;
-        this.partitionId = partitionId;
+        this.asyncExecutor = asyncExecutor;
     }
 
     // StatePersister implemented methods
@@ -95,8 +99,7 @@ public class SidecarStatePersister implements StatePersister
         CompressionUtil compressionUtil = CdcBridgeFactory.get(cdcOptions.version()).compressionUtil();
         List<Integer> sizes = new ArrayList<>();
         // deserialize and merge the CDC state objects into canonical view
-        List<CdcState> result = cassandraClient
-                                .loadStateForRange(jobId, tokenRange)
+        List<CdcState> result = loadStateForRange(jobId, tokenRange)
                                 .peek(bytes -> sizes.add(bytes.length))
                                 .map(bytes -> CdcState.deserialize(CdcKryoRegister.kryo(), compressionUtil, bytes))
                                 .collect(Collectors.toList());
@@ -106,6 +109,34 @@ public class SidecarStatePersister implements StatePersister
                      jobId, tokenRange.lowerEndpoint(), tokenRange.upperEndpoint(), count, len);
         sidecarCdcStats.captureCdcConsumerReadFromState(count, len);
         return result;
+    }
+
+    @VisibleForTesting
+    public Stream<byte[]> loadStateForRange(String jobId, @Nullable TokenRange tokenRange)
+    {
+        return cassandraClient
+               .loadStateForRange(jobId, tokenRange);
+    }
+
+    public synchronized void start()
+    {
+        if (timerId >= 0)
+        {
+            // already running
+            return;
+        }
+        this.timerId = asyncExecutor.periodicTimer(this::persistToCassandra, sidecarCdcOptions.persistDelay().toMillis());
+    }
+
+    public synchronized void stop()
+    {
+        if (this.timerId < 0)
+        {
+            // not running
+            return;
+        }
+        asyncExecutor.cancelTimer(this.timerId);
+        this.timerId = -1;
     }
 
     // internal methods
@@ -145,8 +176,7 @@ public class SidecarStatePersister implements StatePersister
         if (!force && !activeFlush.isEmpty())
         {
             // check for active requests so we don't get backed up
-            LOGGER.debug("CDC persist flush backed up, can't persist until active requests complete jobId={} partitionId={} activeRequests={}",
-                         jobId, partitionId, activeFlush.size());
+            LOGGER.debug("CDC persist flush backed up, can't persist until active requests complete activeRequests={}", activeFlush.size());
             sidecarCdcStats.capturePersistBackedUp(activeFlush.size());
             return;
         }
@@ -195,7 +225,7 @@ public class SidecarStatePersister implements StatePersister
         }
         catch (Throwable t)
         {
-            LOGGER.error("Unexpected error persisting CDC state to Cassandra jobId={} partitionId={}", jobId, partitionId, t);
+            LOGGER.error("Unexpected error persisting CDC state to Cassandra", t);
             sidecarCdcStats.capturePersistFailed(t);
             // we failed to persist, so add back to latestState map if not already overwritten
             this.latestState.putIfAbsent(state.key(), state);
@@ -221,8 +251,7 @@ public class SidecarStatePersister implements StatePersister
         }
         catch (ExecutionException e)
         {
-            LOGGER.warn("Failed to flush active CDC state jobId={} partitionId={}",
-                        jobId, partitionId, ThrowableUtils.rootCause(e));
+            LOGGER.warn("Failed to flush active CDC state", ThrowableUtils.rootCause(e));
         }
         catch (InterruptedException e)
         {

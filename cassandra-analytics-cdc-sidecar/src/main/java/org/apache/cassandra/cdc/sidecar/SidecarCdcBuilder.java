@@ -33,6 +33,7 @@ import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
+import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings("unused")
@@ -44,6 +45,7 @@ public class SidecarCdcBuilder extends CdcBuilder
     protected ReplicationFactorSupplier replicationFactorSupplier = ReplicationFactorSupplier.DEFAULT;
     protected SidecarCdcStats sidecarCdcStats = SidecarCdcStats.STUB;
     protected SidecarCdcCassandraClient cassandraClient = SidecarCdcCassandraClient.STUB;
+    protected SidecarCdcOptions sidecarCdcOptions = SidecarCdcOptions.DEFAULT;
 
     SidecarCdcBuilder(@NotNull String jobId,
                       int partitionId,
@@ -133,10 +135,23 @@ public class SidecarCdcBuilder extends CdcBuilder
         return withSidecarCdcCassandraClient(cassandraClient); // rebuild SidecarStatePersister with new SidecarCdcStats
     }
 
+    public SidecarCdcBuilder withSidecarCdcOptions(SidecarCdcOptions sidecarCdcOptions)
+    {
+        this.sidecarCdcOptions = sidecarCdcOptions;
+        return withSidecarCdcCassandraClient(cassandraClient); // rebuild SidecarStatePersister with new SidecarCdcOptions
+    }
+
+    @Override
+    public SidecarCdcBuilder withExecutor(AsyncExecutor asyncExecutor)
+    {
+        super.withExecutor(asyncExecutor);
+        return withSidecarCdcCassandraClient(cassandraClient); // rebuild SidecarStatePersister with new AsyncExecutor
+    }
+
     public SidecarCdcBuilder withSidecarCdcCassandraClient(SidecarCdcCassandraClient cassandraClient)
     {
         this.cassandraClient = cassandraClient;
-        return withSidecarStatePersister(new SidecarStatePersister(cdcOptions, sidecarCdcStats, cassandraClient, jobId, partitionId));
+        return withSidecarStatePersister(new SidecarStatePersister(sidecarCdcOptions, cdcOptions, sidecarCdcStats, cassandraClient, asyncExecutor));
     }
 
     public SidecarCdcBuilder withSidecarStatePersister(SidecarStatePersister statePersister)

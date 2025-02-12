@@ -82,6 +82,7 @@ dependencies {
 
     // pull in cassandra-bridge so we can re-use TestSchema to generate arbitrary schemas for the cdc tests
     testImplementation project(":cassandra-bridge")
+    testImplementation("com.datastax.cassandra:cassandra-driver-core:${project.cassandraDriverVersion}")
     testImplementation(testFixtures(project(':cassandra-bridge')))
     testImplementation project(":cassandra-four-zero-bridge")
     testImplementation project(":cassandra-four-zero-types")
@@ -123,3 +124,19 @@ jar {
 //    prop.store(propFile.newWriter(), null)
 //    logger.info("Wrote to file={}, version={}, hash={}", propFile, version, hash)
 //}
+
+test {
+    useJUnitPlatform()
+    reports {
+        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "cdc-sidecar").toFile()
+        junitXml {
+            enabled true
+            destination = destDir
+        }
+        html {
+            enabled true
+            destination = destDir
+        }
+    }
+}
+
