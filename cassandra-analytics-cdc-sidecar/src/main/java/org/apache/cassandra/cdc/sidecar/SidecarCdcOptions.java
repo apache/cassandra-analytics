@@ -20,6 +20,7 @@
 package org.apache.cassandra.cdc.sidecar;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.Map;
 
 import org.jetbrains.annotations.NotNull;
@@ -68,12 +69,12 @@ public interface SidecarCdcOptions
 
     default Map<String, Object> kafkaConfigs()
     {
-        return Map.of();
+        return Collections.emptyMap();
     }
 
     default Map<String, Object> cdcConfigs()
     {
-        return Map.of();
+        return Collections.emptyMap();
     }
 
     default boolean logOnly()
