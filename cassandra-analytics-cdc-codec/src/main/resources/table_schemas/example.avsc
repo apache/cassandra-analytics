@@ -17,19 +17,23 @@
  * under the License.
  */
 
-rootProject.name = 'cassandra-analytics-core'
-
-include 'cassandra-analytics-cdc'
-include 'cassandra-analytics-common'
-include 'cassandra-bridge'
-include 'cassandra-four-zero'
-include 'cassandra-four-zero-bridge'
-include 'cassandra-four-zero-types'
-include 'cassandra-analytics-core'
-include 'cassandra-analytics-core-example'
-include 'cassandra-analytics-integration-framework'
-include 'cassandra-analytics-integration-tests'
-include 'cassandra-analytics-spark-converter'
-include 'cassandra-analytics-spark-four-zero-converter'
-include 'cassandra-analytics-cdc-codec'
-
+{
+  "type" : "record",
+  "name" : "example",
+  "namespace" : "foo.namespace",
+  "doc" : "This is an example avro schema for a foo.namespace.example table",
+  "fields" : [ {
+    "name" : "id",
+    "type" : [ {
+      "type" : "string",
+      "logicalType" : "uuid"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "details",
+    "type" : [ "bytes", "null" ],
+    "doc" : "doc"
+  } ],
+  "primary_keys" : [ "id" ],
+  "partition_keys" : [ "id" ]
+}
