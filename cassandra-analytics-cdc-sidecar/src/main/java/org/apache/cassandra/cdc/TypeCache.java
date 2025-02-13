@@ -25,6 +25,7 @@ import java.util.function.Supplier;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,12 +36,12 @@ import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 
 /**
- * Caches Cassandra CqlField.CqlType objects so they don't need to be re-created everytime. Keyed on keyspace and type to permit per keyspace UDT definitions.
+ * Caches Cassandra CqlField.CqlType objects, so they don't need to be re-created everytime. Keyed on keyspace and type to permit per keyspace UDT definitions.
  */
 public class TypeCache
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(TypeCache.class);
-    private volatile Cache<KeyspaceTypeKey, CqlField.CqlType> cqlTypeCache = null; // volatile needed for lazy-initialization
+    protected volatile Cache<KeyspaceTypeKey, CqlField.CqlType> cqlTypeCache = null; // volatile needed for lazy-initialization
     private static final int CACHE_CAPACITY = 1000;
     private static final ConcurrentHashMap<CassandraVersion, TypeCache> VERSION_TYPE_CACHE = new ConcurrentHashMap<>(2);
 
@@ -60,7 +61,7 @@ public class TypeCache
         {
             result = cqlTypeCache.get(key, () -> getTypes().parseType(keyspace, typeString));
         }
-        catch (ExecutionException e)
+        catch (CacheLoader.InvalidCacheLoadException | ExecutionException e)
         {
             LOGGER.warn("Unable to get the CQL type from cache.", e);
             result = getTypes().parseType(typeString);

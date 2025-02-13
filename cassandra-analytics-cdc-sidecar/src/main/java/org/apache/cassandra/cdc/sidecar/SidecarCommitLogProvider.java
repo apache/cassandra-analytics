@@ -77,7 +77,10 @@ public class SidecarCommitLogProvider implements CommitLogProvider
 
     protected CassandraRing ring()
     {
-        Set<CassandraInstance> cluster = clusterConfigProvider.getCluster();
+        Set<CassandraInstance> cluster = clusterConfigProvider.getCluster()
+                                         .stream()
+                                         .filter(dcFilter)
+                                         .collect(Collectors.toSet());
         Partitioner partitioner = clusterConfigProvider.partitioner();
         ReplicationFactor rf = replicationFactorSupplier.getMaximalReplicationFactor();
         return new CassandraRing(partitioner, "keyspace", rf, cluster);
