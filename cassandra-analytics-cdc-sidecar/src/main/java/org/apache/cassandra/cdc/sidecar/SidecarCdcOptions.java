@@ -40,11 +40,6 @@ public interface SidecarCdcOptions
         STATIC, KEYSPACE, KEYSPACETABLE, TABLE, MAP
     }
 
-    default String env()
-    {
-        return "if1";
-    }
-
     @Nullable
     default String kafkaTopic()
     {
