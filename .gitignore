@@ -94,7 +94,6 @@ dev-lo.properties
 pytests/.env/**/*
 pytests/.pytest_cache
 cassandra-analytics-build.properties
-cassandra-analytics-cdc-build.properties
 
 # MacOS
 .DS_Store

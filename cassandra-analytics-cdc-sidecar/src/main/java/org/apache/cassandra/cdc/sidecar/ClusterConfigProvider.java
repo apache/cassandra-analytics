@@ -24,11 +24,26 @@ import java.util.Set;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
+/**
+ * Interface to supply cluster topology information for CDC:
+ * the Cassandra partitioner,
+ * the datacenter where CDC is enabled,
+ * CassandraInstance objects describing the cluster topology.
+ */
 public interface ClusterConfigProvider
 {
+    /**
+     * @return the datacenter name where CDC is enabled.
+     */
     String dc();
 
+    /**
+     * @return set of CassandraInstance objects describing the entire ring topology, including other datacenters.
+     */
     Set<CassandraInstance> getCluster();
 
+    /**
+     * @return the Cassandra partitioner configured on the cluster.
+     */
     Partitioner partitioner();
 }

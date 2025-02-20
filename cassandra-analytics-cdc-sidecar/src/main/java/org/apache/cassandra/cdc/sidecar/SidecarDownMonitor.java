@@ -21,6 +21,11 @@ package org.apache.cassandra.cdc.sidecar;
 
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 
+/**
+ * This interface provides information about the health of other Sidecar instances.
+ * CDC can be slowed by retrying requests on Sidecar instances that are already known to be DOWN,
+ * therefore we skip DOWN instances and only retry when they are known to be healthy again.
+ */
 public interface SidecarDownMonitor
 {
     SidecarDownMonitor STUB = new SidecarDownMonitor()
@@ -38,12 +43,26 @@ public interface SidecarDownMonitor
         }
     };
 
+    /**
+     * @param instance the CassandraInstance
+     * @return true if the CassandraInstance is known to be not DOWN.
+     */
     default boolean isUp(CassandraInstance instance)
     {
         return !isDown(instance);
     }
 
+    /**
+     * @param instance the CassandraInstance
+     * @return true if the CassandraInstance is known to be DOWN.
+     */
     boolean isDown(CassandraInstance instance);
 
+    /**
+     * Pass a hint down to the implementation that the CassandraInstance might be DOWN.
+     * It is up to the implementation to take this as canonical or take further action to detect the health.
+     *
+     * @param instance the CassandraInstance
+     */
     void hintDown(CassandraInstance instance);
 }

@@ -30,7 +30,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Interface defining read and write operations to Cassandra via the `SidecarStatePersister`
+ * Interface defining read and write operations to Cassandra used by the `SidecarStatePersister`
  */
 public interface SidecarCdcCassandraClient
 {
