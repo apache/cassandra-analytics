@@ -29,7 +29,9 @@ import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
 
-public class AvroByteRecordTransformer extends AvroBaseRecordTransformer<AvroByteRecordTransformer.ByteRecordSerializedEvent, byte[]>
+import static org.apache.cassandra.cdc.avro.AvroByteRecordTransformer.ByteRecordSerializedEvent;
+
+public class AvroByteRecordTransformer extends AvroBaseRecordTransformer<ByteRecordSerializedEvent, byte[]>
 {
     public AvroByteRecordTransformer(SchemaStore schemaStore,
                                      Function<KeyspaceTypeKey, CqlField.CqlType> typeLookup)
@@ -63,7 +65,7 @@ public class AvroByteRecordTransformer extends AvroBaseRecordTransformer<AvroByt
         return record;
     }
 
-    public static class ByteRecordSerializedEvent extends BaseSerializedEvent<byte[]>
+    public static class ByteRecordSerializedEvent extends AvroBaseRecordTransformer.BaseSerializedEvent<byte[]>
     {
         private ByteRecordSerializedEvent(byte[] payload, List<String> truncatedFields)
         {

@@ -41,6 +41,7 @@ import org.apache.cassandra.spark.data.VersionRunner;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.spark.utils.MapUtils.mapOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -613,7 +614,7 @@ public class SchemaTests extends VersionRunner
     @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
     public void testSchemaOfTableChanges(CassandraBridge bridge)
     {
-        ReplicationFactor rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, Map.of("DC1", 3));
+        ReplicationFactor rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, mapOf("DC1", 3));
         String createStatement1 = "CREATE TABLE test_ks.test_tbl (a int PRIMARY KEY, b int);";
         CqlTable schema1 = bridge.buildSchema(createStatement1, "test_ks", rf, Partitioner.Murmur3Partitioner);
         assertEquals(2, schema1.fields().size());

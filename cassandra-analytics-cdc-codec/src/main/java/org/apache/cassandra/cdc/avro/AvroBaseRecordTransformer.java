@@ -103,8 +103,7 @@ extends CdcEventTransformer<GenericData.Record>
         public final P payload;
         public final List<String> truncatedFields;
 
-        public BaseSerializedEvent(P payload,
-                                   List<String> truncatedFields)
+        public BaseSerializedEvent(P payload, List<String> truncatedFields)
         {
             this.payload = payload;
             this.truncatedFields = truncatedFields;
