@@ -89,20 +89,17 @@ public class SidecarCdcBuilder extends CdcBuilder
         this.sidecarCdcClient = new SidecarCdcClient(clientConfig, sidecarClient, cdcStats);
         withCdcOptions(cdcOptions);
         withTokenRangeSupplier(tokenRangeSupplier);
-        rebuildCommitLogProvider();
     }
 
     public SidecarCdcBuilder withClusterConfigProvider(ClusterConfigProvider clusterConfigProvider)
     {
         this.clusterConfigProvider = clusterConfigProvider;
-        rebuildCommitLogProvider();
         return this;
     }
 
     public SidecarCdcBuilder withDownMonitor(SidecarDownMonitor downMonitor)
     {
         this.downMonitor = downMonitor;
-        rebuildCommitLogProvider();
         return this;
     }
 
@@ -111,14 +108,12 @@ public class SidecarCdcBuilder extends CdcBuilder
                                                ICdcStats cdcStats)
     {
         this.sidecarCdcClient = new SidecarCdcClient(clientConfig, sidecarClient, cdcStats);
-        rebuildCommitLogProvider();
         return this;
     }
 
     public SidecarCdcBuilder withReplicationFactorSupplier(ReplicationFactorSupplier replicationFactorSupplier)
     {
         this.replicationFactorSupplier = replicationFactorSupplier;
-        rebuildCommitLogProvider();
         return this;
     }
 
@@ -160,19 +155,21 @@ public class SidecarCdcBuilder extends CdcBuilder
         return this;
     }
 
-    protected void rebuildCommitLogProvider()
-    {
-        this.commitLogProvider = new SidecarCommitLogProvider(clusterConfigProvider, sidecarCdcClient, downMonitor, replicationFactorSupplier);
-    }
-
     @Override
     public SidecarCdc build()
     {
         Preconditions.checkNotNull(clusterConfigProvider, "A ClusterConfigProvider must be supplied");
-        Preconditions.checkNotNull(commitLogProvider, "A CommitLogProvider must be supplied");
         Preconditions.checkNotNull(asyncExecutor, "An AsyncExecutor must be supplied");
         Preconditions.checkNotNull(eventConsumer, "An event consumer supplier must be supplied");
         Preconditions.checkNotNull(schemaSupplier, "An schema supplier must be supplied");
+
+        if (this.commitLogProvider == null)
+        {
+            // SidecarCdc should generally use SidecarCommitLogProvider to list and stream commit log segments over Sidecar http API
+            // but builder is left open if user wishes to provide own implementation
+            this.commitLogProvider = new SidecarCommitLogProvider(clusterConfigProvider, sidecarCdcClient, downMonitor, replicationFactorSupplier);
+        }
+
         return new SidecarCdc(this);
     }
 }
