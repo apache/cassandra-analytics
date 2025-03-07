@@ -31,6 +31,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
+import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.jetbrains.annotations.NotNull;
 
@@ -53,9 +54,9 @@ import org.jetbrains.annotations.NotNull;
 @SuppressWarnings({"WeakerAccess", "unused"})
 public class BufferingInputStream<T extends CassandraFile> extends InputStream implements StreamConsumer
 {
-    private static final StreamBuffer.ByteArrayWrapper END_MARKER = StreamBuffer.wrap(new byte[0]);
-    private static final StreamBuffer.ByteArrayWrapper FINISHED_MARKER = StreamBuffer.wrap(new byte[0]);
-    private static final StreamBuffer.ByteArrayWrapper ERROR_MARKER = StreamBuffer.wrap(new byte[0]);
+    private static final StreamBuffer.ByteArrayWrapper END_MARKER = StreamBuffer.wrap(ByteBufferUtils.EMPTY);
+    private static final StreamBuffer.ByteArrayWrapper FINISHED_MARKER = StreamBuffer.wrap(ByteBufferUtils.EMPTY);
+    private static final StreamBuffer.ByteArrayWrapper ERROR_MARKER = StreamBuffer.wrap(ByteBufferUtils.EMPTY);
 
     private enum StreamState
     {

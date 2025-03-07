@@ -35,6 +35,7 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.SchemaTests;
+import org.apache.cassandra.spark.utils.ByteBufferUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -61,7 +62,7 @@ public class LocalDataLayerTests extends VersionRunner
         assertEquals(version, dataLayer.version());
         assertEquals(1, dataLayer.partitionCount());
         assertNotNull(dataLayer.cqlTable());
-        assertTrue(dataLayer.isInPartition(0, BigInteger.ZERO, ByteBuffer.wrap(new byte[0])));
+        assertTrue(dataLayer.isInPartition(0, BigInteger.ZERO, ByteBuffer.wrap(ByteBufferUtils.EMPTY)));
         assertEquals(Partitioner.Murmur3Partitioner, dataLayer.partitioner());
         SSTablesSupplier ssTables = dataLayer.sstables(0, null, Collections.emptyList());
         assertNotNull(ssTables);

@@ -17,7 +17,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# collections Example
+# Collections Example
 
 ## Cassandra Schema
 

@@ -79,7 +79,7 @@ public class PartitionKeyFilterTests
     public void testEmptyKey()
     {
         assertThrows(IllegalArgumentException.class, () ->
-                                                     PartitionKeyFilter.create(ByteBuffer.wrap(new byte[0]),
+                                                     PartitionKeyFilter.create(ByteBuffer.wrap(ByteBufferUtils.EMPTY),
                                                                                BigInteger.ZERO));
     }
 

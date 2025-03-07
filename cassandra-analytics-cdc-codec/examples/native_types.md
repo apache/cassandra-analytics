@@ -17,7 +17,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# native_types Example
+# Native Types Example
 
 ## Cassandra Schema
 

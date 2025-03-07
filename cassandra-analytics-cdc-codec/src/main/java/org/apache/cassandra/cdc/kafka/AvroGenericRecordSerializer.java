@@ -44,6 +44,7 @@ import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.schemastore.LocalTableSchemaStore;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.kafka.common.header.Headers;
 
 /**
@@ -51,7 +52,7 @@ import org.apache.kafka.common.header.Headers;
  * Optional logical type conversions can be applied via {@link org.apache.cassandra.cdc.avro.RecordReader} to convert
  * data to CQL-appropriate types.
  */
-public class AvroGenericRecordSerializer implements KafkaCdcSerializer<CdcEvent, GenericData.Record>
+public class AvroGenericRecordSerializer implements KafkaCdcSerializer<CdcEvent>
 {
     // private final GenericDatumWriter<GenericRecord> cdcWriter;
     private final BinaryEncoder encoderReuse;
@@ -127,7 +128,7 @@ public class AvroGenericRecordSerializer implements KafkaCdcSerializer<CdcEvent,
         public Deserializer(SchemaStore store)
         {
             this.store = store;
-            this.decoderReuse = DecoderFactory.get().binaryDecoder(new ByteArrayInputStream(new byte[0]), null);
+            this.decoderReuse = DecoderFactory.get().binaryDecoder(new ByteArrayInputStream(ByteBufferUtils.EMPTY), null);
         }
 
         public CdcEnvelope deserialize(String keyspace, String table, byte[] data, Schema cdcSchema)
@@ -148,8 +149,8 @@ public class AvroGenericRecordSerializer implements KafkaCdcSerializer<CdcEvent,
 
         Object deserializeRangePredicateValue(String keyspace, String table, String fieldName, ByteBuffer value)
         {
-            GenericDatumReader<GenericRecord> reader = store.getReader(keyspace + "." + table, null);
-            final byte[] bytes = new byte[value.remaining()];
+            GenericDatumReader<GenericRecord> reader = store.getReader(keyspace + '.' + table, null);
+            byte[] bytes = new byte[value.remaining()];
             try
             {
                 value.get(bytes);

@@ -26,7 +26,6 @@ import java.util.function.Function;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.apache.cassandra.cdc.CdcEventTransformer;
 import org.apache.cassandra.cdc.api.KeyspaceTypeKey;
 import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.msg.Value;
@@ -35,7 +34,7 @@ import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.Preconditions;
 
 public abstract class AvroBaseRecordTransformer<T extends AvroBaseRecordTransformer.BaseSerializedEvent<P>, P>
-extends CdcEventTransformer<GenericData.Record>
+extends CdcEventAvroEncoder
 {
     public static final int DEFAULT_TRUNCATE_THRESHOLD = 838861; // 1024 * 1024 * 0.8
 

@@ -25,7 +25,7 @@ import java.util.function.Function;
 
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
-import org.apache.cassandra.cdc.CdcEventTransformer;
+import org.apache.cassandra.cdc.avro.CdcEventAvroEncoder;
 import org.apache.cassandra.cdc.api.KeyspaceTypeKey;
 import org.apache.cassandra.cdc.avro.AvroDataUtils;
 import org.apache.cassandra.cdc.avro.CdcEventUtils;
@@ -34,7 +34,7 @@ import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
 
-public class AvroJsonTransformer extends CdcEventTransformer<GenericData.Record>
+public class AvroJsonTransformer extends CdcEventAvroEncoder
 {
     public AvroJsonTransformer(SchemaStore schemaStore, Function<KeyspaceTypeKey, CqlField.CqlType> typeLookup)
     {
@@ -50,7 +50,7 @@ public class AvroJsonTransformer extends CdcEventTransformer<GenericData.Record>
         record.put("payload", payload);
         record.put("timestampMicros", timestamp);
         record.put("version", "2");
-        record.put("isPartial", true); // TODO: The field could be removed entirely because it is always true
+        record.put("isPartial", true);
         record.put("sourceTable", event.table);
         record.put("sourceKeyspace", event.keyspace);
         record.put("operationType", CdcEventUtils.getAvroOperationType(event, cdcSchema));

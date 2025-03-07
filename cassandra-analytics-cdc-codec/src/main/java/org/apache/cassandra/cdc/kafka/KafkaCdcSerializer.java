@@ -19,10 +19,10 @@
 
 package org.apache.cassandra.cdc.kafka;
 
-import org.apache.cassandra.cdc.CdcEventTransformer;
+import org.apache.cassandra.cdc.avro.CdcEventAvroEncoder;
 import org.apache.kafka.common.serialization.Serializer;
 
-public interface KafkaCdcSerializer<I, O> extends Serializer<I>
+public interface KafkaCdcSerializer<I> extends Serializer<I>
 {
-    CdcEventTransformer<O> getTransformer();
+    CdcEventAvroEncoder getTransformer();
 }

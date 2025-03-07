@@ -18,7 +18,7 @@ under the License.
 -->
 
 
-# basic Example
+# Basic Example
 
 ## Cassandra Schema
 

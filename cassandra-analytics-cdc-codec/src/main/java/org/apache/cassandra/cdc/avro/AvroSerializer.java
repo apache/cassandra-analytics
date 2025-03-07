@@ -42,6 +42,7 @@ import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.schemastore.LocalTableSchemaStore;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.kafka.common.header.Headers;
 
 /**
@@ -51,7 +52,7 @@ import org.apache.kafka.common.header.Headers;
  * Optional logical type conversions can be applied via {@link org.apache.cassandra.cdc.avro.RecordReader} to convert
  * data to CQL-appropriate types.
  */
-public class AvroSerializer implements KafkaCdcSerializer<CdcEvent, GenericData.Record>
+public class AvroSerializer implements KafkaCdcSerializer<CdcEvent>
 {
     private final GenericDatumWriter<GenericRecord> cdcWriter;
     private final BinaryEncoder encoderReuse;
@@ -127,7 +128,8 @@ public class AvroSerializer implements KafkaCdcSerializer<CdcEvent, GenericData.
         {
             this.store = store;
             this.cdcReader = new GenericDatumReader<>(cdcSchema);
-            this.decoderReuse = DecoderFactory.get().binaryDecoder(new ByteArrayInputStream(new byte[0]), null);
+            this.decoderReuse = DecoderFactory.get().binaryDecoder(new ByteArrayInputStream(
+            ByteBufferUtils.EMPTY), null);
         }
 
         public CdcEnvelope deserialize(String keyspace, String table, byte[] data)

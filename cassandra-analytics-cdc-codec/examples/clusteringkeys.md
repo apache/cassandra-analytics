@@ -17,7 +17,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# clusteringkeys Example
+# Clusteringkeys Example
 
 ## Cassandra Schema
 

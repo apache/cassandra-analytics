@@ -30,7 +30,12 @@ import org.apache.cassandra.cdc.api.KeyspaceTypeKey;
 import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.spark.data.CqlField;
+import org.jetbrains.annotations.Nullable;
 
+/**
+ * Allows CDC to be configured with different logging levels (MINIMAL, PARTITION_KEYS and FULL) to optionally log
+ * partition key values or the full row for additional debugging.
+ */
 public enum CdcLogMode implements CdcLogger
 {
     // The default - only logs the keyspace name, table name and event kind
@@ -44,16 +49,18 @@ public enum CdcLogMode implements CdcLogger
         }
 
         @Override
-        public void warn(Logger logger, String message, CdcEvent event, String topic, Throwable cause)
+        public void warn(Logger logger, String message, CdcEvent event, String topic,
+                         Throwable cause)
         {
             logger.warn("{}. kind={} keyspace={} table={} topic={}",
                         message, event.getKind(), event.keyspace, event.table, topic, cause);
         }
 
         @Override
-        public void error(Logger logger, String message, CdcEvent event, String topic, Throwable cause)
+        public void error(Logger logger, String message, CdcEvent event, String topic,
+                          Throwable cause)
         {
-            logger.error("{}. kind={} keyspace={} table={}",
+            logger.error("{}. kind={} keyspace={} table={} topic={}",
                          message, event.getKind(), event.keyspace, event.table, topic, cause);
         }
     },
@@ -70,7 +77,8 @@ public enum CdcLogMode implements CdcLogger
         }
 
         @Override
-        public void warn(Logger logger, String message, CdcEvent event, String topic, Throwable cause)
+        public void warn(Logger logger, String message, CdcEvent event, String topic,
+                         Throwable cause)
         {
             logger.warn("{}. kind={} keyspace={} table={} partitionKeys={} topic={}",
                         message, event.getKind(), event.keyspace, event.table,
@@ -78,9 +86,10 @@ public enum CdcLogMode implements CdcLogger
         }
 
         @Override
-        public void error(Logger logger, String message, CdcEvent event, String topic, Throwable cause)
+        public void error(Logger logger, String message, CdcEvent event, String topic,
+                          Throwable cause)
         {
-            logger.error("{}. kind={} keyspace={} table={} partitionKeys={}",
+            logger.error("{}. kind={} keyspace={} table={} partitionKeys={} topic={}",
                          message, event.getKind(), event.keyspace, event.table,
                          columnsToString(event.getPartitionKeys()), topic, cause);
         }
@@ -92,28 +101,33 @@ public enum CdcLogMode implements CdcLogger
         @Override
         public void info(Logger logger, String message, CdcEvent event, String topic)
         {
-            logger.info("{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={} topic={}",
-                        message, event.getKind(), event.keyspace, event.table,
-                        columnsToString(event.getPartitionKeys()), columnsToString(event.getClusteringKeys()),
-                        columnsToString(event.getValueColumns()), topic);
+            logger.info(
+            "{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={} topic={}",
+            message, event.getKind(), event.keyspace, event.table,
+            columnsToString(event.getPartitionKeys()), columnsToString(event.getClusteringKeys()),
+            columnsToString(event.getValueColumns()), topic);
         }
 
         @Override
-        public void warn(Logger logger, String message, CdcEvent event, String topic, Throwable cause)
+        public void warn(Logger logger, String message, CdcEvent event, String topic,
+                         Throwable cause)
         {
-            logger.warn("{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={} topic={}",
-                        message, event.getKind(), event.keyspace, event.table,
-                        columnsToString(event.getPartitionKeys()), columnsToString(event.getClusteringKeys()),
-                        columnsToString(event.getValueColumns()), topic, cause);
+            logger.warn(
+            "{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={} topic={}",
+            message, event.getKind(), event.keyspace, event.table,
+            columnsToString(event.getPartitionKeys()), columnsToString(event.getClusteringKeys()),
+            columnsToString(event.getValueColumns()), topic, cause);
         }
 
         @Override
-        public void error(Logger logger, String message, CdcEvent event, String topic, Throwable cause)
+        public void error(Logger logger, String message, CdcEvent event, String topic,
+                          Throwable cause)
         {
-            logger.error("{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={}",
-                         message, event.getKind(), event.keyspace, event.table,
-                         columnsToString(event.getPartitionKeys()), columnsToString(event.getClusteringKeys()),
-                         columnsToString(event.getValueColumns()), topic, cause);
+            logger.error(
+            "{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={} topic={}",
+            message, event.getKind(), event.keyspace, event.table,
+            columnsToString(event.getPartitionKeys()), columnsToString(event.getClusteringKeys()),
+            columnsToString(event.getValueColumns()), topic, cause);
         }
     };
 
@@ -138,7 +152,8 @@ public enum CdcLogMode implements CdcLogger
         }
         catch (Exception exception)
         {
-            LOGGER.warn("Unrecognized mode: {} from input. Using the default MINIMAL", name, exception);
+            LOGGER.warn("Unrecognized mode: {} from input. Using the default MINIMAL", name,
+                        exception);
             return MINIMAL;
         }
     }
@@ -147,7 +162,8 @@ public enum CdcLogMode implements CdcLogger
     {
         try
         {
-            CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(fieldValue.keyspace, fieldValue.columnType));
+            CqlField.CqlType type =
+            typeLookup.apply(KeyspaceTypeKey.of(fieldValue.keyspace, fieldValue.columnType));
             Object javaValue = type.deserializeToJavaType(fieldValue.getValue());
             return String.format("[%s : %s]", fieldValue.columnName, javaValue);
         }
@@ -157,8 +173,9 @@ public enum CdcLogMode implements CdcLogger
         }
     }
 
-    private static String columnsToString(List<Value> columns)
+    private static String columnsToString(@Nullable List<Value> columns)
     {
-        return columns.stream().map(CdcLogMode::columnToString).collect(Collectors.joining(", "));
+        return columns == null ? "null" :
+               columns.stream().map(CdcLogMode::columnToString).collect(Collectors.joining(", "));
     }
 }

@@ -42,6 +42,7 @@ public final class ByteBufferUtils
     // the static column marker used in Cassandra, see org.apache.cassandra.db.marshal.CompositeType::STATIC_MARKER
     public static final int STATIC_MARKER = 0xFFFF;
     private static final String EMPTY_STRING = "";
+    public static final byte[] EMPTY = new byte[0];
     private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 
     private ByteBufferUtils()

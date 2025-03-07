@@ -58,7 +58,8 @@ public class KafkaPublisher implements AutoCloseable
     protected final KafkaProducer<String, byte[]> producer;
     protected final Serializer<CdcEvent> serializer;
 
-    protected ThreadLocal<Map<Pair<String, String>, String>> prefixCache = ThreadLocal.withInitial(HashMap::new);
+    protected ThreadLocal<Map<Pair<String, String>, String>> prefixCache =
+    ThreadLocal.withInitial(HashMap::new);
     protected final KafkaStats kafkaStats;
 
     public KafkaPublisher(TopicSupplier topicSupplier,
@@ -120,7 +121,7 @@ public class KafkaPublisher implements AutoCloseable
 
     public Logger logger()
     {
-        //
+        // permits user to override with their own logger if they wish
         return LOGGER;
     }
 
@@ -134,20 +135,26 @@ public class KafkaPublisher implements AutoCloseable
         return serializer.serialize(topic, event);
     }
 
-    public void processEvent(CdcEvent event)
+    public void processEvent(CdcEvent event) throws Exception
     {
-        final String topic = topicSupplier.topic(event);
+        String topic = topicSupplier.topic(event);
         cdcLogMode.info(logger(), "Processing CDC event", event, topic);
         long time = System.currentTimeMillis();
-        final byte[] recordPayload = getPayload(topic, event);
-        if (recordPayload == null)
+        byte[] recordPayload;
+        try
         {
-            cdcLogMode.warn(logger(), "Skip publishing the event because it cannot be serialized", event, topic, null);
-            return;
+            recordPayload = getPayload(topic, event);
         }
-        final String publishKey = getOrBuildKafkaPrefix(event) + eventHasher.hashEvent(event);
-        final List<ProducerRecord<String, byte[]>> records = recordProducer()
-                                                             .buildRecords(event, topic, publishKey, recordPayload);
+        catch (Exception e)
+        {
+            cdcLogMode.warn(logger(), "Skip publishing the event because it cannot be serialized",
+                            event, topic, e);
+            throw e; // rethrow for user to handle
+        }
+        String publishKey = getOrBuildKafkaPrefix(event) + eventHasher.hashEvent(event);
+        List<ProducerRecord<String, byte[]>> records = recordProducer()
+                                                       .buildRecords(event, topic, publishKey,
+                                                                     recordPayload);
         for (ProducerRecord<String, byte[]> record : records)
         {
             producer.send(record, (metadata, throwable) -> {
@@ -158,7 +165,8 @@ public class KafkaPublisher implements AutoCloseable
                     if (throwable instanceof RecordTooLargeException)
                     {
                         kafkaStats.reportKafkaRecordTooLarge();
-                        cdcLogMode.error(logger(), "Kafka record too large exception", event, topic, throwable);
+                        cdcLogMode.error(logger(), "Kafka record too large exception", event, topic,
+                                         throwable);
                         if (failOnRecordTooLargeError)
                         {
                             failure.compareAndSet(null, throwable);
@@ -166,7 +174,8 @@ public class KafkaPublisher implements AutoCloseable
                     }
                     else
                     {
-                        cdcLogMode.error(logger(), "Error publishing record to Kafka", event, topic, throwable);
+                        cdcLogMode.error(logger(), "Error publishing record to Kafka", event, topic,
+                                         throwable);
                         if (failOnKafkaError)
                         {
                             failure.compareAndSet(null, throwable);
@@ -176,8 +185,9 @@ public class KafkaPublisher implements AutoCloseable
                 else
                 {
                     kafkaStats.changePublished(event);
-                    logger().debug("Sent record(topic={}) meta(partition={}, offset={}) time={} topic={}",
-                                   topic, metadata.partition(), metadata.offset(), elapsedTime, topic);
+                    logger().debug(
+                    "Sent record(topic={}) meta(partition={}, offset={}) time={} topic={}",
+                    topic, metadata.partition(), metadata.offset(), elapsedTime, topic);
                 }
             });
         }
@@ -202,7 +212,7 @@ public class KafkaPublisher implements AutoCloseable
             producerRef.flush();
 
             // if we get failures after flushing, then report back to the caller so cdc state is not persisted
-            final Throwable t = failure.get();
+            Throwable t = failure.get();
             if (t != null && failure.compareAndSet(t, null))
             {
                 kafkaStats.reportJobFailure();
