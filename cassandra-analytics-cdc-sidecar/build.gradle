@@ -88,7 +88,7 @@ dependencies {
     testImplementation project(":cassandra-four-zero-types")
     testImplementation project(path: ':cassandra-four-zero', configuration: 'shadow')
     testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
-    testImplementation(group: 'com.google.guava', name: 'guava', version: "${project.guavaVersion}")
+    testImplementation(group: 'com.google.guava', name: 'guava', version: '31.1-jre')
     testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
     testImplementation(group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.26')
     testImplementation "org.quicktheories:quicktheories:${project.rootProject.quickTheoriesVersion}"
