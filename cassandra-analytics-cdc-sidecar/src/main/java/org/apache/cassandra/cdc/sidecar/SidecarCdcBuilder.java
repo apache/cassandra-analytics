@@ -166,7 +166,7 @@ public class SidecarCdcBuilder extends CdcBuilder
         if (this.commitLogProvider == null)
         {
             // SidecarCdc should generally use SidecarCommitLogProvider to list and stream commit log segments over Sidecar http API
-            // but builder is left open if user wishes to provide own implementation
+            // but the builder is left open if user wishes to provide own implementation
             this.commitLogProvider = new SidecarCommitLogProvider(clusterConfigProvider, sidecarCdcClient, downMonitor, replicationFactorSupplier);
         }
 

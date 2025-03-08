@@ -166,5 +166,3 @@ public interface SidecarCdcOptions
         return Duration.ofMillis(1000);
     }
 }
-
-
