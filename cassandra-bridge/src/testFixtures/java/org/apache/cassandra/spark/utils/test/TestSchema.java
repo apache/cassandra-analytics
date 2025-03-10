@@ -754,14 +754,14 @@ public final class TestSchema
             Object[] result = new Object[end - start];
             for (int sourceIndex = start, destinationIndex = 0; sourceIndex < end; sourceIndex++, destinationIndex++)
             {
-                result[destinationIndex] = convertForCqlWriter(getType(sourceIndex), values[sourceIndex]);
+                result[destinationIndex] = convertForCqlWriter(getType(sourceIndex), values[sourceIndex], false);
             }
             return result;
         }
 
-        private Object convertForCqlWriter(CqlField.CqlType type, Object value)
+        private Object convertForCqlWriter(CqlField.CqlType type, Object value, boolean isCollectionElement)
         {
-            return type.convertForCqlWriter(value, version);
+            return type.convertForCqlWriter(value, version, isCollectionElement);
         }
 
         public CqlField.CqlType getType(int position)

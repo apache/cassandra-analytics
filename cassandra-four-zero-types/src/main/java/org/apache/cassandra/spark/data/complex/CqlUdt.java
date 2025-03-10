@@ -113,7 +113,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    public Object convertForCqlWriter(@NotNull Object value, CassandraVersion version)
+    public Object convertForCqlWriter(@NotNull Object value, CassandraVersion version, boolean isCollectionElement)
     {
         if (value instanceof UDTValue)
         {
@@ -419,7 +419,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
                                              int position,
                                              @Nullable Object value)
     {
-        type.setInnerValue(udtValue, position, value == null ? null : type.convertForCqlWriter(value, version));
+        type.setInnerValue(udtValue, position, value == null ? null : type.convertForCqlWriter(value, version, false));
     }
 
     public static UserType toUserType(CqlUdt udt)

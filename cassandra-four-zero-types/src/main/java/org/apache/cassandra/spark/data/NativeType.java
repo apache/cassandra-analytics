@@ -54,7 +54,7 @@ public abstract class NativeType extends CqlType implements CqlField.NativeType
     }
 
     @Override
-    public Object convertForCqlWriter(Object value, CassandraVersion version)
+    public Object convertForCqlWriter(Object value, CassandraVersion version, boolean isCollectionElement)
     {
         return value;
     }

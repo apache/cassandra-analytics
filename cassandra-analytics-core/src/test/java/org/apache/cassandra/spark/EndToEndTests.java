@@ -155,6 +155,7 @@ public class EndToEndTests
     public void testSingleClusteringKeyOrderBy(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.sortOrder())
+            .assuming((clusteringKeyType, sortOrder) -> clusteringKeyType.supportedAsPrimaryKeyColumn())
             .checkAssert((clusteringKeyType, sortOrder) ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("a", bridge.bigint())
@@ -206,6 +207,7 @@ public class EndToEndTests
     {
         // Test partition key can be read for all data types
         qt().forAll(TestUtils.cql3Type(bridge))
+            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
             .checkAssert(partitionKeyType -> {
                 // Boolean or empty types have limited cardinality
                 int numRows = partitionKeyType.cardinality(10);
@@ -885,6 +887,7 @@ public class EndToEndTests
     public void testSet(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
+            .assuming(CqlField.CqlType::supportedAsSetElement)
             .checkAssert(type ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -914,6 +917,7 @@ public class EndToEndTests
     {
         qt().withExamples(50)  // Limit number of tests otherwise n x n tests takes too long
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
+            .assuming((keyType, valueType) -> keyType.supportedAsMapKey())
             .checkAssert((keyType, valueType) ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -943,6 +947,7 @@ public class EndToEndTests
     {
         // pk -> a frozen<set<?>>
         qt().forAll(TestUtils.cql3Type(bridge))
+            .assuming(CqlField.CqlType::supportedAsSetElement)
             .checkAssert(type ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -974,6 +979,7 @@ public class EndToEndTests
         // pk -> a frozen<map<?, ?>>
         qt().withExamples(50)  // Limit number of tests otherwise n x n tests takes too long
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
+            .assuming((keyType, valueType) -> keyType.supportedAsMapKey())
             .checkAssert((keyType, valueType) ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -1178,6 +1184,7 @@ public class EndToEndTests
     {
         // pk -> a testudt<b text, c frozen<type>, d int>
         qt().forAll(TestUtils.cql3Type(bridge))
+            .assuming(CqlField.CqlType::supportedAsSetElement)
             .checkAssert(type ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -1215,6 +1222,7 @@ public class EndToEndTests
         // pk -> a testudt<b float, c frozen<set<uuid>>, d frozen<map<type1, type2>>, e boolean>
         qt().withExamples(50)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
+            .assuming((type1, type2) -> type1.supportedAsMapKey())
             .checkAssert((type1, type2) ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -1235,6 +1243,7 @@ public class EndToEndTests
         // pk -> col1 udt1<a float, b frozen<set<uuid>>, c frozen<set<type>>, d boolean>,
         //       col2 udt2<a text, b bigint, g varchar>, col3 udt3<int, type, ascii>
         qt().forAll(TestUtils.cql3Type(bridge))
+            .assuming(CqlField.CqlType::supportedAsSetElement)
             .checkAssert(type ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -1305,6 +1314,7 @@ public class EndToEndTests
         // pk -> col1 type1 -> a tuple<int, type2, bigint>
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
+            .assuming((type1, type2) -> type1.supportedAsPrimaryKeyColumn())
             .checkAssert((type1, type2) ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -1346,6 +1356,7 @@ public class EndToEndTests
         // Test set nested within tuple
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
+            .assuming(CqlField.CqlType::supportedAsSetElement)
             .checkAssert(type ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -1390,6 +1401,7 @@ public class EndToEndTests
         // Test map nested within tuple
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
+            .assuming((type1, type2) -> type1.supportedAsMapKey())
             .checkAssert((type1, type2) ->
                 Tester.builder(TestSchema.builder(bridge)
                                         .withPartitionKey("pk", bridge.uuid())
@@ -1431,6 +1443,7 @@ public class EndToEndTests
         // Test tuple nested within set
         qt().withExamples(10)
             .forAll(TestUtils.cql3Type(bridge))
+            .assuming(CqlField.CqlType::supportedAsSetElement)
             .checkAssert(type ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -1510,6 +1523,7 @@ public class EndToEndTests
     public void testTupleClusteringKey(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
+            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
             .checkAssert(type ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -1529,6 +1543,7 @@ public class EndToEndTests
     public void testUdtClusteringKey(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
+            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
             .checkAssert(type ->
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
@@ -2564,6 +2579,7 @@ public class EndToEndTests
     public void testSinglePartitionAndClusteringKeyWithNullValueColumn(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
+            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
             .checkAssert(clusteringKeyType ->
                          Tester.builder(TestSchema.builder(bridge).withPartitionKey("a", bridge.bigint())
                                                   .withClusteringKey("b", clusteringKeyType)
@@ -2578,6 +2594,7 @@ public class EndToEndTests
     public void testMultipleValueColumnsWithNullValueColumn(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge))
+            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
             .checkAssert(clusteringKeyType ->
                          Tester.builder(TestSchema.builder(bridge).withPartitionKey("a", bridge.bigint())
                                                   .withClusteringKey("b", clusteringKeyType)

@@ -46,7 +46,9 @@ import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayBasedMapData;
 import org.apache.spark.sql.catalyst.util.ArrayData;
+import org.apache.spark.sql.catalyst.util.IntervalUtils;
 import org.apache.spark.sql.types.Decimal;
+import org.apache.spark.unsafe.types.CalendarInterval;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
@@ -295,6 +297,17 @@ public class DataTypeSerializationTests
     }
 
     @Test
+    public void testDuration()
+    {
+        qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
+            CalendarInterval value = IntervalUtils.makeInterval(1, 2, 3, 4, 5, 6, Decimal.apply(7000000, 8, 6));
+            Object serialized = toDuration(bridge, value);
+            assertInstanceOf(CalendarInterval.class, serialized);
+            assertEquals(value, serialized);
+        });
+    }
+
+    @Test
     public void testTimestamp()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
@@ -425,7 +438,7 @@ public class DataTypeSerializationTests
     public void testSet()
     {
         runTest((partitioner, directory, bridge) ->
-                qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
+                qt().forAll(TestUtils.cql3Type(bridge)).assuming(CqlField.CqlType::supportedAsSetElement).checkAssert(type -> {
                     CqlField.CqlSet set = bridge.set(type);
                     SparkType sparkType = getSparkSql(bridge).toSparkType(type);
                     Set<Object> expected = IntStream.range(0, 128)
@@ -445,38 +458,40 @@ public class DataTypeSerializationTests
     public void testMap()
     {
         runTest((partitioner, directory, bridge) ->
-                qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((keyType, valueType) -> {
-                    CqlField.CqlMap map = bridge.map(keyType, valueType);
-                    SparkType keySparkType = getSparkSql(bridge).toSparkType(keyType);
-                    SparkType valueSparkType = getSparkSql(bridge).toSparkType(valueType);
+                qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
+                    .assuming((keyType, valueType) -> keyType.supportedAsMapKey())
+                    .checkAssert((keyType, valueType) -> {
+                        CqlField.CqlMap map = bridge.map(keyType, valueType);
+                        SparkType keySparkType = getSparkSql(bridge).toSparkType(keyType);
+                        SparkType valueSparkType = getSparkSql(bridge).toSparkType(valueType);
 
-                    int count = keyType.cardinality(128);
-                    Map<Object, Object> expected = new HashMap<>(count);
-                    for (int entry = 0; entry < count; entry++)
-                    {
-                        Object key = null;
-                        while (key == null || expected.containsKey(key))
+                        int count = keyType.cardinality(128);
+                        Map<Object, Object> expected = new HashMap<>(count);
+                        for (int entry = 0; entry < count; entry++)
                         {
-                            key = keyType.randomValue();
+                            Object key = null;
+                            while (key == null || expected.containsKey(key))
+                            {
+                                key = keyType.randomValue();
+                            }
+                            expected.put(key, valueType.randomValue());
                         }
-                        expected.put(key, valueType.randomValue());
-                    }
-                    ByteBuffer buffer = map.serialize(expected);
-                    ArrayBasedMapData mapData = ((ArrayBasedMapData) map.deserializeToType(getSparkSql(bridge), buffer));
-                    ArrayData keys = mapData.keyArray();
-                    ArrayData values = mapData.valueArray();
-                    Map<Object, Object> actual = new HashMap<>(keys.numElements());
-                    for (int index = 0; index < keys.numElements(); index++)
-                    {
-                        Object key = keySparkType.toTestRowType(keys.get(index, getSparkSql(bridge).sparkSqlType(keyType)));
-                        Object value = valueSparkType.toTestRowType(values.get(index, getSparkSql(bridge).sparkSqlType(valueType)));
-                        actual.put(key, value);
-                    }
-                    assertEquals(expected.size(), actual.size());
-                    for (Map.Entry<Object, Object> entry : expected.entrySet())
-                    {
-                        assertEquals(entry.getValue(), actual.get(entry.getKey()));
-                    }
+                        ByteBuffer buffer = map.serialize(expected);
+                        ArrayBasedMapData mapData = ((ArrayBasedMapData) map.deserializeToType(getSparkSql(bridge), buffer));
+                        ArrayData keys = mapData.keyArray();
+                        ArrayData values = mapData.valueArray();
+                        Map<Object, Object> actual = new HashMap<>(keys.numElements());
+                        for (int index = 0; index < keys.numElements(); index++)
+                        {
+                            Object key = keySparkType.toTestRowType(keys.get(index, getSparkSql(bridge).sparkSqlType(keyType)));
+                            Object value = valueSparkType.toTestRowType(values.get(index, getSparkSql(bridge).sparkSqlType(valueType)));
+                            actual.put(key, value);
+                        }
+                        assertEquals(expected.size(), actual.size());
+                        for (Map.Entry<Object, Object> entry : expected.entrySet())
+                        {
+                            assertEquals(entry.getValue(), actual.get(entry.getKey()));
+                        }
                 }));
     }
 
@@ -615,6 +630,11 @@ public class DataTypeSerializationTests
     static Object toTime(CassandraBridge bridge, Object value)
     {
         return toNative(bridge, CassandraBridge::time, value);
+    }
+
+    static Object toDuration(CassandraBridge bridge, Object value)
+    {
+        return toNative(bridge, CassandraBridge::duration, value);
     }
 
     static Object toTimestamp(CassandraBridge bridge, Object value)

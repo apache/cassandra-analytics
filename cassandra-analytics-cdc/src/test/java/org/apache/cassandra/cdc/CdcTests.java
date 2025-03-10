@@ -342,6 +342,7 @@ public class CdcTests
     public void testClusteringKey()
     {
         qt().forAll(cql3Type(BRIDGE))
+            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
             .checkAssert(type ->
                          testWith(BRIDGE, directory, TestSchema.builder(BRIDGE)
                                                                .withPartitionKey("pk", BRIDGE.uuid())
@@ -371,6 +372,9 @@ public class CdcTests
     public void testMultipleClusteringKeys()
     {
         qt().withExamples(50).forAll(cql3Type(BRIDGE), cql3Type(BRIDGE), cql3Type(BRIDGE))
+            .assuming((t1, t2, t3) -> t1.supportedAsPrimaryKeyColumn()
+                                      && t2.supportedAsPrimaryKeyColumn()
+                                      && t3.supportedAsPrimaryKeyColumn())
             .checkAssert(
             (t1, t2, t3) ->
             testWith(BRIDGE, directory, TestSchema.builder(BRIDGE)
@@ -407,6 +411,7 @@ public class CdcTests
     public void testSet()
     {
         qt().forAll(cql3Type(BRIDGE))
+            .assuming(CqlField.CqlType::supportedAsSetElement)
             .checkAssert(
             t -> testWith(BRIDGE, directory, TestSchema.builder(BRIDGE)
                                                        .withPartitionKey("pk", BRIDGE.uuid())
@@ -487,6 +492,7 @@ public class CdcTests
     public void testMap()
     {
         qt().withExamples(50).forAll(cql3Type(BRIDGE), cql3Type(BRIDGE))
+            .assuming((t1, t2) -> t1.supportedAsMapKey() && t2.supportedAsMapKey())
             .checkAssert(
             (t1, t2) -> testWith(BRIDGE, directory, TestSchema.builder(BRIDGE)
                                                               .withPartitionKey("pk", BRIDGE.uuid())
@@ -766,6 +772,7 @@ public class CdcTests
     public void testCompositePartitionKey()
     {
         qt().forAll(cql3Type(BRIDGE))
+            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
             .checkAssert(
             type ->
             testWith(BRIDGE, directory, TestSchema.builder(BRIDGE)

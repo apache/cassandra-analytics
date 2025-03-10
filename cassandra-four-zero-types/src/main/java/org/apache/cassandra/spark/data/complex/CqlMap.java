@@ -107,12 +107,12 @@ public class CqlMap extends CqlCollection implements CqlField.CqlMap
 
     @Override
     @SuppressWarnings("unchecked")
-    public Object convertForCqlWriter(Object value, CassandraVersion version)
+    public Object convertForCqlWriter(Object value, CassandraVersion version, boolean isCollectionElement)
     {
         Map<Object, Object> map = (Map<Object, Object>) value;
         return map.entrySet().stream()
-                .collect(Collectors.toMap(element -> keyType().convertForCqlWriter(element.getKey(), version),
-                                          element -> valueType().convertForCqlWriter(element.getValue(), version)));
+                .collect(Collectors.toMap(element -> keyType().convertForCqlWriter(element.getKey(), version, true),
+                                          element -> valueType().convertForCqlWriter(element.getValue(), version, true)));
     }
 
     @Override

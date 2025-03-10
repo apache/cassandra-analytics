@@ -29,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.CompositeType;
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
@@ -49,24 +50,26 @@ public class PartitionKeyTests
     @SuppressWarnings("static-access")
     public void testBuildPartitionKey()
     {
-        qt().forAll(arbitrary().pick(BRIDGE.supportedTypes())).checkAssert(partitionKeyType -> {
-            CqlTable table = TestSchema.builder(BRIDGE)
-                                       .withPartitionKey("a", partitionKeyType)
-                                       .withClusteringKey("b", BRIDGE.aInt())
-                                       .withColumn("c", BRIDGE.aInt())
-                                       .build()
-                                       .buildTable();
-            Object value = partitionKeyType.randomValue(100);
-            String string = ((CqlType) partitionKeyType).serializer().toString(value);
-            ByteBuffer buffer = BRIDGE.buildPartitionKey(table, Collections.singletonList(string));
-            Object cassandraValue = partitionKeyType.deserializeToJavaType(buffer);
+        qt().forAll(arbitrary().pick(BRIDGE.supportedTypes()))
+            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
+            .checkAssert(partitionKeyType -> {
+                CqlTable table = TestSchema.builder(BRIDGE)
+                                           .withPartitionKey("a", partitionKeyType)
+                                           .withClusteringKey("b", BRIDGE.aInt())
+                                           .withColumn("c", BRIDGE.aInt())
+                                           .build()
+                                           .buildTable();
+                Object value = partitionKeyType.randomValue(100);
+                String string = ((CqlType) partitionKeyType).serializer().toString(value);
+                ByteBuffer buffer = BRIDGE.buildPartitionKey(table, Collections.singletonList(string));
+                Object cassandraValue = partitionKeyType.deserializeToJavaType(buffer);
 
-            // compare using Cassandra types
-            assertTrue(ComparisonUtils.equals(value, cassandraValue));
+                // compare using Cassandra types
+                assertTrue(ComparisonUtils.equals(value, cassandraValue));
 
-            // convert SparkSQL types back into test row types to compare
-            Object sparkSqlValue = TYPE_CONVERTER.convert(partitionKeyType, cassandraValue, false);
-            assertTrue(ComparisonUtils.equals(value, TYPE_CONVERTER.toTestRowType(partitionKeyType, sparkSqlValue)));
+                // convert SparkSQL types back into test row types to compare
+                Object sparkSqlValue = TYPE_CONVERTER.convert(partitionKeyType, cassandraValue, false);
+                assertTrue(ComparisonUtils.equals(value, TYPE_CONVERTER.toTestRowType(partitionKeyType, sparkSqlValue)));
         });
     }
 
@@ -74,30 +77,32 @@ public class PartitionKeyTests
     @SuppressWarnings("static-access")
     public void testBuildCompositePartitionKey()
     {
-        qt().forAll(arbitrary().pick(BRIDGE.supportedTypes())).checkAssert(partitionKeyType -> {
-            CqlTable table = TestSchema.builder(BRIDGE)
-                                       .withPartitionKey("a", BRIDGE.aInt())
-                                       .withPartitionKey("b", partitionKeyType)
-                                       .withPartitionKey("c", BRIDGE.text())
-                                       .withClusteringKey("d", BRIDGE.aInt())
-                                       .withColumn("e", BRIDGE.aInt())
-                                       .build()
-                                       .buildTable();
-            List<AbstractType<?>> partitionKeyColumnTypes = BRIDGE.partitionKeyColumnTypes(table);
-            CompositeType compositeType = CompositeType.getInstance(partitionKeyColumnTypes);
+        qt().forAll(arbitrary().pick(BRIDGE.supportedTypes()))
+            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
+            .checkAssert(partitionKeyType -> {
+                CqlTable table = TestSchema.builder(BRIDGE)
+                                           .withPartitionKey("a", BRIDGE.aInt())
+                                           .withPartitionKey("b", partitionKeyType)
+                                           .withPartitionKey("c", BRIDGE.text())
+                                           .withClusteringKey("d", BRIDGE.aInt())
+                                           .withColumn("e", BRIDGE.aInt())
+                                           .build()
+                                           .buildTable();
+                List<AbstractType<?>> partitionKeyColumnTypes = BRIDGE.partitionKeyColumnTypes(table);
+                CompositeType compositeType = CompositeType.getInstance(partitionKeyColumnTypes);
 
-            int columnA = (int) BRIDGE.aInt().randomValue(1024);
-            Object columnB = partitionKeyType.randomValue(1024);
-            String columnBString = ((CqlType) partitionKeyType).serializer().toString(columnB);
-            String columnC = (String) BRIDGE.text().randomValue(1024);
+                int columnA = (int) BRIDGE.aInt().randomValue(1024);
+                Object columnB = partitionKeyType.randomValue(1024);
+                String columnBString = ((CqlType) partitionKeyType).serializer().toString(columnB);
+                String columnC = (String) BRIDGE.text().randomValue(1024);
 
-            ByteBuffer buffer = BRIDGE.buildPartitionKey(table, Arrays.asList(Integer.toString(columnA), columnBString, columnC));
-            ByteBuffer[] buffers = compositeType.split(buffer);
-            assertEquals(3, buffers.length);
+                ByteBuffer buffer = BRIDGE.buildPartitionKey(table, Arrays.asList(Integer.toString(columnA), columnBString, columnC));
+                ByteBuffer[] buffers = compositeType.split(buffer);
+                assertEquals(3, buffers.length);
 
-            assertEquals(columnA, buffers[0].getInt());
-            assertEquals(columnB, partitionKeyType.deserializeToJavaType(buffers[1]));
-            assertEquals(columnC, TYPE_CONVERTER.toSparkType(BRIDGE.text()).toTestRowType(BRIDGE.text().deserializeToJavaType(buffers[2])));
+                assertEquals(columnA, buffers[0].getInt());
+                assertEquals(columnB, partitionKeyType.deserializeToJavaType(buffers[1]));
+                assertEquals(columnC, TYPE_CONVERTER.toSparkType(BRIDGE.text()).toTestRowType(BRIDGE.text().deserializeToJavaType(buffers[2])));
         });
     }
 }

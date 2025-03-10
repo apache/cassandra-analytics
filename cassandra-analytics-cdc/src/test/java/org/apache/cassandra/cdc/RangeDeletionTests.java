@@ -110,6 +110,7 @@ public class RangeDeletionTests
         long minTimestamp = System.currentTimeMillis();
         int numRows = 1000;
         qt().forAll(cql3Type(BRIDGE))
+            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
             .checkAssert(
             type ->
             testWith(BRIDGE, directory, schemaBuilder.apply(type))

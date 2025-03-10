@@ -19,12 +19,50 @@
 
 package org.apache.cassandra.spark.data.converter.types;
 
-public class SparkDuration implements NotImplementedFeatures
+import org.apache.cassandra.bridge.BigNumberConfig;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.types.DataType;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.unsafe.types.CalendarInterval;
+
+public class SparkDuration implements SparkType
 {
     public static final SparkDuration INSTANCE = new SparkDuration();
 
-    private SparkDuration()
+    @Override
+    public DataType dataType(BigNumberConfig bigNumberConfig)
     {
+        return DataTypes.CalendarIntervalType;
+    }
 
+    @Override
+    public Object nativeSparkSqlRowValue(Row row, int position)
+    {
+        return row.isNullAt(position) ? null : row.get(position); // should return CalendarInterval type
+    }
+
+    @Override
+    public Object nativeSparkSqlRowValue(final GenericInternalRow row, final int position)
+    {
+        return row.isNullAt(position) ? null : row.getInterval(position);
+    }
+
+    @Override
+    public int compareTo(Object first, Object second)
+    {
+        CalendarInterval f = (CalendarInterval) first;
+        CalendarInterval s = (CalendarInterval) second;
+        int r = Integer.compare(f.months, s.months);
+        if (r != 0)
+        {
+            return r;
+        }
+        r = Integer.compare(f.days, s.days);
+        if (r != 0)
+        {
+            return r;
+        }
+        return Long.compare(f.microseconds, s.microseconds);
     }
 }

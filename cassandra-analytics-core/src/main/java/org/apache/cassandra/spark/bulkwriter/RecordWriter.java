@@ -400,7 +400,7 @@ public class RecordWriter
                     udtValue.udtMap.put(entry.getKey(), maybeConvertUdt(entry.getValue()));
                 }
             }
-            return getUdt(udtValue.name).convertForCqlWriter(udtValue.udtMap, writerContext.bridge().getVersion());
+            return getUdt(udtValue.name).convertForCqlWriter(udtValue.udtMap, writerContext.bridge().getVersion(), false);
         }
         return value;
     }
