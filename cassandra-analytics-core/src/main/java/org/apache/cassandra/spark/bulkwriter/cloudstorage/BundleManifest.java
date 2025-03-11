@@ -64,14 +64,14 @@ public class BundleManifest extends HashMap<String, BundleManifest.Entry>
         // uniquely identify a manifest entry
         private final String key;
         private final Map<String, String> componentsChecksum;
-        private final BigInteger startToken;
+        private final BigInteger firstToken;
         private final BigInteger endToken;
 
         @VisibleForTesting
-        Entry(String key, BigInteger startToken, BigInteger endToken)
+        Entry(String key, BigInteger firstToken, BigInteger endToken)
         {
             this.key = key;
-            this.startToken = startToken;
+            this.firstToken = firstToken;
             this.endToken = endToken;
             this.componentsChecksum = new HashMap<>();
         }
@@ -79,7 +79,7 @@ public class BundleManifest extends HashMap<String, BundleManifest.Entry>
         public Entry(SSTableSummary summary)
         {
             this.key = summary.sstableId;
-            this.startToken = summary.firstToken;
+            this.firstToken = summary.firstToken;
             this.endToken = summary.lastToken;
             this.componentsChecksum = new HashMap<>();
         }
@@ -95,10 +95,10 @@ public class BundleManifest extends HashMap<String, BundleManifest.Entry>
             return componentsChecksum;
         }
 
-        @JsonProperty("start_token")
-        public BigInteger startToken()
+        @JsonProperty("start_token") // keep the start_token name as-is. Sidecar parses manifest using the name
+        public BigInteger firstToken()
         {
-            return startToken;
+            return firstToken;
         }
 
         @JsonProperty("end_token")

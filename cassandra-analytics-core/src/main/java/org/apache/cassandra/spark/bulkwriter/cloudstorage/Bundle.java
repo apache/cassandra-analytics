@@ -128,7 +128,7 @@ public class Bundle
                + ", bundleFile: " + bundleFile
                + ", uncompressedSize: " + bundleUncompressedSize
                + ", compressedSize: " + bundleCompressedSize
-               + ", startToken: " + firstToken
+               + ", firstToken: " + firstToken
                + ", endToken: " + endToken + '}';
     }
 
@@ -260,12 +260,12 @@ public class Bundle
         {
             if (bundleManifest.isEmpty())
             {
-                firstToken = entry.startToken();
+                firstToken = entry.firstToken();
                 endToken = entry.endToken();
             }
             else
             {
-                firstToken = firstToken.min(entry.startToken());
+                firstToken = firstToken.min(entry.firstToken());
                 endToken = endToken.max(entry.endToken());
             }
             bundleManifest.addEntry(entry);
