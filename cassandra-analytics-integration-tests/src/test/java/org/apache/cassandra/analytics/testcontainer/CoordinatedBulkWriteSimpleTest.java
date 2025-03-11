@@ -148,7 +148,7 @@ public class CoordinatedBulkWriteSimpleTest extends CoordinatedWriteTestBase
         sidecarServer.start().onFailure(context::failNow);
 
         SidecarSchema sidecarSchema = sidecarServerInjector.getInstance(SidecarSchema.class);
-        for (int i = 0; i < 60; i ++)
+        for (int i = 0; i < 60; i++)
         {
             Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             if (sidecarSchema.isInitialized())
