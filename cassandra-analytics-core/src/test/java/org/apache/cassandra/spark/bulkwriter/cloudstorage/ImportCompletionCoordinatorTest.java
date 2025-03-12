@@ -421,7 +421,7 @@ class ImportCompletionCoordinatorTest
             int noProgressPerReplicaSet = noProgressInstanceCount;
             // create one distinct slice per instance
             CreateSliceRequestPayload mockCreateSliceRequestPayload = mock(CreateSliceRequestPayload.class);
-            when(mockCreateSliceRequestPayload.firstToken()).thenReturn(BigInteger.valueOf(100 * (i - 1)));
+            when(mockCreateSliceRequestPayload.firstToken()).thenReturn(BigInteger.valueOf(100 * (i - 1) + 1));
             when(mockCreateSliceRequestPayload.endToken()).thenReturn(BigInteger.valueOf(100 * i));
             when(mockCreateSliceRequestPayload.sliceId()).thenReturn(UUID.randomUUID().toString());
             when(mockCreateSliceRequestPayload.key()).thenReturn("key_for_instance_" + i); // to be captured by extension mock

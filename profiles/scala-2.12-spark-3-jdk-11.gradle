@@ -28,6 +28,4 @@ ext {
     sidecarClientGroup="org.apache.cassandra"
     sidecarClientName="sidecar-vertx-client-all"
     sidecarVersion="${sidecarClientVersion}"
-
-    fooVersion="for11"
 }
