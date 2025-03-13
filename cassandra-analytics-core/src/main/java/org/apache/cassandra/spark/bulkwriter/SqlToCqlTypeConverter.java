@@ -61,6 +61,7 @@ public final class SqlToCqlTypeConverter implements Serializable
     public static final String DATE = "date";
     public static final String DECIMAL = "decimal";
     public static final String DOUBLE = "double";
+    public static final String DURATION = "duration";
     public static final String FLOAT = "float";
     public static final String FROZEN = "frozen";
     public static final String INET = "inet";
@@ -127,6 +128,10 @@ public final class SqlToCqlTypeConverter implements Serializable
                 return BIG_DECIMAL_CONVERTER;
             case DOUBLE:
                 return NO_OP_CONVERTER;
+            case DURATION:
+                // TODO: return a DurationConverter for CalendarInterval; need to return CQL function Duration if called within collection/udt/etc
+                // TODO (continue): maybe support converting from String to Duration too? Just like Cassandra CQL that supports ISO8601 and standard form of the duration. However, it is optional
+                return null;
             case FLOAT:
                 return NO_OP_CONVERTER;
             case FROZEN:
