@@ -47,7 +47,6 @@ dependencies {
     compileOnly("com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}")
     compileOnly("com.fasterxml.jackson.core:jackson-core:${jacksonVersion}")
     compileOnly("com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}")
-    compileOnly(group: "${sparkGroupId}", name: "spark-unsafe_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
 
     testImplementation("com.google.guava:guava:${guavaVersion}")
     testImplementation("com.esotericsoftware:kryo-shaded:${kryoVersion}")
@@ -59,7 +58,6 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
     testImplementation("org.assertj:assertj-core:${assertjCoreVersion}")
     testImplementation("commons-io:commons-io:2.8.0")
-    testImplementation(group: "${sparkGroupId}", name: "spark-unsafe_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
 }
 
 test {
