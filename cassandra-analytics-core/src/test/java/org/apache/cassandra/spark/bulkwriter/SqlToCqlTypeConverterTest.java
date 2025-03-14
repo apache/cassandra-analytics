@@ -35,6 +35,7 @@ import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.COUNTE
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DECIMAL;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DOUBLE;
+import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DURATION;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.FLOAT;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INET;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
@@ -72,6 +73,7 @@ public final class SqlToCqlTypeConverterTest
                              na(mockCqlType(TIMEUUID), SqlToCqlTypeConverter.TimeUUIDConverter.class),
                              na(mockCqlType(INET), SqlToCqlTypeConverter.InetAddressConverter.class),
                              na(mockCqlType(DATE), SqlToCqlTypeConverter.DateConverter.class),
+                             na(mockCqlType(DURATION), SqlToCqlTypeConverter.DurationConverter.class),
                              na(mockMapCqlType(INT, INT), SqlToCqlTypeConverter.MapConverter.class),
                              na(mockSetCqlType(INET), SqlToCqlTypeConverter.SetConverter.class),
                              na(mockUdtCqlType("udtType", "f1", TEXT, "f2", INT, "f3", TIMEUUID), SqlToCqlTypeConverter.UdtConverter.class),

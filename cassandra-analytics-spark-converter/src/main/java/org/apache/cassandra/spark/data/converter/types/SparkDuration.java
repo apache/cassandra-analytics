@@ -69,7 +69,7 @@ public class SparkDuration implements SparkType
     public Object toTestRowType(Object value)
     {
         CalendarInterval ci = (CalendarInterval) value;
-        return new InternalDuration(ci.months, ci.days, TimeUnit.MICROSECONDS.toNanos( ci.microseconds));
+        return new InternalDuration(ci.months, ci.days, TimeUnit.MICROSECONDS.toNanos(ci.microseconds));
     }
 
     @Override

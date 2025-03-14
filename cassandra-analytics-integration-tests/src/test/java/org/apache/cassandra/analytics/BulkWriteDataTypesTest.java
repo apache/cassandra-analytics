@@ -53,11 +53,13 @@ import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.unsafe.types.CalendarInterval;
 import scala.collection.mutable.Seq;
 
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.apache.spark.sql.types.DataTypes.BinaryType;
+import static org.apache.spark.sql.types.DataTypes.CalendarIntervalType;
 import static org.apache.spark.sql.types.DataTypes.DateType;
 import static org.apache.spark.sql.types.DataTypes.IntegerType;
 import static org.apache.spark.sql.types.DataTypes.LongType;
@@ -147,6 +149,9 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
         // Simple schema with Date as column.
         types.add(simpleDateSchemaSetup());
 
+        // Simple schema with Duration as column.
+        types.add(simpleDurationSchemaSetup());
+
         // Simple schema with integers and strings as columns.
         types.add(integersAndStringsSchemaSetup());
 
@@ -212,6 +217,16 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
                                                 "CREATE TABLE %s (id int, course date, PRIMARY KEY (id))");
         setup.rowMapperValidation = row -> String.format("%s:%s", row.get(0), SqlToCqlTypeConverter.DATE_CONVERTER.convertInternal(row.get(1)));
         return setup;
+    }
+
+    static TypeTestSetup simpleDurationSchemaSetup()
+    {
+        return new TypeTestSetup("duration_schema",
+                                 Arrays.asList("id", "took"),
+                                 Arrays.asList(IntegerType, CalendarIntervalType),
+                                 Arrays.asList(INTEGER_MAPPER, DURATION_MAPPER),
+                                 "CREATE TABLE %s (id int, took duration, PRIMARY KEY (id))",
+                                 "Cannot save interval data type into external storage.");
     }
 
     static TypeTestSetup integersAndStringsSchemaSetup()
@@ -441,6 +456,8 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
     = recordNumber -> Timestamp.from(new Date(1731457509115L).toInstant().plus(recordNumber, ChronoUnit.SECONDS));
     static final Function<Integer, Object> DATE_MAPPER
     = recordNumber -> java.sql.Date.valueOf(((Timestamp) TIMESTAMP_MAPPER.apply(recordNumber)).toLocalDateTime().toLocalDate());
+    static final Function<Integer, Object> DURATION_MAPPER
+    = recordNumber -> new CalendarInterval(1, recordNumber, recordNumber * 1000000);
 
     static class TypeTestSetup
     {
