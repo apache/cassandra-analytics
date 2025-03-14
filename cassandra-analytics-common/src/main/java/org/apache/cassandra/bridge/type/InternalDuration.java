@@ -65,7 +65,6 @@ public class InternalDuration implements Serializable
     @Override
     public String toString()
     {
-        // TODO: please add a unit test for this method
         StringBuilder builder = new StringBuilder();
         if (this.months < 0 || this.days < 0 || this.nanoseconds < 0L)
         {
