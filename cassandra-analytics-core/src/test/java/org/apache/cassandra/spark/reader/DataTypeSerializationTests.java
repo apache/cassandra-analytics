@@ -40,7 +40,6 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.TestUtils;
-import org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.converter.types.SparkType;
 import org.apache.cassandra.spark.utils.RandomUtils;
@@ -302,10 +301,9 @@ public class DataTypeSerializationTests
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
             CalendarInterval value = IntervalUtils.makeInterval(1, 2, 3, 4, 5, 6, Decimal.apply(7000000, 8, 6));
-            Object converted = SqlToCqlTypeConverter.getConverter(bridge.duration()).convert(value);
-            Object deserialized = toDuration(bridge, converted);
-            assertInstanceOf(CalendarInterval.class, deserialized);
-            assertEquals(value, deserialized);
+            Object serialized = toDuration(bridge, value);
+            assertInstanceOf(CalendarInterval.class, serialized);
+            assertEquals(value, serialized);
         });
     }
 
