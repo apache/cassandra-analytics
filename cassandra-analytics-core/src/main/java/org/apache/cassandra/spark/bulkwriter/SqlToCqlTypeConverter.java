@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.type.InternalDuration;
 import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.utils.SparkTypeUtils;
 import org.apache.cassandra.spark.utils.UUIDs;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
 import org.apache.spark.unsafe.types.CalendarInterval;
@@ -564,7 +565,7 @@ public final class SqlToCqlTypeConverter implements Serializable
             if (object instanceof CalendarInterval)
             {
                 CalendarInterval cl = (CalendarInterval) object;
-                return new InternalDuration(cl.months, cl.days, TimeUnit.MICROSECONDS.toNanos(cl.microseconds));
+                return SparkTypeUtils.convertDuration(cl);
             }
             else
             {

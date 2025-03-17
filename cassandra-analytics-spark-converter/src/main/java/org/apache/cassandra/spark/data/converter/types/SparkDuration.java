@@ -20,10 +20,10 @@
 package org.apache.cassandra.spark.data.converter.types;
 
 import java.util.Comparator;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.type.InternalDuration;
+import org.apache.cassandra.spark.utils.SparkTypeUtils;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
@@ -35,9 +35,7 @@ public class SparkDuration implements SparkType
 {
     public static final SparkDuration INSTANCE = new SparkDuration();
     private static final Comparator<CalendarInterval> CALENDAR_INTERVAL_COMPARATOR =
-    Comparator.<CalendarInterval>comparingInt(interval -> interval.months)
-              .thenComparingInt(interval -> interval.days)
-              .thenComparingLong(interval -> interval.microseconds);
+    SparkTypeUtils.CALENDAR_INTERVAL_COMPARATOR;
 
     @Override
     public DataType dataType(BigNumberConfig bigNumberConfig)
@@ -61,15 +59,14 @@ public class SparkDuration implements SparkType
     public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
     {
         InternalDuration duration = (InternalDuration) value;
-        // Unfortunately, it loses precision when converting to the spark data type.
-        return new CalendarInterval(duration.months, duration.days, TimeUnit.NANOSECONDS.toMicros(duration.nanoseconds));
+        return SparkTypeUtils.convertDuration(duration);
     }
 
     @Override
     public Object toTestRowType(Object value)
     {
         CalendarInterval ci = (CalendarInterval) value;
-        return new InternalDuration(ci.months, ci.days, TimeUnit.MICROSECONDS.toNanos(ci.microseconds));
+        return SparkTypeUtils.convertDuration(ci);
     }
 
     @Override

@@ -43,17 +43,18 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.datastax.driver.core.utils.UUIDs;
+import org.apache.cassandra.bridge.type.InternalDuration;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.ScalaConversionUtils;
+import org.apache.cassandra.spark.utils.SparkTypeUtils;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.StructType;
-import org.apache.spark.unsafe.types.CalendarInterval;
 import scala.collection.mutable.Seq;
 
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
@@ -457,7 +458,7 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
     static final Function<Integer, Object> DATE_MAPPER
     = recordNumber -> java.sql.Date.valueOf(((Timestamp) TIMESTAMP_MAPPER.apply(recordNumber)).toLocalDateTime().toLocalDate());
     static final Function<Integer, Object> DURATION_MAPPER
-    = recordNumber -> new CalendarInterval(1, recordNumber, recordNumber * 1000000);
+    = recordNumber -> SparkTypeUtils.convertDuration(new InternalDuration(1, recordNumber, recordNumber * 1000000000));
 
     static class TypeTestSetup
     {
