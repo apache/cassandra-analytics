@@ -39,15 +39,16 @@ import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.type.InternalDuration;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.converter.types.SparkType;
 import org.apache.cassandra.spark.utils.RandomUtils;
+import org.apache.cassandra.spark.utils.SparkTypeUtils;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayBasedMapData;
 import org.apache.spark.sql.catalyst.util.ArrayData;
-import org.apache.spark.sql.catalyst.util.IntervalUtils;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.unsafe.types.CalendarInterval;
 import org.apache.spark.unsafe.types.UTF8String;
@@ -301,7 +302,7 @@ public class DataTypeSerializationTests
     public void testDuration()
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            CalendarInterval value = IntervalUtils.makeInterval(1, 2, 3, 4, 5, 6, Decimal.apply(7000000, 8, 6));
+            CalendarInterval value = SparkTypeUtils.convertDuration(new InternalDuration(1, 2, 7000000000L));
             Object converted = SqlToCqlTypeConverter.getConverter(bridge.duration()).convert(value);
             Object deserialized = toDuration(bridge, converted);
             assertInstanceOf(CalendarInterval.class, deserialized);
