@@ -1,4 +1,5 @@
 1.0.0
+ * Support CQL duration type (CASSANALYTICS-18)
  * Add Schema Store interfaces for CDC (CASSANALYTICS-8)
  * Add CassandraBridge helper APIs that can be used by external tooling (CASSANALYTICS-4)
  * Refactor to decouple RowIterator and CellIterator from Spark so bulk reads can be performed outside of Spark (CASSANDRA-20259)

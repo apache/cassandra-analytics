@@ -33,7 +33,6 @@ dependencies {
     compileOnly project(":cassandra-analytics-common")
     compileOnly(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     compileOnly "com.esotericsoftware:kryo-shaded:${kryoVersion}"
-    compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
 }
 
 jar {
