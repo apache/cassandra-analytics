@@ -22,6 +22,8 @@ package org.apache.cassandra.spark.utils;
 import java.util.Comparator;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.primitives.Ints;
+
 import org.apache.cassandra.bridge.type.InternalDuration;
 import org.apache.spark.unsafe.types.CalendarInterval;
 
@@ -46,7 +48,7 @@ public final class SparkTypeUtils
 
     public static InternalDuration convertDuration(CalendarInterval interval)
     {
-        int days = interval.microseconds / CalendarInterval.MICROS_PER_DAY;
+        int days = Ints.checkedCast(interval.microseconds / CalendarInterval.MICROS_PER_DAY);
         long microsRemain = interval.microseconds % CalendarInterval.MICROS_PER_DAY;
         return new InternalDuration(interval.months, days, TimeUnit.MICROSECONDS.toNanos(microsRemain));
     }
