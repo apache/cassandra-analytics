@@ -39,11 +39,15 @@ public final class SparkTypeUtils
     public static CalendarInterval convertDuration(InternalDuration duration)
     {
         // Unfortunately, it loses precision when converting to the spark data type.
-        return new CalendarInterval(duration.months, TimeUnit.NANOSECONDS.toMicros(duration.nanoseconds));
+        int micros = TimeUnit.NANOSECONDS.toMicros(duration.nanoseconds);
+        micros += duration.days * CalendarInterval.MICROS_PER_DAY;
+        return new CalendarInterval(duration.months, micros);
     }
 
     public static InternalDuration convertDuration(CalendarInterval interval)
     {
-        return new InternalDuration(interval.months, 0, TimeUnit.MICROSECONDS.toNanos(interval.microseconds));
+        int days = interval.microseconds / CalendarInterval.MICROS_PER_DAY;
+        int microsRemain = interval.microseconds % CalendarInterval.MICROS_PER_DAY;
+        return new InternalDuration(interval.months, days, TimeUnit.MICROSECONDS.toNanos(microsRemain));
     }
 }
