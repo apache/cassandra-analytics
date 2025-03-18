@@ -180,10 +180,10 @@ public class SidecarStatePersister implements StatePersister
                     Thread.currentThread().interrupt();
                     sidecarCdcStats.capturePersistFailed(e);
                 }
-                catch (ExecutionException e)
+                catch (Throwable throwable)
                 {
-                    LOGGER.warn("Persist failed", e);
-                    sidecarCdcStats.capturePersistFailed(e);
+                    LOGGER.warn("Persist failed", throwable);
+                    sidecarCdcStats.capturePersistFailed(throwable);
                 }
                 return true;
             }
