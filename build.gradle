@@ -186,12 +186,9 @@ subprojects {
 
   repositories {
     mavenCentral()
+    // for dtest-jars
     mavenLocal {
       url Paths.get(dependencyLocation)
-      content {
-        includeModule("org.apache.cassandra", "cassandra-sidecar")
-        includeGroup("org.apache.cassandra.sidecar")
-      }
     }
   }
 

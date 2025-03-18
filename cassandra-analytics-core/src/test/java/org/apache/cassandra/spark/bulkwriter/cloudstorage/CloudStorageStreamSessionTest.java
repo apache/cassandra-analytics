@@ -152,7 +152,7 @@ class CloudStorageStreamSessionTest
                          "It should create 1 slice per bundle");
             Bundle actualBundle1 = blobDataTransferApi.uploadedBundleManifest.get(BigInteger.valueOf(1L));
             BundleManifest.Entry actualBundle1Entry = actualBundle1.manifestEntry("na-1-big-");
-            assertEquals(BigInteger.valueOf(1L), actualBundle1Entry.startToken());
+            assertEquals(BigInteger.valueOf(1L), actualBundle1Entry.firstToken());
             assertEquals(BigInteger.valueOf(3L), actualBundle1Entry.endToken());
             Map<String, String> bundle1ComponentsChecksum = actualBundle1Entry.componentsChecksum();
             assertEquals("f48b39a3", bundle1ComponentsChecksum.get("na-1-big-Data.db"));
@@ -164,7 +164,7 @@ class CloudStorageStreamSessionTest
 
             Bundle actualBundle2 = blobDataTransferApi.uploadedBundleManifest.get(BigInteger.valueOf(3L));
             BundleManifest.Entry actualBundle2Entry = actualBundle2.manifestEntry("na-2-big-");
-            assertEquals(BigInteger.valueOf(3L), actualBundle2Entry.startToken());
+            assertEquals(BigInteger.valueOf(3L), actualBundle2Entry.firstToken());
             assertEquals(BigInteger.valueOf(6L), actualBundle2Entry.endToken());
             Map<String, String> bundle2ComponentsChecksum = actualBundle2Entry.componentsChecksum();
             assertEquals("f48b39a3", bundle2ComponentsChecksum.get("na-2-big-Data.db"));
@@ -214,7 +214,7 @@ class CloudStorageStreamSessionTest
         @Override
         public BundleStorageObject uploadBundle(StorageCredentials writeCredentials, Bundle bundle)
         {
-            uploadedBundleManifest.put(bundle.startToken, bundle);
+            uploadedBundleManifest.put(bundle.firstToken, bundle);
             return BundleStorageObject.builder()
                                       .bundle(bundle)
                                       .storageObjectChecksum("dummy")

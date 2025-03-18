@@ -378,8 +378,8 @@ public final class ImportCompletionCoordinator implements ImportCoordinator
     {
         LOGGER.warn("Import failed. instance={} slice={}", instance.nodeName(), createSliceRequestPayload, throwable);
 
-        Range<BigInteger> range = Range.openClosed(createSliceRequestPayload.startToken(),
-                                                   createSliceRequestPayload.endToken());
+        Range<BigInteger> range = Range.closed(createSliceRequestPayload.firstToken(),
+                                               createSliceRequestPayload.endToken());
         writeValidator.updateFailureHandler(range, instance, "Failed to import slice. " + throwable.getMessage());
         // it either passes or throw if consistency level cannot be satisfied
         try

@@ -321,7 +321,7 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
                          sessionID, replica.nodeName(), slicePayload, exception);
             writerContext.cluster().refreshClusterInfo();
             // the failed range is a sub-range of the tokenRange; it is guaranteed to not wrap-around
-            Range<BigInteger> failedRange = Range.openClosed(slicePayload.startToken(), slicePayload.endToken());
+            Range<BigInteger> failedRange = Range.closed(slicePayload.firstToken(), slicePayload.endToken());
             this.failureHandler.addFailure(failedRange, replica, exception.getMessage());
             errors.add(new StreamError(failedRange, replica, exception.getMessage()));
             // Do not abort job on a single slice failure
@@ -357,7 +357,7 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
                                              readBucket,
                                              bundleStorageObject.storageObjectKey,
                                              bundleStorageObject.storageObjectChecksum,
-                                             bundle.startToken,
+                                             bundle.firstToken,
                                              bundle.endToken,
                                              bundle.bundleUncompressedSize,
                                              bundle.bundleCompressedSize);

@@ -47,8 +47,8 @@ test {
 
 dependencies {
     // These dependencies (sidecar + dtest jars) must be built by running `scripts/build-dependencies.sh`
-    implementation(group: 'org.apache.cassandra.sidecar', name: 'adapters-base', version: "${sidecarVersion}")
-    implementation(group: 'org.apache.cassandra.sidecar', name: 'adapters-cassandra41', version: "${sidecarVersion}")
+    implementation(group: 'org.apache.cassandra', name: 'sidecar-adapters-base', version: "${sidecarVersion}")
+    implementation(group: 'org.apache.cassandra', name: 'sidecar-adapters-cassandra41', version: "${sidecarVersion}")
 
     File dtestJarFile = new File(dtestJarFullPath)
     println("Using DTest jar: " + dtestJarFullPath + "; present? " + dtestJarFile.exists())
@@ -88,10 +88,10 @@ dependencies {
     // Exposed to the test project
     api("io.vertx:vertx-junit5:${project.vertxVersion}")
     // The server itself
-    api(group: "org.apache.cassandra", name: "cassandra-sidecar", version: "${sidecarVersion}") {
+    api(group: "org.apache.cassandra", name: "sidecar-server", version: "${sidecarVersion}") {
         exclude(group: 'org.apache.logging.log4j')
         exclude(group: 'org.slf4j')
         exclude(group: 'ch.qos.logback')
     }
-    api(group: 'org.apache.cassandra.sidecar', name: 'server-common', version: "${sidecarVersion}")
+    api(group: 'org.apache.cassandra', name: 'sidecar-server-common', version: "${sidecarVersion}")
 }
