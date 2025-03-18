@@ -41,10 +41,13 @@ import com.google.common.net.InetAddresses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.bridge.type.InternalDuration;
 import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.utils.SparkTypeUtils;
 import org.apache.cassandra.spark.utils.UUIDs;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
+import org.apache.spark.unsafe.types.CalendarInterval;
 import scala.Tuple2;
 
 import static org.apache.cassandra.spark.utils.ScalaConversionUtils.asJavaIterable;
@@ -61,6 +64,7 @@ public final class SqlToCqlTypeConverter implements Serializable
     public static final String DATE = "date";
     public static final String DECIMAL = "decimal";
     public static final String DOUBLE = "double";
+    public static final String DURATION = "duration";
     public static final String FLOAT = "float";
     public static final String FROZEN = "frozen";
     public static final String INET = "inet";
@@ -94,6 +98,7 @@ public final class SqlToCqlTypeConverter implements Serializable
     private static final TimeUUIDConverter TIME_UUID_CONVERTER = new TimeUUIDConverter();
     private static final InetAddressConverter INET_ADDRESS_CONVERTER = new InetAddressConverter();
     public static final DateConverter DATE_CONVERTER = new DateConverter();
+    public static final DurationConverter DURATION_CONVERTER = new DurationConverter();
 
     private SqlToCqlTypeConverter()
     {
@@ -127,6 +132,8 @@ public final class SqlToCqlTypeConverter implements Serializable
                 return BIG_DECIMAL_CONVERTER;
             case DOUBLE:
                 return NO_OP_CONVERTER;
+            case DURATION:
+                return DURATION_CONVERTER;
             case FLOAT:
                 return NO_OP_CONVERTER;
             case FROZEN:
@@ -213,7 +220,7 @@ public final class SqlToCqlTypeConverter implements Serializable
         }
     }
 
-    abstract static class Converter<T> implements Serializable
+    public abstract static class Converter<T> implements Serializable
     {
         public T convert(Object object)
         {
@@ -544,6 +551,32 @@ public final class SqlToCqlTypeConverter implements Serializable
             int result = (int) TimeUnit.MILLISECONDS.toDays(millisSinceEpoch);
             result -= Integer.MIN_VALUE;
             return result;
+        }
+    }
+
+    public static class DurationConverter extends NullableConverter<InternalDuration>
+    {
+        @Override
+        public InternalDuration convertInternal(Object object)
+        {
+            // TODO: Support conversion from ISO8601 duration representation and standard form (check Java driver).
+            // Currently Spark does not support persisting CalendarInterval, so this is optional.
+            // Test simpleDurationSchemaSetup() shall fail when Sparks supports it.
+            if (object instanceof CalendarInterval)
+            {
+                CalendarInterval cl = (CalendarInterval) object;
+                return SparkTypeUtils.convertDuration(cl);
+            }
+            else
+            {
+                throw new RuntimeException("Unsupported conversion for DURATION from " + object.getClass().getTypeName());
+            }
+        }
+
+        @Override
+        public String toString()
+        {
+            return "Duration";
         }
     }
 

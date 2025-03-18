@@ -98,6 +98,7 @@ public class CollectionDeletionTests
         final long minTimestamp = System.currentTimeMillis();
         final int numRows = 1000;
         qt().forAll(cql3Type(BRIDGE))
+            .assuming(CqlField.CqlType::supportedAsMapKey)
             .checkAssert(
             type -> testWith(BRIDGE, directory, schemaBuilder.apply(type))
                     .withAddLastModificationTime(true)

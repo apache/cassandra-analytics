@@ -129,9 +129,9 @@ public class CqlFrozen extends CqlType implements CqlField.CqlFrozen
     }
 
     @Override
-    public Object convertForCqlWriter(Object value, CassandraVersion version)
+    public Object convertForCqlWriter(Object value, CassandraVersion version, boolean isCollectionElement)
     {
-        return inner.convertForCqlWriter(value, version);
+        return inner.convertForCqlWriter(value, version, false);
     }
 
     @Override

@@ -49,7 +49,7 @@ public class DateTypeTests
         assertEquals(2021, end.getYear());
         assertEquals(7, end.getMonthValue());
         assertEquals(16, end.getDayOfMonth());
-        Object cqlWriterObj = Date.INSTANCE.convertForCqlWriter(numDays, BRIDGE.getVersion());
+        Object cqlWriterObj = Date.INSTANCE.convertForCqlWriter(numDays, BRIDGE.getVersion(), false);
         org.apache.cassandra.cql3.functions.types.LocalDate cqlWriterDate = (org.apache.cassandra.cql3.functions.types.LocalDate) cqlWriterObj;
         assertEquals(2021, cqlWriterDate.getYear());
         assertEquals(7, cqlWriterDate.getMonth());

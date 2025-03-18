@@ -63,6 +63,7 @@ public class SparkRowIteratorTests
     {
         // I.e. "create table keyspace.table (a %s, b %s, primary key(a));"
         qt().forAll(TestUtils.versions(), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
+            .assuming((version, type1, type2) -> type1.supportedAsPrimaryKeyColumn())
             .checkAssert((version, type1, type2) -> runTest(version, TestSchema.builder(bridge)
                     .withPartitionKey("a", type1)
                     .withColumn("b", type2)
@@ -74,6 +75,9 @@ public class SparkRowIteratorTests
     public void testMultiPartitionKeys(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.versions(), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
+            .assuming((version, type1, type2, type3) -> type1.supportedAsPrimaryKeyColumn()
+                                                        && type2.supportedAsPrimaryKeyColumn()
+                                                        && type3.supportedAsPrimaryKeyColumn())
             .checkAssert((version, type1, type2, type3) -> runTest(version, TestSchema.builder(bridge)
                     .withPartitionKey("a", type1)
                     .withPartitionKey("b", type2)
@@ -89,6 +93,7 @@ public class SparkRowIteratorTests
         for (CassandraVersion version : TestUtils.testableVersions())
         {
             qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.sortOrder())
+                .assuming((type1, type2, type3, order) -> type1.supportedAsPrimaryKeyColumn() && type2.supportedAsPrimaryKeyColumn())
                 .checkAssert((type1, type2, type3, order) -> runTest(version, TestSchema.builder(bridge)
                         .withPartitionKey("a", type1)
                         .withClusteringKey("b", type2)
@@ -105,6 +110,7 @@ public class SparkRowIteratorTests
         for (CassandraVersion version : TestUtils.testableVersions())
         {
             qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.sortOrder(), TestUtils.sortOrder())
+                .assuming((type1, type2, order1, order2) -> type1.supportedAsPrimaryKeyColumn() && type2.supportedAsPrimaryKeyColumn())
                 .checkAssert((type1, type2, order1, order2) -> runTest(version, TestSchema.builder(bridge)
                         .withPartitionKey("a", bridge.bigint())
                         .withClusteringKey("b", type1)

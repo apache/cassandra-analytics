@@ -62,7 +62,7 @@ public class Date extends NativeType
     }
 
     @Override
-    public Object convertForCqlWriter(Object value, CassandraVersion version)
+    public Object convertForCqlWriter(Object value, CassandraVersion version, boolean isCollectionElement)
     {
         // Cassandra 4.0 no longer allows writing date types as Integers in CqlWriter,
         // so we need to convert to LocalDate before writing in tests

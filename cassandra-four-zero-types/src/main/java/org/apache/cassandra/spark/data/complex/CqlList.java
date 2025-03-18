@@ -93,10 +93,10 @@ public class CqlList extends CqlCollection implements CqlField.CqlList
     }
 
     @Override
-    public Object convertForCqlWriter(Object value, CassandraVersion version)
+    public Object convertForCqlWriter(Object value, CassandraVersion version, boolean isCollectionElement)
     {
         return ((List<?>) value).stream()
-                                .map(element -> type().convertForCqlWriter(element, version))
+                                .map(element -> type().convertForCqlWriter(element, version, true))
                                 .collect(Collectors.toList());
     }
 

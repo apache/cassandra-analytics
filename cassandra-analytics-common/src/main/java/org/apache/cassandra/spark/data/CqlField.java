@@ -109,6 +109,30 @@ public class CqlField implements Serializable, Comparable<CqlField>
             return false;
         }
 
+        /**
+         * @return true if type can be part of primary key
+         */
+        default boolean supportedAsPrimaryKeyColumn()
+        {
+            return true;
+        }
+
+        /**
+         * @return true if type can be used as map key
+         */
+        default boolean supportedAsMapKey()
+        {
+            return true;
+        }
+
+        /**
+         * @return true if type can be used as set element
+         */
+        default boolean supportedAsSetElement()
+        {
+            return true;
+        }
+
         default Object deserializeToType(TypeConverter converter, ByteBuffer buffer)
         {
             return deserializeToType(converter, buffer, isFrozen());
@@ -153,7 +177,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
         Object randomValue(int minCollectionSize);
 
         @VisibleForTesting
-        Object convertForCqlWriter(Object value, CassandraVersion version);
+        Object convertForCqlWriter(Object value, CassandraVersion version, boolean isCollectionElement);
 
         // Kryo Serialization
 
