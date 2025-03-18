@@ -114,24 +114,6 @@ commands:
           no_output_timeout: 30m
 
 jobs:
-  build-deps-jdk8:
-    docker:
-      - image: cimg/openjdk:8.0
-    resource_class: large
-    steps:
-      - install_common
-      - checkout
-      - run:
-          name: Build dependencies for jdk8 builds
-          command: |
-            ./scripts/build-dependencies.sh
-            JDK_VERSION=1.8 SPARK_VERSION=2 SCALA_VERSION=2.12 ./gradlew codeCheckTasks
-      - persist_to_workspace:
-          root: dependencies
-          paths:
-            - "*.jar"
-            - "org/**/*"
-
   build-deps-jdk11:
     docker:
       - image: cimg/openjdk:11.0
@@ -149,114 +131,6 @@ jobs:
           paths:
             - "*.jar"
             - "org/**/*"
-
-  spark2-2_11-jdk8:
-    docker:
-      - image: cimg/openjdk:8.0
-    resource_class: large
-    steps:
-      - install_common
-      - checkout
-      - attach_workspace:
-          at: dependencies
-      - run_build:
-          spark: "2"
-          scala: "2.11"
-          jdk: "1.8"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-  int-spark2-2_11-jdk8:
-    parallelism: 8
-    docker:
-      - image: cimg/openjdk:8.0
-    resource_class: large
-    steps:
-      - setup_remote_docker
-      - install_common
-      - checkout
-      - attach_workspace:
-          at: dependencies
-      - run_integration:
-          spark: "2"
-          scala: "2.11"
-          jdk: "1.8"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-  spark2-2_12-jdk8:
-    docker:
-      - image: cimg/openjdk:8.0
-    resource_class: large
-    steps:
-      - install_common
-      - checkout
-      - attach_workspace:
-          at: dependencies
-      - run_build:
-          spark: "2"
-          scala: "2.12"
-          jdk: "1.8"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-  int-spark2-2_12-jdk8:
-    parallelism: 8
-    docker:
-      - image: cimg/openjdk:8.0
-    resource_class: large
-    steps:
-      - setup_remote_docker
-      - install_common
-      - checkout
-      - attach_workspace:
-          at: dependencies
-      - run_integration:
-          spark: "2"
-          scala: "2.12"
-          jdk: "1.8"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_artifacts:
-          path: cassandra-analytics-integration-tests
-          destination: int-tests-misc
-
-      - store_test_results:
-          path: build/test-reports
 
   spark3-2_12-jdk11:
     docker:
@@ -374,26 +248,13 @@ workflows:
   version: 2
   build-and-test:
     jobs:
-      - build-deps-jdk8
       - build-deps-jdk11
-      - spark2-2_11-jdk8:
-          requires:
-            - build-deps-jdk8
-      - spark2-2_12-jdk8:
-          requires:
-            - build-deps-jdk8
       - spark3-2_12-jdk11:
           requires:
             - build-deps-jdk11
       - spark3-2_13-jdk11:
           requires:
             - build-deps-jdk11
-      - int-spark2-2_11-jdk8:
-          requires:
-            - build-deps-jdk8
-      - int-spark2-2_12-jdk8:
-          requires:
-            - build-deps-jdk8
       - int-spark3-2_12-jdk11:
           requires:
             - build-deps-jdk11

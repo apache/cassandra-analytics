@@ -31,11 +31,7 @@ java_ver_output=`"${JAVA:-java}" -version 2>&1`
 jvmver=`echo "$java_ver_output" | grep '[openjdk|java] version' | awk -F'"' 'NR==1 {print $2}' | cut -d\- -f1`
 JVM_VERSION=${jvmver%_*}
 echo $JVM_VERSION
-if [ "${JVM_VERSION}" == "1.8.0" ]; then
-  SIDECAR_BUILD_VERSION="1.0.0-jdk8-analytics"
-else
-  SIDECAR_BUILD_VERSION="1.0.0-analytics"
-fi
+SIDECAR_BUILD_VERSION="1.0.0-analytics"
 
 # Build from local sidecar repo. For instance,
 # LOCAL_SIDECAR_REPO=/PATH/TO/cassandra-sidecar ./scripts/build-sidecar.sh
