@@ -57,7 +57,7 @@ public class SidecarCdcClient
         return sidecarClient.listCdcSegments(toSidecarInstance(instance))
                             .thenApply(
                             response ->
-                            response.segmentInfos()
+                            response.segmentsInfo()
                                     .stream()
                                     .map(segment -> (CommitLog) new SidecarCdcCommitLogSegment(this, instance, segment, config))
                                     .collect(Collectors.toList())
