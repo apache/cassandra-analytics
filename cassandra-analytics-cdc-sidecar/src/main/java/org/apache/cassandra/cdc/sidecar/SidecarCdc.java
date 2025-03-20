@@ -45,11 +45,11 @@ public class SidecarCdc extends Cdc
 
     public void initSchema()
     {
-        final Set<CqlTable> tables = FutureUtils.get(schemaSupplier.getCdcEnabledTables());
-        final Optional<ReplicationFactor> rfOp = tables.stream()
-                                                       .map(CqlTable::replicationFactor)
-                                                       .filter(rf -> rf.getOptions().containsKey(dc()))
-                                                       .max(Comparator.comparingInt(rf -> rf.getOptions().get(dc())));
+        Set<CqlTable> tables = FutureUtils.get(schemaSupplier.getCdcEnabledTables());
+        Optional<ReplicationFactor> rfOp = tables.stream()
+                                                 .map(CqlTable::replicationFactor)
+                                                 .filter(rf -> rf.getOptions().containsKey(dc()))
+                                                 .max(Comparator.comparingInt(rf -> rf.getOptions().get(dc())));
 
         if (!rfOp.isPresent())
         {

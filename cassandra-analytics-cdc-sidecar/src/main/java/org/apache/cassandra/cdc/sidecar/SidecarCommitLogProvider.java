@@ -70,7 +70,7 @@ public class SidecarCommitLogProvider implements CommitLogProvider
         this.downMonitor = downMonitor;
         this.replicationFactorSupplier = replicationFactorSupplier;
         this.dcFilter = inst -> {
-            final String dc = clusterConfigProvider.dc();
+            String dc = clusterConfigProvider.dc();
             return dc == null || inst.dataCenter().equalsIgnoreCase(dc);
         };
     }

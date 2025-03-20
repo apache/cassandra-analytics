@@ -84,7 +84,7 @@ public class SidecarStatePersister implements StatePersister
     @Override
     public void persist(String jobId, int partitionId, @Nullable TokenRange tokenRange, @NotNull ByteBuffer buf)
     {
-        final PersistWrapper latest = new PersistWrapper(jobId, partitionId, tokenRange, buf, timestampGenerator.next());
+        PersistWrapper latest = new PersistWrapper(jobId, partitionId, tokenRange, buf, timestampGenerator.next());
         PersistWrapper.Key key = latest.key();
         if (!latest.equals(this.latestState.get(key)))
         {
@@ -199,12 +199,12 @@ public class SidecarStatePersister implements StatePersister
         }
 
         // drain the latestState map, so we don't persist multiple times wastefully
-        final List<PersistWrapper> states = this.latestState
-                                            .keySet()
-                                            .stream()
-                                            .map(this.latestState::remove)
-                                            .filter(Objects::nonNull)
-                                            .collect(Collectors.toList());
+        List<PersistWrapper> states = this.latestState
+                                      .keySet()
+                                      .stream()
+                                      .map(this.latestState::remove)
+                                      .filter(Objects::nonNull)
+                                      .collect(Collectors.toList());
 
         if (states.isEmpty())
         {
@@ -219,9 +219,9 @@ public class SidecarStatePersister implements StatePersister
     }
 
     @Nullable
-    protected TimedFutureWrapper persistToCassandra(@NotNull final PersistWrapper state)
+    protected TimedFutureWrapper persistToCassandra(@NotNull PersistWrapper state)
     {
-        final TokenRange range = state.tokenRange();
+        TokenRange range = state.tokenRange();
         if (range == null)
         {
             LOGGER.warn("Cannot persist state with null token range");
@@ -331,7 +331,7 @@ public class SidecarStatePersister implements StatePersister
                     return false;
                 }
 
-                final PersistWrapper.Key other = (PersistWrapper.Key) o;
+                PersistWrapper.Key other = (PersistWrapper.Key) o;
                 return jobId.equals(other.jobId)
                        && Objects.equals(tokenRange, other.tokenRange);
             }
@@ -386,7 +386,7 @@ public class SidecarStatePersister implements StatePersister
                 return false;
             }
 
-            final PersistWrapper other = (PersistWrapper) o;
+            PersistWrapper other = (PersistWrapper) o;
             return jobId.equals(other.jobId)
                    && Objects.equals(tokenRange(), other.tokenRange())
                    && this.buf.equals(other.buf);

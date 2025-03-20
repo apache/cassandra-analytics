@@ -221,7 +221,7 @@ public class CdcTests
                                true);
             UUID tableId = Schema.instance.getTableMetadata(table.keyspace(), table.table()).id.asUUID();
             SchemaSupplier schemaSupplier = () -> CompletableFuture.completedFuture(ImmutableSet.of(table));
-            final AtomicReference<byte[]> state = new AtomicReference<>();
+            AtomicReference<byte[]> state = new AtomicReference<>();
             StatePersister statePersister = new StatePersister()
             {
                 public void persist(String jobId, int partitionId, @Nullable TokenRange tokenRange, @NotNull ByteBuffer buf)
@@ -254,7 +254,7 @@ public class CdcTests
                 CdcTester.testCommitLog.sync();
             };
 
-            final long startTime = System.currentTimeMillis();
+            long startTime = System.currentTimeMillis();
             try (Cdc cdc = Cdc.builder("101", 0, eventConsumer, schemaSupplier)
                               .withExecutor(CdcTests.ASYNC_EXECUTOR)
                               .withStatePersister(statePersister)

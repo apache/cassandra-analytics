@@ -52,7 +52,7 @@ public class SidecarCdcCommitLogSegment implements CommitLog
         this.segment = segment;
         this.stats = sidecar.stats;
 
-        final SidecarCdcCommitLogSegment thisLog = this;
+        SidecarCdcCommitLogSegment thisLog = this;
         this.source = new CassandraFileSource<CommitLog>()
         {
             public void request(long start, long end, StreamConsumer consumer)
@@ -89,7 +89,7 @@ public class SidecarCdcCommitLogSegment implements CommitLog
             @Override
             public Duration timeout()
             {
-                final int timeout = clientConfig.timeoutSeconds();
+                int timeout = clientConfig.timeoutSeconds();
                 return timeout <= 0 ? null : Duration.ofSeconds(timeout);
             }
         };

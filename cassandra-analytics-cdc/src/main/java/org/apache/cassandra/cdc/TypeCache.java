@@ -56,7 +56,7 @@ public class TypeCache
     {
         maybeInit();
         CqlField.CqlType result;
-        final KeyspaceTypeKey key = KeyspaceTypeKey.of(keyspace, typeString);
+        KeyspaceTypeKey key = KeyspaceTypeKey.of(keyspace, typeString);
         try
         {
             result = cqlTypeCache.get(key, () -> getTypes().parseType(keyspace, typeString));

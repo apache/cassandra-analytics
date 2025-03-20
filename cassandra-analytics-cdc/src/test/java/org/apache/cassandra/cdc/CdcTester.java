@@ -168,7 +168,7 @@ public class CdcTester
 
             // add default writer
             this.writers.add((tester, rows, writer) -> {
-                final long timestampMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
+                long timestampMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
                 IntStream.range(0, tester.numRows)
                          .forEach(i -> writer.accept(newUniqueRow(tester.schema, rows), timestampMicros));
             });

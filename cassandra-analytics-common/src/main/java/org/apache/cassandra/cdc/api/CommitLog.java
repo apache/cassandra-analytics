@@ -41,19 +41,19 @@ public interface CommitLog extends Closeable, CassandraFile, Comparable<CommitLo
     // match both legacy and new version of commitlogs Ex: CommitLog-12345.log and CommitLog-6-12345.log.
     Pattern COMMIT_LOG_FILE_PATTERN = Pattern.compile("CommitLog(-(\\d+))?-(\\d+).log");
 
-    static Optional<Pair<Integer, Long>> extractVersionAndSegmentId(@NotNull final CommitLog log)
+    static Optional<Pair<Integer, Long>> extractVersionAndSegmentId(@NotNull CommitLog log)
     {
         return extractVersionAndSegmentId(log.name());
     }
 
-    static Optional<Pair<Integer, Long>> extractVersionAndSegmentId(@NotNull final String filename)
+    static Optional<Pair<Integer, Long>> extractVersionAndSegmentId(@NotNull String filename)
     {
-        final Matcher matcher = CommitLog.COMMIT_LOG_FILE_PATTERN.matcher(filename);
+        Matcher matcher = CommitLog.COMMIT_LOG_FILE_PATTERN.matcher(filename);
         if (matcher.matches())
         {
             try
             {
-                final int version = matcher.group(2) == null ? 6 : Integer.parseInt(matcher.group(2));
+                int version = matcher.group(2) == null ? 6 : Integer.parseInt(matcher.group(2));
                 if (version != 6 && version != 7)
                 {
                     throw new IllegalStateException("Unknown commitlog version " + version);

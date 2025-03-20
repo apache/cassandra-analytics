@@ -62,7 +62,7 @@ public class SidecarCdcClient
                                     .map(segment -> (CommitLog) new SidecarCdcCommitLogSegment(this, instance, segment, config))
                                     .collect(Collectors.toList())
                             ).exceptionally(throwable -> {
-            final Throwable cause = ThrowableUtils.rootCause(throwable);
+            Throwable cause = ThrowableUtils.rootCause(throwable);
             if (cause instanceof TransportFailureException.Nonretryable
                 && ((TransportFailureException.Nonretryable) cause).isNotFound())
             {

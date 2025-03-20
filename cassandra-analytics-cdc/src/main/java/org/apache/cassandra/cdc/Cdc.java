@@ -171,7 +171,7 @@ public class Cdc implements Closeable
         if (isRunning.get() && isRunning.compareAndSet(true, false))
         {
             LOGGER.info("Stopping CDC Consumer jobId={} partitionId={}", jobId, partitionId);
-            final CompletableFuture<Void> activeFuture = active.get();
+            CompletableFuture<Void> activeFuture = active.get();
             if (activeFuture != null && blocking)
             {
                 // block until active future completes
@@ -336,7 +336,7 @@ public class Cdc implements Closeable
 
     protected boolean epochsExceeded()
     {
-        final int maxEpochs = cdcOptions.maxEpochs();
+        int maxEpochs = cdcOptions.maxEpochs();
         return maxEpochs > 0 && this.currentState.epoch >= maxEpochs;
     }
 
@@ -371,7 +371,7 @@ public class Cdc implements Closeable
 
         try
         {
-            final ByteBuffer buf = serializeStateToBytes();
+            ByteBuffer buf = serializeStateToBytes();
             LOGGER.debug("Persisting Iterator state between micro-batch partitionId={} epoch={} size={}",
                          partitionId, cdcState.epoch, buf.remaining());
             statePersister.persist(jobId, partitionId, tokenRange, buf);
