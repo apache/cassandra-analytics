@@ -55,7 +55,9 @@ public class CdcBuilder
     protected CdcOptions cdcOptions = CdcOptions.DEFAULT;
     @NotNull
     ICdcStats stats = ICdcStats.STUB;
-    @Nullable
+    // asyncExecutor is @Nullable at compile time but required to be @NotNull at runtime to build the Cdc object
+    @SuppressWarnings("NotNullFieldNotInitialized")
+    @NotNull
     protected AsyncExecutor asyncExecutor = null;
     @Nullable
     protected CommitLogProvider commitLogProvider = null;
