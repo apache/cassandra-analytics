@@ -27,7 +27,7 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.clients.Sidecar;
+import org.apache.cassandra.clients.AnalyticsSidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
@@ -87,7 +87,7 @@ public class CassandraContext implements StartupValidatable, Closeable
 
     protected SidecarClient initializeSidecarClient(BulkSparkConf conf)
     {
-        return Sidecar.from(new SimpleSidecarInstancesProvider(new ArrayList<>(clusterConfig)), conf);
+        return AnalyticsSidecarClient.from(new SimpleSidecarInstancesProvider(new ArrayList<>(clusterConfig)), conf);
     }
 
     protected Set<SidecarInstance> createClusterConfig()

@@ -41,26 +41,28 @@ import org.jetbrains.annotations.Nullable;
 public class CdcBuilder
 {
     @NotNull
-    final String jobId;
-    final int partitionId;
+    protected final String jobId;
+    protected final int partitionId;
     @NotNull
     TokenRangeSupplier tokenRangeSupplier = () -> null;
     @NotNull
-    SchemaSupplier schemaSupplier;
+    protected SchemaSupplier schemaSupplier;
     @NotNull
     CassandraSource cassandraSource = CassandraSource.DEFAULT;
     @NotNull
     StatePersister statePersister = StatePersister.STUB;
     @NotNull
-    CdcOptions cdcOptions = CdcOptions.DEFAULT;
+    protected CdcOptions cdcOptions = CdcOptions.DEFAULT;
     @NotNull
     ICdcStats stats = ICdcStats.STUB;
-    @Nullable
-    AsyncExecutor asyncExecutor = null;
-    @Nullable
-    CommitLogProvider commitLogProvider = null;
+    // asyncExecutor is @Nullable at compile time but required to be @NotNull at runtime to build the Cdc object
+    @SuppressWarnings("NotNullFieldNotInitialized")
     @NotNull
-    EventConsumer eventConsumer;
+    protected AsyncExecutor asyncExecutor = null;
+    @Nullable
+    protected CommitLogProvider commitLogProvider = null;
+    @NotNull
+    protected EventConsumer eventConsumer;
     @NotNull
     public TableIdLookup tableIdLookup = TableIdLookup.STUB;
 

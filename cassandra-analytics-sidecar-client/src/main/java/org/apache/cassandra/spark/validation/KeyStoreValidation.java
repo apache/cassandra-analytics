@@ -32,7 +32,6 @@ import java.util.Enumeration;
 import java.util.function.Supplier;
 
 import org.apache.cassandra.secrets.SecretsProvider;
-import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.utils.Throwing;
 import org.jetbrains.annotations.NotNull;
 
@@ -48,18 +47,23 @@ public class KeyStoreValidation implements StartupValidation
 
     public KeyStoreValidation(@NotNull SecretsProvider secrets)
     {
-        configured = secrets.hasKeyStoreSecrets();
-        type = secrets.keyStoreType();
-        password = secrets.keyStorePassword();
-        stream = Throwing.supplier(secrets::keyStoreInputStream);
+        this(
+        secrets.hasKeyStoreSecrets(),
+        secrets.keyStoreType(),
+        secrets.keyStorePassword(),
+        Throwing.supplier(secrets::keyStoreInputStream)
+        );
     }
 
-    public KeyStoreValidation(@NotNull BulkSparkConf configuration)
+    protected KeyStoreValidation(boolean configured,
+                                 String type,
+                                 char[] password,
+                                 Supplier<InputStream> stream)
     {
-        configured = configuration.hasKeystoreAndKeystorePassword();
-        type = configuration.getKeyStoreTypeOrDefault();
-        password = configuration.getKeyStorePassword() == null ? null : configuration.getKeyStorePassword().toCharArray();
-        stream = configuration::getKeyStore;
+        this.configured = configured;
+        this.type = type;
+        this.password = password;
+        this.stream = stream;
     }
 
     @Override

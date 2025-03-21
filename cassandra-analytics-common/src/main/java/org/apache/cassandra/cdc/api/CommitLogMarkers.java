@@ -59,7 +59,7 @@ public interface CommitLogMarkers extends Serializable
      */
     boolean canIgnore(Marker position, BigInteger token);
 
-    static PerInstanceCommitLogMarkers of(@Nullable final Marker marker)
+    static PerInstanceCommitLogMarkers of(@Nullable Marker marker)
     {
         if (marker == null)
         {

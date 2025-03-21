@@ -65,6 +65,7 @@ dependencies {
     api(project(':cassandra-bridge'))
 
     implementation project(":cassandra-analytics-common")
+    implementation project(":cassandra-analytics-sidecar-client")
     fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     fourzerobridge(project(path: ':cassandra-four-zero-bridge'))
     fourzerotypes(project(path: ':cassandra-four-zero-types'))

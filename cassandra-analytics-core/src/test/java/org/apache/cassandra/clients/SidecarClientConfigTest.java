@@ -108,10 +108,10 @@ public class SidecarClientConfigTest
     @Test
     public void testTransportModeBasedWriterUserAgent()
     {
-        String userAgentStr = Sidecar.transportModeBasedWriterUserAgent(DataTransport.DIRECT);
+        String userAgentStr = AnalyticsSidecarClient.transportModeBasedWriterUserAgent(DataTransport.DIRECT);
         assertTrue(userAgentStr.endsWith(" writer"));
 
-        userAgentStr = Sidecar.transportModeBasedWriterUserAgent(DataTransport.S3_COMPAT);
+        userAgentStr = AnalyticsSidecarClient.transportModeBasedWriterUserAgent(DataTransport.S3_COMPAT);
         assertTrue(userAgentStr.endsWith(" writer-s3"));
     }
 }

@@ -79,16 +79,16 @@ public class CdcMessage
     @SuppressWarnings("unchecked")
     private static Function<String, CqlField.CqlType> typeProvider(CassandraTypes types, CdcEvent event)
     {
-        final List<Value> cols = ArrayUtils.combine(event.getPartitionKeys(),
-                                                    event.getClusteringKeys(),
-                                                    event.getStaticColumns(),
-                                                    event.getValueColumns());
-        final Map<String, CqlField.CqlType> typeMap = cols
-                                                      .stream()
-                                                      .collect(Collectors
-                                                               .toMap(v -> v.columnName,
-                                                                      v -> types.parseType(event.keyspace, v.columnType)
-                                                               ));
+        List<Value> cols = ArrayUtils.combine(event.getPartitionKeys(),
+                                              event.getClusteringKeys(),
+                                              event.getStaticColumns(),
+                                              event.getValueColumns());
+        Map<String, CqlField.CqlType> typeMap = cols
+                                                .stream()
+                                                .collect(Collectors
+                                                         .toMap(v -> v.columnName,
+                                                                v -> types.parseType(event.keyspace, v.columnType)
+                                                         ));
         return typeMap::get;
     }
 
@@ -134,7 +134,7 @@ public class CdcMessage
                .entrySet()
                .stream()
                .collect(Collectors.toMap(Map.Entry::getKey, entry -> {
-                   final CqlField.CqlCollection type = (CqlField.CqlCollection) typeProvider.apply(entry.getKey());
+                   CqlField.CqlCollection type = (CqlField.CqlCollection) typeProvider.apply(entry.getKey());
                    return entry.getValue().stream().map(ByteBuffer::duplicate).map(buf -> type.type().deserializeToJavaType(buf)).collect(Collectors.toList());
                }));
     }

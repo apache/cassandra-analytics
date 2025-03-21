@@ -19,11 +19,15 @@
 
 package org.apache.cassandra.spark.utils;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -46,6 +50,24 @@ public interface AsyncExecutor
 
     <T> CompletableFuture<Void> schedule(Runnable action, long delayMillis);
 
+    /**
+     * Set a periodic timer to fire every delay milliseconds with initial delay, at which point handler will be called with the id of the timer.
+     *
+     * @param action      runnable action to execute every `delayMillis`
+     * @param delayMillis the delay in milliseconds, after which the timer will fire
+     * @return unique timer id
+     */
+    long periodicTimer(Runnable action, long delayMillis);
+
+    /**
+     * Cancels the timer with the specified id.
+     * true if the timer was successfully cancelled, or false if the timer does not exist.
+     *
+     * @param timerId The id of the timer to cancel
+     * @return true if the timer was successfully cancelled, or false if the timer does not exist.
+     */
+    boolean cancelTimer(long timerId);
+
     static AsyncExecutor wrap(ExecutorService executorService)
     {
         return new ExecutorServiceBased(executorService);
@@ -53,6 +75,8 @@ public interface AsyncExecutor
 
     class ExecutorServiceBased implements AsyncExecutor
     {
+        private final AtomicLong timerIds = new AtomicLong(0L);
+        private final Map<Long, ScheduledFuture<?>> timerTasks = new ConcurrentHashMap<>();
         private static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(1,
                                                                                                    new ThreadFactoryBuilder()
                                                                                                    .setNameFormat("scheduler-%d")
@@ -93,6 +117,29 @@ public interface AsyncExecutor
                 });
             }, delayMillis, TimeUnit.MILLISECONDS);
             return future;
+        }
+
+        @Override
+        public long periodicTimer(Runnable action, long delayMillis)
+        {
+            long timerId = timerIds.getAndIncrement();
+            ScheduledFuture<?> future = SCHEDULER.scheduleAtFixedRate(action, delayMillis, delayMillis, TimeUnit.MILLISECONDS);
+            if (timerTasks.put(timerId, future) != null)
+            {
+                throw new IllegalStateException("Duplicate timerId: " + timerId);
+            }
+            return timerId;
+        }
+
+        @Override
+        public boolean cancelTimer(long timerId)
+        {
+            ScheduledFuture<?> future = timerTasks.get(timerId);
+            if (future != null)
+            {
+                return future.cancel(true);
+            }
+            return false;
         }
     }
 }

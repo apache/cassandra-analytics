@@ -29,7 +29,7 @@ import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 public class CdcKryoRegister
 {
     private static final ThreadLocal<Kryo> KRYO = ThreadLocal.withInitial(() -> {
-        final Kryo kryo = new Kryo();
+        Kryo kryo = new Kryo();
         new CdcKryoRegister().registerClasses(kryo);
         return kryo;
     });
