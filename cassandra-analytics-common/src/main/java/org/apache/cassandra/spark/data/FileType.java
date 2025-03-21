@@ -40,7 +40,9 @@ public enum FileType
     DIGEST("Digest.sha1"),
     CRC("CRC.db"),
     CRC32("Digest.crc32"),
-    COMMITLOG(".log");
+    COMMITLOG(".log"),
+    PARTITIONS_INDEX("Partitions.db"),
+    ROWS_INDEX("Rows.db");
 
     private final String fileSuffix;
 

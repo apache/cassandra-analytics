@@ -166,7 +166,7 @@ public final class CqlUtils
                                                    @NotNull String keyspace,
                                                    @NotNull String table)
     {
-        Pattern pattern = Pattern.compile(String.format("CREATE TABLE ?\"?%s?\"?\\.{1}\"?%s\"?[^;]*;", keyspace, table));
+        Pattern pattern = Pattern.compile(String.format("CREATE TABLE (IF NOT EXISTS)? ?\"?%s?\"?\\.{1}\"?%s\"?[^;]*;", keyspace, table));
         Matcher matcher = pattern.matcher(createStatementToClean);
         if (matcher.find())
         {
@@ -226,7 +226,7 @@ public final class CqlUtils
 
     public static Set<String> extractUdts(@NotNull String schemaStr, @NotNull String keyspace)
     {
-        Pattern pattern = Pattern.compile(String.format("CREATE TYPE \"?%s\"?\\.{1}[^;]*;", keyspace));
+        Pattern pattern = Pattern.compile(String.format("CREATE TYPE (IF NOT EXISTS)? \"?%s\"?\\.{1}[^;]*;", keyspace));
         Matcher matcher = pattern.matcher(schemaStr);
         Set<String> result = new HashSet<>();
         while (matcher.find())

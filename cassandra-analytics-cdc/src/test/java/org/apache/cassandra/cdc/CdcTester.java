@@ -61,7 +61,7 @@ public class CdcTester
     private static final Logger LOGGER = LoggerFactory.getLogger(CdcTester.class);
     public static final int DEFAULT_NUM_ROWS = 1000;
 
-    public static FourZeroCommitLog testCommitLog;
+    public static FiveZeroCommitLog testCommitLog;
 
     public static void setup(Path testDirectory)
     {
@@ -71,7 +71,7 @@ public class CdcTester
     public static void setup(Path testDirectory, int commitLogSegmentSize, boolean enableCompression)
     {
         CdcBridgeImplementation.setup(testDirectory, commitLogSegmentSize, enableCompression);
-        testCommitLog = new FourZeroCommitLog(testDirectory);
+        testCommitLog = new FiveZeroCommitLog(testDirectory);
     }
 
     public static void tearDown()

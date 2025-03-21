@@ -40,8 +40,9 @@ else
   CANDIDATE_BRANCHES=(
     "cassandra-4.0:cassandra-4.0.17"
     "cassandra-4.1:99d9faeef57c9cf5240d11eac9db5b283e45a4f9"
+    "cassandra-5.0:cassandra-5.0.3"
   )
-  BRANCHES=( ${BRANCHES:-cassandra-4.0 cassandra-4.1} )
+  BRANCHES=( ${BRANCHES:-cassandra-4.0 cassandra-4.1 cassandra-5.0} )
   echo ${BRANCHES[*]}
   REPO=${REPO:-"https://github.com/apache/cassandra.git"}
   SCRIPT_DIR=$( dirname -- "$( readlink -f -- "$0"; )"; )

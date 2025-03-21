@@ -63,7 +63,8 @@ public class FileSystemSSTable extends SSTable
         }
         try
         {
-            return useBufferingInputStream
+            // TODO(c4c5): Any input stream returned here should support re-buffering at random position.
+            return true // useBufferingInputStream
                    ? new BufferingInputStream<>(new FileSystemSource<>(this, fileType, filePath), stats.get())
                    : new BufferedInputStream(new FileInputStream(filePath.toFile()));
         }

@@ -81,7 +81,8 @@ public class KryoRegister implements KryoRegistrator
 
         // TODO: Implicitly defaulting to Cassandra version 4.0 is a part of a previously published API.
         //       We might want to persist the version of Cassandra into the Spark configuration instead.
-        CassandraBridgeFactory.get(CassandraVersion.FOURZERO).kryoRegister(kryo);
+        // TODO(c4c5): Make configurable CassandraVersion.
+        CassandraBridgeFactory.get(CassandraVersion.FIVEZERO).kryoRegister(kryo);
 
         KRYO_SERIALIZERS.forEach(kryo::register);
     }
