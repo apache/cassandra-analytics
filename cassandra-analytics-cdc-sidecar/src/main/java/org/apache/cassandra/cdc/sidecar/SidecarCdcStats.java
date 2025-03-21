@@ -26,7 +26,7 @@ public interface SidecarCdcStats
     };
 
     /**
-     * Cdc is enabled
+     * Cdc is enabled.
      */
     default void captureCdcEnabled()
     {
@@ -148,7 +148,7 @@ public interface SidecarCdcStats
     // cdc consumer stats
 
     /**
-     * Cdc consumer completed
+     * Cdc consumer completed.
      *
      * @param epoch            epoch number, monotonically increasing 64-bit signed integer.
      * @param numDownInstances number of down instances

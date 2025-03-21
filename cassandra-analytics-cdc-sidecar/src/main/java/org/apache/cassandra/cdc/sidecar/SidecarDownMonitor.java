@@ -24,7 +24,7 @@ import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 /**
  * This interface provides information about the health of other Sidecar instances.
  * CDC attempts to read from all replicas and is slowed by retrying requests on Sidecar instances that are already known to be DOWN,
- * therefore we skip DOWN instances and only retry when they are known to be healthy again.
+ * therefore we skip DOWN instances and only retry when they are known to be healthy again via some asynchronous mechanism.
  */
 public interface SidecarDownMonitor
 {

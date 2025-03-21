@@ -105,7 +105,7 @@ public interface SidecarCdcOptions
     }
 
     /**
-     * @return true if Kafka publisher should fail if Kafka client returns "record too large" error
+     * @return true if Kafka publisher should fail if Kafka client returns "record too large" error.
      */
     default boolean failOnRecordTooLargeError()
     {
@@ -151,7 +151,7 @@ public interface SidecarCdcOptions
     }
 
     /**
-     * @return true if CDC state should be persisted to Cassandra
+     * @return true if CDC state should be persisted to Cassandra.
      */
     default boolean persistEnabled()
     {

@@ -67,6 +67,7 @@ public class SidecarCommitLogProviderTests
     @Test
     public void testCommitLogProvider()
     {
+        int aPrimeNumber = 13;
         CassandraInstance instance1 = INSTANCES.get(0);
         CassandraInstance instance2 = INSTANCES.get(1);
         CassandraInstance instance3 = INSTANCES.get(2);
@@ -101,7 +102,7 @@ public class SidecarCommitLogProviderTests
                                .logs(tokenRange)
                                .sorted()
                                .collect(Collectors.toList());
-        int expectedNumberOfLogs = 13 + (2 * 13) + (3 * 13);
+        int expectedNumberOfLogs = aPrimeNumber + (2 * aPrimeNumber) + (3 * aPrimeNumber);
         assertEquals(expectedNumberOfLogs, logs.size());
         IntStream.range(0, logs.size())
                  .forEach(index -> assertEquals(index, logs.get(index).segmentId()));
@@ -118,7 +119,7 @@ public class SidecarCommitLogProviderTests
         List<CommitLog> logs2 = commitLogProvider
                                 .logs(tokenRange2)
                                 .collect(Collectors.toList());
-        expectedNumberOfLogs = (4 * 13) + (5 * 13) + (6 * 13);
+        expectedNumberOfLogs = (4 * aPrimeNumber) + (5 * aPrimeNumber) + (6 * aPrimeNumber);
         assertEquals(expectedNumberOfLogs, logs2.size());
         IntStream.range(0, logs2.size())
                  .forEach(index -> assertEquals(index + logs.size(), logs2.get(index).segmentId()));

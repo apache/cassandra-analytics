@@ -119,7 +119,7 @@ public class SidecarStatePersister implements StatePersister
     }
 
     /**
-     * Start the SidecarStatePersister to flush to Cassandra every `persistDelay()`
+     * Start the SidecarStatePersister to flush to Cassandra every `persistDelay()`.
      */
     public synchronized void start()
     {
