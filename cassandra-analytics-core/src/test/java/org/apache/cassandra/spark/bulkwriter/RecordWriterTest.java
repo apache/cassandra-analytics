@@ -43,7 +43,10 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
@@ -74,8 +77,8 @@ class RecordWriterTest
 {
     private static final int REPLICA_COUNT = 3;
     private static final int FILES_PER_SSTABLE = 8;
-    // writing 270 rows with sstable size cap of 1 MB should produce 2 sstable
-    private static final int UPLOADED_SSTABLES = 2;
+    // writing 270 rows with sstable size cap of 1 MB should produce 2 sstables
+    private static final int EXPECTED_NUMBER_OF_SSTABLES = 2;
     private static final int ROWS_COUNT = 270;
     private static final String[] COLUMN_NAMES = {
     "id", "date", "course", "marks"
@@ -96,12 +99,17 @@ class RecordWriterTest
     @BeforeEach
     public void setUp()
     {
+        setUp(DEFAULT_CASSANDRA_VERSION);
+    }
+
+    private void setUp(String version)
+    {
         digestAlgorithm = new XXHash32DigestAlgorithm();
         tw = new MockTableWriter(folder.getRoot());
         ImmutableMap<String, Integer> rfOption = ImmutableMap.of("DC1", 3);
         ReplicationFactor rf = new ReplicationFactor(NetworkTopologyStrategy, rfOption);
         tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(100000, rfOption, 12);
-        writerContext = new MockBulkWriterContext(tokenRangeMapping);
+        writerContext = new MockBulkWriterContext(tokenRangeMapping, version, ConsistencyLevel.CL.LOCAL_QUORUM);
         writerContext.setSstableDataSizeInMB(1); // defaults to the minimum sstable data size allowed to set
         writerContext.setReplicationFactor(rf);
         tc = new TestTaskContext();
@@ -165,9 +173,11 @@ class RecordWriterTest
         assertThat(uploads.keySet().size()).isEqualTo(REPLICA_COUNT);  // Should upload to 3 replicas
     }
 
-    @Test
-    void testSuccessfulWrite() throws InterruptedException
+    @ParameterizedTest
+    @MethodSource("data")
+    void testSuccessfulWrite(String version) throws InterruptedException
     {
+        setUp(version);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         validateSuccessfulWrite(writerContext, data, COLUMN_NAMES);
     }
@@ -196,15 +206,18 @@ class RecordWriterTest
         validateSuccessfulWrite(writerContext, data, columnNames);
     }
 
-    @Test
-    void testSuccessfulWriteCheckUploads()
+    @ParameterizedTest
+    @MethodSource("data")
+    void testSuccessfulWriteCheckUploads(String version)
     {
+        setUp(version);
         rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc, SortedSSTableWriter::new);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         rw.write(data);
         Map<CassandraInstance, List<UploadRequest>> uploads = writerContext.getUploads();
         assertThat(uploads.keySet().size()).isEqualTo(REPLICA_COUNT);  // Should upload to 3 replicas
-        assertThat(uploads.values().stream().mapToInt(List::size).sum()).isEqualTo(REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_SSTABLES);
+        assertThat(uploads.values().stream().mapToInt(List::size).sum())
+        .isEqualTo(REPLICA_COUNT * FILES_PER_SSTABLE * EXPECTED_NUMBER_OF_SSTABLES);
         List<UploadRequest> requests = uploads.values().stream().flatMap(List::stream).collect(Collectors.toList());
         for (UploadRequest ur : requests)
         {
@@ -259,9 +272,11 @@ class RecordWriterTest
         validateSuccessfulWrite(writerContext, data, columnNames);
     }
 
-    @Test
-    void testWriteWithSubRanges()
+    @ParameterizedTest
+    @MethodSource("data")
+    void testWriteWithSubRanges(String version)
     {
+        setUp(version);
         MockBulkWriterContext m = Mockito.spy(writerContext);
         TokenPartitioner mtp = Mockito.mock(TokenPartitioner.class);
         when(m.job().getTokenPartitioner()).thenReturn(mtp);
@@ -279,7 +294,8 @@ class RecordWriterTest
         Map<CassandraInstance, List<UploadRequest>> uploads = m.getUploads();
         // Should upload to 3 replicas
         assertThat(uploads.keySet()).hasSize(REPLICA_COUNT);
-        assertThat(uploads.values().stream().mapToInt(List::size).sum()).isEqualTo(REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_SSTABLES);
+        assertThat(uploads.values().stream().mapToInt(List::size).sum())
+            .isEqualTo(REPLICA_COUNT * FILES_PER_SSTABLE * EXPECTED_NUMBER_OF_SSTABLES);
         List<UploadRequest> requests = uploads.values().stream().flatMap(List::stream).collect(Collectors.toList());
         for (UploadRequest ur : requests)
         {
@@ -287,9 +303,12 @@ class RecordWriterTest
         }
     }
 
-    @Test
-    void testWriteWithDataInMultipleSubRanges()
+    @ParameterizedTest
+    @MethodSource("data")
+    void testWriteWithDataInMultipleSubRanges(String version)
     {
+        version = "cassandra-5.0.5";
+        setUp(version);
         MockBulkWriterContext m = Mockito.spy(writerContext);
         TokenPartitioner mtp = Mockito.mock(TokenPartitioner.class);
         when(m.job().getTokenPartitioner()).thenReturn(mtp);
@@ -309,7 +328,7 @@ class RecordWriterTest
         // Should upload to 3 replicas
         assertThat(uploads.keySet()).hasSize(REPLICA_COUNT);
         assertThat(uploads.values().stream().mapToInt(List::size).sum())
-                     .isEqualTo(REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_SSTABLES);
+                    .isEqualTo(REPLICA_COUNT * FILES_PER_SSTABLE * EXPECTED_NUMBER_OF_SSTABLES);
         List<UploadRequest> requests = uploads.values().stream().flatMap(List::stream).collect(Collectors.toList());
         for (UploadRequest ur : requests)
         {
@@ -317,9 +336,11 @@ class RecordWriterTest
         }
     }
 
-    @Test
-    void testWriteWithTokensAcrossSubRanges()
+    @ParameterizedTest
+    @MethodSource("data")
+    void testWriteWithTokensAcrossSubRanges(String version)
     {
+        setUp(version);
         MockBulkWriterContext m = Mockito.spy(writerContext);
         m.setSstableDataSizeInMB(1);
         TokenPartitioner mtp = Mockito.mock(TokenPartitioner.class);
@@ -414,7 +435,7 @@ class RecordWriterTest
         validateSuccessfulWrite(writerContext,
                                 data,
                                 columnNames,
-                                REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_SSTABLES,
+                                REPLICA_COUNT * FILES_PER_SSTABLE * EXPECTED_NUMBER_OF_SSTABLES,
                                 new CountDownLatch(0));
     }
 
@@ -530,5 +551,12 @@ class RecordWriterTest
         }
 
         return sortedData.iterator();
+    }
+
+    public static Iterable<Object[]> data()
+    {
+        return Arrays.stream(CassandraVersion.supportedVersions())
+                     .map(version -> new Object[]{version})
+                     .collect(Collectors.toList());
     }
 }

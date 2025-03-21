@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.cassandra.utils;
+package org.apache.cassandra.util;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;

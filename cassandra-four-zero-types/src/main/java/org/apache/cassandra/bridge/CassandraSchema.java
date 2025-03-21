@@ -31,12 +31,13 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.antlr.runtime.RecognitionException;
+import org.apache.cassandra.cdc.api.TableIdLookup;
 import org.apache.cassandra.cql3.CQLFragmentParser;
+import org.apache.cassandra.cql3.CqlParser;
 import org.apache.cassandra.cql3.statements.schema.CreateTypeStatement;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.schema.KeyspaceMetadata;
@@ -49,9 +50,6 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.SchemaBuilder;
 import org.jetbrains.annotations.NotNull;
 
-import org.apache.cassandra.cql3.CqlParser;
-
-import org.apache.cassandra.cdc.api.TableIdLookup;
 import org.jetbrains.annotations.Nullable;
 
 public final class CassandraSchema
@@ -214,10 +212,11 @@ public final class CassandraSchema
     // maps keyspace -> set of table names
     public static Map<String, Set<String>> cdcEnabledTables(Schema schema)
     {
-        return Schema.instance.getKeyspaces()
-                              .stream()
-                              .collect(Collectors.toMap(Function.identity(),
-                                                        keyspace -> cdcEnabledTables(schema, keyspace)));
+        return new SchemaBridge(schema)
+               .getKeyspaces()
+               .stream()
+               .collect(Collectors.toMap(Function.identity(),
+                                         keyspace -> cdcEnabledTables(schema, keyspace)));
     }
 
     public static Set<String> cdcEnabledTables(Schema schema, String keyspace)
@@ -280,7 +279,7 @@ public final class CassandraSchema
             }
 
             LOGGER.info("Schema change detected, updating new table schema keyspace={} table={}", keyspace, cqlTable.table());
-            s.load(ks.get().withSwapped(ks.get().tables.withSwapped(updatedTable)));
+            SchemaUpdater.updateTable(s, ks.get(), updatedTable);
         });
     }
 
@@ -405,7 +404,7 @@ public final class CassandraSchema
 
             LOGGER.info("{} CDC for table keyspace={} table={}",
                         updatedTable.params.cdc ? "Enabling" : "Disabling", keyspace, table);
-            s.load(ks.get().withSwapped(ks.get().tables.withSwapped(updatedTable)));
+            SchemaUpdater.updateTable(s, ks.get(), updatedTable);
         });
     }
 

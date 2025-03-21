@@ -33,7 +33,8 @@ public enum CassandraVersion
 {
     THREEZERO(30, "3.0", "three-zero"),
     FOURZERO(40, "4.0", "four-zero"),
-    FOURONE(41, "4.1", "four-zero");
+    FOURONE(41, "4.1", "four-zero"),
+    FIVEZERO(50, "5.0", "five-zero");
     private final int number;
     private final String name;
     private final String jarBaseName;  // Must match shadowJar.archiveFileName from Gradle configuration (without extension)
@@ -66,13 +67,13 @@ public enum CassandraVersion
     static
     {
         String providedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.implemented_versions",
-                                                              FOURZERO.name());
+                                                              String.join(",", FOURZERO.name(), FIVEZERO.name()));
         implementedVersions = Arrays.stream(providedVersionsOrDefault.split(","))
                                     .map(CassandraVersion::valueOf)
                                     .toArray(CassandraVersion[]::new);
 
         String providedSupportedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.supported_versions",
-                                                                       "cassandra-4.0.17");
+                                                                       "cassandra-4.0.17,cassandra-5.0.5");
         supportedVersions = Arrays.stream(providedSupportedVersionsOrDefault.split(","))
                                   .toArray(String[]::new);
     }

@@ -135,26 +135,28 @@ public class SSTableCache
     }
 
     @Nullable
-    public CompressionMetadata compressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
+    public CompressionMetadata compressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength, double crcCheckChance) throws IOException
     {
         if (propOrDefault("sbr.cache.compressionInfo.enabled", true))
         {
             long maxSize = propOrDefault("sbr.cache.compressionInfo.maxSize", 0L);
             if (maxSize <= 0 || ssTable.length(FileType.COMPRESSION_INFO) < maxSize)
             {
-                return get(compressionMetadata, ssTable, () -> readCompressionMetadata(ssTable, hasMaxCompressedLength)).orElse(null);
+                return get(compressionMetadata, ssTable, () -> readCompressionMetadata(ssTable, hasMaxCompressedLength, crcCheckChance)).orElse(null);
             }
         }
-        return readCompressionMetadata(ssTable, hasMaxCompressedLength).orElse(null);
+        return readCompressionMetadata(ssTable, hasMaxCompressedLength, crcCheckChance).orElse(null);
     }
 
-    private static Optional<CompressionMetadata> readCompressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
+    private static Optional<CompressionMetadata> readCompressionMetadata(@NotNull SSTable ssTable,
+                                                                         boolean hasMaxCompressedLength,
+                                                                         double crcCheckChance) throws IOException
     {
         try (InputStream cis = ssTable.openCompressionStream())
         {
             if (cis != null)
             {
-                return Optional.of(CompressionMetadata.fromInputStream(cis, hasMaxCompressedLength));
+                return Optional.of(CompressionMetadata.fromInputStream(cis, hasMaxCompressedLength, crcCheckChance));
             }
         }
         return Optional.empty();

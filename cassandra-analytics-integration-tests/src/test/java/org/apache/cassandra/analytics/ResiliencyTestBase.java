@@ -237,7 +237,9 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
 
     public static ClusterBuilderConfiguration clusterConfig()
     {
-        return new ClusterBuilderConfiguration();
+        ClusterBuilderConfiguration conf = new ClusterBuilderConfiguration();
+        conf.additionalInstanceConfig(Map.of("storage_compatibility_mode", "NONE"));
+        return conf;
     }
 
     /**

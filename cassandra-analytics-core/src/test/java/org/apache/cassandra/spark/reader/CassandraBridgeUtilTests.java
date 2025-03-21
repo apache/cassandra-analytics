@@ -163,8 +163,12 @@ public class CassandraBridgeUtilTests
                     assertThat(result.get(i)).isEqualTo(i < result.size() - 1);
                 }
 
-                // delete Summary.db file and check we can read the Index.db file too
-                Files.deleteIfExists(summaryDbFile);
+                // delete Summary.db file and check we can read the Index.db file too.
+                // The summary component does not exist (i.e. null) if SSTable is in BTI format
+                if (summaryDbFile != null)
+                {
+                    Files.deleteIfExists(summaryDbFile);
+                }
             }
         });
     }

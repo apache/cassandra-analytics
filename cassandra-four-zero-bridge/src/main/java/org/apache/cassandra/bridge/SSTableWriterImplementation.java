@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.bridge;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -36,7 +35,6 @@ import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
-import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.jetbrains.annotations.NotNull;
 
@@ -91,7 +89,7 @@ public class SSTableWriterImplementation implements SSTableWriter
         Set<SSTableDescriptor> sstableDescriptors = sstables
                                                     .stream()
                                                     .map(sstable -> {
-                                                        String baseFilename = baseFilename(sstable.descriptor);
+                                                        String baseFilename = CassandraBridgeImplementation.baseFilename(sstable.descriptor);
                                                         // TODO: for now, the sstableReader is closed immediately,
                                                         // TODO (CONTI): we can potentially read from the reader to validate the underlying sstable,
                                                         // TODO (CONTI): replacing org.apache.cassandra.spark.bulkwriter.SortedSSTableWriter.validateSSTables
@@ -101,13 +99,6 @@ public class SSTableWriterImplementation implements SSTableWriter
                                                     .collect(Collectors.toSet());
 
         producedSSTablesListener.accept(sstableDescriptors);
-    }
-
-    static String baseFilename(Descriptor descriptor)
-    {
-        // note that descriptor.baseFilename() contains the directory portion in the string. We do not include the directory portion
-        String baseFileNameWithDirectory = descriptor.baseFilename();
-        return baseFileNameWithDirectory.substring(baseFileNameWithDirectory.lastIndexOf(File.separatorChar) + 1);
     }
 
     @Override

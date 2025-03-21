@@ -28,6 +28,8 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.common.schema.ColumnType;
@@ -72,58 +74,68 @@ public class TableSchemaTest
     private final String[] partitionKeyColumns = {"id"};
     private final String[] primaryKeyColumnNames = {"id", "date"};
     private final ColumnType<?>[] partitionKeyColumnTypes = {ColumnTypes.INT};
-    private final String cassandraVersion = "cassandra-4.0.2";
 
-    @Test
-    public void testInsertStatement()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testInsertStatement(String cassandraVersion)
     {
-        TableSchema schema = getValidSchemaBuilder()
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
                 .build();
         assertThat(trimUniqueTableName(schema.modificationStatement))
                 .isEqualTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks);");
     }
 
-    @Test
-    public void testInsertStatementWithConstantTTL()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testInsertStatementWithConstantTTL(String cassandraVersion)
     {
-        TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("1000")).build();
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion).withTTLSetting(TTLOption.from("1000")).build();
         assertThat(trimUniqueTableName(schema.modificationStatement))
                 .isEqualTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL 1000;");
     }
 
-    @Test
-    public void testInsertStatementWithTTLColumn()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testInsertStatementWithTTLColumn(String cassandraVersion)
     {
-        TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("ttl")).build();
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion).withTTLSetting(TTLOption.from("ttl")).build();
         assertThat(trimUniqueTableName(schema.modificationStatement))
                 .isEqualTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL :ttl;");
     }
 
-    @Test
-    public void testInsertStatementWithConstantTimestamp()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testInsertStatementWithConstantTimestamp(String cassandraVersion)
     {
-        TableSchema schema = getValidSchemaBuilder().withTimeStampSetting(TimestampOption.from("1000")).build();
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion).withTimeStampSetting(TimestampOption.from("1000")).build();
         String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP 1000;";
         assertThat(trimUniqueTableName(schema.modificationStatement)).isEqualTo(expectedQuery);
     }
 
-    @Test
-    public void testInsertStatementWithTimestampColumn()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testInsertStatementWithTimestampColumn(String cassandraVersion)
     {
-        TableSchema schema = getValidSchemaBuilder().withTimeStampSetting(TimestampOption.from("timestamp")).build();
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion).withTimeStampSetting(TimestampOption.from("timestamp")).build();
         String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP :timestamp;";
         assertThat(trimUniqueTableName(schema.modificationStatement)).isEqualTo(expectedQuery);
     }
-    @Test
-    public void testInsertStatementWithTTLAndTimestampColumn()
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testInsertStatementWithTTLAndTimestampColumn(String cassandraVersion)
     {
-        TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("ttl")).withTimeStampSetting(TimestampOption.from("timestamp")).build();
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
+                             .withTTLSetting(TTLOption.from("ttl"))
+                             .withTimeStampSetting(TimestampOption.from("timestamp"))
+                             .build();
         String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP :timestamp AND TTL :ttl;";
         assertThat(trimUniqueTableName(schema.modificationStatement)).isEqualTo(expectedQuery);
     }
 
-    @Test
-    public void testDeleteStatement()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testDeleteStatement(String cassandraVersion)
     {
         Pair<StructType, ImmutableMap<String, CqlField.CqlType>> validPair = TableSchemaTestCommon.buildMatchedDataframeAndCqlColumns(
                 new String[]{"id"},
@@ -131,16 +143,17 @@ public class TableSchemaTest
                 new CqlField.CqlType[]{mockCqlType(INT)});
         validDataFrameSchema = validPair.getKey();
         validCqlColumns = validPair.getValue();
-        TableSchema schema = getValidSchemaBuilder()
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
                 .withWriteMode(WriteMode.DELETE_PARTITION)
                 .build();
         assertThat(trimUniqueTableName(schema.modificationStatement)).isEqualTo("DELETE FROM test.test where id=?;");
     }
 
-    @Test
-    public void testDeleteWithNonPartitionKeyFieldsInDfFails()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testDeleteWithNonPartitionKeyFieldsInDfFails(String cassandraVersion)
     {
-        assertThatThrownBy(() -> getValidSchemaBuilder()
+        assertThatThrownBy(() -> getValidSchemaBuilder(cassandraVersion)
                 .withWriteMode(WriteMode.DELETE_PARTITION)
                 .build())
                 .isInstanceOf(IllegalArgumentException.class)
@@ -148,34 +161,38 @@ public class TableSchemaTest
                             + "WRITE_MODE=DELETE_PARTITION but (id,date,course,marks) columns were provided");
     }
 
-    @Test
-    public void testPartitionKeyColumnNames()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testPartitionKeyColumnNames(String cassandraVersion)
     {
-        TableSchema schema = getValidSchemaBuilder()
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
                 .build();
         assertThat(schema.partitionKeyColumns).isEqualTo(Arrays.asList("id"));
     }
 
-    @Test
-    public void testPartitionKeyColumnTypes()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testPartitionKeyColumnTypes(String cassandraVersion)
     {
-        TableSchema schema = getValidSchemaBuilder()
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
                 .build();
         assertThat(schema.partitionKeyColumnTypes).isEqualTo(Arrays.asList(ColumnTypes.INT));
     }
 
-    @Test
-    public void normalizeConvertsValidTable()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void normalizeConvertsValidTable(String cassandraVersion)
     {
-        TableSchema schema = getValidSchemaBuilder()
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
                 .build();
 
         assertThat(schema.normalize(new Object[]{1, 1L, "foo", 2}))
                 .isEqualTo(new Object[]{1, -2147483648, "foo", 2});
     }
 
-    @Test
-    public void testExtraFieldsInDataFrameFails()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testExtraFieldsInDataFrameFails(String cassandraVersion)
     {
         StructType extraFieldsDataFrameSchema = new StructType()
                 .add("id", DataTypes.IntegerType)
@@ -184,15 +201,16 @@ public class TableSchemaTest
                 .add("course", DataTypes.StringType)
                 .add("marks", DataTypes.IntegerType);
 
-        assertThatThrownBy(() -> getValidSchemaBuilder()
+        assertThatThrownBy(() -> getValidSchemaBuilder(cassandraVersion)
                 .withDataFrameSchema(extraFieldsDataFrameSchema)
                 .build())
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageStartingWith("Unknown fields");
     }
 
-    @Test
-    public void testGetKeyColumnsFindsCorrectValues()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testGetKeyColumnsFindsCorrectValues(String cassandraVersion)
     {
         StructType outOfOrderDataFrameSchema = new StructType()
                 .add("date", DataTypes.TimestampType)
@@ -200,32 +218,34 @@ public class TableSchemaTest
                 .add("course", DataTypes.StringType)
                 .add("marks", DataTypes.IntegerType);
 
-        TableSchema schema = getValidSchemaBuilder()
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
                 .withDataFrameSchema(outOfOrderDataFrameSchema)
                 .build();
         assertThat(schema.getKeyColumns(new Object[]{"date_val", "id_val", "course_val", "marks_val"}))
                 .isEqualTo(new Object[]{"id_val", "date_val"});
     }
 
-    @Test
-    public void testGetKeyColumnsFailsWhenNullKeyValues()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testGetKeyColumnsFailsWhenNullKeyValues(String cassandraVersion)
     {
-        TableSchema schema = getValidSchemaBuilder()
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
                 .build();
         assertThatThrownBy(() -> schema.getKeyColumns(new Object[]{"foo", null, "baz", "boo"}))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessage("Found a null primary or composite key column in source data. All key columns must be non-null.");
     }
 
-    @Test
-    public void testMissingPrimaryKeyFieldFails()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testMissingPrimaryKeyFieldFails(String cassandraVersion)
     {
         StructType missingFieldsDataFrame = new StructType()
                 .add("id", DataTypes.IntegerType)
                 .add("course", DataTypes.StringType)
                 .add("marks", DataTypes.IntegerType);
 
-        assertThatThrownBy(() -> getValidSchemaBuilder()
+        assertThatThrownBy(() -> getValidSchemaBuilder(cassandraVersion)
                 .withWriteMode(WriteMode.INSERT)
                 .withDataFrameSchema(missingFieldsDataFrame)
                 .build())
@@ -248,7 +268,7 @@ public class TableSchemaTest
                 .hasMessage("Bulkwriter doesn't support secondary indexes");
     }
 
-    private TableSchemaTestCommon.MockTableSchemaBuilder getValidSchemaBuilder()
+    private TableSchemaTestCommon.MockTableSchemaBuilder getValidSchemaBuilder(String cassandraVersion)
     {
         return new TableSchemaTestCommon.MockTableSchemaBuilder(CassandraBridgeFactory.get(cassandraVersion))
                 .withCqlColumns(validCqlColumns)

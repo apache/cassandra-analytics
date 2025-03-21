@@ -146,9 +146,8 @@ public final class Tester
 
     public static final class Builder
     {
-        // TODO: Make use of TestUtils.testableVersions() instead
         @NotNull
-        private List<CassandraVersion> versions = ImmutableList.of(CassandraVersion.FOURZERO);
+        private List<CassandraVersion> versions = TestUtils.testableVersions();
         @Nullable
         private TestSchema.Builder schemaBuilder;
         @Nullable
@@ -191,39 +190,39 @@ public final class Tester
         }
 
         // Runs a test for every Cassandra version given
-        Builder withVersions(@NotNull Collection<CassandraVersion> versions)
+        public Builder withVersions(@NotNull Collection<CassandraVersion> versions)
         {
             this.versions = ImmutableList.copyOf(versions);
             return this;
         }
 
         // Runs a test for every number of SSTables given
-        Builder withNumRandomSSTables(Integer... numSSTables)
+        public Builder withNumRandomSSTables(Integer... numSSTables)
         {
             this.numSSTables = ImmutableList.copyOf(numSSTables);
             return this;
         }
 
-        Builder withSumField(String... fields)
+        public Builder withSumField(String... fields)
         {
             sumFields = ImmutableSet.copyOf(fields);
             return this;
         }
 
-        Builder withNumRandomRows(int numRow)
+        public Builder withNumRandomRows(int numRow)
         {
             numRandomRows = numRow;
             return this;
         }
 
-        Builder dontWriteRandomData()
+        public Builder dontWriteRandomData()
         {
             numSSTables = ImmutableList.of(0);
             numRandomRows = 0;
             return this;
         }
 
-        Builder withWriteListener(@Nullable Consumer<TestSchema.TestRow> writeListener)
+        public Builder withWriteListener(@Nullable Consumer<TestSchema.TestRow> writeListener)
         {
             if (writeListener != null)
             {
@@ -232,7 +231,7 @@ public final class Tester
             return this;
         }
 
-        Builder withReadListener(@Nullable Consumer<TestSchema.TestRow> readListener)
+        public Builder withReadListener(@Nullable Consumer<TestSchema.TestRow> readListener)
         {
             if (readListener != null)
             {
@@ -241,7 +240,7 @@ public final class Tester
             return this;
         }
 
-        Builder withSSTableWriter(@Nullable Consumer<CassandraBridge.Writer> consumer)
+        public Builder withSSTableWriter(@Nullable Consumer<CassandraBridge.Writer> consumer)
         {
             if (consumer != null)
             {
@@ -250,7 +249,7 @@ public final class Tester
             return this;
         }
 
-        Builder withTombstoneWriter(@Nullable Consumer<CassandraBridge.Writer> consumer)
+        public Builder withTombstoneWriter(@Nullable Consumer<CassandraBridge.Writer> consumer)
         {
             if (consumer != null)
             {
@@ -259,7 +258,7 @@ public final class Tester
             return this;
         }
 
-        Builder withCheck(@Nullable Consumer<Dataset<Row>> check)
+        public Builder withCheck(@Nullable Consumer<Dataset<Row>> check)
         {
             if (check != null)
             {
@@ -268,49 +267,49 @@ public final class Tester
             return this;
         }
 
-        Builder withExpectedRowCountPerSSTable(int expectedRowCount)
+        public Builder withExpectedRowCountPerSSTable(int expectedRowCount)
         {
             this.expectedRowCount = expectedRowCount;
             return this;
         }
 
-        Builder withReset(Runnable reset)
+        public Builder withReset(Runnable reset)
         {
             this.reset = reset;
             return this;
         }
 
-        Builder withFilter(@NotNull String filterExpression)
+        public Builder withFilter(@NotNull String filterExpression)
         {
             this.filterExpression = filterExpression;
             return this;
         }
 
-        Builder withColumns(@NotNull String... columns)
+        public Builder withColumns(@NotNull String... columns)
         {
             this.columns = columns;
             return this;
         }
 
-        Builder dontCheckNumSSTables()
+        public Builder dontCheckNumSSTables()
         {
             shouldCheckNumSSTables = false;
             return this;
         }
 
-        Builder withLastModifiedTimestampColumn()
+        public Builder withLastModifiedTimestampColumn()
         {
             addLastModifiedTimestamp = true;
             return this;
         }
 
-        Builder withDelayBetweenSSTablesInSecs(int delay)
+        public Builder withDelayBetweenSSTablesInSecs(int delay)
         {
             delayBetweenSSTablesInSecs = delay;
             return this;
         }
 
-        Builder withStatsClass(String statsClass)
+        public Builder withStatsClass(String statsClass)
         {
             this.statsClass = statsClass;
             return this;
@@ -333,11 +332,23 @@ public final class Tester
             Preconditions.checkArgument(schemaBuilder != null || schemaBuilderFunc != null);
             new Tester(this).run();
         }
+
+        public void run(CassandraVersion... versions)
+        {
+            Preconditions.checkArgument(schemaBuilder != null || schemaBuilderFunc != null);
+            new Tester(this).run(versions);
+        }
     }
 
     private void run()
     {
         qt().forAll(versions(), numSSTables())
+            .checkAssert(this::run);
+    }
+
+    private void run(CassandraVersion... versions)
+    {
+        qt().forAll(arbitrary().pick(Arrays.asList(versions)), numSSTables())
             .checkAssert(this::run);
     }
 

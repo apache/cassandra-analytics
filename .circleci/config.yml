@@ -77,6 +77,8 @@ commands:
       use_jdk11:
         type: string
         default: "false"
+      cassandra:
+        type: string
     description: Build and integration test against Spark <<parameters.spark>> Scala <<parameters.scala>> <<parameters.jdk>>
     steps:
       - run:
@@ -88,6 +90,8 @@ commands:
             INTEGRATION_MAX_HEAP_SIZE: "2500M"
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
+            export DTEST_JAR="dtest-<< parameters.cassandra >>.jar"
+            export CASSANDRA_VERSION=$(echo << parameters.cassandra >> | cut -d'.' -f 1,2)
             # Run compile but not unit tests (which are run in run_build)
             ./gradlew --stacktrace clean assemble
             # Run integration tests in parallel
@@ -108,7 +112,7 @@ commands:
             # If no gradle processes exit with non-zero status, it will still be 0
             EXIT_STATUS=0
             for TEST_NAME in $CLASSNAMES; do
-                ./gradlew cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
+                ./gradlew --stacktrace cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
             done;
             exit $EXIT_STATUS
           no_output_timeout: 30m
@@ -158,7 +162,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  int-spark3-2_12-jdk11:
+  int-c4-spark3-2_12-jdk11:
     parallelism: 8
     docker:
       - image: cimg/openjdk:11.0
@@ -174,6 +178,7 @@ jobs:
           scala: "2.12"
           jdk: "11"
           use_jdk11: "true"
+          cassandra: "4.1.4"
 
       - store_artifacts:
           path: build/test-reports
@@ -216,7 +221,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  int-spark3-2_13-jdk11:
+  int-c4-spark3-2_13-jdk11:
     parallelism: 8
     docker:
       - image: cimg/openjdk:11.0
@@ -232,6 +237,36 @@ jobs:
           scala: "2.13"
           jdk: "11"
           use_jdk11: "true"
+          cassandra: "4.1.4"
+
+      - store_artifacts:
+          path: build/test-reports
+          destination: test-reports
+
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+
+      - store_test_results:
+          path: build/test-reports
+
+  int-c5-spark3-2_13-jdk11:
+    parallelism: 8
+    docker:
+      - image: cimg/openjdk:11.0
+    resource_class: large
+    steps:
+      - setup_remote_docker
+      - install_common
+      - checkout
+      - attach_workspace:
+          at: dependencies
+      - run_integration:
+          spark: "3"
+          scala: "2.13"
+          jdk: "11"
+          use_jdk11: "true"
+          cassandra: "5.0.5"
 
       - store_artifacts:
           path: build/test-reports
@@ -255,9 +290,12 @@ workflows:
       - spark3-2_13-jdk11:
           requires:
             - build-deps-jdk11
-      - int-spark3-2_12-jdk11:
+      - int-c4-spark3-2_12-jdk11:
           requires:
             - build-deps-jdk11
-      - int-spark3-2_13-jdk11:
+      - int-c4-spark3-2_13-jdk11:
+          requires:
+            - build-deps-jdk11
+      - int-c5-spark3-2_13-jdk11:
           requires:
             - build-deps-jdk11

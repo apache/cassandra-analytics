@@ -44,14 +44,27 @@ configurations {
     fourzero {
         description = 'Cassandra 4.0 dependency'
     }
-    fourzerobridge {
+    fourzeroBridge {
         description = 'Bridge to Cassandra 4.0'
     }
-    fourzerotypes {
+    fourzeroTypes {
         description = 'Cassandra 4.0 Data Types'
     }
-    fourzerosparksql {
+    fourzeroSparkSql {
         description = 'Cassandra 4.0 SparkSQL Converter'
+    }
+
+    fivezero {
+        description = 'Cassandra 5.0 dependency'
+    }
+    fivezeroBridge {
+        description = 'Bridge to Cassandra 5.0'
+    }
+    fivezeroTypes {
+        description = 'Cassandra 5.0 Data Types'
+    }
+    fivezeroSparkSql {
+        description = 'Cassandra 5.0 SparkSQL Converter'
     }
 }
 
@@ -60,10 +73,17 @@ dependencies {
 
     implementation project(":cassandra-analytics-common")
     implementation project(":cassandra-analytics-sidecar-client")
+
     fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
-    fourzerobridge(project(path: ':cassandra-four-zero-bridge'))
-    fourzerotypes(project(path: ':cassandra-four-zero-types'))
-    fourzerosparksql(project(path: ':cassandra-analytics-spark-four-zero-converter'))
+    fourzeroBridge(project(path: ':cassandra-four-zero-bridge'))
+    fourzeroTypes(project(path: ':cassandra-four-zero-types'))
+    fourzeroSparkSql(project(path: ':cassandra-analytics-spark-four-zero-converter'))
+
+    fivezero(project(path: ':cassandra-five-zero', configuration: 'shadow'))
+    fivezeroBridge(project(path: ':cassandra-five-zero-bridge'))
+    fivezeroTypes(project(path: ':cassandra-five-zero-types'))
+    fivezeroSparkSql(project(path: ':cassandra-analytics-spark-five-zero-converter'))
+
     api(project(':cassandra-analytics-spark-converter'))
 
     // Including newer JNA which works with "Modern" Linux/GLIBC.
@@ -88,7 +108,6 @@ dependencies {
     testImplementation(group: 'com.google.guava', name: 'guava', version: '19.0')
     testImplementation(testFixtures(project(':cassandra-bridge')))
     testImplementation(project(':cassandra-analytics-spark-converter'))
-    testImplementation(project(':cassandra-analytics-spark-converter'))
     testImplementation(testFixtures(project(':cassandra-bridge')))
     testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
     testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
@@ -112,31 +131,70 @@ dependencies {
 
 jar {
     dependsOn(configurations.fourzero)
-    dependsOn(configurations.fourzerobridge)
-    dependsOn(configurations.fourzerosparksql)
-    dependsOn(configurations.fourzerotypes)
+    dependsOn(configurations.fourzeroBridge)
+    dependsOn(configurations.fourzeroSparkSql)
+    dependsOn(configurations.fourzeroTypes)
+
+    dependsOn(configurations.fivezero)
+    dependsOn(configurations.fivezeroBridge)
+    dependsOn(configurations.fivezeroSparkSql)
+    dependsOn(configurations.fivezeroTypes)
 
     writeBuildVersion(version, project.projectDir)
 
     exclude('META-INF/*')
     into('bridges') {
         from(configurations.fourzero.singleFile)
-        from(configurations.fourzerobridge.singleFile)
-        from(configurations.fourzerotypes.singleFile)
-        from(configurations.fourzerosparksql.singleFile)
+        from(configurations.fourzeroBridge.singleFile)
+        from(configurations.fourzeroTypes.singleFile)
+        from(configurations.fourzeroSparkSql.singleFile)
+
+        from(configurations.fivezero.singleFile)
+        from(configurations.fivezeroBridge.singleFile)
+        from(configurations.fivezeroTypes.singleFile)
+        from(configurations.fivezeroSparkSql.singleFile)
     }
 }
 
-test {
+// Tests tagged 'Sequential' do not run in parallel, to prevent OOM errors
+// when running in CI environment.
+tasks.register('testSequential', Test) {
+    doFirst {
+        if (JavaVersion.current().isJava11Compatible()) {
+            def JDK11_OPTIONS = ['-Djdk.attach.allowAttachSelf=true',
+                                 '--add-exports', 'java.base/jdk.internal.misc=ALL-UNNAMED',
+                                 '--add-exports', 'java.base/jdk.internal.ref=ALL-UNNAMED',
+                                 '--add-exports', 'java.base/sun.nio.ch=ALL-UNNAMED',
+                                 '--add-exports', 'java.management.rmi/com.sun.jmx.remote.internal.rmi=ALL-UNNAMED',
+                                 '--add-exports', 'java.rmi/sun.rmi.registry=ALL-UNNAMED',
+                                 '--add-exports', 'java.rmi/sun.rmi.server=ALL-UNNAMED',
+                                 '--add-exports', 'java.sql/java.sql=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/java.lang.module=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.loader=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.ref=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.reflect=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.math=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.module=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.util.jar=ALL-UNNAMED',
+                                 '--add-opens', 'jdk.management/com.sun.management.internal=ALL-UNNAMED']
+            jvmArgs(JDK11_OPTIONS)
+            println("JVM arguments for $project.name are $allJvmArgs")
+        }
+    }
+
     minHeapSize = '1024m'
     maxHeapSize = '3072m'
-    maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
+    maxParallelForks = 1
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in
     dependsOn(tasks.jar)
     classpath += files(jar.archiveFile)
-    useJUnitPlatform()
+
+    useJUnitPlatform {
+        includeTags 'Sequential'
+    }
+
     reports {
         def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "core").toFile()
         junitXml {
@@ -152,6 +210,41 @@ test {
     testLogging {
         events "started", "passed", "skipped", "failed"
     }
+
+    shouldRunAfter test
+    finalizedBy jacocoTestReport // report is always generated after tests run
+}
+
+test {
+    minHeapSize = '1024m'
+    maxHeapSize = '3072m'
+    maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
+    forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+
+    // Make it so unit tests run on a Jar with Cassandra bridge implementations built in
+    dependsOn(tasks.jar)
+    classpath += files(jar.archiveFile)
+
+    useJUnitPlatform {
+        excludeTags 'Sequential'
+    }
+    reports {
+        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "core").toFile()
+        junitXml {
+            enabled true
+            destination = destDir
+        }
+        html {
+            enabled true
+            destination = destDir
+        }
+    }
+
+    testLogging {
+        events "started", "passed", "skipped", "failed"
+    }
+
+    finalizedBy jacocoTestReport // report is always generated after tests run
 }
 
 /* Start: JaCoCo check */
@@ -160,7 +253,8 @@ jacoco {
 }
 
 jacocoTestReport {
-    executionData(files("$buildDir/jacoco/test.exec"))
+    // collects the execution data from all test type tasks
+    executionData tasks.withType(Test)
     reports {
         html.required = true
         html.destination(file("$buildDir/reports/jacocoHtml"))
@@ -168,7 +262,9 @@ jacocoTestReport {
         xml.destination(file("$buildDir/reports/jacocoXml"))
     }
 }
+
 jacocoTestCoverageVerification {
+    dependsOn(tasks.testSequential)
     executionData(tasks.jacocoTestReport.executionData)
     violationRules {
         rule {
@@ -180,6 +276,7 @@ jacocoTestCoverageVerification {
 }
 
 check {
+    dependsOn(tasks.testSequential)
     dependsOn(tasks.jacocoTestCoverageVerification)
     finalizedBy(tasks.jacocoTestReport)
 }

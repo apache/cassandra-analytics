@@ -155,7 +155,8 @@ public final class TableSchemaTestCommon
         return udtMock;
     }
 
-    public static TableSchema buildSchema(String[] fieldNames,
+    public static TableSchema buildSchema(String cassandraVersion,
+                                          String[] fieldNames,
                                           org.apache.spark.sql.types.DataType[] sparkTypes,
                                           CqlField.CqlType[] driverTypes,
                                           String[] partitionKeyColumns,
@@ -165,7 +166,6 @@ public final class TableSchemaTestCommon
         Pair<StructType, ImmutableMap<String, CqlField.CqlType>> pair = buildMatchedDataframeAndCqlColumns(fieldNames, sparkTypes, driverTypes);
         ImmutableMap<String, CqlField.CqlType> cqlColumns = pair.getValue();
         StructType dataFrameSchema = pair.getKey();
-        String cassandraVersion = "4.0.0";
         return
             new MockTableSchemaBuilder(CassandraBridgeFactory.get(cassandraVersion))
                 .withCqlColumns(cqlColumns)
@@ -379,6 +379,7 @@ public final class TableSchemaTestCommon
         {
             switch (cassandraVersion.charAt(0))
             {
+                case '5':
                 case '4':
                     return "ZstdCompressor";
                 case '3':

@@ -42,6 +42,12 @@ public final class VersionRunner
                      .collect(Collectors.toList());
     }
 
+    public static Collection<String> supportedVersions()
+    {
+        return Arrays.stream(CassandraVersion.supportedVersions())
+                     .collect(Collectors.toList());
+    }
+
     public static List<Named<CassandraBridge>> bridges()
     {
         return versions().stream().map(version -> Named.of(version.toString(), CassandraBridgeFactory.get(version)))

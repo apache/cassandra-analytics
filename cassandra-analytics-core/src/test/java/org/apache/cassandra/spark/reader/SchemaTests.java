@@ -605,11 +605,11 @@ public class SchemaTests extends VersionRunner
     public void testSchemaOfTableChanges(CassandraBridge bridge)
     {
         ReplicationFactor rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, mapOf("DC1", 3));
-        String createStatement1 = "CREATE TABLE test_ks.test_tbl (a int PRIMARY KEY, b int);";
+        String createStatement1 = "CREATE TABLE test_ks.test_tbl1 (a int PRIMARY KEY, b int);";
         CqlTable schema1 = bridge.buildSchema(createStatement1, "test_ks", rf, Partitioner.Murmur3Partitioner);
         assertThat(schema1.fields()).hasSize(2);
 
-        String createStatement2 = "CREATE TABLE test_ks.test_tbl (a int PRIMARY KEY, b int, c int);";
+        String createStatement2 = "CREATE TABLE test_ks.test_tbl2 (a int PRIMARY KEY, b int, c int);";
         CqlTable schema2 = bridge.buildSchema(createStatement2, "test_ks", rf, Partitioner.Murmur3Partitioner);
         assertThat(schema2.fields()).hasSize(3);
         assertThat(schema1).isNotEqualTo(schema2);

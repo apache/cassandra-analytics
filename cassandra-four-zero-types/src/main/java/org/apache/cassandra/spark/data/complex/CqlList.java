@@ -20,27 +20,12 @@
 package org.apache.cassandra.spark.data.complex;
 
 import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
-import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
-import org.apache.cassandra.db.marshal.AbstractType;
-import org.apache.cassandra.db.marshal.ListType;
-import org.apache.cassandra.db.rows.BufferCell;
 import org.apache.cassandra.db.rows.CellPath;
-import org.apache.cassandra.schema.ColumnMetadata;
-import org.apache.cassandra.serializers.ListSerializer;
-import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.data.CqlType;
-import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.utils.UUIDGen;
 
-import static org.apache.cassandra.spark.data.CqlField.NO_TTL;
-
-public class CqlList extends CqlCollection implements CqlField.CqlList
+public class CqlList extends AbstractCqlList
 {
     public CqlList(CqlField.CqlType type)
     {
@@ -48,78 +33,8 @@ public class CqlList extends CqlCollection implements CqlField.CqlList
     }
 
     @Override
-    public AbstractType<?> dataType(boolean isMultiCell)
+    protected CellPath randomCellPath()
     {
-        return ListType.getInstance(((CqlType) type()).dataType(), isMultiCell);
-    }
-
-    @Override
-    public InternalType internalType()
-    {
-        return InternalType.List;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> TypeSerializer<T> serializer()
-    {
-        return (TypeSerializer<T>) ListSerializer.getInstance(((CqlType) type()).serializer());
-    }
-
-    @Override
-    public String name()
-    {
-        return "list";
-    }
-
-    @Override
-    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, Object value)
-    {
-        udtValue.setList(position, (List<?>) value);
-    }
-
-    @Override
-    public Object randomValue(int minCollectionSize)
-    {
-        return IntStream.range(0, RandomUtils.RANDOM.nextInt(16) + minCollectionSize)
-                        .mapToObj(element -> type().randomValue(minCollectionSize))
-                        .collect(Collectors.toList());
-    }
-
-    @Override
-    public org.apache.cassandra.cql3.functions.types.DataType driverDataType(boolean isFrozen)
-    {
-        return org.apache.cassandra.cql3.functions.types.DataType.list(((CqlType) type()).driverDataType(isFrozen));
-    }
-
-    @Override
-    public Object convertForCqlWriter(Object value, CassandraVersion version, boolean isCollectionElement)
-    {
-        return ((List<?>) value).stream()
-                                .map(element -> type().convertForCqlWriter(element, version, true))
-                                .collect(Collectors.toList());
-    }
-
-    @Override
-    public void addCell(final org.apache.cassandra.db.rows.Row.Builder rowBuilder,
-                        ColumnMetadata cd,
-                        long timestamp,
-                        int ttl,
-                        int now,
-                        Object value)
-    {
-        for (Object o : (List<?>) value)
-        {
-            if (ttl != NO_TTL)
-            {
-                rowBuilder.addCell(BufferCell.expiring(cd, timestamp, ttl, now, type().serialize(o),
-                                                       CellPath.create(ByteBuffer.wrap(UUIDGen.getTimeUUIDBytes()))));
-            }
-            else
-            {
-                rowBuilder.addCell(BufferCell.live(cd, timestamp, type().serialize(o),
-                                                   CellPath.create(ByteBuffer.wrap(UUIDGen.getTimeUUIDBytes()))));
-            }
-        }
+        return CellPath.create(ByteBuffer.wrap(UUIDGen.getTimeUUIDBytes()));
     }
 }

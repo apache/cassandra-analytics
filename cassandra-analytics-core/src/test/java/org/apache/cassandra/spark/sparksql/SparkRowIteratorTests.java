@@ -62,9 +62,9 @@ public class SparkRowIteratorTests
     public void testBasicKeyValue(CassandraBridge bridge)
     {
         // I.e. "create table keyspace.table (a %s, b %s, primary key(a));"
-        qt().forAll(TestUtils.versions(), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .assuming((version, type1, type2) -> type1.supportedAsPrimaryKeyColumn())
-            .checkAssert((version, type1, type2) -> runTest(version, TestSchema.builder(bridge)
+        qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
+            .assuming((type1, type2) -> type1.supportedAsPrimaryKeyColumn())
+            .checkAssert((type1, type2) -> runTest(bridge.getVersion(), TestSchema.builder(bridge)
                     .withPartitionKey("a", type1)
                     .withColumn("b", type2)
                     .build()));
@@ -74,11 +74,11 @@ public class SparkRowIteratorTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testMultiPartitionKeys(CassandraBridge bridge)
     {
-        qt().forAll(TestUtils.versions(), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .assuming((version, type1, type2, type3) -> type1.supportedAsPrimaryKeyColumn()
+        qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
+            .assuming((type1, type2, type3) -> type1.supportedAsPrimaryKeyColumn()
                                                         && type2.supportedAsPrimaryKeyColumn()
                                                         && type3.supportedAsPrimaryKeyColumn())
-            .checkAssert((version, type1, type2, type3) -> runTest(version, TestSchema.builder(bridge)
+            .checkAssert((type1, type2, type3) -> runTest(bridge.getVersion(), TestSchema.builder(bridge)
                     .withPartitionKey("a", type1)
                     .withPartitionKey("b", type2)
                     .withPartitionKey("c", type3)
@@ -90,36 +90,30 @@ public class SparkRowIteratorTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testBasicClusteringKey(CassandraBridge bridge)
     {
-        for (CassandraVersion version : TestUtils.testableVersions())
-        {
-            qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.sortOrder())
-                .assuming((type1, type2, type3, order) -> type1.supportedAsPrimaryKeyColumn() && type2.supportedAsPrimaryKeyColumn())
-                .checkAssert((type1, type2, type3, order) -> runTest(version, TestSchema.builder(bridge)
-                        .withPartitionKey("a", type1)
-                        .withClusteringKey("b", type2)
-                        .withColumn("c", type3)
-                        .withSortOrder(order)
-                        .build()));
-        }
+        qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.sortOrder())
+            .assuming((type1, type2, type3, order) -> type1.supportedAsPrimaryKeyColumn() && type2.supportedAsPrimaryKeyColumn())
+            .checkAssert((type1, type2, type3, order) -> runTest(bridge.getVersion(), TestSchema.builder(bridge)
+                    .withPartitionKey("a", type1)
+                    .withClusteringKey("b", type2)
+                    .withColumn("c", type3)
+                    .withSortOrder(order)
+                    .build()));
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testMultiClusteringKey(CassandraBridge bridge)
     {
-        for (CassandraVersion version : TestUtils.testableVersions())
-        {
-            qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.sortOrder(), TestUtils.sortOrder())
-                .assuming((type1, type2, order1, order2) -> type1.supportedAsPrimaryKeyColumn() && type2.supportedAsPrimaryKeyColumn())
-                .checkAssert((type1, type2, order1, order2) -> runTest(version, TestSchema.builder(bridge)
-                        .withPartitionKey("a", bridge.bigint())
-                        .withClusteringKey("b", type1)
-                        .withClusteringKey("c", type2)
-                        .withColumn("d", bridge.bigint())
-                        .withSortOrder(order1)
-                        .withSortOrder(order2)
-                        .build()));
-        }
+        qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), TestUtils.sortOrder(), TestUtils.sortOrder())
+            .assuming((type1, type2, order1, order2) -> type1.supportedAsPrimaryKeyColumn() && type2.supportedAsPrimaryKeyColumn())
+            .checkAssert((type1, type2, order1, order2) -> runTest(bridge.getVersion(), TestSchema.builder(bridge)
+                    .withPartitionKey("a", bridge.bigint())
+                    .withClusteringKey("b", type1)
+                    .withClusteringKey("c", type2)
+                    .withColumn("d", bridge.bigint())
+                    .withSortOrder(order1)
+                    .withSortOrder(order2)
+                    .build()));
     }
 
     @ParameterizedTest
@@ -127,7 +121,7 @@ public class SparkRowIteratorTests
     public void testUdt(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((type1, type2) -> runTest(CassandraVersion.FOURZERO, TestSchema.builder(bridge)
+            .checkAssert((type1, type2) -> runTest(bridge.getVersion(), TestSchema.builder(bridge)
                     .withPartitionKey("a", bridge.bigint())
                     .withClusteringKey("b", bridge.text())
                     .withColumn("c", bridge.udt("keyspace", "testudt")
@@ -143,7 +137,7 @@ public class SparkRowIteratorTests
     public void testTuple(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((type1, type2) -> runTest(CassandraVersion.FOURZERO, TestSchema.builder(bridge)
+            .checkAssert((type1, type2) -> runTest(bridge.getVersion(), TestSchema.builder(bridge)
                     .withPartitionKey("a", bridge.bigint())
                     .withClusteringKey("b", bridge.text())
                     .withColumn("c", bridge.tuple(bridge.aInt(), type1, bridge.ascii(), type2, bridge.date()))
