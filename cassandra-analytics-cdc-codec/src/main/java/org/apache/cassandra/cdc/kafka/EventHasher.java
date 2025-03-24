@@ -23,34 +23,28 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-import org.apache.commons.codec.digest.MurmurHash3;
-
 import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.msg.Value;
+import org.apache.kafka.common.utils.Utils;
 
 public interface EventHasher
 {
-    EventHasher MURMUR3 = new EventHasher()
-    {
-        @Override
-        public String hashEvent(CdcEvent event)
+    EventHasher MURMUR2 = event -> {
+        ByteBuffer[] values = event.getPartitionKeys()
+                                   .stream()
+                                   .map(Value::getValue)
+                                   .toArray(ByteBuffer[]::new);
+
+        byte[] ar = new byte[Arrays.stream(values).mapToInt(Buffer::remaining).sum()];
+        int pos = 0;
+        for (ByteBuffer buf : values)
         {
-            ByteBuffer[] values = event.getPartitionKeys()
-                                       .stream()
-                                       .map(Value::getValue)
-                                       .toArray(ByteBuffer[]::new);
-
-            byte[] ar = new byte[Arrays.stream(values).mapToInt(Buffer::remaining).sum()];
-            int pos = 0;
-            for (ByteBuffer buf : values)
-            {
-                final int len = buf.remaining();
-                buf.get(ar, pos, len);
-                pos += len;
-            }
-
-            return Integer.toHexString(MurmurHash3.hash32x86(ar));
+            final int len = buf.remaining();
+            buf.get(ar, pos, len);
+            pos += len;
         }
+
+        return Integer.toHexString(Utils.murmur2(ar));
     };
 
 

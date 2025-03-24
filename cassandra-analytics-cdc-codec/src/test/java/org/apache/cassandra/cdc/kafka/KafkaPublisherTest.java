@@ -50,11 +50,11 @@ public class KafkaPublisherTest
         CdcEvent event2 = makeEvent("str", 123, 456L,
                                         1.2, "bytes".getBytes(),
                                     listOf(1, 2), 1);
-        assertEquals(EventHasher.MURMUR3.hashEvent(event1),
-                     EventHasher.MURMUR3.hashEvent(event2),
+        assertEquals(EventHasher.MURMUR2.hashEvent(event1),
+                     EventHasher.MURMUR2.hashEvent(event2),
                      "Hash should be the same from rows with the same partition key values");
-        assertEquals(EventHasher.MURMUR3.hashEvent(event1),
-                     EventHasher.MURMUR3.hashEvent(event1),
+        assertEquals(EventHasher.MURMUR2.hashEvent(event1),
+                     EventHasher.MURMUR2.hashEvent(event1),
                      "Hash should be the same from the same row");
     }
 
@@ -68,8 +68,8 @@ public class KafkaPublisherTest
                                         1.2, "much long bytes".getBytes(),
                                     Arrays.asList(1, 2), 1);
         assertNotEquals("Hash should be different from different rows",
-                        EventHasher.MURMUR3.hashEvent(event1),
-                        EventHasher.MURMUR3.hashEvent(event2));
+                        EventHasher.MURMUR2.hashEvent(event1),
+                        EventHasher.MURMUR2.hashEvent(event2));
     }
 
     @Test

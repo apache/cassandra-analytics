@@ -80,7 +80,7 @@ public class KafkaPublisher implements AutoCloseable
         logMode,
         KafkaStats.STUB,
         RecordProducer.DEFAULT,
-        EventHasher.MURMUR3
+        EventHasher.MURMUR2
         );
     }
 
@@ -135,7 +135,7 @@ public class KafkaPublisher implements AutoCloseable
         return serializer.serialize(topic, event);
     }
 
-    public void processEvent(CdcEvent event) throws Exception
+    public void processEvent(CdcEvent event)
     {
         String topic = topicSupplier.topic(event);
         cdcLogMode.info(logger(), "Processing CDC event", event, topic);

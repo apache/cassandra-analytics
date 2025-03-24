@@ -36,7 +36,9 @@ import org.apache.cassandra.spark.utils.Preconditions;
 public abstract class AvroBaseRecordTransformer<T extends AvroBaseRecordTransformer.BaseSerializedEvent<P>, P>
 extends CdcEventAvroEncoder
 {
-    public static final int DEFAULT_TRUNCATE_THRESHOLD = 838861; // 1024 * 1024 * 0.8
+    // Kafka generally limits message size to 1mb, so we truncate messages
+    // too large and update the truncated flag
+    public static final int DEFAULT_TRUNCATE_THRESHOLD = (1 << 20) * 4 / 5; // 8mib = 1024 * 1024 * 0.8
 
     final int truncateThreshold;
 

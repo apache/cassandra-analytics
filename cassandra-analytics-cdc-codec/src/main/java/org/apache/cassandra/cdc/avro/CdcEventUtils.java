@@ -75,9 +75,7 @@ public final class CdcEventUtils
                                           getOperationType(event));
     }
 
-    public static <ValueType extends Value,
-                  TombstoneType extends RangeTombstone,
-                  EventType extends CdcEvent>
+    public static <EventType extends CdcEvent>
     OperationType getOperationType(EventType event)
     {
         switch (event.getKind())
@@ -300,7 +298,7 @@ public final class CdcEventUtils
                                                int truncateThreshold,
                                                Function<KeyspaceTypeKey, CqlField.CqlType> typeLookup)
     {
-        Schema tableSchema = store.getSchema(event.keyspace + "." + event.table, null);
+        Schema tableSchema = store.getSchema(event.keyspace + '.' + event.table, null);
         List<String> truncatedFields = new ArrayList<>();
         GenericData.Record update = new GenericData.Record(tableSchema);
         int totalSize = 0;
