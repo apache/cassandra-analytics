@@ -1,0 +1,12 @@
+CREATE TABLE test_ks.test_tbl1 (
+    a text PRIMARY KEY,
+    b text,
+    c text,
+    d text,
+    e timestamp,
+    f text,
+    g bigint,
+    h timestamp,
+    i text,
+    j boolean
+)

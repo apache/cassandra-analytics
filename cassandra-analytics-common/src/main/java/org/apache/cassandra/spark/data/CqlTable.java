@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import org.apache.cassandra.spark.utils.TableIdentifier;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings({ "WeakerAccess", "unused" })
@@ -104,6 +105,11 @@ public class CqlTable implements Serializable
         {
             columns.put(column.name(), column);
         }
+    }
+
+    public TableIdentifier tableIdentifier()
+    {
+        return TableIdentifier.of(keyspace, table);
     }
 
     public ReplicationFactor replicationFactor()

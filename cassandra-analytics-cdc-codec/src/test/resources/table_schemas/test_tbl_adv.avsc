@@ -1,0 +1,144 @@
+{
+  "type" : "record",
+  "name" : "test_tbl_adv",
+  "namespace" : "test_ks.test_tbl_adv",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ "string", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "b",
+    "type" : [ "string", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "c",
+    "type" : [ "bytes", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "d",
+    "type" : [ "bytes", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "e",
+    "type" : [ "bytes", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "f",
+    "type" : [ {
+      "type" : "long",
+      "logicalType" : "timestamp-micros"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "g",
+    "type" : [ "long", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "h",
+    "type" : [ {
+      "type" : "long",
+      "logicalType" : "timestamp-micros"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "i",
+    "type" : [ {
+      "type" : "long",
+      "logicalType" : "timestamp-micros"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "j",
+    "type" : [ "string", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "k",
+    "type" : [ {
+      "type" : "long",
+      "logicalType" : "timestamp-micros"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "l",
+    "type" : [ {
+      "type": "string",
+      "logicalType": "uuid"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "m",
+    "type" : [ {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "array_map",
+        "namespace" : "test_ks.test_tbl_adv.m.array_map",
+        "fields" : [ {
+          "name" : "key",
+          "type" : "string"
+        }, {
+          "name" : "value",
+          "type" : "string"
+        } ]
+      },
+      "logicalType" : "array_map"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "n",
+    "type" : [ {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "array_map",
+        "namespace" : "test_ks.test_tbl_adv.n.array_map",
+        "fields" : [ {
+          "name" : "key",
+          "type" : "string"
+        }, {
+          "name" : "value",
+          "type" : "string"
+        } ]
+      },
+      "logicalType" : "array_map",
+      "isFrozen" : "true"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "o",
+    "type" : [ {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "array_map",
+        "namespace" : "test_ks.test_tbl_adv.o.array_map",
+        "fields" : [ {
+          "name" : "key",
+          "type" : "string"
+        }, {
+          "name" : "value",
+          "type" : "string"
+        } ]
+      },
+      "logicalType" : "array_map"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "p",
+    "type" : [ {
+      "type" : "array",
+      "items" : [ "string", "null" ]
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "q",
+    "type" : [ {
+      "type" : "array",
+      "items" : [ "string", "null" ]
+    }, "null" ],
+    "doc" : "doc"
+  } ],
+  "primary_keys" : [ "a", "b", "c", "d", "e" ],
+  "partition_keys" : [ "a" ]
+}

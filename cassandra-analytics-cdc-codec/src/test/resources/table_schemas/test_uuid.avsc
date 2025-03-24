@@ -1,0 +1,14 @@
+{
+  "type" : "record",
+  "name" : "uuid",
+  "namespace" : "test.uuid",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ {
+      "type": "string",
+      "logicalType": "uuid"
+    }, "null" ],
+    "doc" : "doc"
+  } ]
+}

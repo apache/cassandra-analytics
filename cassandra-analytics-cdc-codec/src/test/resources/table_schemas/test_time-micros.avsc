@@ -1,0 +1,14 @@
+{
+  "type" : "record",
+  "name" : "time_micros",
+  "namespace" : "test.time_micros",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ {
+      "type": "long",
+      "logicalType": "time-micros"
+    }, "null" ],
+    "doc" : "doc"
+  } ]
+}

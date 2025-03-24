@@ -60,7 +60,7 @@ dependencies {
     fourzerobridge(project(path: ':cassandra-four-zero-bridge'))
     fourzerotypes(project(path: ':cassandra-four-zero-types'))
 
-    implementation "com.google.guava:guava:16.0.1"
+    implementation "com.google.guava:guava:${guavaVersion}"
 
     implementation "org.apache.commons:commons-lang3:${project.commonsLang3Version}"
     implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"

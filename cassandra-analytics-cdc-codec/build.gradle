@@ -41,5 +41,55 @@ publishing {
 }
 
 dependencies {
+    api(project(':cassandra-bridge'))
+    implementation project(":cassandra-analytics-common")
+    implementation project(":cassandra-analytics-cdc")
+    api(project(':cassandra-avro-converter'))
+
+    implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"
+    implementation "com.esotericsoftware:kryo-shaded:${kryoVersion}"
+    implementation "com.fasterxml.jackson.core:jackson-annotations:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.core:jackson-core:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+
     implementation "org.apache.avro:avro:${avroVersion}"
+    implementation "org.apache.kafka:kafka-clients:${kafkaClientVersion}"
+
+    testImplementation project(path: ':cassandra-four-zero', configuration: 'shadow')
+    testImplementation project(':cassandra-bridge')
+    testImplementation(testFixtures(project(':cassandra-bridge')))
+    testImplementation project(":cassandra-four-zero-bridge")
+    testImplementation project(":cassandra-analytics-common")
+    testImplementation project(":cassandra-four-zero-types")
+    testImplementation project(":cassandra-avro-converter")
+    testImplementation project(":cassandra-four-zero-avro-converter")
+
+    testImplementation "com.google.guava:guava:${guavaVersion}"
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${project.junitVersion}"
+    testImplementation "org.junit.jupiter:junit-jupiter-api:${project.junitVersion}"
+    testImplementation "org.junit.jupiter:junit-jupiter-params:${project.junitVersion}"
+    testImplementation "org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}"
+}
+
+sourceSets {
+    test {
+        resources {
+            srcDir "test/resources"
+        }
+    }
+}
+
+test {
+    useJUnitPlatform()
+    reports {
+        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "four-zero-types").toFile()
+        junitXml {
+            enabled true
+            destination = destDir
+        }
+        html {
+            enabled true
+            destination = destDir
+        }
+    }
 }

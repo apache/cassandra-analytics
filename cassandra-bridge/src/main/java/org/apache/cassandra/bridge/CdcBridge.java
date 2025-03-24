@@ -52,6 +52,7 @@ public abstract class CdcBridge
 
     // Implementations of CassandraBridge must be named as such to load dynamically using the {@link CassandraBridgeFactory}
     public static final String IMPLEMENTATION_FQCN = "org.apache.cassandra.bridge.CdcBridgeImplementation";
+    public static final String CONVERTER_IMPLEMENTATION_FQCN = "org.apache.cassandra.cdc.avro.CqlToAvroSchemaConverterImplementation";
 
     public void log(CqlTable cqlTable, CommitLogInstance log, Row row, long timestamp)
     {

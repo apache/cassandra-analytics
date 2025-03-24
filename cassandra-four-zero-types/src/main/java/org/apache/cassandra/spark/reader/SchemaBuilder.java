@@ -379,6 +379,14 @@ public class SchemaBuilder
             schema.load(keyspaceMetadata);
         }
 
+        if (!tableMetadata.equals(schema.getTableMetadata(keyspaceName, tableMetadata.name)))
+        {
+            // Schema of the table has changed so update it in the schema
+            updateTableMetaData(schema, keyspaceName, tableMetadata);
+            LOGGER.info("Table metadata changed schema keyspace={} table={} partitioner={}",
+                        keyspaceName, tableName, tableMetadata.partitioner.getClass().getName());
+        }
+
         // The metadata of the table might not be the input tableMetadata. Fetch the current to be safe.
         TableMetadata currentTable = schema.getTableMetadata(keyspaceName, tableName);
         if (!tableInstanceExists(schema, keyspaceName, tableName))
@@ -406,6 +414,12 @@ public class SchemaBuilder
             keyspaceMetadata = keyspaceMetadata.withSwapped(userTypes);
             schema.load(keyspaceMetadata);
         }
+    }
+
+    private static void updateTableMetaData(Schema schema, String keyspace, TableMetadata tableMetadata)
+    {
+        KeyspaceMetadata ks = schema.getKeyspaceMetadata(keyspace);
+        schema.load(ks.withSwapped(ks.tables.withSwapped(tableMetadata)));
     }
 
     private static Pair<KeyspaceMetadata, TableMetadata> validateKeyspaceTable(Schema schema,

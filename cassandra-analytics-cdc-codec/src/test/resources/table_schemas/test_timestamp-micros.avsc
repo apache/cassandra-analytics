@@ -1,0 +1,14 @@
+{
+  "type" : "record",
+  "name" : "timestamp_micros",
+  "namespace" : "test.timestamp_micros",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ {
+      "type": "long",
+      "logicalType": "timestamp-micros"
+    }, "null" ],
+    "doc" : "doc"
+  } ]
+}

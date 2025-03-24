@@ -66,7 +66,6 @@ import org.jetbrains.annotations.NotNull;
  */
 public class SparkSqlTypeConverterImplementation implements SparkSqlTypeConverter
 {
-
     public static final SparkSqlTypeConverterImplementation INSTANCE = new SparkSqlTypeConverterImplementation();
     /*
             SparkSQL      |    Java

@@ -31,6 +31,8 @@ public class TableIdentifier
 
     public TableIdentifier(String keyspace, String table)
     {
+        Preconditions.checkArgument(!Preconditions.isNullOrEmpty(keyspace), "Keyspace cannot be empty");
+        Preconditions.checkArgument(!Preconditions.isNullOrEmpty(table), "Table cannot be empty");
         this.keyspace = keyspace;
         this.table = table;
     }

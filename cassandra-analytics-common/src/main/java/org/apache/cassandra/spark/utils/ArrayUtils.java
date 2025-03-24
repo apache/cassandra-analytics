@@ -21,8 +21,10 @@ package org.apache.cassandra.spark.utils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
@@ -37,7 +39,19 @@ public final class ArrayUtils
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    public static Object[] retain(Object[] source,  int index,  int length)
+    // workaround while JDK8 is still supported
+    public static <T> List<T> listOf(T... values)
+    {
+        return Arrays.asList(values);
+    }
+
+    // workaround while JDK8 is still supported
+    public static <T> Set<T> setOf(T... values)
+    {
+        return new HashSet<>(Arrays.asList(values));
+    }
+
+    public static Object[] retain(Object[] source, int index, int length)
     {
         Preconditions.checkArgument(source != null && 0 <= index && 0 <= length);
         Preconditions.checkArgument(index + length <= source.length, "Requested retain range exceed the source array!");

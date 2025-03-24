@@ -42,6 +42,11 @@ public class Value
         this.value = value;
     }
 
+    public static Value of(String keyspace, String columnName, String columnType, @Nullable ByteBuffer value)
+    {
+        return new Value(keyspace, columnName, columnType, value);
+    }
+
     /**
      * @return the value as byte array
      */

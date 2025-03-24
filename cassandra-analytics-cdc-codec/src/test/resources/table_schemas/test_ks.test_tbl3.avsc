@@ -1,0 +1,79 @@
+{
+  "type" : "record",
+  "name" : "test_tbl3",
+  "namespace" : "test_ks.test_tbl3",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "uuid",
+      "logicalType" : "uuid"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "b",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "timeuuid",
+      "logicalType" : "uuid",
+      "isReversed"  : "true"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "c",
+    "type" : [ {
+      "type" : "long",
+      "logicalType" : "timestamp-micros",
+      "cqlType" : "timestamp"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "d",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "e",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "f",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "g",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "uuid",
+      "logicalType" : "uuid"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "h",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "i",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  } ],
+  "primary_keys" : [ "a", "b" ],
+  "partition_keys" : [ "a" ],
+  "clustering_keys" : [ "b" ],
+  "static_columns" : [ "c", "d", "e" ]
+}
