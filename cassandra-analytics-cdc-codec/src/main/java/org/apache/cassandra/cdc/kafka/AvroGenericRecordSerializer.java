@@ -54,7 +54,6 @@ import org.apache.kafka.common.header.Headers;
  */
 public class AvroGenericRecordSerializer implements KafkaCdcSerializer<CdcEvent>
 {
-    // private final GenericDatumWriter<GenericRecord> cdcWriter;
     private final BinaryEncoder encoderReuse;
     private final AvroGenericRecordTransformer recordTransformer;
     private final Deserializer deserializer;

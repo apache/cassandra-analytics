@@ -35,10 +35,10 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.cdc.api.CdcOptions;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.avro.AvroSchemas;
 import org.apache.cassandra.cdc.avro.CqlToAvroSchemaConverter;
+import org.apache.cassandra.cdc.kafka.KafkaOptions;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.utils.TableIdentifier;
 import org.jetbrains.annotations.Nullable;
@@ -52,7 +52,6 @@ public class CachingSchemaStore implements SchemaStore
     private static final Logger LOGGER = LoggerFactory.getLogger(CachingSchemaStore.class);
     private final Map<TableIdentifier, SchemaCacheEntry> avroSchemasCache = new ConcurrentHashMap<>();
     //    private final CassandraClusterSchema cassandraClusterSchema;
-//    private final SidecarSchema sidecarSchema;
 //    private final Vertx vertx;
 //    private final CdcConfigImpl cdcConfig;
     @Nullable
@@ -63,20 +62,18 @@ public class CachingSchemaStore implements SchemaStore
     private final SchemaSupplier schemaSupplier;
     private final CassandraVersion cassandraVersion;
     private final SchemaStorePublisherFactory schemaStorePublisherFactory;
-    private final CdcOptions cdcOptions;
+    private final KafkaOptions kafkaOptions;
     private final CqlToAvroSchemaConverter schemaConverter;
-//    private final SidecarCdcStats sidecarCdcStats;
+    private final SchemaStoreStats schemaStoreStats;
 
     CachingSchemaStore(
 //    Vertx vertx,
 //                       CassandraClusterSchema cassandraClusterSchema,
-//                       CdcConfigImpl cdcConfig,
-//                       SidecarCdcStats sidecarCdcStats,
-//                       SidecarSchema sidecarSchema
+    SchemaStoreStats schemaStoreStats,
     CassandraVersion cassandraVersion, //TODO: supply version to permit changes in version
     SchemaSupplier schemaSupplier,
     SchemaStorePublisherFactory schemaStorePublisherFactory,
-    CdcOptions cdcOptions,
+    KafkaOptions kafkaOptions,
     CqlToAvroSchemaConverter schemaConverter
     )
     {
@@ -84,10 +81,10 @@ public class CachingSchemaStore implements SchemaStore
         this.cassandraVersion = cassandraVersion;
         this.schemaSupplier = schemaSupplier;
         this.schemaStorePublisherFactory = schemaStorePublisherFactory;
-        this.cdcOptions = cdcOptions;
+        this.kafkaOptions = kafkaOptions;
         this.schemaConverter = schemaConverter;
+        this.schemaStoreStats = schemaStoreStats;
 //        this.cassandraClusterSchema = cassandraClusterSchema;
-//        this.sidecarSchema = sidecarSchema;
 //        this.avroSchemasCache.putAll(createSchemaCache(schemaSupplier.getCdcEnabledTables().get()));
         AvroSchemas.registerLogicalTypes();
 //        cassandraClusterSchema.addSchemaChangeListener(this::onSchemaChanged); //FIXME
@@ -108,39 +105,14 @@ public class CachingSchemaStore implements SchemaStore
     {
         if (this.publisher == null)
         {
-            this.publisher = schemaStorePublisherFactory.buildPublisher(cdcOptions); //SchemaStorePublisherFactory.getFromCdcConfig(cdcConfig);
+            this.publisher = schemaStorePublisherFactory.buildPublisher(kafkaOptions);
         }
         return this.publisher;
     }
 
-    private void configureSidecarServerEventListeners()
+    public void initialize()
     {
-        //FIXME
-//        EventBus eventBus = vertx.eventBus();
-//
-//        eventBus.localConsumer(ON_SERVER_START.address(), startMessage -> {
-//            eventBus.localConsumer(ON_SIDECAR_SCHEMA_INITIALIZED.address(), message -> {
-//                LOGGER.debug("Sidecar Schema initialized message={}", message);
-//                Set<CqlTable> refreshedCdcTables = cassandraClusterSchema.getCdcTables();
-//                for (CqlTable cqlTable : refreshedCdcTables)
-//                {
-//                    TableIdentifier tableIdentifier = TableIdentifier.of(cqlTable.keyspace(), cqlTable.table());
-//                    avroSchemasCache.compute(tableIdentifier, (k, v) ->
-//                    {
-//                        cdcDatabaseAccessor.insertTableSchemaHistory(cqlTable.keyspace(), cqlTable.table(), cqlTable.createStmt());
-//                        return v;
-//                    });
-//                }
-//                loadPublisher();
-//                publishSchemas();
-//            });
-//        });
-    }
-
-    void onStart()
-    {
-        LOGGER.debug("CachingSchemaStore initialized");
-        schemaSupplier.getCdcEnabledTables();
+        LOGGER.info("Initializing CachingSchemaStore");
         schemaSupplier
         .getCdcEnabledTables()
         .thenAccept(refreshedCdcTables -> {
@@ -150,14 +122,30 @@ public class CachingSchemaStore implements SchemaStore
                 avroSchemasCache.compute(tableIdentifier, (k, v) -> v);
             }
             publishSchemas();
+            LOGGER.info("CachingSchemaStore initialized");
         });
+    }
+
+    private void loadPublisher()
+    {
+        this.publisher = SchemaStorePublisherFactory.DEFAULT.buildPublisher(kafkaOptions);
+    }
+
+    private void configureSidecarServerEventListeners()
+    {
+        //FIXME
+//        EventBus eventBus = vertx.eventBus();
+//        eventBus.localConsumer(ON_SERVER_START.address(), startMessage -> {
+//            eventBus.localConsumer(ON_SIDECAR_SCHEMA_INITIALIZED.address(), message -> {
+//            });
+//        });
     }
 
 //    protected CqlToAvroSchemaConverter schemaConverter()
 //    {
 //        if (cqlToAvroSchemaConverter == null)
 //        {
-//            cqlToAvroSchemaConverter = (CqlToAvroSchemaConverter) CdcBridgeFactory.getAvroConverterRequired(cassandraVersion);
+//            cqlToAvroSchemaConverter = (CqlToAvroSchemaConverter) CdcBridgeFactory.getAvroConverter(cassandraVersion);
 //        }
 //        return cqlToAvroSchemaConverter;
 //    }
@@ -179,7 +167,7 @@ public class CachingSchemaStore implements SchemaStore
                         metadata.put("name", cqlTable.table());
                         metadata.put("namespace", cqlTable.keyspace());
                         publisherRef.publishSchema(schema.toString(), metadata);
-//                    sidecarCdcStats.capturePublishedSchema(); //FIXME
+                        schemaStoreStats.capturePublishedSchema();
                     }
                     return new SchemaCacheEntry(schema, cqlTable);
                 });

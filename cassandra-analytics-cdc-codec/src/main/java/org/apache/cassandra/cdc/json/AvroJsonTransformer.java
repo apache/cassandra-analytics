@@ -20,7 +20,6 @@
 package org.apache.cassandra.cdc.json;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.apache.avro.Schema;
@@ -34,6 +33,8 @@ import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
 
+import static org.apache.cassandra.cdc.avro.AvroFields.PAYLOAD_KEY;
+
 public class AvroJsonTransformer extends CdcEventAvroEncoder
 {
     public AvroJsonTransformer(SchemaStore schemaStore, Function<KeyspaceTypeKey, CqlField.CqlType> typeLookup)
@@ -45,16 +46,7 @@ public class AvroJsonTransformer extends CdcEventAvroEncoder
     public GenericData.Record transform(CdcEvent event)
     {
         final GenericData.Record payload = transformPayload(event, typeLookup);
-        final long timestamp = event.getTimestamp(TimeUnit.MICROSECONDS);
         final GenericData.Record record = new GenericData.Record(cdcSchema);
-        record.put("payload", payload);
-        record.put("timestampMicros", timestamp);
-        record.put("version", "2");
-        record.put("isPartial", true);
-        record.put("sourceTable", event.table);
-        record.put("sourceKeyspace", event.keyspace);
-        record.put("operationType", CdcEventUtils.getAvroOperationType(event, cdcSchema));
-        record.put("updateFields", CdcEventUtils.updatedFieldNames(event));
         Function<Value, Object> avroFieldEncoder = field -> {
             Schema tableSchema = store.getSchema(event.keyspace + '.' + event.table, null);
             GenericData.Record update = new GenericData.Record(tableSchema);
@@ -63,8 +55,8 @@ public class AvroJsonTransformer extends CdcEventAvroEncoder
             update.put(field.columnName, AvroDataUtils.toAvro(javaValue, tableSchema.getField(field.columnName).schema()));
             return ByteBuffer.wrap(encode(store.getWriter(event.keyspace + '.' + event.table, null), update));
         };
-        record.put("range", CdcEventUtils.getRangeTombstoneAvro(event, rangeSchema, avroFieldEncoder));
-        record.put("ttl", CdcEventUtils.getTTLAvro(event, ttlSchema));
+        record.put(PAYLOAD_KEY, payload);
+        applyCommonFields(event, record, avroFieldEncoder);
         return record;
     }
 

@@ -19,21 +19,12 @@
 
 package org.apache.cassandra.cdc.schemastore;
 
-import org.apache.cassandra.cdc.kafka.KafkaOptions;
-import org.jetbrains.annotations.Nullable;
-
-public interface SchemaStorePublisherFactory
+public interface SchemaStoreStats
 {
-    SchemaStorePublisherFactory DEFAULT = new SchemaStorePublisherFactory()
+    /**
+     * Schema has been published.
+     */
+    default void capturePublishedSchema()
     {
-        @Nullable
-        @Override
-        public TableSchemaPublisher buildPublisher(KafkaOptions kafkaOptions)
-        {
-            return null;
-        }
-    };
-
-    @Nullable
-    TableSchemaPublisher buildPublisher(KafkaOptions kafkaOptions);
+    }
 }

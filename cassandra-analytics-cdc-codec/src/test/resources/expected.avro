@@ -1,0 +1,201 @@
+{
+  "type" : "record",
+  "name" : "tb",
+  "namespace" : "ks.tb",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "b",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "c",
+    "type" : [ {
+      "type" : "bytes",
+      "cqlType" : "blob"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "d",
+    "type" : [ {
+      "type" : "bytes",
+      "cqlType" : "blob"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "e",
+    "type" : [ {
+      "type" : "bytes",
+      "cqlType" : "blob"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "f",
+    "type" : [ {
+      "type" : "long",
+      "logicalType" : "timestamp-micros",
+      "cqlType" : "timestamp"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "g",
+    "type" : [ {
+      "type" : "long",
+      "cqlType" : "bigint"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "h",
+    "type" : [ {
+      "type" : "long",
+      "logicalType" : "timestamp-micros",
+      "cqlType" : "timestamp"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "i",
+    "type" : [ {
+      "type" : "long",
+      "logicalType" : "timestamp-micros",
+      "cqlType" : "timestamp"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "j",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "k",
+    "type" : [ {
+      "type" : "long",
+      "logicalType" : "timestamp-micros",
+      "cqlType" : "timestamp"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "l",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "m",
+    "type" : [ {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "array_map",
+        "namespace" : "ks.tb.m.array_map",
+        "fields" : [ {
+          "name" : "key",
+          "type" : {
+            "type" : "string",
+            "cqlType" : "text"
+          }
+        }, {
+          "name" : "value",
+          "type" : {
+            "type" : "string",
+            "cqlType" : "text"
+          }
+        } ]
+      },
+      "logicalType" : "array_map",
+      "cqlType" : "map<text, text>"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "n",
+    "type" : [ {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "array_map",
+        "namespace" : "ks.tb.n.array_map",
+        "fields" : [ {
+          "name" : "key",
+          "type" : {
+            "type" : "string",
+            "cqlType" : "text"
+          }
+        }, {
+          "name" : "value",
+          "type" : {
+            "type" : "string",
+            "cqlType" : "text"
+          }
+        } ]
+      },
+      "logicalType" : "array_map",
+      "cqlType" : "map<text, text>"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "o",
+    "type" : [ {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "array_map",
+        "namespace" : "ks.tb.o.array_map",
+        "fields" : [ {
+          "name" : "key",
+          "type" : {
+            "type" : "string",
+            "cqlType" : "text"
+          }
+        }, {
+          "name" : "value",
+          "type" : {
+            "type" : "string",
+            "cqlType" : "text"
+          }
+        } ]
+      },
+      "logicalType" : "array_map",
+      "cqlType" : "map<text, text>"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "p",
+    "type" : [ {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "cqlType" : "text"
+      },
+      "logicalType" : "array_set",
+      "cqlType" : "set<text>"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "q",
+    "type" : [ {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "cqlType" : "text"
+      },
+      "logicalType" : "array_set",
+      "cqlType" : "set<text>"
+    }, "null" ],
+    "doc" : "doc"
+  } ],
+  "primary_keys" : [ "a", "b" ],
+  "partition_keys" : [ "a" ],
+  "clustering_keys" : [ "b" ],
+  "static_columns" : [ ]
+}

@@ -20,13 +20,16 @@
 package org.apache.cassandra.cdc.avro;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import com.google.common.io.Resources;
+import org.apache.commons.io.IOUtils;
 import org.junit.jupiter.api.Test;
 
 import org.apache.avro.LogicalType;
@@ -57,212 +60,11 @@ import static org.junit.jupiter.api.Assertions.fail;
 public class CqlToAvroSchemaConverterTest
 {
     private static volatile int id = 0;
-    private static final String expected_avro_string = "{\n" +
-                                                       "  \"type\" : \"record\",\n" +
-                                                       "  \"name\" : \"tb\",\n" +
-                                                       "  \"namespace\" : \"ks.tb\",\n" +
-                                                       "  \"doc\" : \"doc\",\n" +
-                                                       "  \"fields\" : [ {\n" +
-                                                       "    \"name\" : \"a\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"string\",\n" +
-                                                       "      \"cqlType\" : \"text\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"b\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"string\",\n" +
-                                                       "      \"cqlType\" : \"text\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"c\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"bytes\",\n" +
-                                                       "      \"cqlType\" : \"blob\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"d\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"bytes\",\n" +
-                                                       "      \"cqlType\" : \"blob\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"e\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"bytes\",\n" +
-                                                       "      \"cqlType\" : \"blob\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"f\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"long\",\n" +
-                                                       "      \"logicalType\" : \"timestamp-micros\",\n" +
-                                                       "      \"cqlType\" : \"timestamp\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"g\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"long\",\n" +
-                                                       "      \"cqlType\" : \"bigint\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"h\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"long\",\n" +
-                                                       "      \"logicalType\" : \"timestamp-micros\",\n" +
-                                                       "      \"cqlType\" : \"timestamp\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"i\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"long\",\n" +
-                                                       "      \"logicalType\" : \"timestamp-micros\",\n" +
-                                                       "      \"cqlType\" : \"timestamp\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"j\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"string\",\n" +
-                                                       "      \"cqlType\" : \"text\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"k\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"long\",\n" +
-                                                       "      \"logicalType\" : \"timestamp-micros\",\n" +
-                                                       "      \"cqlType\" : \"timestamp\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"l\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"string\",\n" +
-                                                       "      \"cqlType\" : \"text\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"m\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"array\",\n" +
-                                                       "      \"items\" : {\n" +
-                                                       "        \"type\" : \"record\",\n" +
-                                                       "        \"name\" : \"array_map\",\n" +
-                                                       "        \"namespace\" : \"ks.tb.m.array_map\",\n" +
-                                                       "        \"fields\" : [ {\n" +
-                                                       "          \"name\" : \"key\",\n" +
-                                                       "          \"type\" : {\n" +
-                                                       "            \"type\" : \"string\",\n" +
-                                                       "            \"cqlType\" : \"text\"\n" +
-                                                       "          }\n" +
-                                                       "        }, {\n" +
-                                                       "          \"name\" : \"value\",\n" +
-                                                       "          \"type\" : {\n" +
-                                                       "            \"type\" : \"string\",\n" +
-                                                       "            \"cqlType\" : \"text\"\n" +
-                                                       "          }\n" +
-                                                       "        } ]\n" +
-                                                       "      },\n" +
-                                                       "      \"logicalType\" : \"array_map\",\n" +
-                                                       "      \"cqlType\" : \"map<text, text>\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"n\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"array\",\n" +
-                                                       "      \"items\" : {\n" +
-                                                       "        \"type\" : \"record\",\n" +
-                                                       "        \"name\" : \"array_map\",\n" +
-                                                       "        \"namespace\" : \"ks.tb.n.array_map\",\n" +
-                                                       "        \"fields\" : [ {\n" +
-                                                       "          \"name\" : \"key\",\n" +
-                                                       "          \"type\" : {\n" +
-                                                       "            \"type\" : \"string\",\n" +
-                                                       "            \"cqlType\" : \"text\"\n" +
-                                                       "          }\n" +
-                                                       "        }, {\n" +
-                                                       "          \"name\" : \"value\",\n" +
-                                                       "          \"type\" : {\n" +
-                                                       "            \"type\" : \"string\",\n" +
-                                                       "            \"cqlType\" : \"text\"\n" +
-                                                       "          }\n" +
-                                                       "        } ]\n" +
-                                                       "      },\n" +
-                                                       "      \"logicalType\" : \"array_map\",\n" +
-                                                       "      \"cqlType\" : \"map<text, text>\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"o\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"array\",\n" +
-                                                       "      \"items\" : {\n" +
-                                                       "        \"type\" : \"record\",\n" +
-                                                       "        \"name\" : \"array_map\",\n" +
-                                                       "        \"namespace\" : \"ks.tb.o.array_map\",\n" +
-                                                       "        \"fields\" : [ {\n" +
-                                                       "          \"name\" : \"key\",\n" +
-                                                       "          \"type\" : {\n" +
-                                                       "            \"type\" : \"string\",\n" +
-                                                       "            \"cqlType\" : \"text\"\n" +
-                                                       "          }\n" +
-                                                       "        }, {\n" +
-                                                       "          \"name\" : \"value\",\n" +
-                                                       "          \"type\" : {\n" +
-                                                       "            \"type\" : \"string\",\n" +
-                                                       "            \"cqlType\" : \"text\"\n" +
-                                                       "          }\n" +
-                                                       "        } ]\n" +
-                                                       "      },\n" +
-                                                       "      \"logicalType\" : \"array_map\",\n" +
-                                                       "      \"cqlType\" : \"map<text, text>\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"p\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"array\",\n" +
-                                                       "      \"items\" : {\n" +
-                                                       "        \"type\" : \"string\",\n" +
-                                                       "        \"cqlType\" : \"text\"\n" +
-                                                       "      },\n" +
-                                                       "      \"logicalType\" : \"array_set\",\n" +
-                                                       "      \"cqlType\" : \"set<text>\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  }, {\n" +
-                                                       "    \"name\" : \"q\",\n" +
-                                                       "    \"type\" : [ {\n" +
-                                                       "      \"type\" : \"array\",\n" +
-                                                       "      \"items\" : {\n" +
-                                                       "        \"type\" : \"string\",\n" +
-                                                       "        \"cqlType\" : \"text\"\n" +
-                                                       "      },\n" +
-                                                       "      \"logicalType\" : \"array_set\",\n" +
-                                                       "      \"cqlType\" : \"set<text>\"\n" +
-                                                       "    }, \"null\" ],\n" +
-                                                       "    \"doc\" : \"doc\"\n" +
-                                                       "  } ],\n" +
-                                                       "  \"primary_keys\" : [ \"a\", \"b\" ],\n" +
-                                                       "  \"partition_keys\" : [ \"a\" ],\n" +
-                                                       "  \"clustering_keys\" : [ \"b\" ],\n" +
-                                                       "  \"static_columns\" : [ ]\n" +
-                                                       '}';
 
     CqlToAvroSchemaConverter cqlToAvroSchemaConverter = new CqlToAvroSchemaConverterImplementation(new CassandraBridgeImplementation());
 
     @Test
-    public void testCqlToAvroSchemaString()
+    public void testCqlToAvroSchemaString() throws IOException
     {
         // example how to convert Cassandra CQL table schema into Avro
         final String tableCreateStmt = "CREATE TABLE ks.tb (\n" +
@@ -286,7 +88,14 @@ public class CqlToAvroSchemaConverterTest
                                        "    PRIMARY KEY (a, b)\n" +
                                        ") WITH CLUSTERING ORDER BY (b ASC);";
         String avroStringjsonString = cqlToAvroSchemaConverter.schemaStringFromCql("ks", tableCreateStmt);
-        assertEquals(expected_avro_string, avroStringjsonString);
+        String expectedAvroString = null;
+        try (InputStream inputStream = Objects
+                                       .requireNonNull(CqlToAvroSchemaConverter.class.getResource("/expected.avro"), "Could not find expected.avro resource")
+                                       .openStream())
+        {
+            expectedAvroString = new String(IOUtils.toByteArray(inputStream), StandardCharsets.UTF_8);
+        }
+        assertEquals(expectedAvroString, avroStringjsonString);
     }
 
     @Test

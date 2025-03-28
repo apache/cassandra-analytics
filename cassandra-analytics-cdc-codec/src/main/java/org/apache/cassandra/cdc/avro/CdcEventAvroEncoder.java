@@ -23,6 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.apache.avro.Schema;
@@ -34,8 +35,20 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.cassandra.cdc.CdcEventTransformer;
 import org.apache.cassandra.cdc.api.KeyspaceTypeKey;
 import org.apache.cassandra.cdc.msg.CdcEvent;
+import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
+
+import static org.apache.cassandra.cdc.avro.AvroFields.CURRENT_VERSION;
+import static org.apache.cassandra.cdc.avro.AvroFields.IS_PARTIAL_KEY;
+import static org.apache.cassandra.cdc.avro.AvroFields.OPERATION_TYPE_KEY;
+import static org.apache.cassandra.cdc.avro.AvroFields.RANGE_KEY;
+import static org.apache.cassandra.cdc.avro.AvroFields.SOURCE_KEYSPACE_KEY;
+import static org.apache.cassandra.cdc.avro.AvroFields.SOURCE_TABLE_KEY;
+import static org.apache.cassandra.cdc.avro.AvroFields.TIMESTAMP_KEY;
+import static org.apache.cassandra.cdc.avro.AvroFields.TTL_KEY;
+import static org.apache.cassandra.cdc.avro.AvroFields.UPDATE_FIELDS_KEY;
+import static org.apache.cassandra.cdc.avro.AvroFields.VERSION_KEY;
 
 /**
  * Base abstraction to convert CdcEvent objects into another data format, e.g. Avro, Json etc
@@ -69,6 +82,20 @@ public abstract class CdcEventAvroEncoder implements CdcEventTransformer<Generic
      * @return transformed cdc event as an Avro GenericData.Record
      */
     public abstract GenericData.Record transform(CdcEvent event);
+
+    protected void applyCommonFields(CdcEvent event, GenericData.Record record, Function<Value, Object> avroFieldEncoder)
+    {
+        long timestamp = event.getTimestamp(TimeUnit.MICROSECONDS);
+        record.put(TIMESTAMP_KEY, timestamp);
+        record.put(VERSION_KEY, CURRENT_VERSION);
+        record.put(IS_PARTIAL_KEY, true);
+        record.put(SOURCE_TABLE_KEY, event.table);
+        record.put(SOURCE_KEYSPACE_KEY, event.keyspace);
+        record.put(OPERATION_TYPE_KEY, CdcEventUtils.getAvroOperationType(event, cdcSchema));
+        record.put(UPDATE_FIELDS_KEY, CdcEventUtils.updatedFieldNames(event));
+        record.put(RANGE_KEY, CdcEventUtils.getRangeTombstoneAvro(event, rangeSchema, avroFieldEncoder));
+        record.put(TTL_KEY, CdcEventUtils.getTTLAvro(event, ttlSchema));
+    }
 
     private static Schema readSchema(String filename)
     {

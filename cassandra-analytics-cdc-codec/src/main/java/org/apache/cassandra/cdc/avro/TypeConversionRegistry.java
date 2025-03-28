@@ -58,20 +58,14 @@ public class TypeConversionRegistry implements TypeConversion.Registry
                    : null;
         }
 
-        TypeMapping mapping;
-        // todo: refactor the ugly comparison
-        if (fieldSchema.getType() == Schema.Type.ARRAY || Objects.equals(logicalType.getName(), "uuid"))
-        {
-            mapping = TypeMapping.of(fieldSchema.getType().getName(), logicalType.getName());
-        }
-        else if (fieldSchema.getType() == Schema.Type.RECORD)
-        {
-            mapping = TypeMapping.of(fieldSchema.getType().getName(), logicalType.getName());
-        }
-        else
-        {
-            mapping = TypeMapping.of(fieldSchema.getType().getName(), logicalType.getName(), AvroSchemas.cqlType(fieldSchema));
-        }
+        boolean useAvroTypeName = fieldSchema.getType() == Schema.Type.ARRAY
+                                  || fieldSchema.getType() == Schema.Type.RECORD
+                                  || Objects.equals(logicalType.getName(), "uuid");
+        TypeMapping mapping = TypeMapping.of(
+        fieldSchema.getType().getName(),
+        logicalType.getName(),
+        useAvroTypeName ? logicalType.getName() : AvroSchemas.cqlType(fieldSchema)
+        );
         return conversions.get(mapping);
     }
 }

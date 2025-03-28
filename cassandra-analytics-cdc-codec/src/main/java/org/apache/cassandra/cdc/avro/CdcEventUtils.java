@@ -56,7 +56,7 @@ public final class CdcEventUtils
 
     public enum OperationType
     {
-        UPDATE, INSERT, DELETE, DELETE_RANGE, DELETE_PARTITION
+        UPDATE, INSERT, DELETE, COMPLEX_ELEMENT_DELETE, DELETE_RANGE, DELETE_PARTITION
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CdcEventUtils.class);
@@ -86,8 +86,9 @@ public final class CdcEventUtils
                 return OperationType.UPDATE;
             case DELETE:
             case ROW_DELETE:
-            case COMPLEX_ELEMENT_DELETE: // todo: distinguish the deletions. Require avro schema update.
                 return OperationType.DELETE;
+            case COMPLEX_ELEMENT_DELETE: // todo: distinguish the deletions. Require avro schema update.
+                return OperationType.COMPLEX_ELEMENT_DELETE;
             case RANGE_DELETE:
                 return OperationType.DELETE_RANGE;
             case PARTITION_DELETE:
@@ -105,7 +106,6 @@ public final class CdcEventUtils
                                    .collect(Collectors.toList());
     }
 
-    // todo: seems a good candidate to be moved up to AbstractCdcEvent
     public static List<Value> updatedFields(CdcEvent event)
     {
         List<Value> result = new ArrayList<>();

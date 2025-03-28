@@ -17,23 +17,25 @@
  * under the License.
  */
 
-package org.apache.cassandra.cdc.schemastore;
+package org.apache.cassandra.cdc.avro;
 
-import org.apache.cassandra.cdc.kafka.KafkaOptions;
-import org.jetbrains.annotations.Nullable;
-
-public interface SchemaStorePublisherFactory
+public final class AvroFields
 {
-    SchemaStorePublisherFactory DEFAULT = new SchemaStorePublisherFactory()
-    {
-        @Nullable
-        @Override
-        public TableSchemaPublisher buildPublisher(KafkaOptions kafkaOptions)
-        {
-            return null;
-        }
-    };
+    public static final String PAYLOAD_KEY = "payload";
+    public static final String TIMESTAMP_KEY = "timestampMicros";
+    public static final String VERSION_KEY = "version";
+    public static final String IS_PARTIAL_KEY = "isPartial";
+    public static final String SOURCE_TABLE_KEY = "sourceTable";
+    public static final String SOURCE_KEYSPACE_KEY = "sourceKeyspace";
+    public static final String OPERATION_TYPE_KEY = "operationType";
+    public static final String UPDATE_FIELDS_KEY = "updateFields";
+    public static final String RANGE_KEY = "range";
+    public static final String TTL_KEY = "ttl";
 
-    @Nullable
-    TableSchemaPublisher buildPublisher(KafkaOptions kafkaOptions);
+    public static final String CURRENT_VERSION = "2";
+
+    private AvroFields()
+    {
+
+    }
 }

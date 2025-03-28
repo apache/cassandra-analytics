@@ -229,13 +229,6 @@ public interface SidecarCdcStats
     }
 
     /**
-     * Schema has been published.
-     */
-    default void capturePublishedSchema()
-    {
-    }
-
-    /**
      * Cdc state has been written through http api.
      *
      * @param len length of the request body

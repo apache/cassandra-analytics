@@ -17,23 +17,11 @@
  * under the License.
  */
 
-package org.apache.cassandra.cdc.schemastore;
+package org.apache.cassandra.cdc.kafka;
 
-import org.apache.cassandra.cdc.kafka.KafkaOptions;
-import org.jetbrains.annotations.Nullable;
+import java.util.Map;
 
-public interface SchemaStorePublisherFactory
+public interface KafkaOptions
 {
-    SchemaStorePublisherFactory DEFAULT = new SchemaStorePublisherFactory()
-    {
-        @Nullable
-        @Override
-        public TableSchemaPublisher buildPublisher(KafkaOptions kafkaOptions)
-        {
-            return null;
-        }
-    };
-
-    @Nullable
-    TableSchemaPublisher buildPublisher(KafkaOptions kafkaOptions);
+    Map<String, Object> kafkaConfigs();
 }

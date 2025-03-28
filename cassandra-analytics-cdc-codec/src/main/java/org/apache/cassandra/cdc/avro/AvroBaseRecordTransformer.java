@@ -21,7 +21,6 @@ package org.apache.cassandra.cdc.avro;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
 import org.apache.avro.Schema;
@@ -68,17 +67,6 @@ extends CdcEventAvroEncoder
         T serializedEvent = serializeEvent(event);
         GenericData.Record record = buildRecordWithPayload(serializedEvent);
 
-        long timestamp = event.getTimestamp(TimeUnit.MICROSECONDS);
-        record.put("timestampMicros", timestamp);
-        record.put("version", "2");
-        record.put("isPartial", true);
-        record.put("sourceTable", event.table);
-        record.put("sourceKeyspace", event.keyspace);
-        String schemaUuid = store.getVersion(event.keyspace + '.' + event.table, null);
-        record.put("schemaUuid", schemaUuid);
-        record.put("truncatedFields", serializedEvent.truncatedFields);
-        record.put("operationType", CdcEventUtils.getAvroOperationType(event, cdcSchema));
-        record.put("updateFields", CdcEventUtils.updatedFieldNames(event));
         Function<Value, Object> predicateFieldEncoder = field -> {
             ByteBuffer fieldValue = field.getValue();
             Preconditions.checkNotNull(fieldValue, "Field value of column %s should not be null for range predicate", field.columnName);
@@ -94,8 +82,10 @@ extends CdcEventAvroEncoder
             update.put(field.columnName, AvroDataUtils.toAvro(javaValue, column.schema()));
             return ByteBuffer.wrap(encode(store.getWriter(event.keyspace + '.' + event.table, null), update));
         };
-        record.put("range", CdcEventUtils.getRangeTombstoneAvro(event, rangeSchema, predicateFieldEncoder));
-        record.put("ttl", CdcEventUtils.getTTLAvro(event, ttlSchema));
+        applyCommonFields(event, record, predicateFieldEncoder);
+        String schemaUuid = store.getVersion(event.keyspace + '.' + event.table, null);
+        record.put("schemaUuid", schemaUuid);
+        record.put("truncatedFields", serializedEvent.truncatedFields);
         return record;
     }
 
