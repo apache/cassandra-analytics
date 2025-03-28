@@ -34,6 +34,7 @@ import org.apache.cassandra.cdc.msg.CdcEventBuilder;
 import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.spark.utils.TableIdentifier;
 
+import static org.apache.cassandra.spark.utils.ArrayUtils.listOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -45,10 +46,10 @@ public class KafkaPublisherTest
     {
         CdcEvent event1 = makeEvent("str", 123, 456L,
                                     1.2, "bytes".getBytes(),
-                                    List.of(1, 2), 1);
+                                    listOf(1, 2), 1);
         CdcEvent event2 = makeEvent("str", 123, 456L,
                                         1.2, "bytes".getBytes(),
-                                    List.of(1, 2), 1);
+                                    listOf(1, 2), 1);
         assertEquals(EventHasher.MURMUR2.hashEvent(event1),
                      EventHasher.MURMUR2.hashEvent(event2),
                      "Hash should be the same from rows with the same partition key values");
@@ -98,7 +99,7 @@ public class KafkaPublisherTest
     {
         CassandraBridge bridge = CdcBridgeFactory.get(CassandraVersion.FOURZERO);
         CdcEventBuilder eventBuilder = CdcEventBuilder.of(CdcEvent.Kind.UPDATE, "ks", "tbl");
-        eventBuilder.setPartitionKeys(List.of(
+        eventBuilder.setPartitionKeys(listOf(
         Value.of("ks", "pk1", "text", bridge.text().serialize(primaryKey1Value)),
         Value.of("ks", "pk2", "int", bridge.aInt().serialize(primaryKey2Value)),
         Value.of("ks", "pk3", "bigint", bridge.bigint().serialize(primaryKey3Value)),

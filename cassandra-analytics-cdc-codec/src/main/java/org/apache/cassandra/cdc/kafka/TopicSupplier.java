@@ -28,6 +28,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cassandra.cdc.msg.CdcEvent;
 
+import static org.apache.cassandra.spark.utils.ArrayUtils.listOf;
 
 public interface TopicSupplier
 {
@@ -101,7 +102,7 @@ public interface TopicSupplier
 
         protected List<String> args(CdcEvent event)
         {
-            return List.of(event.keyspace);
+            return listOf(event.keyspace);
         }
     }
 
@@ -114,7 +115,7 @@ public interface TopicSupplier
 
         protected List<String> args(CdcEvent event)
         {
-            return List.of(event.keyspace, event.table);
+            return listOf(event.keyspace, event.table);
         }
     }
 
@@ -127,7 +128,7 @@ public interface TopicSupplier
 
         protected List<String> args(CdcEvent event)
         {
-            return List.of(event.table);
+            return listOf(event.table);
         }
     }
 

@@ -24,7 +24,6 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.Iterator;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -43,6 +42,7 @@ import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.RandomUtils;
 
+import static org.apache.cassandra.spark.utils.ArrayUtils.listOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -63,8 +63,8 @@ public class JsonSerializerTests
     public void testJsonSerializer() throws IOException
     {
         CdcEventBuilder eventBuilder = CdcEventBuilder.of(CdcEvent.Kind.INSERT, TEST_KS, TEST_TBL_BASIC);
-        eventBuilder.setPartitionKeys(List.of(Value.of(TEST_KS, "a", "int", TYPES.aInt().serialize(1))));
-        eventBuilder.setValueColumns(List.of(
+        eventBuilder.setPartitionKeys(listOf(Value.of(TEST_KS, "a", "int", TYPES.aInt().serialize(1))));
+        eventBuilder.setValueColumns(listOf(
         Value.of(TEST_KS, "b", "int", TYPES.aInt().serialize(2)),
         Value.of(TEST_KS, "c", "int", TYPES.aInt().serialize(3))
         ));
@@ -111,9 +111,9 @@ public class JsonSerializerTests
     public void testJsonBinary() throws IOException
     {
         CdcEventBuilder eventBuilder = CdcEventBuilder.of(CdcEvent.Kind.INSERT, TEST_KS, TEST_TBL_BINARY);
-        eventBuilder.setPartitionKeys(List.of(Value.of(TEST_KS, "a", "int", TYPES.aInt().serialize(1))));
+        eventBuilder.setPartitionKeys(listOf(Value.of(TEST_KS, "a", "int", TYPES.aInt().serialize(1))));
         ByteBuffer randomBytes = ByteBuffer.wrap(RandomUtils.randomBytes(128));
-        eventBuilder.setValueColumns(List.of(
+        eventBuilder.setValueColumns(listOf(
         Value.of(TEST_KS, "b", "blob", TYPES.blob().serialize(randomBytes)),
         Value.of(TEST_KS, "c", "inet", TYPES.inet().serialize(InetAddress.getByName("127.0.0.1")))
         ));
