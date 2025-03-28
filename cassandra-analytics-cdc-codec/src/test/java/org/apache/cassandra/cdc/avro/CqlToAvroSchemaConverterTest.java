@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import com.google.common.io.Resources;
@@ -48,7 +49,6 @@ import static org.apache.avro.Schema.Type.NULL;
 import static org.apache.avro.Schema.Type.RECORD;
 import static org.apache.avro.Schema.Type.STRING;
 import static org.apache.avro.Schema.Type.UNION;
-import static org.apache.cassandra.spark.utils.ArrayUtils.setOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -132,7 +132,7 @@ public class CqlToAvroSchemaConverterTest
         final String udt1 = "CREATE TYPE udt_1 (ids frozen<list<text>>, a int, b bigint, c text);";
         final String udt2 = "CREATE TYPE udt_2 (id text, show boolean);";
         String createStmt = decorateTable("CREATE TABLE %s (pk int PRIMARY KEY, c1 udt_1, c2 frozen<list<frozen<udt_2>>>);");
-        Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, setOf(udt1, udt2));
+        Schema schema = cqlToAvroSchemaConverter.convert("a", createStmt, Set.of(udt1, udt2));
         assertNotNull(schema.toString(true));
 
         Schema c1 = schema.getField("c1").schema();

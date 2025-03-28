@@ -87,7 +87,7 @@ public final class CdcEventUtils
             case DELETE:
             case ROW_DELETE:
                 return OperationType.DELETE;
-            case COMPLEX_ELEMENT_DELETE: // todo: distinguish the deletions. Require avro schema update.
+            case COMPLEX_ELEMENT_DELETE:
                 return OperationType.COMPLEX_ELEMENT_DELETE;
             case RANGE_DELETE:
                 return OperationType.DELETE_RANGE;
