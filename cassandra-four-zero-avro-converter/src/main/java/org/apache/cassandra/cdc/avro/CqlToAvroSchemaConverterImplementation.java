@@ -68,9 +68,9 @@ import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 
-import static org.apache.cassandra.cdc.avro.AvroSchemas.ARRAY_BASED_MAP_KEY_NAME;
-import static org.apache.cassandra.cdc.avro.AvroSchemas.ARRAY_BASED_MAP_VALUE_NAME;
-import static org.apache.cassandra.cdc.avro.AvroSchemas.INET_NAME;
+import static org.apache.cassandra.cdc.avro.AvroConstants.ARRAY_BASED_MAP_KEY_NAME;
+import static org.apache.cassandra.cdc.avro.AvroConstants.ARRAY_BASED_MAP_VALUE_NAME;
+import static org.apache.cassandra.cdc.avro.AvroConstants.INET_NAME;
 
 /**
  * Cassandra 4.0 implementation of `CqlToAvroSchemaConverter`
@@ -200,7 +200,7 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
         }
         else if (cqlType instanceof MapType)
         {
-            String arrayBasedMapName = AvroSchemas.ARRAY_BASED_MAP_NAME;
+            String arrayBasedMapName = AvroConstants.ARRAY_BASED_MAP_NAME;
             String childNamespace = namespace + '.' + arrayBasedMapName;
             // create a new avro schema, array of records, to simulate a map.
             SchemaBuilder.FieldAssembler<Schema> keyValue = SchemaBuilder.builder()
@@ -223,7 +223,7 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
         else if (cqlType instanceof UserType)
         {
             UserType userType = (UserType) cqlType;
-            String recordBasedUdt = AvroSchemas.RECORD_BASED_UDT_NAME;
+            String recordBasedUdt = AvroConstants.RECORD_BASED_UDT_NAME;
             String childNamespace = namespace + '.' + recordBasedUdt;
             Schema[] ar = userType.fieldTypes().stream().map(udtType -> schemaFrom(udtType, childNamespace)).toArray(Schema[]::new);
 

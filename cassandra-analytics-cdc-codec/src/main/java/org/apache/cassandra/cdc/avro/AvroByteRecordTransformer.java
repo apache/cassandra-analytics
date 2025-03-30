@@ -61,7 +61,7 @@ public class AvroByteRecordTransformer extends AvroBaseRecordTransformer<ByteRec
     {
         final byte[] payload = serializedEvent.payload;
         final GenericData.Record record = new GenericData.Record(cdcSchema);
-        record.put("payload", ByteBuffer.wrap(payload));
+        record.put(AvroConstants.PAYLOAD_KEY, ByteBuffer.wrap(payload));
         return record;
     }
 

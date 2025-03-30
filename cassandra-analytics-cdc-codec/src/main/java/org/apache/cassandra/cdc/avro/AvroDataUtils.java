@@ -40,8 +40,8 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.BinaryEncoder;
 import org.apache.avro.io.EncoderFactory;
 
-import static org.apache.cassandra.cdc.avro.AvroSchemas.ARRAY_BASED_MAP_KEY_NAME;
-import static org.apache.cassandra.cdc.avro.AvroSchemas.ARRAY_BASED_MAP_VALUE_NAME;
+import static org.apache.cassandra.cdc.avro.AvroConstants.ARRAY_BASED_MAP_KEY_NAME;
+import static org.apache.cassandra.cdc.avro.AvroConstants.ARRAY_BASED_MAP_VALUE_NAME;
 import static org.apache.cassandra.cdc.avro.AvroSchemas.isRecordBasedUdt;
 import static org.apache.cassandra.cdc.avro.AvroSchemas.unwrapNullable;
 
@@ -156,7 +156,7 @@ public final class AvroDataUtils
         {
             Schema elementSchema = unwrapNullable(fieldSchema).getElementType();
             return ((Collection<?>) cassandraValue).stream()
-                                                   .map(v -> toAvro(v, elementSchema))
+                                                   .map(value -> toAvro(value, elementSchema))
                                                    .collect(Collectors.toList());
         }
         else if (cassandraValue instanceof UUID)

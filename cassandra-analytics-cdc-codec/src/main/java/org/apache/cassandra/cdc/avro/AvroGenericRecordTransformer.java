@@ -68,7 +68,7 @@ public class AvroGenericRecordTransformer extends
         GenericRecord payload = serializedEvent.payload;
         Schema newSchema = getTempSchemaForEvent(serializedEvent);
         GenericData.Record record = new GenericData.Record(newSchema);
-        record.put("payload", payload);
+        record.put(AvroConstants.PAYLOAD_KEY, payload);
         return record;
     }
 
@@ -82,14 +82,14 @@ public class AvroGenericRecordTransformer extends
             namespace = schemaNamespacePrefix + '.' + event.keyspace;
         }
         Schema tempSchema = Schema.createRecord(name, "schema", namespace, false);
-        Schema.Field payloadField = new Schema.Field("payload", event.payload.getSchema(), "payload");
+        Schema.Field payloadField = new Schema.Field(AvroConstants.PAYLOAD_KEY, event.payload.getSchema(), AvroConstants.PAYLOAD_KEY);
 
         // Avro schema fields can't be modified. That's why we need to create a new schema with the
         // dynamically generated payload field.
         List<Schema.Field> fields = new ArrayList<>();
         for (Schema.Field f : cdcSchema.getFields())
         {
-            if (!f.name().equals("payload") && !f.name().equals("namespace") && !f.name().equals("name"))
+            if (!f.name().equals(AvroConstants.PAYLOAD_KEY) && !f.name().equals("namespace") && !f.name().equals("name"))
             {
                 Schema.Field ff = new Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal());
                 fields.add(ff);

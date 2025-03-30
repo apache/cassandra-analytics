@@ -39,16 +39,16 @@ import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
 
-import static org.apache.cassandra.cdc.avro.AvroFields.CURRENT_VERSION;
-import static org.apache.cassandra.cdc.avro.AvroFields.IS_PARTIAL_KEY;
-import static org.apache.cassandra.cdc.avro.AvroFields.OPERATION_TYPE_KEY;
-import static org.apache.cassandra.cdc.avro.AvroFields.RANGE_KEY;
-import static org.apache.cassandra.cdc.avro.AvroFields.SOURCE_KEYSPACE_KEY;
-import static org.apache.cassandra.cdc.avro.AvroFields.SOURCE_TABLE_KEY;
-import static org.apache.cassandra.cdc.avro.AvroFields.TIMESTAMP_KEY;
-import static org.apache.cassandra.cdc.avro.AvroFields.TTL_KEY;
-import static org.apache.cassandra.cdc.avro.AvroFields.UPDATE_FIELDS_KEY;
-import static org.apache.cassandra.cdc.avro.AvroFields.VERSION_KEY;
+import static org.apache.cassandra.cdc.avro.AvroConstants.CURRENT_VERSION;
+import static org.apache.cassandra.cdc.avro.AvroConstants.IS_PARTIAL_KEY;
+import static org.apache.cassandra.cdc.avro.AvroConstants.OPERATION_TYPE_KEY;
+import static org.apache.cassandra.cdc.avro.AvroConstants.RANGE_KEY;
+import static org.apache.cassandra.cdc.avro.AvroConstants.SOURCE_KEYSPACE_KEY;
+import static org.apache.cassandra.cdc.avro.AvroConstants.SOURCE_TABLE_KEY;
+import static org.apache.cassandra.cdc.avro.AvroConstants.TIMESTAMP_KEY;
+import static org.apache.cassandra.cdc.avro.AvroConstants.TTL_KEY;
+import static org.apache.cassandra.cdc.avro.AvroConstants.UPDATE_FIELDS_KEY;
+import static org.apache.cassandra.cdc.avro.AvroConstants.VERSION_KEY;
 
 /**
  * Base abstraction to convert CdcEvent objects into another data format, e.g. Avro, Json etc
@@ -113,9 +113,9 @@ public abstract class CdcEventAvroEncoder implements CdcEventTransformer<Generic
 
     private static Schema extractTtlSchema(Schema cdcSchema)
     {
-        List<Schema> nullableTtlUnion = cdcSchema.getField("ttl").schema().getTypes();
+        List<Schema> nullableTtlUnion = cdcSchema.getField(TTL_KEY).schema().getTypes();
         return nullableTtlUnion.stream()
-                               .filter(s -> s.getType() == Schema.Type.RECORD)
+                               .filter(schema -> schema.getType() == Schema.Type.RECORD)
                                .findFirst()
                                .orElseThrow(
                                () -> new IllegalStateException(
@@ -124,9 +124,9 @@ public abstract class CdcEventAvroEncoder implements CdcEventTransformer<Generic
 
     private static Schema extractRangeSchema(Schema cdcSchema)
     {
-        List<Schema> nullableRangeUnion = cdcSchema.getField("range").schema().getTypes();
+        List<Schema> nullableRangeUnion = cdcSchema.getField(RANGE_KEY).schema().getTypes();
         return nullableRangeUnion.stream()
-                                 .filter(s -> s.getType() == Schema.Type.ARRAY)
+                                 .filter(schema -> schema.getType() == Schema.Type.ARRAY)
                                  .map(Schema::getElementType)
                                  .findFirst()
                                  .orElseThrow(() -> new IllegalStateException(

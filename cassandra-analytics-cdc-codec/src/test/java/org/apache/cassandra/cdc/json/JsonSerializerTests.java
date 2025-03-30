@@ -35,6 +35,7 @@ import com.fasterxml.jackson.databind.node.NullNode;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CdcBridgeFactory;
 import org.apache.cassandra.cdc.api.KeyspaceTypeKey;
+import org.apache.cassandra.cdc.avro.AvroConstants;
 import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.msg.CdcEventBuilder;
 import org.apache.cassandra.cdc.msg.Value;
@@ -79,16 +80,16 @@ public class JsonSerializerTests
         assertNotNull(ar);
 
         JsonNode root = MAPPER.readTree(ar);
-        JsonNode payload = root.get("payload");
+        JsonNode payload = root.get(AvroConstants.PAYLOAD_KEY);
         assertEquals(1, payload.get("a").asInt());
         assertEquals(2, payload.get("b").asInt());
         assertEquals(3, payload.get("c").asInt());
-        assertTrue(root.has("updateFields"));
-        JsonNode updatedFields = root.get("updateFields");
+        assertTrue(root.has(AvroConstants.UPDATE_FIELDS_KEY));
+        JsonNode updatedFields = root.get(AvroConstants.UPDATE_FIELDS_KEY);
         assertTrue(updatedFields.isArray());
-        assertEquals("a", root.get("updateFields").get(0).textValue());
-        assertEquals("b", root.get("updateFields").get(1).textValue());
-        assertEquals("c", root.get("updateFields").get(2).textValue());
+        assertEquals("a", root.get(AvroConstants.UPDATE_FIELDS_KEY).get(0).textValue());
+        assertEquals("b", root.get(AvroConstants.UPDATE_FIELDS_KEY).get(1).textValue());
+        assertEquals("c", root.get(AvroConstants.UPDATE_FIELDS_KEY).get(2).textValue());
         Iterator<JsonNode> fields = updatedFields.elements();
         while (fields.hasNext())
         {
@@ -99,12 +100,12 @@ public class JsonSerializerTests
         // these 2 fields are not updated, hence having null value and not being included in updateFields
         assertSame(NullNode.instance, payload.get("e"));
         assertSame(NullNode.instance, payload.get("f"));
-        assertEquals("INSERT", root.get("operationType").asText());
-        assertTrue(root.has("timestampMicros"));
-        assertTrue(root.has("ttl"));
-        JsonNode ttl = root.get("ttl");
-        assertEquals(10, ttl.get("ttl").asInt());
-        assertEquals(1658269, ttl.get("deletedAt").asInt());
+        assertEquals("INSERT", root.get(AvroConstants.OPERATION_TYPE_KEY).asText());
+        assertTrue(root.has(AvroConstants.TIMESTAMP_KEY));
+        assertTrue(root.has(AvroConstants.TTL_KEY));
+        JsonNode ttl = root.get(AvroConstants.TTL_KEY);
+        assertEquals(10, ttl.get(AvroConstants.TTL_KEY).asInt());
+        assertEquals(1658269, ttl.get(AvroConstants.DELETED_AT_KEY).asInt());
     }
 
     @Test
@@ -127,7 +128,7 @@ public class JsonSerializerTests
         }
         assertNotNull(ar);
         JsonNode root = MAPPER.readTree(ar);
-        JsonNode payload = root.get("payload");
+        JsonNode payload = root.get(AvroConstants.PAYLOAD_KEY);
 
         // assert on column b
         assertTrue(payload.has("b"));

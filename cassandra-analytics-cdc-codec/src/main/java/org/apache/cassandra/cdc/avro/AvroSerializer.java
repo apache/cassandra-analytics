@@ -138,7 +138,7 @@ public class AvroSerializer implements KafkaCdcSerializer<CdcEvent>
             try
             {
                 final GenericRecord header = cdcReader.read(null, decoder);
-                GenericRecord payload = deserializePayload(keyspace, table, header.get("schemaUuid").toString(), getPayload(header));
+                GenericRecord payload = deserializePayload(keyspace, table, header.get(AvroConstants.SCHEMA_UUID_KEY).toString(), getPayload(header));
                 return new CdcEnvelope(header, payload);
             }
             catch (IOException e)
@@ -149,7 +149,7 @@ public class AvroSerializer implements KafkaCdcSerializer<CdcEvent>
 
         public static byte[] getPayload(GenericRecord header)
         {
-            final ByteBuffer buf = (ByteBuffer) header.get("payload");
+            final ByteBuffer buf = (ByteBuffer) header.get(AvroConstants.PAYLOAD_KEY);
             final byte[] ar = new byte[buf.remaining()];
             buf.get(ar);
             return ar;

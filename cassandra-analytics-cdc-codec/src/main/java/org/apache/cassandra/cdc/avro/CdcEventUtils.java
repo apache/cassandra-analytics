@@ -71,7 +71,7 @@ public final class CdcEventUtils
     // - DELETE_PARTITION, partition deletion
     public static GenericData.EnumSymbol getAvroOperationType(CdcEvent event, Schema avroSchema)
     {
-        return new GenericData.EnumSymbol(avroSchema.getField("operationType").schema(),
+        return new GenericData.EnumSymbol(avroSchema.getField(AvroConstants.OPERATION_TYPE_KEY).schema(),
                                           getOperationType(event));
     }
 
@@ -102,7 +102,7 @@ public final class CdcEventUtils
     public static List<String> updatedFieldNames(CdcEvent event)
     {
         return updatedFields(event).stream()
-                                   .map(v -> v.columnName)
+                                   .map(value -> value.columnName)
                                    .collect(Collectors.toList());
     }
 
@@ -133,9 +133,9 @@ public final class CdcEventUtils
 
         return range.stream().map(tuple -> {
             GenericData.Record rangeRecord = new GenericData.Record(rangeSchema);
-            rangeRecord.put("field", tuple.get("field"));
-            rangeRecord.put("rangePredicateType", new GenericData.EnumSymbol(rangeSchema, tuple.get("rangePredicateType")));
-            rangeRecord.put("value", tuple.get("value"));
+            rangeRecord.put(AvroConstants.FIELD_KEY, tuple.get(AvroConstants.FIELD_KEY));
+            rangeRecord.put(AvroConstants.RANGE_PREDICATE_KEY, new GenericData.EnumSymbol(rangeSchema, tuple.get(AvroConstants.RANGE_PREDICATE_KEY)));
+            rangeRecord.put(AvroConstants.VALUE_KEY, tuple.get(AvroConstants.VALUE_KEY));
             return rangeRecord;
         }).collect(Collectors.toList());
     }
@@ -234,7 +234,7 @@ public final class CdcEventUtils
 
     private static Map<String, Object> makeRangePredicate(String columnName, String predicateType, Object value)
     {
-        return mapOf("field", columnName, "rangePredicateType", predicateType, "value", value);
+        return mapOf(AvroConstants.FIELD_KEY, columnName, AvroConstants.RANGE_PREDICATE_KEY, predicateType, AvroConstants.VALUE_KEY, value);
     }
 
     // return index of the longest prefix (exclusive)
@@ -278,8 +278,8 @@ public final class CdcEventUtils
         }
 
         GenericData.Record ttlRecord = new GenericData.Record(ttlSchema);
-        ttlRecord.put("ttl", ttl.ttlInSec);
-        ttlRecord.put("deletedAt", ttl.expirationTimeInSec);
+        ttlRecord.put(AvroConstants.TTL_KEY, ttl.ttlInSec);
+        ttlRecord.put(AvroConstants.DELETED_AT_KEY, ttl.expirationTimeInSec);
         return ttlRecord;
     }
 
@@ -290,7 +290,7 @@ public final class CdcEventUtils
         {
             return null;
         }
-        return mapOf("ttl", ttl.ttlInSec, "deletedAt", ttl.expirationTimeInSec);
+        return mapOf(AvroConstants.TTL_KEY, ttl.ttlInSec, AvroConstants.DELETED_AT_KEY, ttl.expirationTimeInSec);
     }
 
     public static UpdatedEvent getUpdatedEvent(CdcEvent event,

@@ -355,7 +355,7 @@ public interface TypeConversion<T>
     class SetConversion implements TypeConversion<Set<?>>
     {
         private static final TypeMapping TYPE_MAPPING = TypeMapping.of("array",
-                                                                       AvroSchemas.ARRAY_BASED_SET_NAME);
+                                                                       AvroConstants.ARRAY_BASED_SET_NAME);
 
         @Override
         public TypeMapping typeMapping()
@@ -368,8 +368,8 @@ public interface TypeConversion<T>
         {
             TypeConversion.ensureInputValueType(getClass().getSimpleName(), fieldValue, List.class);
             return ((List<?>) fieldValue).stream()
-                                         .map(v -> RecordReader.get()
-                                                               .convert(fieldSchema.getElementType(), v))
+                                         .map(value -> RecordReader.get()
+                                                               .convert(fieldSchema.getElementType(), value))
                                          .collect(toSet());
         }
     }
@@ -382,7 +382,7 @@ public interface TypeConversion<T>
     class MapConversion implements TypeConversion<Map<?, ?>>
     {
         private static final TypeMapping TYPE_MAPPING = TypeMapping.of("array",
-                                                                       AvroSchemas.ARRAY_BASED_MAP_NAME);
+                                                                       AvroConstants.ARRAY_BASED_MAP_NAME);
 
         @Override
         public TypeMapping typeMapping()
@@ -397,8 +397,8 @@ public interface TypeConversion<T>
 
             Schema subschema = fieldSchema.getElementType();
             Preconditions.checkArgument(subschema.getType() == Schema.Type.RECORD
-                                        && subschema.getField(AvroSchemas.ARRAY_BASED_MAP_KEY_NAME) != null
-                                        && subschema.getField(AvroSchemas.ARRAY_BASED_MAP_VALUE_NAME) != null,
+                                        && subschema.getField(AvroConstants.ARRAY_BASED_MAP_KEY_NAME) != null
+                                        && subschema.getField(AvroConstants.ARRAY_BASED_MAP_VALUE_NAME) != null,
                                         "MapConversion expects List to contain key value pairs, but has %s",
                                         subschema);
 
@@ -409,12 +409,12 @@ public interface TypeConversion<T>
 
         private Object readKey(GenericRecord kv)
         {
-            return readKvRec(kv, AvroSchemas.ARRAY_BASED_MAP_KEY_NAME);
+            return readKvRec(kv, AvroConstants.ARRAY_BASED_MAP_KEY_NAME);
         }
 
         private Object readValue(GenericRecord kv)
         {
-            return readKvRec(kv, AvroSchemas.ARRAY_BASED_MAP_VALUE_NAME);
+            return readKvRec(kv, AvroConstants.ARRAY_BASED_MAP_VALUE_NAME);
         }
 
         private Object readKvRec(GenericRecord kv, String name)
@@ -431,7 +431,7 @@ public interface TypeConversion<T>
     class UdtConversion implements TypeConversion<Map<?, ?>>
     {
         private static final TypeMapping TYPE_MAPPING = TypeMapping.of("record",
-                                                                       AvroSchemas.RECORD_BASED_UDT_NAME);
+                                                                       AvroConstants.RECORD_BASED_UDT_NAME);
 
         @Override
         public TypeMapping typeMapping()
@@ -481,8 +481,8 @@ public interface TypeConversion<T>
             TypeConversion.ensureInputValueType(getClass().getSimpleName(), fieldValue, List.class);
 
             return ((List<?>) fieldValue).stream()
-                                         .map(v -> RecordReader.get()
-                                                               .convert(fieldSchema.getElementType(), v))
+                                         .map(value -> RecordReader.get()
+                                                               .convert(fieldSchema.getElementType(), value))
                                          .collect(toList());
         }
     }

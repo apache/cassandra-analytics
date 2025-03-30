@@ -84,8 +84,8 @@ extends CdcEventAvroEncoder
         };
         applyCommonFields(event, record, predicateFieldEncoder);
         String schemaUuid = store.getVersion(event.keyspace + '.' + event.table, null);
-        record.put("schemaUuid", schemaUuid);
-        record.put("truncatedFields", serializedEvent.truncatedFields);
+        record.put(AvroConstants.SCHEMA_UUID_KEY, schemaUuid);
+        record.put(AvroConstants.TRUNCATED_FIELDS_KEY, serializedEvent.truncatedFields);
         return record;
     }
 

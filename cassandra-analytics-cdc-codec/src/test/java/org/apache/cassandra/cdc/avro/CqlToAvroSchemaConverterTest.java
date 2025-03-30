@@ -265,7 +265,7 @@ public class CqlToAvroSchemaConverterTest
     @Test
     public void testInetType()
     {
-        testLogicalType("inet", BYTES, new LogicalType(AvroSchemas.INET_NAME));
+        testLogicalType("inet", BYTES, new LogicalType(AvroConstants.INET_NAME));
     }
 
     @Test
@@ -392,8 +392,8 @@ public class CqlToAvroSchemaConverterTest
         assertTrue(AvroSchemas.isArrayBasedMap(arrayBasedMap));
         Schema keyValue = arrayBasedMap.getElementType();
         assertEquals(RECORD, keyValue.getType());
-        keyVerifier.accept(keyValue.getField(AvroSchemas.ARRAY_BASED_MAP_KEY_NAME).schema());
-        valueVerifier.accept(keyValue.getField(AvroSchemas.ARRAY_BASED_MAP_VALUE_NAME).schema());
+        keyVerifier.accept(keyValue.getField(AvroConstants.ARRAY_BASED_MAP_KEY_NAME).schema());
+        valueVerifier.accept(keyValue.getField(AvroConstants.ARRAY_BASED_MAP_VALUE_NAME).schema());
     }
 
     private static String readCqlType(Schema schema, String field)

@@ -33,7 +33,7 @@ import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
 
-import static org.apache.cassandra.cdc.avro.AvroFields.PAYLOAD_KEY;
+import static org.apache.cassandra.cdc.avro.AvroConstants.PAYLOAD_KEY;
 
 public class AvroJsonTransformer extends CdcEventAvroEncoder
 {

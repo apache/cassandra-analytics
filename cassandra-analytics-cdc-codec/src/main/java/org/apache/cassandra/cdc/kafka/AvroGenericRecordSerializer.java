@@ -38,6 +38,7 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.cassandra.cdc.api.KeyspaceTypeKey;
 import org.apache.cassandra.cdc.avro.AvroByteRecordTransformer;
 import org.apache.cassandra.cdc.avro.AvroDataUtils;
+import org.apache.cassandra.cdc.avro.AvroConstants;
 import org.apache.cassandra.cdc.avro.AvroGenericRecordTransformer;
 import org.apache.cassandra.cdc.avro.msg.CdcEnvelope;
 import org.apache.cassandra.cdc.msg.CdcEvent;
@@ -137,7 +138,7 @@ public class AvroGenericRecordSerializer implements KafkaCdcSerializer<CdcEvent>
             try
             {
                 GenericRecord header = cdcReader.read(null, decoder);
-                GenericRecord payload = (GenericRecord) header.get("payload");
+                GenericRecord payload = (GenericRecord) header.get(AvroConstants.PAYLOAD_KEY);
                 return new CdcEnvelope(header, payload);
             }
             catch (IOException e)
