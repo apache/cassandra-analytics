@@ -149,7 +149,7 @@ public final class Tester
     {
         // TODO: Make use of TestUtils.testableVersions() instead
         @NotNull
-        private List<CassandraVersion> versions = ImmutableList.of(CassandraVersion.FOURZERO);
+        private List<CassandraVersion> versions = ImmutableList.of(CassandraVersion.FIVEZERO);
         @Nullable
         private TestSchema.Builder schemaBuilder;
         @Nullable

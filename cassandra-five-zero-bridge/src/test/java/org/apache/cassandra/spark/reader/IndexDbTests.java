@@ -25,7 +25,6 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -39,10 +38,10 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.bridge.TokenRange;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
-import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.analytics.stats.Stats;
@@ -51,6 +50,7 @@ import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.NotNull;
 
+import static org.apache.cassandra.spark.TestUtils.BIG_FORMAT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -89,6 +89,7 @@ public class IndexDbTests
     {
         qt().forAll(arbitrary().enumValues(Partitioner.class))
             .checkAssert(partitioner -> {
+                DatabaseDescriptor.setSelectedSSTableFormat(BIG_FORMAT);
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
                     TestSchema schema = TestSchema.basicBuilder(BRIDGE).withCompression(false).build();
@@ -112,13 +113,11 @@ public class IndexDbTests
                     TableMetadata metadata = Schema.instance.getTableMetadata(schema.keyspace, schema.table);
                     assertNotNull(metadata, "Could not find table metadata");
 
-                    Path summaryDb = TestSSTable.firstIn(directory.path(), FileType.SUMMARY);
-                    assertNotNull(summaryDb, "Could not find summary");
-
                     SSTable ssTable = TestSSTable.firstIn(directory.path());
                     assertNotNull(ssTable, "Could not find SSTable");
 
-                    int rowSize = 39;
+                    // int rowSize = 39; // C* 4.x BIG format
+                    int rowSize = 28; // C* 5.x BIG format
                     int sample = 4;
                     // Sample the token list and read offset in Index.db for sampled list and verify the
                     // offset matches the expected we sample the list as IndexDbUtils.findStartOffset(...)

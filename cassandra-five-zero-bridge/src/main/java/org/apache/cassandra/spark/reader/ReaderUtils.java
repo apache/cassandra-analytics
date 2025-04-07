@@ -55,6 +55,7 @@ import org.apache.cassandra.io.sstable.CorruptSSTableException;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
 import org.apache.cassandra.io.sstable.format.Version;
+import org.apache.cassandra.io.sstable.format.bti.BtiReaderUtils;
 import org.apache.cassandra.io.sstable.format.bti.PartitionIndex;
 import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
 import org.apache.cassandra.io.sstable.metadata.MetadataType;
@@ -78,7 +79,6 @@ import org.apache.cassandra.utils.BloomFilterSerializer;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.TokenUtils;
 import org.apache.cassandra.utils.vint.VIntCoding;
-import org.apache.lucene.document.FieldType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -248,11 +248,18 @@ public final class ReaderUtils extends TokenUtils
     }
 
     public static boolean anyFilterKeyInIndex(@NotNull SSTable ssTable,
+                                              @NotNull TableMetadata metadata,
+                                              @NotNull Descriptor descriptor,
                                               @NotNull List<PartitionKeyFilter> filters) throws IOException
     {
         if (filters.isEmpty())
         {
             return false;
+        }
+
+        if (ssTable.isBtiFormat())
+        {
+            return BtiReaderUtils.primaryIndexContainsAnyKey(ssTable, metadata, descriptor, filters);
         }
 
         try (InputStream primaryIndex = ssTable.openPrimaryIndexStream())

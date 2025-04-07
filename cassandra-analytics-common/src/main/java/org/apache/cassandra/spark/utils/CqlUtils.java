@@ -226,7 +226,7 @@ public final class CqlUtils
 
     public static Set<String> extractUdts(@NotNull String schemaStr, @NotNull String keyspace)
     {
-        Pattern pattern = Pattern.compile(String.format("CREATE TYPE (IF NOT EXISTS)? \"?%s\"?\\.{1}[^;]*;", keyspace));
+        Pattern pattern = Pattern.compile(String.format("CREATE TYPE (IF NOT EXISTS)? ?\"?%s\"?\\.{1}[^;]*;", keyspace));
         Matcher matcher = pattern.matcher(schemaStr);
         Set<String> result = new HashSet<>();
         while (matcher.find())

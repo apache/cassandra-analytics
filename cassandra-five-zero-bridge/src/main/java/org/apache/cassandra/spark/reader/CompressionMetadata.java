@@ -27,6 +27,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.cassandra.io.compress.ICompressor;
+import org.apache.cassandra.io.util.File;
+import org.apache.cassandra.io.util.Memory;
 import org.apache.cassandra.schema.CompressionParams;
 import org.apache.cassandra.spark.reader.common.AbstractCompressionMetadata;
 import org.apache.cassandra.spark.reader.common.BigLongArray;
@@ -40,10 +42,12 @@ public class CompressionMetadata extends AbstractCompressionMetadata
 {
 
     private final CompressionParams parameters;
+    private final Memory chunkOffsetsMem;
 
-    private CompressionMetadata(long dataLength, BigLongArray chunkOffsets, CompressionParams parameters)
+    private CompressionMetadata(long dataLength, Memory chunkOffsetsMem, BigLongArray chunkOffsets, CompressionParams parameters)
     {
         super(dataLength, chunkOffsets);
+        this.chunkOffsetsMem = chunkOffsetsMem;
         this.parameters = parameters;
     }
 
@@ -78,11 +82,15 @@ public class CompressionMetadata extends AbstractCompressionMetadata
         int chunkCount = inData.readInt();
         chunkOffsets = new BigLongArray(chunkCount);
 
+        // TODO(c4c5): Duplicated memory allocation for Memory and BigLongArray.
+        Memory chunkOffsetsMem = Memory.allocate(chunkCount * 8L);
         for (int chunk = 0; chunk < chunkCount; chunk++)
         {
             try
             {
-                chunkOffsets.set(chunk, inData.readLong());
+                long l = inData.readLong();
+                chunkOffsets.set(chunk, l);
+                chunkOffsetsMem.setLong(chunk * 8L, l);
             }
             catch (EOFException exception)
             {
@@ -91,7 +99,7 @@ public class CompressionMetadata extends AbstractCompressionMetadata
             }
         }
 
-        return new CompressionMetadata(dataLength, chunkOffsets, params);
+        return new CompressionMetadata(dataLength, chunkOffsetsMem, chunkOffsets, params);
     }
 
     ICompressor compressor()
@@ -111,5 +119,16 @@ public class CompressionMetadata extends AbstractCompressionMetadata
         // TODO(c4c5): CRC check change gone?
         // return parameters.getCrcCheckChance();
         return 1.0;
+    }
+
+    // TODO(c4c5): Find better way to create Cassandra CompressionMetadata.
+    public org.apache.cassandra.io.compress.CompressionMetadata toInternal(File file, long compressedFileLength)
+    {
+        return new org.apache.cassandra.io.compress.CompressionMetadata(file,
+                                                                        parameters,
+                                                                        chunkOffsetsMem,
+                                                                        chunkOffsetsMem.size(),
+                                                                        getDataLength(),
+                                                                        compressedFileLength);
     }
 }

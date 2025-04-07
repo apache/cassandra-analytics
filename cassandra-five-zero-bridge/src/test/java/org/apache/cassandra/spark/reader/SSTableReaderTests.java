@@ -52,6 +52,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.bridge.TokenRange;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.BufferDecoratedKey;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.marshal.Int32Type;
@@ -85,6 +86,7 @@ import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.spark.TestUtils.SSTABLE_FORMATS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -249,8 +251,9 @@ public class SSTableReaderTests
     @SuppressWarnings("static-access")
     public void testSSTableRange()
     {
-        qt().forAll(arbitrary().enumValues(Partitioner.class))
-            .checkAssert(partitioner -> {
+        qt().forAll(arbitrary().enumValues(Partitioner.class), arbitrary().pick(SSTABLE_FORMATS))
+            .checkAssert((partitioner, format) -> {
+                DatabaseDescriptor.setSelectedSSTableFormat(format);
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
                     // Write an SSTable
@@ -272,14 +275,21 @@ public class SSTableReaderTests
                     assertNotNull(reader.firstToken());
                     assertNotNull(reader.lastToken());
 
-                    // Verify primary Index.db file matches first and last
-                    Path indexFile = TestSSTable.firstIn(directory.path(), FileType.INDEX);
-                    Pair<DecoratedKey, DecoratedKey> firstAndLast;
-                    try (InputStream is = new BufferedInputStream(new FileInputStream(indexFile.toFile())))
+                    Pair<DecoratedKey, DecoratedKey> firstAndLast = null;
+                    if (table.isBigFormat())
                     {
-                        Pair<ByteBuffer, ByteBuffer> keys = ReaderUtils.primaryIndexReadFirstAndLastKey(is);
-                        firstAndLast = Pair.of(BRIDGE.getPartitioner(partitioner).decorateKey(keys.left),
-                                               BRIDGE.getPartitioner(partitioner).decorateKey(keys.right));
+                        // Verify primary Index.db file matches first and last
+                        Path indexFile = TestSSTable.firstIn(directory.path(), FileType.INDEX);
+                        try (InputStream is = new BufferedInputStream(new FileInputStream(indexFile.toFile())))
+                        {
+                            Pair<ByteBuffer, ByteBuffer> keys = ReaderUtils.primaryIndexReadFirstAndLastKey(is);
+                            firstAndLast = Pair.of(BRIDGE.getPartitioner(partitioner).decorateKey(keys.left),
+                                                   BRIDGE.getPartitioner(partitioner).decorateKey(keys.right));
+                        }
+                    }
+                    else
+                    {
+                        firstAndLast = ReaderUtils.keysFromIndex(metadata, table);
                     }
                     BigInteger first = ReaderUtils.tokenToBigInteger(firstAndLast.left.getToken());
                     BigInteger last = ReaderUtils.tokenToBigInteger(firstAndLast.right.getToken());
@@ -360,8 +370,9 @@ public class SSTableReaderTests
     @Test
     public void testSkipNoPartitions()
     {
-        qt().forAll(arbitrary().enumValues(Partitioner.class))
-            .checkAssert(partitioner -> {
+        qt().forAll(arbitrary().enumValues(Partitioner.class), arbitrary().pick(SSTABLE_FORMATS))
+            .checkAssert((partitioner, format) -> {
+                DatabaseDescriptor.setSelectedSSTableFormat(format);
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
                     // Write an SSTable
@@ -378,19 +389,33 @@ public class SSTableReaderTests
                     assertEquals(1, TestSSTable.countIn(directory.path()));
 
                     SSTable dataFile = TestSSTable.firstIn(directory.path());
-                    Path summaryFile = TestSSTable.firstIn(directory.path(), FileType.SUMMARY);
                     TableMetadata metadata = tableMetadata(schema, partitioner);
-                    SummaryDbUtils.Summary summary;
-                    try (InputStream in = new BufferedInputStream(Files.newInputStream(summaryFile)))
+                    DecoratedKey first = null;
+                    DecoratedKey last = null;
+                    if (dataFile.isBigFormat())
                     {
-                        summary = SummaryDbUtils.readSummary(in,
-                                                             metadata.partitioner,
-                                                             metadata.params.minIndexInterval,
-                                                             metadata.params.maxIndexInterval);
+                        Path summaryFile = TestSSTable.firstIn(directory.path(), FileType.SUMMARY);
+                        try (InputStream in = new BufferedInputStream(Files.newInputStream(summaryFile)))
+                        {
+                            SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(in,
+                                                                                        metadata.partitioner,
+                                                                                        metadata.params.minIndexInterval,
+                                                                                        metadata.params.maxIndexInterval);
+                            first = summary.first();
+                            last = summary.last();
+                        }
+
                     }
+                    else
+                    {
+                        Pair<DecoratedKey, DecoratedKey> keys = ReaderUtils.keysFromIndex(metadata, dataFile);
+                        first = keys.left;
+                        last = keys.right;
+                    }
+
                     // Set Spark token range equal to SSTable token range
-                    TokenRange sparkTokenRange = TokenRange.closed(ReaderUtils.tokenToBigInteger(summary.first().getToken()),
-                                                                   ReaderUtils.tokenToBigInteger(summary.last().getToken()));
+                    TokenRange sparkTokenRange = TokenRange.closed(ReaderUtils.tokenToBigInteger(first.getToken()),
+                                                                   ReaderUtils.tokenToBigInteger(last.getToken()));
                     SparkRangeFilter rangeFilter = SparkRangeFilter.create(sparkTokenRange);
                     AtomicBoolean skipped = new AtomicBoolean(false);
                     Stats stats = new Stats()
@@ -1058,7 +1083,7 @@ public class SSTableReaderTests
             });
     }
 
-    private static TableMetadata tableMetadata(TestSchema schema, Partitioner partitioner)
+    public static TableMetadata tableMetadata(TestSchema schema, Partitioner partitioner)
     {
         return new SchemaBuilder(schema.createStatement,
                                  schema.keyspace,

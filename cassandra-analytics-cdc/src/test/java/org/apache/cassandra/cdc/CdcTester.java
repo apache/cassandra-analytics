@@ -260,7 +260,7 @@ public class CdcTester
     void run()
     {
         Map<String, TestSchema.TestRow> rows = new LinkedHashMap<>(numRows);
-        CassandraVersion version = CassandraVersion.FOURZERO;
+        CassandraVersion version = CassandraVersion.FIVEZERO;
 
         List<CdcEvent> cdcEvents = new ArrayList<>();
         try

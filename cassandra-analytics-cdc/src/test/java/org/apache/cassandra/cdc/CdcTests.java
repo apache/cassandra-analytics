@@ -81,7 +81,6 @@ import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.IOUtils;
 import org.apache.cassandra.spark.utils.TimeUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
-import org.apache.cassandra.transport.ProtocolVersion;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;

@@ -165,7 +165,7 @@ public final class TableSchemaTestCommon
         Pair<StructType, ImmutableMap<String, CqlField.CqlType>> pair = buildMatchedDataframeAndCqlColumns(fieldNames, sparkTypes, driverTypes);
         ImmutableMap<String, CqlField.CqlType> cqlColumns = pair.getValue();
         StructType dataFrameSchema = pair.getKey();
-        String cassandraVersion = "4.0.0";
+        String cassandraVersion = "5.0.3"; // TODO(c4c5): Run with C* 4.x and 5.x.
         return
             new MockTableSchemaBuilder(CassandraBridgeFactory.get(cassandraVersion))
                 .withCqlColumns(cqlColumns)

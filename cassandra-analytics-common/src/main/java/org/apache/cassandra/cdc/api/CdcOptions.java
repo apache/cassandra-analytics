@@ -223,6 +223,6 @@ public interface CdcOptions
      */
     default CassandraVersion version()
     {
-        return CassandraVersion.FOURZERO;
+        return CassandraVersion.FIVEZERO;
     }
 }

@@ -56,7 +56,7 @@ public class SortedSSTableWriterTest
     public static Iterable<Object[]> data()
     {
         return Arrays.stream(CassandraVersion.supportedVersions())
-                     .map(version -> new Object[]{version })
+                     .map(version -> new Object[]{version})
                      .collect(Collectors.toList());
     }
 

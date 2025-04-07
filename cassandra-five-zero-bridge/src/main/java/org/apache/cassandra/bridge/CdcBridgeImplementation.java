@@ -118,6 +118,7 @@ public class CdcBridgeImplementation extends CdcBridge
         DatabaseDescriptor.setCommitLogSyncGroupWindow(30);
         DatabaseDescriptor.setCommitLogSegmentSize(commitLogSegmentSize);
         DatabaseDescriptor.getRawConfig().commitlog_total_space = new DataStorageSpec.IntMebibytesBound(1024);
+        DatabaseDescriptor.setCommitLogWriteDiskAccessMode(Config.DiskAccessMode.direct); // Cassandra 4.x vs 5.x
         DatabaseDescriptor.setCommitLogSegmentMgrProvider((commitLog -> new CommitLogSegmentManagerCDC(commitLog, commitLogPath.toString())));
         setup = true;
     }

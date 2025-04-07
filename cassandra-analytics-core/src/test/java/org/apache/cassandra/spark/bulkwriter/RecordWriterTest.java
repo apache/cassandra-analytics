@@ -81,7 +81,7 @@ class RecordWriterTest
     private static final int REPLICA_COUNT = 3;
     private static final int FILES_PER_SSTABLE = 8;
     // writing 270 rows with sstable size cap of 1 MB should produce 2 sstable
-    private static final int UPLOADED_SSTABLES = 2;
+    private static final int UPLOADED_SSTABLES = 3; // TODO(c4c5): In C* 5 it will span 3 SSTables.
     private static final int ROWS_COUNT = 270;
     private static final String[] COLUMN_NAMES = {
     "id", "date", "course", "marks"

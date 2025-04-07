@@ -92,7 +92,7 @@ public class StreamSessionConsistencyTest
     {
         digestAlgorithm = new XXHash32DigestAlgorithm();
         tableWriter = new MockTableWriter(folder);
-        writerContext = new MockBulkWriterContext(TOKEN_RANGE_MAPPING, "cassandra-4.0.0", consistencyLevel);
+        writerContext = new MockBulkWriterContext(TOKEN_RANGE_MAPPING, "cassandra-5.0.3", consistencyLevel);
         writerContext.setReplicationFactor(new ReplicationFactor(NetworkTopologyStrategy, rfOptions));
         transportContext = (TransportContext.DirectDataBulkWriterContext) writerContext.transportContext();
     }

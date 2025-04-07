@@ -74,7 +74,7 @@ public enum CassandraVersion
                                     .toArray(CassandraVersion[]::new);
 
         String providedSupportedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.supported_versions",
-                                                                       "cassandra-4.0.17");
+                                                                       "cassandra-5.0.3");
         supportedVersions = Arrays.stream(providedSupportedVersionsOrDefault.split(","))
                                   .toArray(String[]::new);
     }

@@ -19,8 +19,7 @@
 
 package org.apache.cassandra.spark.reader;
 
-import java.util.HashMap;
-
+import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
@@ -98,7 +97,8 @@ public class SchemaBuilderTests
     {
         CassandraBridgeImplementation.setup();
         String keyspaceName = "foo" + getClass().getSimpleName();
-        ReplicationFactor replicationFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.LocalStrategy, new HashMap<>());
+        ReplicationFactor replicationFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
+                                                                    ImmutableMap.of("replication_factor", 1));
         KeyspaceMetadata keyspaceMetadata = KeyspaceMetadata.create(keyspaceName, KeyspaceParams.create(true, rfToMap(replicationFactor)));
         Schema.instance.transform(SchemaTransformations.addKeyspace(keyspaceMetadata, false)); // Cassandra 4.x vs 5.x
         Keyspace.openWithoutSSTables(keyspaceName);
@@ -111,7 +111,7 @@ public class SchemaBuilderTests
                 .builder(Types.none())
                 .build();
         KeyspaceMetadata keyspace = Schema.instance.getKeyspaceMetadata(keyspaceName);
-        Schema.instance.transform(SchemaTransformations.addKeyspace(keyspace.withSwapped(keyspace.tables.with(tableMetadata)), false)); // Cassandra 4.x vs 5.x
+        Schema.instance.transform(st -> st.withAddedOrUpdated(keyspace.withSwapped(keyspace.tables.with(tableMetadata)))); // Cassandra 4.x vs 5.x
 
         new SchemaBuilder(createTableStatement, keyspaceName, replicationFactor);
     }

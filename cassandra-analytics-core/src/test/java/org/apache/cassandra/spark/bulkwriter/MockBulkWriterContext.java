@@ -82,7 +82,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     new CqlField.CqlType[]{mockCqlType(INT), mockCqlType(DATE), mockCqlType(VARCHAR), mockCqlType(INT)});
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
-    private CassandraBridge bridge = CassandraBridgeFactory.get(CassandraVersion.FOURZERO);
+    private CassandraBridge bridge = CassandraBridgeFactory.get(CassandraVersion.FIVEZERO);
     private TimeSkewTooLargeException timeSkewTooLargeException;
 
     @Override
@@ -95,7 +95,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     {
     }
 
-    public static final String DEFAULT_CASSANDRA_VERSION = "cassandra-4.0.2";
+    public static final String DEFAULT_CASSANDRA_VERSION = "cassandra-5.0.3";
 
     private final UUID jobId;
     private boolean skipClean = false;

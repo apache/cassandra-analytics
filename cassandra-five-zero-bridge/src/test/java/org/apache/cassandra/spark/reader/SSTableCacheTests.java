@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
@@ -43,6 +44,7 @@ import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.cassandra.utils.BloomFilter;
 
+import static org.apache.cassandra.spark.TestUtils.SSTABLE_FORMATS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -55,11 +57,13 @@ public class SSTableCacheTests
 {
     private static final CassandraBridgeImplementation BRIDGE = new CassandraBridgeImplementation();
 
+    // CHECKSTYLE IGNORE: Long method
     @Test
     public void testCache()
     {
-        qt().forAll(arbitrary().enumValues(Partitioner.class))
-            .checkAssert(partitioner -> {
+        qt().forAll(arbitrary().enumValues(Partitioner.class), arbitrary().pick(SSTABLE_FORMATS))
+            .checkAssert((partitioner, format) -> {
+                DatabaseDescriptor.setSelectedSSTableFormat(format);
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
                     // Write an SSTable
@@ -83,17 +87,27 @@ public class SSTableCacheTests
                     assertFalse(SSTableCache.INSTANCE.containsCompressionMetadata(ssTable0));
 
                     SummaryDbUtils.Summary key1 = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable0);
-                    assertNotNull(key1);
-                    assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable0));
-                    assertFalse(SSTableCache.INSTANCE.containsIndex(ssTable0));
-                    assertFalse(SSTableCache.INSTANCE.containsStats(ssTable0));
-                    assertFalse(SSTableCache.INSTANCE.containsFilter(ssTable0));
-                    assertFalse(SSTableCache.INSTANCE.containsCompressionMetadata(ssTable0));
+                    if (ssTable0.isBigFormat())
+                    {
+                        assertNotNull(key1);
+                        assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable0));
+                        assertFalse(SSTableCache.INSTANCE.containsIndex(ssTable0));
+                        assertFalse(SSTableCache.INSTANCE.containsStats(ssTable0));
+                        assertFalse(SSTableCache.INSTANCE.containsFilter(ssTable0));
+                        assertFalse(SSTableCache.INSTANCE.containsCompressionMetadata(ssTable0));
+                    }
 
                     Pair<DecoratedKey, DecoratedKey> key2 = SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable0);
-                    assertEquals(key1.first(), key2.left);
-                    assertEquals(key1.last(), key2.right);
-                    assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable0));
+                    if (ssTable0.isBigFormat())
+                    {
+                        assertEquals(key1.first(), key2.left);
+                        assertEquals(key1.last(), key2.right);
+                        assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable0));
+                    }
+                    else
+                    {
+                        assertNotNull(key2);
+                    }
                     assertTrue(SSTableCache.INSTANCE.containsIndex(ssTable0));
                     assertFalse(SSTableCache.INSTANCE.containsStats(ssTable0));
                     assertFalse(SSTableCache.INSTANCE.containsFilter(ssTable0));
@@ -103,7 +117,10 @@ public class SSTableCacheTests
                             new File(String.format("./%s/%s", schema.keyspace, schema.table), dataFile0));
                     Map<MetadataType, MetadataComponent> componentMap = SSTableCache.INSTANCE.componentMapFromStats(ssTable0, descriptor0);
                     assertNotNull(componentMap);
-                    assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable0));
+                    if (ssTable0.isBigFormat())
+                    {
+                        assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable0));
+                    }
                     assertTrue(SSTableCache.INSTANCE.containsIndex(ssTable0));
                     assertTrue(SSTableCache.INSTANCE.containsStats(ssTable0));
                     assertFalse(SSTableCache.INSTANCE.containsFilter(ssTable0));
@@ -111,17 +128,23 @@ public class SSTableCacheTests
                     assertEquals(componentMap, SSTableCache.INSTANCE.componentMapFromStats(ssTable0, descriptor0));
 
                     BloomFilter filter = SSTableCache.INSTANCE.bloomFilter(ssTable0, descriptor0);
-                    assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable0));
+                    if (ssTable0.isBigFormat())
+                    {
+                        assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable0));
+                    }
                     assertTrue(SSTableCache.INSTANCE.containsIndex(ssTable0));
                     assertTrue(SSTableCache.INSTANCE.containsStats(ssTable0));
                     assertTrue(SSTableCache.INSTANCE.containsFilter(ssTable0));
                     assertFalse(SSTableCache.INSTANCE.containsCompressionMetadata(ssTable0));
-                    assertTrue(filter.isPresent(key1.first()));
-                    assertTrue(filter.isPresent(key1.last()));
+                    assertTrue(filter.isPresent(key2.left));
+                    assertTrue(filter.isPresent(key2.right));
 
                     CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(ssTable0, descriptor0.version.hasMaxCompressedLength());
                     assertNotNull(compressionMetadata);
-                    assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable0));
+                    if (ssTable0.isBigFormat())
+                    {
+                        assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable0));
+                    }
                     assertTrue(SSTableCache.INSTANCE.containsIndex(ssTable0));
                     assertTrue(SSTableCache.INSTANCE.containsStats(ssTable0));
                     assertTrue(SSTableCache.INSTANCE.containsFilter(ssTable0));
@@ -130,25 +153,34 @@ public class SSTableCacheTests
                     SSTable ssTable1 = ssTables.get(1);
                     Descriptor descriptor1 = Descriptor.fromFile(
                             new File(String.format("./%s/%s", schema.keyspace, schema.table), dataFile1));
-                    assertFalse(SSTableCache.INSTANCE.containsSummary(ssTable1));
+                    if (ssTable1.isBigFormat())
+                    {
+                        assertFalse(SSTableCache.INSTANCE.containsSummary(ssTable1));
+                    }
                     assertFalse(SSTableCache.INSTANCE.containsIndex(ssTable1));
                     assertFalse(SSTableCache.INSTANCE.containsStats(ssTable1));
                     assertFalse(SSTableCache.INSTANCE.containsFilter(ssTable1));
                     assertFalse(SSTableCache.INSTANCE.containsCompressionMetadata(ssTable1));
-                    SummaryDbUtils.Summary key3 = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable1);
-                    assertNotEquals(key1.first(), key3.first());
-                    assertNotEquals(key1.last(), key3.last());
+                    if (ssTable1.isBigFormat())
+                    {
+                        SummaryDbUtils.Summary key3 = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable1);
+                        assertNotEquals(key1.first(), key3.first());
+                        assertNotEquals(key1.last(), key3.last());
+                        assertEquals(SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable1).first(),
+                                     SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable1).left);
+                        assertEquals(SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable1).last(),
+                                     SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable1).right);
+                    }
                     Pair<DecoratedKey, DecoratedKey> key4 = SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable1);
-                    assertNotEquals(key1.first(), key4.left);
-                    assertNotEquals(key1.last(), key4.right);
-                    assertEquals(SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable1).first(),
-                                 SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable1).left);
-                    assertEquals(SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable1).last(),
-                                 SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable1).right);
+                    assertNotEquals(key2.left, key4.left);
+                    assertNotEquals(key2.right, key4.right);
                     assertNotEquals(componentMap, SSTableCache.INSTANCE.componentMapFromStats(ssTable1, descriptor1));
                     Pair<DecoratedKey, DecoratedKey> key5 = SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable1);
                     assertTrue(SSTableCache.INSTANCE.bloomFilter(ssTable1, descriptor1).isPresent(key5.left));
-                    assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable1));
+                    if (ssTable1.isBigFormat())
+                    {
+                        assertTrue(SSTableCache.INSTANCE.containsSummary(ssTable1));
+                    }
                     assertTrue(SSTableCache.INSTANCE.containsIndex(ssTable1));
                     assertTrue(SSTableCache.INSTANCE.containsStats(ssTable1));
                     assertTrue(SSTableCache.INSTANCE.containsFilter(ssTable1));

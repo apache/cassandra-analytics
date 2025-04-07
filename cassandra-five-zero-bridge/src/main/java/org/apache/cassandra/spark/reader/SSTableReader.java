@@ -49,7 +49,6 @@ import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.DeletionTime;
-import org.apache.cassandra.db.PartitionPosition;
 import org.apache.cassandra.db.RegularAndStaticColumns;
 import org.apache.cassandra.db.SerializationHeader;
 import org.apache.cassandra.db.UnfilteredDeserializer;
@@ -321,7 +320,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             this.partitionKeyFilters = ImmutableList.copyOf(matchInBloomFilter);
 
             // Check if required keys are actually present
-            if (matchInBloomFilter.isEmpty() || !ReaderUtils.anyFilterKeyInIndex(ssTable, matchInBloomFilter))
+            if (matchInBloomFilter.isEmpty() || !ReaderUtils.anyFilterKeyInIndex(ssTable, metadata, descriptor, matchInBloomFilter))
             {
                 if (matchInBloomFilter.isEmpty())
                 {

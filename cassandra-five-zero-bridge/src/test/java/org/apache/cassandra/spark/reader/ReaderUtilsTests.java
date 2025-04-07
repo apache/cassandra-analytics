@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.db.SerializationHeader;
 import org.apache.cassandra.db.marshal.AbstractType;
@@ -51,6 +52,7 @@ import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
 import org.apache.cassandra.io.sstable.metadata.ValidationMetadata;
 import org.apache.cassandra.io.util.File;
+import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -60,6 +62,10 @@ import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
+import static org.apache.cassandra.spark.TestUtils.BIG_FORMAT;
+import static org.apache.cassandra.spark.TestUtils.BTI_FORMAT;
+import static org.apache.cassandra.spark.TestUtils.SSTABLE_FORMATS;
+import static org.apache.cassandra.spark.reader.SSTableReaderTests.tableMetadata;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -143,8 +149,9 @@ public class ReaderUtilsTests
     }
 
     @Test
-    public void testReadFirstLastPartitionKey()
+    public void testReadFirstLastPartitionKeyBigFormat()
     {
+        DatabaseDescriptor.setSelectedSSTableFormat(BIG_FORMAT);
         qt().forAll(arbitrary().enumValues(Partitioner.class))
             .checkAssert(partitioner -> {
                 try (TemporaryDirectory directory = new TemporaryDirectory())
@@ -194,10 +201,46 @@ public class ReaderUtilsTests
     }
 
     @Test
-    public void testSearchInBloomFilter()
+    public void testReadFirstLastPartitionKeyBtiFormat()
     {
+        DatabaseDescriptor.setSelectedSSTableFormat(BTI_FORMAT);
         qt().forAll(arbitrary().enumValues(Partitioner.class))
             .checkAssert(partitioner -> {
+                try (TemporaryDirectory directory = new TemporaryDirectory())
+                {
+                    // Write an SSTable
+                    TestSchema schema = TestSchema.basic(BRIDGE);
+                    schema.writeSSTable(directory, BRIDGE, partitioner, writer -> {
+                        for (int row = 0; row < ROWS; row++)
+                        {
+                            for (int column = 0; column < COLUMNS; column++)
+                            {
+                                writer.write(row, column, row + column);
+                            }
+                        }
+                    });
+                    assertEquals(1, TestSSTable.countIn(directory.path()));
+
+                    // Read Partition Index file for first and last partition keys
+                    SSTable ssTable = TestSSTable.firstIn(directory.path());
+                    Pair<DecoratedKey, DecoratedKey> indexKeys = ReaderUtils.keysFromIndex(Murmur3Partitioner.instance, ssTable);
+                    assertNotNull(indexKeys);
+                    assertNotNull(indexKeys.left);
+                    assertNotNull(indexKeys.right);
+                }
+                catch (IOException exception)
+                {
+                    throw new RuntimeException(exception);
+                }
+            });
+    }
+
+    @Test
+    public void testSearchInBloomFilter()
+    {
+        qt().forAll(arbitrary().enumValues(Partitioner.class), arbitrary().pick(SSTABLE_FORMATS))
+            .checkAssert((partitioner, format) -> {
+                DatabaseDescriptor.setSelectedSSTableFormat(format);
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
                     // Write an SSTable
@@ -219,7 +262,7 @@ public class ReaderUtilsTests
 
                     // Read Filter.db file
                     Path filterFile = TestSSTable.firstIn(directory.path(), FileType.FILTER);
-                    Descriptor descriptor = Descriptor.fromFile(new File(filterFile.toFile()));
+                    Descriptor descriptor = Descriptor.fromFileWithComponent(new File(filterFile.toFile()), false).left;
                     IPartitioner iPartitioner;
                     switch (partitioner)
                     {
@@ -255,12 +298,13 @@ public class ReaderUtilsTests
     @Test
     public void testSearchInIndexEmptyFilters()
     {
-        qt().forAll(arbitrary().enumValues(Partitioner.class))
-            .checkAssert(partitioner -> {
+        qt().forAll(arbitrary().enumValues(Partitioner.class), arbitrary().pick(SSTABLE_FORMATS))
+            .checkAssert((partitioner, format) -> {
+                DatabaseDescriptor.setSelectedSSTableFormat(format);
+                TestSchema schema = TestSchema.basic(BRIDGE);
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
                     // Write an SSTable
-                    TestSchema schema = TestSchema.basic(BRIDGE);
                     schema.writeSSTable(directory, BRIDGE, partitioner, writer -> {
                         for (int row = 0; row < ROWS; row++)
                         {
@@ -272,13 +316,13 @@ public class ReaderUtilsTests
                     });
                     assertEquals(1, TestSSTable.countIn(directory.path()));
 
-                    Path indexFile = TestSSTable.firstIn(directory.path(), FileType.INDEX);
-                    try (InputStream indexStream = new FileInputStream(indexFile.toString()))
-                    {
-                        SSTable ssTable = mock(SSTable.class);
-                        when(ssTable.openPrimaryIndexStream()).thenReturn(indexStream);
-                        assertFalse(ReaderUtils.anyFilterKeyInIndex(ssTable, Collections.emptyList()));
-                    }
+                    Path dataFile = TestSSTable.firstIn(directory.path(), FileType.DATA);
+                    TableMetadata metadata = tableMetadata(schema, partitioner);
+                    SSTable ssTable = TestSSTable.at(dataFile);
+
+                    Descriptor descriptor = ReaderUtils.constructDescriptor(metadata.keyspace, metadata.name, ssTable);
+
+                    assertFalse(ReaderUtils.anyFilterKeyInIndex(ssTable, metadata, descriptor, Collections.emptyList()));
                 }
                 catch (IOException exception)
                 {
@@ -290,8 +334,9 @@ public class ReaderUtilsTests
     @Test
     public void testSearchInIndexKeyNotFound()
     {
-        qt().forAll(arbitrary().enumValues(Partitioner.class))
-            .checkAssert(partitioner -> {
+        qt().forAll(arbitrary().enumValues(Partitioner.class), arbitrary().pick(SSTABLE_FORMATS))
+            .checkAssert((partitioner, format) -> {
+                DatabaseDescriptor.setSelectedSSTableFormat(format);
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
                     // Write an SSTable
@@ -311,13 +356,13 @@ public class ReaderUtilsTests
                     BigInteger token = BRIDGE.hash(partitioner, key);
                     PartitionKeyFilter keyNotInSSTable = PartitionKeyFilter.create(key, token);
 
-                    Path indexFile = TestSSTable.firstIn(directory.path(), FileType.INDEX);
-                    try (InputStream indexStream = new FileInputStream(indexFile.toString()))
-                    {
-                        SSTable ssTable = mock(SSTable.class);
-                        when(ssTable.openPrimaryIndexStream()).thenReturn(indexStream);
-                        assertFalse(ReaderUtils.anyFilterKeyInIndex(ssTable, Collections.singletonList(keyNotInSSTable)));
-                    }
+                    Path dataFile = TestSSTable.firstIn(directory.path(), FileType.DATA);
+                    TableMetadata metadata = tableMetadata(schema, partitioner);
+                    SSTable ssTable = TestSSTable.at(dataFile);
+
+                    Descriptor descriptor = ReaderUtils.constructDescriptor(metadata.keyspace, metadata.name, ssTable);
+
+                    assertFalse(ReaderUtils.anyFilterKeyInIndex(ssTable, metadata, descriptor, Collections.singletonList(keyNotInSSTable)));
                 }
                 catch (IOException exception)
                 {
@@ -329,8 +374,9 @@ public class ReaderUtilsTests
     @Test
     public void testSearchInIndexKeyFound()
     {
-        qt().forAll(arbitrary().enumValues(Partitioner.class))
-            .checkAssert(partitioner -> {
+        qt().forAll(arbitrary().enumValues(Partitioner.class), arbitrary().pick(SSTABLE_FORMATS))
+            .checkAssert((partitioner, format) -> {
+                DatabaseDescriptor.setSelectedSSTableFormat(format);
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
                     // Write an SSTable
@@ -350,13 +396,13 @@ public class ReaderUtilsTests
                     BigInteger token = BRIDGE.hash(partitioner, key);
                     PartitionKeyFilter keyInSSTable = PartitionKeyFilter.create(key, token);
 
-                    Path indexFile = TestSSTable.firstIn(directory.path(), FileType.INDEX);
-                    try (InputStream indexStream = new FileInputStream(indexFile.toString()))
-                    {
-                        SSTable ssTable = mock(SSTable.class);
-                        when(ssTable.openPrimaryIndexStream()).thenReturn(indexStream);
-                        assertTrue(ReaderUtils.anyFilterKeyInIndex(ssTable, Collections.singletonList(keyInSSTable)));
-                    }
+                    Path dataFile = TestSSTable.firstIn(directory.path(), FileType.DATA);
+                    TableMetadata metadata = tableMetadata(schema, partitioner);
+                    SSTable ssTable = TestSSTable.at(dataFile);
+
+                    Descriptor descriptor = ReaderUtils.constructDescriptor(metadata.keyspace, metadata.name, ssTable);
+
+                    assertTrue(ReaderUtils.anyFilterKeyInIndex(ssTable, metadata, descriptor, Collections.singletonList(keyInSSTable)));
                 }
                 catch (IOException exception)
                 {

@@ -448,8 +448,9 @@ public final class SSTableTombstoneWriter implements Closeable
                 {
                     Types types = createTypes(keyspaceName);
                     table = createTable(types);
+                    TableMetadata finalTable = table;
                     // Cassandra 4.x vs 5.x START
-                    schema.transform(SchemaTransformations.addKeyspace(ksm.withSwapped(ksm.tables.with(table)).withSwapped(types), false));
+                    schema.transform(st -> st.withAddedOrUpdated(ksm.withSwapped(ksm.tables.with(finalTable)).withSwapped(types)));
                     // Cassandra 4.x vs 5.x END
                 }
                 return table;

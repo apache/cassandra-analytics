@@ -22,7 +22,8 @@ package org.apache.cassandra.spark.data.types;
 import org.apache.cassandra.cql3.functions.types.DataType;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.TimeUUIDType;
-import org.apache.cassandra.utils.UUIDGen;
+import org.apache.cassandra.serializers.TypeSerializer;
+import org.apache.cassandra.serializers.UUIDSerializer;
 
 public class TimeUUID extends UUID
 {
@@ -43,7 +44,12 @@ public class TimeUUID extends UUID
     @Override
     public Object randomValue(int minCollectionSize)
     {
-        return org.apache.cassandra.utils.TimeUUID.Generator.nextTimeUUID();
+        return org.apache.cassandra.utils.TimeUUID.Generator.nextTimeUUID().asUUID();
+    }
+
+    public <T> TypeSerializer<T> serializer()
+    {
+        return (TypeSerializer<T>) UUIDSerializer.instance;
     }
 
     @Override

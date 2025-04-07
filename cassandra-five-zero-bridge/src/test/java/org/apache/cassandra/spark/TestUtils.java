@@ -23,18 +23,41 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
 
+import org.apache.cassandra.io.sstable.format.SSTableFormat;
+import org.apache.cassandra.io.sstable.format.big.BigFormat;
+import org.apache.cassandra.io.sstable.format.bti.BtiFormat;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.utils.RandomUtils;
 
 public class TestUtils
 {
+    public static final SSTableFormat<?, ?> BIG_FORMAT = BigFormat.getInstance();
+    public static final SSTableFormat<?, ?> BTI_FORMAT = new BtiFormat.BtiFormatFactory().getInstance(Collections.emptyMap());
+    public static final List<SSTableFormat<?, ?>> SSTABLE_FORMATS = Arrays.asList(BIG_FORMAT, BTI_FORMAT);
+
     private TestUtils()
     {
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
+
+    public static FileType primaryIndexFile(SSTableFormat<?, ?> format)
+    {
+        if (format instanceof BigFormat)
+        {
+            return FileType.INDEX;
+        }
+        if (format instanceof BtiFormat)
+        {
+            return FileType.PARTITIONS_INDEX;
+        }
+        throw new IllegalStateException("Unexpected format: " + format);
     }
 
     public static byte[] randomLowEntropyData()

@@ -113,7 +113,8 @@ public class SSTableCache
     public SummaryDbUtils.Summary keysFromSummary(@NotNull TableMetadata metadata,
                                                   @NotNull SSTable ssTable) throws IOException
     {
-        if (ssTable.isBtiFormat()) {
+        if (ssTable.isBtiFormat())
+        {
             return null;
         }
         return get(summary, ssTable, () -> SummaryDbUtils.readSummary(metadata, ssTable));

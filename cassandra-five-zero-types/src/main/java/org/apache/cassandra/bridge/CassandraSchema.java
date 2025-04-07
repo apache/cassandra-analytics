@@ -41,7 +41,6 @@ import org.apache.cassandra.cql3.statements.schema.CreateTypeStatement;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.Schema;
-import org.apache.cassandra.schema.SchemaTransformations;
 import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.Types;
@@ -282,7 +281,7 @@ public final class CassandraSchema
 
             LOGGER.info("Schema change detected, updating new table schema keyspace={} table={}", keyspace, cqlTable.table());
             // Cassandra 4.x vs 5.x START
-            schema.transform(SchemaTransformations.addKeyspace(ks.get().withSwapped(ks.get().tables.withSwapped(updatedTable)), false));
+            schema.transform(st -> st.withAddedOrUpdated(ks.get().withSwapped(ks.get().tables.withSwapped(updatedTable))));
             // Cassandra 4.x vs 5.x END
         });
     }
@@ -409,7 +408,7 @@ public final class CassandraSchema
             LOGGER.info("{} CDC for table keyspace={} table={}",
                         updatedTable.params.cdc ? "Enabling" : "Disabling", keyspace, table);
             // Cassandra 4.x vs 5.x START
-            schema.transform(SchemaTransformations.addKeyspace(ks.get().withSwapped(ks.get().tables.withSwapped(updatedTable)), false));
+            schema.transform(st -> st.withAddedOrUpdated(ks.get().withSwapped(ks.get().tables.withSwapped(updatedTable))));
             // Cassandra 4.x vs 5.x END
         });
     }

@@ -32,9 +32,11 @@ import java.util.stream.LongStream;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
+import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -85,6 +87,7 @@ public class SummaryDbTests
     {
         qt().forAll(arbitrary().enumValues(Partitioner.class))
             .checkAssert(partitioner -> {
+                DatabaseDescriptor.setSelectedSSTableFormat(TestUtils.BIG_FORMAT);
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
                     TestSchema schema = TestSchema.basicBuilder(BRIDGE).withCompression(false).build();

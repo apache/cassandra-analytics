@@ -90,28 +90,30 @@ public class FileSystemSource<T extends CassandraFile> implements CassandraFileS
                 // Start-end range is inclusive but on the final request end == length so we need to exclude
                 int increment = close ? 0 : 1;
                 byte[] bytes = new byte[(int) (end - start + increment)];
-                if (file.getChannel().read(ByteBuffer.wrap(bytes), start) >= 0)
+                int read = file.getChannel().read(ByteBuffer.wrap(bytes), start);
+                if (read >= 0)
                 {
                     consumer.onRead(StreamBuffer.wrap(bytes));
                     consumer.onEnd();
                 }
-                else
-                {
-                    close = true;
-                }
+                // TODO(c4c5): Make configurable, so that remote file access does not accidentally close file.
+//                else
+//                {
+//                    close = true;
+//                }
             }
             catch (Throwable throwable)
             {
-                close = true;
+//                close = true;
                 consumer.onError(throwable);
             }
-            finally
-            {
-                if (close)
-                {
-                    closeSafe();
-                }
-            }
+//            finally
+//            {
+//                if (close)
+//                {
+//                    closeSafe();
+//                }
+//            }
         });
     }
 
