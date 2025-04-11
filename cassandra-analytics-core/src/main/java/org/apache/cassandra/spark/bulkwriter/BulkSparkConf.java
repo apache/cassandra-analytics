@@ -186,7 +186,6 @@ public class BulkSparkConf implements Serializable
         this.truststoreBase64Encoded = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_BASE64_ENCODED.name(), null);
         this.truststoreType = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_TYPE.name(), null);
         this.writeMode = MapUtils.getEnumOption(options, WriterOptions.WRITE_MODE.name(), WriteMode.INSERT, "write mode");
-        this.digestAlgorithmSupplier = digestAlgorithmSupplierFromOptions(options);
         // For backwards-compatibility with port settings, use writer option if available,
         // else fall back to props, and then default if neither specified
         this.useOpenSsl = getBoolean(USE_OPENSSL, true);
@@ -228,6 +227,7 @@ public class BulkSparkConf implements Serializable
         this.configuredJobId = MapUtils.getOrDefault(options, WriterOptions.JOB_ID.name(), null);
         this.coordinatedWriteConfJson = MapUtils.getOrDefault(options, WriterOptions.COORDINATED_WRITE_CONFIG.name(), null);
         this.coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport());
+        this.digestAlgorithmSupplier = digestAlgorithmSupplierFromOptions(dataTransport, options);
         validateEnvironment();
     }
 
@@ -238,8 +238,12 @@ public class BulkSparkConf implements Serializable
      * @return the configured {@link DigestAlgorithmSupplier}
      */
     @NotNull
-    protected DigestAlgorithmSupplier digestAlgorithmSupplierFromOptions(Map<String, String> options)
+    protected DigestAlgorithmSupplier digestAlgorithmSupplierFromOptions(DataTransport dataTransport, Map<String, String> options)
     {
+        if (dataTransport == DataTransport.S3_COMPAT)
+        {
+            return DigestAlgorithms.XXHASH32;
+        }
         return MapUtils.getEnumOption(options, WriterOptions.DIGEST.name(), DigestAlgorithms.XXHASH32, "digest type");
     }
 

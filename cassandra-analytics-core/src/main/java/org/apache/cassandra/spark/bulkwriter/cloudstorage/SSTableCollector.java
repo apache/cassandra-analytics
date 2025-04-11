@@ -23,9 +23,11 @@ import java.nio.file.Path;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.cassandra.bridge.SSTableSummary;
+import org.apache.cassandra.spark.common.Digest;
 
 /**
  * Collect SSTables from listing the included directories
@@ -43,6 +45,19 @@ public interface SSTableCollector
      * @param sstableComponents sstable components
      */
     void includeSSTable(List<Path> sstableComponents);
+
+    /**
+     * Include the digests of the files
+     * @param fileDigests digest of the files
+     */
+    void includeFileDigests(Map<Path, Digest> fileDigests);
+
+    /**
+     * Get the file digests of the input files
+     * @param files files to gather the digests
+     * @return file digests of the input files
+     */
+    Map<Path, Digest> fileDigests(Set<Path> files);
 
     /**
      * @return total size of all sstables included

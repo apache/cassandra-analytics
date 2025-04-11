@@ -42,10 +42,12 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
+import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.parquet.Preconditions;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -65,6 +67,7 @@ public class SSTableLister implements SSTableCollector
     private final Queue<SSTableFilesAndRange> sstables;
     private final Set<Path> sstableDirectories;
     private final Set<Path> knownFiles;
+    private final Map<Path, Digest> fileDigests;
     private long totalSize;
 
     public SSTableLister(QualifiedTableName qualifiedTableName, CassandraBridge bridge)
@@ -73,6 +76,7 @@ public class SSTableLister implements SSTableCollector
         this.bridge = bridge;
         this.sstables = new LinkedBlockingQueue<>();
         this.sstableDirectories = new HashSet<>();
+        this.fileDigests = new HashMap<>();
         this.knownFiles = new HashSet<>();
     }
 
@@ -97,6 +101,24 @@ public class SSTableLister implements SSTableCollector
         knownFiles.addAll(sstableComponents);
         SSTableFilesAndRange sstableAndRange = createSSTableFilesAndRange(sstableComponents);
         sstables.add(sstableAndRange);
+    }
+
+    @Override
+    public void includeFileDigests(Map<Path, Digest> fileDigests)
+    {
+        this.fileDigests.putAll(fileDigests);
+    }
+
+    @Override
+    public Map<Path, Digest> fileDigests(Set<Path> files)
+    {
+        Map<Path, Digest> result = new HashMap<>();
+        for (Path file : files)
+        {
+            Preconditions.checkState(fileDigests.containsKey(file), "File not found in the fileDigests map. File: %s", file);
+            result.put(file, fileDigests.get(file));
+        }
+        return result;
     }
 
     @Override

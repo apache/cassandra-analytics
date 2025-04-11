@@ -117,6 +117,7 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
             try
             {
                 Map<Path, Digest> fileDigests = sstableWriter.prepareSStablesToSend(writerContext, sstables);
+                sstablesBundler.includeFileDigests(fileDigests);
                 // sstablesBundler keeps track of the known files. No need to record the streamed files.
                 // group the files by sstable (unique) basename and add to bundler
                 fileDigests.keySet()
@@ -159,7 +160,8 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
     protected StreamResult doFinalizeStream()
     {
         sstablesBundler.includeDirectory(sstableWriter.getOutDir());
-
+        // Note: there are likely more sstables produced when closing the writer. Include and merge with the full file digest map collected by the writer.
+        sstablesBundler.includeFileDigests(sstableWriter.fileDigestMap());
         sstablesBundler.finish();
 
         // last stream produces no bundle, and there is no bundle before that (as tracked by bundleCount)

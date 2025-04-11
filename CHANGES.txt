@@ -1,4 +1,5 @@
 1.0.0
+ * Bulk writer in S3_COMPAT mode calculate file digest twice (CASSANALYTICS-19)
  * Add Apache Cassandra Sidecar CDC implementation (CASSANALYTICS-7)
  * Upgrade sidecar client dependency to 0.1.0 (CASSANALYTICS-16)
  * Remove JDK8 support (CASSANALYTICS-17)

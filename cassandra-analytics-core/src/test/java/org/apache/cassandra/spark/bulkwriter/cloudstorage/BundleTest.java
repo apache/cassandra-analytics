@@ -19,20 +19,26 @@
 
 package org.apache.cassandra.spark.bulkwriter.cloudstorage;
 
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.SSTableCollector.SSTableFilesAndRange;
+import org.apache.cassandra.spark.common.Digest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -57,11 +63,20 @@ class BundleTest
             sourceSSTables.add(mockSSTableFilesAndRange(componentCount, 100));
             totalSize += 100;
         }
+        Map<Path, Digest> fileDigests = new HashMap<>();
+        for (SSTableFilesAndRange sstable : sourceSSTables)
+        {
+            for (Path file : sstable.files)
+            {
+                fileDigests.put(file, mockDigest(file.getFileName().toString()));
+            }
+        }
         Bundle bundle = Bundle.builder()
                               .bundleSequence(0)
                               .sourceSSTables(sourceSSTables)
                               .bundleNameGenerator(new BundleNameGenerator("jobId", "sessionId"))
                               .bundleStagingDirectory(stagingDir)
+                              .fileDigests(fileDigests)
                               .build();
         assertEquals(totalSize, bundle.bundleUncompressedSize);
         assertEquals(BigInteger.ONE, bundle.firstToken);
@@ -70,10 +85,22 @@ class BundleTest
         assertTrue(Files.exists(bundle.bundleFile));
         ZipInputStream zis = new ZipInputStream(new FileInputStream(bundle.bundleFile.toFile()));
         int acutalFilesCount = 0;
-        while (zis.getNextEntry() != null)
+        ZipEntry entry = null;
+        ObjectMapper objectMapper = new ObjectMapper();
+        boolean hasManifest = false;
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        while ((entry = zis.getNextEntry()) != null)
         {
             acutalFilesCount++;
+            if (entry.getName().endsWith("manifest.json"))
+            {
+                hasManifest = true;
+                zis.transferTo(baos);
+            }
         }
+        assertTrue(hasManifest);
+        Map manifest = objectMapper.readValue(baos.toByteArray(), Map.class);
+        assertManifestEntries(manifest, sourceSSTables);
         // the extra file (+ 1) is the manifest file
         assertEquals(sstableCount * componentCount + 1, acutalFilesCount);
 
@@ -82,6 +109,25 @@ class BundleTest
         assertFalse(Files.exists(bundle.bundleDirectory));
         long filesCount = Files.list(stagingDir).count();
         assertEquals(0, filesCount);
+    }
+
+    private void assertManifestEntries(Map manifest, List<SSTableFilesAndRange> sourceSSTables)
+    {
+        Map<String, String> digests = new HashMap<>();
+        manifest.values().forEach(value -> {
+            Map<String, String> componentsChecksum = (Map<String, String>) ((Map<String, Object>) value).get("components_checksum");
+            digests.putAll(componentsChecksum);
+        });
+
+        for (SSTableFilesAndRange sstable : sourceSSTables)
+        {
+            for (Path file : sstable.files)
+            {
+                String fileName = file.getFileName().toString();
+                assertEquals(digests.getOrDefault(fileName, "File: " + fileName + " is not found in manifest"), fileName,
+                             "The digest in the manifest.json does not match with the filename (test configures filename as digest)");
+            }
+        }
     }
 
     private SSTableFilesAndRange mockSSTableFilesAndRange(int fileCount, long size) throws Exception
@@ -94,5 +140,23 @@ class BundleTest
             paths.add(Files.createFile(tempFolder.resolve(UUID.randomUUID().toString())));
         }
         return new SSTableFilesAndRange(summary, paths, size);
+    }
+
+    private Digest mockDigest(String checksum)
+    {
+        return new Digest()
+        {
+            @Override
+            public String value()
+            {
+                return checksum;
+            }
+
+            @Override
+            public o.a.c.sidecar.client.shaded.common.request.data.Digest toSidecarDigest()
+            {
+                return null;
+            }
+        };
     }
 }
