@@ -21,10 +21,10 @@ package org.apache.cassandra.cdc.schemastore;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
-import java.util.Set;
+import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -35,12 +35,14 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.CdcBridgeFactory;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.avro.AvroSchemas;
 import org.apache.cassandra.cdc.avro.CqlToAvroSchemaConverter;
 import org.apache.cassandra.cdc.kafka.KafkaOptions;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.utils.TableIdentifier;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -51,104 +53,112 @@ public class CachingSchemaStore implements SchemaStore
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(CachingSchemaStore.class);
     private final Map<TableIdentifier, SchemaCacheEntry> avroSchemasCache = new ConcurrentHashMap<>();
-    //    private final CassandraClusterSchema cassandraClusterSchema;
-//    private final Vertx vertx;
-//    private final CdcConfigImpl cdcConfig;
     @Nullable
     volatile TableSchemaPublisher publisher;
-    @Nullable
-    volatile CqlToAvroSchemaConverter cqlToAvroSchemaConverter;
-    //    private static final CqlToAvroSchemaConverter SCHEMA_CONVERTER = new CqlToAvroSchemaConverter();
     private final SchemaSupplier schemaSupplier;
-    private final CassandraVersion cassandraVersion;
+    private final Supplier<CassandraVersion> cassandraVersionSupplier;
     private final SchemaStorePublisherFactory schemaStorePublisherFactory;
     private final KafkaOptions kafkaOptions;
-    private final CqlToAvroSchemaConverter schemaConverter;
     private final SchemaStoreStats schemaStoreStats;
 
-    CachingSchemaStore(
-//    Vertx vertx,
-//                       CassandraClusterSchema cassandraClusterSchema,
-    SchemaStoreStats schemaStoreStats,
-    CassandraVersion cassandraVersion, //TODO: supply version to permit changes in version
-    SchemaSupplier schemaSupplier,
-    SchemaStorePublisherFactory schemaStorePublisherFactory,
-    KafkaOptions kafkaOptions,
-    CqlToAvroSchemaConverter schemaConverter
-    )
+    public CachingSchemaStore(SchemaStoreStats schemaStoreStats,
+                              Supplier<CassandraVersion> cassandraVersionSupplier,
+                              SchemaSupplier schemaSupplier,
+                              SchemaStorePublisherFactory schemaStorePublisherFactory,
+                              KafkaOptions kafkaOptions)
     {
-        super();
-        this.cassandraVersion = cassandraVersion;
+        this.cassandraVersionSupplier = cassandraVersionSupplier;
         this.schemaSupplier = schemaSupplier;
         this.schemaStorePublisherFactory = schemaStorePublisherFactory;
         this.kafkaOptions = kafkaOptions;
-        this.schemaConverter = schemaConverter;
         this.schemaStoreStats = schemaStoreStats;
-//        this.cassandraClusterSchema = cassandraClusterSchema;
-//        this.avroSchemasCache.putAll(createSchemaCache(schemaSupplier.getCdcEnabledTables().get()));
         AvroSchemas.registerLogicalTypes();
-//        cassandraClusterSchema.addSchemaChangeListener(this::onSchemaChanged); //FIXME
-//        this.vertx = vertx;
-//        this.cdcConfig = cdcConfig;
-//        this.sidecarCdcStats = sidecarCdcStats;
-
-        final Callable<Void> configChangeCallback = () -> {
-            LOGGER.info("Services configuration changed. Reloading publisher...");
-            publishSchemas();
-            return null;
-        };
-//        this.cdcConfig.registerConfigChangeListener(configChangeCallback); //FIXME
-        configureSidecarServerEventListeners();
     }
 
-    private TableSchemaPublisher publisher()
-    {
-        if (this.publisher == null)
-        {
-            this.publisher = schemaStorePublisherFactory.buildPublisher(kafkaOptions);
-        }
-        return this.publisher;
-    }
-
+    /**
+     * `initialize()` must be called on server start-up once all other dependencies are initialized,
+     * e.g. when Sidecar has fully initialized connections to Cassandra.
+     */
     public void initialize()
     {
         LOGGER.info("Initializing CachingSchemaStore");
         schemaSupplier
         .getCdcEnabledTables()
         .thenAccept(refreshedCdcTables -> {
-            for (CqlTable cqlTable : refreshedCdcTables)
-            {
-                TableIdentifier tableIdentifier = TableIdentifier.of(cqlTable.keyspace(), cqlTable.table());
-                avroSchemasCache.compute(tableIdentifier, (k, v) -> v);
-            }
+            loadPublisher();
             publishSchemas();
             LOGGER.info("CachingSchemaStore initialized");
         });
     }
 
-    private void loadPublisher()
+    /**
+     * `onConfigChange()` should be called whenever the Kafka config is changed and the publisher needs to be rebuilt.
+     */
+    public void onConfigChange()
     {
-        this.publisher = SchemaStorePublisherFactory.DEFAULT.buildPublisher(kafkaOptions);
+        LOGGER.info("Services configuration changed. Reloading publisher...");
+        loadPublisher();
+        publishSchemas();
     }
 
-    private void configureSidecarServerEventListeners()
+    /**
+     * `onSchemaChanged()` should be called whenever a Cassandra CQL schema change is detected.
+     */
+    public void onSchemaChange()
     {
-        //FIXME
-//        EventBus eventBus = vertx.eventBus();
-//        eventBus.localConsumer(ON_SERVER_START.address(), startMessage -> {
-//            eventBus.localConsumer(ON_SIDECAR_SCHEMA_INITIALIZED.address(), message -> {
-//            });
-//        });
+        schemaSupplier.getCdcEnabledTables().thenAccept(refreshedCdcTables -> {
+            for (CqlTable cqlTable : refreshedCdcTables)
+            {
+                TableIdentifier tableIdentifier = TableIdentifier.of(cqlTable.keyspace(), cqlTable.table());
+                avroSchemasCache.compute(tableIdentifier, (key, value) -> {
+                    if (value == null || !value.tableSchema().equals(cqlTable.createStatement()))
+                    {
+                        LOGGER.info("Re-generating Avro Schema after schema change keyspace={} table={}", tableIdentifier.keyspace(), tableIdentifier.table());
+                        return new SchemaCacheEntry(schemaConverter().convert(cqlTable), cqlTable);
+                    }
+                    return value;
+                });
+                publishSchemas();
+            }
+            // Remove any old schema entries for deleted tables, this operation can be done in the end as this is
+            // only for removing stale entries and no one is going to use these entries once the table is removed.
+            // This doesn't have to be an atomic operation.
+            avroSchemasCache
+            .keySet()
+            .retainAll(
+            refreshedCdcTables
+            .stream()
+            .map(cqlTable -> TableIdentifier.of(cqlTable.keyspace(), cqlTable.table()))
+            .collect(Collectors.toList())
+            );
+        });
     }
 
-//    protected CqlToAvroSchemaConverter schemaConverter()
-//    {
-//        if (cqlToAvroSchemaConverter == null)
-//        {
-//            cqlToAvroSchemaConverter = (CqlToAvroSchemaConverter) CdcBridgeFactory.getAvroConverter(cassandraVersion);
-//        }
-//        return cqlToAvroSchemaConverter;
-//    }
+    private synchronized void loadPublisher()
+    {
+        final TableSchemaPublisher publisherRef = this.publisher;
+        if (publisherRef != null)
+        {
+            try
+            {
+                publisherRef.close();
+            }
+            catch (final Exception exception)
+            {
+                LOGGER.warn("Failed to shut down schema publisher", exception);
+            }
+        }
+        this.publisher = schemaStorePublisherFactory.buildPublisher(kafkaOptions);
+    }
+
+    @NotNull
+    protected CqlToAvroSchemaConverter schemaConverter()
+    {
+        return Objects.requireNonNull(
+        CdcBridgeFactory.getCqlToAvroSchemaConverter(cassandraVersionSupplier.get()),
+        "CqlToAvroSchemaConverter could not be found by the CdcBridgeFactory"
+        );
+    }
 
     private void publishSchemas()
     {
@@ -159,8 +169,8 @@ public class CachingSchemaStore implements SchemaStore
             {
                 TableIdentifier tableIdentifier = TableIdentifier.of(cqlTable.keyspace(), cqlTable.table());
                 avroSchemasCache.compute(tableIdentifier, (key, value) -> {
-                    Schema schema = schemaConverter.convert(cqlTable);
-                    TableSchemaPublisher publisherRef = publisher();
+                    Schema schema = schemaConverter().convert(cqlTable);
+                    TableSchemaPublisher publisherRef = this.publisher;
                     if (publisherRef != null)
                     {
                         TableSchemaPublisher.SchemaPublishMetadata metadata = new TableSchemaPublisher.SchemaPublishMetadata();
@@ -175,39 +185,8 @@ public class CachingSchemaStore implements SchemaStore
         }).whenComplete((aVoid, throwable) -> {
             if (throwable != null)
             {
-                LOGGER.warn("Failed to ");
+                LOGGER.warn("Failed to publish Avro schemas", throwable);
             }
-        });
-//        Set<CqlTable> refreshedCdcTables = schemaSupplier.getCdcEnabledTables();
-    }
-
-    void onSchemaChanged()
-    {
-        schemaSupplier
-        .getCdcEnabledTables()
-        .thenAccept(refreshedCdcTables -> {
-            for (CqlTable cqlTable : refreshedCdcTables)
-            {
-                TableIdentifier tableIdentifier = TableIdentifier.of(cqlTable.keyspace(), cqlTable.table());
-                avroSchemasCache.compute(tableIdentifier, (key, value) -> {
-                    if (value == null || !value.tableSchema().equals(cqlTable.createStatement()))
-                    {
-                        LOGGER.info("Re-generating Avro Schema after schema change keyspace={} table={}", tableIdentifier.keyspace(), tableIdentifier.table());
-                        return new SchemaCacheEntry(schemaConverter.convert(cqlTable), cqlTable);
-                    }
-                    return value;
-                });
-                publishSchemas();
-            }
-            // Remove any old schema entries for deleted tables, this operation can be done in the end as this is
-            // only for removing stale entries and no one is going to use these entries once the table is removed.
-            // This doesn't have to be an atomic operation.
-            avroSchemasCache
-            .keySet()
-            .retainAll(refreshedCdcTables
-                       .stream()
-                       .map(cqlTable -> TableIdentifier.of(cqlTable.keyspace(), cqlTable.table()))
-                       .collect(Collectors.toList()));
         });
     }
 
@@ -253,18 +232,10 @@ public class CachingSchemaStore implements SchemaStore
 
     public Map<String, Schema> getSchemas()
     {
-        return avroSchemasCache.values().stream()
-                               .collect(Collectors.toMap(e -> e.schema.getNamespace(), e -> e.schema));
-    }
-
-    private Map<TableIdentifier, SchemaCacheEntry> createSchemaCache(Set<CqlTable> cdcTables)
-    {
-        return cdcTables
+        return avroSchemasCache
+               .values()
                .stream()
-               .collect(Collectors.toMap(
-               CqlTable::tableIdentifier,
-               table -> new SchemaCacheEntry(schemaConverter.convert(table), table)
-               ));
+               .collect(Collectors.toMap(entry -> entry.schema.getNamespace(), entry -> entry.schema));
     }
 
     private TableIdentifier getTableIdentifierFromNamespace(String namespace)

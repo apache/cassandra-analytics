@@ -24,13 +24,13 @@ import java.util.HashMap;
 /**
  * Interface representing a CDC schema publisher.
  */
-public interface TableSchemaPublisher
+public interface TableSchemaPublisher extends AutoCloseable
 {
 
     /**
      * Publishes the schema producing a result.
      *
-     * @param schema A string containing a valid schema.
+     * @param schema   A string containing a valid schema.
      * @param metadata All the needed metadata associated to the schema.
      * @return The publishing result.
      */
@@ -39,5 +39,10 @@ public interface TableSchemaPublisher
     class SchemaPublishMetadata extends HashMap<String, String>
     {
 
-    };
+    }
+
+    default void close()
+    {
+
+    }
 }

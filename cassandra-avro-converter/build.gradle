@@ -40,7 +40,6 @@ publishing {
 
 dependencies {
     api(project(':cassandra-bridge'))
-    compileOnly project(":cassandra-analytics-cdc")
     compileOnly project(":cassandra-analytics-common")
     compileOnly project(":cassandra-bridge")
     compileOnly "org.apache.avro:avro:${avroVersion}"
