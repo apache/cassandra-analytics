@@ -38,10 +38,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.spark.bulkwriter.util.IOUtils;
+import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 
+import static org.apache.cassandra.spark.bulkwriter.cloudstorage.SSTableListerTest.calculateFileDigests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -63,9 +65,11 @@ class SSTablesBundlerTest
             Path sourceDir = Paths.get(getClass().getResource("/data/ks/table1-ea3b3e6b-0d78-4913-89f2-15fcf98711d0").toURI());
             Path outputDir = tempDir.path();
             FileUtils.copyDirectory(sourceDir.toFile(), outputDir.toFile());
+            Map<Path, Digest> fileDigests = calculateFileDigests(outputDir);
 
             CassandraBridge bridge = mockCassandraBridge(outputDir);
             SSTableLister ssTableLister = new SSTableLister(new QualifiedTableName("ks", "table1"), bridge);
+            ssTableLister.includeFileDigests(fileDigests);
             SSTablesBundler ssTablesBundler = new SSTablesBundler(outputDir, ssTableLister, nameGenerator, 5 * 1024);
             ssTablesBundler.includeDirectory(outputDir);
             ssTablesBundler.finish();
@@ -94,8 +98,10 @@ class SSTablesBundlerTest
             Path outputDir = tempDir.path();
             FileUtils.copyDirectory(sourceDir.toFile(), outputDir.toFile());
 
+            Map<Path, Digest> fileDigests = calculateFileDigests(outputDir);
             CassandraBridge bridge = mockCassandraBridge(outputDir);
             SSTableLister writerOutputAnalyzer = new SSTableLister(new QualifiedTableName("ks", "table1"), bridge);
+            writerOutputAnalyzer.includeFileDigests(fileDigests);
             SSTablesBundler ssTablesBundler = new SSTablesBundler(outputDir, writerOutputAnalyzer, nameGenerator, 5 * 1024);
             ssTablesBundler.includeDirectory(outputDir);
             ssTablesBundler.finish();

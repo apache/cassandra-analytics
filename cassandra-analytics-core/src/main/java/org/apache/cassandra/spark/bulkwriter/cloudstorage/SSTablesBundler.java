@@ -23,8 +23,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
@@ -34,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.SSTableCollector.SSTableFilesAndRange;
+import org.apache.cassandra.spark.common.Digest;
 
 /**
  * {@link SSTablesBundler} bundles SSTables in the output directory provided by
@@ -112,6 +115,11 @@ public class SSTablesBundler implements Iterator<Bundle>
         collector.includeSSTable(sstableComponents);
     }
 
+    public void includeFileDigests(Map<Path, Digest> fileDigests)
+    {
+        collector.includeFileDigests(fileDigests);
+    }
+
     public void finish()
     {
         reachedEnd = true;
@@ -140,6 +148,7 @@ public class SSTablesBundler implements Iterator<Bundle>
     private Bundle computeNext() throws IOException
     {
         List<SSTableFilesAndRange> sstableFiles = new ArrayList<>();
+        Map<Path, Digest> fileDigests = new HashMap<>();
         long size = 0;
         while (!collector.isEmpty())
         {
@@ -158,6 +167,8 @@ public class SSTablesBundler implements Iterator<Bundle>
             else
             {
                 sstableFiles.add(sstable);
+                // include all the digests of the files in this sstable
+                fileDigests.putAll(collector.fileDigests(sstable.files));
                 collector.consumeOne();
             }
         }
@@ -169,6 +180,7 @@ public class SSTablesBundler implements Iterator<Bundle>
                      .bundleStagingDirectory(bundleStagingDir)
                      .sourceSSTables(sstableFiles)
                      .bundleNameGenerator(bundleNameGenerator)
+                     .fileDigests(fileDigests)
                      .build();
     }
 

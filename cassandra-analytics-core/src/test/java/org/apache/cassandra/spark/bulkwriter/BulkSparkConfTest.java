@@ -341,6 +341,21 @@ class BulkSparkConfTest
         assertThat(cluster2.localDc()).isEqualTo("dc1");
     }
 
+    @Test
+    void testDigestAlgorithmSupplierIsXXHashForS3CompactMode()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.DATA_TRANSPORT.name(), DataTransport.S3_COMPAT.name());
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.digestAlgorithmSupplier).isSameAs(DigestAlgorithms.XXHASH32);
+
+        options.put(WriterOptions.DIGEST.name(), DigestAlgorithms.MD5.name());
+        conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.digestAlgorithmSupplier)
+        .describedAs("Even if DIGEST option is set, the digest algorithm is XXHash32 for S3_COMPAT mode")
+        .isSameAs(DigestAlgorithms.XXHASH32);
+    }
+
     private Map<String, String> copyDefaultOptions()
     {
         TreeMap<String, String> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);

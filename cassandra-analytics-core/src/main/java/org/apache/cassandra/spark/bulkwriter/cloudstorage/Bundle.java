@@ -25,14 +25,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.apache.commons.io.FileUtils;
 
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.SSTableCollector.SSTableFilesAndRange;
-import org.apache.cassandra.spark.bulkwriter.util.IOUtils;
 import org.apache.cassandra.spark.common.DataObjectBuilder;
+import org.apache.cassandra.spark.common.Digest;
 
 /**
  * Bundle represents a set of SSTables bundled, as per bundle size set by clients through writer option.
@@ -149,6 +151,7 @@ public class Bundle
         private long bundleUncompressedSize;
         private long bundleCompressedSize;
         private BundleNameGenerator bundleNameGenerator;
+        private Map<Path, Digest> fileDigests;
 
         Builder()
         {
@@ -174,6 +177,11 @@ public class Bundle
         public Builder bundleNameGenerator(BundleNameGenerator bundleNameGenerator)
         {
             return with(b -> b.bundleNameGenerator = bundleNameGenerator);
+        }
+
+        public Builder fileDigests(Map<Path, Digest> fileDigests)
+        {
+            return with(b -> b.fileDigests = fileDigests);
         }
 
         /**
@@ -211,7 +219,7 @@ public class Bundle
             {
                 prepareBuild();
             }
-            catch (IOException ioe)
+            catch (Exception ioe)
             {
                 throw new RuntimeException("Unable to produce bundle manifest", ioe);
             }
@@ -238,20 +246,25 @@ public class Bundle
 
         private void populateBundleManifestAndPersist() throws IOException
         {
+            int totalFiles = 0;
             for (SSTableFilesAndRange sstable : sourceSSTables)
             {
+                totalFiles += sstable.files.size();
                 // all SSTable components related to one SSTable moved under same bundle
                 BundleManifest.Entry manifestEntry = new BundleManifest.Entry(sstable.summary);
                 for (Path componentPath : sstable.files)
                 {
-                    String checksum = IOUtils.xxhash32(componentPath);
+                    Digest digest = Objects.requireNonNull(fileDigests.get(componentPath), () -> "No digest found for file: " + componentPath);
                     Path targetPath = bundleDirectory.resolve(componentPath.getFileName());
                     // link the original files to the bundle dir to avoid copying data
                     Files.createLink(targetPath, componentPath);
-                    manifestEntry.addComponentChecksum(componentPath.getFileName().toString(), checksum);
+                    manifestEntry.addComponentChecksum(componentPath.getFileName().toString(), digest.value());
                 }
                 addManifestEntry(manifestEntry);
             }
+
+            Preconditions.checkState(totalFiles == fileDigests.size(),
+                                     "SSTable files: %s does not match with the size of fileDigests: %s", totalFiles, fileDigests.size());
 
             bundleManifest.persistTo(bundleDirectory.resolve(Bundle.MANIFEST_FILE_NAME));
         }

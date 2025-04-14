@@ -27,21 +27,30 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
+import org.apache.cassandra.spark.bulkwriter.DigestAlgorithms;
+import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
 import org.apache.cassandra.spark.data.QualifiedTableName;
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -56,6 +65,7 @@ class SSTableListerTest
     {
         SSTableLister sstableLister = setupSSTableLister();
         sstableLister.includeDirectory(outputDir);
+        sstableLister.includeFileDigests(calculateFileDigests(outputDir));
         List<SSTableLister.SSTableFilesAndRange> sstables = new ArrayList<>();
         // 10196 is the total size of files in /data/ks/table1-ea3b3e6b-0d78-4913-89f2-15fcf98711d0
         // If this line fails, maybe something has been changed in the folder.
@@ -86,6 +96,14 @@ class SSTableListerTest
         assertTrue(range2Files.contains(outputDir.resolve("na-2-big-Summary.db")));
         assertTrue(range2Files.contains(outputDir.resolve("na-2-big-Statistics.db")));
         assertTrue(range2Files.contains(outputDir.resolve("na-2-big-TOC.txt")));
+
+        for (SSTableLister.SSTableFilesAndRange sstable : sstables)
+        {
+            for (Path file : sstable.files)
+            {
+                assertNotNull(sstableLister.fileDigests(Collections.singleton(file)), "Digest for file should exist. file: " + file);
+            }
+        }
     }
 
     @Test
@@ -164,5 +182,29 @@ class SSTableListerTest
         when(bridge.getSSTableSummary("ks", "table1", ssTable1)).thenReturn(summary1);
         when(bridge.getSSTableSummary("ks", "table1", ssTable2)).thenReturn(summary2);
         return new SSTableLister(new QualifiedTableName("ks", "table1"), bridge);
+    }
+
+
+    static Map<Path, Digest> calculateFileDigests(Path dir)
+    {
+        DigestAlgorithm digester = DigestAlgorithms.XXHASH32.get();
+        Map<Path, Digest> result = new HashMap<>();
+        try (Stream<Path> files = Files.walk(dir))
+        {
+            Iterator<Path> it = files.iterator();
+            while (it.hasNext())
+            {
+                Path file = it.next();
+                if (Files.isRegularFile(file))
+                {
+                    result.put(file, digester.calculateFileDigest(file));
+                }
+            }
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException(e);
+        }
+        return result;
     }
 }
