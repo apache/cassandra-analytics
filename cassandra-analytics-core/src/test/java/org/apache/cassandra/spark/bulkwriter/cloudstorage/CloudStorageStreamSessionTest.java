@@ -22,13 +22,16 @@ package org.apache.cassandra.spark.bulkwriter.cloudstorage;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Executors;
+import java.util.stream.Stream;
 
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableList;
@@ -49,6 +52,7 @@ import org.apache.cassandra.spark.bulkwriter.BulkWriterContext;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.DataTransport;
 import org.apache.cassandra.spark.bulkwriter.DataTransportInfo;
+import org.apache.cassandra.spark.bulkwriter.DigestAlgorithms;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.MockBulkWriterContext;
 import org.apache.cassandra.spark.bulkwriter.MockTableWriter;
@@ -60,15 +64,18 @@ import org.apache.cassandra.spark.bulkwriter.TransportContext;
 import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
+import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 
+import static org.apache.cassandra.spark.bulkwriter.cloudstorage.SSTableListerTest.calculateFileDigests;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
@@ -124,8 +131,11 @@ class CloudStorageStreamSessionTest
             Path outputDir = tempDir.path();
             FileUtils.copyDirectory(sourceDir.toFile(), outputDir.toFile());
 
+            Map<Path, Digest> fileDigests = calculateFileDigests(outputDir);
+
             CassandraBridge bridge = generateBridge(outputDir);
             SSTableLister ssTableLister = new SSTableLister(new QualifiedTableName("ks", "table1"), bridge);
+            ssTableLister.includeFileDigests(fileDigests);
             SSTablesBundler ssTablesBundler = new SSTablesBundler(outputDir, ssTableLister, nameGenerator, 5 * 1024);
             ssTablesBundler.includeDirectory(outputDir);
             ssTablesBundler.finish();
