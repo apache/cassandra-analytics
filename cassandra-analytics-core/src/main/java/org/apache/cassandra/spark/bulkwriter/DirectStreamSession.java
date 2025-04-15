@@ -69,7 +69,7 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
     @Override
     protected void onSSTablesProduced(Set<SSTableDescriptor> sstables)
     {
-        // do not submit the streaming task if it is in the last stream run, the rest of the sstables should be handled by doScheduleStream
+        // do not submit the streaming task if it is in the last stream run, the rest of the sstables should be handled by finalizeStreamAsync
         if (sstables.isEmpty() || isStreamFinalized())
         {
             return;

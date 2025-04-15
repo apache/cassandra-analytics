@@ -31,14 +31,14 @@ else
   # moving back to a release tag would be.
   # Examples
   # a tagged release of Cassandra 4.0
-  #   "cassandra-4.0:cassandra-4.0.12"
+  #   "cassandra-4.0:cassandra-4.0.17"
    # a hash that points to a commit on the cassandra-4.0 branch
   #   "cassandra-4.0:1f79c8492528f01bcc5f88951a1cc9e0d7265c54"
   # the cassandra-4.0 branch - used for nightly integration test runs or local testing of new features
   #   "cassandra-4.0:cassandra-4.0"
   # Due to MacOS being stuck on Bash < 4, we don't use associative arrays here.
   CANDIDATE_BRANCHES=(
-    "cassandra-4.0:cassandra-4.0.12"
+    "cassandra-4.0:cassandra-4.0.17"
     "cassandra-4.1:99d9faeef57c9cf5240d11eac9db5b283e45a4f9"
   )
   BRANCHES=( ${BRANCHES:-cassandra-4.0 cassandra-4.1} )

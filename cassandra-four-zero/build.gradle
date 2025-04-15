@@ -25,7 +25,7 @@ plugins {
 }
 
 dependencies {
-    implementation(group: 'org.apache.cassandra', name: 'cassandra-all', version: '4.0.12') {
+    implementation(group: 'org.apache.cassandra', name: 'cassandra-all', version: "$cassandra40Version") {
         // Exclude JNA libraries from the cassandra-all dependency tree because Spark has its own version
         // and trying to load two different versions causes issues with the native libraries
         exclude(group: 'net.java.dev.jna')
