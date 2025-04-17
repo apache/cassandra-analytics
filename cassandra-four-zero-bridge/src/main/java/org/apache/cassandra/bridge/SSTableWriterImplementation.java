@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.bridge;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Map;
@@ -102,10 +103,11 @@ public class SSTableWriterImplementation implements SSTableWriter
         producedSSTablesListener.accept(sstableDescriptors);
     }
 
-    private String baseFilename(Descriptor descriptor)
+    static String baseFilename(Descriptor descriptor)
     {
-        // note that descriptor.baseFilename() contains the directory portion in the string, and it cannot be used here.
-        return descriptor.version.toString() + '-' + descriptor.generation + '-' + descriptor.formatType.name;
+        // note that descriptor.baseFilename() contains the directory portion in the string. We do not include the directory portion
+        String baseFileNameWithDirectory = descriptor.baseFilename();
+        return baseFileNameWithDirectory.substring(baseFileNameWithDirectory.lastIndexOf(File.separatorChar) + 1);
     }
 
     @Override

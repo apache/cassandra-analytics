@@ -36,6 +36,8 @@ import org.junit.jupiter.api.io.TempDir;
 import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
+import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.io.sstable.format.SSTableFormat;
 import org.apache.cassandra.utils.ReflectionUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -109,6 +111,13 @@ class SSTableWriterImplementationTest
         writer.close();
         assertEquals(1, produced.size());
         assertEquals(Collections.singleton(new SSTableDescriptor("nb-4-big")), produced);
+    }
+
+    @Test
+    void testBaseFileNameExtraction()
+    {
+        Descriptor descriptor = new Descriptor("nb", writeDirectory, "ks", "tbl", 1, SSTableFormat.Type.BIG);
+        assertEquals("nb-1-big", SSTableWriterImplementation.baseFilename(descriptor));
     }
 
     static boolean peekSorted(CQLSSTableWriter.Builder builder) throws NoSuchFieldException, IllegalAccessException
