@@ -20,6 +20,7 @@
 package org.apache.cassandra.cdc.schemastore;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -82,13 +83,12 @@ public class CachingSchemaStore implements SchemaStore
     public void initialize()
     {
         LOGGER.info("Initializing CachingSchemaStore");
-        schemaSupplier
-        .getCdcEnabledTables()
-        .thenAccept(refreshedCdcTables -> {
-            loadPublisher();
-            publishSchemas();
-            LOGGER.info("CachingSchemaStore initialized");
-        });
+        schemaSupplier.getCdcEnabledTables()
+                      .thenAccept(refreshedCdcTables -> {
+                          loadPublisher();
+                          publishSchemas();
+                          LOGGER.info("CachingSchemaStore initialized");
+                      });
     }
 
     /**
@@ -123,27 +123,24 @@ public class CachingSchemaStore implements SchemaStore
             // Remove any old schema entries for deleted tables, this operation can be done in the end as this is
             // only for removing stale entries and no one is going to use these entries once the table is removed.
             // This doesn't have to be an atomic operation.
-            avroSchemasCache
-            .keySet()
-            .retainAll(
-            refreshedCdcTables
-            .stream()
-            .map(cqlTable -> TableIdentifier.of(cqlTable.keyspace(), cqlTable.table()))
-            .collect(Collectors.toList())
-            );
+            List<TableIdentifier> refreshedTableIds = refreshedCdcTables
+                                                      .stream()
+                                                      .map(cqlTable -> TableIdentifier.of(cqlTable.keyspace(), cqlTable.table()))
+                                                      .collect(Collectors.toList());
+            avroSchemasCache.keySet().retainAll(refreshedTableIds);
         });
     }
 
     private synchronized void loadPublisher()
     {
-        final TableSchemaPublisher publisherRef = this.publisher;
+        TableSchemaPublisher publisherRef = this.publisher;
         if (publisherRef != null)
         {
             try
             {
                 publisherRef.close();
             }
-            catch (final Exception exception)
+            catch (Exception exception)
             {
                 LOGGER.warn("Failed to shut down schema publisher", exception);
             }

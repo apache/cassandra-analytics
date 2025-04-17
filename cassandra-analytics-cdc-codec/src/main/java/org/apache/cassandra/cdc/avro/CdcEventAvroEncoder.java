@@ -100,7 +100,7 @@ public abstract class CdcEventAvroEncoder implements CdcEventTransformer<Generic
     private static Schema readSchema(String filename)
     {
         ClassLoader classLoader = CdcEventAvroEncoder.class.getClassLoader();
-        final InputStream is = classLoader.getResourceAsStream(filename);
+        InputStream is = classLoader.getResourceAsStream(filename);
         try
         {
             return new Schema.Parser().parse(is);

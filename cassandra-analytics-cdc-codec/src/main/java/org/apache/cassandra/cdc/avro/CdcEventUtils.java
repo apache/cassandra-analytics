@@ -51,7 +51,6 @@ public final class CdcEventUtils
 {
     private CdcEventUtils()
     {
-
     }
 
     public enum OperationType
@@ -75,8 +74,7 @@ public final class CdcEventUtils
                                           getOperationType(event));
     }
 
-    public static <EventType extends CdcEvent>
-    OperationType getOperationType(EventType event)
+    public static OperationType getOperationType(CdcEvent event)
     {
         switch (event.getKind())
         {
@@ -333,8 +331,8 @@ public final class CdcEventUtils
 
     public static class UpdatedEvent
     {
-        private GenericData.Record record;
-        private List<String> truncatedFields;
+        private final GenericData.Record record;
+        private final List<String> truncatedFields;
 
         public UpdatedEvent(GenericData.Record record, List<String> truncatedFields)
         {

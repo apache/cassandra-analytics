@@ -35,11 +35,11 @@ import org.apache.cassandra.spark.utils.Preconditions;
 public abstract class AvroBaseRecordTransformer<T extends AvroBaseRecordTransformer.BaseSerializedEvent<P>, P>
 extends CdcEventAvroEncoder
 {
-    // Kafka generally limits message size to 1mb, so we truncate messages
-    // too large and update the truncated flag
-    public static final int DEFAULT_TRUNCATE_THRESHOLD = (1 << 20) * 4 / 5; // 8mib = 1024 * 1024 * 0.8
+    // Kafka generally limits message size to 1 MiB, so we truncate messages
+    // that are too large and update the truncated flag
+    public static final int DEFAULT_TRUNCATE_THRESHOLD = (1 << 20) * 4 / 5; // 0.8 MiB = 1024 * 1024 * 0.8
 
-    final int truncateThreshold;
+    protected final int truncateThreshold;
 
     public AvroBaseRecordTransformer(SchemaStore store,
                                      Function<KeyspaceTypeKey, CqlField.CqlType> typeLookup,
@@ -89,7 +89,11 @@ extends CdcEventAvroEncoder
         return record;
     }
 
-    public static class BaseSerializedEvent<P>
+    /**
+     * POJO of a serialized event
+     * @param <P> serialized payload type
+     */
+    public static abstract class BaseSerializedEvent<P>
     {
         public final P payload;
         public final List<String> truncatedFields;

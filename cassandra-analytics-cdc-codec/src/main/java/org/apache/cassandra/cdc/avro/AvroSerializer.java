@@ -137,7 +137,7 @@ public class AvroSerializer implements KafkaCdcSerializer<CdcEvent>
             BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(data, decoderReuse);
             try
             {
-                final GenericRecord header = cdcReader.read(null, decoder);
+                GenericRecord header = cdcReader.read(null, decoder);
                 GenericRecord payload = deserializePayload(keyspace, table, header.get(AvroConstants.SCHEMA_UUID_KEY).toString(), getPayload(header));
                 return new CdcEnvelope(header, payload);
             }
@@ -149,8 +149,8 @@ public class AvroSerializer implements KafkaCdcSerializer<CdcEvent>
 
         public static byte[] getPayload(GenericRecord header)
         {
-            final ByteBuffer buf = (ByteBuffer) header.get(AvroConstants.PAYLOAD_KEY);
-            final byte[] ar = new byte[buf.remaining()];
+            ByteBuffer buf = (ByteBuffer) header.get(AvroConstants.PAYLOAD_KEY);
+            byte[] ar = new byte[buf.remaining()];
             buf.get(ar);
             return ar;
         }
@@ -158,12 +158,12 @@ public class AvroSerializer implements KafkaCdcSerializer<CdcEvent>
         Object deserializeRangePredicateValue(String keyspace, String table, String fieldName, ByteBuffer value)
         {
             GenericDatumReader<GenericRecord> reader = store.getReader(keyspace + '.' + table, null);
-            final byte[] bytes = new byte[value.remaining()];
+            byte[] bytes = new byte[value.remaining()];
             try
             {
                 value.get(bytes);
                 BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(bytes, this.decoderReuse);
-                final GenericRecord valueRecord = reader.read(null, decoder);
+                GenericRecord valueRecord = reader.read(null, decoder);
                 return valueRecord.get(fieldName);
             }
             catch (IOException e)

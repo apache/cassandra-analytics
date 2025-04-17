@@ -23,11 +23,37 @@ import org.slf4j.Logger;
 
 import org.apache.cassandra.cdc.msg.CdcEvent;
 
+/**
+ * Helper to produce structured log message for CDC events, etc.
+ */
 public interface CdcLogger
 {
+    /**
+     * Create the log message with the input and log at the info level
+     * @param logger logger to use to log
+     * @param message message to log
+     * @param event cdc event to log
+     * @param topic message topic to log
+     */
     void info(Logger logger, String message, CdcEvent event, String topic);
 
+    /**
+     * Create the log message with the input and log at the warn level
+     * @param logger logger to use
+     * @param message message to log
+     * @param event cdc event to log
+     * @param topic message topic to log
+     * @param cause throwable to log
+     */
     void warn(Logger logger, String message, CdcEvent event, String topic, Throwable cause);
 
+    /**
+     * Create the log message with the input and log at the error level
+     * @param logger logger to use to log
+     * @param message message to log
+     * @param event cdc event to log
+     * @param topic message topic to log
+     * @param cause throwable to log
+     */
     void error(Logger logger, String message, CdcEvent event, String topic, Throwable cause);
 }

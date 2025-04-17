@@ -65,6 +65,9 @@ public class AvroByteRecordTransformer extends AvroBaseRecordTransformer<ByteRec
         return record;
     }
 
+    /**
+     * Serialized event with payload in byte array
+     */
     public static class ByteRecordSerializedEvent extends AvroBaseRecordTransformer.BaseSerializedEvent<byte[]>
     {
         private ByteRecordSerializedEvent(byte[] payload, List<String> truncatedFields)

@@ -34,8 +34,7 @@ import org.apache.cassandra.spark.utils.Preconditions;
 
 import static org.apache.cassandra.cdc.avro.AvroGenericRecordTransformer.GenericRecordSerializedEvent;
 
-public class AvroGenericRecordTransformer extends
-                                          AvroBaseRecordTransformer<GenericRecordSerializedEvent, GenericRecord>
+public class AvroGenericRecordTransformer extends AvroBaseRecordTransformer<GenericRecordSerializedEvent, GenericRecord>
 {
     final String schemaNamespacePrefix;
 
@@ -101,10 +100,13 @@ public class AvroGenericRecordTransformer extends
         return tempSchema;
     }
 
+    /**
+     * Serialized event with payload in {@link GenericRecord}
+     */
     public static class GenericRecordSerializedEvent extends AvroBaseRecordTransformer.BaseSerializedEvent<GenericRecord>
     {
-        final String table;
-        final String keyspace;
+        private final String table;
+        private final String keyspace;
 
         public GenericRecordSerializedEvent(GenericRecord payload,
                                             List<String> truncatedFields,

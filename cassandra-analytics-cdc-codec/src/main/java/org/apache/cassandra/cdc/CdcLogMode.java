@@ -66,6 +66,7 @@ public enum CdcLogMode implements CdcLogger
     },
 
     // In addition to MINIMAL, it logs the partition key values of cdc events
+    // Note that it requires column value deserialization and could cause performance hit.
     PARTITION_KEYS
     {
         @Override
@@ -77,8 +78,7 @@ public enum CdcLogMode implements CdcLogger
         }
 
         @Override
-        public void warn(Logger logger, String message, CdcEvent event, String topic,
-                         Throwable cause)
+        public void warn(Logger logger, String message, CdcEvent event, String topic, Throwable cause)
         {
             logger.warn("{}. kind={} keyspace={} table={} partitionKeys={} topic={}",
                         message, event.getKind(), event.keyspace, event.table,
@@ -86,8 +86,7 @@ public enum CdcLogMode implements CdcLogger
         }
 
         @Override
-        public void error(Logger logger, String message, CdcEvent event, String topic,
-                          Throwable cause)
+        public void error(Logger logger, String message, CdcEvent event, String topic, Throwable cause)
         {
             logger.error("{}. kind={} keyspace={} table={} partitionKeys={} topic={}",
                          message, event.getKind(), event.keyspace, event.table,
@@ -96,36 +95,32 @@ public enum CdcLogMode implements CdcLogger
     },
 
     // In addition to MINIMAL, it logs all the column values of cdc events
+    // Note that it requires column value deserialization and could cause performance hit.
     FULL
     {
         @Override
         public void info(Logger logger, String message, CdcEvent event, String topic)
         {
-            logger.info(
-            "{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={} topic={}",
-            message, event.getKind(), event.keyspace, event.table,
+            logger.info("{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={} topic={}",
+                        message, event.getKind(), event.keyspace, event.table,
             columnsToString(event.getPartitionKeys()), columnsToString(event.getClusteringKeys()),
             columnsToString(event.getValueColumns()), topic);
         }
 
         @Override
-        public void warn(Logger logger, String message, CdcEvent event, String topic,
-                         Throwable cause)
+        public void warn(Logger logger, String message, CdcEvent event, String topic, Throwable cause)
         {
-            logger.warn(
-            "{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={} topic={}",
-            message, event.getKind(), event.keyspace, event.table,
+            logger.warn("{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={} topic={}",
+                        message, event.getKind(), event.keyspace, event.table,
             columnsToString(event.getPartitionKeys()), columnsToString(event.getClusteringKeys()),
             columnsToString(event.getValueColumns()), topic, cause);
         }
 
         @Override
-        public void error(Logger logger, String message, CdcEvent event, String topic,
-                          Throwable cause)
+        public void error(Logger logger, String message, CdcEvent event, String topic, Throwable cause)
         {
-            logger.error(
-            "{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={} topic={}",
-            message, event.getKind(), event.keyspace, event.table,
+            logger.error("{}. kind={} keyspace={} table={} partitionKeys={} clusteringKeys={} valueColumns={} topic={}",
+                         message, event.getKind(), event.keyspace, event.table,
             columnsToString(event.getPartitionKeys()), columnsToString(event.getClusteringKeys()),
             columnsToString(event.getValueColumns()), topic, cause);
         }
@@ -162,20 +157,21 @@ public enum CdcLogMode implements CdcLogger
     {
         try
         {
-            CqlField.CqlType type =
-            typeLookup.apply(KeyspaceTypeKey.of(fieldValue.keyspace, fieldValue.columnType));
+            CqlField.CqlType type = typeLookup.apply(KeyspaceTypeKey.of(fieldValue.keyspace, fieldValue.columnType));
             Object javaValue = type.deserializeToJavaType(fieldValue.getValue());
             return String.format("[%s : %s]", fieldValue.columnName, javaValue);
         }
         catch (Throwable t)
         {
+            LOGGER.error("Failed to deserialize column value. columnName={}", fieldValue.columnName, t);
             return String.format("[%s : unknown]", fieldValue.columnName);
         }
     }
 
     private static String columnsToString(@Nullable List<Value> columns)
     {
-        return columns == null ? "null" :
-               columns.stream().map(CdcLogMode::columnToString).collect(Collectors.joining(", "));
+        return columns == null
+               ? "null"
+               : columns.stream().map(CdcLogMode::columnToString).collect(Collectors.joining(", "));
     }
 }

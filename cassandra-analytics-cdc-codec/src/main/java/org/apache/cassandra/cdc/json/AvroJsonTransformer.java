@@ -45,8 +45,8 @@ public class AvroJsonTransformer extends CdcEventAvroEncoder
     @Override
     public GenericData.Record transform(CdcEvent event)
     {
-        final GenericData.Record payload = transformPayload(event, typeLookup);
-        final GenericData.Record record = new GenericData.Record(cdcSchema);
+        GenericData.Record payload = transformPayload(event, typeLookup);
+        GenericData.Record record = new GenericData.Record(cdcSchema);
         Function<Value, Object> avroFieldEncoder = field -> {
             Schema tableSchema = store.getSchema(event.keyspace + '.' + event.table, null);
             GenericData.Record update = new GenericData.Record(tableSchema);
