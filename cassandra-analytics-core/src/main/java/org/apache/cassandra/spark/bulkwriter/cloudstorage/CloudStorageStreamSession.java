@@ -108,6 +108,7 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
     @Override
     protected void onSSTablesProduced(Set<SSTableDescriptor> sstables)
     {
+        // do not submit the streaming task if it is in the last stream run, the rest of the sstables should be handled by finalizeStreamAsync
         if (sstables.isEmpty() || isStreamFinalized())
         {
             return;
