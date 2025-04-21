@@ -93,7 +93,7 @@ extends CdcEventAvroEncoder
      * POJO of a serialized event
      * @param <P> serialized payload type
      */
-    public static abstract class BaseSerializedEvent<P>
+    public abstract static class BaseSerializedEvent<P>
     {
         public final P payload;
         public final List<String> truncatedFields;
