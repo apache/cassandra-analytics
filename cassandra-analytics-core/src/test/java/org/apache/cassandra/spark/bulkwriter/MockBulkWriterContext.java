@@ -42,7 +42,6 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
@@ -82,7 +81,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     new CqlField.CqlType[]{mockCqlType(INT), mockCqlType(DATE), mockCqlType(VARCHAR), mockCqlType(INT)});
     private ConsistencyLevel.CL consistencyLevel;
     private int sstableDataSizeInMB = 128;
-    private CassandraBridge bridge = CassandraBridgeFactory.get(CassandraVersion.FIVEZERO);
     private TimeSkewTooLargeException timeSkewTooLargeException;
 
     @Override
@@ -109,6 +107,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     private boolean cleanShouldThrow = false;
     private final TokenPartitioner tokenPartitioner;
     private final String cassandraVersion;
+    private final CassandraBridge bridge;
     private CommitResultSupplier crSupplier = (uuids, dc) -> new DirectDataTransferApi.RemoteCommitResult(true, Collections.emptyList(), uuids, null);
     private Predicate<CassandraInstance> uploadRequestConsumer = instance -> true;
     private ReplicationFactor replicationFactor;
@@ -144,11 +143,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         this.cassandraVersion = cassandraVersion;
         this.consistencyLevel = consistencyLevel;
         this.validPair = validPair;
+        this.bridge = CassandraBridgeFactory.get(cassandraVersion);
         StructType validDataFrameSchema = this.validPair.getKey();
         ImmutableMap<String, CqlField.CqlType> validCqlColumns = this.validPair.getValue();
         ColumnType<?>[] partitionKeyColumnTypes = {ColumnTypes.INT, ColumnTypes.INT};
         TTLOption ttlOption = TTLOption.forever();
-        TableSchemaTestCommon.MockTableSchemaBuilder builder = new TableSchemaTestCommon.MockTableSchemaBuilder(CassandraBridgeFactory.get(cassandraVersion))
+        TableSchemaTestCommon.MockTableSchemaBuilder builder = new TableSchemaTestCommon.MockTableSchemaBuilder(bridge)
                                                                .withCqlColumns(validCqlColumns)
                                                                .withPartitionKeyColumns(partitionKeyColumns)
                                                                .withPrimaryKeyColumnNames(primaryKeyColumnNames)

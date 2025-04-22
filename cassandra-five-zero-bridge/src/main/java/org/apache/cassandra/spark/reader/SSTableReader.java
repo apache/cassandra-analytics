@@ -261,12 +261,20 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         Pair<DecoratedKey, DecoratedKey> keys = null;
         try
         {
-            now = System.nanoTime();
-            summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
-            if (summary != null)
+            if (ssTable.isBigFormat())
             {
-                stats.readSummaryDb(ssTable, System.nanoTime() - now);
-                keys = Pair.of(summary.first(), summary.last());
+                now = System.nanoTime();
+                summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
+                if (summary != null)
+                {
+                    stats.readSummaryDb(ssTable, System.nanoTime() - now);
+                    keys = Pair.of(summary.first(), summary.last());
+                }
+                if (keys == null)
+                {
+                    LOGGER.warn("Could not load first and last key from Summary.db file, so attempting Index.db fileName={}",
+                                ssTable.getDataFileName());
+                }
             }
         }
         catch (IOException exception)
@@ -276,9 +284,6 @@ public class SSTableReader implements SparkSSTableReader, Scannable
 
         if (keys == null)
         {
-            // TODO(c4c5): Skip printing this warning for BTI.
-            LOGGER.warn("Could not load first and last key from Summary.db file, so attempting Index.db fileName={}",
-                        ssTable.getDataFileName());
             now = System.nanoTime();
             keys = SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable);
             stats.readIndexDb(ssTable, System.nanoTime() - now);

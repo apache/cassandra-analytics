@@ -21,6 +21,8 @@ package org.apache.cassandra.spark.data.partitioner;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -30,7 +32,10 @@ import java.util.stream.Stream;
 
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.junit.jupiter.api.Named;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.IncompleteSSTableException;
@@ -57,44 +62,50 @@ public class SingleReplicaTests
                                                                         .setDaemon(true)
                                                                         .build());
 
-    @Test
-    public void testOpenSSTables() throws ExecutionException, InterruptedException, IOException
+    @ParameterizedTest
+    @MethodSource("dataFileNames")
+    public void testOpenSSTables(String dataFileName) throws ExecutionException, InterruptedException, IOException
     {
-        runTest(false);  // Missing no files
+        runTest(dataFileName, false);  // Missing no files
     }
 
-    @Test
-    public void testMissingNonEssentialFiles() throws ExecutionException, InterruptedException, IOException
+    @ParameterizedTest
+    @MethodSource("dataFileNames")
+    public void testMissingNonEssentialFiles(String dataFileName) throws ExecutionException, InterruptedException, IOException
     {
-        runTest(false, FileType.FILTER);  // Missing non-essential SSTable file component
+        runTest(dataFileName, false, FileType.FILTER);  // Missing non-essential SSTable file component
     }
 
-    @Test
-    public void testMissingOnlySummaryFile() throws ExecutionException, InterruptedException, IOException
+    @ParameterizedTest
+    @MethodSource("dataFileNames")
+    public void testMissingOnlySummaryFile(String dataFileName) throws ExecutionException, InterruptedException, IOException
     {
         // Summary.db can be missing if we can use Index.db
-        runTest(false, FileType.SUMMARY);
+        runTest(dataFileName, false, FileType.SUMMARY);
     }
 
-    @Test
-    public void testMissingOnlyIndexFile() throws ExecutionException, InterruptedException, IOException
+    @ParameterizedTest
+    @MethodSource("dataFileNames")
+    public void testMissingOnlyIndexFile(String dataFileName) throws ExecutionException, InterruptedException, IOException
     {
         // Index.db can be missing if we can use Summary.db
-        runTest(false, FileType.INDEX);
+        runTest(dataFileName, false, FileType.INDEX);
     }
 
-    @Test()
-    public void testMissingDataFile()
+    @ParameterizedTest
+    @MethodSource("dataFileNames")
+    public void testMissingDataFile(String dataFileName)
     {
         assertThrows(IOException.class,
-                     () -> runTest(true, FileType.DATA)
+                     () -> runTest(dataFileName, true, FileType.DATA)
         );
     }
 
-    @Test()
-    public void testMissingStatisticsFile()
+    @ParameterizedTest
+    @MethodSource("dataFileNames")
+    public void testMissingStatisticsFile(String dataFileName)
     {        assertThrows(IOException.class,
-                          () -> runTest(true, FileType.STATISTICS)
+                          () -> runTest(dataFileName, true, FileType.STATISTICS)
     );
     }
 
@@ -102,15 +113,17 @@ public class SingleReplicaTests
     public void testMissingSummaryPrimaryIndex()
     {
         assertThrows(IOException.class,
-                     () -> runTest(true, FileType.SUMMARY, FileType.INDEX)
+                     () -> runTest("na-1-big-Data.db", true, FileType.SUMMARY, FileType.INDEX)
         );
     }
 
-    @Test()
-    public void testFailOpenReader()
+    @ParameterizedTest
+    @MethodSource("dataFileNames")
+    public void testFailOpenReader(String dataFileName)
     {
         assertThrows(IOException.class,
-                     () -> runTest(true,
+                     () -> runTest(dataFileName,
+                                   true,
                                    (ssTable, isRepairPrimary) -> {
                          throw new IOException("Couldn't open Summary.db file");
                          },
@@ -118,44 +131,53 @@ public class SingleReplicaTests
         );
     }
 
-    @Test
-    public void testFilterOverlap() throws ExecutionException, InterruptedException, IOException
+    @ParameterizedTest
+    @MethodSource("dataFileNames")
+    public void testFilterOverlap(String dataFileName) throws ExecutionException, InterruptedException, IOException
     {
         // Should not filter out SSTables overlapping with token range
-        runTest(false,
+        runTest(dataFileName,
+                false,
                 (ssTable, isRepairPrimary) -> new Reader(ssTable, BigInteger.valueOf(50), BigInteger.valueOf(150L)),
                 Range.closed(BigInteger.valueOf(0L), BigInteger.valueOf(100L)));
     }
 
-    @Test
-    public void testFilterInnerlap() throws ExecutionException, InterruptedException, IOException
+    @ParameterizedTest
+    @MethodSource("dataFileNames")
+    public void testFilterInnerlap(String dataFileName) throws ExecutionException, InterruptedException, IOException
     {
         // Should not filter out SSTables overlapping with token range
-        runTest(false,
+        runTest(dataFileName,
+                false,
                 (ssTable, isRepairPrimary) -> new Reader(ssTable, BigInteger.valueOf(25), BigInteger.valueOf(75L)),
                 Range.closed(BigInteger.valueOf(0L), BigInteger.valueOf(100L)));
     }
 
-    @Test
-    public void testFilterBoundary() throws ExecutionException, InterruptedException, IOException
+    @ParameterizedTest
+    @MethodSource("dataFileNames")
+    public void testFilterBoundary(String dataFileName) throws ExecutionException, InterruptedException, IOException
     {
         // Should not filter out SSTables overlapping with token range
-        runTest(false,
+        runTest(dataFileName,
+                false,
                 (ssTable, isRepairPrimary) -> new Reader(ssTable, BigInteger.valueOf(100L), BigInteger.valueOf(102L)),
                 Range.closed(BigInteger.valueOf(0L), BigInteger.valueOf(100L)));
     }
 
     private static void runTest(
+            String dataFileName,
             boolean shouldThrowIOException,
             FileType... missingFileTypes) throws ExecutionException, InterruptedException, IOException
     {
-        runTest(shouldThrowIOException,
+        runTest(dataFileName,
+                shouldThrowIOException,
                 (ssTable, isRepairPrimary) -> new Reader(ssTable),
                 Range.closed(BigInteger.valueOf(-9223372036854775808L), BigInteger.valueOf(8710962479251732707L)),
                 missingFileTypes);
     }
 
     private static void runTest(
+            String dataFileName,
             boolean shouldThrowIOException,
             SSTablesSupplier.ReaderOpener<Reader> readerOpener,
             Range<BigInteger> range,
@@ -171,6 +193,9 @@ public class SingleReplicaTests
         {
             // verify() should throw IncompleteSSTableException when missing Statistic.db file
             when(ssTable3.isMissing(eq(fileType))).thenReturn(true);
+            doCallRealMethod().when(ssTable3).isBigFormat();
+            doCallRealMethod().when(ssTable3).isBtiFormat();
+            when(ssTable3.getDataFileName()).thenReturn(dataFileName);
         }
 
         Stream<SSTable> sstables = Stream.of(ssTable1, ssTable2, ssTable3);
@@ -242,5 +267,11 @@ public class SingleReplicaTests
         {
             return false;
         }
+    }
+
+    public static List<Named<String>> dataFileNames()
+    {
+        return Arrays.asList(Named.of("BIG", "na-1-big-Data.db"),
+                             Named.of("BTI", "na-1-bti-Data.db"));
     }
 }

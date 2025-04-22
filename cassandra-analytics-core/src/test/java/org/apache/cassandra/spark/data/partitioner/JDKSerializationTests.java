@@ -228,7 +228,7 @@ public class JDKSerializationTests extends VersionRunner
 
         public CassandraVersion version()
         {
-            return CassandraVersion.FIVEZERO;
+            return bridge.getVersion();
         }
 
         public CqlTable cqlTable()

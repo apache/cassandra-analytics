@@ -2022,9 +2022,13 @@ public class EndToEndTests
                               assertTrue(row.get(1) instanceof Integer);
                               assertTrue(row.get(2) instanceof Long);
                           }
-                          assertTrue(skippedRawBytes.get() > 50_000_000);
-                          assertTrue(skippedInputStreamBytes.get() > 2_500_000);
-                          assertTrue(skippedRangeBytes.get() > 5_000_000);
+                          // TODO(c4c5): Enable once we support stats in BTI.
+                          if (bridge.getVersion().versionNumber() == 4)
+                          {
+                              assertTrue(skippedRawBytes.get() > 50_000_000);
+                              assertTrue(skippedInputStreamBytes.get() > 2_500_000);
+                              assertTrue(skippedRangeBytes.get() > 5_000_000);
+                          }
                       })
                       .withReset(EndToEndTests::resetStats)
                       .run()

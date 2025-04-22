@@ -127,7 +127,7 @@ public class SparkRowIteratorTests
     public void testUdt(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((type1, type2) -> runTest(CassandraVersion.FIVEZERO, TestSchema.builder(bridge)
+            .checkAssert((type1, type2) -> runTest(bridge.getVersion(), TestSchema.builder(bridge)
                     .withPartitionKey("a", bridge.bigint())
                     .withClusteringKey("b", bridge.text())
                     .withColumn("c", bridge.udt("keyspace", "testudt")
@@ -143,7 +143,7 @@ public class SparkRowIteratorTests
     public void testTuple(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-            .checkAssert((type1, type2) -> runTest(CassandraVersion.FIVEZERO, TestSchema.builder(bridge)
+            .checkAssert((type1, type2) -> runTest(bridge.getVersion(), TestSchema.builder(bridge)
                     .withPartitionKey("a", bridge.bigint())
                     .withClusteringKey("b", bridge.text())
                     .withColumn("c", bridge.tuple(bridge.aInt(), type1, bridge.ascii(), type2, bridge.date()))

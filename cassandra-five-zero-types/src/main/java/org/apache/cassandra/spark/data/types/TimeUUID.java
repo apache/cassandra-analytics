@@ -19,11 +19,15 @@
 
 package org.apache.cassandra.spark.data.types;
 
+import java.nio.ByteBuffer;
+import java.util.function.Function;
+
 import org.apache.cassandra.cql3.functions.types.DataType;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.TimeUUIDType;
+import org.apache.cassandra.db.marshal.ValueAccessor;
+import org.apache.cassandra.serializers.MarshalException;
 import org.apache.cassandra.serializers.TypeSerializer;
-import org.apache.cassandra.serializers.UUIDSerializer;
 
 public class TimeUUID extends UUID
 {
@@ -49,12 +53,55 @@ public class TimeUUID extends UUID
 
     public <T> TypeSerializer<T> serializer()
     {
-        return (TypeSerializer<T>) UUIDSerializer.instance;
+        return (TypeSerializer<T>) AnalyticsTimeUUIDSerializer.INSTANCE;
     }
 
     @Override
     public DataType driverDataType(boolean isFrozen)
     {
         return DataType.timeuuid();
+    }
+
+    private static class AnalyticsTimeUUIDSerializer extends TypeSerializer<java.util.UUID>
+    {
+        private static final AnalyticsTimeUUIDSerializer INSTANCE = new AnalyticsTimeUUIDSerializer();
+
+        @Override
+        public ByteBuffer serialize(java.util.UUID value)
+        {
+            org.apache.cassandra.utils.TimeUUID timeUuid = nullOrConvert(value, org.apache.cassandra.utils.TimeUUID::fromUuid);
+            return org.apache.cassandra.utils.TimeUUID.Serializer.instance.serialize(timeUuid);
+        }
+
+        public <V> java.util.UUID deserialize(V v, ValueAccessor<V> valueAccessor)
+        {
+            org.apache.cassandra.utils.TimeUUID timeUuid = org.apache.cassandra.utils.TimeUUID.Serializer.instance.deserialize(v, valueAccessor);
+            return nullOrConvert(timeUuid, org.apache.cassandra.utils.TimeUUID::asUUID);
+        }
+
+        public <V> void validate(V v, ValueAccessor<V> valueAccessor) throws MarshalException
+        {
+            org.apache.cassandra.utils.TimeUUID.Serializer.instance.validate(v, valueAccessor);
+        }
+
+        public String toString(java.util.UUID uuid)
+        {
+            return uuid == null ? "" : uuid.toString();
+        }
+
+        public Class<java.util.UUID> getType()
+        {
+            return java.util.UUID.class;
+        }
+
+        private static <I, O> O nullOrConvert(I input, Function<I, O> converter)
+        {
+            if (input == null)
+            {
+                return null;
+            }
+
+            return converter.apply(input);
+        }
     }
 }
