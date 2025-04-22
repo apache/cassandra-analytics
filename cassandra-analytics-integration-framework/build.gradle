@@ -38,7 +38,9 @@ publishing {
     }
 }
 
-ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.4.jar" // latest supported Cassandra build is 4.1
+// ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.4.jar" // latest supported Cassandra build is 4.1
+// TODO(c4c5): Make configurable?
+ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-5.0.3.jar" // latest supported Cassandra build is 5.0
 def dtestJarFullPath = "${dependencyLocation}${ext.dtestJar}"
 
 test {
