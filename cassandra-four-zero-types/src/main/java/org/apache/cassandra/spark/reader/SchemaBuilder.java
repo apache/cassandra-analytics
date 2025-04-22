@@ -43,6 +43,7 @@ import org.apache.cassandra.bridge.CassandraTypesImplementation;
 import org.apache.cassandra.cql3.CQL3Type;
 import org.apache.cassandra.cql3.CQLFragmentParser;
 import org.apache.cassandra.cql3.CqlParser;
+import org.apache.cassandra.cql3.statements.schema.CreateTableStatement;
 import org.apache.cassandra.cql3.statements.schema.CreateTypeStatement;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.marshal.AbstractType;
@@ -187,12 +188,21 @@ public class SchemaBuilder
             st.addToRawBuilder(typesBuilder);
         }
         Types types = typesBuilder.build();
-        TableMetadata.Builder builder = CQLFragmentParser
-                .parseAny(CqlParser::createTableStatement, createStatement, "CREATE TABLE")
-                .keyspace(keyspace)
-                .prepare(null)
-                .builder(types)
-                .partitioner(cassPartitioner);
+        CreateTableStatement.Raw createTable = CQLFragmentParser.parseAny(CqlParser::createTableStatement,
+                                                                          createStatement,
+                                                                          "CREATE TABLE");
+        // If the table already exists, the tableId should remain the same, unless a non-null tableId is supplied
+        TableMetadata maybeExistingTableMetadata = schema.getTableMetadata(keyspace, createTable.table());
+        if (maybeExistingTableMetadata != null && tableId == null)
+        {
+            tableId = maybeExistingTableMetadata.id.asUUID();
+        }
+
+        TableMetadata.Builder builder = createTable
+                                        .keyspace(keyspace)
+                                        .prepare(null)
+                                        .builder(types)
+                                        .partitioner(cassPartitioner);
 
         if (tableId != null)
         {
