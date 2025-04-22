@@ -148,7 +148,7 @@ public class CollectionDeletionTests
                                 assertNotNull(cellTombstonesPerCol);
                                 Map<String, Value> valueColMap = event.getValueColumns()
                                                                       .stream()
-                                                                      .collect(Collectors.toMap(v -> v.columnName, Function.identity()));
+                                                                      .collect(Collectors.toMap(value -> value.columnName, Function.identity()));
                                 for (String name : collectionColumnNames)
                                 {
                                     assertNull(valueColMap.get(name).getValue(), "Collection column's value should be null since only deletion applies");

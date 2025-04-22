@@ -62,6 +62,7 @@
           "INSERT",
           "UPDATE",
           "DELETE",
+          "COMPLEX_ELEMENT_DELETE",
           "DELETE_RANGE",
           "DELETE_PARTITION"
         ]

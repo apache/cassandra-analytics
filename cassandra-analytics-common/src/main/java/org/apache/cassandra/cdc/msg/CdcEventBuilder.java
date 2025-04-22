@@ -72,6 +72,16 @@ public class CdcEventBuilder
         this.cassandraSource = cassandraSource;
     }
 
+    public static CdcEventBuilder of(CdcEvent.Kind kind, String keyspace, String table)
+    {
+        return of(kind, keyspace, table, null, CassandraSource.DEFAULT);
+    }
+
+    public static CdcEventBuilder of(CdcEvent.Kind kind, String keyspace, String table, String trackingId, CassandraSource cassandraSource)
+    {
+        return new CdcEventBuilder(kind, keyspace, table, trackingId, cassandraSource);
+    }
+
     public void setPartitionKeys(@Nullable List<Value> partitionKeys)
     {
         this.partitionKeys = partitionKeys;

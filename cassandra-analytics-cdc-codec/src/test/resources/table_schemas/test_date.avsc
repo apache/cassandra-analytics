@@ -1,0 +1,14 @@
+{
+  "type" : "record",
+  "name" : "date",
+  "namespace" : "test.date",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ {
+      "type": "int",
+      "logicalType": "date"
+    }, "null" ],
+    "doc" : "doc"
+  } ]
+}

@@ -1,0 +1,98 @@
+{
+  "type" : "record",
+  "name" : "test_tbl_collections",
+  "namespace" : "test_ks.test_tbl_collections",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ {
+      "type" : "int",
+      "cqlType" : "int"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "l",
+    "type" : [ {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "logicalType" : "uuid",
+        "cqlType" : "uuid"
+      },
+      "cqlType" : "list<uuid>"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "m",
+    "type" : [ {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "array_map",
+        "namespace" : "test_ks.test_tbl_collections.m.array_map",
+        "fields" : [ {
+          "name" : "key",
+          "type" : {
+            "type" : "string",
+            "cqlType" : "ascii"
+          }
+        }, {
+          "name" : "value",
+          "type" : {
+            "type" : "string",
+            "cqlType" : "ascii"
+          }
+        } ]
+      },
+      "logicalType" : "array_map",
+      "cqlType" : "map<ascii, ascii>"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "s",
+    "type" : [ {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "logicalType" : "uuid",
+        "cqlType" : "uuid"
+      },
+      "logicalType" : "array_set",
+      "cqlType" : "set<uuid>"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "u",
+    "type" : [ {
+      "type" : "record",
+      "name" : "record_udt",
+      "namespace" : "test_ks.test_tbl_collections.u.record_udt",
+      "fields" : [ {
+        "name" : "a",
+        "type" : {
+          "type" : "string",
+          "cqlType" : "text"
+        }
+      }, {
+        "name" : "b",
+        "type" : {
+          "type" : "int",
+          "cqlType" : "int"
+        }
+      }, {
+        "name" : "c",
+        "type" : {
+          "type" : "boolean",
+          "cqlType" : "boolean"
+        }
+      } ],
+      "logicalType" : "record_udt",
+      "cqlType" : "udt_1"
+    }, "null" ],
+    "doc" : "doc"
+  } ],
+  "primary_keys" : [ "a" ],
+  "partition_keys" : [ "a" ],
+  "clustering_keys" : [ ],
+  "static_columns" : [ ]
+}

@@ -1,0 +1,69 @@
+{
+  "type" : "record",
+  "name" : "test_tbl2",
+  "namespace" : "test_ks.test_tbl2",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "b",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "c",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "d",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "e",
+    "type" : [ {
+      "type" : "long",
+      "logicalType" : "timestamp-micros",
+      "cqlType" : "timestamp"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "f",
+    "type" : [ {
+      "type" : "string",
+      "cqlType" : "text"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "g",
+    "type" : [ {
+      "type" : "long",
+      "cqlType" : "bigint"
+    }, "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "h",
+    "type" : [ {
+      "type" : "long",
+      "logicalType" : "timestamp-micros",
+      "cqlType" : "timestamp"
+    }, "null" ],
+    "doc" : "doc"
+  } ],
+  "primary_keys" : [ "a" ],
+  "partition_keys" : [ "a" ],
+  "clustering_keys" : [ ],
+  "static_columns":[]
+}

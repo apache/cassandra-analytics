@@ -66,6 +66,7 @@ dependencies {
 
     implementation project(":cassandra-analytics-common")
     implementation project(':cassandra-analytics-cdc')
+    implementation project(":cassandra-analytics-cdc-codec")
     implementation project(':cassandra-analytics-sidecar-client')
     compileOnlyApi("com.datastax.cassandra:cassandra-driver-core:${project.cassandraDriverVersion}") // Cassandra driver is required only if user supplies the CassandraClientSource
 

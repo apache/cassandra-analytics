@@ -1,0 +1,12 @@
+CREATE TABLE test_ks.test_tbl3 (
+    a uuid,
+    b timeuuid,
+    c timestamp static,
+    d text static,
+    e text static,
+    f text,
+    g uuid,
+    h text,
+    i text,
+    PRIMARY KEY (a, b)
+) WITH CLUSTERING ORDER BY (b DESC)

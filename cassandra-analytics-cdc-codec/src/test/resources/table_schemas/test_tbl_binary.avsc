@@ -1,0 +1,21 @@
+{
+  "type" : "record",
+  "name" : "test_tbl_binary",
+  "namespace" : "test_ks.test_tbl_binary",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ "int", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "b",
+    "type" : [ "bytes", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "c",
+    "type" : [ "bytes", "null" ],
+    "doc" : "doc"
+  } ],
+  "primary_keys" : [ "a" ],
+  "partition_keys" : [ "a" ]
+}

@@ -86,8 +86,8 @@ public class CdcMessage
         Map<String, CqlField.CqlType> typeMap = cols
                                                 .stream()
                                                 .collect(Collectors
-                                                         .toMap(v -> v.columnName,
-                                                                v -> types.parseType(event.keyspace, v.columnType)
+                                                         .toMap(value -> value.columnName,
+                                                                value -> types.parseType(event.keyspace, value.columnType)
                                                          ));
         return typeMap::get;
     }

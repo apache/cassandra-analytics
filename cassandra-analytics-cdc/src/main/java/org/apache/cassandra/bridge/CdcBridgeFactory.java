@@ -24,7 +24,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.apache.cassandra.cdc.avro.CqlToAvroSchemaConverter;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
 {
@@ -36,11 +38,16 @@ public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
     {
         public final CassandraBridge cassandraBridge;
         public final CdcBridge cdcBridge;
+        @Nullable
+        final CqlToAvroSchemaConverter avroSchemaConverter;
 
-        public VersionSpecificBridge(CassandraBridge cassandraBridge, CdcBridge cdcBridge)
+        public VersionSpecificBridge(CassandraBridge cassandraBridge,
+                                     CdcBridge cdcBridge,
+                                     @Nullable CqlToAvroSchemaConverter avroSchemaConverter)
         {
             this.cassandraBridge = cassandraBridge;
             this.cdcBridge = cdcBridge;
+            this.avroSchemaConverter = avroSchemaConverter;
         }
     }
 
@@ -62,15 +69,20 @@ public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
         return get(getCassandraVersion(features));
     }
 
-    @NotNull
-    public static CassandraBridge get(@NotNull CassandraVersion version)
+    private static CdcBridgeFactory.VersionSpecificBridge getVersionSpecificBridge(@NotNull CassandraVersion version)
     {
         String jarBaseName = version.jarBaseName();
         if (jarBaseName == null)
         {
             throw new NullPointerException("Cassandra version " + version + " is not supported");
         }
-        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CdcBridgeFactory::create).cassandraBridge;
+        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CdcBridgeFactory::create);
+    }
+
+    @NotNull
+    public static CassandraBridge get(@NotNull CassandraVersion version)
+    {
+        return getVersionSpecificBridge(version).cassandraBridge;
     }
 
     @NotNull
@@ -88,12 +100,19 @@ public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
     @NotNull
     public static CdcBridge getCdcBridge(@NotNull CassandraVersion version)
     {
-        String jarBaseName = version.jarBaseName();
-        if (jarBaseName == null)
-        {
-            throw new NullPointerException("Cassandra version " + version + " is not supported");
-        }
-        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CdcBridgeFactory::create).cdcBridge;
+        return getVersionSpecificBridge(version).cdcBridge;
+    }
+
+    @NotNull
+    public static CqlToAvroSchemaConverter getCqlToAvroSchemaConverter(@NotNull CassandraBridge bridge)
+    {
+        return getCqlToAvroSchemaConverter(bridge.getVersion());
+    }
+
+    @Nullable
+    public static CqlToAvroSchemaConverter getCqlToAvroSchemaConverter(@NotNull CassandraVersion version)
+    {
+        return getVersionSpecificBridge(version).avroSchemaConverter;
     }
 
     @NotNull
@@ -105,17 +124,33 @@ public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
             ClassLoader loader = buildClassLoader(
             cassandraResourceName(label),
             bridgeResourceName(label),
-            typesResourceName(label));
+            typesResourceName(label),
+            avroResourceName(label)
+            );
             Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass(CassandraBridge.IMPLEMENTATION_FQCN);
             Constructor<CassandraBridge> constructor = bridge.getConstructor();
             CassandraBridge bridgeInstance = constructor.newInstance();
 
             Class<CdcBridge> cdcBridgeClass = (Class<CdcBridge>)
-                                             loader
-                                             .loadClass(CdcBridge.IMPLEMENTATION_FQCN);
+                                              loader
+                                              .loadClass(CdcBridge.IMPLEMENTATION_FQCN);
             Constructor<CdcBridge> cdcBridgeConstructor = cdcBridgeClass.getConstructor();
             CdcBridge cdcBridgeInstance = cdcBridgeConstructor.newInstance();
-            return new VersionSpecificBridge(bridgeInstance, cdcBridgeInstance);
+
+            CqlToAvroSchemaConverter cqlToAvroSchemaConverter = null;
+            try
+            {
+                Class<CqlToAvroSchemaConverter> avroBridgeClass = (Class<CqlToAvroSchemaConverter>)
+                                                                  loader
+                                                                  .loadClass(CdcBridge.CONVERTER_IMPLEMENTATION_FQCN);
+                Constructor<CqlToAvroSchemaConverter> cqlToAvroSchemaConverterConstructor = avroBridgeClass.getConstructor();
+                cqlToAvroSchemaConverter = cqlToAvroSchemaConverterConstructor.newInstance();
+            }
+            catch (ClassNotFoundException ignore)
+            {
+            }
+
+            return new VersionSpecificBridge(bridgeInstance, cdcBridgeInstance, cqlToAvroSchemaConverter);
         }
         catch (ClassNotFoundException | NoSuchMethodException | InstantiationException
                | IllegalAccessException | InvocationTargetException exception)

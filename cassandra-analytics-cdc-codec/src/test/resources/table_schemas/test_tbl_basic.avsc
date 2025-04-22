@@ -1,0 +1,29 @@
+{
+  "type" : "record",
+  "name" : "test_tbl_basic",
+  "namespace" : "test_ks.test_tbl_basic",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ "int", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "b",
+    "type" : [ "int", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "c",
+    "type" : [ "int", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "e",
+    "type" : [ "int", "null" ],
+    "doc" : "doc"
+  }, {
+    "name" : "f",
+    "type" : [ "int", "null" ],
+    "doc" : "doc"
+  } ],
+  "primary_keys" : [ "a" ],
+  "partition_keys" : [ "a" ]
+}

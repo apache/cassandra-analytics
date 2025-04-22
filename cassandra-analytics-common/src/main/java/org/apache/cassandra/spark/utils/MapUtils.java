@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.utils;
 
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -38,6 +39,19 @@ public final class MapUtils
     private MapUtils()
     {
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
+
+    // workaround while JDK8 is still supported
+    @SuppressWarnings({ "unchecked" })
+    public static <K, V> Map<K, V> mapOf(Object... keys)
+    {
+        Preconditions.checkArgument(keys.length % 2 == 0, "Must be matching number of key-value pairs");
+        Map<K, V> result = new HashMap<>(keys.length / 2);
+        for (int i = 0; i < keys.length; i += 2)
+        {
+            result.put((K) keys[i], (V) keys[i + 1]);
+        }
+        return result;
     }
 
     /**
@@ -160,9 +174,9 @@ public final class MapUtils
      * Returns an {@link Optional} of int value for the given {@code key} in the {@code options} map. The key is lower-cased before
      * accessing the map. An empty {@link Optional} is returned when the key doesn't match any element from the map.
      *
-     * @param options      the map
-     * @param key          the key to the map
-     * @param displayName  an optional name to display in the error message
+     * @param options     the map
+     * @param key         the key to the map
+     * @param displayName an optional name to display in the error message
      * @return {@link Optional} of {@link Integer}
      */
     public static Optional<Integer> getOptionalInt(Map<String, String> options, String key, String displayName)
@@ -199,12 +213,12 @@ public final class MapUtils
      * Returns the enum variant for the given {@code key} and the {@code enumClass}. The {@code defaultValue} is returned
      * when the lookup misses.
      *
-     * @param options       the map
-     * @param key           the key to lookup
-     * @param defaultValue  the default value
-     * @param displayName   an optional name to display in the error message
+     * @param options      the map
+     * @param key          the key to lookup
+     * @param defaultValue the default value
+     * @param displayName  an optional name to display in the error message
+     * @param <T>          enum type
      * @return the enum variant or the default value if the lookup misses
-     * @param <T> enum type
      */
     public static <T extends Enum<T>> T getEnumOption(Map<String, String> options, String key, T defaultValue, String displayName)
     {
@@ -237,8 +251,9 @@ public final class MapUtils
 
     /**
      * Method to check if key is present in {@code options} map.
-     * @param options   the map
-     * @param key       the key to the map
+     *
+     * @param options the map
+     * @param key     the key to the map
      * @return boolean
      */
     public static boolean containsKey(Map<String, String> options, String key)
@@ -252,12 +267,12 @@ public final class MapUtils
      * The value of the new option has the precedence over the deprecated one. Meaning when both options are present,
      * the value associated with the new option is returned.
      *
-     * @param options option keys and values map
-     * @param option new option
+     * @param options    option keys and values map
+     * @param option     new option
      * @param deprecated deprecated option
-     * @param resolver function to resolve the value. If the input of the function is null, it asks for the default value
+     * @param resolver   function to resolve the value. If the input of the function is null, it asks for the default value
+     * @param <T>        value type
      * @return resolved value
-     * @param <T> value type
      */
     public static <T> T resolveDeprecated(Map<String, String> options, String option, String deprecated, Function<String, T> resolver)
     {

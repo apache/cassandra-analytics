@@ -1,0 +1,16 @@
+{
+  "type" : "record",
+  "name" : "decimal",
+  "namespace" : "test.decimal",
+  "doc" : "doc",
+  "fields" : [ {
+    "name" : "a",
+    "type" : [ {
+      "type": "bytes",
+      "logicalType": "decimal",
+      "precision": 30,
+      "scale": 8
+    }, "null" ],
+    "doc" : "doc"
+  } ]
+}

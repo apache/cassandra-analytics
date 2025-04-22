@@ -23,10 +23,11 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 
+import org.apache.cassandra.cdc.kafka.KafkaOptions;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public interface SidecarCdcOptions
+public interface SidecarCdcOptions extends KafkaOptions
 {
     String DEFAULT_JOB_ID = "test-job";
     int DEFAULT_MAX_WATERMARKER_SIZE = 400000;

@@ -154,6 +154,12 @@ public class BaseCassandraBridgeFactory
         return jarResourceName(label, "types");
     }
 
+    @NotNull
+    static String avroResourceName(@NotNull String label)
+    {
+        return jarResourceName(label, "avro");
+    }
+
     static String jarResourceName(String... parts)
     {
         return "/bridges/" + String.join("-", parts) + ".jar";
