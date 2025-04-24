@@ -37,14 +37,16 @@ else
   # the cassandra-4.0 branch - used for nightly integration test runs or local testing of new features
   #   "cassandra-4.0:cassandra-4.0"
   # Due to MacOS being stuck on Bash < 4, we don't use associative arrays here.
+  # TODO(c4c5): Apply fix for CASSANDRA-19902.
   CANDIDATE_BRANCHES=(
     "cassandra-4.0:cassandra-4.0.17"
     "cassandra-4.1:99d9faeef57c9cf5240d11eac9db5b283e45a4f9"
-    "cassandra-5.0:cassandra-5.0.3"
+    "cassandra-5.0:cassandra-5.0.3-jmx"
   )
   BRANCHES=( ${BRANCHES:-cassandra-4.0 cassandra-4.1 cassandra-5.0} )
   echo ${BRANCHES[*]}
-  REPO=${REPO:-"https://github.com/apache/cassandra.git"}
+  # TODO(c4c5): Change back to apache repository.
+  REPO=${REPO:-"https://github.com/lukasz-antoniak/cassandra.git"}
   SCRIPT_DIR=$( dirname -- "$( readlink -f -- "$0"; )"; )
   DTEST_JAR_DIR="$(dirname "${SCRIPT_DIR}/")/dependencies"
   DTEST_JAR_DIR=${CASSANDRA_DEP_DIR:-$DTEST_JAR_DIR}
