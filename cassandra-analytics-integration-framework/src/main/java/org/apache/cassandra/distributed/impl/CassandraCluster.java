@@ -101,12 +101,16 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
                       .withTokenCount(configuration.tokenCount)
                       .withDataDirCount(configuration.numDataDirsPerInstance);
 
+        if (configuration.tokenCount > 1) {
+            clusterBuilder.withVNodes();
+        }
+
         TokenSupplier tokenSupplier;
         Consumer<IInstanceConfig> instanceConfigUpdater;
         if (configuration.partitioner != null)
         {
             tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(Partitioner.fromClassName(configuration.partitioner),
-                                                                      nodesPerDc, newNodesPerDc, dcCount, 1);
+                                                                      nodesPerDc, newNodesPerDc, dcCount, configuration.tokenCount);
             instanceConfigUpdater = instanceConfig -> {
                 instanceConfig.set("partitioner", configuration.partitioner);
                 configuration.features.forEach(instanceConfig::with);
@@ -114,7 +118,7 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
         }
         else
         {
-            tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(nodesPerDc, newNodesPerDc, dcCount, 1);
+            tokenSupplier = TestTokenSupplier.evenlyDistributedTokens(nodesPerDc, newNodesPerDc, dcCount, configuration.tokenCount);
             instanceConfigUpdater = config -> configuration.features.forEach(config::with);
         }
         if (configuration.additionalInstanceConfig != null)
