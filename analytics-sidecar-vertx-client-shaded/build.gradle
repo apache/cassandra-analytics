@@ -45,10 +45,10 @@ configurations {
 
 dependencies {
     shadow(group: 'org.slf4j', name: 'slf4j-api', version: "${project.slf4jApiVersion}")
-    api(project(':vertx-client'))
+    api(project(':analytics-sidecar-vertx-client'))
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.1'
-    testImplementation(project(path: ':vertx-client-shaded', configuration: 'shadow'))
+    testImplementation(project(path: ':analytics-sidecar-vertx-client-shaded', configuration: 'shadow'))
 }
 
 tasks.named('test') {

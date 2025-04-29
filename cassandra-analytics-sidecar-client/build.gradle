@@ -60,7 +60,5 @@ dependencies {
 
     implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"
 
-    // This dependency must be built by running `scripts/build-dependencies.sh`
-//    api(group: "${sidecarClientGroup}", name: "${sidecarClientName}", version: "${sidecarVersion}")
-    api(project(path: ':vertx-client-shaded', configuration: 'shadow'))
+    api(project(path: ':analytics-sidecar-vertx-client-shaded', configuration: 'shadow'))
 }
