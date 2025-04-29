@@ -21,7 +21,7 @@ package org.apache.cassandra.clients;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.client.SidecarInstance;
+import o.a.c.sidecar.client.shaded.common.client.SidecarInstance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

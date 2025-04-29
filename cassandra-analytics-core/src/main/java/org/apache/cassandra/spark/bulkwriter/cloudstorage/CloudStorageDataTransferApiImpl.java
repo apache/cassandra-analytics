@@ -34,7 +34,7 @@ import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobSummaryRespons
 import org.apache.cassandra.sidecar.client.HttpResponse;
 import org.apache.cassandra.sidecar.client.HttpResponseImpl;
 import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarInstance;
+import o.a.c.sidecar.client.shaded.common.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.retry.RetryAction;
 import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;

@@ -21,7 +21,7 @@ package org.apache.cassandra.spark.common;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.client.SidecarInstance;
+import o.a.c.sidecar.client.shaded.common.client.SidecarInstance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;

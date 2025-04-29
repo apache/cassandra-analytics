@@ -28,7 +28,10 @@ import org.apache.cassandra.sidecar.common.data.StorageCredentials;
  */
 public class RestoreJobSecretsGen
 {
-    private RestoreJobSecretsGen() {}
+    private RestoreJobSecretsGen()
+    {
+
+    }
 
     public static StorageCredentials genReadStorageCredentials()
     {

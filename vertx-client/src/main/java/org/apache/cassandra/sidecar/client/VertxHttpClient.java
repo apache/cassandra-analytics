@@ -264,7 +264,9 @@ public class VertxHttpClient implements HttpClient
     protected HttpRequest<Buffer> applyHeaders(HttpRequest<Buffer> vertxRequest, Map<String, String> headers)
     {
         if (headers == null || headers.isEmpty())
+        {
             return vertxRequest;
+        }
 
         for (Map.Entry<String, String> header : headers.entrySet())
         {

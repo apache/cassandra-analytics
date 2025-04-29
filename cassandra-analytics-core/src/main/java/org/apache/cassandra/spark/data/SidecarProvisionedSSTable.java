@@ -29,7 +29,7 @@ import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.clients.SidecarStreamConsumerAdapter;
 import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarInstance;
+import o.a.c.sidecar.client.shaded.common.client.SidecarInstance;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.streaming.BufferingInputStream;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;

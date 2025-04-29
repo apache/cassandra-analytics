@@ -66,7 +66,7 @@ class RandomInstanceSelectionPolicyTest
         assertThat(iterator.hasNext()).isTrue();
         assertThat(iterator.next()).isIn(mockInstanceList);
         assertThat(iterator.hasNext()).isFalse().as("Expected to be false");
-        assertThat(iterator.hasNext()).isFalse().as("Test idempotency of hasNext by running it again");;
+        assertThat(iterator.hasNext()).isFalse().as("Test idempotency of hasNext by running it again");
         assertThatExceptionOfType(NoSuchElementException.class).isThrownBy(iterator::next);
     }
 }

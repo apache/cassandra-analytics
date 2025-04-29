@@ -23,6 +23,8 @@ import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.io.vertx.core.net.OpenSSLEngineOptions;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 /**
  * Tests for the vertx-client-shaded project
  */

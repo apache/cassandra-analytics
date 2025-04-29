@@ -46,7 +46,7 @@ import o.a.c.sidecar.client.shaded.common.request.Request;
 import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload;
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
+import o.a.c.sidecar.client.shaded.common.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
 import org.apache.cassandra.spark.bulkwriter.BulkWriteValidator;
 import org.apache.cassandra.spark.bulkwriter.BulkWriterContext;
