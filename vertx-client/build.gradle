@@ -47,8 +47,8 @@ configurations {
 }
 
 dependencies {
-    implementation(project(':client'))
-    implementation(project(':client-common'))
+    api(project(':client'))
+//    implementation(project(':client-common'))
     api(group: 'io.vertx', name: 'vertx-web-client', version: "${project.vertxVersion}") {
         exclude group: 'com.fasterxml.jackson.core', module: 'jackson-core'
     }

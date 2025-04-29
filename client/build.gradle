@@ -63,7 +63,7 @@ configurations {
 }
 
 dependencies {
-    implementation(project(':client-common'))
+    api(project(':client-common'))
     implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
     implementation("org.slf4j:slf4j-api:${slf4jApiVersion}")
 

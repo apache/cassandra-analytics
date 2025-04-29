@@ -53,7 +53,7 @@ ext {
         System.getenv(property) != null || System.getProperty(property) != null || project.hasProperty(property)
     }
 
-    dependencyLocation = propertyWithDefault("CASSANDRA_DEP_DIR", "${rootDir}/dtest-jars") + "/"
+    dependencyLocation = propertyWithDefault("CASSANDRA_DEP_DIR", "${rootDir}/dependencies") + "/"
 
     // This allows simplified builds and local maven installs.
     forceSigning = propertyExists("forceSigning")
