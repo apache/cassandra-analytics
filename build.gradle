@@ -253,3 +253,52 @@ subprojects {
     println(version)
   }
 }
+
+
+ext {
+  // A common method to handle loading gradle properties with a default when
+  // no definition is found. The property value is determined by the following
+  // priority order (top is highest priority):
+  //    - gradle property (-Pproperty=value)
+  //    - system property (-Dproperty=value)
+  //    - environment variable
+  //    - default value
+  // See more details on gradle property handling here:
+  //    https://docs.gradle.org/current/userguide/build_environment.html#sec:gradle_properties_and_system_properties
+  propertyWithDefault = { property, defaultValue ->
+    def value = defaultValue
+    def envValue = System.getenv("CASSANDRA_DEP_DIR")
+    if (envValue != null) {
+      value = envValue
+    }
+    def systemValue = System.getProperty(property)
+    if (systemValue != null) {
+      value = systemValue
+    }
+    def projectValue = project.hasProperty(property) ? project.property(property) : null
+    if (projectValue != null) {
+      value = projectValue
+    }
+    return value
+  }
+
+  // Returns true if the property has been set, otherwise false.
+  propertyExists = { property ->
+    System.getenv(property) != null || System.getProperty(property) != null || project.hasProperty(property)
+  }
+
+  dependencyLocation = propertyWithDefault("CASSANDRA_DEP_DIR", "${rootDir}/dtest-jars") + "/"
+
+  // This allows simplified builds and local maven installs.
+  forceSigning = propertyExists("forceSigning")
+  skipSigning = propertyExists("skipSigning")
+  shouldSign =
+          // Always sign artifacts if -PforceSigning is passed.
+          forceSigning ||
+                  // Skip signing artifacts by default if -PskipSigning is passed.
+                  (!skipSigning
+                          // Sign artifacts if the version is not a snapshot, and we are uploading them to maven.
+                          && !version.endsWith("SNAPSHOT")
+                          && project.gradle.startParameter.taskNames.any { it.contains("upload") })
+
+}

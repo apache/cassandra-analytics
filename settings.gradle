@@ -37,3 +37,8 @@ include 'cassandra-analytics-spark-four-zero-converter'
 include 'cassandra-avro-converter'
 include 'cassandra-analytics-cdc-codec'
 
+
+include 'vertx-client-shaded'
+include 'vertx-client'
+include 'client'
+include 'client-common'
