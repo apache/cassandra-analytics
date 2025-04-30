@@ -45,6 +45,8 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.StructField;
+import scala.collection.JavaConverters;
+import scala.collection.Seq;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -171,28 +173,35 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
         }
     }
 
-    public void validateWritesWithDriverResultSet(List<Row> sourceData, ResultSet queriedData,
-                                                  Function<com.datastax.driver.core.Row, String> rowFormatter)
+    public void validateWritesWithDriverResultSet(List<Row> sparkData, ResultSet driverData,
+                                                  Function<com.datastax.driver.core.Row, String> driverRowFormatter)
     {
-        Set<String> actualEntries = new HashSet<>();
-        queriedData.forEach(row -> actualEntries.add(rowFormatter.apply(row)));
+        Set<String> driverEntries = new HashSet<>();
+        driverData.forEach(row -> driverEntries.add(driverRowFormatter
+                .apply(row)
+                // Driver Codec writes "NULL" for null value. Spark DF writes "null".
+                .replace("NULL", "null")
+                // driver writes lists as [] and sets as {},
+                // whereas spark entries have the same type WrappedArray for both lists and sets
+                .replace('[', '{')
+                .replace(']', '}')));
 
         // Number of entries in Cassandra must match the original datasource
-        assertThat(actualEntries.size()).isEqualTo(sourceData.size());
+        assertThat(driverEntries.size()).isEqualTo(sparkData.size());
 
         // remove from actual entries to make sure that the data read is the same as the data written
-        Set<String> sourceEntries = sourceData.stream().map(this::formattedSourceEntry)
-                                              .collect(Collectors.toSet());
-        assertThat(actualEntries).as("All entries are expected to be read from database")
-                                 .containsExactlyInAnyOrderElementsOf(sourceEntries);
+        Set<String> sparkEntries = sparkData.stream().map(this::formattedSparkRow)
+                .collect(Collectors.toSet());
+        assertThat(driverEntries).as("All entries are expected to be read from database")
+                .containsExactlyInAnyOrderElementsOf(sparkEntries);
     }
 
-    private String formattedSourceEntry(Row row)
+    private String formattedSparkRow(Row row)
     {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < row.size(); i++)
         {
-            maybeFormatUdt(sb, row.get(i));
+            maybeFormatSparkCompositeType(sb, row.get(i));
             if (i != (row.size() - 1))
             {
                 sb.append(":");
@@ -203,7 +212,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
 
     // Format a Spark row to look like what the toString on a UDT looks like
     // Unfortunately not _quite_ json, so we need to do this manually.
-    protected void maybeFormatUdt(StringBuilder sb, Object o)
+    protected void maybeFormatSparkCompositeType(StringBuilder sb, Object o)
     {
         if (o instanceof Row)
         {
@@ -214,13 +223,39 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
             {
                 sb.append(maybeQuoteFieldName(fields[i]));
                 sb.append(":");
-                maybeFormatUdt(sb, r.get(i));
+                maybeFormatSparkCompositeType(sb, r.get(i));
                 if (i != r.size() - 1)
                 {
                     sb.append(',');
                 }
             }
             sb.append("}");
+        }
+        else if (o instanceof Seq) // can't differentiate between scala list and set, both come here as Seq
+        {
+            List<?> entries = JavaConverters.seqAsJavaList((Seq<?>) o);
+            sb.append("{");
+            for (int i = 0; i < entries.size(); i++)
+            {
+                maybeFormatSparkCompositeType(sb, entries.get(i));
+                if (i != (entries.size() - 1))
+                {
+                    sb.append(',');
+                }
+            }
+            sb.append("}");
+        }
+        else if (o instanceof scala.collection.Map)
+        {
+            Map<?, ?> map = JavaConverters.mapAsJavaMap(((scala.collection.Map<?, ?>) o));
+            for (Map.Entry<?, ?> entry : map.entrySet())
+            {
+                sb.append("{");
+                maybeFormatSparkCompositeType(sb, entry.getKey());
+                sb.append(":");
+                maybeFormatSparkCompositeType(sb, entry.getValue());
+                sb.append("}");
+            }
         }
         else if (o instanceof String)
         {

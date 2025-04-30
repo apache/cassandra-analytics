@@ -23,9 +23,11 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -389,19 +391,52 @@ public class RecordWriter
 
     private Object maybeConvertUdt(Object value)
     {
+        if (value instanceof List)
+        {
+            List<Object> resultList = new ArrayList<>();
+            for (Object entry : (List<?>) value)
+            {
+                resultList.add(maybeConvertUdt(entry));
+            }
+
+            return resultList;
+        }
+
+        if (value instanceof Set)
+        {
+            Set<Object> resultList = new HashSet<>();
+            for (Object entry : (Set<?>) value)
+            {
+                resultList.add(maybeConvertUdt(entry));
+            }
+
+            return resultList;
+        }
+
+        if (value instanceof Map)
+        {
+            Map<Object, Object> resultMap = new HashMap<>();
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet())
+            {
+                resultMap.put(maybeConvertUdt(entry.getKey()), maybeConvertUdt(entry.getValue()));
+            }
+
+            return resultMap;
+        }
+
         if (value instanceof BridgeUdtValue)
         {
             BridgeUdtValue udtValue = (BridgeUdtValue) value;
             // Depth-first replacement of BridgeUdtValue instances to their appropriate Cql types
             for (Map.Entry<String, Object> entry : udtValue.udtMap.entrySet())
             {
-                if (entry.getValue() instanceof BridgeUdtValue)
-                {
-                    udtValue.udtMap.put(entry.getKey(), maybeConvertUdt(entry.getValue()));
-                }
+                // udt can have complex types like nested udt, list, set or map with embedded UDTs in them
+                // convert each entry recursively until we see basic datatype
+                udtValue.udtMap.put(entry.getKey(), maybeConvertUdt(entry.getValue()));
             }
             return getUdt(udtValue.name).convertForCqlWriter(udtValue.udtMap, writerContext.bridge().getVersion(), false);
         }
+
         return value;
     }
 
