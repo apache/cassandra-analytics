@@ -201,9 +201,9 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 
-   APACHE CASSANDRA SIDECAR SUBCOMPONENTS:
+   APACHE CASSANDRA ANALYTICS SUBCOMPONENTS:
 
-   Apache Cassandra Sidecar includes a number of subcomponents with
+   Apache Cassandra Analytics includes a number of subcomponents with
    separate copyright notices and license terms. Your use of the source
    code for these subcomponents is subject to the terms and
    conditions of the following licenses.
