@@ -19,6 +19,17 @@
 
 package org.apache.cassandra.analytics;
 
+import org.apache.cassandra.sidecar.testing.QualifiedName;
+import org.apache.cassandra.spark.bulkwriter.WriterOptions;
+import org.apache.cassandra.testing.ClusterBuilderConfiguration;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -26,26 +37,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Timeout;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-
-import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.spark.bulkwriter.WriterOptions;
-import org.apache.cassandra.testing.ClusterBuilderConfiguration;
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.junit.runners.Parameterized;
-
-import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
-import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
-import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
-import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
+import static org.apache.cassandra.testing.TestUtils.*;
 
 /**
  * A simple test that runs a sample read/write Cassandra Analytics job.
