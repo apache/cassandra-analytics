@@ -7,6 +7,6 @@ public class BulkWriteDownInstanceMultipleTokensTest extends BulkWriteDownInstan
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
         return super.testClusterConfiguration()
-                .tokenCount(4);
+                    .tokenCount(4);
     }
 }

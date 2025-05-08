@@ -7,6 +7,6 @@ public class CassandraAnalyticsSimpleMultipleTokensTest extends CassandraAnalyti
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
         return super.testClusterConfiguration()
-                .tokenCount(4);
+                    .tokenCount(4);
     }
 }

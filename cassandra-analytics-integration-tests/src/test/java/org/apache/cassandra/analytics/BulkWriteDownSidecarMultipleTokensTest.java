@@ -7,6 +7,6 @@ public class BulkWriteDownSidecarMultipleTokensTest extends BulkWriteDownSidecar
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
         return super.testClusterConfiguration()
-                .tokenCount(4);
+                    .tokenCount(4);
     }
 }
