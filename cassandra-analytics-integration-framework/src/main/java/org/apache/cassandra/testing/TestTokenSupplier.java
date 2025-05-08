@@ -117,14 +117,14 @@ public class TestTokenSupplier
                                                              int numTokensPerNode,
                                                              BigInteger increment)
     {
-        List<String>[] tokens = new List[(numNodesPerDC + newNodesPerDC) * numDcs];
+        List<String>[] tokens = new List[(numNodesPerDC + newNodesPerDC) * numDcs * numTokensPerNode];
         Arrays.setAll(tokens, ignored -> new ArrayList<>(numTokensPerNode));
 
         BigInteger value = partitioner.minToken.add(BigInteger.ONE);
 
-        int nodeId = 1;
         for (int i = 0; i < numTokensPerNode; ++i)
         {
+            int nodeId = 1;
             while (nodeId <= (numNodesPerDC * numDcs))
             {
                 value = value.add(increment);
