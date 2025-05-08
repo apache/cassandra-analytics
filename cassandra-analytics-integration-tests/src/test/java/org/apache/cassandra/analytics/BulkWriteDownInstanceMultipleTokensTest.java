@@ -20,7 +20,8 @@ package org.apache.cassandra.analytics;
 
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
-public class BulkWriteDownInstanceMultipleTokensTest extends BulkWriteDownInstanceTest {
+public class BulkWriteDownInstanceMultipleTokensTest extends BulkWriteDownInstanceTest
+{
     @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
