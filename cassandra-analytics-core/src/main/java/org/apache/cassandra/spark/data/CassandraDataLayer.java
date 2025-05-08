@@ -348,7 +348,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         List<CompletableFuture<Void>> futures =
         ring.stream()
             .filter(ringEntry -> datacenter == null || datacenter.equals(ringEntry.datacenter()))
-            .filter(ringEntry -> distinctInstances.add(ringEntry.fqdn()))
+            .filter(ringEntry -> distinctInstances.add(ringEntry.fqdn() + ':' + ringEntry.port()))
             .map(ringEntry -> {
                 PartitionedDataLayer.AvailabilityHint hint =
                 PartitionedDataLayer.AvailabilityHint.fromState(ringEntry.status(), ringEntry.state());
