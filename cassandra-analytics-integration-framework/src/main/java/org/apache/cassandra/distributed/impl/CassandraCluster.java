@@ -101,7 +101,8 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
                       .withTokenCount(configuration.tokenCount)
                       .withDataDirCount(configuration.numDataDirsPerInstance);
 
-        if (configuration.tokenCount > 1) {
+        if (configuration.tokenCount > 1)
+        {
             clusterBuilder.withVNodes();
         }
 

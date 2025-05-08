@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -339,13 +340,15 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     private CompletionStage<Map<String, AvailabilityHint>> createSnapshot(ClientConfig options, RingResponse ring)
     {
         Map<String, PartitionedDataLayer.AvailabilityHint> availabilityHints = new ConcurrentHashMap<>(ring.size());
-        Map<String, Boolean> distinctInstances = new HashMap<>();
+
+        // Set to ensure a snapshot is only created once per host
+        Set<String> distinctInstances = new HashSet<>();
 
         // Fire off create snapshot request across the entire cluster
         List<CompletableFuture<Void>> futures =
         ring.stream()
             .filter(ringEntry -> datacenter == null || datacenter.equals(ringEntry.datacenter()))
-            .filter(ringEntry -> !options.createSnapshotFilterDistinctInstances() || distinctInstances.putIfAbsent(ringEntry.fqdn(), true) == null)
+            .filter(ringEntry -> distinctInstances.add(ringEntry.fqdn()))
             .map(ringEntry -> {
                 PartitionedDataLayer.AvailabilityHint hint =
                 PartitionedDataLayer.AvailabilityHint.fromState(ringEntry.status(), ringEntry.state());
