@@ -1,5 +1,5 @@
 1.0.0
- * Add support for vnodes (CASSANDRA-20075)
+ * Add support for vnodes (CASSANALYTICS-50)
  * Add CDC Kafka and Avro codecs module to translate CDC mutations into Avro format for publication over Kafka (CASSANALYTICS-9)
  * Bump Cassandra version to 4.0.17 and integrate with CQLSSTableWriter notification (CASSANALYTICS-5)
  * Bulk writer in S3_COMPAT mode calculates file digest twice (CASSANALYTICS-19)
