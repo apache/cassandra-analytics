@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.data;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -50,6 +51,7 @@ public class CqlTable implements Serializable
     private final Set<CqlField.CqlUdt> udts;
 
     private final Map<String, CqlField> fieldsMap;
+    private final Map<String, Boolean> columnsWithUdts;
     private final List<CqlField> partitionKeys;
     private final List<CqlField> clusteringKeys;
     private final List<CqlField> staticColumns;
@@ -105,6 +107,8 @@ public class CqlTable implements Serializable
         {
             columns.put(column.name(), column);
         }
+
+        this.columnsWithUdts = determineColumnsWithUdts();
     }
 
     public TableIdentifier tableIdentifier()
@@ -240,6 +244,22 @@ public class CqlTable implements Serializable
     public int indexCount()
     {
         return indexCount;
+    }
+
+    private Map<String, Boolean> determineColumnsWithUdts()
+    {
+        Map<String, Boolean> columnsWithUdts = new HashMap<>();
+        for (Map.Entry<String, CqlField> field : fieldsMap.entrySet())
+        {
+            columnsWithUdts.put(field.getKey(), !(field.getValue().type().udts().isEmpty()));
+        }
+
+        return columnsWithUdts;
+    }
+
+    public boolean containsUdt(String fieldName)
+    {
+        return columnsWithUdts.get(fieldName);
     }
 
     @Override

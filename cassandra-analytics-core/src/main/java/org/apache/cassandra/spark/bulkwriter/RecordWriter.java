@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -76,7 +77,6 @@ public class RecordWriter
     private final ReplicaAwareFailureHandler<RingInstance> failureHandler;
     private final Supplier<TaskContext> taskContextSupplier;
     private final ConcurrentHashMap<String, CqlField.CqlUdt> udtCache = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Boolean> fieldsWithUdtCache = new ConcurrentHashMap<>();
     private final Map<String, Future<StreamResult>> streamFutures;
     private final ExecutorService executorService;
     private final Path baseDir;
@@ -382,12 +382,10 @@ public class RecordWriter
     {
         Preconditions.checkArgument(values.length == columnNames.length,
                                     "Number of values does not match the number of columns " + values.length + ", " + columnNames.length);
-        CqlTable cqlTable = cqlTable();
 
         for (int i = 0; i < columnNames.length; i++)
         {
-            String cqlTypeName = cqlTable.getField(columnNames[i]).cqlTypeName();
-            if (containsUdt(cqlTypeName))
+            if (cqlTable().containsUdt(columnNames[i]))
             {
                 map.put(columnNames[i], maybeConvertUdt(values[i]));
             }
@@ -403,15 +401,10 @@ public class RecordWriter
     {
         if (value instanceof List)
         {
-            List<Object> resultList = (List<Object>) value;
-            for (int i = 0; i < resultList.size(); i++)
+            List<Object> resultList = new ArrayList<>();
+            for (Object entry : (List<?>) value)
             {
-                Object received = resultList.get(i);
-                Object converted = maybeConvertUdt(resultList.get(i));
-                if (received != converted)
-                {
-                    resultList.set(i, converted);
-                }
+                resultList.add(maybeConvertUdt(entry));
             }
 
             return resultList;
@@ -419,42 +412,22 @@ public class RecordWriter
 
         if (value instanceof Set)
         {
-            Set<Object> resultSet = (Set<Object>) value;
-            Set<Object> convertedEntries = new HashSet<>();
-            for (Iterator<Object> it = resultSet.iterator(); it.hasNext();)
+            Set<Object> resultList = new HashSet<>();
+            for (Object entry : (Set<?>) value)
             {
-                Object received = it.next();
-                Object converted = maybeConvertUdt(received);
-                if (received != converted)
-                {
-                    convertedEntries.add(converted);
-                    it.remove();
-                }
+                resultList.add(maybeConvertUdt(entry));
             }
-            resultSet.addAll(convertedEntries);
 
-            return resultSet;
+            return resultList;
         }
 
         if (value instanceof Map)
         {
-            Map<Object, Object> resultMap = (Map<Object, Object>) value;
-            Map<Object, Object> convertedEntries = new HashMap<>();
-            for (Iterator<Map.Entry<Object, Object>> iterator = resultMap.entrySet().iterator();
-                 iterator.hasNext();)
+            Map<Object, Object> resultMap = new HashMap<>();
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet())
             {
-                Map.Entry<Object, Object> entry = iterator.next();
-                Object receivedKey = entry.getKey();
-                Object receivedValue = entry.getValue();
-                Object convertedKey = maybeConvertUdt(receivedKey);
-                Object convertedValue = maybeConvertUdt(receivedValue);
-                if (receivedKey != convertedKey || receivedValue != convertedValue)
-                {
-                    iterator.remove();
-                    convertedEntries.put(convertedKey, convertedValue);
-                }
+                resultMap.put(maybeConvertUdt(entry.getKey()), maybeConvertUdt(entry.getValue()));
             }
-            resultMap.putAll(convertedEntries);
 
             return resultMap;
         }
@@ -486,25 +459,6 @@ public class RecordWriter
                 }
             }
             throw new IllegalArgumentException("Could not find udt with name " + name);
-        });
-    }
-
-    // This function checks is a field of the table contains UDT type.
-    // The UDT type can be nested somewhere nested inside other types like lists/map/sets etc.
-    // Hence, we take cql type of the field as string and check does it contain any of the UDT type names.
-    // Example, field with type frozen<list<set<frozen<udt_with_collections>>>> contains UDT type udt_with_collections
-    private boolean containsUdt(String cqlTypeName)
-    {
-        return fieldsWithUdtCache.computeIfAbsent(cqlTypeName, name -> {
-            for (CqlField.CqlUdt udt : cqlTable().udts())
-            {
-                // UDT type can be somewhere nested deep inside other types like lists/sets/maps
-                if (cqlTypeName.contains(udt.cqlName()))
-                {
-                    return true;
-                }
-            }
-            return false;
         });
     }
 
