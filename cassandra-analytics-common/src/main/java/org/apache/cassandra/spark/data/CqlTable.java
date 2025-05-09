@@ -246,6 +246,10 @@ public class CqlTable implements Serializable
         return indexCount;
     }
 
+    /**
+     * Check each column of the table for UDT type somewhere nested inside it and maintain map of true/false accordingly
+     * @return map of column name to true/false
+     */
     private Map<String, Boolean> determineColumnsWithUdts()
     {
         Map<String, Boolean> columnsWithUdts = new HashMap<>();
@@ -257,6 +261,11 @@ public class CqlTable implements Serializable
         return columnsWithUdts;
     }
 
+    /**
+     * Determines if a column has UDT type somewhere nested inside it
+     * @param fieldName name of the column
+     * @return true if the column has UDT type , false otherwise
+     */
     public boolean containsUdt(String fieldName)
     {
         return columnsWithUdts.get(fieldName);

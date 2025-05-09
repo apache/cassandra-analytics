@@ -21,6 +21,7 @@ package org.apache.cassandra.analytics;
 
 import java.util.function.Predicate;
 import com.datastax.driver.core.UDTValue;
+import org.apache.cassandra.distributed.api.ICoordinator;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
@@ -111,6 +112,8 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
             + "            id BIGINT PRIMARY KEY,\n"
             + "            outerudt frozen<%s>)";
 
+    private ICoordinator coordinator;
+
 
     @Test
     void testWriteWithUdt()
@@ -121,7 +124,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
 
         bulkWriterDataFrameWriter(df, UDT_TABLE_NAME).save();
 
-        SimpleQueryResult result = cluster.coordinator(1).executeWithResult("SELECT * FROM " + UDT_TABLE_NAME, ConsistencyLevel.ALL);
+        SimpleQueryResult result = coordinator.executeWithResult("SELECT * FROM " + UDT_TABLE_NAME, ConsistencyLevel.ALL);
         assertThat(result.hasNext()).isTrue();
         validateWritesWithDriverResultSet(df.collectAsList(),
                                           queryAllDataWithDriver(UDT_TABLE_NAME),
@@ -137,7 +140,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
 
         bulkWriterDataFrameWriter(df, NESTED_TABLE_NAME).save();
 
-        SimpleQueryResult result = cluster.coordinator(1).executeWithResult("SELECT * FROM " + NESTED_TABLE_NAME, ConsistencyLevel.ALL);
+        SimpleQueryResult result = coordinator.executeWithResult("SELECT * FROM " + NESTED_TABLE_NAME, ConsistencyLevel.ALL);
         assertThat(result.hasNext()).isTrue();
         validateWritesWithDriverResultSet(df.collectAsList(),
                                           queryAllDataWithDriver(NESTED_TABLE_NAME),
@@ -169,16 +172,16 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         int i = 0;
         for (; i < ROW_COUNT; i++)
         {
-            cluster.schemaChangeIgnoringStoppedInstances(String.format(insertIntoListOfUdts, LIST_OF_UDT_SOURCE_TABLE, i, i, i, i, i));
+            coordinator.execute(String.format(insertIntoListOfUdts, LIST_OF_UDT_SOURCE_TABLE, i, i, i, i, i), ConsistencyLevel.ALL);
         }
 
         // test null cases
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id) values (%d)",
-                LIST_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, udtlist) values (%d, null)",
-                LIST_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, udtlist) values (%d, [{f1:null, f2:null, f3:null}])",
-                LIST_OF_UDT_SOURCE_TABLE, i++));
+        coordinator.execute(String.format("insert into %s (id) values (%d)",
+                                          LIST_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, udtlist) values (%d, null)",
+                                          LIST_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, udtlist) values (%d, [{f1:null, f2:null, f3:null}])",
+                                          LIST_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
 
         return i;
     }
@@ -213,13 +216,12 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         }
 
         // test null cases
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id) values (%d)",
-                SET_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, udtset) values (%d, null)",
-                SET_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, udtset) values (%d, " +
-                        "{{f1:null, f2:null, f3:null}})",
-                SET_OF_UDT_SOURCE_TABLE, i++));
+        coordinator.execute(String.format("insert into %s (id) values (%d)",
+                                          SET_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, udtset) values (%d, null)",
+                                          SET_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, udtset) values (%d, {{f1:null, f2:null, f3:null}})",
+                                          SET_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
 
         return i;
     }
@@ -253,13 +255,12 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
                     i, i, i, i, i, i, i, i, i));
         }
 
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id) values (%d)",
-                MAP_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, udtmap) values (%d, null)",
-                MAP_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, udtmap) values (%d, " +
-                        "{{f1:null, f2:null, f3:null} : {f1:null, f2:null, f3:null}})",
-                MAP_OF_UDT_SOURCE_TABLE, i++));
+        coordinator.execute(String.format("insert into %s (id) values (%d)",
+                                          MAP_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, udtmap) values (%d, null)",
+                                          MAP_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, udtmap) values (%d, {{f1:null, f2:null, f3:null} : {f1:null, f2:null, f3:null}})",
+                                          MAP_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
 
         return i;
     }
@@ -292,14 +293,14 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         }
 
         // test null cases
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id) values (%d)",
-                UDT_WITH_LIST_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, outerudt) values (%d, null)",
-                UDT_WITH_LIST_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, outerudt) values (%d, {innerudt:[]})",
-                UDT_WITH_LIST_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, outerudt) values (%d, {innerudt:[{f1:null, f2:null}]})",
-                UDT_WITH_LIST_OF_UDT_SOURCE_TABLE, i++));
+        coordinator.execute(String.format("insert into %s (id) values (%d)",
+                                          UDT_WITH_LIST_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, outerudt) values (%d, null)",
+                                          UDT_WITH_LIST_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, outerudt) values (%d, {innerudt:[]})",
+                                          UDT_WITH_LIST_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, outerudt) values (%d, {innerudt:[{f1:null, f2:null}]})",
+                                          UDT_WITH_LIST_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
 
         return i;
     }
@@ -332,14 +333,14 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         }
 
         // test null cases
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id) values (%d)",
-                UDT_WITH_SET_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, outerudt) values (%d, null)",
-                UDT_WITH_SET_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, outerudt) values (%d, {innerudt:{}})",
-                UDT_WITH_SET_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, outerudt) values (%d, {innerudt:{{f1:null, f2:null}}})",
-                UDT_WITH_SET_OF_UDT_SOURCE_TABLE, i++));
+        coordinator.execute(String.format("insert into %s (id) values (%d)",
+                                          UDT_WITH_SET_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, outerudt) values (%d, null)",
+                                          UDT_WITH_SET_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, outerudt) values (%d, {innerudt:{}})",
+                                          UDT_WITH_SET_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, outerudt) values (%d, {innerudt:{{f1:null, f2:null}}})",
+                                          UDT_WITH_SET_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
 
         return i;
     }
@@ -372,12 +373,12 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         }
 
         // test null cases
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id) values (%d)",
-                UDT_WITH_MAP_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, outerudt) values (%d, null)",
-                UDT_WITH_MAP_OF_UDT_SOURCE_TABLE, i++));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format("insert into %s (id, outerudt) values (%d, " +
-                "{innerudt:{{f1:null, f2:null}: {f1:null, f2:null}}})", UDT_WITH_MAP_OF_UDT_SOURCE_TABLE, i++));
+        coordinator.execute(String.format("insert into %s (id) values (%d)",
+                                          UDT_WITH_MAP_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, outerudt) values (%d, null)",
+                                          UDT_WITH_MAP_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, outerudt) values (%d, {innerudt:{{f1:null, f2:null}: {f1:null, f2:null}}})",
+                                          UDT_WITH_MAP_OF_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
 
         return i;
     }
@@ -445,6 +446,8 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
     @Override
     protected void initializeSchemaForTest()
     {
+        coordinator = cluster.getFirstRunningInstance().coordinator();
+
         createTestKeyspace(UDT_TABLE_NAME, DC1_RF3);
 
         cluster.schemaChangeIgnoringStoppedInstances(TWO_FIELD_UDT_DEF);
