@@ -33,7 +33,7 @@ import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 import org.apache.cassandra.sidecar.client.selection.InstanceSelectionPolicy;
 import org.apache.cassandra.sidecar.client.selection.OrderedInstanceSelectionPolicy;
 import org.apache.cassandra.sidecar.client.selection.RandomInstanceSelectionPolicy;
-import org.apache.cassandra.sidecar.common.client.SidecarInstanceImpl;
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.jetbrains.annotations.NotNull;
 
 /**

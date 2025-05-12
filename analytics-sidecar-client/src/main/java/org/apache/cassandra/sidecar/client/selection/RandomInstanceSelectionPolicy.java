@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
-import org.apache.cassandra.sidecar.common.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.jetbrains.annotations.NotNull;
 
 /**
