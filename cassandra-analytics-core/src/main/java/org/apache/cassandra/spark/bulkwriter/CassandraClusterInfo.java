@@ -41,7 +41,6 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.client.SidecarInstanceImpl;
 import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.common.response.SchemaResponse;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
@@ -50,7 +49,8 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.clients.Sidecar;
-import o.a.c.sidecar.client.shaded.common.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;

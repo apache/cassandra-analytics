@@ -25,12 +25,12 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
-import o.a.c.sidecar.client.shaded.common.client.SidecarInstance;
 import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
 import org.apache.cassandra.cdc.api.CommitLog;
 import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarClient;
+import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.StreamBuffer;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.exceptions.TransportFailureException;

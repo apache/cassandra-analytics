@@ -44,7 +44,7 @@ import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobSummaryRespons
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.sidecar.client.SidecarClient;
-import o.a.c.sidecar.client.shaded.common.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.BulkWriterContext;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.DataTransport;

@@ -25,7 +25,7 @@ import o.a.c.sidecar.client.shaded.common.request.data.CreateRestoreJobRequestPa
 import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload;
 import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPayload;
 import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobSummaryResponsePayload;
-import o.a.c.sidecar.client.shaded.common.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.exception.S3ApiCallException;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;

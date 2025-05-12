@@ -32,8 +32,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.client.SidecarInstance;
-import o.a.c.sidecar.client.shaded.common.client.SidecarInstanceImpl;
 import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.io.vertx.core.Vertx;
 import o.a.c.sidecar.client.shaded.io.vertx.core.VertxOptions;
@@ -42,6 +40,8 @@ import org.apache.cassandra.sidecar.client.HttpClientConfig;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarClientConfig;
 import org.apache.cassandra.sidecar.client.SidecarClientConfigImpl;
+import org.apache.cassandra.sidecar.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.VertxHttpClient;
 import org.apache.cassandra.sidecar.client.VertxRequestExecutor;

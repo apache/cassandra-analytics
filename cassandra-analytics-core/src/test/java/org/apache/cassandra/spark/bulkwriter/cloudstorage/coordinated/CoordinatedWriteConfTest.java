@@ -28,8 +28,8 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import o.a.c.sidecar.client.shaded.common.client.SidecarInstance;
-import o.a.c.sidecar.client.shaded.common.client.SidecarInstanceImpl;
+import org.apache.cassandra.sidecar.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf.ClusterConf;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf.SimpleClusterConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel.CL;

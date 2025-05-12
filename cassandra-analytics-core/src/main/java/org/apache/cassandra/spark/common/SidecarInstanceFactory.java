@@ -25,7 +25,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.common.client.SidecarInstanceImpl;
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 
 public class SidecarInstanceFactory
 {
