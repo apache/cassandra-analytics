@@ -223,3 +223,9 @@
    This product bundles a file (CommitLogSegmentReader.java) from Apache
    Cassandra, copyright The Apache Cassandra Authors, which is available
    under an Apache License version 2.
+
+   This product bundles some modules (analitycs-sidecar-client,
+   analytics-sidecar-client-common, analytics-sidecar-vertx-client-shaded,
+   analytics-sidecar-vertx-client) from Apache Cassandra Sidecar,
+   copyright The Apache Cassandra Authors, which is available under an
+   Apache License version 2.

@@ -1,0 +1,88 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
+import java.nio.file.Paths
+
+plugins {
+    id('idea')
+    // A Java library
+    id('java-library')
+    // which produces test fixtures
+    id('java-test-fixtures')
+    // and is published
+    id('maven-publish')
+}
+
+sourceCompatibility = 1.8
+
+test {
+    useJUnitPlatform()
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+    reports {
+        junitXml.setRequired(true)
+        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-results", "client").toFile()
+        println("Destination directory for client tests: ${destDir}")
+        junitXml.getOutputLocation().set(destDir)
+        html.setRequired(true)
+        html.getOutputLocation().set(destDir)
+    }
+}
+
+configurations {
+    all*.exclude(group: 'ch.qos.logback')
+
+    runtime.exclude(group: "com.google.code.findbugs", module: "jsr305")
+    runtime.exclude(group: "org.codehaus.mojo", module: "animal-sniffer-annotations")
+    runtime.exclude(group: "com.google.guava", module: "listenablefuture")
+    runtime.exclude(group: "com.google.guava", module: "failureaccess")
+    runtime.exclude(group: "org.checkerframework", module: "checker-qual")
+    runtime.exclude(group: "com.google.errorprone", module: "error_prone_annotations")
+    runtime.exclude(group: 'com.github.jnr', module: 'jnr-ffi')
+    runtime.exclude(group: 'com.github.jnr', module: 'jnr-posix')
+}
+
+dependencies {
+    api(project(':analytics-sidecar-client-common'))
+    implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
+    implementation("org.slf4j:slf4j-api:${slf4jApiVersion}")
+
+    compileOnly('org.jetbrains:annotations:23.0.0')
+    compileOnly(group: 'io.netty', name: 'netty-codec-http', version: "${project.nettyVersion}")
+
+    testImplementation(platform('org.junit:junit-bom:5.9.2'))
+    testImplementation('org.junit.jupiter:junit-jupiter')
+    testImplementation("org.assertj:assertj-core:3.24.2")
+    testImplementation('org.mockito:mockito-core:4.10.0')
+    testImplementation('com.squareup.okhttp3:mockwebserver:4.10.0')
+    testImplementation(group: 'io.netty', name: 'netty-codec-http', version: "${project.nettyVersion}")
+
+    testFixturesImplementation(testFixtures(project(":analytics-sidecar-client-common")))
+    testFixturesImplementation(platform('org.junit:junit-bom:5.9.2'))
+    testFixturesImplementation('org.junit.jupiter:junit-jupiter')
+    testFixturesImplementation("org.assertj:assertj-core:3.24.2")
+    testFixturesImplementation('org.mockito:mockito-core:4.10.0')
+    testFixturesImplementation('com.squareup.okhttp3:mockwebserver:4.10.0')
+    testFixturesImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
+    testFixturesCompileOnly(group: 'io.netty', name: 'netty-codec-http', version: "${project.nettyVersion}")
+}
+
+check.dependsOn(checkstyleMain, checkstyleTest)
