@@ -25,5 +25,4 @@ ext {
     sparkGroupId="org.apache.spark"
     sparkMajorVersion="3"
     sparkVersion="3.2.2"
-    sidecarVersion="${sidecarClientVersion}"
 }
