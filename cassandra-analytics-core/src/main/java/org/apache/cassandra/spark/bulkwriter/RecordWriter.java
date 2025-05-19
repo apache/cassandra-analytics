@@ -397,9 +397,15 @@ public class RecordWriter
         return map;
     }
 
+    /**
+     * A column can have UDTs somewhere nested inside collections/UDTs. All occurrences of BridgeUdtValue need to be
+     * recursively converted to UDTValue to be able to write to CQL.
+     * @param value column value
+     * @return column value after converting all occurrences of BridgeUdtValue to UDTValue
+     */
     private Object maybeConvertUdt(Object value)
     {
-        if (value instanceof List)
+        if (value instanceof List && !((List<?>) value).isEmpty())
         {
             List<Object> resultList = new ArrayList<>();
             for (Object entry : (List<?>) value)
@@ -410,18 +416,18 @@ public class RecordWriter
             return resultList;
         }
 
-        if (value instanceof Set)
+        if (value instanceof Set && !((Set<?>) value).isEmpty())
         {
-            Set<Object> resultList = new HashSet<>();
+            Set<Object> resultSet = new HashSet<>();
             for (Object entry : (Set<?>) value)
             {
-                resultList.add(maybeConvertUdt(entry));
+                resultSet.add(maybeConvertUdt(entry));
             }
 
-            return resultList;
+            return resultSet;
         }
 
-        if (value instanceof Map)
+        if (value instanceof Map && !((Map<?, ?>) value).isEmpty())
         {
             Map<Object, Object> resultMap = new HashMap<>();
             for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet())

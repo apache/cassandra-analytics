@@ -22,7 +22,7 @@ package org.apache.cassandra.spark.data;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -51,7 +51,7 @@ public class CqlTable implements Serializable
     private final Set<CqlField.CqlUdt> udts;
 
     private final Map<String, CqlField> fieldsMap;
-    private final Map<String, Boolean> columnsWithUdts;
+    private final Set<String> columnsWithUdts;
     private final List<CqlField> partitionKeys;
     private final List<CqlField> clusteringKeys;
     private final List<CqlField> staticColumns;
@@ -247,15 +247,19 @@ public class CqlTable implements Serializable
     }
 
     /**
-     * Check each column of the table for UDT type somewhere nested inside it and maintain map of true/false accordingly
-     * @return map of column name to true/false
+     * Check each column of the table for UDT type somewhere nested inside it and
+     * create set of columns containing UDT types
+     * @return set of columns containing UDT types
      */
-    private Map<String, Boolean> determineColumnsWithUdts()
+    private Set<String> determineColumnsWithUdts()
     {
-        Map<String, Boolean> columnsWithUdts = new HashMap<>();
+        Set<String> columnsWithUdts = new HashSet<>();
         for (Map.Entry<String, CqlField> field : fieldsMap.entrySet())
         {
-            columnsWithUdts.put(field.getKey(), !(field.getValue().type().udts().isEmpty()));
+            if (!field.getValue().type().udts().isEmpty())
+            {
+                columnsWithUdts.add(field.getKey());
+            }
         }
 
         return columnsWithUdts;
@@ -268,7 +272,7 @@ public class CqlTable implements Serializable
      */
     public boolean containsUdt(String fieldName)
     {
-        return columnsWithUdts.get(fieldName);
+        return columnsWithUdts.contains(fieldName);
     }
 
     @Override

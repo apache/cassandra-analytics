@@ -406,9 +406,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
     {
         return row.getLong(0) +
                 ":" +
-                row.getList(1, UDTValue.class).toString()
-                        .replace("{}", "null")
-                        .replace("[]", "null");
+                row.getList(1, UDTValue.class).toString();
     }
 
     @NotNull
@@ -418,9 +416,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         // Driver Codec writes "NULL" for null value. Spark DF writes "null".
         return row.getLong(0) +
                 ":" +
-                row.getSet(1, UDTValue.class).toString()
-                        .replace("{}", "null")
-                        .replace("[]", "null");
+                row.getSet(1, UDTValue.class).toString();
     }
 
     @NotNull
@@ -431,9 +427,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         return row.getLong(0) +
                 ":" +
                 row.getMap(1, UDTValue.class, UDTValue.class).toString()
-                        .replace("=", ":")
-                        .replace("{}", "null")
-                        .replace("[]", "null");
+                        .replace("=", ":");
     }
 
     @Override

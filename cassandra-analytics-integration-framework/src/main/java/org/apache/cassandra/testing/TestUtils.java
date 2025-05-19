@@ -36,7 +36,7 @@ public final class TestUtils
     private static final AtomicInteger TEST_TABLE_ID = new AtomicInteger(0);
 
     //    public static final int ROW_COUNT = 10_000;
-    public static final int ROW_COUNT = 100;
+    public static final int ROW_COUNT = 1_000;
 
     // Replication factor configurations used for tests
     public static final Map<String, Integer> DC1_RF1 = Collections.singletonMap("datacenter1", 1);
