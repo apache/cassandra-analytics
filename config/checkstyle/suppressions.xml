@@ -37,4 +37,6 @@
 
     <suppress checks="TodoComment" files=".*" />
 
+    <suppress checks="ParameterNumber" files="ClientConnectionEntry.java" />
+
 </suppressions>

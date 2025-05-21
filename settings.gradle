@@ -37,3 +37,12 @@ include 'cassandra-analytics-spark-four-zero-converter'
 include 'cassandra-avro-converter'
 include 'cassandra-analytics-cdc-codec'
 
+// These modules create a client for Apache Cassandra Sidecar.
+// Ideally, this client should be imported from a standalone
+// jar independent from the main Apache Cassandra Sidecar
+// repository to avoid a circular artifacts dependency publications
+// from the two repositories.
+include 'analytics-sidecar-vertx-client-shaded'
+include 'analytics-sidecar-vertx-client'
+include 'analytics-sidecar-client'
+include 'analytics-sidecar-client-common'
