@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.analytics;
 
+import java.util.Objects;
 import java.util.function.Predicate;
 import com.datastax.driver.core.UDTValue;
 import org.apache.cassandra.distributed.api.ICoordinator;
@@ -386,27 +387,29 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
     @NotNull
     public static String udtRowFormatter(com.datastax.driver.core.Row row)
     {
-        StringBuilder sb = new StringBuilder();
-        sb.append(row.getLong(0)).append(":");
         UDTValue udt = row.getUDTValue(1);
-        if (udt == null)
-        {
-            sb.append("null");
-        }
-        else
-        {
-            sb.append(udt);
-        }
-
-        return sb.toString();
+        return row.getLong(0) +
+               ":" +
+               Objects.requireNonNullElse(udt, "null").toString()
+                      // driver writes lists as [] and sets as {},
+                      // whereas spark entries have the same type Seq for both lists and sets
+                      .replace('[', '{')
+                      .replace(']', '}');
     }
 
     @NotNull
     public static String listOfUdtRowFormatter(com.datastax.driver.core.Row row)
     {
         return row.getLong(0) +
-                ":" +
-                row.getList(1, UDTValue.class).toString();
+               ":" +
+               row.getList(1, UDTValue.class).toString()
+                  // empty collections have different formatting between driver and spark
+                  .replace("{}", "null")
+                  .replace("[]", "null")
+                  // driver writes lists as [] and sets as {},
+                  // whereas spark entries have the same type Seq for both lists and sets
+                  .replace('[', '{')
+                  .replace(']', '}');
     }
 
     @NotNull
@@ -415,8 +418,15 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         // Formats as field:value with no whitespaces, and strings quoted
         // Driver Codec writes "NULL" for null value. Spark DF writes "null".
         return row.getLong(0) +
-                ":" +
-                row.getSet(1, UDTValue.class).toString();
+               ":" +
+               row.getSet(1, UDTValue.class).toString()
+                  // empty collections have different formatting between driver and spark
+                  .replace("{}", "null")
+                  .replace("[]", "null")
+                  // driver writes lists as [] and sets as {},
+                  // whereas spark entries have the same type Seq for both lists and sets
+                  .replace('[', '{')
+                  .replace(']', '}');
     }
 
     @NotNull
@@ -425,9 +435,16 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         // Formats as field:value with no whitespaces, and strings quoted
         // Driver Codec writes "NULL" for null value. Spark DF writes "null".
         return row.getLong(0) +
-                ":" +
-                row.getMap(1, UDTValue.class, UDTValue.class).toString()
-                        .replace("=", ":");
+               ":" +
+               row.getMap(1, UDTValue.class, UDTValue.class).toString()
+                  // empty collections have different formatting between driver and spark
+                  .replace("{}", "null")
+                  .replace("[]", "null")
+                  .replace("=", ":")
+                  // driver writes lists as [] and sets as {},
+                  // whereas spark entries have the same type Seq for both lists and sets
+                  .replace('[', '{')
+                  .replace(']', '}');
     }
 
     @Override

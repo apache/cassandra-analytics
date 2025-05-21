@@ -179,15 +179,8 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
         Set<String> driverEntries = new HashSet<>();
         driverData.forEach(row -> driverEntries.add(driverRowFormatter
                 .apply(row)
-                // empty collections have different formatting between driver and spark
-                .replace("{}", "null")
-                .replace("[]", "null")
                 // Driver Codec writes "NULL" for null value. Spark DF writes "null".
-                .replace("NULL", "null")
-                // driver writes lists as [] and sets as {},
-                // whereas spark entries have the same type WrappedArray for both lists and sets
-                .replace('[', '{')
-                .replace(']', '}')));
+                .replace("NULL", "null")));
 
         // Number of entries in Cassandra must match the original datasource
         assertThat(driverEntries.size()).isEqualTo(sparkData.size());

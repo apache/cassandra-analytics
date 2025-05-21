@@ -81,7 +81,7 @@ public class RecordWriter
     private final ExecutorService executorService;
     private final Path baseDir;
 
-    private volatile CqlTable cqlTable;
+    private final CqlTable cqlTable;
     private StreamSession<?> streamSession = null;
 
     public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
@@ -109,21 +109,12 @@ public class RecordWriter
                                                                taskContextSupplier.get());
 
         writerContext.cluster().startupValidate();
-    }
-
-    private CqlTable cqlTable()
-    {
-        if (cqlTable == null)
-        {
-            cqlTable = writerContext.bridge()
-                                    .buildSchema(writerContext.schema().getTableSchema().createStatement,
-                                                 writerContext.job().qualifiedTableName().keyspace(),
-                                                 IGNORED_REPLICATION_FACTOR,
-                                                 writerContext.cluster().getPartitioner(),
-                                                 writerContext.schema().getUserDefinedTypeStatements());
-        }
-
-        return cqlTable;
+        cqlTable = writerContext.bridge()
+                                .buildSchema(writerContext.schema().getTableSchema().createStatement,
+                                             writerContext.job().qualifiedTableName().keyspace(),
+                                             IGNORED_REPLICATION_FACTOR,
+                                             writerContext.cluster().getPartitioner(),
+                                             writerContext.schema().getUserDefinedTypeStatements());
     }
 
     /**
@@ -385,7 +376,7 @@ public class RecordWriter
 
         for (int i = 0; i < columnNames.length; i++)
         {
-            if (cqlTable().containsUdt(columnNames[i]))
+            if (cqlTable.containsUdt(columnNames[i]))
             {
                 map.put(columnNames[i], maybeConvertUdt(values[i]));
             }
@@ -457,7 +448,7 @@ public class RecordWriter
     private synchronized CqlField.CqlType getUdt(String udtName)
     {
         return udtCache.computeIfAbsent(udtName, name -> {
-            for (CqlField.CqlUdt udt1 : cqlTable().udts())
+            for (CqlField.CqlUdt udt1 : cqlTable.udts())
             {
                 if (udt1.cqlName().equals(name))
                 {
