@@ -33,12 +33,6 @@ checkstyle() {
 
 echo "Running pre-push hook..."
 
-# scala 2.11 && spark 2
-checkstyle 2.11 2
-
-# scala 2.12 && spark 2
-checkstyle 2.12 2
-
 # scala 2.12 && spark 3
 checkstyle 2.12 3
 
