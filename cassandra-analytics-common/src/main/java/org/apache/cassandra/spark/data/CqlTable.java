@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.data;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -50,6 +51,7 @@ public class CqlTable implements Serializable
     private final Set<CqlField.CqlUdt> udts;
 
     private final Map<String, CqlField> fieldsMap;
+    private final Set<String> columnsWithUdts;
     private final List<CqlField> partitionKeys;
     private final List<CqlField> clusteringKeys;
     private final List<CqlField> staticColumns;
@@ -105,6 +107,8 @@ public class CqlTable implements Serializable
         {
             columns.put(column.name(), column);
         }
+
+        this.columnsWithUdts = determineColumnsWithUdts();
     }
 
     public TableIdentifier tableIdentifier()
@@ -240,6 +244,35 @@ public class CqlTable implements Serializable
     public int indexCount()
     {
         return indexCount;
+    }
+
+    /**
+     * Check each column of the table for UDT type somewhere nested inside it and
+     * create set of columns containing UDT types
+     * @return set of columns containing UDT types
+     */
+    private Set<String> determineColumnsWithUdts()
+    {
+        Set<String> columnsWithUdts = new HashSet<>();
+        for (Map.Entry<String, CqlField> field : fieldsMap.entrySet())
+        {
+            if (!field.getValue().type().udts().isEmpty())
+            {
+                columnsWithUdts.add(field.getKey());
+            }
+        }
+
+        return columnsWithUdts;
+    }
+
+    /**
+     * Determines if a column has UDT type somewhere nested inside it
+     * @param fieldName name of the column
+     * @return true if the column has UDT type , false otherwise
+     */
+    public boolean containsUdt(String fieldName)
+    {
+        return columnsWithUdts.contains(fieldName);
     }
 
     @Override

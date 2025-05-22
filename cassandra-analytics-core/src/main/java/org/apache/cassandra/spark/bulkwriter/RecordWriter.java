@@ -23,9 +23,11 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -79,7 +81,7 @@ public class RecordWriter
     private final ExecutorService executorService;
     private final Path baseDir;
 
-    private volatile CqlTable cqlTable;
+    private final CqlTable cqlTable;
     private StreamSession<?> streamSession = null;
 
     public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
@@ -107,21 +109,12 @@ public class RecordWriter
                                                                taskContextSupplier.get());
 
         writerContext.cluster().startupValidate();
-    }
-
-    private CqlTable cqlTable()
-    {
-        if (cqlTable == null)
-        {
-            cqlTable = writerContext.bridge()
-                                    .buildSchema(writerContext.schema().getTableSchema().createStatement,
-                                                 writerContext.job().qualifiedTableName().keyspace(),
-                                                 IGNORED_REPLICATION_FACTOR,
-                                                 writerContext.cluster().getPartitioner(),
-                                                 writerContext.schema().getUserDefinedTypeStatements());
-        }
-
-        return cqlTable;
+        cqlTable = writerContext.bridge()
+                                .buildSchema(writerContext.schema().getTableSchema().createStatement,
+                                             writerContext.job().qualifiedTableName().keyspace(),
+                                             IGNORED_REPLICATION_FACTOR,
+                                             writerContext.cluster().getPartitioner(),
+                                             writerContext.schema().getUserDefinedTypeStatements());
     }
 
     /**
@@ -380,35 +373,82 @@ public class RecordWriter
     {
         Preconditions.checkArgument(values.length == columnNames.length,
                                     "Number of values does not match the number of columns " + values.length + ", " + columnNames.length);
+
         for (int i = 0; i < columnNames.length; i++)
         {
-            map.put(columnNames[i], maybeConvertUdt(values[i]));
+            if (cqlTable.containsUdt(columnNames[i]))
+            {
+                map.put(columnNames[i], maybeConvertUdt(values[i]));
+            }
+            else
+            {
+                map.put(columnNames[i], values[i]);
+            }
         }
         return map;
     }
 
+    /**
+     * A column can have UDTs somewhere nested inside collections/UDTs. All occurrences of BridgeUdtValue need to be
+     * recursively converted to UDTValue to be able to write to CQL.
+     * @param value column value
+     * @return column value after converting all occurrences of BridgeUdtValue to UDTValue
+     */
     private Object maybeConvertUdt(Object value)
     {
+        if (value instanceof List && !((List<?>) value).isEmpty())
+        {
+            List<Object> resultList = new ArrayList<>();
+            for (Object entry : (List<?>) value)
+            {
+                resultList.add(maybeConvertUdt(entry));
+            }
+
+            return resultList;
+        }
+
+        if (value instanceof Set && !((Set<?>) value).isEmpty())
+        {
+            Set<Object> resultSet = new HashSet<>();
+            for (Object entry : (Set<?>) value)
+            {
+                resultSet.add(maybeConvertUdt(entry));
+            }
+
+            return resultSet;
+        }
+
+        if (value instanceof Map && !((Map<?, ?>) value).isEmpty())
+        {
+            Map<Object, Object> resultMap = new HashMap<>();
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet())
+            {
+                resultMap.put(maybeConvertUdt(entry.getKey()), maybeConvertUdt(entry.getValue()));
+            }
+
+            return resultMap;
+        }
+
         if (value instanceof BridgeUdtValue)
         {
             BridgeUdtValue udtValue = (BridgeUdtValue) value;
             // Depth-first replacement of BridgeUdtValue instances to their appropriate Cql types
             for (Map.Entry<String, Object> entry : udtValue.udtMap.entrySet())
             {
-                if (entry.getValue() instanceof BridgeUdtValue)
-                {
-                    udtValue.udtMap.put(entry.getKey(), maybeConvertUdt(entry.getValue()));
-                }
+                // udt can have complex types like nested udt, list, set or map with embedded UDTs in them
+                // convert each entry recursively until we see basic datatype
+                udtValue.udtMap.put(entry.getKey(), maybeConvertUdt(entry.getValue()));
             }
             return getUdt(udtValue.name).convertForCqlWriter(udtValue.udtMap, writerContext.bridge().getVersion(), false);
         }
+
         return value;
     }
 
     private synchronized CqlField.CqlType getUdt(String udtName)
     {
         return udtCache.computeIfAbsent(udtName, name -> {
-            for (CqlField.CqlUdt udt1 : cqlTable().udts())
+            for (CqlField.CqlUdt udt1 : cqlTable.udts())
             {
                 if (udt1.cqlName().equals(name))
                 {
