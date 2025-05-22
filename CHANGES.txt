@@ -1,4 +1,5 @@
 1.0.0
+ * Remove dead code for spark 2 (CASSANALYTICS-53)
  * Add support for nested UDT in collections for bulk write (CASSANALYTICS-49)
  * Add Sidecar Client (CASSANALYTICS-30)
  * Add support for vnodes (CASSANALYTICS-50)
