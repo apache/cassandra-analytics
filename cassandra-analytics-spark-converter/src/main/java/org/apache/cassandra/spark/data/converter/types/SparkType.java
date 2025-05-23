@@ -22,8 +22,6 @@ package org.apache.cassandra.spark.data.converter.types;
 import java.util.Comparator;
 import java.util.function.Function;
 
-import org.apache.commons.lang.NotImplementedException;
-
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
@@ -169,6 +167,6 @@ public interface SparkType extends Comparator<Object>
 
     default int compareTo(Object first, Object second)
     {
-        throw new NotImplementedException("compareTo not implemented");
+        throw new UnsupportedOperationException("compareTo not implemented");
     }
 }
