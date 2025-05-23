@@ -34,8 +34,8 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * PartialRowBuilder that builds row only containing fields in requiredSchema prune-column filter
- * NOTE: Spark 3 changed the contract from Spark 2 and requires us to only return the columns specified in
- * the requiredSchema 'prune column' filter and not a sparse Object[] array with null values for excluded columns
+ * NOTE: Spark 3 requires us to only return the columns specified in the requiredSchema 'prune column' filter
+ * and not a sparse Object[] array with null values for excluded columns
  *
  * @param <T> type of row returned by builder
  */

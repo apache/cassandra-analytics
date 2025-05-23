@@ -229,7 +229,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
         }
         else if (o instanceof Seq) // can't differentiate between scala list and set, both come here as Seq
         {
-            List<?> entries = JavaConverters.seqAsJavaList((Seq<?>) o);
+            List<?> entries = JavaConverters.seqAsJavaListConverter((Seq<?>) o).asJava();
             sb.append("{");
             for (int i = 0; i < entries.size(); i++)
             {
@@ -243,7 +243,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
         }
         else if (o instanceof scala.collection.Map)
         {
-            Map<?, ?> map = JavaConverters.mapAsJavaMap(((scala.collection.Map<?, ?>) o));
+            Map<?, ?> map = JavaConverters.mapAsJavaMapConverter(((scala.collection.Map<?, ?>) o)).asJava();
             for (Map.Entry<?, ?> entry : map.entrySet())
             {
                 sb.append("{");
