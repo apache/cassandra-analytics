@@ -25,6 +25,8 @@ plugins {
     id('maven-publish')
 }
 
+apply from: "$rootDir/gradle/common/publishing.gradle"
+
 java {
     withJavadocJar()
     withSourcesJar()
@@ -32,17 +34,6 @@ java {
     // Allows publishing the test jar
     registerFeature("test") {
         usingSourceSet(sourceSets.test)
-    }
-}
-
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from components.java
-            groupId project.group
-            artifactId "${archivesBaseName}"
-            version System.getenv("CODE_VERSION") ?: "${version}"
-        }
     }
 }
 

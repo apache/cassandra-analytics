@@ -27,6 +27,8 @@ plugins {
   id 'java-library'
   id 'com.github.johnrengelman.shadow' version '8.1.1'
 
+  id 'distribution'
+
   // Release Audit Tool (RAT) plugin for checking project licenses
   id("org.nosphere.apache.rat") version "0.8.1"
 }
@@ -254,6 +256,52 @@ subprojects {
   }
 }
 
+distributions {
+  main {
+    distributionBaseName = 'apache-cassandra-analytics'
+    contents {
+      from 'LICENSE.txt'
+      // Include the "agents" directory in the distribution
+      from('agents') {
+        into('agents')
+      }
+      // Include the "conf" directory in the distribution
+      from('conf') {
+        into('conf')
+      }
+      setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
+    }
+  }
+  // Packages the sources as a tarball for distribution
+  sources {
+    distributionBaseName = 'apache-cassandra-analytics'
+    distributionClassifier = 'src'
+    contents {
+      from '.'
+      include '**/*.*'
+      exclude '**.gradle/**'
+      exclude '**.idea/**'
+      exclude 'agents/**'
+      exclude 'bin/**'
+      exclude 'dtest-jars/**'
+      exclude '**lib/**'
+      exclude '**logs/**'
+      exclude '**/build/**'
+      exclude '**/out/**'
+      exclude '**/target/**'
+    }
+  }
+}
+
+tasks.named('distTar').configure {
+  compression = Compression.GZIP
+  archiveExtension = "tar.gz"
+}
+
+tasks.named('sourcesDistTar').configure {
+  compression = Compression.GZIP
+  archiveExtension = "tar.gz"
+}
 
 ext {
   // A common method to handle loading gradle properties with a default when

@@ -22,6 +22,8 @@ plugins {
     id 'application'
 }
 
+apply from: "$rootDir/gradle/common/publishing.gradle"
+
 repositories {
     mavenCentral()
 }
