@@ -102,7 +102,8 @@ public final class Sidecar
                       .keyStoreType(secretsProvider.keyStoreType())
                       .trustStoreInputStream(secretsProvider.trustStoreInputStream())
                       .trustStorePassword(String.valueOf(secretsProvider.trustStorePassword()))
-                      .trustStoreType(secretsProvider.trustStoreType());
+                      .trustStoreType(secretsProvider.trustStoreType())
+                      .cassandraRole(secretsProvider.cassandraRole());
 
             StartupValidator.instance().register(new KeyStoreValidation(secretsProvider));
             StartupValidator.instance().register(new TrustStoreValidation(secretsProvider));

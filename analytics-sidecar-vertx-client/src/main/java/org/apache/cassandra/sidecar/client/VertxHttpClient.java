@@ -262,6 +262,8 @@ public class VertxHttpClient implements HttpClient
 
     protected HttpRequest<Buffer> applyHeaders(HttpRequest<Buffer> vertxRequest, Map<String, String> headers)
     {
+        applyAuthHeader(vertxRequest);
+
         if (headers == null || headers.isEmpty())
         {
             return vertxRequest;
@@ -271,6 +273,18 @@ public class VertxHttpClient implements HttpClient
         {
             vertxRequest = vertxRequest.putHeader(header.getKey(), header.getValue());
         }
+        return vertxRequest;
+    }
+
+    private HttpRequest<Buffer> applyAuthHeader(HttpRequest<Buffer> vertxRequest)
+    {
+        if (config.cassandraRole() == null || config.cassandraRole().isEmpty())
+        {
+            return vertxRequest;
+        }
+
+        String authHeaderValue = ROLE_AUTHORIZATION_HEADER_PREFIX + config().cassandraRole();
+        vertxRequest = vertxRequest.putHeader(HttpHeaderNames.AUTHORIZATION.toString(), authHeaderValue);
         return vertxRequest;
     }
 

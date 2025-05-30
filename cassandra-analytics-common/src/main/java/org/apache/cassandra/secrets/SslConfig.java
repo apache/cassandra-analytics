@@ -51,6 +51,7 @@ public class SslConfig implements Serializable
     public static final String TRUSTSTORE_BASE64_ENCODED = "TRUSTSTORE_BASE64_ENCODED";
     public static final String TRUSTSTORE_PASSWORD = "TRUSTSTORE_PASSWORD";
     public static final String TRUSTSTORE_TYPE = "TRUSTSTORE_TYPE";
+    public static final String CASSANDRA_ROLE = "CASSANDRA_ROLE";
     public static final String DEFAULT_TRUSTSTORE_TYPE = "JKS";
 
     protected String secretsPath;
@@ -62,6 +63,7 @@ public class SslConfig implements Serializable
     protected String base64EncodedTrustStore;
     protected String trustStorePassword;
     protected String trustStoreType;
+    protected String cassandraRole;
 
     protected SslConfig(Builder<?> builder)
     {
@@ -74,6 +76,7 @@ public class SslConfig implements Serializable
         base64EncodedTrustStore = builder.base64EncodedTrustStore;
         trustStorePassword = builder.trustStorePassword;
         trustStoreType = builder.trustStoreType;
+        cassandraRole = builder.cassandraRole;
     }
 
     /**
@@ -148,6 +151,14 @@ public class SslConfig implements Serializable
         return trustStoreType != null ? trustStoreType : DEFAULT_TRUSTSTORE_TYPE;
     }
 
+    /**
+     * @return cassandra role associated with certificate identity
+     */
+    public String cassandraRole()
+    {
+        return cassandraRole;
+    }
+
     // JDK Serialization
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
@@ -162,6 +173,7 @@ public class SslConfig implements Serializable
         this.base64EncodedTrustStore = readNullableString(in);
         this.trustStorePassword = readNullableString(in);
         this.trustStoreType = readNullableString(in);
+        this.cassandraRole = readNullableString(in);
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException
@@ -176,6 +188,7 @@ public class SslConfig implements Serializable
         writeNullableString(out, base64EncodedTrustStore);
         writeNullableString(out, trustStorePassword);
         writeNullableString(out, trustStoreType);
+        writeNullableString(out, cassandraRole);
     }
 
     private String readNullableString(ObjectInputStream in) throws IOException
@@ -212,6 +225,7 @@ public class SslConfig implements Serializable
                    .base64EncodedTrustStore(in.readString())
                    .trustStorePassword(in.readString())
                    .trustStoreType(in.readString())
+                   .cassandraRole(in.readString())
                    .build();
         }
 
@@ -226,6 +240,7 @@ public class SslConfig implements Serializable
             out.writeString(config.base64EncodedTrustStore);
             out.writeString(config.trustStorePassword);
             out.writeString(config.trustStoreType);
+            out.writeString(config.cassandraRole);
         }
     }
 
@@ -241,6 +256,7 @@ public class SslConfig implements Serializable
         String encodedTrustStore = MapUtils.getOrDefault(options, TRUSTSTORE_BASE64_ENCODED, null);
         String trustStorePassword = MapUtils.getOrDefault(options, TRUSTSTORE_PASSWORD, null);
         String trustStoreType = MapUtils.getOrDefault(options, TRUSTSTORE_TYPE, null);
+        String cassandraRole = MapUtils.getOrDefault(options, CASSANDRA_ROLE, null);
 
         // If any of the values are provided we try to create a valid SecretsConfig object
         if (secretsPath != null
@@ -251,7 +267,8 @@ public class SslConfig implements Serializable
             || trustStorePath != null
             || encodedTrustStore != null
             || trustStorePassword != null
-            || trustStoreType != null)
+            || trustStoreType != null
+            || cassandraRole != null)
         {
             Builder<?> validatedConfig = new Builder<>()
                                          .secretsPath(secretsPath)
@@ -263,6 +280,7 @@ public class SslConfig implements Serializable
                                          .base64EncodedTrustStore(encodedTrustStore)
                                          .trustStorePassword(trustStorePassword)
                                          .trustStoreType(trustStoreType)
+                                         .cassandraRole(cassandraRole)
                                          .validate();
             LOGGER.info("Valid SSL configuration");
             return validatedConfig.build();
@@ -288,6 +306,7 @@ public class SslConfig implements Serializable
         protected String base64EncodedTrustStore;
         protected String trustStorePassword;
         protected String trustStoreType;
+        protected String cassandraRole;
 
         /**
          * @return a reference to itself
@@ -403,6 +422,18 @@ public class SslConfig implements Serializable
         public T trustStoreType(String trustStoreType)
         {
             this.trustStoreType = trustStoreType;
+            return self();
+        }
+
+        /**
+         * Sets the {@code cassandraRole} and returns a reference to this Builder enabling method chaining
+         *
+         * @param cassandraRole the {@code cassandraRole} to set
+         * @return a reference to this Builder
+         */
+        public T cassandraRole(String cassandraRole)
+        {
+            this.cassandraRole = cassandraRole;
             return self();
         }
 

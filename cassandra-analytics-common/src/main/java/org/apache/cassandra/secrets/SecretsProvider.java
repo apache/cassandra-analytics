@@ -88,6 +88,14 @@ public interface SecretsProvider
     }
 
     /**
+     * @return cassandra role associated with identity in keystore.
+     */
+    default String cassandraRole()
+    {
+        return null;
+    }
+
+    /**
      * Validates the mutual TLS secrets
      */
     void validateMutualTLS();

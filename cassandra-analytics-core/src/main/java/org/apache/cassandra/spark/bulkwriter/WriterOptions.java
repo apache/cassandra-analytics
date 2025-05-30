@@ -50,6 +50,10 @@ public enum WriterOptions implements WriterOption
     KEYSTORE_PATH,
     KEYSTORE_BASE64_ENCODED,
     KEYSTORE_TYPE,
+    /**
+     * Option that specifies cassandra role associated with the certificate.
+     */
+    CASSANDRA_ROLE,
     TRUSTSTORE_PASSWORD,
     TRUSTSTORE_TYPE,
     TRUSTSTORE_PATH,
