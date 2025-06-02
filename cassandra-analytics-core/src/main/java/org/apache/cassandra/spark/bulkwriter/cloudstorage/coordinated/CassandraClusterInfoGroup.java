@@ -117,7 +117,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     private CassandraClusterInfoGroup(List<ClusterInfo> clusterInfos)
     {
         this.clusterInfos = Collections.unmodifiableList(clusterInfos);
-        buildClusterInfoById();
+        clusterInfoById();
     }
 
     @Override
@@ -260,28 +260,30 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     @Override
     public void forEach(BiConsumer<String, ClusterInfo> action)
     {
-        clusterInfoById.forEach(action);
+        clusterInfoById().forEach(action);
     }
 
     @Nullable
     @Override
     public ClusterInfo getValueOrNull(@NotNull String clusterId)
     {
-        if (clusterInfoById == null)
-        {
-            buildClusterInfoById();
-        }
-        return clusterInfoById.get(clusterId);
+        return clusterInfoById().get(clusterId);
     }
 
-    private synchronized void buildClusterInfoById()
+    private Map<String, ClusterInfo> clusterInfoById()
     {
-        if (clusterInfoById != null)
+        if (clusterInfoById == null)
         {
-            return;
+            synchronized (this)
+            {
+                if (clusterInfoById == null)
+                {
+                    clusterInfoById = clusterInfos.stream().collect(Collectors.toMap(ClusterInfo::clusterId, Function.identity()));
+                }
+            }
         }
 
-        clusterInfoById = clusterInfos.stream().collect(Collectors.toMap(ClusterInfo::clusterId, Function.identity()));
+        return clusterInfoById;
     }
 
     private void runOnEach(Consumer<ClusterInfo> action)
@@ -322,5 +324,11 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     {
         LOGGER.error("Failed to perform action on cluster. cluster={}", clusterInfo.clusterId(), cause);
         return new RuntimeException("Failed to perform action on cluster: " + clusterInfo.clusterId(), cause);
+    }
+
+    @VisibleForTesting
+    Map<String, ClusterInfo> clusterInfoByIdUnsafe()
+    {
+        return clusterInfoById;
     }
 }

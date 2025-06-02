@@ -177,12 +177,15 @@ public class CoordinatedImportCoordinator implements ImportCoordinator, Coordina
                                         BiConsumer<String, Long> onClusterCompletion,
                                         BiConsumer<String, Throwable> failureHandler) throws ConsistencyNotSatisfiedException
     {
+        RestoreJobStatus phase = determineReadyPhase();
+        LOGGER.info("Polling restore job progress of clusters. phase={}", phase);
         // all clusters should complete before exiting the loop
         while (completedClusters.size() < dataTransferApi.size())
         {
             dataTransferApi.restoreJobProgress(RestoreJobProgressFetchPolicy.FIRST_FAILED, completedClusters::contains, (clusterId, progress) -> {
                 if (checkProgressOfCluster(clusterId, progress, completedClusters, failureHandler))
                 {
+                    LOGGER.info("Restore job succeeded in the cluster. phase={} clusterId={}", phase, clusterId);
                     onClusterCompletion.accept(clusterId, elapsedMillis());
                 }
             });
@@ -198,6 +201,7 @@ public class CoordinatedImportCoordinator implements ImportCoordinator, Coordina
 
     private void sendCoordinationSignal(RestoreJobStatus status)
     {
+        LOGGER.info("Sending coordination singal to clusters. status={}", status);
         UpdateRestoreJobRequestPayload requestPayload = UpdateRestoreJobRequestPayload.builder().withStatus(status).build();
         dataTransferApi.updateRestoreJob(requestPayload);
     }

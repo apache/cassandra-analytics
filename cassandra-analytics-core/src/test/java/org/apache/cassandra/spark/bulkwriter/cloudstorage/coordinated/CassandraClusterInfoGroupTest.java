@@ -44,6 +44,7 @@ import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
+import org.apache.cassandra.spark.utils.SerializationUtils;
 
 import static org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup.fromBulkSparkConf;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,6 +55,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 
 class CassandraClusterInfoGroupTest
 {
@@ -267,6 +269,25 @@ class CassandraClusterInfoGroupTest
                     "CoordinatedWriteConf{json={\"\":{\"sidecarContactPoints\":[\"localhost:9043\"],\"localDc\":\"localDc\"}}}");
     }
 
+    @Test
+    void testSerDeser()
+    {
+        CassandraClusterInfoGroup origin = mockClusterGroup(2, index -> mockClusterInfo("cluster" + index));
+        assertThat(origin.clusterInfoByIdUnsafe()).isNotNull();
+        assertThat(origin.getValueOrNull("cluster0")).isNotNull();
+        assertThat(origin.getValueOrNull("cluster1")).isNotNull();
+        byte[] serialized = SerializationUtils.serialize(origin);
+        CassandraClusterInfoGroup target = SerializationUtils.deserialize(serialized, CassandraClusterInfoGroup.class);
+        assertThat(target.clusterInfoByIdUnsafe())
+        .describedAs("clusterInfoById should be null in the deserialized object")
+        .isNull();
+        assertThat(target.getValueOrNull("cluster0")).isNotNull();
+        assertThat(target.getValueOrNull("cluster1")).isNotNull();
+        assertThat(target.clusterInfoByIdUnsafe())
+        .describedAs("clusterInfoById should now be lazily initialized")
+        .isNotNull();
+    }
+
     private CassandraClusterInfoGroup mockClusterGroup(int size,
                                                        Function<Integer, CassandraClusterInfo> clusterInfoCreator)
     {
@@ -276,7 +297,8 @@ class CassandraClusterInfoGroupTest
 
     private CassandraClusterInfo mockClusterInfo(String clusterId)
     {
-        CassandraClusterInfo clusterInfo = mock(CassandraClusterInfo.class);
+        CassandraClusterInfo clusterInfo = mock(CassandraClusterInfo.class,
+                                                withSettings().serializable()); // serializable required by testSerDeser
         when(clusterInfo.clusterId()).thenReturn(clusterId);
         return clusterInfo;
     }
