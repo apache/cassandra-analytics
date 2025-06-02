@@ -64,7 +64,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
     // UDT with list, set and map in it
     public static final String UDT_WITH_COLLECTIONS_TYPE_NAME = "udt_with_collections";
     public static final String UDT_WITH_COLLECTIONS_TYPE_CREATE = "CREATE TYPE " + TEST_KEYSPACE + "." + UDT_WITH_COLLECTIONS_TYPE_NAME +
-            " (f1 list<text>, f2 set<int>, f3 map<int, text>);";
+            " (f1 list<text>, f2 set<text>, f3 map<int, text>, f4 tuple<int, text>);";
 
     // table with list of UDTs, and UDT itself has collections in it
     public static final QualifiedName LIST_OF_UDT_SOURCE_TABLE = new QualifiedName(TEST_KEYSPACE, "list_of_udt_src");
@@ -168,12 +168,15 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
     {
         // table(id, list<udt(list<>, set<>, map<>)>)
         // insert list of UDTs, and each UDT has a list, set and map
-        String insertIntoListOfUdts = "INSERT INTO %s (id, udtlist) VALUES (%d, [{f1:['value %d'], f2:{%d}, f3:{%d : 'value %d'}}])";
+        String insertIntoListOfUdts = "INSERT INTO %s (id, udtlist) VALUES (%d, " +
+                                      "[{f1:['list value %d'], f2:{'set value %d'}, f3:{%d : 'map value %d'}, " +
+                                      "f4:(%d, 'tuple value %d')}])";
 
         int i = 0;
         for (; i < ROW_COUNT; i++)
         {
-            coordinator.execute(String.format(insertIntoListOfUdts, LIST_OF_UDT_SOURCE_TABLE, i, i, i, i, i), ConsistencyLevel.ALL);
+            coordinator.execute(String.format(insertIntoListOfUdts, LIST_OF_UDT_SOURCE_TABLE, i, i, i, i, i, i, i),
+                                ConsistencyLevel.ALL);
         }
 
         // test null cases
@@ -207,13 +210,14 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         // table(id, set<udt(list<>, set<>, map<>)>)
         // insert set of UDTs, and UDT has a list, set and map inside it
         String insertIntoSetOfUdts = "INSERT INTO %s (id, udtset) VALUES (%d, " +
-                "{{f1:['value %d'], f2:{%d}, f3:{%d : 'value %d'}}})";
+                                     "{{f1:['list value %d'], f2:{'set value %d'}, f3:{%d : 'map value %d'}, " +
+                                     "f4:(%d, 'tuple value %d')}})";
 
         int i = 0;
         for (; i < ROW_COUNT; i++)
         {
-            cluster.schemaChangeIgnoringStoppedInstances(String.format(insertIntoSetOfUdts, SET_OF_UDT_SOURCE_TABLE,
-                    i, i, i, i, i));
+            coordinator.execute(String.format(insertIntoSetOfUdts, SET_OF_UDT_SOURCE_TABLE, i, i, i, i, i, i, i),
+                                ConsistencyLevel.ALL);
         }
 
         // test null cases
@@ -247,13 +251,14 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         // table(id, map<udt(list<>, set<>, map<>), udt(list<>, set<>, map<>)>)
         // insert map of UDTs, and UDT has a list, set and map inside it
         String insertIntoMapOfUdts = "INSERT INTO %s (id, udtmap) VALUES (%d, " +
-                "{{f1:['value %d'], f2:{%d}, f3:{%d : 'value %d'}} : {f1:['value %d'], f2:{%d}, f3:{%d : 'value %d'}}})";
+                                     "{{f1:['list value %d'], f2:{'set value %d'}, f3:{%d : 'map value %d'}, f4:(%d, 'tuple value %d')} : " +
+                                     "{f1:['list value %d'], f2:{'set value %d'}, f3:{%d : 'map value %d'}, f4:(%d, 'tuple value %d')}})";
 
         int i = 0;
         for (; i < ROW_COUNT; i++)
         {
-            cluster.schemaChangeIgnoringStoppedInstances(String.format(insertIntoMapOfUdts, MAP_OF_UDT_SOURCE_TABLE,
-                    i, i, i, i, i, i, i, i, i));
+            coordinator.execute(String.format(insertIntoMapOfUdts, MAP_OF_UDT_SOURCE_TABLE, i, i, i, i, i, i, i, i, i, i, i, i, i),
+                                ConsistencyLevel.ALL);
         }
 
         coordinator.execute(String.format("insert into %s (id) values (%d)",
@@ -290,7 +295,8 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         int i = 0;
         for (; i < ROW_COUNT; i++)
         {
-            cluster.schemaChangeIgnoringStoppedInstances(String.format(insertIntoUdtWithListOfUdts, UDT_WITH_LIST_OF_UDT_SOURCE_TABLE, i, i, i, i, i));
+            coordinator.execute(String.format(insertIntoUdtWithListOfUdts, UDT_WITH_LIST_OF_UDT_SOURCE_TABLE, i, i, i, i, i),
+                                ConsistencyLevel.ALL);
         }
 
         // test null cases
@@ -330,7 +336,8 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         int i = 0;
         for (; i < ROW_COUNT; i++)
         {
-            cluster.schemaChangeIgnoringStoppedInstances(String.format(insertIntoUdtWithSetOfUdts, UDT_WITH_SET_OF_UDT_SOURCE_TABLE, i, i, i, i, i));
+            coordinator.execute(String.format(insertIntoUdtWithSetOfUdts, UDT_WITH_SET_OF_UDT_SOURCE_TABLE, i, i, i, i, i),
+                                ConsistencyLevel.ALL);
         }
 
         // test null cases
@@ -370,7 +377,8 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         int i = 0;
         for (; i < ROW_COUNT; i++)
         {
-            cluster.schemaChangeIgnoringStoppedInstances(String.format(insertIntoUdtWithMapOfUdts, UDT_WITH_MAP_OF_UDT_SOURCE_TABLE, i, i, i, i, i));
+            coordinator.execute(String.format(insertIntoUdtWithMapOfUdts, UDT_WITH_MAP_OF_UDT_SOURCE_TABLE, i, i, i, i, i),
+                                ConsistencyLevel.ALL);
         }
 
         // test null cases
@@ -409,7 +417,11 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
                   // driver writes lists as [] and sets as {},
                   // whereas spark entries have the same type Seq for both lists and sets
                   .replace('[', '{')
-                  .replace(']', '}');
+                  .replace(']', '}')
+                  // Driver writes tuples inside (), whereas
+                  // Spark considers tuples as type GenericSchemaRow and uses {}
+                  .replace('(', '{')
+                  .replace(')', '}');
     }
 
     @NotNull
@@ -426,7 +438,11 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
                   // driver writes lists as [] and sets as {},
                   // whereas spark entries have the same type Seq for both lists and sets
                   .replace('[', '{')
-                  .replace(']', '}');
+                  .replace(']', '}')
+                  // Driver writes tuples inside (), whereas
+                  // Spark considers tuples as type GenericSchemaRow and uses {}
+                  .replace('(', '{')
+                  .replace(')', '}');
     }
 
     @NotNull
@@ -444,7 +460,11 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
                   // driver writes lists as [] and sets as {},
                   // whereas spark entries have the same type Seq for both lists and sets
                   .replace('[', '{')
-                  .replace(']', '}');
+                  .replace(']', '}')
+                  // Driver writes tuples inside (), whereas
+                  // Spark considers tuples as type GenericSchemaRow and uses {}
+                  .replace('(', '{')
+                  .replace(')', '}');
     }
 
     @Override

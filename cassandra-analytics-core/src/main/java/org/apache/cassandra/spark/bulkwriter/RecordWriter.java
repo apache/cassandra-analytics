@@ -372,19 +372,33 @@ public class RecordWriter
     private Map<String, Object> getBindValuesForColumns(Map<String, Object> map, String[] columnNames, Object[] values)
     {
         Preconditions.checkArgument(values.length == columnNames.length,
-                                    "Number of values does not match the number of columns " + values.length + ", " + columnNames.length);
+                "Number of values does not match the number of columns " + values.length + ", " + columnNames.length);
 
         for (int i = 0; i < columnNames.length; i++)
         {
-            if (cqlTable.containsUdt(columnNames[i]))
+            String columnName = columnNames[i];
+            Object columnValue = values[i];
+
+            // convert all BridgeUDTValue types in the column to UDTValue
+            if (cqlTable.containsUdt(columnName))
             {
-                map.put(columnNames[i], maybeConvertUdt(values[i]));
+                columnValue = maybeConvertUdt(columnValue);
             }
-            else
+
+            // Find CqlTuple associated with the field and convert value to TupleValue
+            // Note: Tuples do not need recursive conversions
+            //       Tuple with UDT come here as Object[...UDTValue...]
+            //       Tuple with Tuple come here as Object[...Object[]...]
+            //       UDT with Tuple come here as UDTValue[...Object[]...]
+            CqlField.CqlTuple cqlTuple = cqlTable.findTuple(columnName);
+            if (cqlTuple != null && columnValue != null)
             {
-                map.put(columnNames[i], values[i]);
+                columnValue = cqlTuple.convertForCqlWriter(columnValue, writerContext.bridge().getVersion(), false);
             }
+
+            map.put(columnName, columnValue);
         }
+
         return map;
     }
 
@@ -405,6 +419,19 @@ public class RecordWriter
             }
 
             return resultList;
+        }
+
+        // Tuples come here as Object[]
+        if (value instanceof Object[])
+        {
+            Object[] valueArray = (Object[]) value;
+            Object[] resultArray = new Object[valueArray.length];
+            for (int i = 0; i < valueArray.length; i++)
+            {
+                resultArray[i] = maybeConvertUdt(valueArray[i]);
+            }
+
+            return resultArray;
         }
 
         if (value instanceof Set && !((Set<?>) value).isEmpty())

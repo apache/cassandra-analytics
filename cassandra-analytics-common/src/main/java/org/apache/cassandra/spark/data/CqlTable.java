@@ -275,6 +275,37 @@ public class CqlTable implements Serializable
         return columnsWithUdts.contains(fieldName);
     }
 
+    /**
+     * If a field is of type Tuple, or Tuple inside a frozen type, this function finds CqlTuple associated with that field
+     * @param fieldName name of the field
+     * @return CqlTuple associated with the requested field, returns null otherwise
+     */
+    public CqlField.CqlTuple findTuple(String fieldName)
+    {
+        CqlField field = fieldsMap.get(fieldName);
+        if (field == null)
+        {
+            return null;
+        }
+
+        CqlField.CqlType current = field.type();
+        while (true)
+        {
+            if (current instanceof CqlField.CqlTuple)
+            {
+                return (CqlField.CqlTuple) current;
+            }
+
+            if (current instanceof CqlField.CqlFrozen)
+            {
+                CqlField.CqlFrozen frozen = (CqlField.CqlFrozen) current;
+                current = frozen.inner();
+                continue;
+            }
+            return null;
+        }
+    }
+
     @Override
     public int hashCode()
     {

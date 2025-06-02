@@ -203,7 +203,14 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
                 sb.append(":");
             }
         }
-        return sb.toString();
+
+        return sb.toString()
+                 // Both Tuple and UDT come here as GenericSchemaRow. Spark row formatter writes fields of
+                 // tuple indexed with "0": <>, "1:": <> ... etc which do not exist in driver rows, hence remove them.
+                 // Example f4:{"0":2,"1":'tuple value 2'}
+                 // As Tuple can be anywhere in a row (inside a UDT or collections or nested tuple), it is not always
+                 // feasible to insert indexes while formatting driver rows. Instead, remove them from Spark rows here.
+                 .replaceAll("\"\\d+\":", "");
     }
 
     // Format a Spark row to look like what the toString on a UDT looks like
