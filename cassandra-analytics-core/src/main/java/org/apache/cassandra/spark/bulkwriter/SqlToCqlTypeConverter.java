@@ -172,6 +172,12 @@ public final class SqlToCqlTypeConverter implements Serializable
             case SET:
                 return new SetConverter<>((CqlField.CqlCollection) cqlType);
             case TUPLE:
+                if (cqlType.internalType() == CqlField.CqlType.InternalType.Tuple)
+                {
+                    assert cqlType instanceof CqlField.CqlTuple;
+                    return new TupleConverter((CqlField.CqlTuple) cqlType);
+                }
+                LOGGER.warn("Unable to match type={}. Defaulting to NoOp Converter", cqlName);
                 return NO_OP_CONVERTER;
             default:
                 if (cqlType.internalType() == CqlField.CqlType.InternalType.Udt)
@@ -876,6 +882,51 @@ public final class SqlToCqlTypeConverter implements Serializable
                 Object val = row.get(row.fieldIndex(fieldName));
                 result.put(fieldName, converter.convert(val));
             }
+            return result;
+        }
+    }
+
+    public static class TupleConverter extends NullableConverter<Object[]>
+    {
+        private final List<Converter<?>> converters;
+
+        TupleConverter(CqlField.CqlTuple cqlTuple)
+        {
+            // Each field of Tuple can be of different type
+            // hence, prepare list of converters
+            this.converters = new ArrayList<>();
+            for (CqlField.CqlType type : cqlTuple.types())
+            {
+                converters.add(getConverter(type));
+            }
+        }
+
+        @Override
+        public Object[] convertInternal(Object object)
+        {
+            if (object instanceof GenericRowWithSchema)
+            {
+                return makeTuple((GenericRowWithSchema) object);
+            }
+            throw new RuntimeException("Unsupported conversion for UDT from " + object.getClass().getTypeName());
+        }
+
+        @Override
+        public String toString()
+        {
+            return "Tuple";
+        }
+
+        private Object[] makeTuple(GenericRowWithSchema row)
+        {
+            Object[] result = new Object[row.size()];
+            for (int i = 0; i < row.schema().fieldNames().length; i++)
+            {
+                Converter<?> converter = converters.get(i);
+                Object val = row.get(i);
+                result[i] = converter.convert(val);
+            }
+            // Object array with converted values
             return result;
         }
     }
