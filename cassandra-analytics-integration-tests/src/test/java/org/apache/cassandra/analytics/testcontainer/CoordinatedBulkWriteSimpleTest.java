@@ -172,10 +172,10 @@ public class CoordinatedBulkWriteSimpleTest extends CoordinatedWriteTestBase
                                                  IClusterExtension<? extends IInstance> cluster2, Server sidecar2)
     {
         String cluster1Instances = sidecarInstancesOptionStream(cluster1, dnsResolver)
-                                   .map(ip -> ip + ':' + sidecar1.actualPort())
+                                   .map(hostname -> hostname + ':' + sidecar1.actualPort())
                                    .collect(Collectors.joining("\", \"", "\"", "\""));
         String cluster2Instances = sidecarInstancesOptionStream(cluster2, dnsResolver)
-                                   .map(ip -> ip + ':' + sidecar2.actualPort())
+                                   .map(hostname -> hostname + ':' + sidecar2.actualPort())
                                    .collect(Collectors.joining("\",\"", "\"", "\""));
 
         return "{" +
