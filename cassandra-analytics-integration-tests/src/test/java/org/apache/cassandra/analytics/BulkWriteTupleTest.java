@@ -29,7 +29,7 @@ import org.apache.spark.sql.Row;
 import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.Test;
 
-import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
+import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -165,7 +165,7 @@ class BulkWriteTupleTest extends SharedClusterSparkIntegrationTestBase
     {
         coordinator = cluster.getFirstRunningInstance().coordinator();
 
-        createTestKeyspace(TUPLE_SOURCE_TABLE, DC1_RF1);
+        createTestKeyspace(TUPLE_SOURCE_TABLE, DC1_RF3);
         cluster.schemaChangeIgnoringStoppedInstances(UDT_WITH_COLLECTIONS_TYPE_CREATE);
 
         cluster.schemaChangeIgnoringStoppedInstances(String.format(TUPLE_TABLE_CREATE, TUPLE_SOURCE_TABLE.keyspace(), TUPLE_SOURCE_TABLE.table()));
