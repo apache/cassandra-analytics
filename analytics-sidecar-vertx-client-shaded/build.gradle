@@ -39,6 +39,8 @@ version project.version
 
 sourceCompatibility = 1.8
 
+apply from: "$rootDir/gradle/common/publishing.gradle"
+
 configurations {
     all*.exclude(group: 'ch.qos.logback')
 }
