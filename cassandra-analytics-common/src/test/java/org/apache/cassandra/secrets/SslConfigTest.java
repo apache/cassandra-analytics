@@ -25,14 +25,12 @@ import java.util.TreeMap;
 
 import org.junit.jupiter.api.Test;
 
-import static org.apache.cassandra.secrets.SslConfig.CASSANDRA_ROLE;
 import static org.apache.cassandra.secrets.SslConfig.KEYSTORE_BASE64_ENCODED;
 import static org.apache.cassandra.secrets.SslConfig.KEYSTORE_PASSWORD;
 import static org.apache.cassandra.secrets.SslConfig.KEYSTORE_PATH;
 import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_BASE64_ENCODED;
 import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_PASSWORD;
 import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_PATH;
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -214,19 +212,5 @@ public class SslConfigTest
         assertEquals("pass", config.keyStorePassword());
         assertEquals("AAA", config.base64EncodedTrustStore());
         assertEquals("passs", config.trustStorePassword());
-    }
-
-    @Test
-    public void buildWithCassandraRole()
-    {
-        Map<String, String> options = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
-        options.put(KEYSTORE_PATH, "/foo");
-        options.put(KEYSTORE_PASSWORD, "pass");
-        options.put(TRUSTSTORE_BASE64_ENCODED, "AAA");
-        options.put(TRUSTSTORE_PASSWORD, "passs");
-        options.put(CASSANDRA_ROLE, "custom_role");
-        SslConfig config = SslConfig.create(options);
-        assertThat(config).isNotNull();
-        assertThat(config.cassandraRole).isEqualTo("custom_role");
     }
 }

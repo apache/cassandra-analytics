@@ -701,6 +701,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                                                in.readLong(),
                                                                in.readInt(),
                                                                in.readInt(),
+                                                               readNullable(in),
                                                                (Map<FileType, Long>) in.readObject(),
                                                                (Map<FileType, Long>) in.readObject());
         this.sslConfig = (SslConfig) in.readObject();
@@ -752,6 +753,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         out.writeLong(this.sidecarClientConfig.chunkBufferSize());
         out.writeInt(this.sidecarClientConfig.maxPoolSize());
         out.writeInt(this.sidecarClientConfig.timeoutSeconds());
+        writeNullable(out, this.sidecarClientConfig.cassandraRole());
         out.writeObject(this.sidecarClientConfig.maxBufferOverride());
         out.writeObject(this.sidecarClientConfig.chunkBufferOverride());
         out.writeObject(this.sslConfig);
@@ -820,6 +822,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             out.writeLong(dataLayer.sidecarClientConfig.chunkBufferSize());
             out.writeInt(dataLayer.sidecarClientConfig.maxPoolSize());
             out.writeInt(dataLayer.sidecarClientConfig.timeoutSeconds());
+            out.writeString(dataLayer.sidecarClientConfig.cassandraRole());
             kryo.writeObject(out, dataLayer.sidecarClientConfig.maxBufferOverride());
             kryo.writeObject(out, dataLayer.sidecarClientConfig.chunkBufferOverride());
             kryo.writeObjectOrNull(out, dataLayer.sslConfig, SslConfig.class);
@@ -870,6 +873,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                         in.readLong(),
                                         in.readInt(),
                                         in.readInt(),
+                                        in.readString(),
                                         (Map<FileType, Long>) kryo.readObject(in, HashMap.class),
                                         (Map<FileType, Long>) kryo.readObject(in, HashMap.class)),
             kryo.readObjectOrNull(in, SslConfig.class),

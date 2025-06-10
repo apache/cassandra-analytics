@@ -442,6 +442,7 @@ public class BulkSparkConf implements Serializable
                : getKeyStoreFromBase64EncodedString(getKeystoreBase64Encoded());
     }
 
+    @Nullable
     public String getCassandraRole()
     {
         return cassandraRole;

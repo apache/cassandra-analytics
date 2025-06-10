@@ -51,7 +51,7 @@ public enum WriterOptions implements WriterOption
     KEYSTORE_BASE64_ENCODED,
     KEYSTORE_TYPE,
     /**
-     * Option that specifies cassandra role associated with the certificate.
+     * Option that specifies cassandra role used for role based access control in Sidecar.
      */
     CASSANDRA_ROLE,
     TRUSTSTORE_PASSWORD,

@@ -133,12 +133,6 @@ public class SslConfigSecretsProvider implements SecretsProvider
     }
 
     @Override
-    public String cassandraRole()
-    {
-        return config.cassandraRole();
-    }
-
-    @Override
     public void validateMutualTLS()
     {
         boolean fail = false;

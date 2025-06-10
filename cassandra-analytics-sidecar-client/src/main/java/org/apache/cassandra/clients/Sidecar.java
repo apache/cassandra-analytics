@@ -54,6 +54,7 @@ import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.cassandra.spark.validation.KeyStoreValidation;
 import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.cassandra.spark.validation.TrustStoreValidation;
+import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_SIZE;
@@ -91,7 +92,8 @@ public final class Sidecar
                                               .idleTimeoutMillis((int) TimeUnit.SECONDS.toMillis(config.timeoutSeconds()))
                                               .receiveBufferSize((int) config.chunkBufferSize())
                                               .maxChunkSize((int) config.maxBufferSize())
-                                              .userAgent(BuildInfo.READER_USER_AGENT);
+                                              .userAgent(BuildInfo.READER_USER_AGENT)
+                                              .cassandraRole(config.cassandraRole());
 
         if (secretsProvider != null)
         {
@@ -102,8 +104,7 @@ public final class Sidecar
                       .keyStoreType(secretsProvider.keyStoreType())
                       .trustStoreInputStream(secretsProvider.trustStoreInputStream())
                       .trustStorePassword(String.valueOf(secretsProvider.trustStorePassword()))
-                      .trustStoreType(secretsProvider.trustStoreType())
-                      .cassandraRole(secretsProvider.cassandraRole());
+                      .trustStoreType(secretsProvider.trustStoreType());
 
             StartupValidator.instance().register(new KeyStoreValidation(secretsProvider));
             StartupValidator.instance().register(new TrustStoreValidation(secretsProvider));
@@ -163,6 +164,8 @@ public final class Sidecar
         public static final String CHUNK_BUFFER_SIZE_BYTES_KEY = "chunkBufferSizeBytes";
         public static final String MAX_POOL_SIZE_KEY = "maxPoolSize";
         public static final String TIMEOUT_SECONDS_KEY = "timeoutSeconds";
+        public static final String CASSANDRA_ROLE_KEY = "cassandra_role";
+        public static final String DEFAULT_CASSANDRA_ROLE = null;
 
         private final int userProvidedPort;
         private final int maxRetries;
@@ -172,6 +175,7 @@ public final class Sidecar
         private final long maxMillisToSleep;
         private final long maxBufferSize;
         private final long chunkSize;
+        private final String cassandraRole;
         private final Map<FileType, Long> maxBufferOverride;
         private final Map<FileType, Long> chunkBufferOverride;
 
@@ -184,6 +188,7 @@ public final class Sidecar
                              long chunkSize,
                              int maxPoolSize,
                              int timeoutSeconds,
+                             String cassandraRole,
                              Map<FileType, Long> maxBufferOverride,
                              Map<FileType, Long> chunkBufferOverride)
         {
@@ -195,6 +200,7 @@ public final class Sidecar
             this.chunkSize = chunkSize;
             this.maxPoolSize = maxPoolSize;
             this.timeoutSeconds = timeoutSeconds;
+            this.cassandraRole = cassandraRole;
             this.maxBufferOverride = maxBufferOverride;
             this.chunkBufferOverride = chunkBufferOverride;
         }
@@ -264,6 +270,12 @@ public final class Sidecar
             return timeoutSeconds;
         }
 
+        @Nullable
+        public String cassandraRole()
+        {
+            return cassandraRole;
+        }
+
         public static ClientConfig create()
         {
             return ClientConfig.create(-1, DEFAULT_MAX_RETRIES, DEFAULT_MILLIS_TO_SLEEP);
@@ -284,6 +296,7 @@ public final class Sidecar
                                        DEFAULT_CHUNK_BUFFER_SIZE,
                                        DEFAULT_MAX_POOL_SIZE,
                                        DEFAULT_TIMEOUT_SECONDS,
+                                       DEFAULT_CASSANDRA_ROLE,
                                        DEFAULT_MAX_BUFFER_OVERRIDE,
                                        DEFAULT_CHUNK_BUFFER_OVERRIDE);
         }
@@ -299,6 +312,7 @@ public final class Sidecar
                           MapUtils.getLong(options, CHUNK_BUFFER_SIZE_BYTES_KEY, DEFAULT_CHUNK_BUFFER_SIZE),
                           MapUtils.getInt(options, MAX_POOL_SIZE_KEY, DEFAULT_MAX_POOL_SIZE),
                           MapUtils.getInt(options, TIMEOUT_SECONDS_KEY, DEFAULT_TIMEOUT_SECONDS),
+                          MapUtils.getOrDefault(options, CASSANDRA_ROLE_KEY, DEFAULT_CASSANDRA_ROLE),
                           buildMaxBufferOverride(options, DEFAULT_MAX_BUFFER_OVERRIDE),
                           buildChunkBufferOverride(options, DEFAULT_CHUNK_BUFFER_OVERRIDE)
             );
@@ -339,6 +353,7 @@ public final class Sidecar
                                           long chunkSizeBytes,
                                           int maxPoolSize,
                                           int timeoutSeconds,
+                                          String cassandraRole,
                                           Map<FileType, Long> maxBufferOverride,
                                           Map<FileType, Long> chunkBufferOverride)
         {
@@ -350,6 +365,7 @@ public final class Sidecar
                                     chunkSizeBytes,
                                     maxPoolSize,
                                     timeoutSeconds,
+                                    cassandraRole,
                                     maxBufferOverride,
                                     chunkBufferOverride);
         }

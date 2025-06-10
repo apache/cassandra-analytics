@@ -22,11 +22,11 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import io.netty.handler.codec.http.HttpHeaderNames;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.web.client.HttpRequest;
 
+import static org.apache.cassandra.sidecar.common.http.SidecarHttpHeaderNames.AUTH_ROLE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -62,7 +62,7 @@ public class VertxHttpClientTest
             RequestContext context = new RequestContext.Builder().ringRequest().build();
             HttpRequest<Buffer> request = client.vertxRequest(instance, context);
             assertThat(request.headers()).isNotEmpty();
-            assertThat(request.headers().get(HttpHeaderNames.AUTHORIZATION)).isEqualTo("RoleAuth role=custom_role");
+            assertThat(request.headers().get(AUTH_ROLE)).isEqualTo("custom_role");
         }
     }
 

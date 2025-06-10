@@ -25,9 +25,6 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface HttpClient extends AutoCloseable
 {
-    String ROLE_AUTHORIZATION_HEADER_SCHEME = "RoleAuth";
-    String ROLE_AUTHORIZATION_HEADER_PREFIX = ROLE_AUTHORIZATION_HEADER_SCHEME + " role=";
-
     /**
      * @return the configuration parameters for this client
      */
