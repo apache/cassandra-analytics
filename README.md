@@ -53,3 +53,13 @@ Developers interested in contributing to the Analytics library, please see the [
 
 For example usage, see the [example repository](cassandra-analytics-core-example/README.md). This example covers both
 setting up Cassandra 4.0, Apache Sidecar, and running a Spark Bulk Reader and Spark Bulk Writer job.
+
+## Contributing
+
+Contributions are welcome!
+
+Please join us on #cassandra-dev in [ASF Slack](https://infra.apache.org/slack.html).
+
+Issues are tracked in [JIRA](https://issues.apache.org/jira/projects/CASSANALYTICS/issues).
+
+
