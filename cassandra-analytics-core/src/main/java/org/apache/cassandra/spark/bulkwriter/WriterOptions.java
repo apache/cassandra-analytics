@@ -52,6 +52,10 @@ public enum WriterOptions implements WriterOption
     KEYSTORE_TYPE,
     /**
      * Option that specifies cassandra role used for role based access control in Sidecar.
+     * <p>
+     * Role passed is verified on server side if specified role is present among the roles assigned to user in Cassandra database. Once verified,
+     * server uses only the permissions associated with this intended role for authorization checks. If role is not set,
+     * sidecar uses all assigned roles for user in database for permission evaluation.
      */
     CASSANDRA_ROLE,
     TRUSTSTORE_PASSWORD,
