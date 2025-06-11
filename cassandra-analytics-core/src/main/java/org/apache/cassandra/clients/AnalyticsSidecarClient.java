@@ -57,6 +57,7 @@ public class AnalyticsSidecarClient
                                             .trustStorePassword(conf.getTrustStorePasswordOrDefault())
                                             .trustStoreType(conf.getTrustStoreTypeOrDefault())
                                             .ssl(conf.hasKeystoreAndKeystorePassword())
+                                            .cassandraRole(conf.getCassandraRole())
                                             .build();
 
         StartupValidator.instance().register(new SslValidation(conf));

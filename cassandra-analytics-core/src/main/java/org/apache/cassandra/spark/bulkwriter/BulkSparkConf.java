@@ -129,6 +129,7 @@ public class BulkSparkConf implements Serializable
     protected final String keystorePath;
     protected final String keystoreBase64Encoded;
     protected final String keystoreType;
+    protected final String cassandraRole;
     protected final String truststorePassword;
     protected final String truststorePath;
     protected final String truststoreBase64Encoded;
@@ -181,6 +182,7 @@ public class BulkSparkConf implements Serializable
         this.keystorePath = MapUtils.getOrDefault(options, WriterOptions.KEYSTORE_PATH.name(), null);
         this.keystoreBase64Encoded = MapUtils.getOrDefault(options, WriterOptions.KEYSTORE_BASE64_ENCODED.name(), null);
         this.keystoreType = MapUtils.getOrDefault(options, WriterOptions.KEYSTORE_TYPE.name(), "PKCS12");
+        this.cassandraRole = MapUtils.getOrDefault(options, WriterOptions.CASSANDRA_ROLE.name(), null);
         this.truststorePassword = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_PASSWORD.name(), null);
         this.truststorePath = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_PATH.name(), null);
         this.truststoreBase64Encoded = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_BASE64_ENCODED.name(), null);
@@ -438,6 +440,12 @@ public class BulkSparkConf implements Serializable
         return getKeyStorePath() != null
                ? getKeyStoreFromPath(getKeyStorePath())
                : getKeyStoreFromBase64EncodedString(getKeystoreBase64Encoded());
+    }
+
+    @Nullable
+    public String getCassandraRole()
+    {
+        return cassandraRole;
     }
 
     @Nullable

@@ -20,6 +20,8 @@ package org.apache.cassandra.sidecar.client;
 
 import java.io.InputStream;
 
+import org.jetbrains.annotations.Nullable;
+
 /**
  * Encapsulates {@code HttpClient} configuration parameters.
  */
@@ -35,6 +37,7 @@ public class HttpClientConfig
     public static final int DEFAULT_READ_BUFFER_SIZE = 8 * 1024; // 8 KiB
     public static final String DEFAULT_TRUST_STORE_TYPE = "JKS";
     public static final String DEFAULT_KEY_STORE_TYPE = "PKCS12";
+    public static final String DEFAULT_CASSANDRA_ROLE = null;
 
     private final long timeoutMillis;
     private final boolean ssl;
@@ -50,6 +53,7 @@ public class HttpClientConfig
     private final InputStream keyStoreInputStream;
     private final String keyStorePassword;
     private final String keyStoreType;
+    private final String cassandraRole;
 
     private HttpClientConfig(Builder<?> builder)
     {
@@ -67,6 +71,7 @@ public class HttpClientConfig
         keyStoreInputStream = builder.keyStoreInputStream;
         keyStorePassword = builder.keyStorePassword;
         keyStoreType = builder.keyStoreType;
+        cassandraRole = builder.cassandraRole;
     }
 
     /**
@@ -179,6 +184,15 @@ public class HttpClientConfig
     }
 
     /**
+     * @return cassandra role the client will use
+     */
+    @Nullable
+    public String cassandraRole()
+    {
+        return cassandraRole;
+    }
+
+    /**
      * {@code HttpClient} builder static inner class.
      *
      * @param <T> the type of the Builder
@@ -199,6 +213,7 @@ public class HttpClientConfig
         private InputStream keyStoreInputStream;
         private String keyStorePassword;
         private String keyStoreType = DEFAULT_KEY_STORE_TYPE;
+        private String cassandraRole = DEFAULT_CASSANDRA_ROLE;
 
         /**
          * @return a reference to itself
@@ -382,6 +397,18 @@ public class HttpClientConfig
         public T keyStoreType(String keyStoreType)
         {
             this.keyStoreType = keyStoreType;
+            return self();
+        }
+
+        /**
+         * Sets the {@code cassandraRole} and returns a reference to this Builder enabling method chaining.
+         *
+         * @param cassandraRole the {@code cassandraRole} to set
+         * @return a reference to this Builder
+         */
+        public T cassandraRole(String cassandraRole)
+        {
+            this.cassandraRole = cassandraRole;
             return self();
         }
 
