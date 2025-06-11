@@ -26,11 +26,6 @@ plugins {
 
 apply from: "$rootDir/gradle/common/publishing.gradle"
 
-java {
-    withJavadocJar()
-    withSourcesJar()
-}
-
 dependencies {
     implementation("org.slf4j:slf4j-api:${slf4jApiVersion}")
     compileOnly("com.esotericsoftware:kryo-shaded:${kryoVersion}")

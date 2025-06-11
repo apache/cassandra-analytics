@@ -26,11 +26,6 @@ plugins {
 
 apply from: "$rootDir/gradle/common/publishing.gradle"
 
-java {
-    withJavadocJar()
-    withSourcesJar()
-}
-
 dependencies {
     api(project(':cassandra-bridge'))
     implementation project(":cassandra-analytics-common")

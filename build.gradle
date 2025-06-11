@@ -261,14 +261,6 @@ distributions {
     distributionBaseName = 'apache-cassandra-analytics'
     contents {
       from 'LICENSE.txt'
-      // Include the "agents" directory in the distribution
-      from('agents') {
-        into('agents')
-      }
-      // Include the "conf" directory in the distribution
-      from('conf') {
-        into('conf')
-      }
       setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
     }
   }
@@ -281,9 +273,8 @@ distributions {
       include '**/*.*'
       exclude '**.gradle/**'
       exclude '**.idea/**'
-      exclude 'agents/**'
       exclude 'bin/**'
-      exclude 'dtest-jars/**'
+      exclude 'dependencies/**'
       exclude '**lib/**'
       exclude '**logs/**'
       exclude '**/build/**'
