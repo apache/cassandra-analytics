@@ -50,7 +50,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -103,6 +102,8 @@ import org.apache.spark.util.ShutdownHookManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.spark.data.ClientConfig.SIZING_DEFAULT;
+import static org.apache.cassandra.spark.data.ClientConfig.SIZING_DYNAMIC;
 import static org.apache.cassandra.spark.utils.Properties.NODE_STATUS_NOT_CONSIDERED;
 
 public class CassandraDataLayer extends PartitionedDataLayer implements StartupValidatable, Serializable
@@ -290,9 +291,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         int indexCount = CqlUtils.extractIndexCount(fullSchema, keyspace, table);
         Set<String> udts = CqlUtils.extractUdts(fullSchema, keyspace);
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(fullSchema, keyspace);
-        rfMap = ImmutableMap.of(keyspace, replicationFactor);
+        rfMap = Map.of(keyspace, replicationFactor);
         CompletableFuture<Integer> sizingFuture = CompletableFuture.supplyAsync(
-        () -> getSizing(clusterConfig, replicationFactor, options).getEffectiveNumberOfCores(),
+        () -> getSizing(sidecar, ringFuture, replicationFactor, options).getEffectiveNumberOfCores(),
         ExecutorHolder.EXECUTOR_SERVICE);
         validateReplicationFactor(replicationFactor);
         udts.forEach(udt -> LOGGER.info("Adding schema UDT: '{}'", udt));
@@ -979,16 +980,36 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
      * Returns the {@link Sizing} object based on the {@code sizing} option provided by the user,
      * or {@link DefaultSizing} as the default sizing
      *
-     * @param clusterConfig     the cluster configuration
+     * @param sidecarClient     the sidecar client
+     * @param ringFuture        a future with a view of the ring
      * @param replicationFactor the replication factor
      * @param options           the {@link ClientConfig} options
      * @return the {@link Sizing} object based on the {@code sizing} option provided by the user
      */
-    protected Sizing getSizing(Set<SidecarInstance> clusterConfig,
+    protected Sizing getSizing(SidecarClient sidecarClient,
+                               CompletableFuture<RingResponse> ringFuture,
                                ReplicationFactor replicationFactor,
                                ClientConfig options)
     {
-        return new DefaultSizing(options.numCores());
+        if (SIZING_DYNAMIC.equalsIgnoreCase(options.sizing()))
+        {
+            TableSizeProvider tableSizeProvider = getTableSizeProvider(sidecarClient, sidecarClientConfig, ringFuture);
+            return new DynamicSizing(tableSizeProvider, consistencyLevel, replicationFactor,
+                                     maybeQuotedKeyspace, maybeQuotedTable, datacenter,
+                                     options.maxPartitionSize(), options.numCores());
+        }
+        else if (options.sizing == null || options.sizing.isEmpty() || SIZING_DEFAULT.equalsIgnoreCase(options.sizing))
+        {
+            return new DefaultSizing(options.numCores());
+        }
+        throw new RuntimeException(String.format("Invalid sizing option provided '%s'", options.sizing));
+    }
+
+    protected TableSizeProvider getTableSizeProvider(SidecarClient sidecarClient,
+                                                     Sidecar.ClientConfig sidecarClientConfig,
+                                                     CompletableFuture<RingResponse> ringFuture)
+    {
+        return new SidecarTableSizeProvider(sidecarClient, sidecarClientConfig, ringFuture);
     }
 
     protected void await(CountDownLatch latch)
