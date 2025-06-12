@@ -89,6 +89,14 @@ tasks.named('test') {
     dependsOn 'shadowJar'
 }
 
+publishing {
+    publications {
+        maven(MavenPublication) {
+            project.shadow.component(it)
+        }
+    }
+}
+
 /**
  * A Transformer which updates the Netty JAR META-INF/ resources to accurately
  * reference shaded class names.
