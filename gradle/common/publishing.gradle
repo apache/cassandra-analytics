@@ -38,7 +38,7 @@ publishing {
         maven(MavenPublication) {
             from components.java
             groupId rootProject.group
-            artifactId "analytics-${archivesBaseName}"
+            artifactId "${archivesBaseName}"
             version System.getenv("CODE_VERSION") ?: "${project.version}"
 
             if (mavenRepositoryUrl != "") {
