@@ -36,6 +36,7 @@ import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.apache.cassandra.testing.TestUtils.uniqueTestTableFullName;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatRuntimeException;
 
 /**
  * Tests bulk reader functionality
@@ -46,6 +47,25 @@ class BulkReaderTest extends SharedClusterSparkIntegrationTestBase
     QualifiedName table1 = uniqueTestTableFullName(TEST_KEYSPACE);
     QualifiedName table2 = uniqueTestTableFullName(TEST_KEYSPACE);
     QualifiedName tableForNullStaticColumn = uniqueTestTableFullName(TEST_KEYSPACE);
+
+    @Test
+    void testDynamicSizingOption()
+    {
+        Dataset<Row> data = bulkReaderDataFrame(table1).option("SIZING", "dynamic").load();
+
+        List<Row> rows = data.collectAsList().stream()
+                             .sorted(Comparator.comparing(row -> row.getInt(0)))
+                             .collect(Collectors.toList());
+        assertThat(rows.size()).isEqualTo(DATASET.size());
+    }
+
+    @Test
+    void failsOnInvalidSizingOption()
+    {
+        assertThatRuntimeException().isThrownBy(() -> bulkReaderDataFrame(tableForNullStaticColumn).option("SIZING", "invalid")
+                                                                                                   .load())
+                                    .withMessageContaining("Invalid sizing option provided 'invalid'");
+    }
 
     @Test
     void testReadNullStaticColumn()

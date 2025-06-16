@@ -50,7 +50,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -79,6 +78,7 @@ import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
 import org.apache.cassandra.spark.common.SidecarInstanceFactory;
+import org.apache.cassandra.spark.common.SizingFactory;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
@@ -290,9 +290,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         int indexCount = CqlUtils.extractIndexCount(fullSchema, keyspace, table);
         Set<String> udts = CqlUtils.extractUdts(fullSchema, keyspace);
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(fullSchema, keyspace);
-        rfMap = ImmutableMap.of(keyspace, replicationFactor);
+        rfMap = Map.of(keyspace, replicationFactor);
         CompletableFuture<Integer> sizingFuture = CompletableFuture.supplyAsync(
-        () -> getSizing(clusterConfig, replicationFactor, options).getEffectiveNumberOfCores(),
+        () -> getSizing(ringFuture, replicationFactor, options).getEffectiveNumberOfCores(),
         ExecutorHolder.EXECUTOR_SERVICE);
         validateReplicationFactor(replicationFactor);
         udts.forEach(udt -> LOGGER.info("Adding schema UDT: '{}'", udt));
@@ -979,16 +979,16 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
      * Returns the {@link Sizing} object based on the {@code sizing} option provided by the user,
      * or {@link DefaultSizing} as the default sizing
      *
-     * @param clusterConfig     the cluster configuration
+     * @param ringFuture        a future with a view of the ring
      * @param replicationFactor the replication factor
      * @param options           the {@link ClientConfig} options
      * @return the {@link Sizing} object based on the {@code sizing} option provided by the user
      */
-    protected Sizing getSizing(Set<SidecarInstance> clusterConfig,
+    protected Sizing getSizing(CompletableFuture<RingResponse> ringFuture,
                                ReplicationFactor replicationFactor,
                                ClientConfig options)
     {
-        return new DefaultSizing(options.numCores());
+        return SizingFactory.create(replicationFactor, options, consistencyLevel, keyspace, table, datacenter, sidecar, sidecarClientConfig, ringFuture);
     }
 
     protected void await(CountDownLatch latch)
