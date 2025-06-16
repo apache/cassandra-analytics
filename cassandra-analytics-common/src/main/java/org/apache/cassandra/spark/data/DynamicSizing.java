@@ -83,12 +83,13 @@ public class DynamicSizing implements Sizing
      * we will use to read the data and then dividing it by the maximum partition
      * size in GB. For example, assume we have a table with 7.25 GB of data, and
      * assume a maximum partition size of 2.5 GB. Also, assume that a consistency
-     * level of 2. The number of cores is calculated by the following formula:
+     * level of {@code LOCAL_QUORUM} and replication factor of 3. The number of
+     * cores is calculated by the following formula:
      *
      * <pre>
-     *                                             totalTableSize * minReplicas
-     *     effectiveNumberOfCores = Math.ceil( ------------------------------------- )
-     *                                                 maxPartitionSize
+     *                                           totalTableSize * minReplicas
+     *     effectiveNumberOfCores = Math.ceil( --------------------------------- )
+     *                                              maxPartitionSize
      * </pre>
      *
      * <p>In the example above, we have:

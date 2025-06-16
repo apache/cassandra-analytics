@@ -68,6 +68,7 @@ dependencies {
     runtimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
     runtimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
 
+    api(project(':analytics-sidecar-vertx-client-shaded'))
     implementation(group: 'org.lz4', name: 'lz4-java', version: '1.8.0') // for xxhash
 
     if ("${scalaMajorVersion}" == "2.11") {

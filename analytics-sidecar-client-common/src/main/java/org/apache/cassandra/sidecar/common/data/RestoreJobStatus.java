@@ -45,7 +45,6 @@ public enum RestoreJobStatus
     /**
      * @deprecated replaced by {@link #ABORTED}
      */
-    @Deprecated
     FAILED,
     /**
      * The external controller aborts the RestoreJob due to some failure, e.g. consistency not satisfied, timeout, etc.
