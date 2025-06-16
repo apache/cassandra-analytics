@@ -24,21 +24,7 @@ plugins {
     id('maven-publish')
 }
 
-java {
-    withJavadocJar()
-    withSourcesJar()
-}
-
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from components.java
-            groupId project.group
-            artifactId "${archivesBaseName}"
-            version System.getenv("CODE_VERSION") ?: "${version}"
-        }
-    }
-}
+apply from: "$rootDir/gradle/common/publishing.gradle"
 
 dependencies {
     implementation("org.slf4j:slf4j-api:${slf4jApiVersion}")
