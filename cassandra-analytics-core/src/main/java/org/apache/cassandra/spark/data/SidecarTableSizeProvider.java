@@ -129,8 +129,8 @@ public class SidecarTableSizeProvider implements TableSizeProvider
         else if (successCount < instancesSize)
         {
             // normalize table size to the number of instances
-            LOGGER.debug("{}/{} instances were used to determine the table size {} for table {}.{}",
-                         successCount, instancesSize, tableSizeSum, keyspace, table);
+            LOGGER.info("{}/{} instances were used to determine the table size {} for table {}.{}",
+                        successCount, instancesSize, tableSizeSum, keyspace, table);
             return (tableSizeSum / successCount) * instancesSize;
         }
         return tableSizeSum;
