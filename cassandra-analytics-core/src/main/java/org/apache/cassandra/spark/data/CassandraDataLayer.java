@@ -78,6 +78,7 @@ import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
 import org.apache.cassandra.spark.common.SidecarInstanceFactory;
+import org.apache.cassandra.spark.common.SizingFactory;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
@@ -293,7 +294,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(fullSchema, keyspace);
         rfMap = Map.of(keyspace, replicationFactor);
         CompletableFuture<Integer> sizingFuture = CompletableFuture.supplyAsync(
-        () -> getSizing(sidecar, ringFuture, replicationFactor, options).getEffectiveNumberOfCores(),
+        () -> getSizing(ringFuture, replicationFactor, options).getEffectiveNumberOfCores(),
         ExecutorHolder.EXECUTOR_SERVICE);
         validateReplicationFactor(replicationFactor);
         udts.forEach(udt -> LOGGER.info("Adding schema UDT: '{}'", udt));
@@ -980,36 +981,16 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
      * Returns the {@link Sizing} object based on the {@code sizing} option provided by the user,
      * or {@link DefaultSizing} as the default sizing
      *
-     * @param sidecarClient     the sidecar client
      * @param ringFuture        a future with a view of the ring
      * @param replicationFactor the replication factor
      * @param options           the {@link ClientConfig} options
      * @return the {@link Sizing} object based on the {@code sizing} option provided by the user
      */
-    protected Sizing getSizing(SidecarClient sidecarClient,
-                               CompletableFuture<RingResponse> ringFuture,
+    protected Sizing getSizing(CompletableFuture<RingResponse> ringFuture,
                                ReplicationFactor replicationFactor,
                                ClientConfig options)
     {
-        if (SIZING_DYNAMIC.equalsIgnoreCase(options.sizing()))
-        {
-            TableSizeProvider tableSizeProvider = getTableSizeProvider(sidecarClient, sidecarClientConfig, ringFuture);
-            return new DynamicSizing(tableSizeProvider, consistencyLevel, replicationFactor,
-                                     maybeQuotedKeyspace, maybeQuotedTable, datacenter,
-                                     options.maxPartitionSize(), options.numCores());
-        }
-        else if (options.sizing == null || options.sizing.isEmpty() || SIZING_DEFAULT.equalsIgnoreCase(options.sizing))
-        {
-            return new DefaultSizing(options.numCores());
-        }
-        throw new RuntimeException(String.format("Invalid sizing option provided '%s'", options.sizing));
-    }
-
-    protected TableSizeProvider getTableSizeProvider(SidecarClient sidecarClient,
-                                                     Sidecar.ClientConfig sidecarClientConfig,
-                                                     CompletableFuture<RingResponse> ringFuture)
-    {
-        return new SidecarTableSizeProvider(sidecarClient, sidecarClientConfig, ringFuture);
+        return SizingFactory.create(replicationFactor, options, consistencyLevel, keyspace, table, datacenter, sidecar, sidecarClientConfig, ringFuture);
     }
 
     protected void await(CountDownLatch latch)

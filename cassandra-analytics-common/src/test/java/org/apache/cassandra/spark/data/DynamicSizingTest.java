@@ -20,9 +20,11 @@
 package org.apache.cassandra.spark.data;
 
 import java.util.Map;
+import java.util.stream.Stream;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
 
@@ -34,57 +36,60 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DynamicSizingTest
 {
     public static final long TEN_GIB = 10L * 1024L * 1024L * 1024L;
-    private ReplicationFactor rf;
+    private static final ReplicationFactor RF = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
+                                                                      Map.of("datacenter1", 3));
 
-    @BeforeEach
-    public void setup()
+    @ParameterizedTest
+    @MethodSource("scenarios")
+    void testSizingScenario(SizingScenario scenario)
     {
-        rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, Map.of("datacenter1", 3));
-    }
-
-    @Test
-    public void testTableSize1ByteRF2MaxPartitionSize1GiB()
-    {
-        testScenario(1000, 1, 1, 1);
-    }
-
-    @Test
-    public void testTableSize10GiBRF2MaxPartitionSize1GiB()
-    {
-        testScenario(1000, 1, TEN_GIB, 20);
-    }
-
-    @Test
-    public void testTableSize10GiBRF2MaxPartitionSize1GiBBounded()
-    {
-        // upper bounded by 5 cores
-        testScenario(5, 1, TEN_GIB, 5);
-    }
-
-    @Test
-    public void testTableSize10GiBRF2MaxPartitionSize5GB()
-    {
-        testScenario(1000, 5, TEN_GIB, 4);
-    }
-
-    @Test
-    public void testTableSize10GiBRF2MaxPartitionSize5GBBounded()
-    {
-        testScenario(2, 5, TEN_GIB, 2);
-    }
-
-    private void testScenario(int numCores, int maxPartitionSize, long expectedTableSizeInBytes, int expectedNumberOfCores)
-    {
-        TableSizeProvider tableSizeProvider = (keyspace, table, datacenter) -> expectedTableSizeInBytes;
+        TableSizeProvider tableSizeProvider = (keyspace, table, datacenter) -> scenario.tableSizeInBytes;
         Sizing sizing = new DynamicSizing(tableSizeProvider,
                                           ConsistencyLevel.LOCAL_QUORUM,
-                                          rf,
+                                          RF,
                                           "big-data",
                                           "customers",
                                           "datacenter1",
-                                          maxPartitionSize,
-                                          numCores);
+                                          scenario.maxPartitionSize,
+                                          scenario.numCores);
+        assertThat(sizing.getEffectiveNumberOfCores()).as("Number of cores does not match").isEqualTo(scenario.expectedNumberOfCores);
+    }
 
-        assertThat(sizing.getEffectiveNumberOfCores()).as("Number of cores does not match").isEqualTo(expectedNumberOfCores);
+    static Stream<Arguments> scenarios()
+    {
+        return Stream.of(
+        Arguments.arguments(new SizingScenario(1000, 5, TEN_GIB, 4)),
+        Arguments.arguments(new SizingScenario(1000, 1, TEN_GIB, 20)),
+        Arguments.arguments(new SizingScenario(1000, 1, TEN_GIB, 20)),
+        Arguments.arguments(new SizingScenario(1000, 5, TEN_GIB, 4)),
+        Arguments.arguments(new SizingScenario(1000, 5, TEN_GIB, 4))
+        );
+    }
+
+    static class SizingScenario
+    {
+        private final int numCores;
+        private final int maxPartitionSize;
+        private final long tableSizeInBytes;
+        private final int expectedNumberOfCores;
+
+        SizingScenario(int numCores, int maxPartitionSize, long tableSizeInBytes, int expectedNumberOfCores)
+        {
+            this.numCores = numCores;
+            this.maxPartitionSize = maxPartitionSize;
+            this.tableSizeInBytes = tableSizeInBytes;
+            this.expectedNumberOfCores = expectedNumberOfCores;
+        }
+
+        @Override
+        public String toString()
+        {
+            return "Scenario{" +
+                   "numCores=" + numCores +
+                   ", maxPartitionSize=" + maxPartitionSize +
+                   ", tableSizeInBytes=" + tableSizeInBytes +
+                   ", expectedNumberOfCores=" + expectedNumberOfCores +
+                   '}';
+        }
     }
 }

@@ -51,10 +51,10 @@ class BulkReaderTest extends SharedClusterSparkIntegrationTestBase
     @Test
     void testDynamicSizingOption()
     {
-        Dataset<Row> data = bulkReaderDataFrame(tableForNullStaticColumn).option("SIZING", "dynamic").load();
+        Dataset<Row> data = bulkReaderDataFrame(table1).option("SIZING", "dynamic").load();
 
         List<Row> rows = data.collectAsList().stream()
-                             .sorted(Comparator.comparing(row -> row.getString(0)))
+                             .sorted(Comparator.comparing(row -> row.getInt(0)))
                              .collect(Collectors.toList());
         assertThat(rows.size()).isEqualTo(DATASET.size());
     }

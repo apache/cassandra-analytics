@@ -25,8 +25,8 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
 
 /**
- * Dynamic {@link Sizing} implementation that uses table size, minimum number of replicas, and maximum partition size
- * information to determine the effective number of executor cores to use during the spark job execution.
+ * Dynamic {@link Sizing} implementation that uses table size, minimum number of replicas, maximum partition size,
+ * and available Spark cores to determine the effective number of executor cores to use during the spark job execution.
  *
  * <p>This class is typically used when the table size is relatively small (few GBs). When reading small datasets,
  * this class will allocate a limited number of resources to read the table. This in turn helps reduce the cost of
@@ -56,7 +56,7 @@ public class DynamicSizing implements Sizing
      * @param table             the Cassandra table
      * @param datacenter        the Cassandra datacenter
      * @param maxPartitionSize  the maximum partition size desired
-     * @param numCores          the maximum number of cores available
+     * @param availableCores    the maximum number of cores available
      */
     public DynamicSizing(TableSizeProvider tableSizeProvider,
                          ConsistencyLevel consistencyLevel,
@@ -65,16 +65,16 @@ public class DynamicSizing implements Sizing
                          String table,
                          String datacenter,
                          int maxPartitionSize,
-                         int numCores)
+                         int availableCores)
     {
         this.tableSizeProvider = tableSizeProvider;
         this.consistencyLevel = consistencyLevel;
+        this.replicationFactor = replicationFactor;
         this.keyspace = keyspace;
         this.table = table;
         this.dc = datacenter;
         this.maxPartitionSize = maxPartitionSize;
-        this.numCores = numCores;
-        this.replicationFactor = replicationFactor;
+        this.numCores = availableCores;
     }
 
     /**
