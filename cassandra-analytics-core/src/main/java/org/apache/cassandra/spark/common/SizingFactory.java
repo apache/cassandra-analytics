@@ -42,6 +42,16 @@ import static org.apache.cassandra.spark.data.ClientConfig.SIZING_DYNAMIC;
 public class SizingFactory
 {
     /**
+     * Private constructor that prevents unnecessary instantiation
+     *
+     * @throws IllegalStateException when called
+     */
+    private SizingFactory()
+    {
+        throw new IllegalStateException(getClass() + " is a static utility class and shall not be instantiated");
+    }
+
+    /**
      * Returns the {@link Sizing} object based on the {@code sizing} option provided by the user,
      * or {@link DefaultSizing} as the default sizing
      *

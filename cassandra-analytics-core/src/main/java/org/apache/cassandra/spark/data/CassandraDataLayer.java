@@ -103,8 +103,6 @@ import org.apache.spark.util.ShutdownHookManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static org.apache.cassandra.spark.data.ClientConfig.SIZING_DEFAULT;
-import static org.apache.cassandra.spark.data.ClientConfig.SIZING_DYNAMIC;
 import static org.apache.cassandra.spark.utils.Properties.NODE_STATUS_NOT_CONSIDERED;
 
 public class CassandraDataLayer extends PartitionedDataLayer implements StartupValidatable, Serializable
