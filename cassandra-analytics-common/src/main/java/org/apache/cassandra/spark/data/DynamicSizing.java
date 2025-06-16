@@ -39,7 +39,7 @@ public class DynamicSizing implements Sizing
 
     private final ReplicationFactor replicationFactor;
     private final int maxPartitionSize;
-    private final int numCores;
+    private final int availableCores;
     private final String keyspace;
     private final String table;
     private final String dc;
@@ -74,7 +74,7 @@ public class DynamicSizing implements Sizing
         this.table = table;
         this.dc = datacenter;
         this.maxPartitionSize = maxPartitionSize;
-        this.numCores = availableCores;
+        this.availableCores = availableCores;
     }
 
     /**
@@ -99,7 +99,7 @@ public class DynamicSizing implements Sizing
      *                                  2.5 GB
      * </pre>
      *
-     * <p>This method is guaranteed to return at least 1 core and at most {@code numCores}
+     * <p>This method is guaranteed to return at least 1 core and at most {@code availableCores}
      *
      * @return the effective number of cores to be used during the spark execution
      */
@@ -110,11 +110,11 @@ public class DynamicSizing implements Sizing
                                  / (double) (1024 /* KiB */ * 1024 /* MiB */ * 1024 /* GiB */));
         double minReplicas = consistencyLevel.blockFor(replicationFactor, dc);
 
-        // Guarantee at least one core and at most numCores
-        int effectiveNumberOfCores = Math.min(Math.max(1, (int) Math.ceil(tableSizeInGiB * minReplicas / maxPartitionSize)), numCores);
+        // Guarantee at least one core and at most availableCores
+        int effectiveNumberOfCores = Math.min(Math.max(1, (int) Math.ceil(tableSizeInGiB * minReplicas / maxPartitionSize)), availableCores);
 
-        LOGGER.info("Using Dynamic Sizing. tableSize {}GiB, minReplicas {}, maxPartitionSize {}GiB, numCores {}, effectiveNumberOfCores {}",
-                    tableSizeInGiB, minReplicas, maxPartitionSize, numCores, effectiveNumberOfCores);
+        LOGGER.info("Using Dynamic Sizing. tableSize {}GiB, minReplicas {}, maxPartitionSize {}GiB, availableCores {}, effectiveNumberOfCores {}",
+                    tableSizeInGiB, minReplicas, maxPartitionSize, availableCores, effectiveNumberOfCores);
 
         return effectiveNumberOfCores;
     }
