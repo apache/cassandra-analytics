@@ -189,7 +189,8 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
                                                                              createdRestoreSlices,
                                                                              sliceCount,
                                                                              sstableWriter.rowCount(),
-                                                                             sstableWriter.bytesWritten());
+                                                                             sstableWriter.bytesWritten(),
+                                                                             sstableWriter.rowsViolatedConstraints());
         LOGGER.info("StreamResult: {}", streamResult);
         // CL validation is only required for non-coordinated write.
         // For coordinated write, executors only need to make sure the bundles are uploaded and restore slice is created on sidecar.

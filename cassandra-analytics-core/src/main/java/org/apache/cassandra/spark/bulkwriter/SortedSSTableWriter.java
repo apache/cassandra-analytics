@@ -77,12 +77,14 @@ public class SortedSSTableWriter
     private BigInteger maxToken = null;
     private final Map<Path, Digest> overallFileDigests = new HashMap<>();
     private final DigestAlgorithm digestAlgorithm;
+    private final boolean skipRowsViolatingConstraints;
 
     private volatile boolean isClosed = false;
 
     private int sstableCount = 0;
     private long rowCount = 0;
     private long bytesWritten = 0;
+    private long rowsViolatedConstraints = 0;
 
     public SortedSSTableWriter(org.apache.cassandra.bridge.SSTableWriter tableWriter, Path outDir,
                                DigestAlgorithm digestAlgorithm,
@@ -92,6 +94,7 @@ public class SortedSSTableWriter
         this.outDir = outDir;
         this.digestAlgorithm = digestAlgorithm;
         this.partitionId = partitionId;
+        this.skipRowsViolatingConstraints = false;
     }
 
     public SortedSSTableWriter(BulkWriterContext writerContext, Path outDir, DigestAlgorithm digestAlgorithm, int partitionId)
@@ -99,6 +102,7 @@ public class SortedSSTableWriter
         this.outDir = outDir;
         this.digestAlgorithm = digestAlgorithm;
         this.partitionId = partitionId;
+        this.skipRowsViolatingConstraints = writerContext.job().skipRowsViolatingConstraints();
 
         String lowestCassandraVersion = writerContext.cluster().getLowestCassandraVersion();
         String packageVersion = getPackageVersion(lowestCassandraVersion);
@@ -137,8 +141,24 @@ public class SortedSSTableWriter
         }
         // rows are sorted. Therefore, only update the maxToken
         maxToken = token;
-        cqlSSTableWriter.addRow(boundValues);
-        rowCount += 1;
+        try
+        {
+            cqlSSTableWriter.addRow(boundValues);
+            rowCount += 1;
+        }
+        catch (Throwable t)
+        {
+            if (t.getCause() != null && t.getCause().getClass().getName().equals("org.apache.cassandra.cql3.constraints.ConstraintViolationException"))
+            {
+                rowsViolatedConstraints += 1;
+                if (!skipRowsViolatingConstraints)
+                    throw t;
+            }
+            else
+            {
+                throw t;
+            }
+        }
     }
 
     public void setSSTablesProducedListener(Consumer<Set<SSTableDescriptor>> listener)
@@ -323,5 +343,10 @@ public class SortedSSTableWriter
     public Map<Path, Digest> fileDigestMap()
     {
         return Collections.unmodifiableMap(overallFileDigests);
+    }
+
+    public long rowsViolatedConstraints()
+    {
+        return rowsViolatedConstraints;
     }
 }

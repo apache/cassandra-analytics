@@ -123,7 +123,8 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                                                                  errors,
                                                                  new ArrayList<>(replicas),
                                                                  sstableWriter.rowCount(),
-                                                                 sstableWriter.bytesWritten());
+                                                                 sstableWriter.bytesWritten(),
+                                                                 sstableWriter.rowsViolatedConstraints());
         List<CommitResult> cr;
         try
         {

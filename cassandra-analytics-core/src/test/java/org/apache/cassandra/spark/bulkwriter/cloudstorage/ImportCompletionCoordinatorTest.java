@@ -481,7 +481,7 @@ class ImportCompletionCoordinatorTest
             }
             CloudStorageStreamResult result = new CloudStorageStreamResult("", mock(Range.class), Collections.emptyList(),
                                                                            passedReplicaSet, createdRestoreSlices,
-                                                                           createdRestoreSlices.size(), 0, 0);
+                                                                           createdRestoreSlices.size(), 0, 0, 0);
             resultList.add(result);
         }
         return resultList;

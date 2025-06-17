@@ -70,6 +70,8 @@ public interface JobInfo extends Serializable
 
     boolean skipExtendedVerify();
 
+    boolean skipRowsViolatingConstraints();
+
     boolean getSkipClean();
 
     /**

@@ -44,7 +44,7 @@ public class CloudStorageStreamResult extends StreamResult
 
     public static CloudStorageStreamResult empty(String sessionID, Range<BigInteger> tokenRange)
     {
-        return new CloudStorageStreamResult(sessionID, tokenRange, new ArrayList<>(), new ArrayList<>(), new HashSet<>(), 0, 0, 0);
+        return new CloudStorageStreamResult(sessionID, tokenRange, new ArrayList<>(), new ArrayList<>(), new HashSet<>(), 0, 0, 0, 0);
     }
 
     public CloudStorageStreamResult(String sessionID,
@@ -54,9 +54,10 @@ public class CloudStorageStreamResult extends StreamResult
                                     Set<CreatedRestoreSlice> createdRestoreSlices,
                                     int objectCount,
                                     long rowCount,
-                                    long bytesWritten)
+                                    long bytesWritten,
+                                    long rowsViolatedConstraints)
     {
-        super(sessionID, tokenRange, failures, passed, rowCount, bytesWritten);
+        super(sessionID, tokenRange, failures, passed, rowCount, bytesWritten, rowsViolatedConstraints);
         this.createdRestoreSlices = Collections.unmodifiableSet(createdRestoreSlices);
         this.objectCount = objectCount;
     }
@@ -70,6 +71,7 @@ public class CloudStorageStreamResult extends StreamResult
                + ", objectCount=" + objectCount
                + ", rowCount=" + rowCount
                + ", bytesWritten=" + bytesWritten
+               + ", rowsViolatedConstraints=" + rowsViolatedConstraints
                + ", failures=" + failures
                + ", createdRestoreSlices=" + createdRestoreSlices
                + ", passed=" + passed

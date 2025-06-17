@@ -32,9 +32,9 @@ public class DirectStreamResult extends StreamResult
 
     public DirectStreamResult(String sessionID, Range<BigInteger> tokenRange,
                               List<StreamError> failures, List<RingInstance> passed,
-                              long rowCount, long bytesWritten)
+                              long rowCount, long bytesWritten, long rowsViolatedConstraints)
     {
-        super(sessionID, tokenRange, failures, passed, rowCount, bytesWritten);
+        super(sessionID, tokenRange, failures, passed, rowCount, bytesWritten, rowsViolatedConstraints);
     }
 
     public void setCommitResults(List<CommitResult> commitResult)
@@ -53,6 +53,7 @@ public class DirectStreamResult extends StreamResult
                + ", commitResults=" + commitResults
                + ", passed=" + passed
                + ", bytesWritten=" + bytesWritten
+               + ", rowsViolatedConstraints=" + rowsViolatedConstraints
                + '}';
     }
 }
