@@ -77,6 +77,8 @@ public class ClientConfig
     public static final String SIZING_DEFAULT = "default";
     public static final String MAX_PARTITION_SIZE_KEY = "maxPartitionSize";
     public static final String USE_INCREMENTAL_REPAIR = "useIncrementalRepair";
+    // TODO(andrew.johnson): Document
+    public static final String USE_IP_ADDRESS_FOR_SIDECARS = "useIpAddressForSidecars";
     public static final String ENABLE_EXPANSION_SHRINK_CHECK_KEY = "enableExpansionShrinkCheck";
     public static final String SIDECAR_PORT = "sidecar_port";
     public static final String QUOTE_IDENTIFIERS = "quote_identifiers";
@@ -101,6 +103,7 @@ public class ClientConfig
     protected String sizing;
     protected int maxPartitionSize;
     protected boolean useIncrementalRepair;
+    protected boolean useIpAddressForSidecars;
     protected List<SchemaFeature> requestedFeatures;
     protected String lastModifiedTimestampField;
     protected Boolean enableExpansionShrinkCheck;
@@ -132,6 +135,7 @@ public class ClientConfig
         this.sizing = MapUtils.getOrDefault(options, SIZING_KEY, SIZING_DEFAULT);
         this.maxPartitionSize = MapUtils.getInt(options, MAX_PARTITION_SIZE_KEY, 1);
         this.useIncrementalRepair = MapUtils.getBoolean(options, USE_INCREMENTAL_REPAIR, true);
+        this.useIpAddressForSidecars = MapUtils.getBoolean(options, USE_IP_ADDRESS_FOR_SIDECARS, false);
         this.lastModifiedTimestampField = MapUtils.getOrDefault(options, LAST_MODIFIED_COLUMN_NAME_KEY, null);
         this.enableExpansionShrinkCheck = MapUtils.getBoolean(options, ENABLE_EXPANSION_SHRINK_CHECK_KEY, false);
         this.requestedFeatures = initRequestedFeatures(options);
@@ -249,6 +253,11 @@ public class ClientConfig
     public boolean useIncrementalRepair()
     {
         return useIncrementalRepair;
+    }
+
+    public boolean useIpAddressForSidecars()
+    {
+        return useIpAddressForSidecars;
     }
 
     public List<SchemaFeature> requestedFeatures()

@@ -107,6 +107,8 @@ public class BulkSparkConf implements Serializable
     public static final String SIDECAR_REQUEST_MAX_RETRY_DELAY_MILLIS  = SETTING_PREFIX + "sidecar.request.retries.max.delay.milliseconds";
     public static final String SIDECAR_REQUEST_TIMEOUT_SECONDS         = SETTING_PREFIX + "sidecar.request.timeout.seconds";
     public static final String SKIP_CLEAN                              = SETTING_PREFIX + "job.skip_clean";
+    // TODO(andrew.johnson): Description
+    public static final String USE_IP_ADDRESS_FOR_SIDECARS               = SETTING_PREFIX + "use_ip_address_for_sidecars";
     public static final String USE_OPENSSL                             = SETTING_PREFIX + "use_openssl";
     // defines the max number of consecutive retries allowed in the ring monitor
     public static final String RING_RETRY_COUNT                        = SETTING_PREFIX + "ring_retry_count";
@@ -146,6 +148,7 @@ public class BulkSparkConf implements Serializable
     // An optional unique identifier supplied by customer. The jobId is different from restoreJobId that is used internally.
     // The value is null when absent
     protected final String configuredJobId;
+    protected boolean useIpAddressForSidecars;
     protected boolean useOpenSsl;
     protected int ringRetryCount;
     // create sidecarInstances from sidecarContactPointsValue and effectiveSidecarPort
@@ -186,6 +189,7 @@ public class BulkSparkConf implements Serializable
         this.truststoreBase64Encoded = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_BASE64_ENCODED.name(), null);
         this.truststoreType = MapUtils.getOrDefault(options, WriterOptions.TRUSTSTORE_TYPE.name(), null);
         this.writeMode = MapUtils.getEnumOption(options, WriterOptions.WRITE_MODE.name(), WriteMode.INSERT, "write mode");
+        this.useIpAddressForSidecars = getBoolean(USE_IP_ADDRESS_FOR_SIDECARS, false);
         // For backwards-compatibility with port settings, use writer option if available,
         // else fall back to props, and then default if neither specified
         this.useOpenSsl = getBoolean(USE_OPENSSL, true);
@@ -656,6 +660,11 @@ public class BulkSparkConf implements Serializable
     public SparkConf getSparkConf()
     {
         return conf;
+    }
+
+    public boolean getUseIpAddressForSidecars()
+    {
+        return useIpAddressForSidecars;
     }
 
     public boolean getUseOpenSsl()

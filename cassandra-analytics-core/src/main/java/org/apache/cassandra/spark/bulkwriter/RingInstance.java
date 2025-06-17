@@ -39,8 +39,9 @@ public class RingInstance implements CassandraInstance, Serializable
     private static final long serialVersionUID = 4399143234683369652L;
     private RingEntry ringEntry;
     private @Nullable String clusterId;
+    private boolean useIpAddressForSidecars;
 
-    public RingInstance(ReplicaMetadata replica, @Nullable String clusterId)
+    public RingInstance(ReplicaMetadata replica, @Nullable String clusterId, boolean useIpAddressForSidecars)
     {
         this.clusterId = clusterId;
         this.ringEntry = new RingEntry.Builder()
@@ -51,6 +52,13 @@ public class RingInstance implements CassandraInstance, Serializable
                          .state(replica.state())
                          .status(replica.status())
                          .build();
+        this.useIpAddressForSidecars = useIpAddressForSidecars;
+    }
+
+    @VisibleForTesting
+    public RingInstance(ReplicaMetadata replica, @Nullable String clusterId)
+    {
+        this(replica, clusterId, false);
     }
 
     @VisibleForTesting
@@ -67,9 +75,17 @@ public class RingInstance implements CassandraInstance, Serializable
     }
 
     @VisibleForTesting
+    public RingInstance(RingEntry ringEntry, @Nullable String clusterId, boolean useIpAddressForSidecars)
+    {
+        this.clusterId = clusterId;
+        this.useIpAddressForSidecars = useIpAddressForSidecars;
+        this.ringEntry = ringEntry;
+    }
+
+    @VisibleForTesting
     public RingInstance(ReplicaMetadata replica)
     {
-        this(replica, null);
+        this(replica, null, false);
     }
 
     // Used only in tests
@@ -89,7 +105,14 @@ public class RingInstance implements CassandraInstance, Serializable
     @Override
     public String nodeName()
     {
-        return ringEntry.fqdn();
+        if (this.useIpAddressForSidecars)
+        {
+            return ringEntry.address();
+        }
+        else
+        {
+            return ringEntry.fqdn();
+        }
     }
 
     @Override
@@ -149,7 +172,8 @@ public class RingInstance implements CassandraInstance, Serializable
                && Objects.equals(ringEntry.rack(), that.ringEntry.rack())
                && Objects.equals(ringEntry.address(), that.ringEntry.address())
                && ringEntry.port() == that.ringEntry.port()
-               && Objects.equals(ringEntry.datacenter(), that.ringEntry.datacenter());
+               && Objects.equals(ringEntry.datacenter(), that.ringEntry.datacenter())
+               && useIpAddressForSidecars == that.useIpAddressForSidecars;
     }
 
     /**
@@ -162,13 +186,14 @@ public class RingInstance implements CassandraInstance, Serializable
     @Override
     public int hashCode()
     {
-        return Objects.hash(clusterId, ringEntry.token(), ringEntry.fqdn(), ringEntry.rack(), ringEntry.port(), ringEntry.datacenter(), ringEntry.address());
+        return Objects.hash(clusterId, useIpAddressForSidecars, ringEntry.token(), ringEntry.fqdn(), ringEntry.rack(),
+                            ringEntry.port(), ringEntry.datacenter(), ringEntry.address());
     }
 
     @Override
     public String toString()
     {
-        return "RingInstance{cluster='" + clusterId + "', " + ringEntry.toString() + '}';
+        return "RingInstance{cluster='" + clusterId + "', useIpAddressForSidecars='" + useIpAddressForSidecars + "', " + ringEntry.toString() + '}';
     }
 
     public RingEntry ringEntry()
@@ -190,6 +215,7 @@ public class RingInstance implements CassandraInstance, Serializable
         out.writeObject(ringEntry.hostId());
         out.writeObject(ringEntry.load());
         out.writeObject(ringEntry.owns());
+        out.writeBoolean(useIpAddressForSidecars);
         out.writeObject(clusterId);
     }
 
@@ -207,6 +233,7 @@ public class RingInstance implements CassandraInstance, Serializable
         String hostId = (String) in.readObject();
         String load = (String) in.readObject();
         String owns = (String) in.readObject();
+        boolean useIpAddressForSidecars = in.readBoolean();
         String clusterId = (String) in.readObject();
         ringEntry = new RingEntry.Builder().datacenter(datacenter)
                                            .address(address)
@@ -221,5 +248,6 @@ public class RingInstance implements CassandraInstance, Serializable
                                            .owns(owns)
                                            .build();
         this.clusterId = clusterId;
+        this.useIpAddressForSidecars = useIpAddressForSidecars;
     }
 }

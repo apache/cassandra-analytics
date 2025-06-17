@@ -61,6 +61,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import o.a.c.sidecar.client.shaded.common.response.ListSnapshotFilesResponse;
 import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
+import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import o.a.c.sidecar.client.shaded.common.response.RingResponse;
 import o.a.c.sidecar.client.shaded.common.response.SchemaResponse;
 import org.apache.cassandra.analytics.stats.Stats;
@@ -134,6 +135,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected boolean enableStats;
     protected boolean readIndexOffset;
     protected boolean useIncrementalRepair;
+    protected boolean useIpAddressForSidecars;
     protected List<SchemaFeature> requestedFeatures;
     protected Map<String, ReplicationFactor> rfMap;
     @Nullable
@@ -165,6 +167,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.enableStats = options.enableStats();
         this.readIndexOffset = options.readIndexOffset();
         this.useIncrementalRepair = options.useIncrementalRepair();
+        this.useIpAddressForSidecars = options.useIpAddressForSidecars();
         this.lastModifiedTimestampField = options.lastModifiedTimestampField();
         this.requestedFeatures = options.requestedFeatures();
     }
@@ -190,6 +193,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                  boolean enableStats,
                                  boolean readIndexOffset,
                                  boolean useIncrementalRepair,
+                                 boolean useIpAddressForSidecars,
                                  @Nullable String lastModifiedTimestampField,
                                  List<SchemaFeature> requestedFeatures,
                                  @NotNull Map<String, ReplicationFactor> rfMap,
@@ -211,6 +215,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.enableStats = enableStats;
         this.readIndexOffset = readIndexOffset;
         this.useIncrementalRepair = useIncrementalRepair;
+        this.useIpAddressForSidecars = useIpAddressForSidecars;
         this.lastModifiedTimestampField = lastModifiedTimestampField;
         this.requestedFeatures = requestedFeatures;
         if (lastModifiedTimestampField != null)
@@ -348,7 +353,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         List<CompletableFuture<Void>> futures =
         ring.stream()
             .filter(ringEntry -> datacenter == null || datacenter.equals(ringEntry.datacenter()))
-            .filter(ringEntry -> distinctInstances.add(ringEntry.fqdn() + ':' + ringEntry.port()))
+            .filter(ringEntry -> distinctInstances.add(getRingEntryAddress(ringEntry) + ":" + ringEntry.port()))
             .map(ringEntry -> {
                 PartitionedDataLayer.AvailabilityHint hint =
                 PartitionedDataLayer.AvailabilityHint.fromState(ringEntry.status(), ringEntry.state());
@@ -357,15 +362,16 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 if (NODE_STATUS_NOT_CONSIDERED.contains(ringEntry.state()))
                 {
                     LOGGER.warn("Skip snapshot creating when node is joining or down "
-                                + "snapshotName={} keyspace={} table={} datacenter={} fqdn={} status={} state={}",
-                                snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, ringEntry.fqdn(), ringEntry.status(), ringEntry.state());
+                                + "snapshotName={} keyspace={} table={} datacenter={} fqdn={} address={} status={} state={}",
+                                snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, ringEntry.fqdn(), ringEntry.address(),
+                                ringEntry.status(), ringEntry.state());
                     createSnapshotFuture = CompletableFuture.completedFuture(hint);
                 }
                 else
                 {
-                    LOGGER.info("Creating snapshot on instance snapshotName={} keyspace={} table={} datacenter={} fqdn={}",
-                                snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, ringEntry.fqdn());
-                    SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.effectivePort());
+                    LOGGER.info("Creating snapshot on instance snapshotName={} keyspace={} table={} datacenter={} fqdn={} address={}",
+                                snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter, ringEntry.fqdn(), ringEntry.address());
+                    SidecarInstance sidecarInstance = new SidecarInstanceImpl(getRingEntryAddress(ringEntry), sidecarClientConfig.effectivePort());
                     ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = options.clearSnapshotStrategy();
                     createSnapshotFuture = sidecar.createSnapshot(sidecarInstance, maybeQuotedKeyspace,
                                                                   maybeQuotedTable, snapshotName, clearSnapshotStrategy.ttl())
@@ -388,7 +394,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 }
 
                 return createSnapshotFuture
-                       .thenAccept(h -> availabilityHints.put(ringEntry.fqdn(), h));
+                       .thenAccept(h -> availabilityHints.put(getRingEntryAddress(ringEntry), h));
             })
             .collect(Collectors.toList());
 
@@ -509,6 +515,18 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     {
         return String.format("%s/%s/%d/%s/%s/%s",
                              datacenter, instance.hostname(), instance.port(), keyspace, table, snapshotName);
+    }
+
+    private String getRingEntryAddress(RingEntry ringEntry)
+    {
+        if (useIpAddressForSidecars)
+        {
+            return ringEntry.address();
+        }
+        else
+        {
+            return ringEntry.fqdn();
+        }
     }
 
     @Override
@@ -646,7 +664,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         Collection<CassandraInstance> instances = ring
                                                   .stream()
                                                   .filter(status -> datacenter == null || datacenter.equalsIgnoreCase(status.datacenter()))
-                                                  .map(status -> new CassandraInstance(status.token(), status.fqdn(), status.datacenter()))
+                                                  .map(status -> new CassandraInstance(status.token(), getRingEntryAddress(status), status.datacenter()))
                                                   .collect(Collectors.toList());
         return new CassandraRing(partitioner, keyspace, replicationFactor, instances);
     }
@@ -715,6 +733,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.enableStats = in.readBoolean();
         this.readIndexOffset = in.readBoolean();
         this.useIncrementalRepair = in.readBoolean();
+        this.useIpAddressForSidecars = in.readBoolean();
         this.lastModifiedTimestampField = readNullable(in);
         int features = in.readShort();
         List<SchemaFeature> requestedFeatures = new ArrayList<>(features);
@@ -764,6 +783,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         out.writeBoolean(this.enableStats);
         out.writeBoolean(this.readIndexOffset);
         out.writeBoolean(this.useIncrementalRepair);
+        out.writeBoolean(this.useIpAddressForSidecars);
         // If lastModifiedTimestampField exist, it aliases the LMT field
         writeNullable(out, this.lastModifiedTimestampField);
         // Write the list of requested features: first write the size, then write the feature names
@@ -838,6 +858,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             out.writeBoolean(dataLayer.enableStats);
             out.writeBoolean(dataLayer.readIndexOffset);
             out.writeBoolean(dataLayer.useIncrementalRepair);
+            out.writeBoolean(dataLayer.useIpAddressForSidecars);
             // If lastModifiedTimestampField exist, it aliases the LMT field
             out.writeString(dataLayer.lastModifiedTimestampField);
             // Write the list of requested features: first write the size, then write the feature names
@@ -882,6 +903,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             (Map<String, PartitionedDataLayer.AvailabilityHint>) kryo.readObject(in, HashMap.class),
             in.readBoolean() ? Collections.emptyMap()
                              : (Map<String, BigNumberConfigImpl>) kryo.readObject(in, HashMap.class),
+            in.readBoolean(),
             in.readBoolean(),
             in.readBoolean(),
             in.readBoolean(),

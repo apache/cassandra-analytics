@@ -166,16 +166,22 @@ public class RingInstanceTest
     {
         RingEntry ringEntry = mockRingEntry();
         RingInstance instanceWithoutClusterId = new RingInstance(ringEntry);
-        assertEquals("RingInstance{cluster='null', " +
+        assertEquals("RingInstance{cluster='null', useIpAddressForSidecars='false', " +
                      "RingEntry{datacenter='DATACENTER1', address='127.0.0.1', port=0, rack='Rack', " +
                      "status='UP', state='NORMAL', load='0', owns='', token='0', fqdn='DATACENTER1-i1', hostId=''}}",
                      instanceWithoutClusterId.toString());
 
         RingInstance instanceWithClusterId = new RingInstance(ringEntry, "clusterId");
-        assertEquals("RingInstance{cluster='clusterId', " +
+        assertEquals("RingInstance{cluster='clusterId', useIpAddressForSidecars='false', " +
                      "RingEntry{datacenter='DATACENTER1', address='127.0.0.1', port=0, rack='Rack', " +
                      "status='UP', state='NORMAL', load='0', owns='', token='0', fqdn='DATACENTER1-i1', hostId=''}}",
                      instanceWithClusterId.toString());
+
+        RingInstance instanceWithUseIpAddressForSidecar = new RingInstance(ringEntry, "clusterId", true);
+        assertEquals("RingInstance{cluster='clusterId', useIpAddressForSidecars='true', " +
+                        "RingEntry{datacenter='DATACENTER1', address='127.0.0.1', port=0, rack='Rack', " +
+                        "status='UP', state='NORMAL', load='0', owns='', token='0', fqdn='DATACENTER1-i1', hostId=''}}",
+                instanceWithUseIpAddressForSidecar.toString());
     }
 
 

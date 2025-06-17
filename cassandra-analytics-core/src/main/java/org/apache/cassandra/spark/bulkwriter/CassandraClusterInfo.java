@@ -405,7 +405,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     {
         return TokenRangeMapping.create(this::getTokenRangesAndReplicaSets,
                                         this::getPartitioner,
-                                        metadata -> new RingInstance(metadata, clusterId()));
+                                        metadata -> new RingInstance(metadata, clusterId(), conf.getUseIpAddressForSidecars()));
     }
 
     public String getVersionFromFeature()
