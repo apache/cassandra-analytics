@@ -17,20 +17,20 @@
  * under the License.
  */
 
-plugins {
-    id('java-library')
-    id('maven-publish')
-}
+package org.apache.cassandra.spark.data;
 
-apply from: "$rootDir/gradle/common/publishing.gradle"
-
-configurations {
-    all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
-    all*.exclude(group: 'log4j', module: 'log4j')
-}
-
-dependencies {
-    compileOnly project(":cassandra-analytics-common")
-    compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-    compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+/**
+ * Defines an interface to provide the size of a table in a given keyspace
+ */
+public interface TableSizeProvider
+{
+    /**
+     * Returns the total used space for {@code table} across the datacenter.
+     *
+     * @param keyspace   the keyspace where the table lives
+     * @param table      the table to get the size from
+     * @param datacenter the datacenter
+     * @return the total used space for {@code table} across the datacenter
+     */
+    long tableSizeInBytes(String keyspace, String table, String datacenter);
 }

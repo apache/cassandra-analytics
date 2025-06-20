@@ -1,4 +1,6 @@
 1.0.0
+ * Bulk Reader should dynamically size the Spark job based on estimated table size (CASSANALYTICS-36)
+ * Allow getting cassandra role in Spark options for use in Sidecar requests for RBAC (CASSANALYTICS-61)
  * Fix NPE in the deserialized CassandraClusterInfoGroup (CASSANALYTICS-59)
  * Replace NotImplementedException with UnsupportedOperationException in SparkType (CASSANALYTICS-55)
  * Remove dead code for spark 2 (CASSANALYTICS-53)

@@ -75,6 +75,7 @@ public class ClientConfig
     public static final String READ_INDEX_OFFSET_KEY = "readIndexOffset";
     public static final String SIZING_KEY = "sizing";
     public static final String SIZING_DEFAULT = "default";
+    public static final String SIZING_DYNAMIC = "dynamic";
     public static final String MAX_PARTITION_SIZE_KEY = "maxPartitionSize";
     public static final String USE_INCREMENTAL_REPAIR = "useIncrementalRepair";
     // TODO(andrew.johnson): Document

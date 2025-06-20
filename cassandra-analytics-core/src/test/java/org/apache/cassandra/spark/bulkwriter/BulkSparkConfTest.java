@@ -356,6 +356,18 @@ class BulkSparkConfTest
         .isSameAs(DigestAlgorithms.XXHASH32);
     }
 
+    @Test
+    void testCassandraRoleRead()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.cassandraRole).isNull();
+
+        options.put(WriterOptions.CASSANDRA_ROLE.name(), "custom_role");
+        conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.cassandraRole).isEqualTo("custom_role");
+    }
+
     private Map<String, String> copyDefaultOptions()
     {
         TreeMap<String, String> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);

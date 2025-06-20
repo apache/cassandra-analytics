@@ -48,6 +48,7 @@ class HttpClientConfigTest
         assertThat(config.keyStoreInputStream()).isNull();
         assertThat(config.keyStorePassword()).isNull();
         assertThat(config.keyStoreType()).isEqualTo("PKCS12");
+        assertThat(config.cassandraRole()).isNull();
     }
 
     @Test
@@ -150,5 +151,12 @@ class HttpClientConfigTest
     {
         HttpClientConfig config = new HttpClientConfig.Builder<>().keyStoreType("CUSTOM_TYPE").build();
         assertThat(config.keyStoreType()).isEqualTo("CUSTOM_TYPE");
+    }
+
+    @Test
+    void testCassandraRole()
+    {
+        HttpClientConfig config = new HttpClientConfig.Builder<>().cassandraRole("custom_role").build();
+        assertThat(config.cassandraRole()).isEqualTo("custom_role");
     }
 }
