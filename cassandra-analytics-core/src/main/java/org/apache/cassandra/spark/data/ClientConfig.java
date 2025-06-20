@@ -53,11 +53,6 @@ public class ClientConfig
     public static final String SNAPSHOT_NAME_KEY = "snapshotName";
     public static final String DC_KEY = "dc";
     public static final String CREATE_SNAPSHOT_KEY = "createSnapshot";
-    /**
-     * Option to filter distinct instances before creating snapshots. This is only applicable when
-     * using vnodes where the token ring will contain multiple entries per instance.
-     */
-    public static final String CREATE_SNAPSHOT_FILTER_DISTINCT_INSTANCES_KEY = "createSnapshotFilterDistinctInstances";
     public static final String CLEAR_SNAPSHOT_KEY = "clearSnapshot";
     /**
      * Format of clearSnapshotStrategy is {strategy [snapshotTTLvalue]}, clearSnapshotStrategy holds both the strategy
@@ -97,7 +92,6 @@ public class ClientConfig
     protected String datacenter;
     protected boolean createSnapshot;
     protected boolean clearSnapshot;
-    protected boolean createSnapshotFilterDistinctInstances;
     protected ClearSnapshotStrategy clearSnapshotStrategy;
     protected int defaultParallelism;
     protected int numCores;
@@ -122,7 +116,6 @@ public class ClientConfig
         this.snapshotName = MapUtils.getOrDefault(options, SNAPSHOT_NAME_KEY, "sbr_" + UUID.randomUUID().toString().replace("-", ""));
         this.datacenter = options.get(MapUtils.lowerCaseKey(DC_KEY));
         this.createSnapshot = MapUtils.getBoolean(options, CREATE_SNAPSHOT_KEY, true);
-        this.createSnapshotFilterDistinctInstances = MapUtils.getBoolean(options, CREATE_SNAPSHOT_FILTER_DISTINCT_INSTANCES_KEY, true);
         this.clearSnapshot = MapUtils.getBoolean(options, CLEAR_SNAPSHOT_KEY, createSnapshot);
         String clearSnapshotStrategyOption = MapUtils.getOrDefault(options, CLEAR_SNAPSHOT_STRATEGY_KEY, null);
 
@@ -207,11 +200,6 @@ public class ClientConfig
     public boolean clearSnapshot()
     {
         return clearSnapshot;
-    }
-
-    public boolean createSnapshotFilterDistinctInstances()
-    {
-        return createSnapshotFilterDistinctInstances;
     }
 
     public ClearSnapshotStrategy clearSnapshotStrategy()
