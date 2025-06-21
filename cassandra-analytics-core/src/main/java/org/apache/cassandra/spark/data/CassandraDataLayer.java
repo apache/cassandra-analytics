@@ -146,7 +146,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     private SslConfig sslConfig;
 
     @VisibleForTesting
-    transient Map<String, SidecarInstance> instanceMap;
+    transient Map<String, SidecarInstance> sidecarInstanceMap;
 
     public CassandraDataLayer(@NotNull ClientConfig options,
                               @NotNull Sidecar.ClientConfig sidecarClientConfig,
@@ -424,19 +424,17 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
     protected void initInstanceMap()
     {
-        if (tokenPartitioner != null)
-        {
-            instanceMap = tokenPartitioner.ring().instances().stream()
-                    .filter(instance -> datacenter == null || datacenter.equals(instance.dataCenter()))
-                    .map(instance -> instance.nodeName()).distinct()
-                    .map(nodeName -> new SidecarInstanceImpl(nodeName, sidecarClientConfig.effectivePort()))
-                    .collect(Collectors.toMap(SidecarInstance::hostname, Function.identity()));
-        }
-        else
-        {
-            instanceMap = Collections.emptyMap();
-        }
-        LOGGER.info("Initialized CassandraDataLayer instanceMap numInstances={}", instanceMap.size());
+        Preconditions.checkState(tokenPartitioner != null, "tokenPartitioner cannot be absent");
+        sidecarInstanceMap = tokenPartitioner
+                             .ring()
+                             .instances()
+                             .stream()
+                             .filter(instance -> datacenter == null || datacenter.equals(instance.dataCenter()))
+                             .map(CassandraInstance::nodeName)
+                             .distinct()
+                             .map(nodeName -> new SidecarInstanceImpl(nodeName, sidecarClientConfig.effectivePort()))
+                             .collect(Collectors.toMap(SidecarInstance::hostname, Function.identity()));
+        LOGGER.info("Initialized CassandraDataLayer sidecarInstanceMap numInstances={}", sidecarInstanceMap.size());
     }
 
     protected void initSidecarClient()
@@ -534,7 +532,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                                            @NotNull Range<BigInteger> range,
                                                            @NotNull CassandraInstance instance)
     {
-        SidecarInstance sidecarInstance = instanceMap.get(instance.nodeName());
+        SidecarInstance sidecarInstance = sidecarInstanceMap.get(instance.nodeName());
         if (sidecarInstance == null)
         {
             throw new IllegalStateException("Could not find matching cassandra instance: " + instance.nodeName());
@@ -963,10 +961,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         LOGGER.info("Clearing snapshot at end of Spark job snapshotName={} keyspace={} table={} dc={}",
                     snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter);
-        CountDownLatch latch = new CountDownLatch(instanceMap.size());
+        CountDownLatch latch = new CountDownLatch(sidecarInstanceMap.size());
         try
         {
-            for (SidecarInstance instance : instanceMap.values())
+            for (SidecarInstance instance : sidecarInstanceMap.values())
             {
                 sidecar.clearSnapshot(instance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName).whenComplete((resp, throwable) -> {
                     try
