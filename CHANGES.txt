@@ -1,4 +1,5 @@
 1.0.0
+ * Use full ring instead of only IPs from configuration (CASSANALYTICS-20)
  * Bulk Reader should dynamically size the Spark job based on estimated table size (CASSANALYTICS-36)
  * Allow getting cassandra role in Spark options for use in Sidecar requests for RBAC (CASSANALYTICS-61)
  * Fix NPE in the deserialized CassandraClusterInfoGroup (CASSANALYTICS-59)

@@ -21,6 +21,7 @@ package org.apache.cassandra.analytics;
 
 import java.net.UnknownHostException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -112,7 +113,8 @@ public class SparkTestUtils
      */
     public DataFrameReader defaultBulkReaderDataFrame(SparkConf sparkConf,
                                                       SparkSession spark,
-                                                      QualifiedName tableName)
+                                                      QualifiedName tableName,
+                                                      Map<String, String> additionalOptions)
     {
         SQLContext sql = spark.sqlContext();
         SparkContext sc = spark.sparkContext();
@@ -121,22 +123,27 @@ public class SparkTestUtils
         int numExecutors = sparkConf.getInt("spark.dynamicAllocation.maxExecutors", sparkConf.getInt("spark.executor.instances", 1));
         int numCores = coresPerExecutor * numExecutors;
 
+        Map<String, String> options = new HashMap<>();
+        options.put("sidecar_contact_points", sidecarInstancesOption(cluster, dnsResolver));
+        options.put("keyspace", tableName.keyspace());
+        options.put("table", tableName.table());
+        options.put("DC", "datacenter1");
+        options.put("snapshotName", UUID.randomUUID().toString());
+        options.put("createSnapshot", "true");
+        // Shutdown hooks are called after the job ends, and in the case of integration tests
+        // the sidecar is already shut down before this. Since the cluster will be torn
+        // down anyway, the integration job skips clearing snapshots.
+        options.put("clearSnapshotStrategy", "noop");
+        options.put("defaultParallelism", String.valueOf(sc.defaultParallelism()));
+        options.put("numCores", String.valueOf(numCores));
+        options.put("sizing", "default");
+        options.put("sidecar_port", String.valueOf(sidecarPort));
+        // merge in additionalOptions; note that for options with the same name, the entries in additionalOptions are kept
+        options.putAll(additionalOptions);
+
         return sql.read().format("org.apache.cassandra.spark.sparksql.CassandraDataSource")
-                  .option("sidecar_contact_points", sidecarInstancesOption(cluster, dnsResolver))
-                  .option("keyspace", tableName.keyspace()) // unquoted
-                  .option("table", tableName.table()) // unquoted
-                  .option("DC", "datacenter1")
-                  .option("snapshotName", UUID.randomUUID().toString())
-                  .option("createSnapshot", "true")
-                  // Shutdown hooks are called after the job ends, and in the case of integration tests
-                  // the sidecar is already shut down before this. Since the cluster will be torn
-                  // down anyway, the integration job skips clearing snapshots.
-                  .option("clearSnapshotStrategy", "noop")
-                  .option("defaultParallelism", sc.defaultParallelism())
-                  .option("numCores", numCores)
-                  .option("sizing", "default")
-                  .options(mtlsTestHelper.mtlOptionMap())
-                  .option("sidecar_port", sidecarPort);
+                  .options(options)
+                  .options(mtlsTestHelper.mtlOptionMap());
     }
 
     /**

@@ -91,8 +91,25 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
      */
     protected DataFrameReader bulkReaderDataFrame(QualifiedName tableName)
     {
-        return sparkTestUtils.defaultBulkReaderDataFrame(getOrCreateSparkConf(), getOrCreateSparkSession(),
-                                                         tableName);
+        return sparkTestUtils.defaultBulkReaderDataFrame(getOrCreateSparkConf(),
+                                                         getOrCreateSparkSession(),
+                                                         tableName, Collections.emptyMap());
+    }
+
+    /**
+     * A preconfigured {@link DataFrameReader} with pre-populated required options that can be overridden
+     * with additional options for every specific test.
+     *
+     * @param tableName the qualified name for the Cassandra table
+     * @param additionalOptions additional options for the data frame
+     * @return a {@link DataFrameReader} for Cassandra bulk reads
+     */
+    protected DataFrameReader bulkReaderDataFrame(QualifiedName tableName, Map<String, String> additionalOptions)
+    {
+        return sparkTestUtils.defaultBulkReaderDataFrame(getOrCreateSparkConf(),
+                                                         getOrCreateSparkSession(),
+                                                         tableName,
+                                                         additionalOptions);
     }
 
     /**

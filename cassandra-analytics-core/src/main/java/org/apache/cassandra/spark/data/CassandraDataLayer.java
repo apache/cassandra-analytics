@@ -146,7 +146,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     private SslConfig sslConfig;
 
     @VisibleForTesting
-    transient Map<String, SidecarInstance> instanceMap;
+    transient Map<String, SidecarInstance> sidecarInstanceMap;
 
     public CassandraDataLayer(@NotNull ClientConfig options,
                               @NotNull Sidecar.ClientConfig sidecarClientConfig,
@@ -220,6 +220,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.rfMap = rfMap;
         this.timeProvider = timeProvider;
         this.maybeQuoteKeyspaceAndTable();
+        this.initSidecarClient();
         this.initInstanceMap();
         this.startupValidate();
     }
@@ -234,7 +235,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         // Load cluster config from options
         clusterConfig = initializeClusterConfig(options);
-        initInstanceMap();
+        initSidecarClient();
 
         // Get cluster info from Cassandra Sidecar
         int effectiveNumberOfCores;
@@ -251,6 +252,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         {
             throw new RuntimeException(ThrowableUtils.rootCause(exception));
         }
+        initInstanceMap();
         LOGGER.info("Initialized Cassandra Bulk Reader with effectiveNumberOfCores={}", effectiveNumberOfCores);
     }
 
@@ -422,7 +424,21 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
     protected void initInstanceMap()
     {
-        instanceMap = clusterConfig.stream().collect(Collectors.toMap(SidecarInstance::hostname, Function.identity()));
+        Preconditions.checkState(tokenPartitioner != null, "tokenPartitioner cannot be absent");
+        sidecarInstanceMap = tokenPartitioner
+                             .ring()
+                             .instances()
+                             .stream()
+                             .filter(instance -> datacenter == null || datacenter.equals(instance.dataCenter()))
+                             .map(CassandraInstance::nodeName)
+                             .distinct()
+                             .map(nodeName -> new SidecarInstanceImpl(nodeName, sidecarClientConfig.effectivePort()))
+                             .collect(Collectors.toMap(SidecarInstance::hostname, Function.identity()));
+        LOGGER.info("Initialized CassandraDataLayer sidecarInstanceMap numInstances={}", sidecarInstanceMap.size());
+    }
+
+    protected void initSidecarClient()
+    {
         try
         {
             SslConfigSecretsProvider secretsProvider = sslConfig != null
@@ -436,7 +452,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         {
             throw new RuntimeException("Unable to build sidecar client", ioException);
         }
-        LOGGER.info("Initialized CassandraDataLayer instanceMap numInstances={}", instanceMap.size());
+        LOGGER.info("Initialized sidecar client");
     }
 
     @Override
@@ -516,7 +532,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                                            @NotNull Range<BigInteger> range,
                                                            @NotNull CassandraInstance instance)
     {
-        SidecarInstance sidecarInstance = instanceMap.get(instance.nodeName());
+        SidecarInstance sidecarInstance = sidecarInstanceMap.get(instance.nodeName());
         if (sidecarInstance == null)
         {
             throw new IllegalStateException("Could not find matching cassandra instance: " + instance.nodeName());
@@ -733,6 +749,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.rfMap = (Map<String, ReplicationFactor>) in.readObject();
         this.timeProvider = new ReaderTimeProvider(in.readInt());
         this.maybeQuoteKeyspaceAndTable();
+        this.initSidecarClient();
         this.initInstanceMap();
         this.startupValidate();
     }
@@ -944,10 +961,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         LOGGER.info("Clearing snapshot at end of Spark job snapshotName={} keyspace={} table={} dc={}",
                     snapshotName, maybeQuotedKeyspace, maybeQuotedTable, datacenter);
-        CountDownLatch latch = new CountDownLatch(clusterConfig.size());
+        CountDownLatch latch = new CountDownLatch(sidecarInstanceMap.size());
         try
         {
-            for (SidecarInstance instance : clusterConfig)
+            for (SidecarInstance instance : sidecarInstanceMap.values())
             {
                 sidecar.clearSnapshot(instance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName).whenComplete((resp, throwable) -> {
                     try
