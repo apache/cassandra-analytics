@@ -98,12 +98,18 @@ ext {
     mavenPassword = propertyWithDefault("maven.password", "")
 }
 
+archivesBaseName = "analytics-sidecar-vertx-client-all"
+if ("${project.rootProject.ext.sparkLabel}" == '3') {
+    archivesBaseName = "${archivesBaseName}_spark3"
+}
+archivesBaseName = "${archivesBaseName}_${scalaMajorVersion}"
+
 publishing {
     publications {
         shadow(MavenPublication) { publication ->
             project.shadow.component(publication)
             groupId rootProject.group
-            artifactId "analytics-sidecar-vertx-client-all"
+            artifactId "${archivesBaseName}"
             version System.getenv("CODE_VERSION") ?: "${project.version}"
 
             if (mavenRepositoryUrl != "") {
