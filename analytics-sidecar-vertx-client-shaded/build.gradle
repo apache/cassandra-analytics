@@ -98,6 +98,10 @@ ext {
     mavenPassword = propertyWithDefault("maven.password", "")
 }
 
+// Adding a new archivesBaseName to be used instead of the default
+// archivesBaseName = "${project.name}"
+// present on the general gradle.build file to avoid having
+// analytics-sidecar-vertx-client-shaded_* as the artifact name
 archivesBaseName = "analytics-sidecar-vertx-client-all"
 if ("${project.rootProject.ext.sparkLabel}" == '3') {
     archivesBaseName = "${archivesBaseName}_spark3"
