@@ -91,6 +91,7 @@ import org.apache.cassandra.sidecar.config.yaml.CoordinationConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.KeyStoreConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.PeriodicTaskConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl;
+import org.apache.cassandra.sidecar.config.yaml.SSTableUploadConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SchemaKeyspaceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.ServiceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
@@ -109,6 +110,8 @@ import org.apache.cassandra.testing.TestVersionSupplier;
 
 import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_API_CALL_TIMEOUT;
 import static org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl.DEFAULT_THREAD_KEEP_ALIVE;
+import static org.apache.cassandra.sidecar.config.yaml.SSTableUploadConfigurationImpl.DEFAULT_CONCURRENT_UPLOAD_LIMIT;
+import static org.apache.cassandra.sidecar.config.yaml.SSTableUploadConfigurationImpl.DEFAULT_FILE_PERMISSIONS;
 import static org.apache.cassandra.sidecar.testing.MtlsTestHelper.CASSANDRA_INTEGRATION_TEST_ENABLE_MTLS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -587,6 +590,9 @@ public abstract class SharedClusterIntegrationTestBase
                                                                 .schemaKeyspaceConfiguration(SchemaKeyspaceConfigurationImpl.builder()
                                                                                                                             .isEnabled(true)
                                                                                                                             .build())
+                                                                .sstableUploadConfiguration(new SSTableUploadConfigurationImpl(DEFAULT_CONCURRENT_UPLOAD_LIMIT,
+                                                                                                                               1,
+                                                                                                                               DEFAULT_FILE_PERMISSIONS))
                                                                 .coordinationConfiguration(new CoordinationConfigurationImpl(clusterClaimTaskConfig))
                                                                 .build();
 
