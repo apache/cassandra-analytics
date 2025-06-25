@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 import o.a.c.sidecar.client.shaded.common.response.RingResponse;
 import o.a.c.sidecar.client.shaded.common.response.TableStatsResponse;
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
-import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
@@ -44,13 +43,13 @@ public class SidecarTableSizeProvider implements TableSizeProvider
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SidecarTableSizeProvider.class);
     private final SidecarClient sidecarClient;
-    private final Sidecar.ClientConfig sidecarClientConfig;
+    private final int sidecarPort;
     private final CompletableFuture<RingResponse> ringFuture;
 
-    public SidecarTableSizeProvider(SidecarClient sidecarClient, Sidecar.ClientConfig sidecarClientConfig, CompletableFuture<RingResponse> ringFuture)
+    public SidecarTableSizeProvider(SidecarClient sidecarClient, int sidecarPort, CompletableFuture<RingResponse> ringFuture)
     {
         this.sidecarClient = sidecarClient;
-        this.sidecarClientConfig = sidecarClientConfig;
+        this.sidecarPort = sidecarPort;
         this.ringFuture = ringFuture;
     }
 
@@ -92,7 +91,7 @@ public class SidecarTableSizeProvider implements TableSizeProvider
 
         for (RingEntry ringEntry : instances)
         {
-            SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarClientConfig.effectivePort());
+            SidecarInstance sidecarInstance = new SidecarInstanceImpl(ringEntry.fqdn(), sidecarPort);
             CompletableFuture<TableStatsResponse> tableStatsResponseCompletableFuture = sidecarClient.tableStats(sidecarInstance, keyspace, table);
             tableStatsResponseCompletableFuture
             .whenComplete((response, throwable) -> {

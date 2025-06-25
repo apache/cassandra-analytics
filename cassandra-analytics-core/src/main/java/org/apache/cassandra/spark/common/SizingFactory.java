@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.common;
 import java.util.concurrent.CompletableFuture;
 
 import o.a.c.sidecar.client.shaded.common.response.RingResponse;
-import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.spark.data.ClientConfig;
 import org.apache.cassandra.spark.data.DefaultSizing;
@@ -62,7 +61,7 @@ public class SizingFactory
      * @param table               the table
      * @param datacenter          the DataCenter to use
      * @param sidecarClient       the sidecar client instance to use
-     * @param sidecarClientConfig the configuration to use with the sidecar client
+     * @param sidecarPort         the port for the sidecar service
      * @param ringFuture          a future representing the result of getting the current ring from the sidecar
      * @return the {@link Sizing} object based on the {@code sizing} option provided by the user
      */
@@ -73,12 +72,12 @@ public class SizingFactory
                                 String table,
                                 String datacenter,
                                 SidecarClient sidecarClient,
-                                Sidecar.ClientConfig sidecarClientConfig,
+                                int sidecarPort,
                                 CompletableFuture<RingResponse> ringFuture)
     {
         if (SIZING_DYNAMIC.equalsIgnoreCase(options.sizing()))
         {
-            TableSizeProvider tableSizeProvider = getTableSizeProvider(sidecarClient, sidecarClientConfig, ringFuture);
+            TableSizeProvider tableSizeProvider = getTableSizeProvider(sidecarClient, sidecarPort, ringFuture);
             return new DynamicSizing(tableSizeProvider, consistencyLevel, replicationFactor,
                                      keyspace, table, datacenter,
                                      options.maxPartitionSize(), options.numCores());
@@ -91,9 +90,9 @@ public class SizingFactory
     }
 
     protected static TableSizeProvider getTableSizeProvider(SidecarClient sidecarClient,
-                                                            Sidecar.ClientConfig sidecarClientConfig,
+                                                            int sidecarPort,
                                                             CompletableFuture<RingResponse> ringFuture)
     {
-        return new SidecarTableSizeProvider(sidecarClient, sidecarClientConfig, ringFuture);
+        return new SidecarTableSizeProvider(sidecarClient, sidecarPort, ringFuture);
     }
 }
