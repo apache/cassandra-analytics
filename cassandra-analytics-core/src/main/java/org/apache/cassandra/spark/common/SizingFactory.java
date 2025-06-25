@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.common;
 import java.util.concurrent.CompletableFuture;
 
 import o.a.c.sidecar.client.shaded.common.response.RingResponse;
-import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.spark.data.ClientConfig;
 import org.apache.cassandra.spark.data.DefaultSizing;
