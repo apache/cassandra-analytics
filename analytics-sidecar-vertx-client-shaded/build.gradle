@@ -32,6 +32,7 @@ import java.nio.file.Paths
 plugins {
     id('java-library')
     id('maven-publish')
+    id('signing')
     id('com.gradleup.shadow') version '8.3.0'
 }
 
@@ -144,6 +145,16 @@ publishing {
             }
         }
     }
+}
+
+signing {
+    required { shouldSign }
+    if (shouldSign) {
+        // Use gpg-agent to sign
+        useGpgCmd()
+    }
+
+    sign publishing.publications
 }
 
 /**
