@@ -45,7 +45,7 @@ dependencies {
 
     testFixturesImplementation(project(path: ":cassandra-analytics-spark-converter"))
     testFixturesImplementation "org.quicktheories:quicktheories:${project.rootProject.quickTheoriesVersion}"
-    testFixturesImplementation(group: 'com.intellij', name: 'annotations', version: "${project.rootProject.intellijVersion}")
+    testFixturesImplementation(group: 'com.google.code.findbugs', name: 'jsr305', version: "${project.rootProject.jsr305version}")
     testFixturesImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
     testFixturesImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
     testFixturesImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${jacksonVersion}")

@@ -32,7 +32,7 @@ import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.common.model.NodeState;
 import org.apache.cassandra.spark.common.model.NodeStatus;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public class RingInstance implements CassandraInstance, Serializable
 {

@@ -33,7 +33,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public final class SSTables
 {
@@ -63,7 +63,7 @@ public final class SSTables
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    private static LinkedHashMap<ComponentType, String> parse(@NotNull Path sstable)
+    private static LinkedHashMap<ComponentType, String> parse(@Nonnull Path sstable)
     {
         String name = sstable.getFileName().toString();
         StringTokenizer st = new StringTokenizer(name, FILE_PATH_SEPARATOR);
@@ -121,7 +121,7 @@ public final class SSTables
         return true;
     }
 
-    public static CassandraVersionFeatures cassandraVersionFromTable(@NotNull Path sstable)
+    public static CassandraVersionFeatures cassandraVersionFromTable(@Nonnull Path sstable)
     {
         String version = parse(sstable).get(ComponentType.VERSION);
         if (!SS_TABLE_VERSIONS.containsKey(version))

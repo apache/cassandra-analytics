@@ -45,8 +45,8 @@ import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.utils.vint.VIntCoding;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class IndexReader implements IIndexReader
 {
@@ -54,11 +54,11 @@ public class IndexReader implements IIndexReader
 
     private TokenRange ssTableRange = null;
 
-    public IndexReader(@NotNull SSTable ssTable,
-                       @NotNull TableMetadata metadata,
+    public IndexReader(@Nonnull SSTable ssTable,
+                       @Nonnull TableMetadata metadata,
                        @Nullable SparkRangeFilter rangeFilter,
-                       @NotNull Stats stats,
-                       @NotNull IndexConsumer consumer)
+                       @Nonnull Stats stats,
+                       @Nonnull IndexConsumer consumer)
     {
         long now = System.nanoTime();
         long startTimeNanos = now;
@@ -134,14 +134,14 @@ public class IndexReader implements IIndexReader
     }
 
     @SuppressWarnings("InfiniteLoopStatement")
-    static void consumePrimaryIndex(@NotNull IPartitioner partitioner,
-                                    @NotNull InputStream primaryIndex,
-                                    @NotNull SSTable ssTable,
+    static void consumePrimaryIndex(@Nonnull IPartitioner partitioner,
+                                    @Nonnull InputStream primaryIndex,
+                                    @Nonnull SSTable ssTable,
                                     @Nullable CompressionMetadata compressionMetadata,
                                     @Nullable SparkRangeFilter range,
-                                    @NotNull Stats stats,
+                                    @Nonnull Stats stats,
                                     long skipBytes,
-                                    @NotNull IndexConsumer consumer) throws IOException
+                                    @Nonnull IndexConsumer consumer) throws IOException
     {
         long primaryIndexLength = ssTable.length(FileType.INDEX);
         long dataDbFileLength = ssTable.length(FileType.DATA);
@@ -229,7 +229,7 @@ public class IndexReader implements IIndexReader
      * @param end                  uncompressed end position.
      * @return the compressed size of a partition using the uncompressed start and end offset in the Data.db file to calculate.
      */
-    public static long calculateCompressedSize(@NotNull CompressionMetadata compressionMetadata,
+    public static long calculateCompressedSize(@Nonnull CompressionMetadata compressionMetadata,
                                                long compressedDataLength,
                                                long start,
                                                long end)

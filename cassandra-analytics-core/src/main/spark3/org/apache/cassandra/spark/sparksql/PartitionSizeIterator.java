@@ -30,7 +30,7 @@ import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.connector.read.PartitionReader;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Wrapper iterator around IndexIterator to read all Index.db files and return SparkSQL
@@ -46,7 +46,7 @@ public class PartitionSizeIterator implements PartitionReader<InternalRow>
     private GenericInternalRow curr = null;
     private final SparkSqlTypeConverter sparkSqlTypeConverter;
 
-    public PartitionSizeIterator(int partitionId, @NotNull DataLayer dataLayer)
+    public PartitionSizeIterator(int partitionId, @Nonnull DataLayer dataLayer)
     {
         this.cqlTable = dataLayer.cqlTable();
         this.numPartitionKeys = cqlTable.numPartitionKeys();

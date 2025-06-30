@@ -47,12 +47,12 @@ import org.apache.cassandra.schema.Types;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.SchemaBuilder;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import org.apache.cassandra.cql3.CqlParser;
 
 import org.apache.cassandra.cdc.api.TableIdLookup;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public final class CassandraSchema
 {
@@ -229,9 +229,9 @@ public final class CassandraSchema
                       .collect(Collectors.toSet());
     }
 
-    public static void updateCdcSchema(@NotNull Set<CqlTable> cdcTables,
-                                       @NotNull Partitioner partitioner,
-                                       @NotNull TableIdLookup tableIdLookup)
+    public static void updateCdcSchema(@Nonnull Set<CqlTable> cdcTables,
+                                       @Nonnull Partitioner partitioner,
+                                       @Nonnull TableIdLookup tableIdLookup)
     {
         updateCdcSchema(Schema.instance, cdcTables, partitioner, tableIdLookup);
     }
@@ -284,10 +284,10 @@ public final class CassandraSchema
         });
     }
 
-    public static void updateCdcSchema(@NotNull Schema schema,
-                                       @NotNull Set<CqlTable> cdcTables,
-                                       @NotNull Partitioner partitioner,
-                                       @NotNull TableIdLookup tableIdLookup)
+    public static void updateCdcSchema(@Nonnull Schema schema,
+                                       @Nonnull Set<CqlTable> cdcTables,
+                                       @Nonnull Partitioner partitioner,
+                                       @Nonnull TableIdLookup tableIdLookup)
     {
         LOGGER.info("Updating CDC schema tables='{}'",
                     cdcTables.stream()

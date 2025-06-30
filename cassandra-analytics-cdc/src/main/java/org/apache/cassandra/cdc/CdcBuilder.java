@@ -34,36 +34,36 @@ import org.apache.cassandra.cdc.api.TokenRangeSupplier;
 import org.apache.cassandra.cdc.stats.CdcStats;
 import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @SuppressWarnings("unused")  // external facing API
 public class CdcBuilder
 {
-    @NotNull
+    @Nonnull
     protected final String jobId;
     protected final int partitionId;
-    @NotNull
+    @Nonnull
     TokenRangeSupplier tokenRangeSupplier = () -> null;
-    @NotNull
+    @Nonnull
     protected SchemaSupplier schemaSupplier;
-    @NotNull
+    @Nonnull
     CassandraSource cassandraSource = CassandraSource.DEFAULT;
-    @NotNull
+    @Nonnull
     StatePersister statePersister = StatePersister.STUB;
-    @NotNull
+    @Nonnull
     protected CdcOptions cdcOptions = CdcOptions.DEFAULT;
-    @NotNull
+    @Nonnull
     ICdcStats stats = ICdcStats.STUB;
-    // asyncExecutor is @Nullable at compile time but required to be @NotNull at runtime to build the Cdc object
-    @SuppressWarnings("NotNullFieldNotInitialized")
-    @NotNull
+    // asyncExecutor is @Nullable at compile time but required to be @Nonnull at runtime to build the Cdc object
+    @SuppressWarnings("NonnullFieldNotInitialized")
+    @Nonnull
     protected AsyncExecutor asyncExecutor = null;
     @Nullable
     protected CommitLogProvider commitLogProvider = null;
-    @NotNull
+    @Nonnull
     protected EventConsumer eventConsumer;
-    @NotNull
+    @Nonnull
     public TableIdLookup tableIdLookup = TableIdLookup.STUB;
 
     /**
@@ -74,10 +74,10 @@ public class CdcBuilder
      * @param eventConsumer  consumer that processes the CDC updates as they are received.
      * @param schemaSupplier provides the schema for the CDC enabled tables.
      */
-    public CdcBuilder(@NotNull String jobId,
+    public CdcBuilder(@Nonnull String jobId,
                       int partitionId,
-                      @NotNull EventConsumer eventConsumer,
-                      @NotNull SchemaSupplier schemaSupplier)
+                      @Nonnull EventConsumer eventConsumer,
+                      @Nonnull SchemaSupplier schemaSupplier)
     {
         this.jobId = jobId;
         this.partitionId = partitionId;
@@ -90,67 +90,67 @@ public class CdcBuilder
      * This supplier is called at the start of each micro-batch to permit topology changes between micro-batches.
      * Returning a null token range means it will attempt to read all available commit logs.
      */
-    public CdcBuilder withTokenRangeSupplier(@NotNull TokenRangeSupplier tokenRangeSupplier)
+    public CdcBuilder withTokenRangeSupplier(@Nonnull TokenRangeSupplier tokenRangeSupplier)
     {
         this.tokenRangeSupplier = tokenRangeSupplier;
         return this;
     }
 
-    public CdcBuilder withCassandraSource(@NotNull CassandraSource cassandraSource)
+    public CdcBuilder withCassandraSource(@Nonnull CassandraSource cassandraSource)
     {
         this.cassandraSource = cassandraSource;
         return this;
     }
 
-    public CdcBuilder withStatePersister(@NotNull StatePersister statePersister)
+    public CdcBuilder withStatePersister(@Nonnull StatePersister statePersister)
     {
         this.statePersister = statePersister;
         return this;
     }
 
-    public CdcBuilder withCdcOptions(@NotNull CdcOptions cdcOptions)
+    public CdcBuilder withCdcOptions(@Nonnull CdcOptions cdcOptions)
     {
         this.cdcOptions = cdcOptions;
         return this;
     }
 
-    public CdcBuilder withExecutor(@NotNull ExecutorService executor)
+    public CdcBuilder withExecutor(@Nonnull ExecutorService executor)
     {
         return withExecutor(AsyncExecutor.wrap(executor));
     }
 
 
-    public CdcBuilder withExecutor(@NotNull AsyncExecutor asyncExecutor)
+    public CdcBuilder withExecutor(@Nonnull AsyncExecutor asyncExecutor)
     {
         this.asyncExecutor = asyncExecutor;
         return this;
     }
 
-    public CdcBuilder withCommitLogProvider(@NotNull CommitLogProvider commitLogProvider)
+    public CdcBuilder withCommitLogProvider(@Nonnull CommitLogProvider commitLogProvider)
     {
         this.commitLogProvider = commitLogProvider;
         return this;
     }
 
-    public CdcBuilder withStats(@NotNull CdcStats stats)
+    public CdcBuilder withStats(@Nonnull CdcStats stats)
     {
         this.stats = stats;
         return this;
     }
 
-    public CdcBuilder withEventConsumer(@NotNull EventConsumer eventConsumer)
+    public CdcBuilder withEventConsumer(@Nonnull EventConsumer eventConsumer)
     {
         this.eventConsumer = eventConsumer;
         return this;
     }
 
-    public CdcBuilder withTableIdLookup(@NotNull TableIdLookup tableIdLookup)
+    public CdcBuilder withTableIdLookup(@Nonnull TableIdLookup tableIdLookup)
     {
         this.tableIdLookup = tableIdLookup;
         return this;
     }
 
-    public CdcBuilder withSchemaSupplier(@NotNull SchemaSupplier schemaSupplier)
+    public CdcBuilder withSchemaSupplier(@Nonnull SchemaSupplier schemaSupplier)
     {
         this.schemaSupplier = schemaSupplier;
         return this;

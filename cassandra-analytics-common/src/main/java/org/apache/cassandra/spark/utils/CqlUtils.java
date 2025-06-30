@@ -36,7 +36,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cassandra.spark.data.ReplicationFactor;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * CQL-related utility methods
@@ -62,7 +62,7 @@ public final class CqlUtils
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    public static String cleanCql(@NotNull String cql)
+    public static String cleanCql(@Nonnull String cql)
     {
         String result = ESCAPED_WHITESPACE_PATTERN.matcher(cql).replaceAll("\n");
         result = NEWLINE_PATTERN.matcher(result).replaceAll("");
@@ -70,7 +70,7 @@ public final class CqlUtils
         return result;
     }
 
-    private static String removeTableProps(@NotNull String schema)
+    private static String removeTableProps(@Nonnull String schema)
     {
         int index = schema.indexOf('(');
         int count = 1;
@@ -100,7 +100,7 @@ public final class CqlUtils
         return schema.substring(0, index + 1);
     }
 
-    public static Set<String> extractKeyspaceNames(@NotNull String schemaStr)
+    public static Set<String> extractKeyspaceNames(@Nonnull String schemaStr)
     {
         String cleaned = cleanCql(schemaStr);
         Pattern pattern = Pattern.compile("CREATE KEYSPACE \"?(\\w+)?\"? [^;]*;");
@@ -118,7 +118,7 @@ public final class CqlUtils
         return keyspaces;
     }
 
-    public static String extractKeyspaceSchema(@NotNull String schemaStr, @NotNull String keyspace)
+    public static String extractKeyspaceSchema(@Nonnull String schemaStr, @Nonnull String keyspace)
     {
         String cleaned = cleanCql(schemaStr);
         Pattern pattern = Pattern.compile(String.format("CREATE KEYSPACE \"?%s?\"? [^;]*;", keyspace));
@@ -132,7 +132,7 @@ public final class CqlUtils
         return cleaned.substring(matcher.start(0), matcher.end(0));
     }
 
-    public static ReplicationFactor extractReplicationFactor(@NotNull String schemaStr, @NotNull String keyspace)
+    public static ReplicationFactor extractReplicationFactor(@Nonnull String schemaStr, @Nonnull String keyspace)
     {
         String createKeyspaceSchema = extractKeyspaceSchema(schemaStr, keyspace);
         Matcher matcher = REPLICATION_FACTOR_PATTERN.matcher(createKeyspaceSchema);
@@ -157,14 +157,14 @@ public final class CqlUtils
         return new ReplicationFactor(strategy, map.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, v -> Integer.parseInt(v.getValue()))));
     }
 
-    public static String extractTableSchema(@NotNull String schemaStr, @NotNull String keyspace, @NotNull String table)
+    public static String extractTableSchema(@Nonnull String schemaStr, @Nonnull String keyspace, @Nonnull String table)
     {
         return extractCleanedTableSchema(cleanCql(schemaStr), keyspace, table);
     }
 
-    public static String extractCleanedTableSchema(@NotNull String createStatementToClean,
-                                                   @NotNull String keyspace,
-                                                   @NotNull String table)
+    public static String extractCleanedTableSchema(@Nonnull String createStatementToClean,
+                                                   @Nonnull String keyspace,
+                                                   @Nonnull String table)
     {
         Pattern pattern = Pattern.compile(String.format("CREATE TABLE ?\"?%s?\"?\\.{1}\"?%s\"?[^;]*;", keyspace, table));
         Matcher matcher = pattern.matcher(createStatementToClean);
@@ -224,7 +224,7 @@ public final class CqlUtils
         return null;
     }
 
-    public static Set<String> extractUdts(@NotNull String schemaStr, @NotNull String keyspace)
+    public static Set<String> extractUdts(@Nonnull String schemaStr, @Nonnull String keyspace)
     {
         Pattern pattern = Pattern.compile(String.format("CREATE TYPE \"?%s\"?\\.{1}[^;]*;", keyspace));
         Matcher matcher = pattern.matcher(schemaStr);
@@ -236,7 +236,7 @@ public final class CqlUtils
         return result;
     }
 
-    public static int extractIndexCount(@NotNull String schemaStr, @NotNull String keyspace, @NotNull String table)
+    public static int extractIndexCount(@Nonnull String schemaStr, @Nonnull String keyspace, @Nonnull String table)
     {
         String cleaned = cleanCql(schemaStr);
         Pattern pattern = Pattern.compile(String.format("CREATE (CUSTOM )?INDEX \"?[^ ]* ON ?\"?%s?\"?\\.{1}\"?%s\"?[^;]*;", keyspace, table));

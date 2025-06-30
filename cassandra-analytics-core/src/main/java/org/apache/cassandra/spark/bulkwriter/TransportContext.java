@@ -29,7 +29,7 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageDataTransf
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * An interface that defines the transport context required to perform the bulk writes
@@ -77,21 +77,21 @@ public interface TransportContext
          * @return CloudStorageDataTransferApi for the S3_COMPAT mode
          * Implementation note: never return null result
          */
-        @NotNull
+        @Nonnull
         CloudStorageDataTransferApi dataTransferApi();
 
         /**
          * @return configuration for S3_COMPAT
          * Implementation note: never return null result
          */
-        @NotNull
+        @Nonnull
         StorageTransportConfiguration transportConfiguration();
 
         /**
          * @return transport extension instance for S3_COMPAT
          * Implementation note: never return null result
          */
-        @NotNull
+        @Nonnull
         StorageTransportExtension transportExtensionImplementation();
     }
 
@@ -105,8 +105,8 @@ public interface TransportContext
          * @param isOnDriver indicates whether the role of the runtime is Spark driver or executor
          * @return a new transport context instance
          */
-        TransportContext createContext(@NotNull BulkWriterContext bulkWriterContext,
-                                       @NotNull BulkSparkConf conf,
+        TransportContext createContext(@Nonnull BulkWriterContext bulkWriterContext,
+                                       @Nonnull BulkSparkConf conf,
                                        boolean isOnDriver);
     }
 }

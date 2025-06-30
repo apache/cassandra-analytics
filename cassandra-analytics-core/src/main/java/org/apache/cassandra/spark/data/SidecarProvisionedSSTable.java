@@ -34,8 +34,8 @@ import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.streaming.BufferingInputStream;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * An SSTable that is streamed from Sidecar
@@ -49,9 +49,9 @@ public class SidecarProvisionedSSTable extends SSTable
     private final String keyspace;
     private final String table;
     private final String snapshotName;
-    @NotNull
+    @Nonnull
     private final String dataFileName;
-    @NotNull
+    @Nonnull
     private final Map<FileType, ListSnapshotFilesResponse.FileInfo> components;
     private final int partitionId;
     private final Stats stats;
@@ -63,7 +63,7 @@ public class SidecarProvisionedSSTable extends SSTable
                                         String keyspace,
                                         String table,
                                         String snapshotName,
-                                        @NotNull Map<FileType, ListSnapshotFilesResponse.FileInfo> components,
+                                        @Nonnull Map<FileType, ListSnapshotFilesResponse.FileInfo> components,
                                         int partitionId,
                                         Stats stats)
     {
@@ -96,7 +96,7 @@ public class SidecarProvisionedSSTable extends SSTable
         return partitionId;
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public String getDataFileName()
     {

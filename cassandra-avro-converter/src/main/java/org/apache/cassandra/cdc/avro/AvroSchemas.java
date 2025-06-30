@@ -25,7 +25,7 @@ import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.cassandra.spark.utils.Preconditions;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import static org.apache.avro.Schema.Type.ARRAY;
 import static org.apache.avro.Schema.Type.NULL;

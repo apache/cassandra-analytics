@@ -24,7 +24,7 @@ import java.util.function.Function;
 
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public class Value
 {

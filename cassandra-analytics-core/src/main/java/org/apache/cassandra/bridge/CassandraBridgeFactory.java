@@ -27,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
 {
@@ -53,55 +53,55 @@ public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    @NotNull
-    public static CassandraBridge get(@NotNull String version)
+    @Nonnull
+    public static CassandraBridge get(@Nonnull String version)
     {
         return get(getCassandraVersion(version));
     }
 
-    @NotNull
-    public static CassandraBridge get(@NotNull CassandraVersionFeatures features)
+    @Nonnull
+    public static CassandraBridge get(@Nonnull CassandraVersionFeatures features)
     {
         return get(getCassandraVersion(features));
     }
 
-    @NotNull
-    public static CassandraBridge get(@NotNull CassandraVersion version)
+    @Nonnull
+    public static CassandraBridge get(@Nonnull CassandraVersion version)
     {
         String jarBaseName = version.jarBaseName();
         Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
         return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).cassandraBridge;
     }
 
-    @NotNull
-    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraVersionFeatures features)
+    @Nonnull
+    public static SparkSqlTypeConverter getSparkSql(@Nonnull CassandraVersionFeatures features)
     {
         return getSparkSql(getCassandraVersion(features));
     }
 
-    @NotNull
-    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraBridge bridge)
+    @Nonnull
+    public static SparkSqlTypeConverter getSparkSql(@Nonnull CassandraBridge bridge)
     {
         return getSparkSql(bridge.getVersion());
     }
 
-    @NotNull
-    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraVersion version)
+    @Nonnull
+    public static SparkSqlTypeConverter getSparkSql(@Nonnull CassandraVersion version)
     {
         String jarBaseName = version.jarBaseName();
         Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
         return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).sparkSqlTypeConverter;
     }
 
-    @NotNull
-    private static String sparkSqlResourceName(@NotNull String label)
+    @Nonnull
+    private static String sparkSqlResourceName(@Nonnull String label)
     {
         return jarResourceName(label, "sparksql");
     }
 
-    @NotNull
+    @Nonnull
     @SuppressWarnings("unchecked")
-    private static VersionSpecificBridge create(@NotNull String label)
+    private static VersionSpecificBridge create(@Nonnull String label)
     {
         try
         {

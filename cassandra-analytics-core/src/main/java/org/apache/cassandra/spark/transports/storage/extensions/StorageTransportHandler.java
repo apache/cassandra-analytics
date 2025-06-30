@@ -33,7 +33,7 @@ import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.TransportContext;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCloudStorageDataTransferApi;
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.spark.transports.storage.extensions.TransportExtensionUtils.validateReceivedJobId;
 

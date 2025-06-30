@@ -21,7 +21,7 @@ package org.apache.cassandra.util;
 
 import java.util.concurrent.ThreadFactory;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public final class ThreadUtil
 {
@@ -30,20 +30,20 @@ public final class ThreadUtil
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    @NotNull
-    public static ThreadFactory threadFactory(@NotNull String threadName)
+    @Nonnull
+    public static ThreadFactory threadFactory(@Nonnull String threadName)
     {
         return threadFactory(threadName, true);
     }
 
-    @NotNull
-    public static ThreadFactory threadFactory(@NotNull String threadName, boolean isDaemon)
+    @Nonnull
+    public static ThreadFactory threadFactory(@Nonnull String threadName, boolean isDaemon)
     {
         return runnable -> newThread(runnable, threadName, isDaemon);
     }
 
-    @NotNull
-    private static Thread newThread(@NotNull Runnable runnable, @NotNull String threadName, boolean isDaemon)
+    @Nonnull
+    private static Thread newThread(@Nonnull Runnable runnable, @Nonnull String threadName, boolean isDaemon)
     {
         Thread thread = new Thread(runnable, threadName);
         thread.setDaemon(isDaemon);

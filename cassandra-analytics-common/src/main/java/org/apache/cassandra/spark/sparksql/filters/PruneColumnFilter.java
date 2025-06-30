@@ -23,8 +23,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Prune column push-down filter to skip reading columns that are not needed
@@ -33,7 +33,7 @@ public class PruneColumnFilter
 {
     private final Set<String> requiredColumns;
 
-    public PruneColumnFilter(@NotNull Set<String> requiredColumns)
+    public PruneColumnFilter(@Nonnull Set<String> requiredColumns)
     {
         this.requiredColumns = requiredColumns;
     }

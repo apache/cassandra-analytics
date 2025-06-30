@@ -38,7 +38,7 @@ import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.VersionRunner;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.spark.utils.MapUtils.mapOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;

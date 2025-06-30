@@ -42,8 +42,8 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.common.SidecarInstanceFactory;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static java.util.stream.Collectors.collectingAndThen;
 import static java.util.stream.Collectors.toSet;
@@ -125,7 +125,7 @@ public class CoordinatedWriteConf
         return clusters;
     }
 
-    @NotNull
+    @Nonnull
     public ClusterConf cluster(String clusterId)
     {
         ClusterConf cluster = clusters.get(clusterId);

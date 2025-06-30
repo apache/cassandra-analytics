@@ -31,7 +31,7 @@ import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.ASCII;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.BIGINT;
@@ -176,8 +176,8 @@ public class CqlTableInfoProvider implements TableInfoProvider
      * @return table creation CQL statement with deprecated table options removed
      */
     @VisibleForTesting
-    @NotNull
-    static String removeDeprecatedOptions(@NotNull String cql)
+    @Nonnull
+    static String removeDeprecatedOptions(@Nonnull String cql)
     {
         cql = DEPRECATED_OPTIONS.matcher(cql).replaceAll("");
         cql = LEADING_CONJUNCTION.matcher(cql).replaceAll("");

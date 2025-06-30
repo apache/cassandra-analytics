@@ -54,6 +54,7 @@ configurations {
     runtime.exclude(group: "org.codehaus.mojo", module: "animal-sniffer-annotations")
     runtime.exclude(group: "com.google.guava", module: "listenablefuture")
     runtime.exclude(group: "com.google.guava", module: "failureaccess")
+    runtime.exclude(group: "com.google.guava", module: "guava")
     runtime.exclude(group: "org.checkerframework", module: "checker-qual")
     runtime.exclude(group: "com.google.errorprone", module: "error_prone_annotations")
     runtime.exclude(group: 'com.github.jnr', module: 'jnr-ffi')
@@ -65,7 +66,8 @@ dependencies {
     implementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
     implementation("org.slf4j:slf4j-api:${slf4jApiVersion}")
 
-    compileOnly('org.jetbrains:annotations:23.0.0')
+    compileOnly("com.google.guava:guava:${project.guavaVersion}")
+    compileOnly(group: 'com.google.code.findbugs', name: 'jsr305', version: "${project.rootProject.jsr305version}")
     compileOnly(group: 'io.netty', name: 'netty-codec-http', version: "${project.nettyVersion}")
 
     testImplementation(platform('org.junit:junit-bom:5.9.2'))
@@ -83,6 +85,7 @@ dependencies {
     testFixturesImplementation('com.squareup.okhttp3:mockwebserver:4.10.0')
     testFixturesImplementation(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
     testFixturesCompileOnly(group: 'io.netty', name: 'netty-codec-http', version: "${project.nettyVersion}")
+    testFixturesCompileOnly(group: 'com.google.code.findbugs', name: 'jsr305', version: "${project.rootProject.jsr305version}")
 }
 
 check.dependsOn(checkstyleMain, checkstyleTest)

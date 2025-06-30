@@ -43,8 +43,8 @@ import org.apache.cassandra.cdc.avro.CqlToAvroSchemaConverter;
 import org.apache.cassandra.cdc.kafka.KafkaOptions;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.utils.TableIdentifier;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Recommended implementation of SchemaStore that detects schema changes and regenerates Avro schema.
@@ -148,7 +148,7 @@ public class CachingSchemaStore implements SchemaStore
         this.publisher = schemaStorePublisherFactory.buildPublisher(kafkaOptions);
     }
 
-    @NotNull
+    @Nonnull
     protected CqlToAvroSchemaConverter schemaConverter()
     {
         return Objects.requireNonNull(

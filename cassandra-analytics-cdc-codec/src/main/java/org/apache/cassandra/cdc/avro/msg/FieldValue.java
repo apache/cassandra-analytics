@@ -23,14 +23,14 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 import org.apache.cassandra.cdc.msg.Value;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public final class FieldValue
 {
     public final Value value;
     private final ByteBuffer byteBuffer;
 
-    public FieldValue(@NotNull Value value)
+    public FieldValue(@Nonnull Value value)
     {
         this.value = value;
         this.byteBuffer = value.getValue();

@@ -21,7 +21,7 @@ package org.apache.cassandra.spark.reader.common;
 
 import java.io.IOException;
 
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * An unchecked wrapper around IOException

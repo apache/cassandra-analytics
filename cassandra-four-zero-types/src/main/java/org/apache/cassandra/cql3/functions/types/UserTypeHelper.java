@@ -23,7 +23,7 @@ import java.util.Collection;
 
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.transport.ProtocolVersion;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Helper methods to access package-private UDT methods
@@ -35,13 +35,13 @@ public final class UserTypeHelper
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    @NotNull
+    @Nonnull
     public static UDTValue newUDTValue(UserType userType)
     {
         return new UDTValue(userType);
     }
 
-    @NotNull
+    @Nonnull
     public static UserType newUserType(String keyspace,
                                        String typeName,
                                        boolean frozen,
@@ -51,7 +51,7 @@ public final class UserTypeHelper
         return new UserType(keyspace, typeName, frozen, fields, protocolVersion, CqlType.CODEC_REGISTRY);
     }
 
-    @NotNull
+    @Nonnull
     public static UserType.Field newField(String name, DataType type)
     {
         return new UserType.Field(name, type);

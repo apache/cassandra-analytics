@@ -19,7 +19,7 @@
 
 package org.apache.cassandra.spark.data;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public interface TypeConverter
 {
@@ -35,5 +35,5 @@ public interface TypeConverter
      * @param isFrozen true if type or parent type is a frozen type
      * @return equivalent value in new data format.
      */
-    Object convert(CqlField.CqlType cqlType, @NotNull Object value, boolean isFrozen);
+    Object convert(CqlField.CqlType cqlType, @Nonnull Object value, boolean isFrozen);
 }

@@ -25,8 +25,8 @@ import java.util.regex.Pattern;
 
 import com.google.common.annotations.VisibleForTesting;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class CassandraVersionFeatures implements Comparable<CassandraVersionFeatures>
 {
@@ -60,7 +60,7 @@ public class CassandraVersionFeatures implements Comparable<CassandraVersionFeat
      * @param cassandraVersion the string representing the cassandra version
      * @return an instance representing the parsed values from the version string
      */
-    public static CassandraVersionFeatures cassandraVersionFeaturesFromCassandraVersion(@NotNull String cassandraVersion)
+    public static CassandraVersionFeatures cassandraVersionFeaturesFromCassandraVersion(@Nonnull String cassandraVersion)
     {
         String versionCode = getCassandraVersionCode(cassandraVersion);
         String minorVersionCode = getCassandraMinorVersionCode(cassandraVersion);
@@ -155,7 +155,7 @@ public class CassandraVersionFeatures implements Comparable<CassandraVersionFeat
     }
 
     @Override
-    public int compareTo(@NotNull CassandraVersionFeatures that)
+    public int compareTo(@Nonnull CassandraVersionFeatures that)
     {
         int difference = this.getMajorVersion() - that.getMajorVersion();
         if (difference != 0)
@@ -204,7 +204,7 @@ public class CassandraVersionFeatures implements Comparable<CassandraVersionFeat
     }
 
     @Override
-    @NotNull
+    @Nonnull
     public String toString()
     {
         return String.format("CassandraVersionFeatures{majorVersion=%d, minorVersion=%d, suffix='%s'}",

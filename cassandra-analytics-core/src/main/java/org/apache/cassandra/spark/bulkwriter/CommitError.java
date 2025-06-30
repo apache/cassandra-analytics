@@ -25,14 +25,14 @@ import java.math.BigInteger;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class CommitError implements Serializable
 {
     protected final Range<BigInteger> tokenRange;
     protected final String errMsg;
 
-    public CommitError(@NotNull Range<BigInteger> tokenRange, @NotNull String errMsg)
+    public CommitError(@Nonnull Range<BigInteger> tokenRange, @Nonnull String errMsg)
     {
         Preconditions.checkNotNull(tokenRange, "CommitError created without a token range");
         Preconditions.checkNotNull(errMsg, "CommitError created without an error message");

@@ -23,7 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.cassandra.sidecar.common.exceptions.RangeException;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Accepted Range formats are start-end, start-, -suffix_length
@@ -81,7 +81,7 @@ public class HttpRange
      *
      * @param fileSize - passed in to convert partial range into absolute range
      */
-    private static HttpRange parse(@NotNull String rangeHeader, final long fileSize)
+    private static HttpRange parse(@Nonnull String rangeHeader, final long fileSize)
     {
         Matcher m = RANGE_HEADER.matcher(rangeHeader);
         if (!m.matches())
@@ -152,7 +152,7 @@ public class HttpRange
         return this.length;
     }
 
-    public HttpRange intersect(@NotNull final HttpRange range)
+    public HttpRange intersect(@Nonnull final HttpRange range)
     {
         long newStart = Math.max(start, range.start());
         long newEnd = Math.min(end, range.end());

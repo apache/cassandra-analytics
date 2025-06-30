@@ -31,7 +31,7 @@ import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -74,16 +74,16 @@ class BulkWriterContextFactoryTest
 
     static class TestBulkWriterContextFactory extends BulkWriterContextFactory
     {
-        @NotNull
+        @Nonnull
         @Override
-        protected BulkWriterContext createCoordinatedBulkWriterContext(@NotNull BulkSparkConf conf, StructType schema, int sparkDefaultParallelism)
+        protected BulkWriterContext createCoordinatedBulkWriterContext(@Nonnull BulkSparkConf conf, StructType schema, int sparkDefaultParallelism)
         {
             return setupMock(mock(CassandraCoordinatedBulkWriterContext.class));
         }
 
-        @NotNull
+        @Nonnull
         @Override
-        protected BulkWriterContext createBulkWriterContext(@NotNull BulkSparkConf conf, StructType schema, int sparkDefaultParallelism)
+        protected BulkWriterContext createBulkWriterContext(@Nonnull BulkSparkConf conf, StructType schema, int sparkDefaultParallelism)
         {
             return setupMock(mock(CassandraBulkWriterContext.class));
         }

@@ -22,8 +22,8 @@ package org.apache.cassandra.bridge;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * This custom implementation of a {@link ClassLoader} enables deferred execution-time loading of a particular version
@@ -33,7 +33,7 @@ import org.jetbrains.annotations.Nullable;
  */
 public class PostDelegationClassLoader extends URLClassLoader
 {
-    public PostDelegationClassLoader(@NotNull URL[] urls, @Nullable ClassLoader parent)
+    public PostDelegationClassLoader(@Nonnull URL[] urls, @Nullable ClassLoader parent)
     {
         super(urls, parent);
     }

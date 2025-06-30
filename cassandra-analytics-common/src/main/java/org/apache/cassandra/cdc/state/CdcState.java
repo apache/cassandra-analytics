@@ -40,8 +40,8 @@ import org.apache.cassandra.db.commitlog.PartitionUpdateWrapper;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.utils.KryoUtils;
 import org.apache.cassandra.util.CompressionUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * The CdcState object describes the cdc state that must be persisted between micro-batches to make cdc recoverable.
@@ -63,16 +63,16 @@ public class CdcState
     @Nullable
     public final TokenRange range;
     // maximal position in the commit log successfully read to
-    @NotNull
+    @Nonnull
     public final CommitLogMarkers markers;
     // digest and count of mutations received where insufficient replica copies were read to satisfy the consistency level
-    @NotNull
+    @Nonnull
     public final Map<PartitionUpdateWrapper.Digest, Integer> replicaCount;
 
     public CdcState(long epoch,
                     @Nullable TokenRange range,
-                    @NotNull CommitLogMarkers markers,
-                    @NotNull Map<PartitionUpdateWrapper.Digest, Integer> replicaCount)
+                    @Nonnull CommitLogMarkers markers,
+                    @Nonnull Map<PartitionUpdateWrapper.Digest, Integer> replicaCount)
     {
         this.epoch = epoch;
         this.range = range;
@@ -103,8 +103,8 @@ public class CdcState
 
     public static CdcState of(long epoch,
                               @Nullable TokenRange range,
-                              @NotNull CommitLogMarkers markers,
-                              @NotNull Map<PartitionUpdateWrapper.Digest, Integer> replicaCount)
+                              @Nonnull CommitLogMarkers markers,
+                              @Nonnull Map<PartitionUpdateWrapper.Digest, Integer> replicaCount)
     {
         return new CdcState(epoch, range, markers, replicaCount);
     }
@@ -149,17 +149,17 @@ public class CdcState
     @SuppressWarnings("UnusedReturnValue") // Builder pattern
     public static class Mutator
     {
-        @NotNull
+        @Nonnull
         private final CdcState start;
         private long epoch;
-        @NotNull
+        @Nonnull
         private final PerInstanceCommitLogMarkers.PerInstanceBuilder markerBuilder;
         @Nullable
         private TokenRange range;
-        @NotNull
+        @Nonnull
         private final Map<PartitionUpdateWrapper.Digest, Integer> replicaCount;
 
-        private Mutator(@NotNull CdcState start)
+        private Mutator(@Nonnull CdcState start)
         {
             this.start = start;
             this.epoch = start.epoch;
@@ -271,7 +271,7 @@ public class CdcState
         }
     }
 
-    public static boolean isExpired(@NotNull PartitionUpdateWrapper.Digest update,
+    public static boolean isExpired(@Nonnull PartitionUpdateWrapper.Digest update,
                                     long minTimestampMicros)
     {
         return update.maxTimestampMicros() < minTimestampMicros;
@@ -309,14 +309,14 @@ public class CdcState
      * @param state2 cdc state.
      * @return a ICommitLogMarkers.PerRange merged object that tracks the min. position per token range.
      */
-    public static CommitLogMarkers mergeMarkers(@NotNull CdcState state1, @NotNull CdcState state2)
+    public static CommitLogMarkers mergeMarkers(@Nonnull CdcState state1, @Nonnull CdcState state2)
     {
         return mergeMarkers(state1.markers, state1.range, state2.markers, state2.range);
     }
 
-    public static CommitLogMarkers mergeMarkers(@NotNull CommitLogMarkers markers1,
+    public static CommitLogMarkers mergeMarkers(@Nonnull CommitLogMarkers markers1,
                                                 @Nullable TokenRange range1,
-                                                @NotNull CommitLogMarkers markers2,
+                                                @Nonnull CommitLogMarkers markers2,
                                                 @Nullable TokenRange range2)
     {
         if (range1 == null || range2 == null)

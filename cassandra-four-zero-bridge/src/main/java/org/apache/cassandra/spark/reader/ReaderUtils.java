@@ -71,8 +71,8 @@ import org.apache.cassandra.utils.BloomFilterSerializer;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.TokenUtils;
 import org.apache.cassandra.utils.vint.VIntCoding;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.utils.FBUtilities.updateChecksumInt;
 
@@ -87,7 +87,7 @@ public final class ReaderUtils extends TokenUtils
           .orElseThrow(() -> new RuntimeException("Could not find SerializationHeader.Component constructor"));
     public static final ByteBuffer SUPER_COLUMN_MAP_COLUMN = ByteBufferUtil.EMPTY_BYTE_BUFFER;
 
-    public static Descriptor constructDescriptor(@NotNull String keyspace, @NotNull String table, @NotNull SSTable ssTable)
+    public static Descriptor constructDescriptor(@Nonnull String keyspace, @Nonnull String table, @Nonnull SSTable ssTable)
     {
         File file = ReaderUtils.constructFilename(keyspace, table, ssTable.getDataFileName());
         return Descriptor.fromFilename(file);
@@ -103,8 +103,8 @@ public final class ReaderUtils extends TokenUtils
      * @return A full file path, adjusted for non-standard file names
      */
     @VisibleForTesting
-    @NotNull
-    public static File constructFilename(@NotNull String keyspace, @NotNull String table, @NotNull String filename)
+    @Nonnull
+    public static File constructFilename(@Nonnull String keyspace, @Nonnull String table, @Nonnull String filename)
     {
         String[] components = filename.split("-");
         if (components.length == 6
@@ -201,15 +201,15 @@ public final class ReaderUtils extends TokenUtils
     }
 
     @Nullable
-    public static Pair<DecoratedKey, DecoratedKey> keysFromIndex(@NotNull TableMetadata metadata,
-                                                                 @NotNull SSTable ssTable) throws IOException
+    public static Pair<DecoratedKey, DecoratedKey> keysFromIndex(@Nonnull TableMetadata metadata,
+                                                                 @Nonnull SSTable ssTable) throws IOException
     {
         return keysFromIndex(metadata.partitioner, ssTable);
     }
 
     @Nullable
-    public static Pair<DecoratedKey, DecoratedKey> keysFromIndex(@NotNull IPartitioner partitioner,
-                                                                 @NotNull SSTable ssTable) throws IOException
+    public static Pair<DecoratedKey, DecoratedKey> keysFromIndex(@Nonnull IPartitioner partitioner,
+                                                                 @Nonnull SSTable ssTable) throws IOException
     {
         try (InputStream primaryIndex = ssTable.openPrimaryIndexStream())
         {
@@ -222,8 +222,8 @@ public final class ReaderUtils extends TokenUtils
         return null;
     }
 
-    public static boolean anyFilterKeyInIndex(@NotNull SSTable ssTable,
-                                              @NotNull List<PartitionKeyFilter> filters) throws IOException
+    public static boolean anyFilterKeyInIndex(@Nonnull SSTable ssTable,
+                                              @Nonnull List<PartitionKeyFilter> filters) throws IOException
     {
         if (filters.isEmpty())
         {
@@ -380,14 +380,14 @@ public final class ReaderUtils extends TokenUtils
         }
     }
 
-    private static MetadataComponent deserializeValidationMetaData(@NotNull DataInputBuffer in) throws IOException
+    private static MetadataComponent deserializeValidationMetaData(@Nonnull DataInputBuffer in) throws IOException
     {
         return new ValidationMetadata(in.readUTF(), in.readDouble());
     }
 
-    private static MetadataComponent deserializeMetadataComponent(@NotNull Version version,
-                                                                  @NotNull byte[] buffer,
-                                                                  @NotNull MetadataType type) throws IOException
+    private static MetadataComponent deserializeMetadataComponent(@Nonnull Version version,
+                                                                  @Nonnull byte[] buffer,
+                                                                  @Nonnull MetadataType type) throws IOException
     {
         DataInputBuffer in = new DataInputBuffer(buffer);
         if (type == MetadataType.HEADER)
@@ -401,7 +401,7 @@ public final class ReaderUtils extends TokenUtils
         return type.serializer.deserialize(version, in);
     }
 
-    private static MetadataComponent deserializeSerializationHeader(@NotNull DataInputBuffer in) throws IOException
+    private static MetadataComponent deserializeSerializationHeader(@Nonnull DataInputBuffer in) throws IOException
     {
         // We need to deserialize data type class names using shaded package names
         EncodingStats stats = EncodingStats.serializer.deserialize(in);
@@ -434,8 +434,8 @@ public final class ReaderUtils extends TokenUtils
         }
     }
 
-    private static void readColumnsWithType(@NotNull DataInputPlus in,
-                                            @NotNull Map<ByteBuffer, AbstractType<?>> typeMap) throws IOException
+    private static void readColumnsWithType(@Nonnull DataInputPlus in,
+                                            @Nonnull Map<ByteBuffer, AbstractType<?>> typeMap) throws IOException
     {
         int length = (int) in.readUnsignedVInt();
         for (int index = 0; index < length; index++)
@@ -445,12 +445,12 @@ public final class ReaderUtils extends TokenUtils
         }
     }
 
-    private static AbstractType<?> readType(@NotNull DataInputPlus in) throws IOException
+    private static AbstractType<?> readType(@Nonnull DataInputPlus in) throws IOException
     {
         return TypeParser.parse(UTF8Type.instance.compose(ByteBufferUtil.readWithVIntLength(in)));
     }
 
-    public static Pair<ByteBuffer, ByteBuffer> primaryIndexReadFirstAndLastKey(@NotNull InputStream primaryIndex) throws IOException
+    public static Pair<ByteBuffer, ByteBuffer> primaryIndexReadFirstAndLastKey(@Nonnull InputStream primaryIndex) throws IOException
     {
         ByteBuffer[] firstAndLast = new ByteBuffer[]{null, null};
         readPrimaryIndex(primaryIndex, (buffer) -> {
@@ -472,8 +472,8 @@ public final class ReaderUtils extends TokenUtils
      * @return true if Index.db file contains any of the keys
      * @throws IOException
      */
-    public static boolean primaryIndexContainsAnyKey(@NotNull InputStream primaryIndex,
-                                                     @NotNull List<PartitionKeyFilter> filters) throws IOException
+    public static boolean primaryIndexContainsAnyKey(@Nonnull InputStream primaryIndex,
+                                                     @Nonnull List<PartitionKeyFilter> filters) throws IOException
     {
         final boolean[] result = new boolean[]{false};
         readPrimaryIndex(primaryIndex, (buffer) -> {
@@ -496,8 +496,8 @@ public final class ReaderUtils extends TokenUtils
      * @return pair of first and last decorated keys
      * @throws IOException
      */
-    public static void readPrimaryIndex(@NotNull InputStream primaryIndex,
-                                        @NotNull Function<ByteBuffer, Boolean> tracker) throws IOException
+    public static void readPrimaryIndex(@Nonnull InputStream primaryIndex,
+                                        @Nonnull Function<ByteBuffer, Boolean> tracker) throws IOException
     {
         try (DataInputStream dis = new DataInputStream(primaryIndex))
         {
@@ -561,10 +561,10 @@ public final class ReaderUtils extends TokenUtils
     }
 
     static List<PartitionKeyFilter> filterKeyInBloomFilter(
-    @NotNull SSTable ssTable,
-    @NotNull IPartitioner partitioner,
+    @Nonnull SSTable ssTable,
+    @Nonnull IPartitioner partitioner,
     Descriptor descriptor,
-    @NotNull List<PartitionKeyFilter> partitionKeyFilters) throws IOException
+    @Nonnull List<PartitionKeyFilter> partitionKeyFilters) throws IOException
     {
         try
         {
@@ -583,12 +583,12 @@ public final class ReaderUtils extends TokenUtils
         }
     }
 
-    public static BloomFilter readFilter(@NotNull SSTable ssTable, Descriptor descriptor) throws IOException
+    public static BloomFilter readFilter(@Nonnull SSTable ssTable, Descriptor descriptor) throws IOException
     {
         return readFilter(ssTable, descriptor.version.hasOldBfFormat());
     }
 
-    public static BloomFilter readFilter(@NotNull SSTable ssTable, boolean hasOldBfFormat) throws IOException
+    public static BloomFilter readFilter(@Nonnull SSTable ssTable, boolean hasOldBfFormat) throws IOException
     {
         try (InputStream filterStream = ssTable.openFilterStream())
         {

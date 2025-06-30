@@ -29,7 +29,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class Marker implements Comparable<Marker>, Serializable
 {
@@ -82,18 +82,18 @@ public class Marker implements Comparable<Marker>, Serializable
         return position;
     }
 
-    public static Marker min(@NotNull final Marker m1, @NotNull final Marker m2)
+    public static Marker min(@Nonnull final Marker m1, @Nonnull final Marker m2)
     {
         return m1.compareTo(m2) < 0 ? m1 : m2;
     }
 
-    public boolean isBefore(@NotNull Marker o)
+    public boolean isBefore(@Nonnull Marker o)
     {
         return this.compareTo(o) < 0;
     }
 
     @Override
-    public int compareTo(@NotNull Marker o)
+    public int compareTo(@Nonnull Marker o)
     {
         if (!instance.equals(o.instance))
         {

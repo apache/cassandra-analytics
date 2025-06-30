@@ -31,8 +31,8 @@ import org.apache.cassandra.io.sstable.IndexSummary;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Helper methods for reading the Summary.db SSTable file component
@@ -75,13 +75,13 @@ public final class SummaryDbUtils
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    public static Summary readSummary(@NotNull TableMetadata metadata, @NotNull SSTable ssTable) throws IOException
+    public static Summary readSummary(@Nonnull TableMetadata metadata, @Nonnull SSTable ssTable) throws IOException
     {
         return readSummary(ssTable, metadata.partitioner, metadata.params.minIndexInterval, metadata.params.maxIndexInterval);
     }
 
     @Nullable
-    public static Summary readSummary(@NotNull SSTable ssTable, IPartitioner partitioner, int minIndexInterval, int maxIndexInterval) throws IOException
+    public static Summary readSummary(@Nonnull SSTable ssTable, IPartitioner partitioner, int minIndexInterval, int maxIndexInterval) throws IOException
     {
         try (InputStream in = ssTable.openSummaryStream())
         {

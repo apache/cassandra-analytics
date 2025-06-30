@@ -35,14 +35,14 @@ import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.apache.cassandra.spark.utils.FutureUtils;
 import org.apache.cassandra.spark.utils.KryoUtils;
 import org.apache.cassandra.spark.utils.RangeUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class PartitionUpdateWrapper implements Comparable<PartitionUpdateWrapper>
 {
     public static final PartitionUpdateWrapper.DigestSerializer DIGEST_SERIALIZER = new PartitionUpdateWrapper.DigestSerializer();
 
-    @NotNull
+    @Nonnull
     private final ByteBuffer partitionKey;
     private final Digest digest;
 
@@ -51,14 +51,14 @@ public class PartitionUpdateWrapper implements Comparable<PartitionUpdateWrapper
                                   BigInteger token,
                                   int dataSize,
                                   Supplier<byte[]> digestSupplier,
-                                  @NotNull ByteBuffer partitionKey,
+                                  @Nonnull ByteBuffer partitionKey,
                                   long maxTimestampMicros,
                                   @Nullable AsyncExecutor executor)
     {
         this(partitionKey, new Digest(keyspace, table, token, dataSize, digestSupplier, maxTimestampMicros, executor));
     }
 
-    public PartitionUpdateWrapper(@NotNull ByteBuffer partitionKey, Digest digest)
+    public PartitionUpdateWrapper(@Nonnull ByteBuffer partitionKey, Digest digest)
     {
         this.partitionKey = partitionKey;
         this.digest = digest;
@@ -127,7 +127,7 @@ public class PartitionUpdateWrapper implements Comparable<PartitionUpdateWrapper
     }
 
     @Override
-    public int compareTo(@NotNull PartitionUpdateWrapper o)
+    public int compareTo(@Nonnull PartitionUpdateWrapper o)
     {
         return digest.compareTo(o.digest);
     }
@@ -194,7 +194,7 @@ public class PartitionUpdateWrapper implements Comparable<PartitionUpdateWrapper
                       String table,
                       BigInteger token,
                       int dataSize,
-                      @NotNull Supplier<byte[]> digestSupplier,
+                      @Nonnull Supplier<byte[]> digestSupplier,
                       long maxTimestampMicros,
                       @Nullable AsyncExecutor executor)
         {
@@ -216,10 +216,10 @@ public class PartitionUpdateWrapper implements Comparable<PartitionUpdateWrapper
         }
 
         @VisibleForTesting // and for deserialization
-        public Digest(@NotNull String keyspace,
-                      @NotNull String table,
+        public Digest(@Nonnull String keyspace,
+                      @Nonnull String table,
                       long maxTimestampMicros,
-                      @NotNull byte[] digest,
+                      @Nonnull byte[] digest,
                       int dataSize,
                       BigInteger token)
         {
@@ -231,10 +231,10 @@ public class PartitionUpdateWrapper implements Comparable<PartitionUpdateWrapper
             this.dataSize = CompletableFuture.completedFuture(dataSize);
         }
 
-        public Digest(@NotNull String keyspace,
-                      @NotNull String table,
+        public Digest(@Nonnull String keyspace,
+                      @Nonnull String table,
                       long maxTimestampMicros,
-                      @NotNull CompletableFuture<byte[]> digest,
+                      @Nonnull CompletableFuture<byte[]> digest,
                       CompletableFuture<Integer> dataSize,
                       BigInteger token)
         {
@@ -304,7 +304,7 @@ public class PartitionUpdateWrapper implements Comparable<PartitionUpdateWrapper
                    && Arrays.equals(array(), that.array());
         }
 
-        public int compareTo(@NotNull Digest o)
+        public int compareTo(@Nonnull Digest o)
         {
             return Long.compare(this.maxTimestampMicros, o.maxTimestampMicros);
         }

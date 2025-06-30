@@ -81,8 +81,8 @@ import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.Throwing;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -596,9 +596,9 @@ public class SSTableReaderTests
                     {
                         @Override
                         public void skippedSSTable(@Nullable SparkRangeFilter sparkRangeFilter,
-                                                   @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                                                   @NotNull BigInteger firstToken,
-                                                   @NotNull BigInteger lastToken)
+                                                   @Nonnull List<PartitionKeyFilter> partitionKeyFilters,
+                                                   @Nonnull BigInteger firstToken,
+                                                   @Nonnull BigInteger lastToken)
                         {
                             skipCount.incrementAndGet();
                             if (sparkRangeFilter == null || !partitionKeyFilters.isEmpty())
@@ -656,9 +656,9 @@ public class SSTableReaderTests
                     {
                         @Override
                         public void skippedSSTable(@Nullable SparkRangeFilter sparkRangeFilter,
-                                                   @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                                                   @NotNull BigInteger firstToken,
-                                                   @NotNull BigInteger lastToken)
+                                                   @Nonnull List<PartitionKeyFilter> partitionKeyFilters,
+                                                   @Nonnull BigInteger firstToken,
+                                                   @Nonnull BigInteger lastToken)
                         {
                             pass.set(false);
                         }
@@ -1135,7 +1135,7 @@ public class SSTableReaderTests
         }
     }
 
-    private static int countAndValidateRows(@NotNull SSTableReader reader)
+    private static int countAndValidateRows(@Nonnull SSTableReader reader)
     {
         int count = 0;
         try (ISSTableScanner scanner = reader.scanner())

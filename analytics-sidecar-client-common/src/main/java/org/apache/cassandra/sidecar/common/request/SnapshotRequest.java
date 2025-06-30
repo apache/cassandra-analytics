@@ -19,7 +19,7 @@
 package org.apache.cassandra.sidecar.common.request;
 
 import org.apache.cassandra.sidecar.common.ApiEndpointsV1;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * An abstract class that access the {@link ApiEndpointsV1#SNAPSHOTS_ROUTE}

@@ -34,8 +34,8 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Wrapper iterator around SparkCellIterator to normalize cells into Spark SQL rows
@@ -43,15 +43,15 @@ import org.jetbrains.annotations.Nullable;
 public class SparkRowIterator extends AbstractSparkRowIterator<GenericInternalRow> implements PartitionReader<InternalRow>
 {
     @VisibleForTesting
-    public SparkRowIterator(int partitionId, @NotNull DataLayer dataLayer)
+    public SparkRowIterator(int partitionId, @Nonnull DataLayer dataLayer)
     {
         this(partitionId, dataLayer, null, new ArrayList<>());
     }
 
     public SparkRowIterator(int partitionId,
-                            @NotNull DataLayer dataLayer,
+                            @Nonnull DataLayer dataLayer,
                             @Nullable StructType requiredSchema,
-                            @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+                            @Nonnull List<PartitionKeyFilter> partitionKeyFilters)
     {
         super(
         partitionId,

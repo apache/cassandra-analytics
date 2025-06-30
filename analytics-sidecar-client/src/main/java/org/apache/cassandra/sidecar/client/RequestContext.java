@@ -56,7 +56,7 @@ import org.apache.cassandra.sidecar.common.request.UploadSSTableRequest;
 import org.apache.cassandra.sidecar.common.request.data.Digest;
 import org.apache.cassandra.sidecar.common.response.ListSnapshotFilesResponse;
 import org.apache.cassandra.sidecar.common.utils.HttpRange;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * The context for a given request that include the {@link InstanceSelectionPolicy}, the {@link RetryPolicy}, and

@@ -19,7 +19,7 @@
 
 package org.apache.cassandra.spark.exceptions;
 
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public class TransportFailureException extends RuntimeException
 {

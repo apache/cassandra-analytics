@@ -25,7 +25,7 @@ import java.io.InputStream;
 
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class RawInputStream extends InputStream
 {
@@ -206,7 +206,7 @@ public class RawInputStream extends InputStream
     // -1 will be returned if there is nothing to read; higher-level methods like readInt
     // or readFully (from RandomAccessFile) will throw EOFException but this should not
     @Override
-    public int read(@NotNull byte[] buff, int offset, int length) throws IOException
+    public int read(@Nonnull byte[] buff, int offset, int length) throws IOException
     {
         if (buffer == null)
         {

@@ -25,8 +25,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.cassandra.cdc.avro.CqlToAvroSchemaConverter;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
 {
@@ -57,19 +57,19 @@ public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    @NotNull
-    public static CassandraBridge get(@NotNull String version)
+    @Nonnull
+    public static CassandraBridge get(@Nonnull String version)
     {
         return get(getCassandraVersion(version));
     }
 
-    @NotNull
-    public static CassandraBridge get(@NotNull CassandraVersionFeatures features)
+    @Nonnull
+    public static CassandraBridge get(@Nonnull CassandraVersionFeatures features)
     {
         return get(getCassandraVersion(features));
     }
 
-    private static CdcBridgeFactory.VersionSpecificBridge getVersionSpecificBridge(@NotNull CassandraVersion version)
+    private static CdcBridgeFactory.VersionSpecificBridge getVersionSpecificBridge(@Nonnull CassandraVersion version)
     {
         String jarBaseName = version.jarBaseName();
         if (jarBaseName == null)
@@ -79,45 +79,45 @@ public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
         return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CdcBridgeFactory::create);
     }
 
-    @NotNull
-    public static CassandraBridge get(@NotNull CassandraVersion version)
+    @Nonnull
+    public static CassandraBridge get(@Nonnull CassandraVersion version)
     {
         return getVersionSpecificBridge(version).cassandraBridge;
     }
 
-    @NotNull
-    public static CdcBridge getCdcBridge(@NotNull CassandraVersionFeatures features)
+    @Nonnull
+    public static CdcBridge getCdcBridge(@Nonnull CassandraVersionFeatures features)
     {
         return getCdcBridge(getCassandraVersion(features));
     }
 
-    @NotNull
-    public static CdcBridge getCdcBridge(@NotNull CassandraBridge bridge)
+    @Nonnull
+    public static CdcBridge getCdcBridge(@Nonnull CassandraBridge bridge)
     {
         return getCdcBridge(bridge.getVersion());
     }
 
-    @NotNull
-    public static CdcBridge getCdcBridge(@NotNull CassandraVersion version)
+    @Nonnull
+    public static CdcBridge getCdcBridge(@Nonnull CassandraVersion version)
     {
         return getVersionSpecificBridge(version).cdcBridge;
     }
 
-    @NotNull
-    public static CqlToAvroSchemaConverter getCqlToAvroSchemaConverter(@NotNull CassandraBridge bridge)
+    @Nonnull
+    public static CqlToAvroSchemaConverter getCqlToAvroSchemaConverter(@Nonnull CassandraBridge bridge)
     {
         return getCqlToAvroSchemaConverter(bridge.getVersion());
     }
 
     @Nullable
-    public static CqlToAvroSchemaConverter getCqlToAvroSchemaConverter(@NotNull CassandraVersion version)
+    public static CqlToAvroSchemaConverter getCqlToAvroSchemaConverter(@Nonnull CassandraVersion version)
     {
         return getVersionSpecificBridge(version).avroSchemaConverter;
     }
 
-    @NotNull
+    @Nonnull
     @SuppressWarnings("unchecked")
-    private static VersionSpecificBridge create(@NotNull String label)
+    private static VersionSpecificBridge create(@Nonnull String label)
     {
         try
         {

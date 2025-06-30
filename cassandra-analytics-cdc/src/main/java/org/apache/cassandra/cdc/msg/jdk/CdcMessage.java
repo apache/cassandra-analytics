@@ -36,7 +36,7 @@ import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.ArrayUtils;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.spark.utils.ArrayUtils.orElse;
 

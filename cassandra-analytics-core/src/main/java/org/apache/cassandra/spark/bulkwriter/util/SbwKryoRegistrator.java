@@ -37,7 +37,7 @@ import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.spark.SparkConf;
 import org.apache.spark.serializer.KryoRegistrator;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class SbwKryoRegistrator implements KryoRegistrator
 {
@@ -52,7 +52,7 @@ public class SbwKryoRegistrator implements KryoRegistrator
                     RingInstance.class);
 
     @Override
-    public void registerClasses(@NotNull Kryo kryo)
+    public void registerClasses(@Nonnull Kryo kryo)
     {
         LOGGER.debug("Registering Spark Bulk Writer classes with Kryo which require use of Java Serializer");
         // NOTE: The order of calls to `register` matters, so we sort by class name just to make sure we always
@@ -65,12 +65,12 @@ public class SbwKryoRegistrator implements KryoRegistrator
         kryo.register(StorageCredentials.class, new StorageCredentials.Serializer());
     }
 
-    public static void addJavaSerializableClass(@NotNull Class<? extends Serializable> javaSerializableClass)
+    public static void addJavaSerializableClass(@Nonnull Class<? extends Serializable> javaSerializableClass)
     {
         javaSerializableClasses.add(javaSerializableClass);
     }
 
-    public static void setupKryoRegistrator(@NotNull SparkConf configuration)
+    public static void setupKryoRegistrator(@Nonnull SparkConf configuration)
     {
         String registrators = configuration.get(KRYO_KEY, "");
         String registrator = SbwKryoRegistrator.class.getName();

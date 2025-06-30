@@ -31,15 +31,15 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public interface CommitLogMarkers extends Serializable
 {
     PerInstanceCommitLogMarkers EMPTY = new PerInstanceCommitLogMarkers(ImmutableMap.of());
     Serializer SERIALIZER = new Serializer();
 
-    @NotNull
+    @Nonnull
     default Marker startMarker(CommitLog log)
     {
         return startMarker(log.instance());
@@ -49,7 +49,7 @@ public interface CommitLogMarkers extends Serializable
      * @param instance CassandraInstance
      * @return minimum CommitLog Marker for a CassandraInstance to start reading from.
      */
-    @NotNull
+    @Nonnull
     Marker startMarker(CassandraInstance instance);
 
     /**

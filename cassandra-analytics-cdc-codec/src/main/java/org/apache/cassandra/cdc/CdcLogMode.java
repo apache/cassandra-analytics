@@ -30,7 +30,7 @@ import org.apache.cassandra.cdc.api.KeyspaceTypeKey;
 import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.spark.data.CqlField;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * Allows CDC to be configured with different logging levels (MINIMAL, PARTITION_KEYS and FULL) to optionally log

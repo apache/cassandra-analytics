@@ -22,21 +22,21 @@ package org.apache.cassandra.spark.common;
 
 import java.util.Objects;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * An implementation of {@link Digest} that represents an MD5 digest
  */
 public class MD5Digest implements Digest
 {
-    private final @NotNull String value;
+    private final @Nonnull String value;
 
     /**
      * Constructs a new MD5Digest with the provided MD5 {@code value}
      *
      * @param value the MD5 value
      */
-    public MD5Digest(@NotNull String value)
+    public MD5Digest(@Nonnull String value)
     {
         this.value = Objects.requireNonNull(value, "value is required");
     }

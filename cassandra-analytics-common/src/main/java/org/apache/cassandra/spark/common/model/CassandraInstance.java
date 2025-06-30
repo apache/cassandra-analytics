@@ -20,7 +20,7 @@
 package org.apache.cassandra.spark.common.model;
 
 import org.apache.cassandra.spark.data.model.TokenOwner;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public interface CassandraInstance extends TokenOwner
 {

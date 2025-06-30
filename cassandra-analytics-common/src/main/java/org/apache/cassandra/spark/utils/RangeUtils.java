@@ -33,7 +33,7 @@ import com.google.common.collect.Range;
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.spark.data.model.TokenOwner;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Common Cassandra range operations on Guava ranges. Assumes ranges are not wrapped around.
@@ -178,15 +178,15 @@ public final class RangeUtils
         return tokenRanges;
     }
 
-    @NotNull
-    public static TokenRange toTokenRange(@NotNull Range<BigInteger> range)
+    @Nonnull
+    public static TokenRange toTokenRange(@Nonnull Range<BigInteger> range)
     {
         Preconditions.checkArgument(isOpenClosedRange(range), "Input must be an open-closed range");
         return TokenRange.openClosed(range.lowerEndpoint(), range.upperEndpoint());
     }
 
-    @NotNull
-    public static Range<BigInteger> fromTokenRange(@NotNull TokenRange range)
+    @Nonnull
+    public static Range<BigInteger> fromTokenRange(@Nonnull TokenRange range)
     {
         return Range.openClosed(range.lowerEndpoint(), range.upperEndpoint());
     }

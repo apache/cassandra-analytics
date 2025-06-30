@@ -54,7 +54,7 @@ import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.cassandra.spark.validation.KeyStoreValidation;
 import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.cassandra.spark.validation.TrustStoreValidation;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_SIZE;

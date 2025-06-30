@@ -49,8 +49,8 @@ import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.Re
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class TokenRangeMapping<I extends CassandraInstance> implements Serializable
 {
@@ -94,7 +94,7 @@ public class TokenRangeMapping<I extends CassandraInstance> implements Serializa
      * @param <I> CassandraInstance type
      */
     public static <I extends CassandraInstance>
-    TokenRangeMapping<I> consolidate(@NotNull List<TokenRangeMapping<I>> all)
+    TokenRangeMapping<I> consolidate(@Nonnull List<TokenRangeMapping<I>> all)
     {
         Preconditions.checkArgument(!all.isEmpty(), "Cannot consolidate TokenRangeMapping from none");
 

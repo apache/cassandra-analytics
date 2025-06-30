@@ -42,7 +42,7 @@ import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.common.model.NodeStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * ReplicaAwareFailureHandler for a single cluster

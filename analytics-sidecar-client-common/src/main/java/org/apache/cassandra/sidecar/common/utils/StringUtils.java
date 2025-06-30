@@ -18,7 +18,7 @@
 
 package org.apache.cassandra.sidecar.common.utils;
 
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * Collection of utility methods for String

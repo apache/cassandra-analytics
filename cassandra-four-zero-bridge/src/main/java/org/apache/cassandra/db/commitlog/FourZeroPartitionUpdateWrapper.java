@@ -24,7 +24,7 @@ import org.apache.cassandra.db.rows.UnfilteredRowIterators;
 import org.apache.cassandra.net.MessagingService;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.apache.cassandra.utils.TokenUtils;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public class FourZeroPartitionUpdateWrapper extends PartitionUpdateWrapper
 {

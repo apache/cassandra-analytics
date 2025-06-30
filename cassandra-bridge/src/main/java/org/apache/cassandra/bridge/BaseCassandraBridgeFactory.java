@@ -34,7 +34,7 @@ import java.util.Optional;
 
 import com.google.common.base.Preconditions;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class BaseCassandraBridgeFactory
 {
@@ -43,16 +43,16 @@ public class BaseCassandraBridgeFactory
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    @NotNull
-    public static CassandraVersion getCassandraVersion(@NotNull String version)
+    @Nonnull
+    public static CassandraVersion getCassandraVersion(@Nonnull String version)
     {
         CassandraVersionFeatures features = CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version);
         Preconditions.checkArgument(features != null, "Cassandra version " + version + " is not supported");
         return getCassandraVersion(features);
     }
 
-    @NotNull
-    public static CassandraVersion getCassandraVersion(@NotNull CassandraVersionFeatures features)
+    @Nonnull
+    public static CassandraVersion getCassandraVersion(@Nonnull CassandraVersionFeatures features)
     {
         Optional<CassandraVersion> version = Arrays.stream(CassandraVersion.values())
                                                    .filter(value -> value.versionNumber() == features.getMajorVersion())
@@ -136,26 +136,26 @@ public class BaseCassandraBridgeFactory
         }
     }
 
-    @NotNull
-    static String cassandraResourceName(@NotNull String label)
+    @Nonnull
+    static String cassandraResourceName(@Nonnull String label)
     {
         return "/bridges/" + label + ".jar";
     }
 
-    @NotNull
-    static String bridgeResourceName(@NotNull String label)
+    @Nonnull
+    static String bridgeResourceName(@Nonnull String label)
     {
         return jarResourceName(label, "bridge");
     }
 
-    @NotNull
-    static String typesResourceName(@NotNull String label)
+    @Nonnull
+    static String typesResourceName(@Nonnull String label)
     {
         return jarResourceName(label, "types");
     }
 
-    @NotNull
-    static String avroResourceName(@NotNull String label)
+    @Nonnull
+    static String avroResourceName(@Nonnull String label)
     {
         return jarResourceName(label, "avro");
     }

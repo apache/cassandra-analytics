@@ -39,7 +39,7 @@ import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.CUSTOM;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.LIST;
@@ -73,7 +73,7 @@ public final class TableSchemaTestCommon
         return Pair.of(dataFrameSchema, cqlColumns);
     }
 
-    @NotNull
+    @Nonnull
     public static CqlField.CqlType mockCqlType(String cqlName)
     {
         CqlField.CqlType mock = mock(CqlField.CqlType.class);
@@ -81,7 +81,7 @@ public final class TableSchemaTestCommon
         return mock;
     }
 
-    @NotNull
+    @Nonnull
     public static CqlField.CqlCustom mockCqlCustom(String customTypeClassName)
     {
         CqlField.CqlCustom mock = mock(CqlField.CqlCustom.class);
@@ -90,19 +90,19 @@ public final class TableSchemaTestCommon
         return mock;
     }
 
-    @NotNull
+    @Nonnull
     public static CqlField.CqlCollection mockSetCqlType(String collectionCqlType)
     {
         return mockCollectionCqlType(SET, mockCqlType(collectionCqlType));
     }
 
-    @NotNull
+    @Nonnull
     public static CqlField.CqlCollection mockListCqlType(String collectionCqlType)
     {
         return mockCollectionCqlType(LIST, mockCqlType(collectionCqlType));
     }
 
-    @NotNull
+    @Nonnull
     public static CqlField.CqlCollection mockCollectionCqlType(String cqlName, CqlField.CqlType collectionType)
     {
         CqlField.CqlCollection mock = mock(CqlField.CqlCollection.class);
@@ -111,13 +111,13 @@ public final class TableSchemaTestCommon
         return mock;
     }
 
-    @NotNull
+    @Nonnull
     public static CqlField.CqlType mockMapCqlType(String keyCqlName, String valueCqlName)
     {
         return mockMapCqlType(mockCqlType(keyCqlName), mockCqlType(valueCqlName));
     }
 
-    @NotNull
+    @Nonnull
     public static CqlField.CqlMap mockMapCqlType(CqlField.CqlType keyType, CqlField.CqlType valueType)
     {
         CqlField.CqlMap mock = mock(CqlField.CqlMap.class);
@@ -127,7 +127,7 @@ public final class TableSchemaTestCommon
         return mock;
     }
 
-    @NotNull
+    @Nonnull
     public static CqlField.CqlUdt mockUdtCqlType(String name, String... namesAndTypes)
     {
         assert namesAndTypes.length > 0 && (namesAndTypes.length % 2) == 0;
@@ -197,7 +197,7 @@ public final class TableSchemaTestCommon
             this.bridge = bridge;
         }
 
-        public MockTableSchemaBuilder withCqlColumns(@NotNull Map<String, CqlField.CqlType> cqlColumns)
+        public MockTableSchemaBuilder withCqlColumns(@Nonnull Map<String, CqlField.CqlType> cqlColumns)
         {
             Preconditions.checkNotNull(cqlColumns, "cqlColumns cannot be null");
             Preconditions.checkArgument(!cqlColumns.isEmpty(), "cqlColumns cannot be empty");
@@ -205,7 +205,7 @@ public final class TableSchemaTestCommon
             return this;
         }
 
-        public MockTableSchemaBuilder withPartitionKeyColumns(@NotNull String... partitionKeyColumns)
+        public MockTableSchemaBuilder withPartitionKeyColumns(@Nonnull String... partitionKeyColumns)
         {
             Preconditions.checkNotNull(partitionKeyColumns, "partitionKeyColumns cannot be null");
             Preconditions.checkArgument(partitionKeyColumns.length > 0, "partitionKeyColumns cannot be empty");
@@ -213,7 +213,7 @@ public final class TableSchemaTestCommon
             return this;
         }
 
-        public MockTableSchemaBuilder withPrimaryKeyColumnNames(@NotNull String... primaryKeyColumnNames)
+        public MockTableSchemaBuilder withPrimaryKeyColumnNames(@Nonnull String... primaryKeyColumnNames)
         {
             Preconditions.checkNotNull(primaryKeyColumnNames, "primaryKeyColumnNames cannot be null");
             Preconditions.checkArgument(primaryKeyColumnNames.length > 0, "primaryKeyColumnNames cannot be empty");
@@ -221,7 +221,7 @@ public final class TableSchemaTestCommon
             return this;
         }
 
-        public MockTableSchemaBuilder withCassandraVersion(@NotNull String cassandraVersion)
+        public MockTableSchemaBuilder withCassandraVersion(@Nonnull String cassandraVersion)
         {
             Preconditions.checkNotNull(cassandraVersion, "cassandraVersion cannot be null");
             Preconditions.checkArgument(!cassandraVersion.isEmpty(), "cassandraVersion cannot be an empty string");
@@ -229,7 +229,7 @@ public final class TableSchemaTestCommon
             return this;
         }
 
-        public MockTableSchemaBuilder withPartitionKeyColumnTypes(@NotNull ColumnType<?>... partitionKeyColumnTypes)
+        public MockTableSchemaBuilder withPartitionKeyColumnTypes(@Nonnull ColumnType<?>... partitionKeyColumnTypes)
         {
             Preconditions.checkNotNull(partitionKeyColumnTypes, "partitionKeyColumnTypes cannot be null");
             Preconditions.checkArgument(partitionKeyColumnTypes.length > 0, "partitionKeyColumnTypes cannot be empty");
@@ -237,7 +237,7 @@ public final class TableSchemaTestCommon
             return this;
         }
 
-        public MockTableSchemaBuilder withWriteMode(@NotNull WriteMode writeMode)
+        public MockTableSchemaBuilder withWriteMode(@Nonnull WriteMode writeMode)
         {
             Preconditions.checkNotNull(writeMode, "writeMode cannot be null");
             this.writeMode = writeMode;

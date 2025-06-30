@@ -25,7 +25,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class SparkDate implements SparkType
 {
@@ -43,7 +43,7 @@ public class SparkDate implements SparkType
     }
 
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@Nonnull Object value, boolean isFrozen)
     {
         // SparkSQL date type is an int incrementing from day 0 on 1970-01-01
         // Cassandra stores date as "days since 1970-01-01 plus Integer.MIN_VALUE"

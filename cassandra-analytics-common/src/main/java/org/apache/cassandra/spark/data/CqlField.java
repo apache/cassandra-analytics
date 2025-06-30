@@ -37,7 +37,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.utils.RandomUtils;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 @SuppressWarnings({ "WeakerAccess", "unused" })
 public class CqlField implements Serializable, Comparable<CqlField>
@@ -423,7 +423,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
     }
 
     @Override
-    public int compareTo(@NotNull CqlField that)
+    public int compareTo(@Nonnull CqlField that)
     {
         return Integer.compare(this.position, that.position);
     }

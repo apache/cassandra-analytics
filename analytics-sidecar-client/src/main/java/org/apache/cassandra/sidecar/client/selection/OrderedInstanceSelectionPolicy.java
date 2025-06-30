@@ -22,7 +22,7 @@ import java.util.Iterator;
 
 import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * A selection policy for multiple Cassandra Sidecar instances where the iterator returns in the order specified
@@ -48,7 +48,7 @@ public class OrderedInstanceSelectionPolicy implements InstanceSelectionPolicy
      * @return an iterator of {@link SidecarInstance instances}
      */
     @Override
-    @NotNull
+    @Nonnull
     public Iterator<SidecarInstance> iterator()
     {
         return instancesProvider.instances().iterator();

@@ -44,7 +44,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.util.ThreadUtil;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> implements AutoCloseable
 {

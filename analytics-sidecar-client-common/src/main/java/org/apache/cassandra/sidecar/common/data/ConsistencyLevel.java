@@ -18,7 +18,7 @@ package org.apache.cassandra.sidecar.common.data;
 
 import java.util.Locale;
 
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * Consistency level for read/write operations

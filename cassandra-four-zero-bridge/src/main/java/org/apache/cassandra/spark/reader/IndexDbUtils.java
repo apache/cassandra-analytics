@@ -33,8 +33,8 @@ import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Helper methods for reading the Index.db SSTable file component
@@ -47,11 +47,11 @@ final class IndexDbUtils
     }
 
     @Nullable
-    public static Long findDataDbOffset(@NotNull IndexSummary indexSummary,
-                                        @NotNull TokenRange range,
-                                        @NotNull IPartitioner partitioner,
-                                        @NotNull SSTable ssTable,
-                                        @NotNull Stats stats) throws IOException
+    public static Long findDataDbOffset(@Nonnull IndexSummary indexSummary,
+                                        @Nonnull TokenRange range,
+                                        @Nonnull IPartitioner partitioner,
+                                        @Nonnull SSTable ssTable,
+                                        @Nonnull Stats stats) throws IOException
     {
         long searchStartOffset = SummaryDbUtils.findIndexOffsetInSummary(indexSummary, partitioner, range.firstEnclosedValue());
 
@@ -60,10 +60,10 @@ final class IndexDbUtils
     }
 
     @Nullable
-    public static Long findDataDbOffset(@NotNull TokenRange range,
-                                        @NotNull IPartitioner partitioner,
-                                        @NotNull SSTable ssTable,
-                                        @NotNull Stats stats,
+    public static Long findDataDbOffset(@Nonnull TokenRange range,
+                                        @Nonnull IPartitioner partitioner,
+                                        @Nonnull SSTable ssTable,
+                                        @Nonnull Stats stats,
                                         long searchStartOffset) throws IOException
     {
         try (InputStream is = ssTable.openPrimaryIndexStream())
@@ -86,9 +86,9 @@ final class IndexDbUtils
      */
     @Nullable
     static Long findIndexOffset(@Nullable InputStream is,
-                                @NotNull IPartitioner partitioner,
-                                @NotNull TokenRange range,
-                                @NotNull Stats stats,
+                                @Nonnull IPartitioner partitioner,
+                                @Nonnull TokenRange range,
+                                @Nonnull Stats stats,
                                 long searchStartOffset) throws IOException
     {
         if (is == null)
@@ -122,10 +122,10 @@ final class IndexDbUtils
      * @return start offset into the Data.db file for the first overlapping partition
      * @throws IOException IOException reading Index.db file
      */
-    static long findStartOffset(@NotNull DataInputStream in,
-                                @NotNull IPartitioner partitioner,
-                                @NotNull TokenRange range,
-                                @NotNull Stats stats) throws IOException
+    static long findStartOffset(@Nonnull DataInputStream in,
+                                @Nonnull IPartitioner partitioner,
+                                @Nonnull TokenRange range,
+                                @Nonnull Stats stats) throws IOException
     {
         BigInteger keyToken;
         long previous = 0L;
@@ -147,7 +147,7 @@ final class IndexDbUtils
      * @param range    spark worker token range
      * @return true if keyToken is not enclosed in the range and less than all values in the range
      */
-    static boolean isLessThan(@NotNull BigInteger keyToken, @NotNull TokenRange range)
+    static boolean isLessThan(@Nonnull BigInteger keyToken, @Nonnull TokenRange range)
     {
         // TokenRange is always open at the lower end
         return keyToken.compareTo(range.lowerEndpoint()) <= 0;
@@ -162,9 +162,9 @@ final class IndexDbUtils
      * @return token as BigInteger
      * @throws IOException IOException reading Index.db file
      */
-    static BigInteger readNextToken(@NotNull IPartitioner partitioner,
-                                    @NotNull DataInputStream in,
-                                    @NotNull Stats stats) throws IOException
+    static BigInteger readNextToken(@Nonnull IPartitioner partitioner,
+                                    @Nonnull DataInputStream in,
+                                    @Nonnull Stats stats) throws IOException
     {
         ByteBuffer key = ByteBufferUtil.readWithShortLength(in);
         BigInteger token = ReaderUtils.tokenToBigInteger(partitioner.decorateKey(key).getToken());

@@ -22,7 +22,7 @@ package org.apache.cassandra.cdc.api;
 import java.util.stream.Stream;
 
 import org.apache.cassandra.bridge.TokenRange;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public interface CommitLogProvider
 {

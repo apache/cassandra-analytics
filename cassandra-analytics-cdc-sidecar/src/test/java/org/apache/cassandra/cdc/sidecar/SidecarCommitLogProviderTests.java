@@ -39,7 +39,7 @@ import org.apache.cassandra.cdc.api.CommitLog;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 import org.mockito.stubbing.Answer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -132,7 +132,7 @@ public class SidecarCommitLogProviderTests
         assertEquals(1, instanceListCount.get(instance6));
     }
 
-    @NotNull
+    @Nonnull
     private static SidecarCommitLogProvider getSidecarCommitLogProvider(ClusterConfigProvider clusterConfigProvider, SidecarCdcClient sidecarCdcClient)
     {
         ReplicationFactorSupplier replicationFactorSupplier = new ReplicationFactorSupplier()
@@ -169,7 +169,7 @@ public class SidecarCommitLogProviderTests
         return commitLog;
     }
 
-    @NotNull
+    @Nonnull
     private static ClusterConfigProvider getClusterConfigProvider()
     {
         return new ClusterConfigProvider()

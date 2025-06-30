@@ -43,7 +43,7 @@ import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
 import org.apache.spark.SparkConf;
 import org.apache.spark.serializer.KryoRegistrator;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Helper class to register classes for Kryo serialization
@@ -68,14 +68,14 @@ public class KryoRegister implements KryoRegistrator
         KRYO_SERIALIZERS.put(SslConfig.class, new SslConfig.Serializer());
     }
 
-    public static <T> void addSerializer(@NotNull Class<T> type, @NotNull Serializer<T> serializer)
+    public static <T> void addSerializer(@Nonnull Class<T> type, @Nonnull Serializer<T> serializer)
     {
         LOGGER.info("Registering custom Kryo serializer type={}", type.getName());
         KRYO_SERIALIZERS.put(type, serializer);
     }
 
     @Override
-    public void registerClasses(@NotNull Kryo kryo)
+    public void registerClasses(@Nonnull Kryo kryo)
     {
         LOGGER.info("Initializing KryoRegister");
 
@@ -86,7 +86,7 @@ public class KryoRegister implements KryoRegistrator
         KRYO_SERIALIZERS.forEach(kryo::register);
     }
 
-    public static void setup(@NotNull SparkConf configuration)
+    public static void setup(@Nonnull SparkConf configuration)
     {
         // Use KryoSerializer
         LOGGER.info("Setting up Kryo");

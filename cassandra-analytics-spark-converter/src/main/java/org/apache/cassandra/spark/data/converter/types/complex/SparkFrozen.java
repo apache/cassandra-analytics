@@ -26,7 +26,7 @@ import org.apache.cassandra.spark.data.converter.types.SparkType;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class SparkFrozen implements SparkType
 {
@@ -37,7 +37,7 @@ public class SparkFrozen implements SparkType
         this.inner = converter.toSparkType(inner);
     }
 
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@Nonnull Object value, boolean isFrozen)
     {
         return inner.toSparkSqlType(value, true);
     }

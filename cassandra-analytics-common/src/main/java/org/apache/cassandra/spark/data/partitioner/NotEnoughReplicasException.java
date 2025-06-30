@@ -21,8 +21,8 @@ package org.apache.cassandra.spark.data.partitioner;
 
 import java.math.BigInteger;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class NotEnoughReplicasException extends RuntimeException
 {
@@ -31,7 +31,7 @@ public class NotEnoughReplicasException extends RuntimeException
         super(message);
     }
 
-    public NotEnoughReplicasException(@NotNull ConsistencyLevel consistencyLevel,
+    public NotEnoughReplicasException(@Nonnull ConsistencyLevel consistencyLevel,
                                       @Nullable BigInteger lower,
                                       @Nullable BigInteger upper,
                                       int minRequired,

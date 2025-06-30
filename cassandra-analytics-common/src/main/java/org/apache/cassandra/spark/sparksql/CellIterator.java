@@ -40,8 +40,8 @@ import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Iterate through CompactionIterator, deserializing ByteBuffers and normalizing into Object[] array in column order
@@ -56,9 +56,9 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
     @Nullable
     private final PruneColumnFilter columnFilter;
     private final long startTimeNanos;
-    @NotNull
+    @Nonnull
     private final StreamScanner<RowData> scanner;
-    @NotNull
+    @Nonnull
     private final RowData rowData;
 
     // Mutable Iterator State
@@ -82,7 +82,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
          * @return a StreamScanner to iterate over each cell of the data.g
          */
         StreamScanner<RowData> get(int partitionId,
-                                   @NotNull List<PartitionKeyFilter> partitionKeyFilters,
+                                   @Nonnull List<PartitionKeyFilter> partitionKeyFilters,
                                    @Nullable PruneColumnFilter columnFilter);
     }
 
@@ -90,7 +90,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
                         CqlTable cqlTable,
                         Stats stats,
                         TypeConverter typeConverter,
-                        @NotNull List<PartitionKeyFilter> partitionKeyFilters,
+                        @Nonnull List<PartitionKeyFilter> partitionKeyFilters,
                         Function<CqlTable, PruneColumnFilter> columnFilterSupplier,
                         ScannerSupplier scannerSupplier)
     {
@@ -340,7 +340,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
     /**
      * Deserialize clustering key components and update 'values' array if changed. Mark isNewRow true if we move to new CQL row.
      */
-    private void maybeRebuildClusteringKeys(@NotNull ByteBuffer columnNameBuf)
+    private void maybeRebuildClusteringKeys(@Nonnull ByteBuffer columnNameBuf)
     {
         List<CqlField> clusteringKeys = cqlTable.clusteringKeys();
         if (clusteringKeys.isEmpty())
@@ -367,7 +367,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
     /**
      * Deserialize value field if required and update 'values' array
      */
-    private void deserializeField(@NotNull CqlField field)
+    private void deserializeField(@Nonnull CqlField field)
     {
         if (columnFilter == null || columnFilter.includeColumn(field.name()))
         {

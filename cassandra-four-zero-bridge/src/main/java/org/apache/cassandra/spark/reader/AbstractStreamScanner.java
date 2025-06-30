@@ -44,7 +44,7 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.common.SSTableStreamException;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public abstract class AbstractStreamScanner implements StreamScanner<RowData>, Closeable
 {
@@ -62,17 +62,17 @@ public abstract class AbstractStreamScanner implements StreamScanner<RowData>, C
     // State of processing data for a single column in a row (which may be multi-celled in the case of complex columns)
     protected ColumnDataState columnData;
 
-    @NotNull
+    @Nonnull
     final TableMetadata metadata;
 
-    @NotNull
+    @Nonnull
     protected final TimeProvider timeProvider;
 
     protected final RowData rowData = new RowData();
 
-    AbstractStreamScanner(@NotNull TableMetadata metadata,
-                          @NotNull Partitioner partitionerType,
-                          @NotNull TimeProvider timeProvider)
+    AbstractStreamScanner(@Nonnull TableMetadata metadata,
+                          @Nonnull Partitioner partitionerType,
+                          @Nonnull TimeProvider timeProvider)
     {
         this.metadata = metadata.unbuild()
                                 .partitioner(partitionerType == Partitioner.Murmur3Partitioner

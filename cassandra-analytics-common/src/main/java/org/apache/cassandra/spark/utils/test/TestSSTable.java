@@ -36,7 +36,7 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.utils.IOUtils;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public final class TestSSTable extends SSTable
 {

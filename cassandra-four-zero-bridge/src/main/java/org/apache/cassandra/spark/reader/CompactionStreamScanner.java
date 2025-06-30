@@ -46,7 +46,7 @@ import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.IOUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class CompactionStreamScanner extends AbstractStreamScanner
 {
@@ -58,17 +58,17 @@ public class CompactionStreamScanner extends AbstractStreamScanner
     private CompactionIterator ci;
 
     @VisibleForTesting
-    CompactionStreamScanner(@NotNull TableMetadata cfMetaData,
-                            @NotNull Partitioner partitionerType,
-                            @NotNull Collection<? extends Scannable> toCompact)
+    CompactionStreamScanner(@Nonnull TableMetadata cfMetaData,
+                            @Nonnull Partitioner partitionerType,
+                            @Nonnull Collection<? extends Scannable> toCompact)
     {
         this(cfMetaData, partitionerType, TimeProvider.DEFAULT, toCompact);
     }
 
-    public CompactionStreamScanner(@NotNull TableMetadata cfMetaData,
-                                   @NotNull Partitioner partitionerType,
-                                   @NotNull TimeProvider timeProvider,
-                                   @NotNull Collection<? extends Scannable> toCompact)
+    public CompactionStreamScanner(@Nonnull TableMetadata cfMetaData,
+                                   @Nonnull Partitioner partitionerType,
+                                   @Nonnull TimeProvider timeProvider,
+                                   @Nonnull Collection<? extends Scannable> toCompact)
     {
         super(cfMetaData, partitionerType, timeProvider);
         this.toCompact = toCompact;

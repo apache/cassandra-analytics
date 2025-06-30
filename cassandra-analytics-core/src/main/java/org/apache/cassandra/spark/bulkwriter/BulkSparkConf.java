@@ -50,8 +50,8 @@ import org.apache.cassandra.spark.common.SidecarInstanceFactory;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.spark.SparkConf;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @SuppressWarnings("WeakerAccess")
 public class BulkSparkConf implements Serializable
@@ -239,7 +239,7 @@ public class BulkSparkConf implements Serializable
      * @param options a key-value map with options for the bulk write job
      * @return the configured {@link DigestAlgorithmSupplier}
      */
-    @NotNull
+    @Nonnull
     protected DigestAlgorithmSupplier digestAlgorithmSupplierFromOptions(DataTransport dataTransport, Map<String, String> options)
     {
         if (dataTransport == DataTransport.S3_COMPAT)
@@ -626,7 +626,7 @@ public class BulkSparkConf implements Serializable
         return settingName;
     }
 
-    @NotNull
+    @Nonnull
     protected List<String> getDeprecatedSettingPrefixes()
     {
         return Collections.emptyList();

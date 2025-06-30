@@ -83,8 +83,8 @@ import org.apache.cassandra.spark.utils.TimeUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.cassandra.transport.ProtocolVersion;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.quicktheories.api.Pair;
 
 import static org.apache.cassandra.cdc.CdcTester.DEFAULT_NUM_ROWS;
@@ -224,14 +224,14 @@ public class CdcTests
             AtomicReference<byte[]> state = new AtomicReference<>();
             StatePersister statePersister = new StatePersister()
             {
-                public void persist(String jobId, int partitionId, @Nullable TokenRange tokenRange, @NotNull ByteBuffer buf)
+                public void persist(String jobId, int partitionId, @Nullable TokenRange tokenRange, @Nonnull ByteBuffer buf)
                 {
                     byte[] ar = new byte[buf.remaining()];
                     buf.get(ar);
                     state.set(ar);
                 }
 
-                @NotNull
+                @Nonnull
                 public List<CdcState> loadState(String jobId, int partitionId, @Nullable TokenRange tokenRange)
                 {
                     byte[] ar = state.get();

@@ -49,7 +49,7 @@ import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -77,7 +77,7 @@ public class IndexDbTests
             this.value = value;
         }
 
-        public int compareTo(@NotNull IndexRow that)
+        public int compareTo(@Nonnull IndexRow that)
         {
             return this.token.compareTo(that.token);
         }

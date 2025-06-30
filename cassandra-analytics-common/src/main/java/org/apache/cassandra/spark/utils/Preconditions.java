@@ -19,7 +19,7 @@
 
 package org.apache.cassandra.spark.utils;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static java.lang.String.format;
 
@@ -45,7 +45,7 @@ public final class Preconditions
     }
 
     public static void checkArgument(boolean value,
-                                     @NotNull String error,
+                                     @Nonnull String error,
                                      Object... exceptionArguments)
     {
         if (!value)
@@ -55,7 +55,7 @@ public final class Preconditions
     }
 
     public static void checkState(boolean value,
-                                  @NotNull String error,
+                                  @Nonnull String error,
                                   Object... exceptionArguments)
     {
         if (!value)
@@ -74,7 +74,7 @@ public final class Preconditions
     }
 
     public static <T> T checkNotNull(T value,
-                                     @NotNull String error,
+                                     @Nonnull String error,
                                      Object... exceptionArguments)
     {
         if (value == null)

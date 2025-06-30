@@ -22,7 +22,7 @@ package org.apache.cassandra.spark.utils.streaming;
 import java.time.Duration;
 
 import org.apache.cassandra.spark.data.FileType;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * CassandraFileSource to asynchronously provide bytes to StreamConsumer when requested

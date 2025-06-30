@@ -62,8 +62,8 @@ import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.Throwing;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.parquet.Strings;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Basic DataLayer implementation to read SSTables from local file system. Mostly used for testing.
@@ -119,8 +119,8 @@ public class LocalDataLayer extends DataLayer implements Serializable
         return key != null ? key.toLowerCase(Locale.ROOT) : null;
     }
 
-    @NotNull
-    private static String getOrThrow(@NotNull Map<String, String> options, @Nullable String key)
+    @Nonnull
+    private static String getOrThrow(@Nonnull Map<String, String> options, @Nullable String key)
     {
         String value = options.get(key);
         if (value != null)
@@ -134,7 +134,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     }
 
     @SuppressWarnings("SameParameterValue")
-    private static boolean getBoolean(@NotNull Map<String, String> options, @Nullable String key, boolean defaultValue)
+    private static boolean getBoolean(@Nonnull Map<String, String> options, @Nullable String key, boolean defaultValue)
     {
         String value = options.get(key);
         // We can't use `Boolean.parseBoolean` here, as it returns false for invalid strings
@@ -181,9 +181,9 @@ public class LocalDataLayer extends DataLayer implements Serializable
                 getOrThrow(options, lowerCaseKey("dirs")).split(","));
     }
 
-    public LocalDataLayer(@NotNull CassandraVersion version,
-                          @NotNull String keyspace,
-                          @NotNull String createStatement,
+    public LocalDataLayer(@Nonnull CassandraVersion version,
+                          @Nonnull String keyspace,
+                          @Nonnull String createStatement,
                           String... paths)
     {
         this(version,
@@ -197,10 +197,10 @@ public class LocalDataLayer extends DataLayer implements Serializable
              paths);
     }
 
-    public LocalDataLayer(@NotNull CassandraVersion version,
-                          @NotNull String keyspace,
-                          @NotNull String createStatement,
-                          @NotNull Set<String> udtStatements,
+    public LocalDataLayer(@Nonnull CassandraVersion version,
+                          @Nonnull String keyspace,
+                          @Nonnull String createStatement,
+                          @Nonnull Set<String> udtStatements,
                           String... paths)
     {
         this(version,
@@ -215,12 +215,12 @@ public class LocalDataLayer extends DataLayer implements Serializable
     }
 
     // CHECKSTYLE IGNORE: Constructor with many parameters
-    public LocalDataLayer(@NotNull CassandraVersion version,
-                          @NotNull Partitioner partitioner,
-                          @NotNull String keyspace,
-                          @NotNull String createStatement,
-                          @NotNull Set<String> udts,
-                          @NotNull List<SchemaFeature> requestedFeatures,
+    public LocalDataLayer(@Nonnull CassandraVersion version,
+                          @Nonnull Partitioner partitioner,
+                          @Nonnull String keyspace,
+                          @Nonnull String createStatement,
+                          @Nonnull Set<String> udts,
+                          @Nonnull List<SchemaFeature> requestedFeatures,
                           boolean useBufferingInputStream,
                           @Nullable String statsClass,
                           String... paths)
@@ -242,11 +242,11 @@ public class LocalDataLayer extends DataLayer implements Serializable
     }
 
     // For serialization
-    private LocalDataLayer(@NotNull CassandraVersion version,
-                           @NotNull Partitioner partitioner,
-                           @NotNull CqlTable cqlTable,
-                           @NotNull String jobId,
-                           @NotNull List<SchemaFeature> requestedFeatures,
+    private LocalDataLayer(@Nonnull CassandraVersion version,
+                           @Nonnull Partitioner partitioner,
+                           @Nonnull CqlTable cqlTable,
+                           @Nonnull String jobId,
+                           @Nonnull List<SchemaFeature> requestedFeatures,
                            boolean useBufferingInputStream,
                            @Nullable String statsClass,
                            String... paths)
@@ -325,7 +325,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     @Override
     public SSTablesSupplier sstables(int partitionId,
                                      @Nullable SparkRangeFilter sparkRangeFilter,
-                                     @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+                                     @Nonnull List<PartitionKeyFilter> partitionKeyFilters)
     {
         Stream<Path> dataFilePathsStream;
         // if data file paths is supplied, prefer them over listing files

@@ -30,7 +30,7 @@ import com.google.common.collect.ImmutableMap;
 
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Stores CommitLog markers per CassandraInstance, storing per token range
@@ -44,7 +44,7 @@ public class PerRangeCommitLogMarkers implements CommitLogMarkers
         this.markers = ImmutableMap.copyOf(markers);
     }
 
-    @NotNull
+    @Nonnull
     public Marker startMarker(CassandraInstance instance)
     {
         return markers.getOrDefault(instance, ImmutableMap.of())
@@ -139,8 +139,8 @@ public class PerRangeCommitLogMarkers implements CommitLogMarkers
             this.markers = new HashMap<>();
         }
 
-        public PerRangeBuilder add(@NotNull final TokenRange tokenRange,
-                                   @NotNull final Marker marker)
+        public PerRangeBuilder add(@Nonnull final TokenRange tokenRange,
+                                   @Nonnull final Marker marker)
         {
             markers.computeIfAbsent(marker.instance(), (inst) -> new HashMap<>()).put(tokenRange, marker);
             return this;

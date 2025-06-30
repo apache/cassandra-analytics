@@ -47,8 +47,8 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import org.quicktheories.core.Gen;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
@@ -61,7 +61,7 @@ public final class Tester
 {
     public static final int DEFAULT_NUM_ROWS = 200;
 
-    @NotNull
+    @Nonnull
     private final List<CassandraVersion> versions;
     @Nullable
     private final TestSchema.Builder schemaBuilder;
@@ -69,15 +69,15 @@ public final class Tester
     private final Function<String, TestSchema.Builder> schemaBuilderFunc;
     private final int numRandomRows;
     private final int expectedRowCount;
-    @NotNull
+    @Nonnull
     private final List<Consumer<TestSchema.TestRow>> writeListeners;
-    @NotNull
+    @Nonnull
     private final List<Consumer<TestSchema.TestRow>> readListeners;
-    @NotNull
+    @Nonnull
     private final List<Writer> writers;
-    @NotNull
+    @Nonnull
     private final List<Consumer<Dataset<Row>>> checks;
-    @NotNull
+    @Nonnull
     private final List<Integer> numSSTables;
     @Nullable
     private final Runnable reset;
@@ -85,7 +85,7 @@ public final class Tester
     private final String filterExpression;
     @Nullable
     private final String[] columns;
-    @NotNull
+    @Nonnull
     private final Set<String> sumFields;
     private final boolean shouldCheckNumSSTables;
     private final boolean addLastModifiedTimestamp;
@@ -118,12 +118,12 @@ public final class Tester
         this.nullifyValueColumn = builder.nullRegularColumns;
     }
 
-    public static Builder builder(@NotNull TestSchema.Builder schemaBuilder)
+    public static Builder builder(@Nonnull TestSchema.Builder schemaBuilder)
     {
         return new Builder(schemaBuilder);
     }
 
-    public static Builder builder(@NotNull Function<String, TestSchema.Builder> schemaBuilderFunc)
+    public static Builder builder(@Nonnull Function<String, TestSchema.Builder> schemaBuilderFunc)
     {
         return new Builder(schemaBuilderFunc);
     }
@@ -148,7 +148,7 @@ public final class Tester
     public static final class Builder
     {
         // TODO: Make use of TestUtils.testableVersions() instead
-        @NotNull
+        @Nonnull
         private List<CassandraVersion> versions = ImmutableList.of(CassandraVersion.FOURZERO);
         @Nullable
         private TestSchema.Builder schemaBuilder;
@@ -156,19 +156,19 @@ public final class Tester
         private Function<String, TestSchema.Builder> schemaBuilderFunc;
         private int numRandomRows = DEFAULT_NUM_ROWS;
         private int expectedRowCount = -1;
-        @NotNull
+        @Nonnull
         private final List<Consumer<TestSchema.TestRow>> writeListeners = new ArrayList<>();
-        @NotNull
+        @Nonnull
         private final List<Consumer<TestSchema.TestRow>> readListeners = new ArrayList<>();
-        @NotNull
+        @Nonnull
         private final List<Writer> writers = new ArrayList<>();
-        @NotNull
+        @Nonnull
         private final List<Consumer<Dataset<Row>>> checks = new ArrayList<>();
         @Nullable
         private Runnable reset = null;
-        @NotNull
+        @Nonnull
         private List<Integer> numSSTables = ImmutableList.of(1, 2, 5);
-        @NotNull
+        @Nonnull
         private Set<String> sumFields = Collections.emptySet();
         @Nullable
         private String filterExpression;
@@ -181,18 +181,18 @@ public final class Tester
         private boolean upsert = false;
         private boolean nullRegularColumns = false;
 
-        private Builder(@NotNull TestSchema.Builder schemaBuilder)
+        private Builder(@Nonnull TestSchema.Builder schemaBuilder)
         {
             this.schemaBuilder = schemaBuilder;
         }
 
-        private Builder(@NotNull Function<String, TestSchema.Builder> schemaBuilderFunc)
+        private Builder(@Nonnull Function<String, TestSchema.Builder> schemaBuilderFunc)
         {
             this.schemaBuilderFunc = schemaBuilderFunc;
         }
 
         // Runs a test for every Cassandra version given
-        Builder withVersions(@NotNull Collection<CassandraVersion> versions)
+        Builder withVersions(@Nonnull Collection<CassandraVersion> versions)
         {
             this.versions = ImmutableList.copyOf(versions);
             return this;
@@ -281,13 +281,13 @@ public final class Tester
             return this;
         }
 
-        Builder withFilter(@NotNull String filterExpression)
+        Builder withFilter(@Nonnull String filterExpression)
         {
             this.filterExpression = filterExpression;
             return this;
         }
 
-        Builder withColumns(@NotNull String... columns)
+        Builder withColumns(@Nonnull String... columns)
         {
             this.columns = columns;
             return this;

@@ -22,7 +22,7 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * A class representing a response for a health request
@@ -30,7 +30,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public class HealthResponse
 {
-    @NotNull
+    @Nonnull
     private final String status;
 
     /**
@@ -38,7 +38,7 @@ public class HealthResponse
      *
      * @param status the status
      */
-    public HealthResponse(@NotNull @JsonProperty("status") String status)
+    public HealthResponse(@Nonnull @JsonProperty("status") String status)
     {
         this.status = Objects.requireNonNull(status, "status must not be null").toUpperCase();
     }

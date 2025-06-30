@@ -29,7 +29,7 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class CommitResult implements Serializable
 {
@@ -49,7 +49,7 @@ public class CommitResult implements Serializable
         this.failures = new HashMap<>();
     }
 
-    public void addFailedCommit(String uuid, @NotNull Range<BigInteger> tokenRange, @NotNull String error)
+    public void addFailedCommit(String uuid, @Nonnull Range<BigInteger> tokenRange, @Nonnull String error)
     {
         Preconditions.checkNotNull(uuid, "Adding failed commit with missing UUID");
         Preconditions.checkNotNull(tokenRange, "Adding failed commit with missing token range");

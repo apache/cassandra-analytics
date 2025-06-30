@@ -41,7 +41,7 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public abstract class AbstractBulkWriterContext implements BulkWriterContext, KryoSerializable
 {
@@ -61,9 +61,9 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     private transient volatile JobStatsPublisher jobStatsPublisher;
     private transient volatile TransportContext transportContext;
 
-    protected AbstractBulkWriterContext(@NotNull BulkSparkConf conf,
-                                        @NotNull StructType structType,
-                                        @NotNull int sparkDefaultParallelism)
+    protected AbstractBulkWriterContext(@Nonnull BulkSparkConf conf,
+                                        @Nonnull StructType structType,
+                                        @Nonnull int sparkDefaultParallelism)
     {
         this.conf = conf;
         this.sparkDefaultParallelism = sparkDefaultParallelism;
@@ -207,9 +207,9 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         }
     }
 
-    @NotNull
-    protected TableSchema initializeTableSchema(@NotNull BulkSparkConf conf,
-                                                @NotNull StructType dfSchema,
+    @Nonnull
+    protected TableSchema initializeTableSchema(@Nonnull BulkSparkConf conf,
+                                                @Nonnull StructType dfSchema,
                                                 TableInfoProvider tableInfoProvider,
                                                 String lowestCassandraVersion)
     {
@@ -222,7 +222,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
                                job().qualifiedTableName().quoteIdentifiers());
     }
 
-    @NotNull
+    @Nonnull
     protected TransportContext createTransportContext(boolean isOnDriver)
     {
         BulkSparkConf conf = bulkSparkConf();

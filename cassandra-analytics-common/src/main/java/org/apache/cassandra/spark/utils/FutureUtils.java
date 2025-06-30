@@ -30,8 +30,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class FutureUtils
 {
@@ -48,7 +48,7 @@ public final class FutureUtils
             this.throwable = throwable;
         }
 
-        public static <T> FutureResult<T> failed(@NotNull Throwable throwable)
+        public static <T> FutureResult<T> failed(@Nonnull Throwable throwable)
         {
             return new FutureResult<>(null, throwable);
         }
@@ -117,7 +117,7 @@ public final class FutureUtils
      * @param <T>    result type returned by this method
      * @return result of the future
      */
-    @NotNull
+    @Nonnull
     public static <T> FutureResult<T> await(CompletableFuture<T> future, Consumer<Throwable> logger)
     {
         try

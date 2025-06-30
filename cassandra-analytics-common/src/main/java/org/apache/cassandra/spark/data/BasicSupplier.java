@@ -24,13 +24,13 @@ import java.util.stream.Collectors;
 
 import org.apache.cassandra.spark.reader.SparkSSTableReader;
 import org.apache.cassandra.spark.utils.Throwing;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class BasicSupplier extends SSTablesSupplier
 {
     private final Set<SSTable> ssTables;
 
-    public BasicSupplier(@NotNull Set<SSTable> ssTables)
+    public BasicSupplier(@Nonnull Set<SSTable> ssTables)
     {
         this.ssTables = ssTables;
     }

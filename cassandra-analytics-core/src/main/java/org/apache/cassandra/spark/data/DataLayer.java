@@ -54,8 +54,8 @@ import org.apache.spark.sql.sources.In;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @SuppressWarnings({ "unused", "WeakerAccess" })
 public abstract class DataLayer implements Serializable
@@ -215,7 +215,7 @@ public abstract class DataLayer implements Serializable
      */
     public abstract SSTablesSupplier sstables(int partitionId,
                                               @Nullable SparkRangeFilter sparkRangeFilter,
-                                              @NotNull List<PartitionKeyFilter> partitionKeyFilters);
+                                              @Nonnull List<PartitionKeyFilter> partitionKeyFilters);
 
     public abstract Partitioner partitioner();
 

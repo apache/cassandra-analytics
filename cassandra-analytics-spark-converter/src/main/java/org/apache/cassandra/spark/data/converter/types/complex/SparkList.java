@@ -35,7 +35,7 @@ import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 import scala.collection.mutable.Seq;
 
 public class SparkList implements CollectionFeatures
@@ -57,7 +57,7 @@ public class SparkList implements CollectionFeatures
 
     @SuppressWarnings("unchecked")
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@Nonnull Object value, boolean isFrozen)
     {
         return ArrayData.toArrayData(((Collection<Object>) value)
                                      .stream()

@@ -20,7 +20,7 @@
 package org.apache.cassandra.spark.transports.storage.extensions;
 
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * A listener interface that is notified on access token changes

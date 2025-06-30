@@ -57,15 +57,15 @@ import org.apache.cassandra.spark.data.partitioner.NotEnoughReplicasException;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.apache.cassandra.spark.utils.KryoUtils;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @SuppressWarnings("unused") // external facing API
 public class Cdc implements Closeable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(Cdc.class);
 
-    @NotNull
+    @Nonnull
     private final String jobId;
     private final int partitionId;
     private final TokenRangeSupplier tokenRangeSupplier;
@@ -86,7 +86,7 @@ public class Cdc implements Closeable
     protected volatile long batchStartNanos;
     protected volatile Set<CqlTable> cdcEnabledTables = Collections.emptySet();
 
-    protected Cdc(@NotNull CdcBuilder builder)
+    protected Cdc(@Nonnull CdcBuilder builder)
     {
         this.jobId = builder.jobId;
         this.partitionId = builder.partitionId;
@@ -102,7 +102,7 @@ public class Cdc implements Closeable
         this.eventConsumer = builder.eventConsumer;
     }
 
-    public static CdcBuilder builder(@NotNull String jobId,
+    public static CdcBuilder builder(@Nonnull String jobId,
                                      int partitionId,
                                      EventConsumer eventConsumer,
                                      SchemaSupplier schemaSupplier)
@@ -125,7 +125,7 @@ public class Cdc implements Closeable
         return currentState.epoch;
     }
 
-    @NotNull
+    @Nonnull
     public CommitLogMarkers markers()
     {
         return this.currentState.markers;

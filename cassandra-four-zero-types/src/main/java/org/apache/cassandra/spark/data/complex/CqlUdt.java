@@ -52,8 +52,8 @@ import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.data.TypeConverter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.transport.ProtocolVersion;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class CqlUdt extends CqlType implements CqlField.CqlUdt
 {
@@ -113,7 +113,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    public Object convertForCqlWriter(@NotNull Object value, CassandraVersion version, boolean isCollectionElement)
+    public Object convertForCqlWriter(@Nonnull Object value, CassandraVersion version, boolean isCollectionElement)
     {
         if (value instanceof UDTValue)
         {
@@ -400,7 +400,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @SuppressWarnings("unchecked")
-    public static UDTValue toUserTypeValue(CassandraVersion version, CqlUdt udt, @NotNull Object value)
+    public static UDTValue toUserTypeValue(CassandraVersion version, CqlUdt udt, @Nonnull Object value)
     {
         Map<String, Object> values = (Map<String, Object>) value;
         UDTValue udtValue = UserTypeHelper.newUDTValue(toUserType(udt));

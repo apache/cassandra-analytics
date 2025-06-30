@@ -29,7 +29,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public final class IOUtils
 {

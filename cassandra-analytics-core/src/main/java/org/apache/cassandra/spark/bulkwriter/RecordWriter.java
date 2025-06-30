@@ -59,7 +59,7 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.util.ThreadUtil;
 import org.apache.spark.TaskContext;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 import scala.Tuple2;
 
 @SuppressWarnings({ "ConstantConditions" })
@@ -214,7 +214,7 @@ public class RecordWriter
         }
     }
 
-    @NotNull
+    @Nonnull
     private List<StreamResult> waitForStreamCompletionAndValidate(int partitionId,
                                                                   TokenRangeMapping<RingInstance> initialTokenRangeMapping,
                                                                   Range<BigInteger> taskTokenRange)

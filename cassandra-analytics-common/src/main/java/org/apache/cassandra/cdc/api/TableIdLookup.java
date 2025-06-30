@@ -22,7 +22,7 @@ package org.apache.cassandra.cdc.api;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public interface TableIdLookup
 {

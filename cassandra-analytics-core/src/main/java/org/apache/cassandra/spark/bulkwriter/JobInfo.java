@@ -25,8 +25,8 @@ import java.util.UUID;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.data.QualifiedTableName;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public interface JobInfo extends Serializable
 {
@@ -75,7 +75,7 @@ public interface JobInfo extends Serializable
     /**
      * @return the digest type provider for the bulk job, and used to calculate digests for SSTable components
      */
-    @NotNull
+    @Nonnull
     DigestAlgorithmSupplier digestAlgorithmSupplier();
 
     QualifiedTableName qualifiedTableName();

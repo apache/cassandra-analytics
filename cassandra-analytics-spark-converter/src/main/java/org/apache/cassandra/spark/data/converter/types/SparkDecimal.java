@@ -26,7 +26,7 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class SparkDecimal implements DecimalFeatures
 {
@@ -44,7 +44,7 @@ public class SparkDecimal implements DecimalFeatures
     }
 
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@Nonnull Object value, boolean isFrozen)
     {
         return org.apache.spark.sql.types.Decimal.apply((BigDecimal) value);
     }

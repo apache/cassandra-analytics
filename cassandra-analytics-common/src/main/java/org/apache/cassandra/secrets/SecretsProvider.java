@@ -24,7 +24,7 @@ import java.io.InputStream;
 import java.nio.file.Path;
 import java.util.Map;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * A Secrets provider class
@@ -37,7 +37,7 @@ public interface SecretsProvider
      *
      * @param environmentOptions the environment options
      */
-    void initialize(@NotNull Map<String, String> environmentOptions);
+    void initialize(@Nonnull Map<String, String> environmentOptions);
 
     /**
      * @return true if the keystore secrets have been provided, false otherwise

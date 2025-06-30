@@ -27,8 +27,8 @@ import com.google.common.collect.AbstractIterator;
 
 import org.apache.cassandra.io.util.RandomAccessReader;
 import org.apache.cassandra.spark.utils.LoggerHelper;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.db.commitlog.CommitLogSegment.SYNC_MARKER_SIZE;
 import static org.apache.cassandra.utils.FBUtilities.updateChecksumInt;
@@ -182,7 +182,7 @@ public class SeekableCommitLogSegmentReader implements Iterable<CommitLogSegment
         return end;
     }
 
-    @NotNull
+    @Nonnull
     public Iterator<CommitLogSegmentReader.SyncSegment> iterator()
     {
         return new SegmentIterator();

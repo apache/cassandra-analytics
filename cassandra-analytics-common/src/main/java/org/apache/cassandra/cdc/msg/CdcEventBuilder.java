@@ -28,7 +28,7 @@ import java.util.Map;
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.cdc.api.CassandraSource;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public class CdcEventBuilder
 {

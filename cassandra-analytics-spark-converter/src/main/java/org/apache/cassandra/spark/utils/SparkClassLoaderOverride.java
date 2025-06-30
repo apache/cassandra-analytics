@@ -27,8 +27,8 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.spark.serializer.JavaDeserializationStream;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * This class is an {@link AutoCloseable} wrapper that allows to temporarily substitute the instance of
@@ -40,17 +40,17 @@ public class SparkClassLoaderOverride implements AutoCloseable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SparkClassLoaderOverride.class);
 
-    @NotNull  private final ObjectInputStream in;
+    @Nonnull  private final ObjectInputStream in;
     @Nullable private final ClassLoader loader;
 
-    public SparkClassLoaderOverride(@NotNull ObjectInputStream in, @NotNull ClassLoader loader)
+    public SparkClassLoaderOverride(@Nonnull ObjectInputStream in, @Nonnull ClassLoader loader)
     {
         this.in = in;
         this.loader = swapClassLoader(in, loader);
     }
 
     @Nullable
-    private static ClassLoader swapClassLoader(@NotNull ObjectInputStream in, @NotNull ClassLoader loader)
+    private static ClassLoader swapClassLoader(@Nonnull ObjectInputStream in, @Nonnull ClassLoader loader)
     {
         try
         {

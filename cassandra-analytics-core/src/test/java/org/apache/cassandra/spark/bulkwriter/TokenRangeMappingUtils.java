@@ -26,7 +26,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import javax.validation.constraints.NotNull;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableMap;
@@ -42,6 +41,8 @@ import org.apache.cassandra.spark.common.model.NodeStatus;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.RangeUtils;
+
+import javax.annotation.Nonnull;
 
 public final class TokenRangeMappingUtils
 {
@@ -159,7 +160,7 @@ public final class TokenRangeMappingUtils
         return tokenRangeMap;
     }
 
-    @NotNull
+    @Nonnull
     private static ReplicationFactor getReplicationFactor(Map<String, Integer> rfByDC)
     {
         ImmutableMap.Builder<String, String> optionsBuilder = ImmutableMap.<String, String>builder()
@@ -168,7 +169,7 @@ public final class TokenRangeMappingUtils
         return new ReplicationFactor(optionsBuilder.build());
     }
 
-    @NotNull
+    @Nonnull
     public static List<RingInstance> getInstances(int initialToken, Map<String, Integer> rfByDC, int instancesPerDc)
     {
         ArrayList<RingInstance> instances = new ArrayList<>();

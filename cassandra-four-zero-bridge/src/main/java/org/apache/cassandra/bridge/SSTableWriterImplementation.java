@@ -38,7 +38,7 @@ import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class SSTableWriterImplementation implements SSTableWriter
 {
@@ -54,7 +54,7 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        String partitioner,
                                        String createStatement,
                                        String insertStatement,
-                                       @NotNull Set<String> userDefinedTypeStatements,
+                                       @Nonnull Set<String> userDefinedTypeStatements,
                                        int bufferSizeMB)
     {
         this(inDirectory, determineSupportedPartitioner(partitioner), createStatement, insertStatement, userDefinedTypeStatements, bufferSizeMB);
@@ -65,7 +65,7 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        IPartitioner partitioner,
                                        String createStatement,
                                        String insertStatement,
-                                       @NotNull Set<String> userDefinedTypeStatements,
+                                       @Nonnull Set<String> userDefinedTypeStatements,
                                        int bufferSizeMB)
     {
         this.writer = configureBuilder(inDirectory,

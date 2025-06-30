@@ -34,8 +34,8 @@ import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
 import org.apache.cassandra.spark.utils.MapUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.spark.data.CassandraDataLayer.aliasLastModifiedTimestamp;
 
@@ -439,7 +439,7 @@ public class ClientConfig
 
         public static class OnCompletionOrTTL extends ClearSnapshotStrategy
         {
-            public OnCompletionOrTTL(@NotNull String snapshotTTL)
+            public OnCompletionOrTTL(@Nonnull String snapshotTTL)
             {
                 super(snapshotTTL);
                 validateTTLPresence(true);
@@ -454,7 +454,7 @@ public class ClientConfig
 
         public static class TTL extends ClearSnapshotStrategy
         {
-            public TTL(@NotNull String snapshotTTL)
+            public TTL(@Nonnull String snapshotTTL)
             {
                 super(snapshotTTL);
                 validateTTLPresence(true);

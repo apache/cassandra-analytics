@@ -25,8 +25,8 @@ import java.util.List;
 
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.cdc.state.CdcState;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Interface for persisting CDC state object and loading on start-up.
@@ -55,7 +55,7 @@ public interface StatePersister
      * @param tokenRange  TokenRange that provides the start-end token range for this state.
      * @param buf         ByteBuffer with the serialized Iterator state.
      */
-    void persist(String jobId, int partitionId, @Nullable TokenRange tokenRange, @NotNull ByteBuffer buf);
+    void persist(String jobId, int partitionId, @Nullable TokenRange tokenRange, @Nonnull ByteBuffer buf);
 
 
     /**
@@ -67,7 +67,7 @@ public interface StatePersister
      * @param tokenRange  TokenRange that provides the start-end token range for this Spark partition.
      * @return canonical view of the CDC state by merging one or more CDC state objects to give canonical view.
      */
-    @NotNull
+    @Nonnull
     default CdcState loadCanonicalState(String jobId, int partitionId, @Nullable TokenRange tokenRange)
     {
         return loadState(jobId, partitionId, tokenRange)
@@ -90,6 +90,6 @@ public interface StatePersister
      * @param tokenRange  TokenRange that provides the start-end token range for this Spark partition.
      * @return list of previous CDC state objects overlapping with the tokenRange.
      */
-    @NotNull
+    @Nonnull
     List<CdcState> loadState(String jobId, int partitionId, @Nullable TokenRange tokenRange);
 }

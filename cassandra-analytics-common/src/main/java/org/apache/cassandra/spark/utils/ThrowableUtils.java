@@ -19,8 +19,8 @@
 
 package org.apache.cassandra.spark.utils;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class ThrowableUtils
 {
@@ -35,8 +35,8 @@ public final class ThrowableUtils
      * @param throwable throwable
      * @return initial cause throwable
      */
-    @NotNull
-    public static Throwable rootCause(@NotNull Throwable throwable)
+    @Nonnull
+    public static Throwable rootCause(@Nonnull Throwable throwable)
     {
         while (throwable.getCause() != null)
         {
@@ -54,7 +54,7 @@ public final class ThrowableUtils
      * @return first throwable of type matching parameter ofType or null if cannot be found
      */
     @Nullable
-    public static <T extends Throwable> T rootCause(@NotNull Throwable throwable, @NotNull Class<T> ofType)
+    public static <T extends Throwable> T rootCause(@Nonnull Throwable throwable, @Nonnull Class<T> ofType)
     {
         while (throwable.getCause() != null)
         {

@@ -23,7 +23,7 @@ import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class SparkTimestamp implements LongFeatures
 {
@@ -41,7 +41,7 @@ public class SparkTimestamp implements LongFeatures
     }
 
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@Nonnull Object value, boolean isFrozen)
     {
         return ((java.util.Date) value).getTime() * 1000L; // long
     }

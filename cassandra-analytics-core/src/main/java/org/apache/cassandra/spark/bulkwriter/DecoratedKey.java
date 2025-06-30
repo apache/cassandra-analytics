@@ -25,33 +25,33 @@ import java.nio.ByteBuffer;
 
 import org.apache.cassandra.spark.bulkwriter.util.FastByteOperations;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class DecoratedKey implements Comparable<DecoratedKey>, Serializable
 {
-    @NotNull private final BigInteger token;
-    @NotNull private final ByteBuffer key;
+    @Nonnull private final BigInteger token;
+    @Nonnull private final ByteBuffer key;
 
-    DecoratedKey(@NotNull BigInteger token, @NotNull ByteBuffer key)
+    DecoratedKey(@Nonnull BigInteger token, @Nonnull ByteBuffer key)
     {
         this.token = token;
         this.key = key;
     }
 
-    @NotNull
+    @Nonnull
     public BigInteger getToken()
     {
         return token;
     }
 
-    @NotNull
+    @Nonnull
     public ByteBuffer getKey()
     {
         return key;
     }
 
     @Override
-    public int compareTo(@NotNull DecoratedKey that)
+    public int compareTo(@Nonnull DecoratedKey that)
     {
         int cmp = token.compareTo(that.token);
         if (cmp != 0)

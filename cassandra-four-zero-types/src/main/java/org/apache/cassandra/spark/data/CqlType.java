@@ -37,8 +37,8 @@ import org.apache.cassandra.db.rows.BufferCell;
 import org.apache.cassandra.db.rows.CellPath;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.serializers.TypeSerializer;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.spark.data.CqlField.NO_TTL;
 
@@ -92,7 +92,7 @@ public abstract class CqlType implements CqlField.CqlType
      * @param position position in the vdtValue to set
      * @param value value to set; the value is guaranteed to not be null
      */
-    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, @NotNull Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, @Nonnull Object value)
     {
         throw CqlField.notImplemented(this);
     }

@@ -28,12 +28,12 @@ import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 interface BinaryFeatures extends SparkType
 {
     @Override
-    default Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    default Object toSparkSqlType(@Nonnull Object value, boolean isFrozen)
     {
         return ByteBufferUtils.getArray((ByteBuffer) value); // byte[]
     }

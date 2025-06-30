@@ -20,7 +20,7 @@
 package org.apache.cassandra.cdc.schemastore;
 
 import org.apache.cassandra.cdc.kafka.KafkaOptions;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public interface SchemaStorePublisherFactory
 {

@@ -34,7 +34,7 @@ import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 @SuppressWarnings("unused")
 public class SidecarCdcBuilder extends CdcBuilder
@@ -47,7 +47,7 @@ public class SidecarCdcBuilder extends CdcBuilder
     protected SidecarCdcCassandraClient cassandraClient = SidecarCdcCassandraClient.STUB;
     protected SidecarCdcOptions sidecarCdcOptions = SidecarCdcOptions.DEFAULT;
 
-    SidecarCdcBuilder(@NotNull String jobId,
+    SidecarCdcBuilder(@Nonnull String jobId,
                       int partitionId,
                       CdcOptions cdcOptions,
                       ClusterConfigProvider clusterConfigProvider,
@@ -73,7 +73,7 @@ public class SidecarCdcBuilder extends CdcBuilder
         );
     }
 
-    SidecarCdcBuilder(@NotNull String jobId,
+    SidecarCdcBuilder(@Nonnull String jobId,
                       int partitionId,
                       CdcOptions cdcOptions,
                       ClusterConfigProvider clusterConfigProvider,
@@ -118,7 +118,7 @@ public class SidecarCdcBuilder extends CdcBuilder
     }
 
     @Override
-    public CdcBuilder withCdcOptions(@NotNull CdcOptions cdcOptions)
+    public CdcBuilder withCdcOptions(@Nonnull CdcOptions cdcOptions)
     {
         super.withCdcOptions(cdcOptions);
         return withSidecarCdcCassandraClient(cassandraClient); // rebuild SidecarStatePersister with new cdcOptions

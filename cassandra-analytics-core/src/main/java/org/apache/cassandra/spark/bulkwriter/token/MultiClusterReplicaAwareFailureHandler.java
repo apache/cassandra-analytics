@@ -38,7 +38,7 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClust
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * A ReplicaAwareFailureHandler that can handle multiple clusters, including the case of single cluster.

@@ -49,8 +49,8 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * SSTableWriter that expects sorted data
@@ -116,7 +116,7 @@ public class SortedSSTableWriter
         writerContext.job().sstableDataSizeInMiB());
     }
 
-    @NotNull
+    @Nonnull
     public String getPackageVersion(String lowestCassandraVersion)
     {
         return CASSANDRA_VERSION_PREFIX + lowestCassandraVersion;
@@ -170,7 +170,7 @@ public class SortedSSTableWriter
         return sstableCount;
     }
 
-    public Map<Path, Digest> prepareSStablesToSend(@NotNull BulkWriterContext writerContext, Set<SSTableDescriptor> sstables) throws IOException
+    public Map<Path, Digest> prepareSStablesToSend(@Nonnull BulkWriterContext writerContext, Set<SSTableDescriptor> sstables) throws IOException
     {
         DirectoryStream.Filter<Path> sstableFilter = path -> {
             SSTableDescriptor baseName = SSTables.getSSTableDescriptor(path);
@@ -221,7 +221,7 @@ public class SortedSSTableWriter
     }
 
     @VisibleForTesting
-    public void validateSSTables(@NotNull BulkWriterContext writerContext)
+    public void validateSSTables(@Nonnull BulkWriterContext writerContext)
     {
         validateSSTables(writerContext, getOutDir(), null);
     }
@@ -235,7 +235,7 @@ public class SortedSSTableWriter
      *                      When it is null, it validates all sstables under the output directory.
      */
     @VisibleForTesting
-    public void validateSSTables(@NotNull BulkWriterContext writerContext, @NotNull Path outputDirectory, @Nullable Set<Path> dataFilePaths)
+    public void validateSSTables(@Nonnull BulkWriterContext writerContext, @Nonnull Path outputDirectory, @Nullable Set<Path> dataFilePaths)
     {
         // NOTE: If this current implementation of SS-tables' validation proves to be a performance issue,
         //       we will need to modify LocalDataLayer to allow scanning and compaction of single data file,

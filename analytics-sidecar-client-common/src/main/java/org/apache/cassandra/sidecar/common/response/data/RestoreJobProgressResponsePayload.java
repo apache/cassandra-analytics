@@ -28,8 +28,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.cassandra.sidecar.common.DataObjectBuilder;
 import org.apache.cassandra.sidecar.common.data.ConsistencyVerificationResult;
 import org.apache.cassandra.sidecar.common.request.RestoreJobProgressRequest;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_PROGRESS_ABORTED_RANGES;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_PROGRESS_FAILED_RANGES;
@@ -71,9 +71,9 @@ public class RestoreJobProgressResponsePayload
      * Constructor for json deserialization
      */
     @JsonCreator
-    public RestoreJobProgressResponsePayload(@NotNull @JsonProperty(JOB_PROGRESS_MESSAGE) String message,
-                                             @NotNull @JsonProperty(JOB_PROGRESS_STATUS) ConsistencyVerificationResult status,
-                                             @NotNull @JsonProperty(JOB_PROGRESS_SUMMARY) RestoreJobSummaryResponsePayload summary,
+    public RestoreJobProgressResponsePayload(@Nonnull @JsonProperty(JOB_PROGRESS_MESSAGE) String message,
+                                             @Nonnull @JsonProperty(JOB_PROGRESS_STATUS) ConsistencyVerificationResult status,
+                                             @Nonnull @JsonProperty(JOB_PROGRESS_SUMMARY) RestoreJobSummaryResponsePayload summary,
                                              @Nullable @JsonProperty(JOB_PROGRESS_FAILED_RANGES) List<RestoreRangeJson> failedRanges,
                                              @Nullable @JsonProperty(JOB_PROGRESS_ABORTED_RANGES) List<RestoreRangeJson> abortedRanges,
                                              @Nullable @JsonProperty(JOB_PROGRESS_PENDING_RANGES) List<RestoreRangeJson> pendingRanges,
@@ -99,21 +99,21 @@ public class RestoreJobProgressResponsePayload
              builder.succeededRanges);
     }
 
-    @NotNull
+    @Nonnull
     @JsonProperty(JOB_PROGRESS_MESSAGE)
     public String message()
     {
         return this.message;
     }
 
-    @NotNull
+    @Nonnull
     @JsonProperty(JOB_PROGRESS_STATUS)
     public ConsistencyVerificationResult status()
     {
         return this.status;
     }
 
-    @NotNull
+    @Nonnull
     @JsonProperty(JOB_PROGRESS_SUMMARY)
     public RestoreJobSummaryResponsePayload summary()
     {

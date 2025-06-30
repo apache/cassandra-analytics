@@ -34,8 +34,8 @@ import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
 import org.apache.cassandra.spark.utils.IOUtils;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.utils.streaming.BufferingInputStream;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class FileSystemSSTable extends SSTable
 {
@@ -46,7 +46,7 @@ public class FileSystemSSTable extends SSTable
     private final transient boolean useBufferingInputStream;
     private final transient Supplier<BufferingInputStreamStats<SSTable>> stats;
 
-    public FileSystemSSTable(@NotNull Path dataFilePath, boolean useBufferingInputStream, @NotNull Supplier<BufferingInputStreamStats<SSTable>> stats)
+    public FileSystemSSTable(@Nonnull Path dataFilePath, boolean useBufferingInputStream, @Nonnull Supplier<BufferingInputStreamStats<SSTable>> stats)
     {
         this.dataFilePath = dataFilePath;
         this.useBufferingInputStream = useBufferingInputStream;

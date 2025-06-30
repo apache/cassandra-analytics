@@ -22,7 +22,7 @@ package org.apache.cassandra.cdc.msg.jdk;
 import java.nio.ByteBuffer;
 
 import org.apache.cassandra.spark.data.CqlField;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public class Column
 {

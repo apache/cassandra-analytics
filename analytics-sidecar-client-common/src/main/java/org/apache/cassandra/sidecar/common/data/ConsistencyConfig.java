@@ -20,7 +20,7 @@ package org.apache.cassandra.sidecar.common.data;
 
 import org.apache.cassandra.sidecar.common.utils.Preconditions;
 import org.apache.cassandra.sidecar.common.utils.StringUtils;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * Consistency config to group the related values, i.e. consistency level and local datacenter name.

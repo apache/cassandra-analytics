@@ -32,7 +32,7 @@ import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.streaming.CassandraFile;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public interface CommitLog extends Closeable, CassandraFile, Comparable<CommitLog>
 {
@@ -41,12 +41,12 @@ public interface CommitLog extends Closeable, CassandraFile, Comparable<CommitLo
     // match both legacy and new version of commitlogs Ex: CommitLog-12345.log and CommitLog-6-12345.log.
     Pattern COMMIT_LOG_FILE_PATTERN = Pattern.compile("CommitLog(-(\\d+))?-(\\d+).log");
 
-    static Optional<Pair<Integer, Long>> extractVersionAndSegmentId(@NotNull CommitLog log)
+    static Optional<Pair<Integer, Long>> extractVersionAndSegmentId(@Nonnull CommitLog log)
     {
         return extractVersionAndSegmentId(log.name());
     }
 
-    static Optional<Pair<Integer, Long>> extractVersionAndSegmentId(@NotNull String filename)
+    static Optional<Pair<Integer, Long>> extractVersionAndSegmentId(@Nonnull String filename)
     {
         Matcher matcher = CommitLog.COMMIT_LOG_FILE_PATTERN.matcher(filename);
         if (matcher.matches())
@@ -139,7 +139,7 @@ public interface CommitLog extends Closeable, CassandraFile, Comparable<CommitLo
     }
 
     @Override
-    default int compareTo(@NotNull CommitLog other)
+    default int compareTo(@Nonnull CommitLog other)
     {
         return Long.compare(segmentId(), other.segmentId());
     }

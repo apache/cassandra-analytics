@@ -53,8 +53,8 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * A group of ClusterInfo. One per cluster.
@@ -265,7 +265,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
 
     @Nullable
     @Override
-    public ClusterInfo getValueOrNull(@NotNull String clusterId)
+    public ClusterInfo getValueOrNull(@Nonnull String clusterId)
     {
         return clusterInfoById().get(clusterId);
     }

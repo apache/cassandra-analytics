@@ -70,8 +70,8 @@ import org.apache.cassandra.spark.data.complex.CqlFrozen;
 import org.apache.cassandra.spark.data.complex.CqlUdt;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.utils.Pair;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class SchemaBuilder
 {
@@ -226,7 +226,7 @@ public class SchemaBuilder
         return validateKeyspaceTable(schema, keyspace, tableMetadata.name);
     }
 
-    private void validateColumnMetaData(@NotNull ColumnMetadata column)
+    private void validateColumnMetaData(@Nonnull ColumnMetadata column)
     {
         validateType(column.type);
     }

@@ -31,7 +31,7 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.apache.cassandra.spark.validation.StartupValidatable;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public interface ClusterInfo extends StartupValidatable, Serializable
 {

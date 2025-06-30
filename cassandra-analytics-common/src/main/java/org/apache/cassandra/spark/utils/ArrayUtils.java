@@ -29,8 +29,8 @@ import java.util.stream.Stream;
 
 import com.google.common.base.Preconditions;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public final class ArrayUtils
 {
@@ -63,7 +63,7 @@ public final class ArrayUtils
         return result;
     }
 
-    public static <T> List<T> combine(@NotNull List<T>... lists)
+    public static <T> List<T> combine(@Nonnull List<T>... lists)
     {
         final List<T> result = new ArrayList<>(Arrays.stream(lists).filter(Objects::nonNull).mapToInt(List::size).sum());
         for (List<T> list : lists)
@@ -76,7 +76,7 @@ public final class ArrayUtils
         return result;
     }
 
-    public static <T> Stream<T> concatToStream(@NotNull List<T>... lists)
+    public static <T> Stream<T> concatToStream(@Nonnull List<T>... lists)
     {
         if (lists.length == 0)
         {
@@ -90,7 +90,7 @@ public final class ArrayUtils
         return curr;
     }
 
-    public static <T> List<T> orElse(@Nullable List<T> v1, @NotNull final List<T> v2)
+    public static <T> List<T> orElse(@Nullable List<T> v1, @Nonnull final List<T> v2)
     {
         return v1 == null ? v2 : v1;
     }

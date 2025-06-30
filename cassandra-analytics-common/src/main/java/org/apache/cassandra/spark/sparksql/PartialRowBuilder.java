@@ -30,7 +30,7 @@ import java.util.stream.IntStream;
 
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * PartialRowBuilder that builds row only containing fields in requiredSchema prune-column filter
@@ -46,7 +46,7 @@ public class PartialRowBuilder<T> extends FullRowBuilder<T>
     protected final String[] requiredSchema;
     private final Map<String, Integer> columnIndex;
 
-    public PartialRowBuilder(@NotNull String[] requiredSchema,
+    public PartialRowBuilder(@Nonnull String[] requiredSchema,
                              CqlTable table,
                              boolean hasProjectedValueColumns,
                              Function<Object[], T> rowBuilder)

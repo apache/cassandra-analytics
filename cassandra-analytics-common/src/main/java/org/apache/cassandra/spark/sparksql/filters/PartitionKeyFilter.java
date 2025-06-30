@@ -31,57 +31,57 @@ import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public final class PartitionKeyFilter implements Serializable, Comparable<PartitionKeyFilter>
 {
-    @NotNull
+    @Nonnull
     private BigInteger token;
-    @NotNull
+    @Nonnull
     private ByteBuffer filterKey;
 
-    public PartitionKeyFilter(@NotNull ByteBuffer filterKey,
-                              @NotNull BigInteger filterKeyTokenValue)
+    public PartitionKeyFilter(@Nonnull ByteBuffer filterKey,
+                              @Nonnull BigInteger filterKeyTokenValue)
     {
         this.filterKey = filterKey.duplicate();
         this.token = filterKeyTokenValue;
     }
 
-    @NotNull
+    @Nonnull
     public TokenRange tokenRange()
     {
         return TokenRange.singleton(token);
     }
 
-    @NotNull
+    @Nonnull
     public ByteBuffer key()
     {
         return filterKey;
     }
 
-    @NotNull
+    @Nonnull
     public BigInteger token()
     {
         return token;
     }
 
-    public boolean overlaps(@NotNull TokenRange tokenRange)
+    public boolean overlaps(@Nonnull TokenRange tokenRange)
     {
         return tokenRange.contains(token);
     }
 
-    public boolean matches(@NotNull ByteBuffer key)
+    public boolean matches(@Nonnull ByteBuffer key)
     {
         return key.compareTo(key()) == 0;
     }
 
-    public boolean filter(@NotNull ByteBuffer key)
+    public boolean filter(@Nonnull ByteBuffer key)
     {
         return key().compareTo(key) == 0;
     }
 
-    @NotNull
-    public static PartitionKeyFilter create(@NotNull ByteBuffer filterKey, @NotNull BigInteger filterKeyTokenValue)
+    @Nonnull
+    public static PartitionKeyFilter create(@Nonnull ByteBuffer filterKey, @Nonnull BigInteger filterKeyTokenValue)
     {
         Preconditions.checkArgument(filterKey.capacity() != 0);
         return new PartitionKeyFilter(filterKey, filterKeyTokenValue);
@@ -143,7 +143,7 @@ public final class PartitionKeyFilter implements Serializable, Comparable<Partit
     }
 
     @Override
-    public int compareTo(@NotNull PartitionKeyFilter other)
+    public int compareTo(@Nonnull PartitionKeyFilter other)
     {
         int compare = token.compareTo(other.token);
         if (compare == 0)

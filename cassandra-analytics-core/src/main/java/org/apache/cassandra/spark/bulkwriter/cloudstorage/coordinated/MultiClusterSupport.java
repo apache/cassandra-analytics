@@ -22,8 +22,8 @@ package org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated;
 import java.util.NoSuchElementException;
 import java.util.function.BiConsumer;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Support storing values per cluster, iteration and lookup
@@ -56,7 +56,7 @@ public interface MultiClusterSupport<T>
      * @return the value of type T associated with the clusterId, or throws NoSuchElementException
      * @throws NoSuchElementException when no value is found
      */
-    @NotNull
+    @Nonnull
     default T getValueOrThrow(@Nullable String clusterId) throws NoSuchElementException
     {
         T v = getValueOrNull(clusterId);

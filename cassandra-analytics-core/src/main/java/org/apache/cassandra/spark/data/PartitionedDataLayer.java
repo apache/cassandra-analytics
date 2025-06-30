@@ -56,8 +56,8 @@ import org.apache.cassandra.spark.sparksql.NoMatchFoundException;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * DataLayer that partitions token range by the number of Spark partitions
@@ -69,7 +69,7 @@ public abstract class PartitionedDataLayer extends DataLayer
     private static final Logger LOGGER = LoggerFactory.getLogger(PartitionedDataLayer.class);
     private static final ConsistencyLevel DEFAULT_CONSISTENCY_LEVEL = ConsistencyLevel.LOCAL_QUORUM;
 
-    @NotNull
+    @Nonnull
     protected ConsistencyLevel consistencyLevel;
     protected String datacenter;
 
@@ -140,14 +140,14 @@ public abstract class PartitionedDataLayer extends DataLayer
         }
     }
 
-    protected void validateReplicationFactor(@NotNull ReplicationFactor replicationFactor)
+    protected void validateReplicationFactor(@Nonnull ReplicationFactor replicationFactor)
     {
         validateReplicationFactor(consistencyLevel, replicationFactor, datacenter);
     }
 
     @VisibleForTesting
-    public static void validateReplicationFactor(@NotNull ConsistencyLevel consistencyLevel,
-                                                 @NotNull ReplicationFactor replicationFactor,
+    public static void validateReplicationFactor(@Nonnull ConsistencyLevel consistencyLevel,
+                                                 @Nonnull ReplicationFactor replicationFactor,
                                                  @Nullable String dc)
     {
         if (replicationFactor.getReplicationStrategy() != ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy)
@@ -173,7 +173,7 @@ public abstract class PartitionedDataLayer extends DataLayer
                                     dc, replicationFactor.getOptions().get(dc));
     }
 
-    public abstract CompletableFuture<Stream<SSTable>> listInstance(int partitionId, @NotNull Range<BigInteger> range, @NotNull CassandraInstance instance);
+    public abstract CompletableFuture<Stream<SSTable>> listInstance(int partitionId, @Nonnull Range<BigInteger> range, @Nonnull CassandraInstance instance);
 
     public abstract CassandraRing ring();
 
@@ -243,7 +243,7 @@ public abstract class PartitionedDataLayer extends DataLayer
     @Override
     public SSTablesSupplier sstables(int partitionId,
                                      @Nullable SparkRangeFilter sparkRangeFilter,
-                                     @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+                                     @Nonnull List<PartitionKeyFilter> partitionKeyFilters)
     {
         // Get token range for Spark partition
         TokenPartitioner tokenPartitioner = tokenPartitioner();
@@ -327,9 +327,9 @@ public abstract class PartitionedDataLayer extends DataLayer
         return AvailabilityHint.UNKNOWN;
     }
 
-    static Set<CassandraInstance> rangesToReplicas(@NotNull ConsistencyLevel consistencyLevel,
+    static Set<CassandraInstance> rangesToReplicas(@Nonnull ConsistencyLevel consistencyLevel,
                                                    @Nullable String dataCenter,
-                                                   @NotNull Map<Range<BigInteger>, List<CassandraInstance>> ranges)
+                                                   @Nonnull Map<Range<BigInteger>, List<CassandraInstance>> ranges)
     {
         return ranges.values().stream()
                 .flatMap(Collection::stream)
@@ -352,11 +352,11 @@ public abstract class PartitionedDataLayer extends DataLayer
      * @throws NotEnoughReplicasException thrown when insufficient primary replicas selected to achieve
      *                                    consistency level for any sub-range of the Spark worker's token range
      */
-    static ReplicaSet splitReplicas(@NotNull ConsistencyLevel consistencyLevel,
+    static ReplicaSet splitReplicas(@Nonnull ConsistencyLevel consistencyLevel,
                                     @Nullable String dataCenter,
-                                    @NotNull Map<Range<BigInteger>, List<CassandraInstance>> ranges,
-                                    @NotNull Set<CassandraInstance> replicas,
-                                    @NotNull Function<CassandraInstance, AvailabilityHint> availability,
+                                    @Nonnull Map<Range<BigInteger>, List<CassandraInstance>> ranges,
+                                    @Nonnull Set<CassandraInstance> replicas,
+                                    @Nonnull Function<CassandraInstance, AvailabilityHint> availability,
                                     int minReplicas,
                                     int partitionId) throws NotEnoughReplicasException
     {
@@ -376,10 +376,10 @@ public abstract class PartitionedDataLayer extends DataLayer
      * @throws NotEnoughReplicasException thrown when insufficient primary replicas selected to achieve
      *                                    consistency level for any sub-range of the Spark worker's token range
      */
-    private static void validateConsistency(@NotNull ConsistencyLevel consistencyLevel,
+    private static void validateConsistency(@Nonnull ConsistencyLevel consistencyLevel,
                                             @Nullable String dc,
-                                            @NotNull Map<Range<BigInteger>, List<CassandraInstance>> workerRanges,
-                                            @NotNull Set<CassandraInstance> primaryReplicas,
+                                            @Nonnull Map<Range<BigInteger>, List<CassandraInstance>> workerRanges,
+                                            @Nonnull Set<CassandraInstance> primaryReplicas,
                                             int minReplicas) throws NotEnoughReplicasException
     {
         for (Map.Entry<Range<BigInteger>, List<CassandraInstance>> range : workerRanges.entrySet())
@@ -405,7 +405,7 @@ public abstract class PartitionedDataLayer extends DataLayer
      * @return a set of primary and backup replicas to read from
      */
     static ReplicaSet splitReplicas(Collection<CassandraInstance> instances,
-                                    @NotNull Map<Range<BigInteger>, List<CassandraInstance>> ranges,
+                                    @Nonnull Map<Range<BigInteger>, List<CassandraInstance>> ranges,
                                     Function<CassandraInstance, AvailabilityHint> availability,
                                     int minReplicas,
                                     int partitionId)

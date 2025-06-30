@@ -23,19 +23,19 @@ import java.io.Serializable;
 import java.math.BigInteger;
 
 import org.apache.cassandra.bridge.TokenRange;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public final class SparkRangeFilter implements Serializable
 {
-    @NotNull
+    @Nonnull
     private final TokenRange tokenRange;
 
-    private SparkRangeFilter(@NotNull TokenRange tokenRange)
+    private SparkRangeFilter(@Nonnull TokenRange tokenRange)
     {
         this.tokenRange = tokenRange;
     }
 
-    @NotNull
+    @Nonnull
     public TokenRange tokenRange()
     {
         return tokenRange;
@@ -56,8 +56,8 @@ public final class SparkRangeFilter implements Serializable
         return !tokenRange.contains(token);
     }
 
-    @NotNull
-    public static SparkRangeFilter create(@NotNull TokenRange tokenRange)
+    @Nonnull
+    public static SparkRangeFilter create(@Nonnull TokenRange tokenRange)
     {
         return new SparkRangeFilter(tokenRange);
     }

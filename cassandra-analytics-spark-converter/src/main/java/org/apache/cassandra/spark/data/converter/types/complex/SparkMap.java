@@ -33,7 +33,7 @@ import org.apache.spark.sql.catalyst.util.ArrayData;
 import org.apache.spark.sql.catalyst.util.MapData;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 import scala.collection.JavaConverters;
 
 public class SparkMap implements MapFeatures
@@ -55,7 +55,7 @@ public class SparkMap implements MapFeatures
 
     @SuppressWarnings("unchecked")
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@Nonnull Object value, boolean isFrozen)
     {
         return mapToSparkSqlType((java.util.Map<Object, Object>) value, isFrozen);
     }

@@ -21,16 +21,16 @@ package org.apache.cassandra.spark.common;
 
 import java.util.Objects;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * An implementation of {@link Digest} that represents an XXHash32 digest
  */
 public class XXHash32Digest implements Digest
 {
-    private final @NotNull String value;
-    private final @NotNull String seedHex;
+    private final @Nonnull String value;
+    private final @Nonnull String seedHex;
 
     /**
      * Constructs a new XXHashDigest with the provided XXHash {@code value} and the seed value represented as
@@ -39,7 +39,7 @@ public class XXHash32Digest implements Digest
      * @param value the xxhash value
      * @param seed  the value of the seed used to calculate the digest
      */
-    public XXHash32Digest(@NotNull String value, int seed)
+    public XXHash32Digest(@Nonnull String value, int seed)
     {
         this.value = Objects.requireNonNull(value, "value is required");
         this.seedHex = Integer.toHexString(seed);

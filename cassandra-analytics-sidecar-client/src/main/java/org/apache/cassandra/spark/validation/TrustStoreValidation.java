@@ -29,7 +29,7 @@ import java.util.function.Supplier;
 
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.spark.utils.Throwing;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * A startup validation that checks the TrustStore
@@ -41,7 +41,7 @@ public class TrustStoreValidation implements StartupValidation
     private final char[] password;
     private final Supplier<InputStream> stream;
 
-    public TrustStoreValidation(@NotNull SecretsProvider secrets)
+    public TrustStoreValidation(@Nonnull SecretsProvider secrets)
     {
         this(
         secrets.hasTrustStoreSecrets(),

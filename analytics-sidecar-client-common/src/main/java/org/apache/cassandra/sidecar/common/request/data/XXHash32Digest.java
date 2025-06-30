@@ -22,8 +22,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.sidecar.common.http.SidecarHttpHeaderNames.CONTENT_XXHASH32;
 import static org.apache.cassandra.sidecar.common.http.SidecarHttpHeaderNames.CONTENT_XXHASH32_SEED;
@@ -33,7 +33,7 @@ import static org.apache.cassandra.sidecar.common.http.SidecarHttpHeaderNames.CO
  */
 public class XXHash32Digest implements Digest
 {
-    private final @NotNull String value;
+    private final @Nonnull String value;
     private final @Nullable String seedHex;
 
     /**
@@ -64,7 +64,7 @@ public class XXHash32Digest implements Digest
      * @param value   the xxhash value
      * @param seedHex the value of the seed represented as a hexadecimal value
      */
-    public XXHash32Digest(@NotNull String value, @Nullable String seedHex)
+    public XXHash32Digest(@Nonnull String value, @Nullable String seedHex)
     {
         this.value = Objects.requireNonNull(value, "value is required");
         this.seedHex = seedHex;

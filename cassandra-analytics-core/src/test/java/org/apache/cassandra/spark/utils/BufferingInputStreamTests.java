@@ -43,7 +43,7 @@ import org.apache.cassandra.spark.utils.streaming.BufferingInputStream;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.streaming.StreamBuffer;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.spark.utils.streaming.BufferingInputStream.timeoutLeftNanos;
 import static org.junit.jupiter.api.Assertions.assertEquals;

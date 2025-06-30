@@ -20,10 +20,10 @@ package org.apache.cassandra.sidecar.client.retry;
 
 import java.util.concurrent.CompletableFuture;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import org.apache.cassandra.sidecar.client.HttpResponse;
 import org.apache.cassandra.sidecar.common.request.Request;
-import org.jetbrains.annotations.VisibleForTesting;
 
 /**
  * A retry policy that ignores status code {@link HttpResponseStatus#CONFLICT} ({@code 409}), and assumes success

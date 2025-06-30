@@ -42,7 +42,7 @@ import org.apache.cassandra.db.rows.Row;
 import org.apache.cassandra.db.rows.Rows;
 import org.apache.cassandra.db.rows.Unfiltered;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * A scanner that is backed by a sorted collection of {@link PartitionUpdateWrapper}.
@@ -62,15 +62,15 @@ public class CdcSortedStreamScanner implements AutoCloseable, CdcStreamScanner
     private final CassandraSource cassandraSource;
     private final Double samplingRate;
 
-    protected CdcSortedStreamScanner(@NotNull Collection<FourZeroPartitionUpdateWrapper> updates,
-                                     @NotNull CdcState endState)
+    protected CdcSortedStreamScanner(@Nonnull Collection<FourZeroPartitionUpdateWrapper> updates,
+                                     @Nonnull CdcState endState)
     {
         this(updates, endState, ThreadLocalRandom.current(), CassandraSource.DEFAULT, 0.0);
     }
 
-    public CdcSortedStreamScanner(@NotNull Collection<FourZeroPartitionUpdateWrapper> updates,
-                                  @NotNull CdcState endState,
-                                  @NotNull Random random,
+    public CdcSortedStreamScanner(@Nonnull Collection<FourZeroPartitionUpdateWrapper> updates,
+                                  @Nonnull CdcState endState,
+                                  @Nonnull Random random,
                                   CassandraSource cassandraSource,
                                   Double samplingRate)
     {

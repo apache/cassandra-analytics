@@ -52,8 +52,8 @@ import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.spark.utils.ByteBufferUtils.toHexString;
 
@@ -207,7 +207,7 @@ public final class TestSchema
     }
 
     private final CassandraBridge bridge;
-    @NotNull
+    @Nonnull
     public final String keyspace;
     public final String table;
     public final String createStatement;
@@ -268,8 +268,8 @@ public final class TestSchema
 
     // CHECKSTYLE IGNORE: Constructor with many parameters
     private TestSchema(Builder builder,
-                       @NotNull String keyspace,
-                       @NotNull String table,
+                       @Nonnull String keyspace,
+                       @Nonnull String table,
                        List<CqlField> partitionKeys,
                        List<CqlField> clusteringKeys,
                        List<CqlField> columns)
@@ -296,13 +296,13 @@ public final class TestSchema
     }
 
     // We take allFields as a parameter here to ensure it's been created before use
-    @NotNull
-    private Map<String, Integer> calculateFieldPositions(@NotNull List<CqlField> allFields)
+    @Nonnull
+    private Map<String, Integer> calculateFieldPositions(@Nonnull List<CqlField> allFields)
     {
         return allFields.stream().collect(Collectors.toMap(CqlField::name, CqlField::position));
     }
 
-    @NotNull
+    @Nonnull
     private List<CqlField> buildAllFields(List<CqlField> partitionKeys,
                                           List<CqlField> clusteringKeys,
                                           List<CqlField> columns)
@@ -315,7 +315,7 @@ public final class TestSchema
         return allFields;
     }
 
-    @NotNull
+    @Nonnull
     private Set<CqlField.CqlUdt> getUdtsFromFields()
     {
         return allFields.stream()
@@ -471,7 +471,7 @@ public final class TestSchema
                                 .toString();
     }
 
-    public void setCassandraVersion(@NotNull CassandraVersion version)
+    public void setCassandraVersion(@Nonnull CassandraVersion version)
     {
         this.version = version;
     }

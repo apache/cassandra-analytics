@@ -27,18 +27,18 @@ import com.google.common.collect.Range;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class CassandraDirectDataTransportContext implements TransportContext.DirectDataBulkWriterContext
 {
-    @NotNull
+    @Nonnull
     private final JobInfo jobInfo;
-    @NotNull
+    @Nonnull
     private final ClusterInfo clusterInfo;
-    @NotNull
+    @Nonnull
     private final DirectDataTransferApi dataTransferApi;
 
-    public CassandraDirectDataTransportContext(@NotNull BulkWriterContext bulkWriterContext)
+    public CassandraDirectDataTransportContext(@Nonnull BulkWriterContext bulkWriterContext)
     {
         this.jobInfo = bulkWriterContext.job();
         this.clusterInfo = bulkWriterContext.cluster();

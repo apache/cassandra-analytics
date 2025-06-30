@@ -24,7 +24,7 @@ import java.util.NoSuchElementException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.apache.cassandra.cdc.avro.AvroSchemas.unwrapNullable;
 
@@ -96,7 +96,7 @@ public class RecordReader
      * @param fieldValue  field value
      * @return the converted value or the input as-is.
      */
-    Object convert(Schema fieldSchema, @NotNull Object fieldValue)
+    Object convert(Schema fieldSchema, @Nonnull Object fieldValue)
     {
         TypeConversion<?> typeConversion = registry.lookup(fieldSchema);
 

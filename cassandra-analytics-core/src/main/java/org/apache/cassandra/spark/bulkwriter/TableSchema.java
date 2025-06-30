@@ -39,7 +39,7 @@ import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
@@ -115,7 +115,7 @@ public class TableSchema implements Serializable
     }
 
     @VisibleForTesting
-    @NotNull
+    @Nonnull
     public static Object[] getKeyColumns(Object[] allColumns, List<Integer> keyFieldPositions)
     {
         Object[] result = new Object[keyFieldPositions.size()];

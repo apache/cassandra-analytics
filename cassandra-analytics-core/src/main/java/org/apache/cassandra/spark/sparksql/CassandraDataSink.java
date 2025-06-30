@@ -34,7 +34,7 @@ import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.sources.BaseRelation;
 import org.apache.spark.sql.sources.CreatableRelationProvider;
 import org.apache.spark.sql.sources.DataSourceRegister;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class CassandraDataSink implements DataSourceRegister, CreatableRelationProvider
 {
@@ -44,7 +44,7 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
     }
 
     @Override
-    @NotNull
+    @Nonnull
     public String shortName()
     {
         return "cassandraBulkWrite";
@@ -58,11 +58,11 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
      * @throws UnsupportedAnalyticsOperationException if the {@code saveMode} is not supported. Only {@link SaveMode#Append} is supported
      */
     @Override
-    @NotNull
-    public BaseRelation createRelation(@NotNull SQLContext sqlContext,
-                                       @NotNull SaveMode saveMode,
-                                       @NotNull scala.collection.immutable.Map<String, String> parameters,
-                                       @NotNull Dataset<Row> data)
+    @Nonnull
+    public BaseRelation createRelation(@Nonnull SQLContext sqlContext,
+                                       @Nonnull SaveMode saveMode,
+                                       @Nonnull scala.collection.immutable.Map<String, String> parameters,
+                                       @Nonnull Dataset<Row> data)
     {
         switch (saveMode)
         {
@@ -97,7 +97,7 @@ public class CassandraDataSink implements DataSourceRegister, CreatableRelationP
         }
     }
 
-    @NotNull
+    @Nonnull
     protected BulkWriterContextFactory factory()
     {
         return new BulkWriterContextFactory();

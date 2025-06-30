@@ -20,8 +20,8 @@
 package org.apache.cassandra.spark.data.partitioner;
 
 import org.apache.cassandra.spark.data.ReplicationFactor;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public enum ConsistencyLevel
 {
@@ -56,14 +56,14 @@ public enum ConsistencyLevel
         return (replicationFactor.getTotalReplicationFactor() / 2) + 1;
     }
 
-    private int localQuorumFor(@NotNull ReplicationFactor replicationFactor, @Nullable String dataCenter)
+    private int localQuorumFor(@Nonnull ReplicationFactor replicationFactor, @Nullable String dataCenter)
     {
         return replicationFactor.getReplicationStrategy() == ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy
                ? getNetworkTopologyRf(replicationFactor, dataCenter)
                : quorumFor(replicationFactor);
     }
 
-    private int getNetworkTopologyRf(@NotNull ReplicationFactor replicationFactor, @Nullable String dataCenter)
+    private int getNetworkTopologyRf(@Nonnull ReplicationFactor replicationFactor, @Nullable String dataCenter)
     {
         int rf;
         // Single data center and not specified, so return the only data center replication factor
@@ -83,7 +83,7 @@ public enum ConsistencyLevel
         return (rf / 2) + 1;
     }
 
-    public int blockFor(@NotNull ReplicationFactor replicationFactor, @Nullable String dataCenter)
+    public int blockFor(@Nonnull ReplicationFactor replicationFactor, @Nullable String dataCenter)
     {
         switch (this)
         {

@@ -59,7 +59,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 import org.quicktheories.core.Gen;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;

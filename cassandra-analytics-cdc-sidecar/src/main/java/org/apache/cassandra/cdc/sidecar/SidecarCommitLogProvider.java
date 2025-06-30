@@ -42,7 +42,7 @@ import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.FutureUtils;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * The SidecarCommitLogProvider implements a CommitLogProvider for listing and reading

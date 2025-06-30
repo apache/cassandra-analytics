@@ -100,8 +100,8 @@ import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.util.ShutdownHookManager;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.spark.utils.Properties.NODE_STATUS_NOT_CONSIDERED;
 
@@ -148,8 +148,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     @VisibleForTesting
     transient Map<String, SidecarInstance> sidecarInstanceMap;
 
-    public CassandraDataLayer(@NotNull ClientConfig options,
-                              @NotNull Sidecar.ClientConfig sidecarClientConfig,
+    public CassandraDataLayer(@Nonnull ClientConfig options,
+                              @Nonnull Sidecar.ClientConfig sidecarClientConfig,
                               @Nullable SslConfig sslConfig)
     {
         super(options.consistencyLevel(), options.datacenter());
@@ -175,24 +175,24 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected CassandraDataLayer(@Nullable String keyspace,
                                  @Nullable String table,
                                  boolean quoteIdentifiers,
-                                 @NotNull String snapshotName,
+                                 @Nonnull String snapshotName,
                                  @Nullable String datacenter,
-                                 @NotNull Sidecar.ClientConfig sidecarClientConfig,
+                                 @Nonnull Sidecar.ClientConfig sidecarClientConfig,
                                  @Nullable SslConfig sslConfig,
-                                 @NotNull CqlTable cqlTable,
-                                 @NotNull TokenPartitioner tokenPartitioner,
-                                 @NotNull CassandraVersion version,
-                                 @NotNull ConsistencyLevel consistencyLevel,
-                                 @NotNull String sidecarInstances,
-                                 @NotNull int sidecarPort,
-                                 @NotNull Map<String, PartitionedDataLayer.AvailabilityHint> availabilityHints,
-                                 @NotNull Map<String, BigNumberConfigImpl> bigNumberConfigMap,
+                                 @Nonnull CqlTable cqlTable,
+                                 @Nonnull TokenPartitioner tokenPartitioner,
+                                 @Nonnull CassandraVersion version,
+                                 @Nonnull ConsistencyLevel consistencyLevel,
+                                 @Nonnull String sidecarInstances,
+                                 @Nonnull int sidecarPort,
+                                 @Nonnull Map<String, PartitionedDataLayer.AvailabilityHint> availabilityHints,
+                                 @Nonnull Map<String, BigNumberConfigImpl> bigNumberConfigMap,
                                  boolean enableStats,
                                  boolean readIndexOffset,
                                  boolean useIncrementalRepair,
                                  @Nullable String lastModifiedTimestampField,
                                  List<SchemaFeature> requestedFeatures,
-                                 @NotNull Map<String, ReplicationFactor> rfMap,
+                                 @Nonnull Map<String, ReplicationFactor> rfMap,
                                  TimeProvider timeProvider)
     {
         super(consistencyLevel, datacenter);
@@ -225,7 +225,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.startupValidate();
     }
 
-    public void initialize(@NotNull ClientConfig options)
+    public void initialize(@Nonnull ClientConfig options)
     {
         dialHome(options);
 
@@ -256,7 +256,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         LOGGER.info("Initialized Cassandra Bulk Reader with effectiveNumberOfCores={}", effectiveNumberOfCores);
     }
 
-    private int initBulkReader(@NotNull ClientConfig options) throws ExecutionException, InterruptedException
+    private int initBulkReader(@Nonnull ClientConfig options) throws ExecutionException, InterruptedException
     {
         Preconditions.checkArgument(keyspace != null, "Keyspace must be non-null for Cassandra Bulk Reader");
         Preconditions.checkArgument(table != null, "Table must be non-null for Cassandra Bulk Reader");
@@ -529,8 +529,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
     @Override
     public CompletableFuture<Stream<SSTable>> listInstance(int partitionId,
-                                                           @NotNull Range<BigInteger> range,
-                                                           @NotNull CassandraInstance instance)
+                                                           @Nonnull Range<BigInteger> range,
+                                                           @Nonnull CassandraInstance instance)
     {
         SidecarInstance sidecarInstance = sidecarInstanceMap.get(instance.nodeName());
         if (sidecarInstance == null)
@@ -946,12 +946,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         return nodeSettings.releaseVersion();
     }
 
-    protected void dialHome(@NotNull ClientConfig options)
+    protected void dialHome(@Nonnull ClientConfig options)
     {
         LOGGER.info("Dial home. clientConfig={}", options);
     }
 
-    protected void clearSnapshot(Set<SidecarInstance> clusterConfig, @NotNull ClientConfig options)
+    protected void clearSnapshot(Set<SidecarInstance> clusterConfig, @Nonnull ClientConfig options)
     {
         if (maybeQuotedKeyspace == null || maybeQuotedTable == null)
         {

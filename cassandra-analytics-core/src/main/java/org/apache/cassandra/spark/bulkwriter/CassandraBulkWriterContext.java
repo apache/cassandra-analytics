@@ -23,15 +23,15 @@ import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
 
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 // CHECKSTYLE IGNORE: This class cannot be declared as final, because consumers should be able to extend it
 public class CassandraBulkWriterContext extends AbstractBulkWriterContext
 {
     private static final long serialVersionUID = 8241993502687688783L;
 
-    protected CassandraBulkWriterContext(@NotNull BulkSparkConf conf,
-                                         @NotNull StructType structType,
+    protected CassandraBulkWriterContext(@Nonnull BulkSparkConf conf,
+                                         @Nonnull StructType structType,
                                          int sparkDefaultParallelism)
     {
         super(conf, structType, sparkDefaultParallelism);

@@ -35,13 +35,13 @@ import org.apache.cassandra.spark.validation.CassandraValidation;
 import org.apache.cassandra.spark.validation.SidecarValidation;
 import org.apache.cassandra.spark.validation.StartupValidatable;
 import org.apache.cassandra.spark.validation.StartupValidator;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class CassandraContext implements StartupValidatable, Closeable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraContext.class);
-    @NotNull
+    @Nonnull
     protected Set<SidecarInstance> clusterConfig;
     private final BulkSparkConf conf;
     private final String clusterId;

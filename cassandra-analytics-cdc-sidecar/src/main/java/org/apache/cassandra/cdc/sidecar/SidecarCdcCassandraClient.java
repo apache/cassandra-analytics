@@ -26,8 +26,8 @@ import java.util.stream.Stream;
 
 import com.datastax.driver.core.ResultSetFuture;
 import org.apache.cassandra.bridge.TokenRange;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Interface defining read and write operations to Cassandra used by the `SidecarStatePersister`
@@ -58,9 +58,9 @@ public interface SidecarCdcCassandraClient
      * @param timestamp timestamp to use in the write mutation
      * @return list of Cassandra client ResultSetFutures
      */
-    List<ResultSetFuture> storeStateAsync(@NotNull String jobId,
-                                          @NotNull TokenRange range,
-                                          @NotNull ByteBuffer buf,
+    List<ResultSetFuture> storeStateAsync(@Nonnull String jobId,
+                                          @Nonnull TokenRange range,
+                                          @Nonnull ByteBuffer buf,
                                           long timestamp);
 
     /**

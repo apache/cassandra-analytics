@@ -50,7 +50,7 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -210,9 +210,9 @@ public class SparkTestUtils
     }
 
     public void validateWrites(List<Row> sourceData,
-                               @NotNull Object[][] queriedData,
-                               @NotNull Function<Object[], String> columnsMapper,
-                               @NotNull Function<Row, String> rowMapper)
+                               @Nonnull Object[][] queriedData,
+                               @Nonnull Function<Object[], String> columnsMapper,
+                               @Nonnull Function<Row, String> rowMapper)
     {
         // build a set of entries read from Cassandra into a set
         Set<String> actualEntries = Arrays.stream(queriedData)

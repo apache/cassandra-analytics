@@ -32,7 +32,7 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * A {@link SecretsProvider} implementation based on the SSL configuration.
@@ -48,7 +48,7 @@ public class SslConfigSecretsProvider implements SecretsProvider
     }
 
     @Override
-    public void initialize(@NotNull Map<String, String> environmentOptions)
+    public void initialize(@Nonnull Map<String, String> environmentOptions)
     {
         // Do nothing
     }

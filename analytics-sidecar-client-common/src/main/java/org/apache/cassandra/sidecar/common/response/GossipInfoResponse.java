@@ -22,8 +22,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.sidecar.common.response.GossipInfoResponse.GossipField.DC;
 import static org.apache.cassandra.sidecar.common.response.GossipInfoResponse.GossipField.DISK_USAGE;
@@ -99,13 +99,13 @@ public class GossipInfoResponse extends HashMap<String, GossipInfoResponse.Gossi
             super.put(lowerCamelCasedKey, value);
         }
 
-        @NotNull
+        @Nonnull
         public String generation()
         {
             return read(this, GENERATION);
         }
 
-        @NotNull
+        @Nonnull
         public String heartbeat()
         {
             return read(this, HEARTBEAT);

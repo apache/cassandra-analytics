@@ -35,8 +35,8 @@ import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.utils.FastThreadLocalUtf8Decoder;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class SparkCellIterator extends CellIterator
 {
@@ -44,9 +44,9 @@ public class SparkCellIterator extends CellIterator
     private final SparkType[] sparkTypes;
 
     public SparkCellIterator(int partitionId,
-                             @NotNull DataLayer dataLayer,
+                             @Nonnull DataLayer dataLayer,
                              @Nullable StructType requiredSchema,
-                             @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+                             @Nonnull List<PartitionKeyFilter> partitionKeyFilters)
     {
         super(partitionId,
               dataLayer.cqlTable(),
@@ -65,7 +65,7 @@ public class SparkCellIterator extends CellIterator
     }
 
     @Nullable
-    static PruneColumnFilter buildColumnFilter(@Nullable StructType requiredSchema, @NotNull CqlTable cqlTable)
+    static PruneColumnFilter buildColumnFilter(@Nullable StructType requiredSchema, @Nonnull CqlTable cqlTable)
     {
         return requiredSchema != null
                ? new PruneColumnFilter(Arrays.stream(requiredSchema.fields())

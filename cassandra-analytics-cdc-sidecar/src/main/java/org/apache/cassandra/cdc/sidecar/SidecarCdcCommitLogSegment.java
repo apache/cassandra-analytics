@@ -30,7 +30,7 @@ import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * The SidecarCdcCommitLogSegment provides a CommitLog source for reading the

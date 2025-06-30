@@ -27,7 +27,7 @@ import org.apache.cassandra.cdc.Cdc;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.FutureUtils;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * SidecarCdc implementation that uses the Sidecar HTTP APIs to list and stream commit log segments.
@@ -36,7 +36,7 @@ public class SidecarCdc extends Cdc
 {
     protected final ClusterConfigProvider clusterConfigProvider;
 
-    protected SidecarCdc(@NotNull SidecarCdcBuilder builder)
+    protected SidecarCdc(@Nonnull SidecarCdcBuilder builder)
     {
         super(builder);
         this.clusterConfigProvider = builder.clusterConfigProvider;

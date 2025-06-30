@@ -20,11 +20,11 @@
 package org.apache.cassandra.spark.validation;
 
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class BulkWriterTrustStoreValidation extends TrustStoreValidation
 {
-    public BulkWriterTrustStoreValidation(@NotNull BulkSparkConf configuration)
+    public BulkWriterTrustStoreValidation(@Nonnull BulkSparkConf configuration)
     {
         super(
         configuration.hasTruststoreAndTruststorePassword(),

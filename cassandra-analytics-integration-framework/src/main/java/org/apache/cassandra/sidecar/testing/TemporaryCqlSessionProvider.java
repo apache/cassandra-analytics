@@ -35,7 +35,7 @@ import com.datastax.driver.core.exceptions.DriverInternalError;
 import com.datastax.driver.core.policies.ExponentialReconnectionPolicy;
 import com.datastax.driver.core.policies.ReconnectionPolicy;
 import org.apache.cassandra.sidecar.common.server.CQLSessionProvider;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * A CQL Session provider that always connects to and queries all hosts provided to it.

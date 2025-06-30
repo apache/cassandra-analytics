@@ -50,8 +50,8 @@ import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.apache.cassandra.spark.utils.FutureUtils;
 import org.apache.cassandra.spark.utils.Pair;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.cassandra.util.StatsUtil.reportTimeTaken;
@@ -71,11 +71,11 @@ public class CdcScannerBuilder
     final Map<CassandraInstance, CompletableFuture<List<CommitLogReader.Result>>> futures;
     @Nullable
     private final TokenRange tokenRange;
-    @NotNull
+    @Nonnull
     final CdcState startState;
     protected final int partitionId;
     private final long startTimeNanos;
-    @NotNull
+    @Nonnull
     private final AsyncExecutor executor;
     private final boolean readCommitLogHeader;
     private final long startTimestampMicroseconds;
@@ -85,10 +85,10 @@ public class CdcScannerBuilder
                              CdcOptions cdcOptions,
                              ICdcStats stats,
                              @Nullable TokenRange tokenRange,
-                             @NotNull CdcState startState,
-                             @NotNull AsyncExecutor executor,
+                             @Nonnull CdcState startState,
+                             @Nonnull AsyncExecutor executor,
                              boolean readCommitLogHeader,
-                             @NotNull Map<CassandraInstance, List<CommitLog>> logs,
+                             @Nonnull Map<CassandraInstance, List<CommitLog>> logs,
                              CassandraSource cassandraSource)
     {
         this.cdcBridge = cdcBridge;
@@ -131,9 +131,9 @@ public class CdcScannerBuilder
                            );
     }
 
-    private static boolean greaterThanOrEqualToStartMarker(@NotNull CommitLog log,
-                                                           @NotNull CommitLogMarkers markers,
-                                                           @NotNull ICdcStats stats,
+    private static boolean greaterThanOrEqualToStartMarker(@Nonnull CommitLog log,
+                                                           @Nonnull CommitLogMarkers markers,
+                                                           @Nonnull ICdcStats stats,
                                                            int partitionId)
     {
         Marker startMarker = markers.startMarker(log);
@@ -158,7 +158,7 @@ public class CdcScannerBuilder
     public static Stream<CommitLog> sortAndLimit(int partitionId,
                                                  Collection<CommitLog> logs,
                                                  int maxCommitLogsPerInstance,
-                                                 @NotNull CommitLogMarkers markers, ICdcStats stats)
+                                                 @Nonnull CommitLogMarkers markers, ICdcStats stats)
     {
         if (maxCommitLogsPerInstance > 0)
         {
@@ -171,10 +171,10 @@ public class CdcScannerBuilder
                    .limit(maxCommitLogsPerInstance <= 0 ? Long.MAX_VALUE : maxCommitLogsPerInstance);
     }
 
-    private CompletableFuture<List<CommitLogReader.Result>> openInstance(@NotNull List<CommitLog> logs,
+    private CompletableFuture<List<CommitLogReader.Result>> openInstance(@Nonnull List<CommitLog> logs,
                                                                          int maxCommitLogsPerInstance,
-                                                                         @NotNull CommitLogMarkers markers,
-                                                                         @NotNull AsyncExecutor executor)
+                                                                         @Nonnull CommitLogMarkers markers,
+                                                                         @Nonnull AsyncExecutor executor)
     {
         // read all commit logs on instance in ascending segmentId order and combine results into single future
         // if we fail to read any commit log on the instance we fail this instance
@@ -184,10 +184,10 @@ public class CdcScannerBuilder
     }
 
     private CompletableFuture<List<CommitLogReader.Result>> openLogs(int index,
-                                                                     @NotNull List<CommitLog> logs,
-                                                                     @NotNull CommitLogMarkers markers,
-                                                                     @NotNull AsyncExecutor executor,
-                                                                     @NotNull ImmutableList<CommitLogReader.Result> previous)
+                                                                     @Nonnull List<CommitLog> logs,
+                                                                     @Nonnull CommitLogMarkers markers,
+                                                                     @Nonnull AsyncExecutor executor,
+                                                                     @Nonnull ImmutableList<CommitLogReader.Result> previous)
     {
         if (index >= logs.size())
         {
@@ -229,9 +229,9 @@ public class CdcScannerBuilder
                });
     }
 
-    @NotNull
-    private CommitLogReader.Result openReader(@NotNull CommitLog log,
-                                              @NotNull CommitLogMarkers markers)
+    @Nonnull
+    private CommitLogReader.Result openReader(@Nonnull CommitLog log,
+                                              @Nonnull CommitLogMarkers markers)
     {
         LOGGER.debug("Opening BufferingCommitLogReader instance={} log={} high={} partitionId={}",
                      log.instance().nodeName(), log.name(), markers.startMarker(log), partitionId);
@@ -327,7 +327,7 @@ public class CdcScannerBuilder
      * @param endState resulting the cdc state to be persisted once this micro-batch completes successfully.
      * @return a CdcSortedStreamScanner
      */
-    public CdcStreamScanner buildStreamScanner(Collection<PartitionUpdateWrapper> updates, @NotNull CdcState endState)
+    public CdcStreamScanner buildStreamScanner(Collection<PartitionUpdateWrapper> updates, @Nonnull CdcState endState)
     {
         return cdcBridge.openCdcStreamScanner(updates, endState, ThreadLocalRandom.current(), cassandraSource, cdcOptions.samplingRate());
     }

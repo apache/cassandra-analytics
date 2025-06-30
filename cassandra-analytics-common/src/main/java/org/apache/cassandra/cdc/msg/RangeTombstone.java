@@ -22,7 +22,7 @@ package org.apache.cassandra.cdc.msg;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class RangeTombstone
 {
@@ -43,8 +43,8 @@ public class RangeTombstone
         this.endBound = null;
     }
 
-    public RangeTombstone(@NotNull List<Value> startBound, boolean startInclusive,
-                          @NotNull List<Value> endBound, boolean endInclusive)
+    public RangeTombstone(@Nonnull List<Value> startBound, boolean startInclusive,
+                          @Nonnull List<Value> endBound, boolean endInclusive)
     {
         this.startBound = new ArrayList<>(startBound);
         this.startInclusive = startInclusive;

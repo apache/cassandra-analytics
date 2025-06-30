@@ -32,8 +32,8 @@ import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
 import org.apache.cassandra.spark.utils.streaming.CassandraFile;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public abstract class Stats
 {
@@ -270,9 +270,9 @@ public abstract class Stats
      * @param lastToken           SSTable last token
      */
     public void skippedSSTable(@Nullable SparkRangeFilter sparkRangeFilter,
-                               @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                               @NotNull BigInteger firstToken,
-                               @NotNull BigInteger lastToken)
+                               @Nonnull List<PartitionKeyFilter> partitionKeyFilters,
+                               @Nonnull BigInteger firstToken,
+                               @Nonnull BigInteger lastToken)
     {
     }
 

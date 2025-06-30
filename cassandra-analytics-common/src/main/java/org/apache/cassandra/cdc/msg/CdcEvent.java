@@ -26,8 +26,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.cassandra.cdc.api.CassandraSource;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.spark.utils.ByteBufferUtils.toHexString;
 
@@ -122,7 +122,7 @@ public class CdcEvent
     /**
      * @return the partition keys. The returned list must not be null and empty.
      */
-    @NotNull
+    @Nonnull
     public List<Value> getPartitionKeys()
     {
         return partitionKeys;

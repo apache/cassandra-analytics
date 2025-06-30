@@ -28,7 +28,7 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.TokenRange;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public class KryoUtils
 {

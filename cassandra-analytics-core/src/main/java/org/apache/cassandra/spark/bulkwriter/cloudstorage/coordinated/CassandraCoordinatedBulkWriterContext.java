@@ -27,7 +27,7 @@ import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.DataTransport;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * BulkWriterContext for coordinated write
@@ -37,8 +37,8 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
 {
     private static final long serialVersionUID = -2296507634642008675L;
 
-    public CassandraCoordinatedBulkWriterContext(@NotNull BulkSparkConf conf,
-                                                 @NotNull StructType structType,
+    public CassandraCoordinatedBulkWriterContext(@Nonnull BulkSparkConf conf,
+                                                 @Nonnull StructType structType,
                                                  int sparkDefaultParallelism)
     {
         super(conf, structType, sparkDefaultParallelism);

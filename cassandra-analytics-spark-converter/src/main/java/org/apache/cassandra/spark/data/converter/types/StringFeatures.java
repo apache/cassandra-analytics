@@ -25,14 +25,14 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.unsafe.types.UTF8String;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.apache.cassandra.spark.data.CqlField.STRING_COMPARATOR;
 
 interface StringFeatures extends SparkType
 {
     @Override
-    default Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    default Object toSparkSqlType(@Nonnull Object value, boolean isFrozen)
     {
         return UTF8String.fromString(value.toString()); // UTF8String
     }

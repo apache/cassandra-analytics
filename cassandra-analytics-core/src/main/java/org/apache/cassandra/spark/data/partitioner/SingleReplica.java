@@ -40,7 +40,7 @@ import org.apache.cassandra.spark.reader.SparkSSTableReader;
 import org.apache.cassandra.spark.reader.common.SSTableStreamException;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Return a set of SSTables for a single Cassandra Instance
@@ -57,22 +57,22 @@ public class SingleReplica extends SSTablesSupplier
     private final Stats stats;
     private boolean isRepairPrimary;
 
-    public SingleReplica(@NotNull CassandraInstance instance,
-                         @NotNull PartitionedDataLayer dataLayer,
-                         @NotNull Range<BigInteger> range,
+    public SingleReplica(@Nonnull CassandraInstance instance,
+                         @Nonnull PartitionedDataLayer dataLayer,
+                         @Nonnull Range<BigInteger> range,
                          int partitionId,
-                         @NotNull ExecutorService executor,
+                         @Nonnull ExecutorService executor,
                          boolean isRepairPrimary)
     {
         this(instance, dataLayer, range, partitionId, executor, Stats.DoNothingStats.INSTANCE, isRepairPrimary);
     }
 
-    public SingleReplica(@NotNull CassandraInstance instance,
-                         @NotNull PartitionedDataLayer dataLayer,
-                         @NotNull Range<BigInteger> range,
+    public SingleReplica(@Nonnull CassandraInstance instance,
+                         @Nonnull PartitionedDataLayer dataLayer,
+                         @Nonnull Range<BigInteger> range,
                          int partitionId,
-                         @NotNull ExecutorService executor,
-                         @NotNull Stats stats,
+                         @Nonnull ExecutorService executor,
+                         @Nonnull Stats stats,
                          boolean isRepairPrimary)
     {
         this.dataLayer = dataLayer;
@@ -128,7 +128,7 @@ public class SingleReplica extends SSTablesSupplier
         }
     }
 
-    <T extends SparkSSTableReader> CompletableFuture<Set<T>> openReplicaAsync(@NotNull ReaderOpener<T> readerOpener)
+    <T extends SparkSSTableReader> CompletableFuture<Set<T>> openReplicaAsync(@Nonnull ReaderOpener<T> readerOpener)
     {
         // List SSTables and open SSTable readers
         try
@@ -151,8 +151,8 @@ public class SingleReplica extends SSTablesSupplier
         }
     }
 
-    private <T extends SparkSSTableReader> CompletableFuture<Set<T>> openAll(@NotNull Stream<SSTable> stream,
-                                                                             @NotNull ReaderOpener<T> readerOpener)
+    private <T extends SparkSSTableReader> CompletableFuture<Set<T>> openAll(@Nonnull Stream<SSTable> stream,
+                                                                             @Nonnull ReaderOpener<T> readerOpener)
     {
         Set<T> result = ConcurrentHashMap.newKeySet();
         CompletableFuture[] futures = stream
@@ -166,9 +166,9 @@ public class SingleReplica extends SSTablesSupplier
         return CompletableFuture.allOf(futures).thenApply(aVoid -> ImmutableSet.copyOf(result));
     }
 
-    private <T extends SparkSSTableReader> void openReader(@NotNull ReaderOpener<T> readerOpener,
-                                                           @NotNull SSTable ssTable,
-                                                           @NotNull Set<T> result)
+    private <T extends SparkSSTableReader> void openReader(@Nonnull ReaderOpener<T> readerOpener,
+                                                           @Nonnull SSTable ssTable,
+                                                           @Nonnull Set<T> result)
     {
         try
         {

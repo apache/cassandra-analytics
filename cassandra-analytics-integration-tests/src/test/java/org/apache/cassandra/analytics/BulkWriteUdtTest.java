@@ -32,7 +32,7 @@ import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
@@ -384,7 +384,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         return i;
     }
 
-    @NotNull
+    @Nonnull
     public static String udtRowFormatter(com.datastax.driver.core.Row row)
     {
         UDTValue udt = row.getUDTValue(1);
@@ -397,7 +397,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
                       .replace(']', '}');
     }
 
-    @NotNull
+    @Nonnull
     public static String listOfUdtRowFormatter(com.datastax.driver.core.Row row)
     {
         return row.getLong(0) +
@@ -412,7 +412,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
                   .replace(']', '}');
     }
 
-    @NotNull
+    @Nonnull
     public static String setOfUdtRowFormatter(com.datastax.driver.core.Row row)
     {
         // Formats as field:value with no whitespaces, and strings quoted
@@ -429,7 +429,7 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
                   .replace(']', '}');
     }
 
-    @NotNull
+    @Nonnull
     public static String mapOfUdtRowFormatter(com.datastax.driver.core.Row row)
     {
         // Formats as field:value with no whitespaces, and strings quoted

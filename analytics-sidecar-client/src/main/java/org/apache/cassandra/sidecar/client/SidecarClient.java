@@ -76,7 +76,7 @@ import org.apache.cassandra.sidecar.common.response.data.CreateRestoreJobRespons
 import org.apache.cassandra.sidecar.common.response.data.RestoreJobProgressResponsePayload;
 import org.apache.cassandra.sidecar.common.response.data.RestoreJobSummaryResponsePayload;
 import org.apache.cassandra.sidecar.common.utils.HttpRange;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * The SidecarClient class to perform requests

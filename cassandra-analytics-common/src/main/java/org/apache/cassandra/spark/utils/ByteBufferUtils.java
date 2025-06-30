@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import org.apache.cassandra.spark.data.CqlField;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public final class ByteBufferUtils
 {

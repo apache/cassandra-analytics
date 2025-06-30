@@ -38,7 +38,7 @@ import org.apache.cassandra.analytics.reader.common.RawInputStream;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.utils.ByteBufferUtil;
 import org.apache.cassandra.utils.ChecksumType;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public final class CompressedRawInputStream extends RawInputStream
 {

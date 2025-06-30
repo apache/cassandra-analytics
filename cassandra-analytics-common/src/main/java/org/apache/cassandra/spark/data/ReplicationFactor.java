@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Replication factor object, expected format:
@@ -104,12 +104,12 @@ public class ReplicationFactor implements Serializable
                                      ImmutableMap.of("replication_factor", rf));
     }
 
-    @NotNull
+    @Nonnull
     private final ReplicationStrategy replicationStrategy;
-    @NotNull
+    @Nonnull
     private final Map<String, Integer> options;
 
-    public ReplicationFactor(@NotNull Map<String, String> options)
+    public ReplicationFactor(@Nonnull Map<String, String> options)
     {
         this.replicationStrategy = ReplicationFactor.ReplicationStrategy.getEnum(options.get("class"));
         this.options = new LinkedHashMap<>(options.size());
@@ -131,7 +131,7 @@ public class ReplicationFactor implements Serializable
         }
     }
 
-    public ReplicationFactor(@NotNull ReplicationStrategy replicationStrategy, @NotNull Map<String, Integer> options)
+    public ReplicationFactor(@Nonnull ReplicationStrategy replicationStrategy, @Nonnull Map<String, Integer> options)
     {
         this.replicationStrategy = replicationStrategy;
         this.options = new LinkedHashMap<>(options.size());
@@ -158,13 +158,13 @@ public class ReplicationFactor implements Serializable
                       .sum();
     }
 
-    @NotNull
+    @Nonnull
     public Map<String, Integer> getOptions()
     {
         return options;
     }
 
-    @NotNull
+    @Nonnull
     public ReplicationStrategy getReplicationStrategy()
     {
         return replicationStrategy;

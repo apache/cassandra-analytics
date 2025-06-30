@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
 import org.apache.cassandra.spark.reader.SparkSSTableReader;
 import org.apache.cassandra.analytics.stats.Stats;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Return a set of SSTables for a token range, returning enough replica copies to satisfy consistency level
@@ -42,16 +42,16 @@ public class MultipleReplicas extends SSTablesSupplier
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(MultipleReplicas.class);
 
-    @NotNull
+    @Nonnull
     private final Set<SingleReplica> primaryReplicas;
-    @NotNull
+    @Nonnull
     private final Set<SingleReplica> backupReplicas;
-    @NotNull
+    @Nonnull
     private final Stats stats;
 
-    public MultipleReplicas(@NotNull Set<SingleReplica> primaryReplicas,
-                            @NotNull Set<SingleReplica> backupReplicas,
-                            @NotNull Stats stats)
+    public MultipleReplicas(@Nonnull Set<SingleReplica> primaryReplicas,
+                            @Nonnull Set<SingleReplica> backupReplicas,
+                            @Nonnull Stats stats)
     {
         this.primaryReplicas = ImmutableSet.copyOf(primaryReplicas);
         this.backupReplicas = ImmutableSet.copyOf(backupReplicas);
@@ -107,12 +107,12 @@ public class MultipleReplicas extends SSTablesSupplier
     }
 
     private <T extends SparkSSTableReader> void openReplicaOrRetry(
-            @NotNull SingleReplica replica,
-            @NotNull ReaderOpener<T> readerOpener,
-            @NotNull Set<T> result,
-            @NotNull AtomicInteger count,
-            @NotNull CountDownLatch latch,
-            @NotNull ConcurrentLinkedQueue<SingleReplica> otherReplicas)
+            @Nonnull SingleReplica replica,
+            @Nonnull ReaderOpener<T> readerOpener,
+            @Nonnull Set<T> result,
+            @Nonnull AtomicInteger count,
+            @Nonnull CountDownLatch latch,
+            @Nonnull ConcurrentLinkedQueue<SingleReplica> otherReplicas)
     {
         replica.openReplicaAsync(readerOpener)
                .whenComplete((readers, throwable) -> {

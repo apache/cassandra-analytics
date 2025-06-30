@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class ListType<T> extends CollectionType<T, ListType.CQLListEntry<T>>
 {
@@ -56,7 +56,7 @@ public class ListType<T> extends CollectionType<T, ListType.CQLListEntry<T>>
         public final T value;
 
         @Override
-        public int compareTo(@NotNull CQLListEntry that)
+        public int compareTo(@Nonnull CQLListEntry that)
         {
             return this.timeUUID.compareTo(that.timeUUID);
         }

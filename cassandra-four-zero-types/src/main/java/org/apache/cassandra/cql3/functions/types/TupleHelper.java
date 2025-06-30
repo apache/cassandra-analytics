@@ -24,7 +24,7 @@ import java.util.stream.Collectors;
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.data.complex.CqlTuple;
 import org.apache.cassandra.transport.ProtocolVersion;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Helper methods to access package-private Tuple methods
@@ -36,7 +36,7 @@ public final class TupleHelper
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    @NotNull
+    @Nonnull
     public static TupleType buildTupleType(CqlTuple tuple, boolean isFrozen)
     {
         return new TupleType(tuple.types().stream()
@@ -44,13 +44,13 @@ public final class TupleHelper
                 .collect(Collectors.toList()), ProtocolVersion.V3, CqlType.CODEC_REGISTRY);
     }
 
-    @NotNull
+    @Nonnull
     public static TupleValue buildTupleValue(CqlTuple tuple)
     {
         return buildTupleValue(tuple, false);
     }
 
-    @NotNull
+    @Nonnull
     public static TupleValue buildTupleValue(CqlTuple tuple, boolean isFrozen)
     {
         return new TupleValue(buildTupleType(tuple, isFrozen));

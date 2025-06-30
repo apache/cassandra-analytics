@@ -24,8 +24,8 @@ import java.util.Collections;
 import java.util.Map;
 
 import org.apache.cassandra.cdc.kafka.KafkaOptions;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public interface SidecarCdcOptions extends KafkaOptions
 {
@@ -47,7 +47,7 @@ public interface SidecarCdcOptions extends KafkaOptions
         return null;
     }
 
-    @NotNull
+    @Nonnull
     default TopicFormatType topicFormat()
     {
         return TopicFormatType.STATIC;

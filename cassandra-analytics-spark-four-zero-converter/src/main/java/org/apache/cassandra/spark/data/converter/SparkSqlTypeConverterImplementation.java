@@ -59,7 +59,7 @@ import org.apache.cassandra.spark.data.converter.types.complex.SparkUdt;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * SparkSqlTypeConverter implementation that maps Cassandra 4.0 types to SparkSQL data types.
@@ -136,7 +136,7 @@ public class SparkSqlTypeConverterImplementation implements SparkSqlTypeConverte
         return getOrThrow(cqlType);
     }
 
-    public Object convert(CqlField.CqlType cqlType, @NotNull Object value, boolean isFrozen)
+    public Object convert(CqlField.CqlType cqlType, @Nonnull Object value, boolean isFrozen)
     {
         return getOrThrow(cqlType).toSparkSqlType(value, isFrozen);
     }

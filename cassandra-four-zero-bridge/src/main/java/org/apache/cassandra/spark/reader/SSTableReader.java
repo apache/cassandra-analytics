@@ -85,8 +85,8 @@ import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.utils.ByteBufferUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @SuppressWarnings("unused")
 public class SSTableReader implements SparkSSTableReader, Scannable
@@ -94,55 +94,55 @@ public class SSTableReader implements SparkSSTableReader, Scannable
     private static final Logger LOGGER = LoggerFactory.getLogger(SSTableReader.class);
 
     private final TableMetadata metadata;
-    @NotNull
+    @Nonnull
     private final SSTable ssTable;
     private final StatsMetadata statsMetadata;
-    @NotNull
+    @Nonnull
     private final Version version;
-    @NotNull
+    @Nonnull
     private final DecoratedKey first;
-    @NotNull
+    @Nonnull
     private final DecoratedKey last;
-    @NotNull
+    @Nonnull
     private final BigInteger firstToken;
-    @NotNull
+    @Nonnull
     private final BigInteger lastToken;
     private final SerializationHeader header;
     private final DeserializationHelper helper;
-    @NotNull
+    @Nonnull
     private final AtomicReference<SSTableStreamReader> reader = new AtomicReference<>(null);
     @Nullable
     private final SparkRangeFilter sparkRangeFilter;
-    @NotNull
+    @Nonnull
     private final List<PartitionKeyFilter> partitionKeyFilters;
-    @NotNull
+    @Nonnull
     private final Stats stats;
     @Nullable
     private Long startOffset = null;
     private Long openedNanos = null;
-    @NotNull
+    @Nonnull
     private final Function<StatsMetadata, Boolean> isRepaired;
 
     public static class Builder
     {
-        @NotNull
+        @Nonnull
         final TableMetadata metadata;
-        @NotNull
+        @Nonnull
         final SSTable ssTable;
         @Nullable
         PruneColumnFilter columnFilter = null;
         boolean readIndexOffset = true;
-        @NotNull
+        @Nonnull
         Stats stats = Stats.DoNothingStats.INSTANCE;
         boolean useIncrementalRepair = true;
         boolean isRepairPrimary = false;
         Function<StatsMetadata, Boolean> isRepaired = stats -> stats.repairedAt != ActiveRepairService.UNREPAIRED_SSTABLE;
         @Nullable
         SparkRangeFilter sparkRangeFilter = null;
-        @NotNull
+        @Nonnull
         final List<PartitionKeyFilter> partitionKeyFilters = new ArrayList<>();
 
-        Builder(@NotNull TableMetadata metadata, @NotNull SSTable ssTable)
+        Builder(@Nonnull TableMetadata metadata, @Nonnull SSTable ssTable)
         {
             this.metadata = metadata;
             this.ssTable = ssTable;
@@ -163,7 +163,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             return this;
         }
 
-        public Builder withPartitionKeyFilter(@NotNull PartitionKeyFilter partitionKeyFilter)
+        public Builder withPartitionKeyFilter(@Nonnull PartitionKeyFilter partitionKeyFilter)
         {
             partitionKeyFilters.add(partitionKeyFilter);
             return this;
@@ -181,7 +181,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             return this;
         }
 
-        public Builder withStats(@NotNull Stats stats)
+        public Builder withStats(@Nonnull Stats stats)
         {
             this.stats = stats;
             return this;
@@ -220,22 +220,22 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         }
     }
 
-    public static Builder builder(@NotNull TableMetadata metadata, @NotNull SSTable ssTable)
+    public static Builder builder(@Nonnull TableMetadata metadata, @Nonnull SSTable ssTable)
     {
         return new Builder(metadata, ssTable);
     }
 
     // CHECKSTYLE IGNORE: Constructor with many parameters
-    public SSTableReader(@NotNull TableMetadata metadata,
-                         @NotNull SSTable ssTable,
+    public SSTableReader(@Nonnull TableMetadata metadata,
+                         @Nonnull SSTable ssTable,
                          @Nullable SparkRangeFilter sparkRangeFilter,
-                         @NotNull List<PartitionKeyFilter> partitionKeyFilters,
+                         @Nonnull List<PartitionKeyFilter> partitionKeyFilters,
                          @Nullable PruneColumnFilter columnFilter,
                          boolean readIndexOffset,
-                         @NotNull Stats stats,
+                         @Nonnull Stats stats,
                          boolean useIncrementalRepair,
                          boolean isRepairPrimary,
-                         @NotNull Function<StatsMetadata, Boolean> isRepaired) throws IOException
+                         @Nonnull Function<StatsMetadata, Boolean> isRepaired) throws IOException
     {
         long startTimeNanos = System.nanoTime();
         long now;
@@ -444,7 +444,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
      * @return the token range we care about for this Spark worker
      */
     public static Optional<TokenRange> extractRange(@Nullable SparkRangeFilter sparkRangeFilter,
-                                                    @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+                                                    @Nonnull List<PartitionKeyFilter> partitionKeyFilters)
     {
         Optional<TokenRange> partitionKeyRange = partitionKeyFilters.stream()
                                                                     .map(PartitionKeyFilter::tokenRange)
@@ -574,14 +574,14 @@ public class SSTableReader implements SparkSSTableReader, Scannable
     }
 
     @Override
-    @NotNull
+    @Nonnull
     public BigInteger firstToken()
     {
         return firstToken;
     }
 
     @Override
-    @NotNull
+    @Nonnull
     public BigInteger lastToken()
     {
         return lastToken;

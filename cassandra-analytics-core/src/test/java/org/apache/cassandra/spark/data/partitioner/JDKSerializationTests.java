@@ -50,7 +50,7 @@ import org.apache.cassandra.spark.data.VersionRunner;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -193,8 +193,8 @@ public class JDKSerializationTests extends VersionRunner
         }
 
         public CompletableFuture<Stream<SSTable>> listInstance(int partitionId,
-                                                               @NotNull Range<BigInteger> range,
-                                                               @NotNull CassandraInstance instance)
+                                                               @Nonnull Range<BigInteger> range,
+                                                               @Nonnull CassandraInstance instance)
         {
             return CompletableFuture.completedFuture(Stream.of());
         }

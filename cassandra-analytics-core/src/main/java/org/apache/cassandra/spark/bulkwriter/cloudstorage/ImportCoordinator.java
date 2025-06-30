@@ -20,7 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter.cloudstorage;
 
 import org.apache.cassandra.spark.exception.ImportFailedException;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * A coordinator conducts import.

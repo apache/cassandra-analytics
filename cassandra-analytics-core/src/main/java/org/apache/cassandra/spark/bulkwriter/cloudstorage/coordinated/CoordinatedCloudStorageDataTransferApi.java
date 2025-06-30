@@ -53,8 +53,8 @@ import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.exception.S3ApiCallException;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataTransferApi,
                                                                CoordinatedCloudStorageDataTransferApiExtension,
@@ -65,7 +65,7 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
     private final MultiClusterContainer<CloudStorageDataTransferApiImpl> dataTransferApis = new MultiClusterContainer<>();
     private final RateLimiter sidecarApiCallRateLimiter;
 
-    public CoordinatedCloudStorageDataTransferApi(@NotNull Map<String, CloudStorageDataTransferApiImpl> dataTransferApiByCluster)
+    public CoordinatedCloudStorageDataTransferApi(@Nonnull Map<String, CloudStorageDataTransferApiImpl> dataTransferApiByCluster)
     {
         // todo: expose rate limiter as configurable when needed
         this(RateLimiter.create(1), dataTransferApiByCluster);
@@ -73,7 +73,7 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
 
     @VisibleForTesting
     public CoordinatedCloudStorageDataTransferApi(RateLimiter sidecarApiCallRateLimiter,
-                                                  @NotNull Map<String, CloudStorageDataTransferApiImpl> dataTransferApiByCluster)
+                                                  @Nonnull Map<String, CloudStorageDataTransferApiImpl> dataTransferApiByCluster)
     {
         Preconditions.checkArgument(!dataTransferApiByCluster.isEmpty(), "dataTransferApiByCluster cannot be empty");
         this.dataTransferApis.addAll(dataTransferApiByCluster);
@@ -136,7 +136,7 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
 
     @Nullable
     @Override
-    public CloudStorageDataTransferApiImpl getValueOrNull(@NotNull String clusterId)
+    public CloudStorageDataTransferApiImpl getValueOrNull(@Nonnull String clusterId)
     {
         return dataTransferApis.getValueOrNull(clusterId);
     }

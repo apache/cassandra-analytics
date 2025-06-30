@@ -22,21 +22,21 @@ package org.apache.cassandra.spark.sparksql;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 @SuppressWarnings("unused")
 public class LocalDataSource extends CassandraTableProvider
 {
     @Override
-    @NotNull
+    @Nonnull
     public String shortName()
     {
         return "localsstabledatasource";
     }
 
     @Override
-    @NotNull
-    public DataLayer getDataLayer(@NotNull CaseInsensitiveStringMap options)
+    @Nonnull
+    public DataLayer getDataLayer(@Nonnull CaseInsensitiveStringMap options)
     {
         return LocalDataLayer.from(options);
     }

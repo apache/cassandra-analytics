@@ -58,8 +58,8 @@ import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.utils.JVMStabilityInspector;
 import org.apache.cassandra.utils.TokenUtils;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.utils.FBUtilities.updateChecksumInt;
 
@@ -86,14 +86,14 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
     private final ICdcStats stats;
     private final long segmentId;
     private final int messagingVersion;
-    @NotNull
+    @Nonnull
     private final Marker startMarker;
     private final LoggerHelper logger;
     @Nullable
     private final AsyncExecutor executor;
     @Nullable
     private final Consumer<Marker> listener;
-    @NotNull
+    @Nonnull
     private final CommitLogMarkers markers;
     @Nullable
     private final Long startTimestampMicros;
@@ -106,19 +106,19 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
     private boolean skipped = false;
 
     @VisibleForTesting
-    public BufferingCommitLogReader(@NotNull CommitLog log,
+    public BufferingCommitLogReader(@Nonnull CommitLog log,
                                     @Nullable Marker startMarker,
-                                    @NotNull ICdcStats stats,
+                                    @Nonnull ICdcStats stats,
                                     @Nullable Consumer<Marker> listener)
     {
         this(log, null, CommitLogMarkers.of(startMarker), 0, stats, null, listener, null, false);
     }
 
-    public BufferingCommitLogReader(@NotNull CommitLog log,
+    public BufferingCommitLogReader(@Nonnull CommitLog log,
                                     @Nullable TokenRange tokenRange,
-                                    @NotNull CommitLogMarkers markers,
+                                    @Nonnull CommitLogMarkers markers,
                                     int partitionId,
-                                    @NotNull ICdcStats stats,
+                                    @Nonnull ICdcStats stats,
                                     @Nullable AsyncExecutor executor,
                                     @Nullable Consumer<Marker> listener,
                                     @Nullable Long startTimestampMicros,
@@ -606,7 +606,7 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
         }
     }
 
-    public int compareTo(@NotNull BufferingCommitLogReader o)
+    public int compareTo(@Nonnull BufferingCommitLogReader o)
     {
         return Long.compare(segmentId, o.segmentId);
     }

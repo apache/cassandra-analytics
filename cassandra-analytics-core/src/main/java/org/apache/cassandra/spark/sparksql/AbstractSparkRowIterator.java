@@ -31,8 +31,8 @@ import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Wrapper iterator around SparkCellIterator to normalize cells into Spark SQL rows
@@ -42,9 +42,9 @@ import org.jetbrains.annotations.Nullable;
 abstract class AbstractSparkRowIterator<T> extends RowIterator<T>
 {
     AbstractSparkRowIterator(int partitionId,
-                             @NotNull DataLayer dataLayer,
+                             @Nonnull DataLayer dataLayer,
                              @Nullable StructType requiredSchema,
-                             @NotNull List<PartitionKeyFilter> partitionKeyFilters,
+                             @Nonnull List<PartitionKeyFilter> partitionKeyFilters,
                              Function<RowBuilder<T>, RowBuilder<T>> decorator)
     {
         super(
@@ -58,8 +58,8 @@ abstract class AbstractSparkRowIterator<T> extends RowIterator<T>
     protected static CellIterator buildCellIterator(int partitionId,
                                                     CqlTable cqlTable,
                                                     @Nullable StructType requiredSchema,
-                                                    @NotNull DataLayer dataLayer,
-                                                    @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+                                                    @Nonnull DataLayer dataLayer,
+                                                    @Nonnull List<PartitionKeyFilter> partitionKeyFilters)
     {
         StructType columnFilter = useColumnFilter(requiredSchema, cqlTable) ? requiredSchema : null;
         return new SparkCellIterator(partitionId, dataLayer, columnFilter, partitionKeyFilters);

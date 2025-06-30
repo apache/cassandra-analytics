@@ -24,7 +24,7 @@ import java.util.Objects;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Holds relevant information to access the bucket in the region
@@ -35,7 +35,7 @@ public class StorageAccessConfiguration
     private final String bucket;
     private final StorageCredentials storageCredentials;
 
-    public StorageAccessConfiguration(@NotNull String region, @NotNull String bucket, @NotNull StorageCredentials storageCredentials)
+    public StorageAccessConfiguration(@Nonnull String region, @Nonnull String bucket, @Nonnull StorageCredentials storageCredentials)
     {
         this.region = region;
         this.bucket = bucket;
@@ -47,7 +47,7 @@ public class StorageAccessConfiguration
      * @param newCredentials credentials to update
      * @return new instance
      */
-    public StorageAccessConfiguration copyWithNewCredentials(@NotNull StorageCredentials newCredentials)
+    public StorageAccessConfiguration copyWithNewCredentials(@Nonnull StorageCredentials newCredentials)
     {
         return new StorageAccessConfiguration(this.region, this.bucket, newCredentials);
     }

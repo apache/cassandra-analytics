@@ -20,11 +20,11 @@
 package org.apache.cassandra.spark.validation;
 
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class BulkWriterKeyStoreValidation extends KeyStoreValidation
 {
-    public BulkWriterKeyStoreValidation(@NotNull BulkSparkConf configuration)
+    public BulkWriterKeyStoreValidation(@Nonnull BulkSparkConf configuration)
     {
         super(
         configuration.hasKeystoreAndKeystorePassword(),

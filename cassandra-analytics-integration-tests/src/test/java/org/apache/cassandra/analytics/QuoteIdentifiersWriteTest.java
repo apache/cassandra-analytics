@@ -32,7 +32,7 @@ import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.apache.cassandra.analytics.DataGenerationUtils.generateCourseData;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
@@ -99,7 +99,7 @@ class QuoteIdentifiersWriteTest extends SharedClusterSparkIntegrationTestBase
                row.getInt("limit");
     }
 
-    @NotNull
+    @Nonnull
     private static String rowWithUdtFormatter(com.datastax.driver.core.Row row)
     {
         return row.getInt("IdEnTiFiEr") +

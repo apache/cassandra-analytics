@@ -33,7 +33,7 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.Coordinate
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.spark.SparkConf;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.DEFAULT_SIDECAR_PORT;
 import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.MINIMUM_JOB_KEEP_ALIVE_MINUTES;
@@ -92,7 +92,7 @@ class BulkSparkConfTest
         BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, defaultOptions)
         {
             @Override
-            @NotNull
+            @Nonnull
             protected List<String> getDeprecatedSettingPrefixes()
             {
                 return ImmutableList.of("qwerty.", "asdfgh.", "zxcvbn.");

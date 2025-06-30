@@ -41,7 +41,7 @@ import org.apache.avro.generic.GenericFixed;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.util.Utf8;
 import org.apache.cassandra.spark.utils.Preconditions;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -69,7 +69,7 @@ public interface TypeConversion<T>
      * @param fieldValue  value in the source type. The value cannot be null.
      * @return the converted value
      */
-    T convert(Schema fieldSchema, @NotNull Object fieldValue);
+    T convert(Schema fieldSchema, @Nonnull Object fieldValue);
 
     /**
      * Registry for {@link TypeConversion} to perform register and lookup
@@ -184,7 +184,7 @@ public interface TypeConversion<T>
         }
 
         @Override
-        public UUID convert(Schema fieldSchema, @NotNull Object fieldValue)
+        public UUID convert(Schema fieldSchema, @Nonnull Object fieldValue)
         {
             String uuidStr;
             if (fieldValue instanceof Utf8)
@@ -220,7 +220,7 @@ public interface TypeConversion<T>
         }
 
         @Override
-        public LocalDate convert(Schema fieldSchema, @NotNull Object fieldValue)
+        public LocalDate convert(Schema fieldSchema, @Nonnull Object fieldValue)
         {
             TypeConversion.ensureInputValueType(getClass().getSimpleName(), fieldValue, Integer.class);
             Integer dateValue = (Integer) fieldValue;
@@ -239,7 +239,7 @@ public interface TypeConversion<T>
         }
 
         @Override
-        public InetAddress convert(Schema fieldSchema, @NotNull Object fieldValue)
+        public InetAddress convert(Schema fieldSchema, @Nonnull Object fieldValue)
         {
             TypeConversion.ensureInputValueType(getClass().getSimpleName(), fieldValue, ByteBuffer.class);
 
@@ -293,7 +293,7 @@ public interface TypeConversion<T>
         }
 
         @Override
-        public BigInteger convert(Schema fieldSchema, @NotNull Object fieldValue)
+        public BigInteger convert(Schema fieldSchema, @Nonnull Object fieldValue)
         {
             int scale = ((LogicalTypes.Decimal) fieldSchema.getLogicalType()).getScale();
             Preconditions.checkState(scale == 0, "Not a valid varint type");
@@ -315,7 +315,7 @@ public interface TypeConversion<T>
         }
 
         @Override
-        public BigDecimal convert(Schema fieldSchema, @NotNull Object fieldValue)
+        public BigDecimal convert(Schema fieldSchema, @Nonnull Object fieldValue)
         {
             TypeConversion.ensureInputValueType(getClass().getSimpleName(), fieldValue, GenericFixed.class);
 
@@ -339,7 +339,7 @@ public interface TypeConversion<T>
         }
 
         @Override
-        public Date convert(Schema fieldSchema, @NotNull Object fieldValue)
+        public Date convert(Schema fieldSchema, @Nonnull Object fieldValue)
         {
             TypeConversion.ensureInputValueType(getClass().getSimpleName(), fieldValue, Long.class);
             Long epochTimeInMicros = (Long) fieldValue;
@@ -364,7 +364,7 @@ public interface TypeConversion<T>
         }
 
         @Override
-        public Set<?> convert(Schema fieldSchema, @NotNull Object fieldValue)
+        public Set<?> convert(Schema fieldSchema, @Nonnull Object fieldValue)
         {
             TypeConversion.ensureInputValueType(getClass().getSimpleName(), fieldValue, List.class);
             return ((List<?>) fieldValue).stream()
@@ -391,7 +391,7 @@ public interface TypeConversion<T>
         }
 
         @Override
-        public Map<?, ?> convert(Schema fieldSchema, @NotNull Object fieldValue)
+        public Map<?, ?> convert(Schema fieldSchema, @Nonnull Object fieldValue)
         {
             TypeConversion.ensureInputValueType(getClass().getSimpleName(), fieldValue, List.class);
 
@@ -440,7 +440,7 @@ public interface TypeConversion<T>
         }
 
         @Override
-        public Map<?, ?> convert(Schema fieldSchema, @NotNull Object fieldValue)
+        public Map<?, ?> convert(Schema fieldSchema, @Nonnull Object fieldValue)
         {
             TypeConversion.ensureInputValueType(getClass().getSimpleName(), fieldValue, GenericRecord.class);
 
@@ -476,7 +476,7 @@ public interface TypeConversion<T>
         }
 
         @Override
-        public List<?> convert(Schema fieldSchema, @NotNull Object fieldValue)
+        public List<?> convert(Schema fieldSchema, @Nonnull Object fieldValue)
         {
             TypeConversion.ensureInputValueType(getClass().getSimpleName(), fieldValue, List.class);
 

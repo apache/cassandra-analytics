@@ -50,7 +50,7 @@ import org.apache.cassandra.spark.utils.IOUtils;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.cdc.CdcTests.CDC_BRIDGE;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

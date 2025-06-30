@@ -26,7 +26,7 @@ import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * This interface and the inheriting classes define the Spark equivalents to the Cassandra CQL data types.
@@ -54,7 +54,7 @@ public interface SparkType extends Comparator<Object>
      * @param isFrozen true if the type is frozen.
      * @return the value mapped to the Spark equivalent data type.
      */
-    default Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    default Object toSparkSqlType(@Nonnull Object value, boolean isFrozen)
     {
         // All other non-overridden data types work as ordinary Java data types
         return value;

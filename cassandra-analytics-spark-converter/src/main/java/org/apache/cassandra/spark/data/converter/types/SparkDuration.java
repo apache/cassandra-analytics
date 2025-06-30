@@ -29,7 +29,7 @@ import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.unsafe.types.CalendarInterval;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class SparkDuration implements SparkType
 {
@@ -56,7 +56,7 @@ public class SparkDuration implements SparkType
     }
 
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@Nonnull Object value, boolean isFrozen)
     {
         InternalDuration duration = (InternalDuration) value;
         return SparkTypeUtils.convertDuration(duration);

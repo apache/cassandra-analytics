@@ -22,7 +22,7 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * A selection policy for a single Cassandra Sidecar instance
@@ -45,7 +45,7 @@ public class SingleInstanceSelectionPolicy implements InstanceSelectionPolicy
      * {@inheritDoc}
      */
     @Override
-    @NotNull
+    @Nonnull
     public Iterator<SidecarInstance> iterator()
     {
         return new Iterator<SidecarInstance>()

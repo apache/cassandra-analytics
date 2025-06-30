@@ -26,7 +26,7 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * An instance selection policy that returns instances in random order, and does not necessarily return the instances
@@ -51,7 +51,7 @@ public class RandomInstanceSelectionPolicy extends OrderedInstanceSelectionPolic
      * @return an iterator of {@link SidecarInstance instances} in random order
      */
     @Override
-    @NotNull
+    @Nonnull
     public Iterator<SidecarInstance> iterator()
     {
         List<SidecarInstance> instances = new ArrayList<>(instancesProvider.instances());

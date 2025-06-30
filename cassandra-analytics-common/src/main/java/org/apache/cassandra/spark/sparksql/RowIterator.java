@@ -27,8 +27,8 @@ import java.util.function.Function;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Wrapper iterator around CellIterator to normalize cells into Spark SQL rows
@@ -107,7 +107,7 @@ public abstract class RowIterator<T>
         };
     }
 
-    @NotNull
+    @Nonnull
     protected RowBuilder<T> newBuilder(Function<RowBuilder<T>, RowBuilder<T>> decorator)
     {
         RowBuilder<T> builder;

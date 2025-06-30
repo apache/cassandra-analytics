@@ -30,7 +30,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.validation.constraints.NotNull;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.AfterAll;
@@ -46,6 +45,8 @@ import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 
+import javax.annotation.Nonnull;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -60,7 +61,7 @@ public class SortedSSTableWriterTest
                      .collect(Collectors.toList());
     }
 
-    @NotNull
+    @Nonnull
     private final TokenRangeMapping<RingInstance> tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), 12);
 
     @BeforeAll

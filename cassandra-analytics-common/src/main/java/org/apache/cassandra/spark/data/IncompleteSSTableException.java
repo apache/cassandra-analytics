@@ -22,7 +22,7 @@ package org.apache.cassandra.spark.data;
 import java.util.Arrays;
 
 import org.apache.cassandra.spark.reader.common.SSTableStreamException;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * Thrown when a snapshot of SSTables is incomplete so cannot be used

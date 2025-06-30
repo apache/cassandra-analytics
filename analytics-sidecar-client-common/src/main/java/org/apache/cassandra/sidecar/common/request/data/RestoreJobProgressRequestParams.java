@@ -19,7 +19,7 @@ package org.apache.cassandra.sidecar.common.request.data;
 import java.util.UUID;
 
 import org.apache.cassandra.sidecar.common.data.RestoreJobProgressFetchPolicy;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Parameters to fetch the restore job progress
@@ -31,17 +31,17 @@ public class RestoreJobProgressRequestParams
     public final UUID jobId;
     public final RestoreJobProgressFetchPolicy fetchPolicy;
 
-    public RestoreJobProgressRequestParams(@NotNull String keyspace,
-                                           @NotNull String table,
-                                           @NotNull UUID jobId)
+    public RestoreJobProgressRequestParams(@Nonnull String keyspace,
+                                           @Nonnull String table,
+                                           @Nonnull UUID jobId)
     {
         this(keyspace, table, jobId, RestoreJobProgressFetchPolicy.FIRST_FAILED);
     }
 
-    public RestoreJobProgressRequestParams(@NotNull String keyspace,
-                                           @NotNull String table,
-                                           @NotNull UUID jobId,
-                                           @NotNull RestoreJobProgressFetchPolicy fetchPolicy)
+    public RestoreJobProgressRequestParams(@Nonnull String keyspace,
+                                           @Nonnull String table,
+                                           @Nonnull UUID jobId,
+                                           @Nonnull RestoreJobProgressFetchPolicy fetchPolicy)
     {
         this.keyspace = keyspace;
         this.table = table;

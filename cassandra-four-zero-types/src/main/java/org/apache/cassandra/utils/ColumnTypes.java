@@ -31,7 +31,7 @@ import org.apache.cassandra.db.marshal.CompositeType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.CqlType;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class ColumnTypes
 {
@@ -40,7 +40,7 @@ public class ColumnTypes
 
     }
 
-    public static ByteBuffer buildPartitionKey(@NotNull CqlTable table, @NotNull List<String> keys)
+    public static ByteBuffer buildPartitionKey(@Nonnull CqlTable table, @Nonnull List<String> keys)
     {
         List<AbstractType<?>> partitionKeyColumnTypes = partitionKeyColumnTypes(table);
         if (table.partitionKeys().size() == 1)
@@ -61,7 +61,7 @@ public class ColumnTypes
     }
 
     @VisibleForTesting
-    public static List<AbstractType<?>> partitionKeyColumnTypes(@NotNull CqlTable table)
+    public static List<AbstractType<?>> partitionKeyColumnTypes(@Nonnull CqlTable table)
     {
         return table.partitionKeys().stream()
                     .map(CqlField::type)

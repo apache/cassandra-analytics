@@ -30,7 +30,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class MockScheduledExecutorService extends ScheduledThreadPoolExecutor
 {
@@ -45,12 +45,12 @@ public class MockScheduledExecutorService extends ScheduledThreadPoolExecutor
         super(0);
     }
 
-    @NotNull
+    @Nonnull
     @Override
-    public ScheduledFuture<?> scheduleWithFixedDelay(@NotNull Runnable command,
+    public ScheduledFuture<?> scheduleWithFixedDelay(@Nonnull Runnable command,
                                                      long initialDelay,
                                                      long period,
-                                                     @NotNull TimeUnit unit)
+                                                     @Nonnull TimeUnit unit)
     {
         this.period = period;
         this.timeUnit = unit;
@@ -66,16 +66,16 @@ public class MockScheduledExecutorService extends ScheduledThreadPoolExecutor
         return future;
     }
 
-    @NotNull
+    @Nonnull
     @Override
-    public <T> Future<T> submit(@NotNull Callable<T> task)
+    public <T> Future<T> submit(@Nonnull Callable<T> task)
     {
         MockScheduledFuture<T> future = new MockScheduledFuture<>(task);
         futures.add(future);
         return future;
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public List<Runnable> shutdownNow()
     {
@@ -133,13 +133,13 @@ public class MockScheduledExecutorService extends ScheduledThreadPoolExecutor
         }
 
         @Override
-        public long getDelay(@NotNull TimeUnit unit)
+        public long getDelay(@Nonnull TimeUnit unit)
         {
             return 0;
         }
 
         @Override
-        public int compareTo(@NotNull Delayed that)
+        public int compareTo(@Nonnull Delayed that)
         {
             return 0;
         }
@@ -178,7 +178,7 @@ public class MockScheduledExecutorService extends ScheduledThreadPoolExecutor
 
         @Override
         public V get(long timeout,
-                     @NotNull TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException
+                     @Nonnull TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException
         {
             getCalled = true;
             return null;

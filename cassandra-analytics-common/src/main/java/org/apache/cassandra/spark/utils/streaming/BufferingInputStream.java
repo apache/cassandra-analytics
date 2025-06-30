@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * The InputStream into the CompactionIterator needs to be a blocking {@link java.io.InputStream},
@@ -258,7 +258,7 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
     }
 
     @Override
-    public void onError(@NotNull Throwable throwable)
+    public void onError(@Nonnull Throwable throwable)
     {
         this.throwable = ThrowableUtils.rootCause(throwable);
         activeRequest = false;

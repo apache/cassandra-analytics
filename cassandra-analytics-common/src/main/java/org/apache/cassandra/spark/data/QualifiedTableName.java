@@ -19,16 +19,16 @@ package org.apache.cassandra.spark.data;
 
 import java.util.Objects;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Contains the keyspace and table name in Cassandra
  */
 public class QualifiedTableName
 {
-    @NotNull
+    @Nonnull
     private final String keyspace;
-    @NotNull
+    @Nonnull
     private final String table;
     private final boolean quoteIdentifiers;
 

@@ -22,7 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.nio.file.Path;
 
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class NonValidatingTestSortedSSTableWriter extends SortedSSTableWriter
 {
@@ -32,7 +32,7 @@ public class NonValidatingTestSortedSSTableWriter extends SortedSSTableWriter
     }
 
     @Override
-    public void validateSSTables(@NotNull BulkWriterContext writerContext)
+    public void validateSSTables(@Nonnull BulkWriterContext writerContext)
     {
         // Skip validation for these tests
     }

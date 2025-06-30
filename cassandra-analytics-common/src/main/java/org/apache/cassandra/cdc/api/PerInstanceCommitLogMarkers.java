@@ -32,7 +32,7 @@ import java.util.stream.Stream;
 import com.google.common.collect.ImmutableMap;
 
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Stores CommitLog markers per CassandraInstance, taking the minimum marker when there are duplicates.
@@ -54,7 +54,7 @@ public class PerInstanceCommitLogMarkers implements CommitLogMarkers
         this.markers = ImmutableMap.copyOf(markers);
     }
 
-    @NotNull
+    @Nonnull
     public Marker startMarker(CassandraInstance instance)
     {
         return Optional.ofNullable(markers.get(instance))

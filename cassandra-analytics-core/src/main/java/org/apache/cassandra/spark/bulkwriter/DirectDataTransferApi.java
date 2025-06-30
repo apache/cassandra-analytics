@@ -25,7 +25,7 @@ import java.util.List;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 public interface DirectDataTransferApi
 {

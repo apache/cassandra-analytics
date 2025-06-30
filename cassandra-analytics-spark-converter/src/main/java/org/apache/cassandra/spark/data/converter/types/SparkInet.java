@@ -22,7 +22,7 @@ package org.apache.cassandra.spark.data.converter.types;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class SparkInet implements BinaryFeatures
 {
@@ -34,7 +34,7 @@ public class SparkInet implements BinaryFeatures
     }
 
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@Nonnull Object value, boolean isFrozen)
     {
         return ((InetAddress) value).getAddress(); // byte[]
     }

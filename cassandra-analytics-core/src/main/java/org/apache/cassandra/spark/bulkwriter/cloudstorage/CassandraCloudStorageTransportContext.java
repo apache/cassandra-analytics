@@ -40,29 +40,29 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.Coordinate
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class CassandraCloudStorageTransportContext implements TransportContext.CloudStorageTransportContext
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraCloudStorageTransportContext.class);
 
-    @NotNull
+    @Nonnull
     private final StorageTransportExtension storageTransportExtension;
-    @NotNull
+    @Nonnull
     private final StorageTransportConfiguration storageTransportConfiguration;
-    @NotNull
+    @Nonnull
     private final CloudStorageDataTransferApi dataTransferApi;
-    @NotNull
+    @Nonnull
     private final BulkSparkConf conf;
-    @NotNull
+    @Nonnull
     private final JobInfo jobInfo;
-    @NotNull
+    @Nonnull
     private final ClusterInfo clusterInfo;
-    @NotNull
+    @Nonnull
     private final StorageClient storageClient;
 
-    public CassandraCloudStorageTransportContext(@NotNull BulkWriterContext bulkWriterContext,
-                                                 @NotNull BulkSparkConf conf,
+    public CassandraCloudStorageTransportContext(@Nonnull BulkWriterContext bulkWriterContext,
+                                                 @Nonnull BulkSparkConf conf,
                                                  boolean isOnDriver)
     {
         // we may not always need a transport extension implementation in cloud based transport context, revisit this
@@ -102,7 +102,7 @@ public class CassandraCloudStorageTransportContext implements TransportContext.C
         return dataTransferApi;
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public StorageTransportConfiguration transportConfiguration()
     {
@@ -114,7 +114,7 @@ public class CassandraCloudStorageTransportContext implements TransportContext.C
      *
      * @return StorageTransportExtension instance
      */
-    @NotNull
+    @Nonnull
     @Override
     public StorageTransportExtension transportExtensionImplementation()
     {

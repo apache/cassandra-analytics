@@ -24,8 +24,8 @@ import java.io.Serializable;
 import java.util.Objects;
 
 import org.apache.cassandra.spark.utils.streaming.CassandraFile;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Abstract class representing a single SSTable.
@@ -72,7 +72,7 @@ public abstract class SSTable implements Serializable, CassandraFile
         return openInputStream(FileType.FILTER);
     }
 
-    @NotNull
+    @Nonnull
     public InputStream openDataStream()
     {
         return Objects.requireNonNull(openInputStream(FileType.DATA), "Data.db SSTable file component must exist");

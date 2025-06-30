@@ -45,8 +45,8 @@ import org.apache.cassandra.cdc.state.CdcState;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.util.CompressionUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * SidecarStatePersister buffers CDC state and flushes at regular time intervals, so we only write the latest CDC state and don't wastefully write expired data.
@@ -82,7 +82,7 @@ public class SidecarStatePersister implements StatePersister
     // StatePersister implemented methods
 
     @Override
-    public void persist(String jobId, int partitionId, @Nullable TokenRange tokenRange, @NotNull ByteBuffer buf)
+    public void persist(String jobId, int partitionId, @Nullable TokenRange tokenRange, @Nonnull ByteBuffer buf)
     {
         PersistWrapper latest = new PersistWrapper(jobId, partitionId, tokenRange, buf, timestampGenerator.next());
         PersistWrapper.Key key = latest.key();
@@ -92,7 +92,7 @@ public class SidecarStatePersister implements StatePersister
         }
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public List<CdcState> loadState(String jobId, int partitionId, @Nullable TokenRange tokenRange)
     {
@@ -219,7 +219,7 @@ public class SidecarStatePersister implements StatePersister
     }
 
     @Nullable
-    protected TimedFutureWrapper persistToCassandra(@NotNull PersistWrapper state)
+    protected TimedFutureWrapper persistToCassandra(@Nonnull PersistWrapper state)
     {
         TokenRange range = state.tokenRange();
         if (range == null)
@@ -362,7 +362,7 @@ public class SidecarStatePersister implements StatePersister
         }
 
         @Override
-        public int compareTo(@NotNull PersistWrapper o)
+        public int compareTo(@Nonnull PersistWrapper o)
         {
             return Long.compare(this.timestamp, o.timestamp);
         }

@@ -43,8 +43,8 @@ import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.utils.BloomFilter;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * Basic cache to reduce wasteful requests on the DataLayer for cacheable SSTable metadata,
@@ -110,32 +110,32 @@ public class SSTableCache
                            .build();
     }
 
-    public SummaryDbUtils.Summary keysFromSummary(@NotNull TableMetadata metadata,
-                                                  @NotNull SSTable ssTable) throws IOException
+    public SummaryDbUtils.Summary keysFromSummary(@Nonnull TableMetadata metadata,
+                                                  @Nonnull SSTable ssTable) throws IOException
     {
         return get(summary, ssTable, () -> SummaryDbUtils.readSummary(metadata, ssTable));
     }
 
     @Nullable
-    public Pair<DecoratedKey, DecoratedKey> keysFromIndex(@NotNull TableMetadata metadata,
-                                                          @NotNull SSTable ssTable) throws IOException
+    public Pair<DecoratedKey, DecoratedKey> keysFromIndex(@Nonnull TableMetadata metadata,
+                                                          @Nonnull SSTable ssTable) throws IOException
     {
         return get(index, ssTable, () -> ReaderUtils.keysFromIndex(metadata, ssTable));
     }
 
-    public Map<MetadataType, MetadataComponent> componentMapFromStats(@NotNull SSTable ssTable,
+    public Map<MetadataType, MetadataComponent> componentMapFromStats(@Nonnull SSTable ssTable,
                                                                       Descriptor descriptor) throws IOException
     {
         return get(stats, ssTable, () -> ReaderUtils.deserializeStatsMetadata(ssTable, descriptor));
     }
 
-    public BloomFilter bloomFilter(@NotNull SSTable ssTable, Descriptor descriptor) throws IOException
+    public BloomFilter bloomFilter(@Nonnull SSTable ssTable, Descriptor descriptor) throws IOException
     {
         return get(filter, ssTable, () -> ReaderUtils.readFilter(ssTable, descriptor.version.hasOldBfFormat()));
     }
 
     @Nullable
-    public CompressionMetadata compressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
+    public CompressionMetadata compressionMetadata(@Nonnull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
     {
         if (propOrDefault("sbr.cache.compressionInfo.enabled", true))
         {
@@ -148,7 +148,7 @@ public class SSTableCache
         return readCompressionMetadata(ssTable, hasMaxCompressedLength).orElse(null);
     }
 
-    private static Optional<CompressionMetadata> readCompressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
+    private static Optional<CompressionMetadata> readCompressionMetadata(@Nonnull SSTable ssTable, boolean hasMaxCompressedLength) throws IOException
     {
         try (InputStream cis = ssTable.openCompressionStream())
         {
@@ -160,39 +160,39 @@ public class SSTableCache
         return Optional.empty();
     }
 
-    boolean containsSummary(@NotNull SSTable ssTable)
+    boolean containsSummary(@Nonnull SSTable ssTable)
     {
         return contains(summary, ssTable);
     }
 
-    boolean containsIndex(@NotNull SSTable ssTable)
+    boolean containsIndex(@Nonnull SSTable ssTable)
     {
         return contains(index, ssTable);
     }
 
-    boolean containsStats(@NotNull SSTable ssTable)
+    boolean containsStats(@Nonnull SSTable ssTable)
     {
         return contains(stats, ssTable);
     }
 
-    boolean containsCompressionMetadata(@NotNull SSTable ssTable)
+    boolean containsCompressionMetadata(@Nonnull SSTable ssTable)
     {
         return contains(compressionMetadata, ssTable);
     }
 
-    boolean containsFilter(@NotNull SSTable ssTable)
+    boolean containsFilter(@Nonnull SSTable ssTable)
     {
         return contains(filter, ssTable);
     }
 
-    private static <T> boolean contains(@NotNull Cache<SSTable, T> cache, @NotNull SSTable ssTable)
+    private static <T> boolean contains(@Nonnull Cache<SSTable, T> cache, @Nonnull SSTable ssTable)
     {
         return cache.getIfPresent(ssTable) != null;
     }
 
-    private static <T> T get(@NotNull Cache<SSTable, T> cache,
-                             @NotNull SSTable ssTable,
-                             @NotNull Callable<T> callable) throws IOException
+    private static <T> T get(@Nonnull Cache<SSTable, T> cache,
+                             @Nonnull SSTable ssTable,
+                             @Nonnull Callable<T> callable) throws IOException
     {
         try
         {

@@ -35,7 +35,7 @@ import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.ReplicationFactor;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * A serializable wrapper of {@link CreateSliceRequestPayload} and also implements hashcode and equals
@@ -51,7 +51,7 @@ public class CreatedRestoreSlice implements Serializable
     private transient boolean isSatisfied = false;
     public final String sliceRequestPayloadJson; // equals and hashcode use and only implement with this field
 
-    public CreatedRestoreSlice(@NotNull CreateSliceRequestPayload sliceRequestPayload)
+    public CreatedRestoreSlice(@Nonnull CreateSliceRequestPayload sliceRequestPayload)
     {
         this.sliceRequestPayload = sliceRequestPayload;
         this.sliceRequestPayloadJson = toJson(sliceRequestPayload);
@@ -161,7 +161,7 @@ public class CreatedRestoreSlice implements Serializable
         return succeededInstances;
     }
 
-    private static String toJson(@NotNull CreateSliceRequestPayload sliceRequestPayload)
+    private static String toJson(@Nonnull CreateSliceRequestPayload sliceRequestPayload)
     {
         try
         {

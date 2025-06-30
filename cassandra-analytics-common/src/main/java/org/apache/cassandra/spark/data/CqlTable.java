@@ -36,7 +36,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.spark.utils.TableIdentifier;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 @SuppressWarnings({ "WeakerAccess", "unused" })
 public class CqlTable implements Serializable
@@ -59,21 +59,21 @@ public class CqlTable implements Serializable
     private final transient Map<String, CqlField> columns;
     private final int indexCount;
 
-    public CqlTable(@NotNull String keyspace,
-                    @NotNull String table,
-                    @NotNull String createStatement,
-                    @NotNull ReplicationFactor replicationFactor,
-                    @NotNull List<CqlField> fields)
+    public CqlTable(@Nonnull String keyspace,
+                    @Nonnull String table,
+                    @Nonnull String createStatement,
+                    @Nonnull ReplicationFactor replicationFactor,
+                    @Nonnull List<CqlField> fields)
     {
         this(keyspace, table, createStatement, replicationFactor, fields, Collections.emptySet(), 0);
     }
 
-    public CqlTable(@NotNull String keyspace,
-                    @NotNull String table,
-                    @NotNull String createStatement,
-                    @NotNull ReplicationFactor replicationFactor,
-                    @NotNull List<CqlField> fields,
-                    @NotNull Set<CqlField.CqlUdt> udts,
+    public CqlTable(@Nonnull String keyspace,
+                    @Nonnull String table,
+                    @Nonnull String createStatement,
+                    @Nonnull ReplicationFactor replicationFactor,
+                    @Nonnull List<CqlField> fields,
+                    @Nonnull Set<CqlField.CqlUdt> udts,
                     int indexCount)
     {
         this.keyspace = keyspace;

@@ -76,8 +76,8 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class CdcBridgeImplementation extends CdcBridge
 {
@@ -126,16 +126,16 @@ public class CdcBridgeImplementation extends CdcBridge
         log(TimeProvider.DEFAULT, cqlTable, log, row, timestamp);
     }
 
-    public void updateCdcSchema(@NotNull Set<CqlTable> cdcTables, @NotNull Partitioner partitioner, @NotNull TableIdLookup tableIdLookup)
+    public void updateCdcSchema(@Nonnull Set<CqlTable> cdcTables, @Nonnull Partitioner partitioner, @Nonnull TableIdLookup tableIdLookup)
     {
         CassandraSchema.updateCdcSchema(cdcTables, partitioner, tableIdLookup);
     }
 
-    public CommitLogReader.Result readLog(@NotNull CommitLog log,
+    public CommitLogReader.Result readLog(@Nonnull CommitLog log,
                                           @Nullable TokenRange tokenRange,
-                                          @NotNull CommitLogMarkers markers,
+                                          @Nonnull CommitLogMarkers markers,
                                           int partitionId,
-                                          @NotNull ICdcStats stats,
+                                          @Nonnull ICdcStats stats,
                                           @Nullable AsyncExecutor executor,
                                           @Nullable Consumer<Marker> listener,
                                           @Nullable Long startTimestampMicros,
@@ -156,7 +156,7 @@ public class CdcBridgeImplementation extends CdcBridge
     }
 
     public CdcStreamScanner openCdcStreamScanner(Collection<PartitionUpdateWrapper> updates,
-                                                 @NotNull CdcState endState,
+                                                 @Nonnull CdcState endState,
                                                  Random random,
                                                  CassandraSource cassandraSource,
                                                  double traceSampleRate)
@@ -176,7 +176,7 @@ public class CdcBridgeImplementation extends CdcBridge
         log.add(FourZeroMutation.wrap(mutation));
     }
 
-    @NotNull
+    @Nonnull
     @VisibleForTesting
     public static Mutation makeMutation(TimeProvider timeProvider, CqlTable cqlTable, Row row, long timestamp)
     {

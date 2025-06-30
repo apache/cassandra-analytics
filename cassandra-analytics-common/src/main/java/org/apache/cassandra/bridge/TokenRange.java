@@ -23,7 +23,7 @@ import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.Objects;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * This is a simple implementation of a range between two {@link BigInteger} tokens.
@@ -37,13 +37,13 @@ public final class TokenRange implements Serializable
     private static final long serialVersionUID = 6367860484115802919L;
 
     // NOTE: ranges are always of the open-closed kind in Cassandra, see org.apache.cassandra.dht.Range
-    @NotNull
+    @Nonnull
     private final BigInteger lowerBound;
     private final BigInteger firstEnclosedValue;
-    @NotNull
+    @Nonnull
     private final BigInteger upperBound;
 
-    private TokenRange(@NotNull BigInteger lowerBound, @NotNull BigInteger upperBound)
+    private TokenRange(@Nonnull BigInteger lowerBound, @Nonnull BigInteger upperBound)
     {
         if (lowerBound.compareTo(upperBound) > 0)
         {
@@ -55,46 +55,46 @@ public final class TokenRange implements Serializable
         this.upperBound = upperBound;
     }
 
-    @NotNull
+    @Nonnull
     public BigInteger lowerEndpoint()
     {
         return lowerBound;
     }
 
-    @NotNull
+    @Nonnull
     public BigInteger upperEndpoint()
     {
         return upperBound;
     }
 
-    @NotNull
+    @Nonnull
     public BigInteger firstEnclosedValue()
     {
         return firstEnclosedValue;
     }
 
-    @NotNull
-    public static TokenRange singleton(@NotNull BigInteger value)
+    @Nonnull
+    public static TokenRange singleton(@Nonnull BigInteger value)
     {
         // express the single token range in the form of open-closed range
         return new TokenRange(value.subtract(BigInteger.ONE), value);
     }
 
-    @NotNull
-    public static TokenRange closed(@NotNull BigInteger lower, @NotNull BigInteger upper)
+    @Nonnull
+    public static TokenRange closed(@Nonnull BigInteger lower, @Nonnull BigInteger upper)
     {
         // expressed [lower, upper] in the form of open-closed, (lower - 1, upper]
         return new TokenRange(lower.subtract(BigInteger.ONE), upper);
     }
 
-    @NotNull
-    public static TokenRange openClosed(@NotNull BigInteger lower, @NotNull BigInteger upper)
+    @Nonnull
+    public static TokenRange openClosed(@Nonnull BigInteger lower, @Nonnull BigInteger upper)
     {
         return new TokenRange(lower, upper);
     }
 
-    @NotNull
-    public static TokenRange merge(@NotNull TokenRange first, @NotNull TokenRange second)
+    @Nonnull
+    public static TokenRange merge(@Nonnull TokenRange first, @Nonnull TokenRange second)
     {
         return first.span(second);
     }
@@ -109,29 +109,29 @@ public final class TokenRange implements Serializable
         return upperBound.subtract(lowerBound);
     }
 
-    public boolean contains(@NotNull BigInteger value)
+    public boolean contains(@Nonnull BigInteger value)
     {
         return value.compareTo(lowerBound) > 0 && value.compareTo(upperBound) <= 0;
     }
 
-    public boolean encloses(@NotNull TokenRange other)
+    public boolean encloses(@Nonnull TokenRange other)
     {
         return other.lowerBound.compareTo(lowerBound) >= 0 && other.upperBound.compareTo(upperBound) <= 0;
     }
 
-    public boolean isConnected(@NotNull TokenRange other)
+    public boolean isConnected(@Nonnull TokenRange other)
     {
         return lowerBound.compareTo(other.upperBound) < 0 && upperBound.compareTo(other.lowerBound) > 0;
     }
 
-    @NotNull
-    public TokenRange intersection(@NotNull TokenRange other)
+    @Nonnull
+    public TokenRange intersection(@Nonnull TokenRange other)
     {
         return new TokenRange(lowerBound.max(other.lowerBound), upperBound.min(other.upperBound));
     }
 
-    @NotNull
-    public TokenRange span(@NotNull TokenRange other)
+    @Nonnull
+    public TokenRange span(@Nonnull TokenRange other)
     {
         return new TokenRange(lowerBound.min(other.lowerBound), upperBound.max(other.upperBound));
     }
@@ -163,7 +163,7 @@ public final class TokenRange implements Serializable
     }
 
     @Override
-    @NotNull
+    @Nonnull
     public String toString()
     {
         return "(" + lowerBound + ", " + upperBound + ']';

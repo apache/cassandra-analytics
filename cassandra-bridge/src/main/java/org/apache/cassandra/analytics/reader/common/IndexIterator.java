@@ -37,7 +37,7 @@ import org.apache.cassandra.spark.reader.IndexConsumer;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.reader.common.IIndexReader;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Iterator for reading through IndexEntries for multiple Index.db files.
@@ -59,9 +59,9 @@ public class IndexIterator<ReaderType extends IIndexReader> implements StreamSca
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private IndexEntry curr = null;
 
-    public IndexIterator(@NotNull SSTablesSupplier ssTables,
-                         @NotNull Stats stats,
-                         @NotNull IndexReaderOpener<ReaderType> supplier)
+    public IndexIterator(@Nonnull SSTablesSupplier ssTables,
+                         @Nonnull Stats stats,
+                         @Nonnull IndexReaderOpener<ReaderType> supplier)
     {
         this.startTimeNanos = System.nanoTime();
         this.stats = stats;

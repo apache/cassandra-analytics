@@ -23,7 +23,7 @@ import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Class representing an entry of the Client Connection Stats
@@ -133,16 +133,16 @@ public class ClientConnectionEntry
 
 
     @JsonCreator
-    public ClientConnectionEntry(@NotNull @JsonProperty("address") String address,
-                                 @NotNull @JsonProperty("port") int port,
-                                 @NotNull @JsonProperty("sslEnabled") boolean sslEnabled,
+    public ClientConnectionEntry(@Nonnull @JsonProperty("address") String address,
+                                 @Nonnull @JsonProperty("port") int port,
+                                 @Nonnull @JsonProperty("sslEnabled") boolean sslEnabled,
                                  @JsonProperty("sslCipherSuite") String sslCipherSuite,
                                  @JsonProperty("sslProtocol") String sslProtocol,
-                                 @NotNull @JsonProperty("protocolVersion") String protocolVersion,
-                                 @NotNull @JsonProperty("username") String username,
-                                 @NotNull @JsonProperty("requestCount") long requestCount,
-                                 @NotNull @JsonProperty("driverName") String driverName,
-                                 @NotNull @JsonProperty("driverVersion") String driverVersion,
+                                 @Nonnull @JsonProperty("protocolVersion") String protocolVersion,
+                                 @Nonnull @JsonProperty("username") String username,
+                                 @Nonnull @JsonProperty("requestCount") long requestCount,
+                                 @Nonnull @JsonProperty("driverName") String driverName,
+                                 @Nonnull @JsonProperty("driverVersion") String driverVersion,
                                  @JsonProperty("keyspaceName") String keyspaceName,
                                  @JsonProperty("clientOptions") Map<String, String> clientOptions,
                                  @JsonProperty("authenticationMode") String authMode,

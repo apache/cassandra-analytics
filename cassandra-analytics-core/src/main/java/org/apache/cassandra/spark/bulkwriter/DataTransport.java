@@ -20,15 +20,15 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.CassandraCloudStorageTransportContext;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public enum DataTransport implements TransportContext.TransportContextProvider
 {
     DIRECT
     {
         @Override
-        public TransportContext createContext(@NotNull BulkWriterContext bulkWriterContext,
-                                              @NotNull BulkSparkConf conf,
+        public TransportContext createContext(@Nonnull BulkWriterContext bulkWriterContext,
+                                              @Nonnull BulkSparkConf conf,
                                               boolean isOnDriver)
         {
             // DIRECT mode does not need to distinguish driver and executor
@@ -38,8 +38,8 @@ public enum DataTransport implements TransportContext.TransportContextProvider
     S3_COMPAT
     {
         @Override
-        public TransportContext createContext(@NotNull BulkWriterContext bulkWriterContext,
-                                              @NotNull BulkSparkConf conf,
+        public TransportContext createContext(@Nonnull BulkWriterContext bulkWriterContext,
+                                              @Nonnull BulkSparkConf conf,
                                               boolean isOnDriver)
         {
             return new CassandraCloudStorageTransportContext(bulkWriterContext, conf, isOnDriver);

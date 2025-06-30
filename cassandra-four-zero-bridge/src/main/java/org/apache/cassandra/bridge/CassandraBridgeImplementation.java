@@ -111,8 +111,8 @@ import org.apache.cassandra.utils.BloomFilter;
 import org.apache.cassandra.utils.CompressionUtilImplementation;
 import org.apache.cassandra.utils.TokenUtils;
 import org.apache.cassandra.utils.UUIDGen;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 @SuppressWarnings("unused")
 public class CassandraBridgeImplementation extends CassandraBridge
@@ -146,9 +146,9 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public AbstractMap.SimpleEntry<ByteBuffer, BigInteger> getPartitionKey(@NotNull CqlTable table,
-                                                                           @NotNull Partitioner partitioner,
-                                                                           @NotNull List<String> keys)
+    public AbstractMap.SimpleEntry<ByteBuffer, BigInteger> getPartitionKey(@Nonnull CqlTable table,
+                                                                           @Nonnull Partitioner partitioner,
+                                                                           @Nonnull List<String> keys)
     {
         Preconditions.checkArgument(table.partitionKeys().size() > 0);
         ByteBuffer partitionKey = buildPartitionKey(table, keys);
@@ -157,7 +157,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @VisibleForTesting
-    public static ByteBuffer buildPartitionKey(@NotNull CqlTable table, @NotNull List<String> keys)
+    public static ByteBuffer buildPartitionKey(@Nonnull CqlTable table, @Nonnull List<String> keys)
     {
         List<AbstractType<?>> partitionKeyColumnTypes = partitionKeyColumnTypes(table);
         if (table.partitionKeys().size() == 1)
@@ -178,7 +178,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @VisibleForTesting
-    public static List<AbstractType<?>> partitionKeyColumnTypes(@NotNull CqlTable table)
+    public static List<AbstractType<?>> partitionKeyColumnTypes(@Nonnull CqlTable table)
     {
         return table.partitionKeys().stream()
                     .map(CqlField::type)
@@ -188,16 +188,16 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public StreamScanner<RowData> getCompactionScanner(@NotNull CqlTable table,
-                                                       @NotNull Partitioner partitioner,
-                                                       @NotNull SSTablesSupplier ssTables,
+    public StreamScanner<RowData> getCompactionScanner(@Nonnull CqlTable table,
+                                                       @Nonnull Partitioner partitioner,
+                                                       @Nonnull SSTablesSupplier ssTables,
                                                        @Nullable SparkRangeFilter sparkRangeFilter,
-                                                       @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
+                                                       @Nonnull Collection<PartitionKeyFilter> partitionKeyFilters,
                                                        @Nullable PruneColumnFilter columnFilter,
-                                                       @NotNull TimeProvider timeProvider,
+                                                       @Nonnull TimeProvider timeProvider,
                                                        boolean readIndexOffset,
                                                        boolean useIncrementalRepair,
-                                                       @NotNull Stats stats)
+                                                       @Nonnull Stats stats)
     {
         // NOTE: Need to use SchemaBuilder to init keyspace if not already set in Cassandra Schema instance
         SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
@@ -216,13 +216,13 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public StreamScanner<IndexEntry> getPartitionSizeIterator(@NotNull CqlTable table,
-                                                              @NotNull Partitioner partitioner,
-                                                              @NotNull SSTablesSupplier ssTables,
+    public StreamScanner<IndexEntry> getPartitionSizeIterator(@Nonnull CqlTable table,
+                                                              @Nonnull Partitioner partitioner,
+                                                              @Nonnull SSTablesSupplier ssTables,
                                                               @Nullable SparkRangeFilter rangeFilter,
-                                                              @NotNull TimeProvider timeProvider,
-                                                              @NotNull Stats stats,
-                                                              @NotNull ExecutorService executor)
+                                                              @Nonnull TimeProvider timeProvider,
+                                                              @Nonnull Stats stats,
+                                                              @Nonnull ExecutorService executor)
     {
         //NOTE: need to use SchemaBuilder to init keyspace if not already set in C* Schema instance
         SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
@@ -530,7 +530,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                           String partitioner,
                                           String createStatement,
                                           String insertStatement,
-                                          @NotNull Set<String> userDefinedTypeStatements,
+                                          @Nonnull Set<String> userDefinedTypeStatements,
                                           int bufferSizeMB)
     {
         return new SSTableWriterImplementation(inDirectory, partitioner, createStatement, insertStatement,
@@ -538,9 +538,9 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public SSTableSummary getSSTableSummary(@NotNull String keyspace,
-                                            @NotNull String table,
-                                            @NotNull SSTable ssTable)
+    public SSTableSummary getSSTableSummary(@Nonnull String keyspace,
+                                            @Nonnull String table,
+                                            @Nonnull SSTable ssTable)
     {
         TableMetadata metadata = Schema.instance.getTableMetadata(keyspace, table);
         if (metadata == null)
@@ -551,16 +551,16 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
-    public SSTableSummary getSSTableSummary(@NotNull Partitioner partitioner,
-                                            @NotNull SSTable ssTable,
+    public SSTableSummary getSSTableSummary(@Nonnull Partitioner partitioner,
+                                            @Nonnull SSTable ssTable,
                                             int minIndexInterval,
                                             int maxIndexInterval)
     {
         return getSSTableSummary(getPartitioner(partitioner), ssTable, minIndexInterval, maxIndexInterval);
     }
 
-    protected SSTableSummary getSSTableSummary(@NotNull IPartitioner partitioner,
-                                               @NotNull SSTable ssTable,
+    protected SSTableSummary getSSTableSummary(@Nonnull IPartitioner partitioner,
+                                               @Nonnull SSTable ssTable,
                                                int minIndexInterval,
                                                int maxIndexInterval)
     {

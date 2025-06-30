@@ -62,8 +62,8 @@ import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.apache.cassandra.spark.validation.StartupValidator;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
@@ -265,7 +265,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         return skipClean;
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public DigestAlgorithmSupplier digestAlgorithmSupplier()
     {

@@ -29,8 +29,8 @@ import java.util.function.UnaryOperator;
 
 import com.google.common.base.Preconditions;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /**
  * A container to hold values per cluster. Each value is identified by its belonging cluster id.
@@ -73,7 +73,7 @@ public class MultiClusterContainer<T> implements Serializable, MultiClusterSuppo
      * @return any value in the container
      * @throws NoSuchElementException when no value can be found
      */
-    @NotNull
+    @Nonnull
     public T getAnyValueOrThrow() throws NoSuchElementException
     {
         T v = getAnyValue();
@@ -110,7 +110,7 @@ public class MultiClusterContainer<T> implements Serializable, MultiClusterSuppo
      *
      * @param clusterId nullable cluster id. When the value is null, it reads from the single value
      */
-    public void setValue(@Nullable String clusterId, @NotNull T value)
+    public void setValue(@Nullable String clusterId, @Nonnull T value)
     {
         if (clusterId == null)
         {

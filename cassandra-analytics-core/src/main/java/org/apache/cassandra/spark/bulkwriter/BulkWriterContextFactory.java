@@ -32,16 +32,16 @@ import org.apache.cassandra.spark.utils.ScalaFunctions;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.util.ShutdownHookManager;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class BulkWriterContextFactory
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BulkWriterContextFactory.class);
 
-    @NotNull
-    public BulkWriterContext createBulkWriterContext(@NotNull SparkContext sparkContext,
-                                                     @NotNull Map<String, String> options,
-                                                     @NotNull StructType schema)
+    @Nonnull
+    public BulkWriterContext createBulkWriterContext(@Nonnull SparkContext sparkContext,
+                                                     @Nonnull Map<String, String> options,
+                                                     @Nonnull StructType schema)
     {
         Preconditions.checkNotNull(schema);
 
@@ -65,20 +65,20 @@ public class BulkWriterContextFactory
         return bulkWriterContext;
     }
 
-    @NotNull
-    protected BulkSparkConf createBulkSparkConf(@NotNull SparkContext sparkContext, @NotNull Map<String, String> options)
+    @Nonnull
+    protected BulkSparkConf createBulkSparkConf(@Nonnull SparkContext sparkContext, @Nonnull Map<String, String> options)
     {
         return new BulkSparkConf(sparkContext.getConf(), options);
     }
 
-    @NotNull
-    protected BulkWriterContext createBulkWriterContext(@NotNull BulkSparkConf conf, StructType schema, int sparkDefaultParallelism)
+    @Nonnull
+    protected BulkWriterContext createBulkWriterContext(@Nonnull BulkSparkConf conf, StructType schema, int sparkDefaultParallelism)
     {
         return new CassandraBulkWriterContext(conf, schema, sparkDefaultParallelism);
     }
 
-    @NotNull
-    protected BulkWriterContext createCoordinatedBulkWriterContext(@NotNull BulkSparkConf conf, StructType schema, int sparkDefaultParallelism)
+    @Nonnull
+    protected BulkWriterContext createCoordinatedBulkWriterContext(@Nonnull BulkSparkConf conf, StructType schema, int sparkDefaultParallelism)
     {
         return new CassandraCoordinatedBulkWriterContext(conf, schema, sparkDefaultParallelism);
     }

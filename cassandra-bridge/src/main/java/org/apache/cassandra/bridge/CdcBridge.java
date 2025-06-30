@@ -42,8 +42,8 @@ import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.apache.cassandra.spark.utils.TimeProvider;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public abstract class CdcBridge
 {
@@ -59,22 +59,22 @@ public abstract class CdcBridge
         log(TimeProvider.DEFAULT, cqlTable, log, row, timestamp);
     }
 
-    public abstract void updateCdcSchema(@NotNull Set<CqlTable> cdcTables,
-                                         @NotNull Partitioner partitioner,
-                                         @NotNull TableIdLookup tableIdLookup);
+    public abstract void updateCdcSchema(@Nonnull Set<CqlTable> cdcTables,
+                                         @Nonnull Partitioner partitioner,
+                                         @Nonnull TableIdLookup tableIdLookup);
 
-    public abstract CommitLogReader.Result readLog(@NotNull CommitLog log,
+    public abstract CommitLogReader.Result readLog(@Nonnull CommitLog log,
                                                    @Nullable TokenRange tokenRange,
-                                                   @NotNull CommitLogMarkers markers,
+                                                   @Nonnull CommitLogMarkers markers,
                                                    int partitionId,
-                                                   @NotNull ICdcStats stats,
+                                                   @Nonnull ICdcStats stats,
                                                    @Nullable AsyncExecutor executor,
                                                    @Nullable Consumer<Marker> listener,
                                                    @Nullable Long startTimestampMicros,
                                                    boolean readCommitLogHeader);
 
     public abstract CdcStreamScanner openCdcStreamScanner(Collection<PartitionUpdateWrapper> updates,
-                                                          @NotNull CdcState endState,
+                                                          @Nonnull CdcState endState,
                                                           Random random,
                                                           CassandraSource cassandraSource,
                                                           double traceSampleRate);

@@ -48,7 +48,7 @@ import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.parquet.Preconditions;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * {@link SSTableLister} lists the directories containing SSTables.
@@ -227,7 +227,7 @@ public class SSTableLister implements SSTableCollector
         return new FileSystemSSTable(dataComponents.get(0), true, Stats.DoNothingStats.INSTANCE::bufferingInputStreamStats);
     }
 
-    private @NotNull SSTableFilesAndRange createSSTableFilesAndRange(List<Path> sstableComponents)
+    private @Nonnull SSTableFilesAndRange createSSTableFilesAndRange(List<Path> sstableComponents)
     {
         SSTable sstable = buildSSTable(sstableComponents);
         SSTableSummary summary = bridge.getSSTableSummary(qualifiedTableName.keyspace(),

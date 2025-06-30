@@ -195,8 +195,8 @@ subprojects {
   }
 
   dependencies {
-    compileOnly(group: 'com.intellij', name: 'annotations', version: "${project.rootProject.intellijVersion}")
-    testCompileOnly(group: 'com.intellij', name: 'annotations', version: "${project.rootProject.intellijVersion}")
+    compileOnly(group: 'com.google.code.findbugs', name: 'jsr305', version: "${project.rootProject.jsr305version}")
+    testCompileOnly(group: 'com.google.code.findbugs', name: 'jsr305', version: "${project.rootProject.jsr305version}")
   }
 
   sourceSets {

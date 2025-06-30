@@ -20,7 +20,7 @@ package org.apache.cassandra.sidecar.client;
 
 import java.io.InputStream;
 
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nullable;
 
 /**
  * Encapsulates {@code HttpClient} configuration parameters.

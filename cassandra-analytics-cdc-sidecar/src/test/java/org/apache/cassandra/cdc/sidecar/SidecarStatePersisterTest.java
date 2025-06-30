@@ -40,8 +40,8 @@ import com.datastax.driver.core.ResultSetFuture;
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.cdc.api.CdcOptions;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -61,7 +61,7 @@ public class SidecarStatePersisterTest
         SidecarCdcCassandraClient cassandraClient = new SidecarCdcCassandraClient()
         {
             @Override
-            public List<ResultSetFuture> storeStateAsync(@NotNull String jobId, @NotNull TokenRange range, @NotNull ByteBuffer buf, long timestamp)
+            public List<ResultSetFuture> storeStateAsync(@Nonnull String jobId, @Nonnull TokenRange range, @Nonnull ByteBuffer buf, long timestamp)
             {
                 byte[] ar = new byte[buf.remaining()];
                 buf.get(ar);

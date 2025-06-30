@@ -31,7 +31,7 @@ import com.google.common.collect.Multimap;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -179,13 +179,13 @@ public class RingInstanceTest
     }
 
 
-    @NotNull
+    @Nonnull
     private static RingEntry mockRingEntry()
     {
         return mockRingEntryBuilder().build();
     }
 
-    @NotNull
+    @Nonnull
     private static RingEntry.Builder mockRingEntryBuilder()
     {
         return new RingEntry.Builder()
@@ -202,7 +202,7 @@ public class RingInstanceTest
                .owns("");
     }
 
-    @NotNull
+    @Nonnull
     private static RingInstance mockRingInstance()
     {
         return new RingInstance(mockRingEntry());

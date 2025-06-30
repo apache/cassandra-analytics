@@ -48,8 +48,8 @@ import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class TestDataLayer extends DataLayer
 {
@@ -58,16 +58,16 @@ public class TestDataLayer extends DataLayer
                                                                       .setDaemon(true)
                                                                       .build());
 
-    @NotNull
+    @Nonnull
     CassandraBridge bridge;
-    @NotNull
+    @Nonnull
     Collection<Path> dataDbFiles;
     @Nullable
     CqlTable table;
     final String jobId;
 
-    public TestDataLayer(@NotNull CassandraBridge bridge,
-                         @NotNull Collection<Path> dataDbFiles,
+    public TestDataLayer(@Nonnull CassandraBridge bridge,
+                         @Nonnull Collection<Path> dataDbFiles,
                          @Nullable CqlTable table)
     {
         this.bridge = bridge;
@@ -113,10 +113,10 @@ public class TestDataLayer extends DataLayer
     }
 
     @Override
-    @NotNull
+    @Nonnull
     public SSTablesSupplier sstables(int partitionId,
                                      @Nullable SparkRangeFilter sparkRangeFilter,
-                                     @NotNull List<PartitionKeyFilter> partitionKeyFilters)
+                                     @Nonnull List<PartitionKeyFilter> partitionKeyFilters)
     {
         return new BasicSupplier(listSSTables().collect(Collectors.toSet()));
     }

@@ -33,7 +33,7 @@ import java.util.function.Supplier;
 
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.spark.utils.Throwing;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * A startup validation that checks the KeyStore
@@ -45,7 +45,7 @@ public class KeyStoreValidation implements StartupValidation
     private final char[] password;
     private final Supplier<InputStream> stream;
 
-    public KeyStoreValidation(@NotNull SecretsProvider secrets)
+    public KeyStoreValidation(@Nonnull SecretsProvider secrets)
     {
         this(
         secrets.hasKeyStoreSecrets(),

@@ -65,7 +65,7 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.sources.BaseRelation;
 import org.apache.spark.sql.sources.InsertableRelation;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 import scala.Tuple2;
 import scala.collection.JavaConverters;
 import scala.util.control.NonFatal$;
@@ -95,7 +95,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     }
 
     @Override
-    @NotNull
+    @Nonnull
     public SQLContext sqlContext()
     {
         return sqlContext;
@@ -105,7 +105,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
      * @return An empty {@link StructType}, as this is a writer only, so schema is not applicable
      */
     @Override
-    @NotNull
+    @Nonnull
     public StructType schema()
     {
         LOGGER.warn("This instance is used as writer, a schema is not supported");
@@ -123,7 +123,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     }
 
     @Override
-    public void insert(@NotNull Dataset<Row> data, boolean overwrite)
+    public void insert(@Nonnull Dataset<Row> data, boolean overwrite)
     {
         validateJob(overwrite);
         this.startTimeNanos = System.nanoTime();
@@ -149,7 +149,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         writerContext.cluster().checkBulkWriterIsEnabledOrThrow();
     }
 
-    public void cancelJob(@NotNull CancelJobEvent cancelJobEvent)
+    public void cancelJob(@Nonnull CancelJobEvent cancelJobEvent)
     {
         if (cancelJobEvent.exception != null)
         {
@@ -171,7 +171,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         }
     }
 
-    private void persist(@NotNull JavaPairRDD<DecoratedKey, Object[]> sortedRDD, String[] columnNames)
+    private void persist(@Nonnull JavaPairRDD<DecoratedKey, Object[]> sortedRDD, String[] columnNames)
     {
         onDirectTransport(ctx -> writeValidator.setPhase("UploadAndCommit"));
         onCloudStorageTransport(ctx -> {

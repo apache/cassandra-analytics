@@ -24,8 +24,8 @@ import java.util.UUID;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.data.QualifiedTableName;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class CassandraJobInfo implements JobInfo
 {
@@ -143,14 +143,14 @@ public class CassandraJobInfo implements JobInfo
         return tokenPartitioner;
     }
 
-    @NotNull
+    @Nonnull
     @Override
     public DigestAlgorithmSupplier digestAlgorithmSupplier()
     {
         return conf.digestAlgorithmSupplier;
     }
 
-    @NotNull
+    @Nonnull
     public QualifiedTableName qualifiedTableName()
     {
         return new QualifiedTableName(conf.keyspace, conf.table, conf.quoteIdentifiers);

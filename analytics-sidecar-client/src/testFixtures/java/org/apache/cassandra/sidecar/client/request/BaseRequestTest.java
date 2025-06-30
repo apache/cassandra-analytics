@@ -34,7 +34,7 @@ import org.apache.cassandra.sidecar.client.selection.InstanceSelectionPolicy;
 import org.apache.cassandra.sidecar.client.selection.OrderedInstanceSelectionPolicy;
 import org.apache.cassandra.sidecar.client.selection.RandomInstanceSelectionPolicy;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 /**
  * Provides base functionality for testing requests
@@ -80,7 +80,7 @@ public abstract class BaseRequestTest
         return new OrderedInstanceSelectionPolicy(new SimpleSidecarInstancesProvider(instances));
     }
 
-    @NotNull
+    @Nonnull
     public static SidecarInstanceImpl newSidecarInstance(MockWebServer server)
     {
         return new SidecarInstanceImpl(server.getHostName(), server.getPort());

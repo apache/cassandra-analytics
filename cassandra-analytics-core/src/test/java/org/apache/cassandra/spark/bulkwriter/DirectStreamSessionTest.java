@@ -48,7 +48,7 @@ import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 import org.assertj.core.api.Assertions;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -272,13 +272,13 @@ public class DirectStreamSessionTest
         assertThat(ex.getCause().getMessage(), startsWith(LOAD_RANGE_ERROR_PREFIX));
     }
 
-    @NotNull
+    @Nonnull
     private MockBulkWriterContext getBulkWriterContext()
     {
         return new MockBulkWriterContext(tokenRangeMapping);
     }
 
-    @NotNull
+    @Nonnull
     private ReplicaAwareFailureHandler<RingInstance> replicaAwareFailureHandler()
     {
         return new MultiClusterReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());

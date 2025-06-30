@@ -34,7 +34,7 @@ import org.apache.cassandra.serializers.MarshalException;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.NativeType;
 import org.apache.cassandra.spark.utils.RandomUtils;
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 public class Duration extends NativeType
 {
@@ -91,7 +91,7 @@ public class Duration extends NativeType
     }
 
     @Override
-    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, @NotNull Object value)
+    protected void setInnerValueInternal(SettableByIndexData<?> udtValue, int position, @Nonnull Object value)
     {
         org.apache.cassandra.cql3.functions.types.Duration duration = null;
         if (value instanceof InternalDuration)
