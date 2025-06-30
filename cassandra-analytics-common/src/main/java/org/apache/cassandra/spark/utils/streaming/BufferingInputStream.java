@@ -253,8 +253,8 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
         {
             return;
         }
-        queue.add(buffer);
         bytesWritten.addAndGet(length);
+        queue.add(buffer);
         stats.inputStreamBytesWritten(source, length);
     }
 
@@ -371,7 +371,7 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
         {
             if (checkState() < 0)
             {
-                break;
+                throw new EOFException();
             }
             int readLength = Math.min(length - position, remainingLength);
             if (0 < readLength)

@@ -110,7 +110,7 @@ public final class TestSSTable extends SSTable
             }
             // BTI requires random file access
             return isBtiFormat()
-                   ? new BufferingInputStream<>(new FileSystemSource<>(this, fileType, filePath), BufferingInputStreamStats.doNothingStats())
+                   ? new BufferingInputStream<>(new FileSystemSource<>(this, fileType, filePath, !isBtiFormat()), BufferingInputStreamStats.doNothingStats())
                    : new BufferedInputStream(new FileInputStream(filePath.toFile()));
         }
         catch (FileNotFoundException exception)

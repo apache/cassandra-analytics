@@ -48,12 +48,14 @@ public class FileSystemSource<T extends CassandraFile> implements CassandraFileS
     private final RandomAccessFile file;
     private final FileType fileType;
     private final long length;
+    private final boolean autoClose;
 
-    public FileSystemSource(T cassandraFile, FileType fileType, Path path) throws IOException
+    public FileSystemSource(T cassandraFile, FileType fileType, Path path, boolean autoClose) throws IOException
     {
         this.cassandraFile = cassandraFile;
         this.fileType = fileType;
         this.length = Files.size(path);
+        this.autoClose = autoClose;
         this.file = new RandomAccessFile(path.toFile(), "r");
     }
 
@@ -96,24 +98,23 @@ public class FileSystemSource<T extends CassandraFile> implements CassandraFileS
                     consumer.onRead(StreamBuffer.wrap(bytes));
                     consumer.onEnd();
                 }
-                // TODO(c4c5): Make configurable, so that remote file access does not accidentally close file.
-//                else
-//                {
-//                    close = true;
-//                }
+                else
+                {
+                    close = true;
+                }
             }
             catch (Throwable throwable)
             {
-//                close = true;
+                close = true;
                 consumer.onError(throwable);
             }
-//            finally
-//            {
-//                if (close)
-//                {
-//                    closeSafe();
-//                }
-//            }
+            finally
+            {
+                if (autoClose && close)
+                {
+                    closeSafe();
+                }
+            }
         });
     }
 

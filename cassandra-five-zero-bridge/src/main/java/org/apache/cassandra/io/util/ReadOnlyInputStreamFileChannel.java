@@ -44,6 +44,11 @@ public class ReadOnlyInputStreamFileChannel extends FileChannel
 
     public int read(ByteBuffer dst) throws IOException
     {
+        // setup appropriate remaining size of the buffer
+        int streamRemaining = Math.toIntExact(Math.min(size - position, Integer.MAX_VALUE));
+        int newLimit = dst.position() + Math.min(streamRemaining, dst.remaining());
+        dst.limit(Math.min(newLimit, dst.capacity()));
+
         int read = inputStream.read(dst);
         position += read;
         if (dst.position() == 0 && dst.limit() > 0)

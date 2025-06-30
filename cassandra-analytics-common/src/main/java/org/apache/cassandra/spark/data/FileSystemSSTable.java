@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.io.BufferedInputStream;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -61,11 +63,10 @@ public class FileSystemSSTable extends SSTable
         }
         try
         {
-            // TODO(c4c5): Any input stream returned here should support re-buffering at random position.
-//            return useBufferingInputStream
-//                   ? new BufferingInputStream<>(new FileSystemSource<>(this, fileType, filePath), stats.get())
-//                   : new BufferedInputStream(new FileInputStream(filePath.toFile()));
-            return new BufferingInputStream<>(new FileSystemSource<>(this, fileType, filePath), stats.get());
+            // BTI format requires random file access and re-buffering at given position
+            return useBufferingInputStream || isBtiFormat()
+                   ? new BufferingInputStream<>(new FileSystemSource<>(this, fileType, filePath, !isBtiFormat()), stats.get())
+                   : new BufferedInputStream(new FileInputStream(filePath.toFile()));
         }
         catch (FileNotFoundException exception)
         {
