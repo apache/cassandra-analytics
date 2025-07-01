@@ -141,10 +141,10 @@ jar {
 
     exclude('META-INF/*')
     into('bridges') {
-//        from(configurations.fourzero.singleFile) // TODO(c4c5): Enable once V5 work is completed.
-//        from(configurations.fourzerobridge.singleFile) // TODO(c4c5): Enable once V5 work is completed.
-//        from(configurations.fourzerotypes.singleFile) // TODO(c4c5): Enable once V5 work is completed.
-//        from(configurations.fourzerosparksql.singleFile) // TODO(c4c5): Enable once V5 work is completed.
+        from(configurations.fourzero.singleFile)
+        from(configurations.fourzerobridge.singleFile)
+        from(configurations.fourzerotypes.singleFile)
+        from(configurations.fourzerosparksql.singleFile)
 
         from(configurations.fivezero.singleFile)
         from(configurations.fivezerobridge.singleFile)

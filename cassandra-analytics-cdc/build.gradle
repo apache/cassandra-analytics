@@ -64,6 +64,7 @@ dependencies {
 
     implementation project(":cassandra-analytics-common")
     implementation project(":cassandra-avro-converter")
+
     fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     fourzeroBridge(project(":cassandra-four-zero-bridge"))
     fourzeroTypes(project(":cassandra-four-zero-types"))
@@ -89,9 +90,11 @@ dependencies {
     // pull in cassandra-bridge so we can re-use TestSchema to generate arbitrary schemas for the cdc tests
     testImplementation project(":cassandra-bridge")
     testImplementation(testFixtures(project(':cassandra-bridge')))
-    testImplementation project(":cassandra-four-zero-bridge")
-    testImplementation project(":cassandra-four-zero-types")
-    testImplementation project(path: ':cassandra-four-zero', configuration: 'shadow')
+    // unit tests are performed only with Cassandra 5, so skip declaring dependencies to prevent
+    // indeterministic class loading
+    // testImplementation project(":cassandra-four-zero-bridge")
+    // testImplementation project(":cassandra-four-zero-types")
+    // testImplementation project(path: ':cassandra-four-zero', configuration: 'shadow')
     testImplementation project(":cassandra-five-zero-bridge")
     testImplementation project(":cassandra-five-zero-types")
     testImplementation project(path: ':cassandra-five-zero', configuration: 'shadow')

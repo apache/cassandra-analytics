@@ -459,7 +459,6 @@ public class CdcTests
                 byteBuffers.add(ByteBufferUtil.bytes(2));
                 byteBuffers.add(ByteBufferUtil.bytes(3));
                 byteBuffers.add(ByteBufferUtil.bytes(4));
-                // TODO(c4c5): Do we need to specify ProtocolVersion.V3 as last parameter?
                 return ImmutableList.of(CollectionSerializer.pack(byteBuffers, ByteBufferAccessor.instance, byteBuffers.size()));
             })
             .withCdcEventChecker((testRows, events) -> {

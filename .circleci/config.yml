@@ -77,6 +77,9 @@ commands:
       use_jdk11:
         type: string
         default: "false"
+      dtest:
+        type: string
+        default: "dtest-4.1.4.jar"
     description: Build and integration test against Spark <<parameters.spark>> Scala <<parameters.scala>> <<parameters.jdk>>
     steps:
       - run:
@@ -87,6 +90,7 @@ commands:
             INTEGRATION_MAX_PARALLEL_FORKS: 1
             INTEGRATION_MAX_HEAP_SIZE: "2500M"
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
+            DTEST_JAR: "<<parameters.dtest>>"
           command: |
             # Run compile but not unit tests (which are run in run_build)
             ./gradlew --stacktrace clean assemble
@@ -158,7 +162,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  int-spark3-2_12-jdk11:
+  int-c4-spark3-2_12-jdk11:
     parallelism: 8
     docker:
       - image: cimg/openjdk:11.0
@@ -216,7 +220,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  int-spark3-2_13-jdk11:
+  int-c4-spark3-2_13-jdk11:
     parallelism: 8
     docker:
       - image: cimg/openjdk:11.0
@@ -244,6 +248,35 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
+  int-c5-spark3-2_13-jdk11:
+    parallelism: 8
+    docker:
+      - image: cimg/openjdk:11.0
+    resource_class: large
+    steps:
+      - setup_remote_docker
+      - install_common
+      - checkout
+      - attach_workspace:
+          at: dependencies
+      - run_integration:
+          spark: "3"
+          scala: "2.13"
+          jdk: "11"
+          use_jdk11: "true"
+          dtest: "dtest-5.0.3.jar"
+
+      - store_artifacts:
+          path: build/test-reports
+          destination: test-reports
+
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+
+      - store_test_results:
+          path: build/test-reports
+
 workflows:
   version: 2
   build-and-test:
@@ -255,9 +288,12 @@ workflows:
       - spark3-2_13-jdk11:
           requires:
             - build-deps-jdk11
-      - int-spark3-2_12-jdk11:
+      - int-c4-spark3-2_12-jdk11:
           requires:
             - build-deps-jdk11
-      - int-spark3-2_13-jdk11:
+      - int-c4-spark3-2_13-jdk11:
+          requires:
+            - build-deps-jdk11
+      - int-c5-spark3-2_13-jdk11:
           requires:
             - build-deps-jdk11
