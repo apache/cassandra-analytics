@@ -162,7 +162,7 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
      */
     private boolean canRequestMore()
     {
-        return !(activeRequest || skipping || isBufferFull() || isClosed() || isFinished());
+        return !(activeRequest || skipping || isBufferFull() || isClosed());
     }
 
     /**
@@ -367,13 +367,14 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
     public int read(ByteBuffer buffer) throws IOException
     {
         int read = 0; // Cassandra 4.x vs 5.x
-        for (int remainingLength = buffer.remaining(); 0 < remainingLength; remainingLength = buffer.remaining())
+        int remaining = buffer.remaining();
+        while (read < remaining)
         {
             if (checkState() < 0)
             {
                 throw new EOFException();
             }
-            int readLength = Math.min(length - position, remainingLength);
+            int readLength = Math.min(length - position, buffer.remaining());
             if (0 < readLength)
             {
                 read += readLength;
