@@ -67,7 +67,7 @@ public abstract class SSTable implements Serializable, CassandraFile
     }
 
     @Nullable
-    public InputStream openSecondaryIndexStream()
+    public InputStream openRowIndexStream()
     {
         return openInputStream(FileType.ROWS_INDEX); // Cassandra 4.x vs 5.x
     }

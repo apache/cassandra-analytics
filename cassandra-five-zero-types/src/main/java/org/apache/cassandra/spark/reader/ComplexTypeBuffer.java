@@ -106,8 +106,6 @@ public abstract class ComplexTypeBuffer
      */
     public ByteBuffer pack()
     {
-        // See CollectionSerializer.deserialize for why using the protocol v3 variant is the right thing to do.
-        // TODO(c4c5): Do we need to specify ProtocolVersion.V3 as last parameter?
         return CollectionSerializer.pack(buffers, ByteBufferAccessor.instance, elements());
     }
 

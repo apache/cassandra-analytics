@@ -223,7 +223,7 @@ public class BtiReaderUtils
                                                                ssTable.length(FileType.PARTITIONS_INDEX),
                                                                null);
              FileHandle rowFileHandle = createFileHandle(file,
-                                                         ssTable.openSecondaryIndexStream(),
+                                                         ssTable.openRowIndexStream(),
                                                          ssTable.length(FileType.ROWS_INDEX),
                                                          null);
              PartitionIndex partitionIndex = PartitionIndex.load(partitionFileHandle, partitioner, false))

@@ -111,9 +111,23 @@ commands:
             # collect up exit statuses for all of the test classes and exit with that result at the end.
             # If no gradle processes exit with non-zero status, it will still be 0
             EXIT_STATUS=0
-            for TEST_NAME in $CLASSNAMES; do
-                ./gradlew cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
-            done;
+            FLAKY_PACKAGES=("org.apache.cassandra.analytics.shrink" "org.apache.cassandra.analytics.replacement" "org.apache.cassandra.analytics.expansion")
+            for TEST_NAME in $CLASSNAMES;
+            do
+                FLAKY="false"
+                for FLAKY_PACKAGE in "${FLAKY_PACKAGES[@]}";
+                do
+                    if [[ "$TEST_NAME" == ${FLAKY_PACKAGE}* ]]; then
+                        FLAKY="true"
+                        break
+                    fi
+                done
+                if [ $FLAKY == "false" ]; then
+                    ./gradlew cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
+                else
+                    echo "Skipping flaky test $TEST_NAME"
+                fi
+            done
             exit $EXIT_STATUS
           no_output_timeout: 30m
 

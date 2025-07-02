@@ -41,6 +41,7 @@ public enum FileType
     CRC("CRC.db"),
     CRC32("Digest.crc32"),
     COMMITLOG(".log"),
+    // BTI index files
     PARTITIONS_INDEX("Partitions.db"),
     ROWS_INDEX("Rows.db");
 

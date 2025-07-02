@@ -232,8 +232,9 @@ public final class ReaderUtils extends TokenUtils
                 {
                     // Cassandra 4.x vs 5.x START
                     File file = new File(ssTable.getDataFileName());
+                    BufferingInputStream<?> bis = (BufferingInputStream<?>) primaryIndex;
                     long size = ssTable.length(FileType.PARTITIONS_INDEX);
-                    try (ReadOnlyInputStreamFileChannel fileChannel = new ReadOnlyInputStreamFileChannel((BufferingInputStream<?>) primaryIndex, size);
+                    try (ReadOnlyInputStreamFileChannel fileChannel = new ReadOnlyInputStreamFileChannel(bis, size);
                          ChannelProxy proxy = new ChannelProxy(file, fileChannel);
                          FileHandle fileHandle = new FileHandle.Builder(file).complete(f -> proxy);
                          PartitionIndex partitionIndex = PartitionIndex.load(fileHandle, partitioner, false))
