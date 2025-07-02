@@ -39,4 +39,7 @@
 
     <suppress checks="ParameterNumber" files="ClientConnectionEntry.java" />
 
+    <!-- RestoreJobConstants.java is copied from Cassandra Sidecar -->
+    <suppress checks="HideUtilityClassConstructor" files="RestoreJobConstants.java" />
+
 </suppressions>
