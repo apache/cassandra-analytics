@@ -462,6 +462,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
             String localDc = cluster.resolveLocalDc(cl); // resolve the cluster specific localDc name
             CreateRestoreJobRequestPayload payload = createJobPayloadBuilder(job, secrets)
                                                      .consistencyLevel(toSidecarConsistencyLevel(cl), localDc)
+                                                     .restoreToLocalDatacenterOnly(cluster.writeToLocalDcOnly())
                                                      .build();
             api.createRestoreJob(payload);
         });

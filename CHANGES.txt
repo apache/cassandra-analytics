@@ -1,4 +1,9 @@
+0.2.0
+-----
+ * Allow writing to local datacenter only for coordinated write (CASSANALYTICS-75)
+
 0.1.0
+-----
  * Simplify SidecarTableSizeProvider (CASSANALYTICS-73)
  * Use full ring instead of only IPs from configuration (CASSANALYTICS-20)
  * Bulk Reader should dynamically size the Spark job based on estimated table size (CASSANALYTICS-36)
