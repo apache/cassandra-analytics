@@ -260,6 +260,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
+    public boolean skipRowsViolatingConstraints()
+    {
+        return false;
+    }
+
+    @Override
     public boolean getSkipClean()
     {
         return skipClean;

@@ -148,7 +148,7 @@ public class SortedSSTableWriter
         }
         catch (Throwable t)
         {
-            if (t.getCause() != null && t.getCause().getClass().getName().equals("org.apache.cassandra.cql3.constraints.ConstraintViolationException"))
+            if (t.getCause() != null && "org.apache.cassandra.cql3.constraints.ConstraintViolationException".equals(t.getCause().getClass().getName()))
             {
                 rowsViolatedConstraints += 1;
                 if (!skipRowsViolatingConstraints)

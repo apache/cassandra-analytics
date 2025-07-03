@@ -70,6 +70,11 @@ public interface JobInfo extends Serializable
 
     boolean skipExtendedVerify();
 
+    /**
+     * Defaults to false, in that case, when a row violates a constraint, a job will fail.
+     *
+     * @return true if rows violating constraints will not fail a job, false otherwise
+     */
     boolean skipRowsViolatingConstraints();
 
     boolean getSkipClean();
