@@ -484,17 +484,13 @@ public class SSTableReader implements SparkSSTableReader, Scannable
     {
         try
         {
-            if (indexSummary != null)
+           if (indexSummary != null)
             {
                 // BIG format
                 // If start is null we failed to find an overlapping token in the Index.db file,
                 // this is unlikely as we already pre-filter the SSTable based on the start-end token range.
                 // But in this situation we read the entire Data.db file to be safe, even if it hits performance.
                 startOffset = IndexDbUtils.findDataDbOffset(indexSummary, range, metadata.partitioner, ssTable, stats);
-                if (startOffset == null)
-                {
-                    LOGGER.error("Failed to find Data.db start offset, performance will be degraded sstable='{}'", ssTable);
-                }
             }
             else
             {
@@ -509,19 +505,35 @@ public class SSTableReader implements SparkSSTableReader, Scannable
                          PartitionIndex partitionIndex = PartitionIndex.load(fileHandle, metadata.partitioner, false);
                          PartitionIndex.Reader reader = partitionIndex.openReader())
                     {
-                        Token.KeyBound minKeyBound = metadata.partitioner.getTokenFactory().fromString(range.lowerEndpoint().toString()).minKeyBound();
-                        Long startOffsetCandidate = reader.floor(minKeyBound, (position, assumeNoMatch, partitionPosition) -> position);
-                        if (startOffsetCandidate == null)
+                        Token startToken = null;
+                        if (metadata.partitioner instanceof Murmur3Partitioner)
                         {
-                            startOffset = 0L;
+                            startToken = new Murmur3Partitioner.LongToken(range.lowerEndpoint().longValue());
                         }
-                        else if (startOffsetCandidate < 0)
+                        else
+                        {
+                            startToken = new RandomPartitioner.BigIntegerToken(range.lowerEndpoint());
+                        }
+                        Token.KeyBound maxKeyBound = startToken.maxKeyBound();
+                        startOffset = reader.ceiling(maxKeyBound, (position, assumeNoMatch, partitionPosition) -> position);
+                        if (startOffset != null)
                         {
                             // we got the offset from data file
-                            startOffset = ~startOffsetCandidate;
+                            startOffset = ~startOffset;
+                            if (startOffset < 0)
+                            {
+                                LOGGER.error("Found invalid start offset in Data.db. Read from the begining of the file.");
+                                startOffset = null;
+                            }
                         }
+
                     }
                 }
+            }
+
+            if (startOffset == null)
+            {
+                LOGGER.error("Failed to find Data.db start offset, performance will be degraded sstable='{}'", ssTable);
             }
         }
         catch (IOException exception)
