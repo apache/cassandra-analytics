@@ -55,7 +55,7 @@ public class BtiIndexReader implements IIndexReader
 
             now = System.nanoTime();
 
-            // read through Index.db and consume Partition keys
+            // read through Index.db (BIG) or Partitions.db (BTI) and consume Partition keys
             try (InputStream is = ssTable.openPrimaryIndexStream())
             {
                 if (is == null)

@@ -40,14 +40,13 @@ import org.apache.cassandra.spark.reader.common.BigLongArray;
 // CHECKSTYLE IGNORE: FinalClass
 public class CompressionMetadata extends AbstractCompressionMetadata
 {
-
     private final CompressionParams parameters;
-    private final Memory chunkOffsetsMem;
+    private final int chunkCount;
 
-    private CompressionMetadata(long dataLength, Memory chunkOffsetsMem, BigLongArray chunkOffsets, CompressionParams parameters)
+    private CompressionMetadata(long dataLength, int chunkCount, BigLongArray chunkOffsets, CompressionParams parameters)
     {
         super(dataLength, chunkOffsets);
-        this.chunkOffsetsMem = chunkOffsetsMem;
+        this.chunkCount = chunkCount;
         this.parameters = parameters;
     }
 
@@ -82,15 +81,12 @@ public class CompressionMetadata extends AbstractCompressionMetadata
         int chunkCount = inData.readInt();
         chunkOffsets = new BigLongArray(chunkCount);
 
-        // TODO(c4c5): Duplicated memory allocation for Memory and BigLongArray.
-        Memory chunkOffsetsMem = Memory.allocate(chunkCount * 8L);
         for (int chunk = 0; chunk < chunkCount; chunk++)
         {
             try
             {
                 long l = inData.readLong();
                 chunkOffsets.set(chunk, l);
-                chunkOffsetsMem.setLong(chunk * 8L, l);
             }
             catch (EOFException exception)
             {
@@ -99,7 +95,7 @@ public class CompressionMetadata extends AbstractCompressionMetadata
             }
         }
 
-        return new CompressionMetadata(dataLength, chunkOffsetsMem, chunkOffsets, params);
+        return new CompressionMetadata(dataLength, chunkCount, chunkOffsets, params);
     }
 
     ICompressor compressor()
@@ -124,6 +120,14 @@ public class CompressionMetadata extends AbstractCompressionMetadata
     // TODO(c4c5): Find better way to create Cassandra CompressionMetadata.
     public org.apache.cassandra.io.compress.CompressionMetadata toInternal(File file, long compressedFileLength)
     {
+        // TODO(c4c5): Duplicated memory allocation for Memory and BigLongArray.
+        Memory chunkOffsetsMem = Memory.allocate(chunkCount * 8L);
+        for (int chunk = 0; chunk < chunkCount; chunk++)
+        {
+            long val = chunkOffsets.get(chunk);
+            chunkOffsetsMem.setLong(chunk * 8L, val);
+        }
+        // memory is freed by CompressionMetadata
         return new org.apache.cassandra.io.compress.CompressionMetadata(file,
                                                                         parameters,
                                                                         chunkOffsetsMem,
