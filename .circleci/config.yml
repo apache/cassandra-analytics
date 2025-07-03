@@ -79,7 +79,7 @@ commands:
         default: "false"
       dtest:
         type: string
-        default: "dtest-4.1.4.jar"
+        default: "dtest-4.0.17.jar"
     description: Build and integration test against Spark <<parameters.spark>> Scala <<parameters.scala>> <<parameters.jdk>>
     steps:
       - run:
