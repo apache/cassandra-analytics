@@ -72,7 +72,7 @@ import static org.apache.cassandra.cdc.avro.AvroConstants.ARRAY_BASED_MAP_KEY_NA
 import static org.apache.cassandra.cdc.avro.AvroConstants.ARRAY_BASED_MAP_VALUE_NAME;
 import static org.apache.cassandra.cdc.avro.AvroConstants.INET_NAME;
 
-// TODO(c4c5): Implementation is identical between C* 4.x and 5.x. Find a workaround not to create this file.
+// TODO(c4c5): This implementation is identical to cassandra-four-zero-avro-converter. How can we share same code base?
 /**
  * Cassandra 5.0 implementation of `CqlToAvroSchemaConverter`
  */

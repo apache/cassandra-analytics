@@ -35,10 +35,10 @@ configurations {
     fourzero {
         description = 'Cassandra 4.0 dependency'
     }
-    fourzeroBridge {
+    fourzerobridge {
         description = 'Bridge to Cassandra 4.0'
     }
-    fourzeroTypes {
+    fourzerotypes {
         description = 'Cassandra 4.0 Data Types'
     }
     fourzeroAvroConverter {
