@@ -72,8 +72,7 @@ class CreateRestoreJobRequestPayloadTest
                                    "\"invalidateCaches\":\"true\"," +
                                    "\"copyData\":\"false\"}," +
                                    "\"expireAt\":" + expireAt + "," +
-                                   "\"consistencyLevel\":\"QUORUM\"," +
-                                   "\"restoreToLocalDatacenterOnly\":false}");
+                                   "\"consistencyLevel\":\"QUORUM\"}");
         CreateRestoreJobRequestPayload test = MAPPER.readValue(json, CreateRestoreJobRequestPayload.class);
         assertThat(test.jobId()).hasToString(id);
         assertThat(test.jobAgent()).isEqualTo("agent");
