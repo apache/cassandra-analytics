@@ -26,10 +26,12 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import com.google.common.collect.ImmutableSet;
 
+import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.io.compress.CompressionMetadata;
@@ -66,6 +68,20 @@ public class BtiReaderUtils
     private BtiReaderUtils()
     {
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
+
+    public static TokenRange partitionIndexTokenRange(@NotNull SSTable ssTable,
+                                                      @NotNull IPartitioner partitioner,
+                                                      @NotNull Descriptor descriptor) throws IOException
+    {
+        AtomicReference<DecoratedKey> firstKey = new AtomicReference<>();
+        AtomicReference<DecoratedKey> lastKey = new AtomicReference<>();
+        withPartitionIndex(ssTable, descriptor, partitioner, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
+            firstKey.set(partitionIndex.firstKey());
+            lastKey.set(partitionIndex.lastKey());
+        });
+        return TokenRange.closed(ReaderUtils.tokenToBigInteger(firstKey.get().getToken()),
+                                 ReaderUtils.tokenToBigInteger(lastKey.get().getToken()));
     }
 
     public static boolean primaryIndexContainsAnyKey(@NotNull SSTable ssTable,

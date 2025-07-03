@@ -22,6 +22,9 @@ package org.apache.cassandra.spark.reader;
 import java.io.InputStream;
 import java.math.BigInteger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.io.sstable.Descriptor;
@@ -38,6 +41,8 @@ import org.jetbrains.annotations.Nullable;
 
 public class BtiIndexReader implements IIndexReader
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BtiIndexReader.class);
+
     private TokenRange ssTableRange = null;
 
     public BtiIndexReader(@NotNull SSTable ssTable,
@@ -62,6 +67,20 @@ public class BtiIndexReader implements IIndexReader
                 {
                     consumer.onFailure(new IncompleteSSTableException(FileType.INDEX));
                     return;
+                }
+
+                if (rangeFilter != null)
+                {
+                    this.ssTableRange = BtiReaderUtils.partitionIndexTokenRange(ssTable, metadata.partitioner, descriptor);
+                    if (!rangeFilter.overlaps(this.ssTableRange))
+                    {
+                        LOGGER.info("Skipping non-overlapping Partitions.db file rangeFilter='[{},{}]' sstableRange='[{},{}]'",
+                                    rangeFilter.tokenRange().firstEnclosedValue(), rangeFilter.tokenRange().upperEndpoint(),
+                                    this.ssTableRange.firstEnclosedValue(), this.ssTableRange.upperEndpoint());
+                        stats.indexFileSkipped();
+                        return;
+                    }
+                    now = System.nanoTime();
                 }
 
                 BtiReaderUtils.consumePrimaryIndex(ssTable,
