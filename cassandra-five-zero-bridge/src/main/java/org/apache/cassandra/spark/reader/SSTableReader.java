@@ -502,6 +502,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
                     try (ReadOnlyInputStreamFileChannel fileChannel = new ReadOnlyInputStreamFileChannel((BufferingInputStream<?>) primaryIndex, size);
                          ChannelProxy proxy = new ChannelProxy(file, fileChannel);
                          FileHandle fileHandle = new FileHandle.Builder(file).complete(f -> proxy);
+                         // disable index pre-loading to download only sstable trailer (contains first and last token)
                          PartitionIndex partitionIndex = PartitionIndex.load(fileHandle, metadata.partitioner, false);
                          PartitionIndex.Reader reader = partitionIndex.openReader())
                     {
