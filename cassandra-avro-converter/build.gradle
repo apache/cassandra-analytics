@@ -27,16 +27,7 @@ configurations {
     all*.exclude(group: 'log4j', module: 'log4j')
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from components.java
-            groupId project.group
-            artifactId "${archivesBaseName}"
-            version System.getenv("CODE_VERSION") ?: "${version}"
-        }
-    }
-}
+apply from: "$rootDir/gradle/common/publishing.gradle"
 
 dependencies {
     api(project(':cassandra-bridge'))
