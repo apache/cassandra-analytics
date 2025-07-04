@@ -35,10 +35,10 @@ configurations {
     fourzero {
         description = 'Cassandra 4.0 dependency'
     }
-    fourzerobridge {
+    fourzeroBridge {
         description = 'Bridge to Cassandra 4.0'
     }
-    fourzerotypes {
+    fourzeroTypes {
         description = 'Cassandra 4.0 Data Types'
     }
     fourzeroAvroConverter {
@@ -90,6 +90,7 @@ dependencies {
     // pull in cassandra-bridge so we can re-use TestSchema to generate arbitrary schemas for the cdc tests
     testImplementation project(":cassandra-bridge")
     testImplementation(testFixtures(project(':cassandra-bridge')))
+
     // unit tests are performed only with Cassandra 5, so skip declaring dependencies to prevent
     // indeterministic class loading
     // testImplementation project(":cassandra-four-zero-bridge")
@@ -98,6 +99,7 @@ dependencies {
     testImplementation project(":cassandra-five-zero-bridge")
     testImplementation project(":cassandra-five-zero-types")
     testImplementation project(path: ':cassandra-five-zero', configuration: 'shadow')
+
     testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
     testImplementation(group: 'com.google.guava', name: 'guava', version: '31.1-jre')
     testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
