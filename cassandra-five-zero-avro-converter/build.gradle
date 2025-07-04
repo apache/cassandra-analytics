@@ -1,5 +1,3 @@
-import java.nio.file.Paths
-
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -21,7 +19,6 @@ import java.nio.file.Paths
 
 plugins {
     id('java-library')
-    id('maven-publish')
 }
 
 configurations {
@@ -29,36 +26,16 @@ configurations {
     all*.exclude(group: 'log4j', module: 'log4j')
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from components.java
-            groupId project.group
-            artifactId "${archivesBaseName}"
-            version System.getenv("CODE_VERSION") ?: "${version}"
-        }
-    }
-}
-
-configurations {
-    fourzero {
-        description = 'Cassandra 4.0 dependency'
-    }
-    fourzeroBridge {
-        description = 'Bridge to Cassandra 4.0'
-    }
-    fourzeroTypes {
-        description = 'Cassandra 4.0 Data Types'
-    }
-}
-
 dependencies {
-    api(project(':cassandra-bridge'))
+    compileOnly project(':cassandra-bridge')
+    compileOnly project(":cassandra-analytics-cdc")
+    compileOnly project(":cassandra-analytics-common")
+    compileOnly project(":cassandra-five-zero-types")
+    compileOnly project(":cassandra-avro-converter")
+    compileOnly(project(path: ':cassandra-five-zero', configuration: 'shadow'))
+    compileOnly "org.apache.avro:avro:${avroVersion}"
+}
 
-    compileOnly("com.google.guava:guava:${guavaVersion}")
-    implementation project(":cassandra-analytics-common")
-
-    implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"
-
-    api(project(path: ':analytics-sidecar-vertx-client-shaded', configuration: 'shadow'))
+jar {
+    archiveFileName = "five-zero-avro.jar"
 }

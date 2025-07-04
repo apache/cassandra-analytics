@@ -41,26 +41,26 @@ configurations {
     fourzero {
         description = 'Cassandra 4.0 dependency'
     }
-    fourzerobridge {
+    fourzeroBridge {
         description = 'Bridge to Cassandra 4.0'
     }
-    fourzerotypes {
+    fourzeroTypes {
         description = 'Cassandra 4.0 Data Types'
     }
-    fourzerosparksql {
+    fourzeroSparkSql {
         description = 'Cassandra 4.0 SparkSQL Converter'
     }
 
     fivezero {
         description = 'Cassandra 5.0 dependency'
     }
-    fivezerobridge {
+    fivezeroBridge {
         description = 'Bridge to Cassandra 5.0'
     }
-    fivezerotypes {
+    fivezeroTypes {
         description = 'Cassandra 5.0 Data Types'
     }
-    fivezerosparksql {
+    fivezeroSparkSql {
         description = 'Cassandra 5.0 SparkSQL Converter'
     }
 }
@@ -74,12 +74,12 @@ dependencies {
     fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     fourzeroBridge(project(path: ':cassandra-four-zero-bridge'))
     fourzeroTypes(project(path: ':cassandra-four-zero-types'))
-    fourzerosparksql(project(path: ':cassandra-analytics-spark-four-zero-converter'))
+    fourzeroSparkSql(project(path: ':cassandra-analytics-spark-four-zero-converter'))
 
     fivezero(project(path: ':cassandra-five-zero', configuration: 'shadow'))
     fivezeroBridge(project(path: ':cassandra-five-zero-bridge'))
     fivezeroTypes(project(path: ':cassandra-five-zero-types'))
-    fivezerosparksql(project(path: ':cassandra-analytics-spark-five-zero-converter'))
+    fivezeroSparkSql(project(path: ':cassandra-analytics-spark-five-zero-converter'))
 
     api(project(':cassandra-analytics-spark-converter'))
 
@@ -128,28 +128,28 @@ dependencies {
 
 jar {
     dependsOn(configurations.fourzero)
-    dependsOn(configurations.fourzerobridge)
-    dependsOn(configurations.fourzerosparksql)
-    dependsOn(configurations.fourzerotypes)
+    dependsOn(configurations.fourzeroBridge)
+    dependsOn(configurations.fourzeroSparkSql)
+    dependsOn(configurations.fourzeroTypes)
 
     dependsOn(configurations.fivezero)
-    dependsOn(configurations.fivezerobridge)
-    dependsOn(configurations.fivezerosparksql)
-    dependsOn(configurations.fivezerotypes)
+    dependsOn(configurations.fivezeroBridge)
+    dependsOn(configurations.fivezeroSparkSql)
+    dependsOn(configurations.fivezeroTypes)
 
     writeBuildVersion(version, project.projectDir)
 
     exclude('META-INF/*')
     into('bridges') {
         from(configurations.fourzero.singleFile)
-        from(configurations.fourzerobridge.singleFile)
-        from(configurations.fourzerotypes.singleFile)
-        from(configurations.fourzerosparksql.singleFile)
+        from(configurations.fourzeroBridge.singleFile)
+        from(configurations.fourzeroTypes.singleFile)
+        from(configurations.fourzeroSparkSql.singleFile)
 
         from(configurations.fivezero.singleFile)
-        from(configurations.fivezerobridge.singleFile)
-        from(configurations.fivezerotypes.singleFile)
-        from(configurations.fivezerosparksql.singleFile)
+        from(configurations.fivezeroBridge.singleFile)
+        from(configurations.fivezeroTypes.singleFile)
+        from(configurations.fivezeroSparkSql.singleFile)
     }
 }
 

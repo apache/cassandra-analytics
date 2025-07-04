@@ -40,10 +40,10 @@ configurations {
     fourzero {
         description = 'Cassandra 4.0 dependency'
     }
-    fourzerobridge {
+    fourzeroBridge {
         description = 'Bridge to Cassandra 4.0'
     }
-    fourzerotypes {
+    fourzeroTypes {
         description = 'Cassandra 4.0 Data Types'
     }
 }
@@ -52,8 +52,8 @@ dependencies {
     api(project(':cassandra-bridge'))
 
     fourzero(project(path: ':cassandra-four-zero', configuration: 'shadow'))
-    fourzerobridge(project(path: ':cassandra-four-zero-bridge'))
-    fourzerotypes(project(path: ':cassandra-four-zero-types'))
+    fourzeroBridge(project(path: ':cassandra-four-zero-bridge'))
+    fourzeroTypes(project(path: ':cassandra-four-zero-types'))
 
     implementation project(":cassandra-analytics-common")
     implementation project(':cassandra-analytics-cdc')
@@ -93,14 +93,14 @@ dependencies {
 
 jar {
     dependsOn(configurations.fourzero)
-    dependsOn(configurations.fourzerobridge)
-    dependsOn(configurations.fourzerotypes)
+    dependsOn(configurations.fourzeroBridge)
+    dependsOn(configurations.fourzeroTypes)
 
     exclude('META-INF/*')
     into('bridges') {
         from(configurations.fourzero.singleFile)
-        from(configurations.fourzerobridge.singleFile)
-        from(configurations.fourzerotypes.singleFile)
+        from(configurations.fourzeroBridge.singleFile)
+        from(configurations.fourzeroTypes.singleFile)
     }
 }
 
