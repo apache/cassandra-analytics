@@ -66,15 +66,14 @@ public enum CassandraVersion
 
     static
     {
-        // TODO(c4c5): IntelliJ fails to pick up this property?
         String providedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.implemented_versions",
-                                                              FIVEZERO.name());
+                                                              String.join(",", FOURZERO.name(), FIVEZERO.name()));
         implementedVersions = Arrays.stream(providedVersionsOrDefault.split(","))
                                     .map(CassandraVersion::valueOf)
                                     .toArray(CassandraVersion[]::new);
 
         String providedSupportedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.supported_versions",
-                                                                       "cassandra-5.0.3");
+                                                                       "cassandra-4.0.17,cassandra-5.0.3");
         supportedVersions = Arrays.stream(providedSupportedVersionsOrDefault.split(","))
                                   .toArray(String[]::new);
     }

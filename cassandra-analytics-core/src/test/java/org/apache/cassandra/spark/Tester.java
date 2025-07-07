@@ -333,11 +333,23 @@ public final class Tester
             Preconditions.checkArgument(schemaBuilder != null || schemaBuilderFunc != null);
             new Tester(this).run();
         }
+
+        public void run(CassandraVersion... versions)
+        {
+            Preconditions.checkArgument(schemaBuilder != null || schemaBuilderFunc != null);
+            new Tester(this).run(versions);
+        }
     }
 
     private void run()
     {
         qt().forAll(versions(), numSSTables())
+            .checkAssert(this::run);
+    }
+
+    private void run(CassandraVersion... versions)
+    {
+        qt().forAll(arbitrary().pick(Arrays.asList(versions)), numSSTables())
             .checkAssert(this::run);
     }
 

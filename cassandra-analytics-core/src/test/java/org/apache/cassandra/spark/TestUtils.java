@@ -278,6 +278,15 @@ public final class TestUtils extends CommonTestUtils
         return arbitrary().pick(CassandraVersion.implementedVersions());
     }
 
+    public static Gen<CassandraVersion> versions(CassandraBridge bridge)
+    {
+        // TODO(c4c5): Compare patch number of version. Bridge 4.0
+        List<CassandraVersion> versions = Arrays.stream(CassandraVersion.implementedVersions())
+                                                .filter(v -> bridge.getVersion().equals(v))
+                                                .collect(Collectors.toList());
+        return arbitrary().pick(versions);
+    }
+
     public static Gen<CassandraBridge> bridges()
     {
         return arbitrary().pick(testableVersions().stream()
@@ -288,6 +297,11 @@ public final class TestUtils extends CommonTestUtils
     public static List<CassandraVersion> testableVersions()
     {
         return ImmutableList.copyOf(CassandraVersion.implementedVersions());
+    }
+
+    public static List<CassandraVersion> testableVersions(CassandraBridge bridge)
+    {
+        return Arrays.stream(CassandraVersion.implementedVersions()).filter(v -> bridge.getVersion().equals(v)).collect(Collectors.toList());
     }
 
     public static List<CassandraVersion> filterTestableVersions(List<CassandraVersion> candidates)

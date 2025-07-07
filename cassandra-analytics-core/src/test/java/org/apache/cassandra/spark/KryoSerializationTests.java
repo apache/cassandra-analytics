@@ -21,7 +21,9 @@ package org.apache.cassandra.spark;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import com.google.common.collect.ImmutableList;
@@ -34,6 +36,7 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.secrets.SslConfig;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
@@ -59,27 +62,40 @@ import static org.quicktheories.generators.SourceDSL.integers;
 
 public class KryoSerializationTests
 {
-    private static final Kryo KRYO = new Kryo();
+    private static final Map<CassandraVersion, Kryo> KRYO = new HashMap<>();
 
     static
     {
-        new KryoRegister().registerClasses(KRYO);
+        try
+        {
+            for (Map.Entry<CassandraVersion, Class<?>> entry : KryoRegister.KRYO_REGISTRATORS.entrySet())
+            {
+                Kryo kryo = new Kryo();
+                KryoRegister register = (KryoRegister) entry.getValue().getDeclaredConstructor().newInstance();
+                register.registerClasses(kryo);
+                KRYO.put(entry.getKey(), kryo);
+            }
+        }
+        catch (Exception e)
+        {
+            throw new RuntimeException(e);
+        }
     }
 
-    private static Output serialize(Object object)
+    private static Output serialize(CassandraVersion version, Object object)
     {
         try (Output out = new Output(1024, -1))
         {
-            KRYO.writeObject(out, object);
+            KRYO.get(version).writeObject(out, object);
             return out;
         }
     }
 
-    private static <T> T deserialize(Output output, Class<T> type)
+    private static <T> T deserialize(CassandraVersion version, Output output, Class<T> type)
     {
         try (Input in = new Input(output.getBuffer(), 0, output.position()))
         {
-            return KRYO.readObject(in, type);
+            return KRYO.get(version).readObject(in, type);
         }
     }
 
@@ -96,8 +112,8 @@ public class KryoSerializationTests
                                               RandomUtils.randomAlphanumeric(5, 20),
                                               cqlType,
                                               position);
-                Output out = serialize(field);
-                CqlField deserialized = deserialize(out, CqlField.class);
+                Output out = serialize(bridge.getVersion(), field);
+                CqlField deserialized = deserialize(bridge.getVersion(), out, CqlField.class);
                 assertEquals(field, deserialized);
                 assertEquals(field.name(), deserialized.name());
                 assertEquals(field.type(), deserialized.type());
@@ -121,8 +137,8 @@ public class KryoSerializationTests
                                               RandomUtils.randomAlphanumeric(5, 20),
                                               setType,
                                               position);
-                Output out = serialize(field);
-                CqlField deserialized = deserialize(out, CqlField.class);
+                Output out = serialize(bridge.getVersion(), field);
+                CqlField deserialized = deserialize(bridge.getVersion(), out, CqlField.class);
                 assertEquals(field, deserialized);
                 assertEquals(field.name(), deserialized.name());
                 assertEquals(field.type(), deserialized.type());
@@ -146,8 +162,8 @@ public class KryoSerializationTests
                                               RandomUtils.randomAlphanumeric(5, 20),
                                               listType,
                                               position);
-                Output out = serialize(field);
-                CqlField deserialized = deserialize(out, CqlField.class);
+                Output out = serialize(bridge.getVersion(), field);
+                CqlField deserialized = deserialize(bridge.getVersion(), out, CqlField.class);
                 assertEquals(field, deserialized);
                 assertEquals(field.name(), deserialized.name());
                 assertEquals(field.type(), deserialized.type());
@@ -171,8 +187,8 @@ public class KryoSerializationTests
                                               RandomUtils.randomAlphanumeric(5, 20),
                                               mapType,
                                               2);
-                Output out = serialize(field);
-                CqlField deserialized = deserialize(out, CqlField.class);
+                Output out = serialize(bridge.getVersion(), field);
+                CqlField deserialized = deserialize(bridge.getVersion(), out, CqlField.class);
                 assertEquals(field, deserialized);
                 assertEquals(field.name(), deserialized.name());
                 assertEquals(field.type(), deserialized.type());
@@ -194,8 +210,8 @@ public class KryoSerializationTests
                                             .withField("b", type2)
                                             .build();
                 CqlField field = new CqlField(false, false, false, RandomUtils.randomAlphanumeric(5, 20), udt, 2);
-                Output out = serialize(field);
-                CqlField deserialized = deserialize(out, CqlField.class);
+                Output out = serialize(bridge.getVersion(), field);
+                CqlField deserialized = deserialize(bridge.getVersion(), out, CqlField.class);
                 assertEquals(field, deserialized);
                 assertEquals(field.name(), deserialized.name());
                 assertEquals(udt, deserialized.type());
@@ -219,8 +235,8 @@ public class KryoSerializationTests
                                                        bridge.bigint(),
                                                        bridge.map(type2, bridge.timeuuid()));
                 CqlField field = new CqlField(false, false, false, RandomUtils.randomAlphanumeric(5, 20), tuple, 2);
-                Output out = serialize(field);
-                CqlField deserialized = deserialize(out, CqlField.class);
+                Output out = serialize(bridge.getVersion(), field);
+                CqlField deserialized = deserialize(bridge.getVersion(), out, CqlField.class);
                 assertEquals(field, deserialized);
                 assertEquals(field.name(), deserialized.name());
                 assertEquals(tuple, deserialized.type());
@@ -248,32 +264,32 @@ public class KryoSerializationTests
                                       replicationFactor,
                                       fields);
 
-        Output out = serialize(table);
-        CqlTable deserialized = deserialize(out, CqlTable.class);
+        Output out = serialize(bridge.getVersion(), table);
+        CqlTable deserialized = deserialize(bridge.getVersion(), out, CqlTable.class);
         assertNotNull(deserialized);
         assertEquals(table, deserialized);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
-    public void testCassandraInstance()
+    public void testCassandraInstance(CassandraBridge bridge)
     {
         CassandraInstance instance = new CassandraInstance("-9223372036854775807", "local1-i1", "DC1");
-        Output out = serialize(instance);
-        CassandraInstance deserialized = deserialize(out, CassandraInstance.class);
+        Output out = serialize(bridge.getVersion(), instance);
+        CassandraInstance deserialized = deserialize(bridge.getVersion(), out, CassandraInstance.class);
         assertNotNull(deserialized);
         assertEquals(instance, deserialized);
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
-    public void testCassandraRing()
+    public void testCassandraRing(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.partitioners())
             .checkAssert(partitioner -> {
                 CassandraRing ring = TestUtils.createRing(partitioner, ImmutableMap.of("DC1", 3, "DC2", 3));
-                Output out = serialize(ring);
-                CassandraRing deserialized = deserialize(out, CassandraRing.class);
+                Output out = serialize(bridge.getVersion(), ring);
+                CassandraRing deserialized = deserialize(bridge.getVersion(), out, CassandraRing.class);
                 assertNotNull(deserialized);
                 assertEquals(ring, deserialized);
                 assertEquals(partitioner, deserialized.partitioner());
@@ -294,15 +310,16 @@ public class KryoSerializationTests
                                                            path1,
                                                            path2,
                                                            path3);
-        Output out = serialize(localDataLayer);
-        LocalDataLayer deserialized = deserialize(out, LocalDataLayer.class);
+        Output out = serialize(bridge.getVersion(), localDataLayer);
+        LocalDataLayer deserialized = deserialize(bridge.getVersion(), out, LocalDataLayer.class);
         assertNotNull(deserialized);
         assertEquals(localDataLayer.version(), deserialized.version());
         assertEquals(localDataLayer, deserialized);
     }
 
-    @Test
-    public void testTokenPartitioner()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testTokenPartitioner(CassandraBridge bridge)
     {
         qt().forAll(TestUtils.partitioners(),
                     arbitrary().pick(Arrays.asList(3, 16, 128)),
@@ -311,8 +328,8 @@ public class KryoSerializationTests
             .checkAssert((partitioner, numInstances, defaultParallelism, numCores) -> {
                 CassandraRing ring = TestUtils.createRing(partitioner, numInstances);
                 TokenPartitioner tokenPartitioner = new TokenPartitioner(ring, defaultParallelism, numCores);
-                Output out = serialize(tokenPartitioner);
-                TokenPartitioner deserialized = deserialize(out, TokenPartitioner.class);
+                Output out = serialize(bridge.getVersion(), tokenPartitioner);
+                TokenPartitioner deserialized = deserialize(bridge.getVersion(), out, TokenPartitioner.class);
                 assertNotNull(deserialized);
                 assertEquals(tokenPartitioner.numPartitions(), deserialized.numPartitions());
                 assertEquals(tokenPartitioner.subRanges().size(), deserialized.subRanges().size());
@@ -345,8 +362,9 @@ public class KryoSerializationTests
         }
     }
 
-    @Test
-    public void testSslConfig()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testSslConfig(CassandraBridge bridge)
     {
         SslConfig config = new SslConfig.Builder<>()
                            .keyStorePath("keyStorePath")
@@ -358,8 +376,8 @@ public class KryoSerializationTests
                            .trustStorePassword("trustStorePassword")
                            .trustStoreType("trustStoreType")
                            .build();
-        Output out = serialize(config);
-        SslConfig deserialized = deserialize(out, SslConfig.class);
+        Output out = serialize(bridge.getVersion(), config);
+        SslConfig deserialized = deserialize(bridge.getVersion(), out, SslConfig.class);
 
         assertEquals(config.keyStorePath(), deserialized.keyStorePath());
         assertEquals(config.base64EncodedKeyStore(), deserialized.base64EncodedKeyStore());
@@ -428,16 +446,17 @@ public class KryoSerializationTests
     private static <T> void testSerDeser(Object origin, Class<T> type)
     {
         T deserialized;
-        try (Output out = serialize(origin))
+        try (Output out = serialize(CassandraVersion.FOURZERO, origin))
         {
-            deserialized = deserialize(out, type);
+            deserialized = deserialize(CassandraVersion.FOURZERO, out, type);
         }
         assertEquals(origin, deserialized);
     }
 
     static
     {
-        new KryoRegister().registerClasses(KRYO);
-        new SbwKryoRegistrator().registerClasses(KRYO);
+        Kryo kryo = KRYO.get(CassandraVersion.FOURZERO);
+        new KryoRegister(CassandraVersion.FOURZERO).registerClasses(kryo);
+        new SbwKryoRegistrator().registerClasses(kryo);
     }
 }

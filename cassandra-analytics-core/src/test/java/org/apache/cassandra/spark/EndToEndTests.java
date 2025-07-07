@@ -90,7 +90,7 @@ public class EndToEndTests
                                  .withColumn("c2", bridge.text()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withSumField("c1")
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -101,12 +101,12 @@ public class EndToEndTests
         Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
         Tester.builder(TestSchema.builder(bridge)
                                  .withPartitionKey("a", bridge.uuid())
                                  .withPartitionKey("b", bridge.bigint()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -118,7 +118,7 @@ public class EndToEndTests
                                  .withClusteringKey("b", bridge.bigint())
                                  .withClusteringKey("c", bridge.text()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -132,7 +132,7 @@ public class EndToEndTests
                                  .withColumn("d", bridge.bigint()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withSumField("d")
-              .run();
+              .run(bridge.getVersion());
     }
 
     /* Clustering Key Tests */
@@ -147,7 +147,7 @@ public class EndToEndTests
                                  .withColumn("c", bridge.bigint()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withSumField("c")
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -163,7 +163,7 @@ public class EndToEndTests
                                          .withColumn("c", bridge.bigint())
                                          .withSortOrder(sortOrder))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -179,7 +179,7 @@ public class EndToEndTests
                                  .withColumn("e", bridge.bigint()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withSumField("e")
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -196,7 +196,7 @@ public class EndToEndTests
                                  .withColumn("g", bridge.bigint()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withSumField("g")
-              .run();
+              .run(bridge.getVersion());
     }
 
     /* Data Type Tests */
@@ -217,7 +217,7 @@ public class EndToEndTests
                       .withNumRandomSSTables(1)
                       .withNumRandomRows(numRows)
                       .withExpectedRowCountPerSSTable(numRows)
-                      .run();
+                      .run(bridge.getVersion());
             });
     }
 
@@ -233,7 +233,7 @@ public class EndToEndTests
                                          .withColumn("b", valueType))
                       .withNumRandomSSTables(1)
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -349,7 +349,7 @@ public class EndToEndTests
               .withCheck(dataset -> assertEquals(numRowsColumns * numRowsColumns,
                                                  dataset.groupBy().count().first().getLong(0)))
               .withReset(() -> total.set(0))
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -414,7 +414,7 @@ public class EndToEndTests
                       testSum.put(clusteringKey, new MutableLong(0));
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     /* Static Columns */
@@ -428,7 +428,7 @@ public class EndToEndTests
                                  .withClusteringKey("b", bridge.bigint())
                                  .withStaticColumn("c", bridge.aInt()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -481,7 +481,7 @@ public class EndToEndTests
               })
               // Verify row count is correct
               .withCheck(dataset -> assertEquals(numRows * numColumns * 2, dataset.count()))
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -516,7 +516,7 @@ public class EndToEndTests
                       assertEquals("Non-null", staticCol);
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -581,7 +581,7 @@ public class EndToEndTests
                   total.set(0);
                   rows.clear();
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     /* Tombstone Tests */
@@ -630,7 +630,7 @@ public class EndToEndTests
                           }
                           assertEquals((numRows - (deleteRangeEnd - deleteRangeStart)) * numColumns, count);
                       })
-                      .run();
+                      .run(bridge.getVersion());
             });
     }
 
@@ -675,7 +675,7 @@ public class EndToEndTests
                           }
                           assertEquals(numRows * (numColumns - 1), count);
                       })
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -726,7 +726,7 @@ public class EndToEndTests
                           }
                           assertEquals(numRows * (numColumns - numTombstones), count);
                       })
-                      .run();
+                      .run(bridge.getVersion());
             });
     }
 
@@ -780,7 +780,7 @@ public class EndToEndTests
                           }
                           assertEquals(numRows * (numColumns - numTombstones), count);
                       })
-                      .run();
+                      .run(bridge.getVersion());
             });
     }
 
@@ -825,7 +825,7 @@ public class EndToEndTests
                   }
               })
               .withReset(rows::clear)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -877,7 +877,7 @@ public class EndToEndTests
                   }
               })
               .withReset(rows::clear)
-              .run();
+              .run(bridge.getVersion());
     }
 
     /* Collections */
@@ -893,7 +893,7 @@ public class EndToEndTests
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.set(type)))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -907,7 +907,7 @@ public class EndToEndTests
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.list(type)))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -923,7 +923,7 @@ public class EndToEndTests
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.map(keyType, valueType)))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -936,7 +936,7 @@ public class EndToEndTests
                                  .withClusteringKey("id", bridge.aInt())
                                  .withColumn("a", bridge.set(bridge.text())))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     /* Frozen Collections */
@@ -953,7 +953,7 @@ public class EndToEndTests
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.set(type).frozen()))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -968,7 +968,7 @@ public class EndToEndTests
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.list(type).frozen()))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -985,7 +985,7 @@ public class EndToEndTests
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.map(keyType, valueType).frozen()))
                       .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -999,7 +999,7 @@ public class EndToEndTests
                                  .withColumn("a", bridge.map(bridge.text(), bridge.set(bridge.text()).frozen())))
               .withNumRandomRows(32)
               .withExpectedRowCountPerSSTable(32)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1012,7 +1012,7 @@ public class EndToEndTests
                                  .withColumn("a", bridge.map(bridge.text(), bridge.list(bridge.text()).frozen())))
               .withNumRandomRows(32)
               .withExpectedRowCountPerSSTable(32)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1027,7 +1027,7 @@ public class EndToEndTests
               .withNumRandomRows(32)
               .withExpectedRowCountPerSSTable(32)
               .dontCheckNumSSTables()
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1042,7 +1042,7 @@ public class EndToEndTests
               .withNumRandomRows(32)
               .withExpectedRowCountPerSSTable(32)
               .dontCheckNumSSTables()
-              .run();
+              .run(bridge.getVersion());
     }
 
     /* Filters */
@@ -1070,7 +1070,7 @@ public class EndToEndTests
                       assertEquals(1, a);
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1107,7 +1107,7 @@ public class EndToEndTests
                       assertTrue(keys.contains(key));
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1127,7 +1127,7 @@ public class EndToEndTests
               })
               .withFilter("a=11")
               .withCheck(dataset -> assertTrue(dataset.collectAsList().isEmpty()))
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1157,7 +1157,7 @@ public class EndToEndTests
                       assertEquals("def", row.getString(1));
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1174,7 +1174,7 @@ public class EndToEndTests
                                                      .withField("c", type)
                                                      .withField("d", bridge.aInt())
                                                      .build()))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1193,7 +1193,7 @@ public class EndToEndTests
                                                                 .withField("c", bridge.set(type).frozen())
                                                                 .withField("d", bridge.aInt())
                                                                 .build()))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1211,7 +1211,7 @@ public class EndToEndTests
                                                                 .withField("c", bridge.list(type).frozen())
                                                                 .withField("d", bridge.bool())
                                                                 .build()))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1232,7 +1232,7 @@ public class EndToEndTests
                                                                 .withField("d", bridge.map(type1, type2).frozen())
                                                                 .withField("e", bridge.bool())
                                                                 .build()))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1263,7 +1263,7 @@ public class EndToEndTests
                                                                    .withField("b", bridge.list(type).frozen())
                                                                    .withField("c", bridge.ascii())
                                                                    .build()))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1286,7 +1286,7 @@ public class EndToEndTests
                                                                                       .build().frozen())
                                                                 .withField("e", bridge.bool())
                                                                 .build()))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1303,7 +1303,7 @@ public class EndToEndTests
                 Tester.builder(TestSchema.builder(bridge)
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withColumn("a", bridge.tuple(bridge.aInt(), type1, bridge.bigint(), type2)))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1320,7 +1320,7 @@ public class EndToEndTests
                                          .withPartitionKey("pk", bridge.uuid())
                                          .withClusteringKey("col1", type1)
                                          .withColumn("a", bridge.tuple(bridge.aInt(), type2, bridge.bigint())))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1344,7 +1344,7 @@ public class EndToEndTests
                                                                                                  bridge.bool(),
                                                                                                  type2)),
                                                                        bridge.timeuuid())))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1367,7 +1367,7 @@ public class EndToEndTests
                                                                                     bridge.varchar(),
                                                                                     bridge.set(type)),
                                                                        bridge.timeuuid())))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1389,7 +1389,7 @@ public class EndToEndTests
                                                                                     bridge.varchar(),
                                                                                     bridge.list(type)),
                                                                        bridge.timeuuid())))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1412,7 +1412,7 @@ public class EndToEndTests
                                                                                    bridge.varchar(),
                                                                                    bridge.map(type1, type2)),
                                                                                    bridge.timeuuid())))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1431,7 +1431,7 @@ public class EndToEndTests
                                                                      bridge.tuple(bridge.bool(),
                                                                                   type,
                                                                                   bridge.timestamp()).frozen())))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1450,7 +1450,7 @@ public class EndToEndTests
                                          .withColumn("a", bridge.set(bridge.tuple(type,
                                                                                   bridge.aFloat(),
                                                                                   bridge.text()).frozen())))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1469,7 +1469,7 @@ public class EndToEndTests
                                                                                    bridge.inet(),
                                                                                    bridge.decimal(),
                                                                                    type).frozen())))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1491,7 +1491,7 @@ public class EndToEndTests
                                                                              .withField("z", bridge.aInt())
                                                                              .build().frozen(),
                                                                        bridge.timeuuid())))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1514,7 +1514,7 @@ public class EndToEndTests
                                                                                              bridge.timestamp()))
                                                                 .withField("z", bridge.ascii())
                                                                 .build()))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1534,7 +1534,7 @@ public class EndToEndTests
                                          .withColumn("a", bridge.text())
                                          .withColumn("b", bridge.aInt())
                                          .withColumn("c", bridge.ascii()))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1555,7 +1555,7 @@ public class EndToEndTests
                                          .withColumn("a", bridge.text())
                                          .withColumn("b", bridge.aInt())
                                          .withColumn("c", bridge.ascii()))
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -1603,7 +1603,7 @@ public class EndToEndTests
                                               .withColumn("last_transition_time", udt1.frozen())
                                               .withColumn("prev_state_id", bridge.text())
                                               .withColumn("state_id", bridge.text()))
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1621,7 +1621,7 @@ public class EndToEndTests
                                              .withKeyspace(keyspace)
                                              .withPartitionKey("a", bridge.bigint())
                                              .withColumn("b", bridge.map(bridge.aInt(), testudt.frozen())))
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1719,7 +1719,7 @@ public class EndToEndTests
                                               .withMinCollectionSize(4))
               .withNumRandomRows(50)
               .withNumRandomSSTables(2)
-              .run();
+              .run(bridge.getVersion());
     }
 
     /* BigDecimal/Integer Tests */
@@ -1732,7 +1732,7 @@ public class EndToEndTests
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withColumn("c1", bridge.decimal())
                                  .withColumn("c2", bridge.text()))
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1743,7 +1743,7 @@ public class EndToEndTests
                                  .withPartitionKey("pk", bridge.uuid())
                                  .withColumn("c1", bridge.varint())
                                  .withColumn("c2", bridge.text()))
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1760,7 +1760,7 @@ public class EndToEndTests
                                               .withKeyspace(keyspace1)
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("a", bridge.set(udt1.frozen())))
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1838,7 +1838,7 @@ public class EndToEndTests
                       assertEquals(expectedTuple[2], tuple.getInt(2));
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     /* Complex Clustering Keys */
@@ -1888,7 +1888,7 @@ public class EndToEndTests
                       assertEquals(values.get(pk.getKey()).get("c"), pk.getValue().getString(2));
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1902,7 +1902,7 @@ public class EndToEndTests
                                  .withColumn("c2", bridge.text())
                                  .withColumn("c3", bridge.text()))
               .withNumRandomRows(5)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1915,7 +1915,7 @@ public class EndToEndTests
                                  .withColumn("c1", bridge.text())
                                  .withColumn("c2", bridge.text())
                                  .withColumn("c3", bridge.text()))
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1928,7 +1928,7 @@ public class EndToEndTests
                                  .withColumn("c1", bridge.text())
                                  .withColumn("c2", bridge.text())
                                  .withColumn("c3", bridge.text()))
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -1946,7 +1946,7 @@ public class EndToEndTests
                                              .withColumn("c1", bridge.text())
                                              .withColumn("c2", bridge.text())
                                              .withColumn("c3", bridge.text()))
-              .run();
+              .run(bridge.getVersion());
     }
 
     /* Column Prune Filters */
@@ -2031,7 +2031,7 @@ public class EndToEndTests
                           }
                       })
                       .withReset(EndToEndTests::resetStats)
-                      .run()
+                      .run(bridge.getVersion())
             );
     }
 
@@ -2069,7 +2069,7 @@ public class EndToEndTests
                       assertTrue(row.get(4) instanceof scala.collection.immutable.Map);
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2107,7 +2107,7 @@ public class EndToEndTests
                       assertTrue(row.get(4) instanceof scala.collection.immutable.Map);
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2126,7 +2126,7 @@ public class EndToEndTests
                                  .withColumn("f", bridge.bool()))
               .withColumns("pk", "ck", "a", "b", "c", "d", "e", "f")
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2146,7 +2146,7 @@ public class EndToEndTests
               .withColumns("pk", "ck", "a", "b", "c", "d", "e", "f")
               .withUpsert()
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2165,7 +2165,7 @@ public class EndToEndTests
                                  .withColumn("f", bridge.bool()))
               .withColumns("pk", "ck")
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2185,7 +2185,7 @@ public class EndToEndTests
               .withUpsert()
               .withColumns("pk", "ck")
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2196,7 +2196,7 @@ public class EndToEndTests
                                  .withPartitionKey("pk", bridge.uuid()))
               .withColumns("pk")
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2209,7 +2209,7 @@ public class EndToEndTests
                                  .withClusteringKey("ck2", bridge.bigint()))
               .withColumns("pk", "ck1", "ck2")
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2223,7 +2223,7 @@ public class EndToEndTests
                                  .withStaticColumn("c1", bridge.timestamp()))
               .withColumns("pk", "ck1", "ck2", "c1")
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2240,7 +2240,7 @@ public class EndToEndTests
                                  .withStaticColumn("d", bridge.uuid()))
               .withColumns("pk", "ck", "c")
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2258,7 +2258,7 @@ public class EndToEndTests
               .withColumns("pk", "ck", "c")
               .withUpsert()
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2298,7 +2298,7 @@ public class EndToEndTests
                       assertTrue(observedLMT.add(Pair.of(row.getInt(1), lmt)), "Observed a duplicated LMT");
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2338,7 +2338,7 @@ public class EndToEndTests
                       assertTrue(((java.sql.Timestamp) row.get(5)).getTime() > 0);
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2380,7 +2380,7 @@ public class EndToEndTests
                       assertTrue(observedLMT.add(lmt), "Observed a duplicated LMT");
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2417,7 +2417,7 @@ public class EndToEndTests
                       assertTrue(observedLMT.add(lmt), "Observed a duplicated LMT");
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 
     /* Identifiers That Need Quoting Tests */
@@ -2432,7 +2432,7 @@ public class EndToEndTests
                                               .withColumn("c1", bridge.varint())
                                               .withColumn("c2", bridge.text())
                                               .withQuotedIdentifiers())
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2445,7 +2445,7 @@ public class EndToEndTests
                                               .withColumn("c1", bridge.varint())
                                               .withColumn("c2", bridge.text())
                                               .withQuotedIdentifiers())
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2459,7 +2459,7 @@ public class EndToEndTests
                                               .withColumn("c1", bridge.varint())
                                               .withColumn("c2", bridge.text())
                                               .withQuotedIdentifiers())
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2473,7 +2473,7 @@ public class EndToEndTests
                                               .withColumn("c1", bridge.varint())
                                               .withColumn("c2", bridge.text())
                                               .withQuotedIdentifiers())
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2487,7 +2487,7 @@ public class EndToEndTests
                                               .withColumn("c1", bridge.varint())
                                               .withColumn("c2", bridge.text())
                                               .withQuotedIdentifiers())
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2504,7 +2504,7 @@ public class EndToEndTests
                                               .withQuotedIdentifiers())
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withSumField("d")
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2519,7 +2519,7 @@ public class EndToEndTests
                                               .withClusteringKey("Clustering_Key_1", bridge.text())
                                               .withQuotedIdentifiers())
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2533,7 +2533,7 @@ public class EndToEndTests
                                               .withColumn("Column_1", bridge.varint())
                                               .withColumn("Column_2", bridge.text())
                                               .withQuotedIdentifiers())
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2548,7 +2548,7 @@ public class EndToEndTests
                                               .withColumn("Column_2", bridge.text())
                                               .withQuotedIdentifiers())
               .withColumns("Partition_Key_0", "Column_1") // PK is required for lookup of the inserted data
-              .run();
+              .run(bridge.getVersion());
     }
 
     // null values in regular columns
@@ -2561,7 +2561,7 @@ public class EndToEndTests
                                  .withColumn("c", bridge.text()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withNullRegularColumns()
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2575,7 +2575,7 @@ public class EndToEndTests
                                  .withColumn("c", bridge.text()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withNullRegularColumns()
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2590,7 +2590,7 @@ public class EndToEndTests
                                                   .withColumn("c", bridge.text()))
                                .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
                                .withNullRegularColumns()
-                               .run());
+                               .run(bridge.getVersion()));
     }
 
     @ParameterizedTest
@@ -2608,7 +2608,7 @@ public class EndToEndTests
                                                   .withColumn("f", bridge.blob()))
                                .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
                                .withNullRegularColumns()
-                               .run());
+                               .run(bridge.getVersion()));
     }
 
     @ParameterizedTest
@@ -2624,7 +2624,7 @@ public class EndToEndTests
               .withColumns("a", "b", "d")
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withNullRegularColumns()
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2638,7 +2638,7 @@ public class EndToEndTests
                                  .withColumn("d", bridge.text()))
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withNullRegularColumns()
-              .run();
+              .run(bridge.getVersion());
     }
 
     @ParameterizedTest
@@ -2663,6 +2663,6 @@ public class EndToEndTests
                       assertNull(row.get(1));
                   }
               })
-              .run();
+              .run(bridge.getVersion());
     }
 }
