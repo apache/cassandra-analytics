@@ -28,7 +28,6 @@ import java.util.Map;
 
 import org.apache.cassandra.io.compress.ICompressor;
 import org.apache.cassandra.io.util.File;
-import org.apache.cassandra.io.util.Memory;
 import org.apache.cassandra.schema.CompressionParams;
 import org.apache.cassandra.spark.reader.common.AbstractCompressionMetadata;
 import org.apache.cassandra.spark.reader.common.BigLongArray;
@@ -41,13 +40,11 @@ import org.apache.cassandra.spark.reader.common.BigLongArray;
 public class CompressionMetadata extends AbstractCompressionMetadata
 {
     private final CompressionParams parameters;
-    private final int chunkCount;
     private final double crcCheckChance;
 
-    private CompressionMetadata(long dataLength, int chunkCount, BigLongArray chunkOffsets, CompressionParams parameters, double crcCheckChance)
+    private CompressionMetadata(long dataLength, BigLongArray chunkOffsets, CompressionParams parameters, double crcCheckChance)
     {
         super(dataLength, chunkOffsets);
-        this.chunkCount = chunkCount;
         this.parameters = parameters;
         this.crcCheckChance = crcCheckChance;
     }
@@ -95,7 +92,7 @@ public class CompressionMetadata extends AbstractCompressionMetadata
             }
         }
 
-        return new CompressionMetadata(dataLength, chunkCount, chunkOffsets, params, crcCheckChance);
+        return new CompressionMetadata(dataLength, chunkOffsets, params, crcCheckChance);
     }
 
     ICompressor compressor()
@@ -118,18 +115,11 @@ public class CompressionMetadata extends AbstractCompressionMetadata
     // TODO(c4c5): Find better way to create Cassandra CompressionMetadata.
     public org.apache.cassandra.io.compress.CompressionMetadata toInternal(File file, long compressedFileLength)
     {
-        // TODO(c4c5): Duplicated memory allocation for Memory and BigLongArray.
-        Memory chunkOffsetsMem = Memory.allocate(chunkCount * 8L);
-        for (int chunk = 0; chunk < chunkCount; chunk++)
-        {
-            long val = chunkOffsets.get(chunk);
-            chunkOffsetsMem.setLong(chunk * 8L, val);
-        }
-        // memory is freed by CompressionMetadata
+        AlignedReadonlyLongArrayMemory memory = new AlignedReadonlyLongArrayMemory(chunkOffsets);
         return new org.apache.cassandra.io.compress.CompressionMetadata(file,
                                                                         parameters,
-                                                                        chunkOffsetsMem,
-                                                                        chunkOffsetsMem.size(),
+                                                                        memory,
+                                                                        memory.size(),
                                                                         getDataLength(),
                                                                         compressedFileLength);
     }
