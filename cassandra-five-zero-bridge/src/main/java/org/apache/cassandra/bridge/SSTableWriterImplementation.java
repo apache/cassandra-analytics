@@ -19,25 +19,16 @@
 
 package org.apache.cassandra.bridge;
 
-import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.HashSet;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.dht.IPartitioner;
@@ -45,7 +36,8 @@ import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
-import org.apache.cassandra.util.ThreadUtil;
+import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.jetbrains.annotations.NotNull;
 
 public class SSTableWriterImplementation implements SSTableWriter
@@ -55,11 +47,7 @@ public class SSTableWriterImplementation implements SSTableWriter
         Config.setClientMode(true);
     }
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(SSTableWriterImplementation.class);
-
     private final CQLSSTableWriter writer;
-    private final Path outputDir;
-    private final SSTableWatcher sstableWatcher;
     private Consumer<Set<SSTableDescriptor>> producedSSTablesListener;
 
     public SSTableWriterImplementation(String inDirectory,
@@ -69,94 +57,57 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        @NotNull Set<String> userDefinedTypeStatements,
                                        int bufferSizeMB)
     {
-        this(inDirectory, partitioner, createStatement, insertStatement, userDefinedTypeStatements, bufferSizeMB, 10);
+        this(inDirectory, determineSupportedPartitioner(partitioner), createStatement, insertStatement, userDefinedTypeStatements, bufferSizeMB);
     }
 
     @VisibleForTesting
-    SSTableWriterImplementation(String inDirectory,
-                                String partitioner,
-                                String createStatement,
-                                String insertStatement,
-                                @NotNull Set<String> userDefinedTypeStatements,
-                                int bufferSizeMB,
-                                long sstableWatcherDelaySeconds)
+    public SSTableWriterImplementation(String inDirectory,
+                                       IPartitioner partitioner,
+                                       String createStatement,
+                                       String insertStatement,
+                                       @NotNull Set<String> userDefinedTypeStatements,
+                                       int bufferSizeMB)
     {
-        IPartitioner cassPartitioner = partitioner.toLowerCase().contains("random") ? new RandomPartitioner()
-                                                                                    : new Murmur3Partitioner();
-
         this.writer = configureBuilder(inDirectory,
                                        createStatement,
                                        insertStatement,
                                        bufferSizeMB,
                                        userDefinedTypeStatements,
-                                       cassPartitioner)
+                                       this::onSSTablesProduced,
+                                       partitioner)
                       .build();
-        this.outputDir = Paths.get(inDirectory);
-        this.sstableWatcher = new SSTableWatcher(sstableWatcherDelaySeconds);
     }
 
-    private class SSTableWatcher implements Closeable
+    private static IPartitioner determineSupportedPartitioner(String partitioner)
     {
-        // The TOC component is the last one flushed when finishing a SSTable.
-        // Therefore, it monitors the creation of the TOC component to determine the creation of SSTable
-        private static final String TOC_COMPONENT_SUFFIX = "-TOC.txt";
-        private static final String GLOB_PATTERN_FOR_TOC = "*" + TOC_COMPONENT_SUFFIX;
+        return partitioner.toLowerCase().contains("random")
+               ? new RandomPartitioner()
+               : new Murmur3Partitioner();
+    }
 
-        private final ScheduledExecutorService sstableWatcherScheduler;
-        private final Set<SSTableDescriptor> knownSSTables;
+    private void onSSTablesProduced(Collection<SSTableReader> sstables)
+    {
+        Objects.requireNonNull(producedSSTablesListener, "producedSSTablesListener is not set");
+        Set<SSTableDescriptor> sstableDescriptors = sstables
+                                                    .stream()
+                                                    .map(sstable -> {
+                                                        String baseFilename = baseFilename(sstable.descriptor);
+                                                        // TODO: for now, the sstableReader is closed immediately,
+                                                        // TODO (CONTI): we can potentially read from the reader to validate the underlying sstable,
+                                                        // TODO (CONTI): replacing org.apache.cassandra.spark.bulkwriter.SortedSSTableWriter.validateSSTables
+                                                        sstable.selfRef().close();
+                                                        return new SSTableDescriptor(baseFilename);
+                                                    })
+                                                    .collect(Collectors.toSet());
 
-        SSTableWatcher(long delaySeconds)
-        {
-            ThreadFactory tf = ThreadUtil.threadFactory("SSTableWatcher-" + outputDir.getFileName().toString());
-            this.sstableWatcherScheduler = Executors.newSingleThreadScheduledExecutor(tf);
-            this.knownSSTables = new HashSet<>();
-            sstableWatcherScheduler.scheduleWithFixedDelay(this::listSSTables, delaySeconds, delaySeconds, TimeUnit.SECONDS);
-        }
+        producedSSTablesListener.accept(sstableDescriptors);
+    }
 
-        private void listSSTables()
-        {
-            try (DirectoryStream<Path> stream = Files.newDirectoryStream(outputDir, GLOB_PATTERN_FOR_TOC))
-            {
-                HashSet<SSTableDescriptor> newlyProducedSSTables = new HashSet<>();
-                stream.forEach(path -> {
-                    String baseFilename = path.getFileName().toString().replace(TOC_COMPONENT_SUFFIX, "");
-                    SSTableDescriptor sstable = new SSTableDescriptor(baseFilename);
-                    if (!knownSSTables.contains(sstable))
-                    {
-                        newlyProducedSSTables.add(sstable);
-                    }
-                });
-
-                if (!newlyProducedSSTables.isEmpty())
-                {
-                    knownSSTables.addAll(newlyProducedSSTables);
-                    producedSSTablesListener.accept(newlyProducedSSTables);
-                }
-            }
-            catch (IOException e)
-            {
-                LOGGER.warn("Fails to list SSTables", e);
-            }
-        }
-
-        @Override
-        public void close()
-        {
-            sstableWatcherScheduler.shutdown();
-            try
-            {
-                boolean terminated = sstableWatcherScheduler.awaitTermination(10, TimeUnit.SECONDS);
-                if (!terminated)
-                {
-                    LOGGER.debug("SSTableWatcher scheduler termination times out");
-                }
-            }
-            catch (InterruptedException e)
-            {
-                LOGGER.debug("Closing SSTableWatcher scheduler is interrupted");
-            }
-            knownSSTables.clear();
-        }
+    static String baseFilename(Descriptor descriptor)
+    {
+        // note that descriptor.baseFilename() contains the directory portion in the string. We do not include the directory portion
+        String baseFileNameWithDirectory = descriptor.baseFile().name();
+        return baseFileNameWithDirectory.substring(baseFileNameWithDirectory.lastIndexOf(File.separatorChar) + 1);
     }
 
     @Override
@@ -181,9 +132,6 @@ public class SSTableWriterImplementation implements SSTableWriter
     @Override
     public void close() throws IOException
     {
-        // close sstablewatcher first. There is no need to continue monitoring the new sstables. StreamSession should handle the last set of sstables.
-        // writer.close is guaranteed to create one more sstable
-        sstableWatcher.close();
         writer.close();
     }
 
@@ -193,6 +141,7 @@ public class SSTableWriterImplementation implements SSTableWriter
                                                      String insertStatement,
                                                      int bufferSizeMB,
                                                      Set<String> udts,
+                                                     Consumer<Collection<SSTableReader>> producedSSTablesListener,
                                                      IPartitioner cassPartitioner)
     {
         CQLSSTableWriter.Builder builder = CQLSSTableWriter.builder();
@@ -209,6 +158,8 @@ public class SSTableWriterImplementation implements SSTableWriter
                       // The data frame to write is always sorted,
                       // see org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation.insert
                       .sorted()
+                      .withSSTableProducedListener(producedSSTablesListener)
+                      .openSSTableOnProduced()
                       .withMaxSSTableSizeInMiB(bufferSizeMB);
     }
 }

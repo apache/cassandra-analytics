@@ -152,7 +152,9 @@ public class SSTableCache
         return readCompressionMetadata(ssTable, hasMaxCompressedLength, crcCheckChance).orElse(null);
     }
 
-    private static Optional<CompressionMetadata> readCompressionMetadata(@NotNull SSTable ssTable, boolean hasMaxCompressedLength, double crcCheckChance) throws IOException
+    private static Optional<CompressionMetadata> readCompressionMetadata(@NotNull SSTable ssTable,
+                                                                         boolean hasMaxCompressedLength,
+                                                                         double crcCheckChance) throws IOException
     {
         try (InputStream cis = ssTable.openCompressionStream())
         {

@@ -139,7 +139,9 @@ public class SSTableCacheTests
                     assertTrue(filter.isPresent(key2.left));
                     assertTrue(filter.isPresent(key2.right));
 
-                    CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(ssTable0, descriptor0.version.hasMaxCompressedLength(), metadata.params.crcCheckChance);
+                    CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(ssTable0,
+                                                                                                        descriptor0.version.hasMaxCompressedLength(),
+                                                                                                        metadata.params.crcCheckChance);
                     assertNotNull(compressionMetadata);
                     if (ssTable0.isBigFormat())
                     {

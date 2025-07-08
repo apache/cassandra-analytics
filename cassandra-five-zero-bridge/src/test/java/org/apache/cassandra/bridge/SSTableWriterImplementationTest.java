@@ -28,12 +28,18 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
+import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.io.sstable.SSTableId;
+import org.apache.cassandra.io.sstable.SequenceBasedSSTableId;
+import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.utils.ReflectionUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -50,6 +56,11 @@ class SSTableWriterImplementationTest
     @TempDir
     File writeDirectory;
 
+    static
+    {
+        CassandraTypesImplementation.setup();
+    }
+
     @Test
     void testSSTableWriterConfiguration() throws NoSuchFieldException, IllegalAccessException
     {
@@ -58,6 +69,7 @@ class SSTableWriterImplementationTest
                                                                                         INSERT_STATEMENT,
                                                                                         250,
                                                                                         Collections.emptySet(),
+                                                                                        sstables -> {},
                                                                                         new Murmur3Partitioner());
 
 
@@ -69,35 +81,47 @@ class SSTableWriterImplementationTest
     void testGetProducedSSTables() throws IOException
     {
         Set<SSTableDescriptor> produced = new HashSet<>();
-        try (SSTableWriterImplementation writer = new SSTableWriterImplementation(writeDirectory.getAbsolutePath(),
-                                                                                  "murmur3",
-                                                                                  CREATE_STATEMENT,
-                                                                                  INSERT_STATEMENT,
-                                                                                  Collections.emptySet(),
-                                                                                  1,
-                                                                                  1))
+        SSTableWriterImplementation writer = new SSTableWriterImplementation(writeDirectory.getAbsolutePath(),
+                                                                             new ByteOrderedPartitioner(), // required in order to insert ordered ints
+                                                                             CREATE_STATEMENT,
+                                                                             INSERT_STATEMENT,
+                                                                             Collections.emptySet(),
+                                                                             1);
+        writer.setSSTablesProducedListener(produced::addAll);
+        assertTrue(produced.isEmpty());
+
+        for (int i = 0; i < 300_000; i++)
         {
-            writer.setSSTablesProducedListener(produced::addAll);
-            assertTrue(produced.isEmpty());
-
-            File tocFile1 = new File(writeDirectory, "foo-big-TOC.txt");
-            File tocFile2 = new File(writeDirectory, "bar-big-TOC.txt");
-            assertTrue(tocFile1.createNewFile());
-            assertTrue(tocFile2.createNewFile());
-            waitForProduced(produced);
-            assertEquals(2, produced.size());
-            Set<SSTableDescriptor> expected = new HashSet<>(Arrays.asList(new SSTableDescriptor("foo-big"),
-                                                                          new SSTableDescriptor("bar-big")));
-            assertEquals(expected, produced);
-            produced.clear();
-
-            assertTrue(produced.isEmpty());
-            File tocFile3 = new File(writeDirectory, "baz-big-TOC.txt");
-            assertTrue(tocFile3.createNewFile());
-            waitForProduced(produced);
-            assertEquals(1, produced.size());
-            assertEquals(Collections.singleton(new SSTableDescriptor("baz-big")), produced);
+            writer.addRow(ImmutableMap.of("a", i, "b", "val_" + i));
         }
+
+        assertEquals(2, produced.size());
+        Set<SSTableDescriptor> expected = new HashSet<>(Arrays.asList(new SSTableDescriptor("da-2-bti"),
+                                                                      new SSTableDescriptor("da-3-bti")));
+        assertEquals(expected, produced);
+        produced.clear();
+
+        for (int i = 300_000; i < 400_000; i++)
+        {
+            writer.addRow(ImmutableMap.of("a", i, "b", "val_" + i));
+        }
+        assertEquals(1, produced.size());
+        assertEquals(Collections.singleton(new SSTableDescriptor("da-4-bti")), produced);
+
+        // when closing the writer, a new sstable is produced (by flushing the remaining data in the buffer)
+        produced.clear();
+        writer.close();
+        assertEquals(1, produced.size());
+        assertEquals(Collections.singleton(new SSTableDescriptor("da-5-bti")), produced);
+    }
+
+    @Test
+    void testBaseFileNameExtraction()
+    {
+        org.apache.cassandra.io.util.File cf = new org.apache.cassandra.io.util.File(writeDirectory);
+        SSTableId ssTableId = new SequenceBasedSSTableId(1);
+        Descriptor descriptor = new Descriptor("nb", cf, "ks", "tbl", ssTableId, TestUtils.BIG_FORMAT);
+        assertEquals("nb-1-big", SSTableWriterImplementation.baseFilename(descriptor));
     }
 
     static boolean peekSorted(CQLSSTableWriter.Builder builder) throws NoSuchFieldException, IllegalAccessException

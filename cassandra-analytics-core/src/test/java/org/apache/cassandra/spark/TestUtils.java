@@ -280,7 +280,6 @@ public final class TestUtils extends CommonTestUtils
 
     public static Gen<CassandraVersion> versions(CassandraBridge bridge)
     {
-        // TODO(c4c5): Compare patch number of version. Bridge 4.0
         List<CassandraVersion> versions = Arrays.stream(CassandraVersion.implementedVersions())
                                                 .filter(v -> bridge.getVersion().equals(v))
                                                 .collect(Collectors.toList());

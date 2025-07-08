@@ -97,12 +97,8 @@ public class SortedSSTableWriterTest
         tw.setSSTablesProducedListener(allSSTables::addAll);
         tw.addRow(BigInteger.ONE, ImmutableMap.of("id", 1, "date", 1, "course", "foo", "marks", 1));
         tw.close(writerContext);
-        if (version.startsWith("4."))
-        {
-            // TODO(c4c5): Check why this does not work with C* 5.x.
-            assertThat(allSSTables).hasSize(1);
-            assertThat(allSSTables.get(0).baseFilename).isEqualTo("nb-1-big");
-        }
+        assertThat(allSSTables).hasSize(1);
+        assertThat(allSSTables.get(0).baseFilename).isEqualTo(version.startsWith("cassandra-4.") ? "nb-1-big" : "da-2-bti");
         Set<Path> dataFilePaths = new HashSet<>();
         try (DirectoryStream<Path> dataFileStream = Files.newDirectoryStream(tw.getOutDir(), "*Data.db"))
         {

@@ -46,7 +46,6 @@ import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.TableMetadataRef;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
-import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.IndexConsumer;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.ReaderUtils;
@@ -206,7 +205,8 @@ public class BtiReaderUtils
                                         double crcCheckChance,
                                         @NotNull Function<ByteBuffer, Boolean> tracker) throws IOException
     {
-        withPartitionIndex(ssTable, descriptor, partitioner, crcCheckChance, true, true, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
+        withPartitionIndex(ssTable, descriptor, partitioner, crcCheckChance, true, true,
+                           (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
             try (PartitionIterator iter = PartitionIterator.create(partitionIndex, partitioner, rowFileHandle, dataFileHandle, descriptor.version))
             {
                 while (!iter.isExhausted())
