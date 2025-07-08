@@ -64,7 +64,7 @@ commands:
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
             # Run compile/unit tests, skipping integration tests
-            ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test
+            ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test --no-daemon
 
   run_integration:
     parameters:
