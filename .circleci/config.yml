@@ -117,6 +117,7 @@ commands:
                 FLAKY="false"
                 for FLAKY_PACKAGE in "${FLAKY_PACKAGES[@]}";
                 do
+                    # TODO(c4c5): Remove flaky test workaround 
                     if [[ "$TEST_NAME" == ${FLAKY_PACKAGE}* ]]; then
                         FLAKY="true"
                         break
