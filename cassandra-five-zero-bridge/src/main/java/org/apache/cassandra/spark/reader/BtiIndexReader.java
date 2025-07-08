@@ -71,7 +71,7 @@ public class BtiIndexReader implements IIndexReader
 
                 if (rangeFilter != null)
                 {
-                    this.ssTableRange = BtiReaderUtils.partitionIndexTokenRange(ssTable, metadata.partitioner, descriptor);
+                    this.ssTableRange = BtiReaderUtils.partitionIndexTokenRange(ssTable, metadata, descriptor);
                     if (!rangeFilter.overlaps(this.ssTableRange))
                     {
                         LOGGER.info("Skipping non-overlapping Partitions.db file rangeFilter='[{},{}]' sstableRange='[{},{}]'",

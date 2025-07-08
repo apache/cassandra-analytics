@@ -42,15 +42,17 @@ public class CompressionMetadata extends AbstractCompressionMetadata
 {
     private final CompressionParams parameters;
     private final int chunkCount;
+    private final double crcCheckChance;
 
-    private CompressionMetadata(long dataLength, int chunkCount, BigLongArray chunkOffsets, CompressionParams parameters)
+    private CompressionMetadata(long dataLength, int chunkCount, BigLongArray chunkOffsets, CompressionParams parameters, double crcCheckChance)
     {
         super(dataLength, chunkOffsets);
         this.chunkCount = chunkCount;
         this.parameters = parameters;
+        this.crcCheckChance = crcCheckChance;
     }
 
-    static CompressionMetadata fromInputStream(InputStream inStream, boolean hasCompressedLength) throws IOException
+    static CompressionMetadata fromInputStream(InputStream inStream, boolean hasCompressedLength, double crcCheckChance) throws IOException
     {
         long dataLength;
         BigLongArray chunkOffsets;
@@ -73,8 +75,6 @@ public class CompressionMetadata extends AbstractCompressionMetadata
         }
 
         CompressionParams params = new CompressionParams(compressorName, chunkLength, minCompressRatio, options);
-        // TODO(c4c5): CRC check change gone?
-        // params.setCrcCheckChance(AbstractCompressionMetadata.CRC_CHECK_CHANCE);
 
         dataLength = inData.readLong();
 
@@ -95,7 +95,7 @@ public class CompressionMetadata extends AbstractCompressionMetadata
             }
         }
 
-        return new CompressionMetadata(dataLength, chunkCount, chunkOffsets, params);
+        return new CompressionMetadata(dataLength, chunkCount, chunkOffsets, params, crcCheckChance);
     }
 
     ICompressor compressor()
@@ -112,9 +112,7 @@ public class CompressionMetadata extends AbstractCompressionMetadata
     @Override
     protected double crcCheckChance()
     {
-        // TODO(c4c5): CRC check change gone?
-        // return parameters.getCrcCheckChance();
-        return 1.0;
+        return crcCheckChance;
     }
 
     // TODO(c4c5): Find better way to create Cassandra CompressionMetadata.

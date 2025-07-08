@@ -73,12 +73,14 @@ public final class CompressedRawInputStream extends RawInputStream
     @VisibleForTesting
     static CompressedRawInputStream fromInputStream(InputStream in,
                                                     InputStream compressionInfoInputStream,
-                                                    boolean hasCompressedLength) throws IOException
+                                                    boolean hasCompressedLength,
+                                                    double crcCheckChance) throws IOException
     {
         return fromInputStream(null,
                                new DataInputStream(in),
                                compressionInfoInputStream,
                                hasCompressedLength,
+                               crcCheckChance,
                                Stats.DoNothingStats.INSTANCE);
     }
 
@@ -86,12 +88,14 @@ public final class CompressedRawInputStream extends RawInputStream
                                                     DataInputStream dataInputStream,
                                                     InputStream compressionInfoInputStream,
                                                     boolean hasCompressedLength,
+                                                    double crcCheckChance,
                                                     Stats stats) throws IOException
     {
         return from(ssTable,
                     dataInputStream,
                     CompressionMetadata.fromInputStream(compressionInfoInputStream,
-                                                        hasCompressedLength),
+                                                        hasCompressedLength,
+                                                        crcCheckChance),
                     stats);
     }
 

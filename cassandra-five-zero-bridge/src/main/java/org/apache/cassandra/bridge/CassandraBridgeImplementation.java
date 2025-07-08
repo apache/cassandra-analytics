@@ -413,7 +413,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
 
         if (ssTable.isBtiFormat())
         {
-            BtiReaderUtils.readPrimaryIndex(ssTable, iPartitioner, descriptor, consumer);
+            BtiReaderUtils.readPrimaryIndex(ssTable, iPartitioner, descriptor, 1.0, consumer);
         }
         else
         {

@@ -139,7 +139,7 @@ public class SSTableCacheTests
                     assertTrue(filter.isPresent(key2.left));
                     assertTrue(filter.isPresent(key2.right));
 
-                    CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(ssTable0, descriptor0.version.hasMaxCompressedLength());
+                    CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(ssTable0, descriptor0.version.hasMaxCompressedLength(), metadata.params.crcCheckChance);
                     assertNotNull(compressionMetadata);
                     if (ssTable0.isBigFormat())
                     {
@@ -184,7 +184,7 @@ public class SSTableCacheTests
                     assertTrue(SSTableCache.INSTANCE.containsIndex(ssTable1));
                     assertTrue(SSTableCache.INSTANCE.containsStats(ssTable1));
                     assertTrue(SSTableCache.INSTANCE.containsFilter(ssTable1));
-                    SSTableCache.INSTANCE.compressionMetadata(ssTable1, descriptor1.version.hasMaxCompressedLength());
+                    SSTableCache.INSTANCE.compressionMetadata(ssTable1, descriptor1.version.hasMaxCompressedLength(), metadata.params.crcCheckChance);
                     assertTrue(SSTableCache.INSTANCE.containsCompressionMetadata(ssTable1));
                 }
                 catch (IOException exception)

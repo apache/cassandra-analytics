@@ -46,6 +46,7 @@ import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.TableMetadataRef;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.IndexConsumer;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.ReaderUtils;
@@ -71,12 +72,12 @@ public class BtiReaderUtils
     }
 
     public static TokenRange partitionIndexTokenRange(@NotNull SSTable ssTable,
-                                                      @NotNull IPartitioner partitioner,
+                                                      @NotNull TableMetadata tableMetadata,
                                                       @NotNull Descriptor descriptor) throws IOException
     {
         AtomicReference<DecoratedKey> firstKey = new AtomicReference<>();
         AtomicReference<DecoratedKey> lastKey = new AtomicReference<>();
-        withPartitionIndex(ssTable, descriptor, partitioner, false, false, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
+        withPartitionIndex(ssTable, descriptor, tableMetadata, false, false, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
             firstKey.set(partitionIndex.firstKey());
             lastKey.set(partitionIndex.lastKey());
         });
@@ -90,7 +91,7 @@ public class BtiReaderUtils
                                                      @NotNull List<PartitionKeyFilter> filters) throws IOException
     {
         final AtomicBoolean exists = new AtomicBoolean(false);
-        withPartitionIndex(ssTable, descriptor, metadata.partitioner, true, true, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
+        withPartitionIndex(ssTable, descriptor, metadata, true, true, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
             TableMetadataRef metadataRef = TableMetadataRef.forOfflineTools(metadata);
             BtiTableReader btiTableReader = new BtiTableReader.Builder(descriptor)
                                             .setDataFile(dataFileHandle)
@@ -133,9 +134,9 @@ public class BtiReaderUtils
         long dataFileLength = ssTable.length(FileType.DATA);
         TableMetadataRef metadataRef = TableMetadataRef.forOfflineTools(metadata);
         org.apache.cassandra.spark.reader.CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(
-        ssTable, descriptor.version.hasMaxCompressedLength());
+        ssTable, descriptor.version.hasMaxCompressedLength(), metadata.params.crcCheckChance);
 
-        withPartitionIndex(ssTable, descriptor, metadata.partitioner, true, true, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
+        withPartitionIndex(ssTable, descriptor, metadata, true, true, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
             BtiTableReader btiTableReader = new BtiTableReader.Builder(descriptor)
                                             .setDataFile(dataFileHandle)
                                             .setPartitionIndex(partitionIndex)
@@ -197,15 +198,15 @@ public class BtiReaderUtils
                 btiTableReader.selfRef().release();
             }
         });
-
     }
 
     public static void readPrimaryIndex(@NotNull SSTable ssTable,
                                         @NotNull IPartitioner partitioner,
                                         @NotNull Descriptor descriptor,
+                                        double crcCheckChance,
                                         @NotNull Function<ByteBuffer, Boolean> tracker) throws IOException
     {
-        withPartitionIndex(ssTable, descriptor, partitioner, true, true, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
+        withPartitionIndex(ssTable, descriptor, partitioner, crcCheckChance, true, true, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
             try (PartitionIterator iter = PartitionIterator.create(partitionIndex, partitioner, rowFileHandle, dataFileHandle, descriptor.version))
             {
                 while (!iter.isExhausted())
@@ -224,13 +225,24 @@ public class BtiReaderUtils
 
     private static void withPartitionIndex(@NotNull SSTable ssTable,
                                            @NotNull Descriptor descriptor,
+                                           @NotNull TableMetadata metadata,
+                                           boolean loadDataFile,
+                                           boolean loadRowsIndex,
+                                           @NotNull BtiPartitionIndexConsumer consumer) throws IOException
+    {
+        withPartitionIndex(ssTable, descriptor, metadata.partitioner, metadata.params.crcCheckChance, loadDataFile, loadRowsIndex, consumer);
+    }
+
+    private static void withPartitionIndex(@NotNull SSTable ssTable,
+                                           @NotNull Descriptor descriptor,
                                            @NotNull IPartitioner partitioner,
+                                           double crcCheckChance,
                                            boolean loadDataFile,
                                            boolean loadRowsIndex,
                                            @NotNull BtiPartitionIndexConsumer consumer) throws IOException
     {
         File file = new File(ssTable.getDataFileName());
-        CompressionMetadata compression = getCompressionMetadata(ssTable, descriptor);
+        CompressionMetadata compression = getCompressionMetadata(ssTable, crcCheckChance, descriptor);
 
         try (FileHandle dataFileHandle = loadDataFile ? createFileHandle(file,
                                                                          ssTable.openDataStream(),
@@ -267,10 +279,11 @@ public class BtiReaderUtils
     }
 
     private static CompressionMetadata getCompressionMetadata(SSTable ssTable,
+                                                              double crcCheckChance,
                                                               Descriptor descriptor) throws IOException
     {
         org.apache.cassandra.spark.reader.CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(
-            ssTable, descriptor.version.hasMaxCompressedLength());
+            ssTable, descriptor.version.hasMaxCompressedLength(), crcCheckChance);
         if (compressionMetadata != null)
         {
             return compressionMetadata.toInternal(descriptor.fileFor(SSTableFormat.Components.COMPRESSION_INFO),

@@ -668,7 +668,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         SSTableStreamReader() throws IOException
         {
             lastToken = sparkRangeFilter != null ? sparkRangeFilter.tokenRange().upperEndpoint() : null;
-            @Nullable CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(ssTable, version.hasMaxCompressedLength());
+            @Nullable CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(ssTable, version.hasMaxCompressedLength(), metadata.params.crcCheckChance);
             DataInputStream dataInputStream = new DataInputStream(ssTable.openDataStream());
 
             if (compressionMetadata != null)

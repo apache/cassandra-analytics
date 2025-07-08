@@ -133,7 +133,7 @@ public class SSTableReaderTests
                     try (InputStream dis = new BufferedInputStream(Files.newInputStream(dataFile));
                          InputStream cis = new BufferedInputStream(Files.newInputStream(compressionFile));
                          DataInputPlus.DataInputStreamPlus in = new DataInputStreamPlusImpl(new DataInputStream(
-                         CompressedRawInputStream.fromInputStream(dis, cis, descriptor.version.hasMaxCompressedLength()))))
+                         CompressedRawInputStream.fromInputStream(dis, cis, descriptor.version.hasMaxCompressedLength(), 1.0))))
                     {
                         while (in.read() >= 0)
                         {
