@@ -36,7 +36,7 @@ import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.streaming.StreamBuffer;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
 
-public class FileSystemSource<T extends CassandraFile> implements CassandraFileSource<T>, AutoCloseable
+public class FileSystemSource<T extends CassandraFile> implements CassandraFileSource<T>
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileSystemSource.class);
     static final ExecutorService FILE_IO_EXECUTOR =
@@ -50,6 +50,11 @@ public class FileSystemSource<T extends CassandraFile> implements CassandraFileS
     private final long length;
     private final boolean autoClose;
 
+    /**
+     * @param autoClose If {@code true}, file represented by {@code path} parameter will be automatically closed when
+     *                  EOF is reached, or exception occurs. Passing {@code true} makes sense for sequential read files,
+     *                  whereas leaving it {@code false} is desired for random file access.
+     */
     public FileSystemSource(T cassandraFile, FileType fileType, Path path, boolean autoClose) throws IOException
     {
         this.cassandraFile = cassandraFile;

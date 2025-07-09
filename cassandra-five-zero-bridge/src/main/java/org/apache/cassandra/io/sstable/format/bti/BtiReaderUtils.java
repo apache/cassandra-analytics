@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.io.sstable.format.bti;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.math.BigInteger;
@@ -262,11 +263,11 @@ public class BtiReaderUtils
         }
     }
 
-    private static FileHandle createFileHandle(File file, InputStream stream, long size, CompressionMetadata compression)
+    private static FileHandle createFileHandle(File file, InputStream stream, long size, CompressionMetadata compression) throws IOException
     {
         if (stream == null)
         {
-            return null;
+            throw new FileNotFoundException("Cannot find file " + file.absolutePath());
         }
         ReadOnlyInputStreamFileChannel fileChannel = new ReadOnlyInputStreamFileChannel((BufferingInputStream<?>) stream, size);
         ChannelProxy proxy = new ChannelProxy(file, fileChannel);

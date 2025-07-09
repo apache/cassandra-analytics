@@ -92,7 +92,6 @@ public class ReadOnlyInputStreamFileChannel extends FileChannel
     {
         if (newPosition != position)
         {
-            inputStream.close();
             inputStream = inputStream.reBuffer(newPosition);
             position = newPosition;
         }

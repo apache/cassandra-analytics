@@ -42,18 +42,26 @@ public final class Properties
     public static final int DEFAULT_MAX_POOL_SIZE = 64;
     public static final long DEFAULT_MAX_BUFFER_SIZE = 6 * MEBI_BYTES;
     public static final long DEFAULT_CHUNK_BUFFER_SIZE = 4 * MEBI_BYTES;
-    public static final Map<FileType, Long> DEFAULT_MAX_BUFFER_OVERRIDE = ImmutableMap.of(
-            FileType.INDEX,            128 * KIBI_BYTES,
-            FileType.SUMMARY,          256 * KIBI_BYTES,
-            FileType.STATISTICS,       128 * KIBI_BYTES,
-            FileType.COMPRESSION_INFO, 128 * KIBI_BYTES,
-            FileType.COMMITLOG,         64 * MEBI_BYTES);
-    public static final Map<FileType, Long> DEFAULT_CHUNK_BUFFER_OVERRIDE = ImmutableMap.of(
-            FileType.INDEX,             32 * KIBI_BYTES,
-            FileType.SUMMARY,          128 * KIBI_BYTES,
-            FileType.STATISTICS,        64 * KIBI_BYTES,
-            FileType.COMPRESSION_INFO,  64 * KIBI_BYTES,
-            FileType.COMMITLOG,         64 * MEBI_BYTES);
+    public static final Map<FileType, Long> DEFAULT_MAX_BUFFER_OVERRIDE = ImmutableMap.<FileType, Long>builder()
+                                                                                      .put(FileType.INDEX,            128 * KIBI_BYTES)
+                                                                                      .put(FileType.SUMMARY,          256 * KIBI_BYTES)
+                                                                                      .put(FileType.STATISTICS,       128 * KIBI_BYTES)
+                                                                                      .put(FileType.COMPRESSION_INFO, 128 * KIBI_BYTES)
+                                                                                      .put(FileType.COMMITLOG,         64 * MEBI_BYTES)
+                                                                                      .put(FileType.PARTITIONS_INDEX,  128 * KIBI_BYTES)
+                                                                                      .put(FileType.ROWS_INDEX,        128 * KIBI_BYTES)
+                                                                                      .build();
+    // According to https://github.com/apache/cassandra/blob/trunk/src/java/org/apache/cassandra/io/sstable/format/bti/BtiFormat.md#partition-index
+    // BTI partition and row index page size equals 4096 bytes.
+    public static final Map<FileType, Long> DEFAULT_CHUNK_BUFFER_OVERRIDE = ImmutableMap.<FileType, Long>builder()
+                                                                            .put(FileType.INDEX,             32 * KIBI_BYTES)
+                                                                            .put(FileType.SUMMARY,          128 * KIBI_BYTES)
+                                                                            .put(FileType.STATISTICS,        64 * KIBI_BYTES)
+                                                                            .put(FileType.COMPRESSION_INFO,  64 * KIBI_BYTES)
+                                                                            .put(FileType.COMMITLOG,         64 * MEBI_BYTES)
+                                                                            .put(FileType.PARTITIONS_INDEX,  4 * KIBI_BYTES)
+                                                                            .put(FileType.ROWS_INDEX,        4 * KIBI_BYTES)
+                                                                            .build();
     public static final int DEFAULT_TIMEOUT_SECONDS = (int) TimeUnit.MINUTES.toSeconds(10);
 
     // Expansion and Shrink

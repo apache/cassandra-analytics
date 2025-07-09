@@ -112,6 +112,7 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
 
     public BufferingInputStream<T> reBuffer(long position)
     {
+        closeInternal(false);
         return new BufferingInputStream<>(source, stats, position);
     }
     // Cassandra 4.x vs 5.x END
@@ -449,6 +450,11 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
     @Override
     public void close()
     {
+        closeInternal(true);
+    }
+
+    private void closeInternal(boolean releaseSource)
+    {
         if (state == StreamState.Closed)
         {
             return;
@@ -461,6 +467,17 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
         closed = true;
         releaseBuffer();
         queue.clear();
+        if (releaseSource)
+        {
+            try
+            {
+                source.close();
+            }
+            catch (Exception e)
+            {
+                // close quietly
+            }
+        }
     }
 
     @Override

@@ -112,7 +112,6 @@ public class CompressionMetadata extends AbstractCompressionMetadata
         return crcCheckChance;
     }
 
-    // TODO(c4c5): Find better way to create Cassandra CompressionMetadata.
     public org.apache.cassandra.io.compress.CompressionMetadata toInternal(File file, long compressedFileLength)
     {
         AlignedReadonlyLongArrayMemory memory = new AlignedReadonlyLongArrayMemory(chunkOffsets);

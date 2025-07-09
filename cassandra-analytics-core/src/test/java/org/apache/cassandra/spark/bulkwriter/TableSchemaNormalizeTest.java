@@ -38,6 +38,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.net.InetAddresses;
 import org.junit.jupiter.api.Test;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.common.schema.ListType;
@@ -331,10 +332,13 @@ public class TableSchemaNormalizeTest
         org.apache.spark.sql.types.DataType[] sparkTypes = new org.apache.spark.sql.types.DataType[]{sparkType};
         String[] fieldNames = {field};
         ColumnType<?>[] cqlTypes = {columnType};
-        TableSchema schema = buildSchema(fieldNames, sparkTypes, new CqlField.CqlType[]{cqlType}, fieldNames, cqlTypes, fieldNames);
-        Object[] source = new Object[]{sourceVal};
-        Object[] expected = new Object[]{expectedVal};
-        Object[] normalized = schema.normalize(source);
-        assertThat(normalized, is(equalTo(expected)));
+        for (String cassandraVersion : CassandraVersion.supportedVersions())
+        {
+            TableSchema schema = buildSchema(cassandraVersion, fieldNames, sparkTypes, new CqlField.CqlType[]{cqlType}, fieldNames, cqlTypes, fieldNames);
+            Object[] source = new Object[]{sourceVal};
+            Object[] expected = new Object[]{expectedVal};
+            Object[] normalized = schema.normalize(source);
+            assertThat(normalized, is(equalTo(expected)));
+        }
     }
 }
