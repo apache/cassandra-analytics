@@ -62,10 +62,7 @@ System.out.println("Rat exclude file:" + ratExcludeFilePath)
 
 def profile = "profiles/scala-2.12-spark-3-jdk-11.gradle"
 
-if (!ext.sparkArtifacts)
-{
-  profile = "profiles/scala-${ext.scalaLabel}-spark-${ext.sparkLabel}-jdk-${ext.jdkLabel}.gradle"
-}
+profile = "profiles/scala-${ext.scalaLabel}-spark-${ext.sparkLabel}-jdk-${ext.jdkLabel}.gradle"
 
 if (!file(profile).exists()) {
   throw new InvalidUserDataException("Profile ${profile} does not exist, which indicates this combination of Scala, Spark, and Java is unsupported.\n" +
