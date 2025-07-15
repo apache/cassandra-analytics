@@ -27,7 +27,7 @@ plugins {
 
 sourceCompatibility = 1.8
 
-if (!propertyWithDefault("sparkArtifact", false))
+if (propertyWithDefault("artifactType", null) == "common")
 {
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }

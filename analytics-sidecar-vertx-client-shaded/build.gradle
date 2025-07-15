@@ -105,7 +105,7 @@ ext {
 // analytics-sidecar-vertx-client-shaded_* as the artifact name
 archivesBaseName = "analytics-sidecar-vertx-client-all"
 
-if (!propertyWithDefault("sparkArtifact", false))
+if (propertyWithDefault("artifactType", null) == "common")
 {
     publishing {
         publications {

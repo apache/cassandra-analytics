@@ -29,7 +29,7 @@ configurations {
     all*.exclude(group: 'log4j', module: 'log4j')
 }
 
-if (!propertyWithDefault("sparkArtifact", false))
+if (propertyWithDefault("artifactType", null) == "common")
 {
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
