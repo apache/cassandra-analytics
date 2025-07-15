@@ -104,27 +104,40 @@ ext {
 // present on the general gradle.build file to avoid having
 // analytics-sidecar-vertx-client-shaded_* as the artifact name
 archivesBaseName = "analytics-sidecar-vertx-client-all"
-if ("${project.rootProject.ext.sparkLabel}" == '3') {
-    archivesBaseName = "${archivesBaseName}_spark3"
-}
-archivesBaseName = "${archivesBaseName}_${scalaMajorVersion}"
 
-publishing {
-    publications {
-        shadow(MavenPublication) { publication ->
-            project.shadow.component(publication)
-            groupId rootProject.group
-            artifactId "${archivesBaseName}"
-            version System.getenv("CODE_VERSION") ?: "${project.version}"
+if (propertyWithDefault("sparkFreeArtifact", false))
+{
+    publishing {
+        publications {
+            shadow(MavenPublication) { publication ->
+                project.shadow.component(publication)
+                groupId rootProject.group
+                artifactId "${archivesBaseName}"
+                version System.getenv("CODE_VERSION") ?: "${project.version}"
 
-            if (mavenRepositoryUrl != "") {
-                pom {
-                    url = "https://cassandra.apache.org/"
-                    licenses {
-                        license {
-                            name = "The Apache License, Version 2.0"
-                            url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
-                            distribution = "repo"
+                if (mavenRepositoryUrl != "") {
+                    pom {
+                        url = "https://cassandra.apache.org/"
+                        licenses {
+                            license {
+                                name = "The Apache License, Version 2.0"
+                                url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                                distribution = "repo"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (mavenRepositoryUrl != "") {
+            repositories {
+                maven {
+                    url = mavenRepositoryUrl
+                    if (mavenUsername != "" && mavenPassword != "") {
+                        credentials {
+                            username = mavenUsername
+                            password = mavenPassword
                         }
                     }
                 }
@@ -132,29 +145,15 @@ publishing {
         }
     }
 
-    if (mavenRepositoryUrl != "") {
-        repositories {
-            maven {
-                url = mavenRepositoryUrl
-                if (mavenUsername != "" && mavenPassword != "") {
-                    credentials {
-                        username = mavenUsername
-                        password = mavenPassword
-                    }
-                }
-            }
+    signing {
+        required { shouldSign }
+        if (shouldSign) {
+            // Use gpg-agent to sign
+            useGpgCmd()
         }
-    }
-}
 
-signing {
-    required { shouldSign }
-    if (shouldSign) {
-        // Use gpg-agent to sign
-        useGpgCmd()
+        sign publishing.publications
     }
-
-    sign publishing.publications
 }
 
 /**

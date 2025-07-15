@@ -27,6 +27,11 @@ plugins {
 
 sourceCompatibility = 1.8
 
+if (propertyWithDefault("sparkFreeArtifact", false))
+{
+    apply from: "$rootDir/gradle/common/publishing.gradle"
+}
+
 test {
     useJUnitPlatform()
     maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1

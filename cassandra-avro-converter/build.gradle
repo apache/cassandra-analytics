@@ -27,7 +27,10 @@ configurations {
     all*.exclude(group: 'log4j', module: 'log4j')
 }
 
-apply from: "$rootDir/gradle/common/publishing.gradle"
+if (!propertyWithDefault("sparkFreeArtifact", false))
+{
+    apply from: "$rootDir/gradle/common/publishing.gradle"
+}
 
 dependencies {
     api(project(':cassandra-bridge'))

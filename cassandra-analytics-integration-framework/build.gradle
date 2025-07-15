@@ -27,7 +27,10 @@ java {
     withSourcesJar()
 }
 
-apply from: "$rootDir/gradle/common/publishing.gradle"
+if (!propertyWithDefault("sparkFreeArtifact", false))
+{
+    apply from: "$rootDir/gradle/common/publishing.gradle"
+}
 
 ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.4.jar" // latest supported Cassandra build is 4.1
 def dtestJarFullPath = "${dependencyLocation}${ext.dtestJar}"

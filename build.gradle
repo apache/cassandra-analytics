@@ -46,6 +46,8 @@ println("Spark version: ${ext.sparkLabel}")
 ext.jdkLabel = System.getenv("JDK_VERSION") ?: "${analyticsJDKLevel}"
 println("Java source/target compatibility level: ${ext.jdkLabel}")
 
+ext.sparkFreeArtifacts = System.getenv("SPARK_FREE_ARTIFACTS") ?: false
+
 // validate the builder is indeed using the correct JDK_VERSION as specified
 String actualJdkVersion = System.getProperty("java.version")
 if (!actualJdkVersion.startsWith(ext.jdkLabel))
@@ -60,7 +62,13 @@ def buildDir = layout.buildDirectory.get().asFile.toPath()
 def ratExcludeFilePath = buildDir.resolve(".rat-excludes.txt")
 System.out.println("Rat exclude file:" + ratExcludeFilePath)
 
-def profile = "profiles/scala-${ext.scalaLabel}-spark-${ext.sparkLabel}-jdk-${ext.jdkLabel}.gradle"
+def profile = "profiles/scala-2.12-spark-3-jdk-11.gradle"
+
+if (!ext.sparkFreeArtifacts)
+{
+  profile = "profiles/scala-${ext.scalaLabel}-spark-${ext.sparkLabel}-jdk-${ext.jdkLabel}.gradle"
+}
+
 if (!file(profile).exists()) {
   throw new InvalidUserDataException("Profile ${profile} does not exist, which indicates this combination of Scala, Spark, and Java is unsupported.\n" +
           "Please either add an appropriate profile if this combination should work, or use a different one.")
@@ -181,10 +189,6 @@ subprojects {
   }
 
   archivesBaseName = "${project.name}"
-  if ("${project.rootProject.ext.sparkLabel}" == '3') {
-    archivesBaseName = "${archivesBaseName}_spark3"
-  }
-  archivesBaseName = "${archivesBaseName}_${scalaMajorVersion}"
 
   repositories {
     mavenCentral()
