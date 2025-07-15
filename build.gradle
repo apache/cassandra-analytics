@@ -46,8 +46,6 @@ println("Spark version: ${ext.sparkLabel}")
 ext.jdkLabel = System.getenv("JDK_VERSION") ?: "${analyticsJDKLevel}"
 println("Java source/target compatibility level: ${ext.jdkLabel}")
 
-ext.sparkFreeArtifacts = System.getenv("SPARK_FREE_ARTIFACTS") ?: false
-
 // validate the builder is indeed using the correct JDK_VERSION as specified
 String actualJdkVersion = System.getProperty("java.version")
 if (!actualJdkVersion.startsWith(ext.jdkLabel))
@@ -64,7 +62,7 @@ System.out.println("Rat exclude file:" + ratExcludeFilePath)
 
 def profile = "profiles/scala-2.12-spark-3-jdk-11.gradle"
 
-if (!ext.sparkFreeArtifacts)
+if (!ext.sparkArtifacts)
 {
   profile = "profiles/scala-${ext.scalaLabel}-spark-${ext.sparkLabel}-jdk-${ext.jdkLabel}.gradle"
 }

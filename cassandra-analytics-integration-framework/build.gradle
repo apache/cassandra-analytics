@@ -27,7 +27,7 @@ java {
     withSourcesJar()
 }
 
-if (!propertyWithDefault("sparkFreeArtifact", false))
+if (propertyWithDefault("sparkArtifact", false))
 {
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }

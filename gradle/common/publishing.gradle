@@ -16,11 +16,11 @@
  * limitations under the License.
  */
 
-if (propertyWithDefault("sparkFreeArtifact", false))
+if (propertyWithDefault("sparkArtifact", false))
 {
-    apply from: "$rootDir/gradle/common/publishing-non-spark.gradle"
+    apply from: "$rootDir/gradle/common/publishing-spark.gradle"
 }
 else
 {
-    apply from: "$rootDir/gradle/common/publishing-spark.gradle"
+    apply from: "$rootDir/gradle/common/publishing-non-spark.gradle"
 }
