@@ -24,7 +24,10 @@ plugins {
     id('maven-publish')
 }
 
-apply from: "$rootDir/gradle/common/publishing.gradle"
+if (propertyWithDefault("artifactType", null) == "spark")
+{
+    apply from: "$rootDir/gradle/common/publishing.gradle"
+}
 
 dependencies {
     implementation("org.slf4j:slf4j-api:${slf4jApiVersion}")

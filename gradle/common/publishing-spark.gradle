@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
-if (propertyWithDefault("artifactType", null) == "spark")
-{
-    apply from: "$rootDir/gradle/common/publishing-spark.gradle"
+
+if ("${project.rootProject.ext.sparkLabel}" == '3') {
+    archivesBaseName = "${archivesBaseName}_spark3"
 }
-else
-{
-    apply from: "$rootDir/gradle/common/publishing-non-spark.gradle"
-}
+archivesBaseName = "${archivesBaseName}_${scalaMajorVersion}"
+
+apply from: "$rootDir/gradle/common/publishing-non-spark.gradle"
