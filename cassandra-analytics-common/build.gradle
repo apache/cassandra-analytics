@@ -24,7 +24,7 @@ plugins {
     id('maven-publish')
 }
 
-if (propertyWithDefault("artifactType", null) == "spark")
+if (propertyWithDefault("artifactType", null) == "common")
 {
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
