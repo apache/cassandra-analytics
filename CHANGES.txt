@@ -1,4 +1,4 @@
-1.0.0
+0.1.0
  * Set KeyStore to be optional (CASSANALYTICS-69)
  * Simplify SidecarTableSizeProvider (CASSANALYTICS-73)
  * Use full ring instead of only IPs from configuration (CASSANALYTICS-20)

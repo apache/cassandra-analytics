@@ -27,15 +27,9 @@ java {
     withSourcesJar()
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from components.java
-            groupId project.group
-            artifactId "${archivesBaseName}"
-            version System.getenv("CODE_VERSION") ?: "${version}"
-        }
-    }
+if (propertyWithDefault("artifactType", null) == "spark")
+{
+    apply from: "$rootDir/gradle/common/publishing.gradle"
 }
 
 ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-4.1.4.jar" // latest supported Cassandra build is 4.1

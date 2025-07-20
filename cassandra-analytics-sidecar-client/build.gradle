@@ -29,32 +29,12 @@ configurations {
     all*.exclude(group: 'log4j', module: 'log4j')
 }
 
-publishing {
-    publications {
-        maven(MavenPublication) {
-            from components.java
-            groupId project.group
-            artifactId "${archivesBaseName}"
-            version System.getenv("CODE_VERSION") ?: "${version}"
-        }
-    }
-}
-
-configurations {
-    fourzero {
-        description = 'Cassandra 4.0 dependency'
-    }
-    fourzerobridge {
-        description = 'Bridge to Cassandra 4.0'
-    }
-    fourzerotypes {
-        description = 'Cassandra 4.0 Data Types'
-    }
+if (propertyWithDefault("artifactType", null) == "common")
+{
+    apply from: "$rootDir/gradle/common/publishing.gradle"
 }
 
 dependencies {
-    api(project(':cassandra-bridge'))
-
     compileOnly("com.google.guava:guava:${guavaVersion}")
     implementation project(":cassandra-analytics-common")
 
