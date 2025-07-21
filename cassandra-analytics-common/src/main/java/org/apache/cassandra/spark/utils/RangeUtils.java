@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.utils;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 
 import com.google.common.base.Preconditions;
@@ -152,14 +153,16 @@ public final class RangeUtils
                                     "Calculation token ranges wouldn't work when RF (" + replicationFactor
                                   + ") is greater than number of Cassandra instances " + instances.size());
         Multimap<Instance, Range<BigInteger>> tokenRanges = ArrayListMultimap.create();
+        instances.sort(Comparator.comparing((Instance o) -> new BigInteger(o.token())));
+
         for (int index = 0; index < instances.size(); index++)
         {
             Instance instance = instances.get(index);
-            int disjointReplica = ((instances.size() + index) - replicationFactor) % instances.size();
-            BigInteger rangeStart = new BigInteger(instances.get(disjointReplica).token());
+            int previousInstance = index == 0 ? instances.size() - 1 : index - 1;
+
+            BigInteger rangeStart = new BigInteger(instances.get(previousInstance).token());
             BigInteger rangeEnd = new BigInteger(instance.token());
 
-            // If start token is greater than or equal to end token we are looking at a wrap around range, split it
             if (rangeStart.compareTo(rangeEnd) >= 0)
             {
                 tokenRanges.put(instance, Range.openClosed(rangeStart, partitioner.maxToken()));
