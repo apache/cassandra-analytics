@@ -230,10 +230,10 @@ class RangeUtilsTest
         Range<BigInteger> range = Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(11L));
         int nrSplits = 4;
         List<Range<BigInteger>> expectedResult = Arrays.asList(
-            Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(3)),
-            Range.openClosed(BigInteger.valueOf(3), BigInteger.valueOf(6)),
-            Range.openClosed(BigInteger.valueOf(6), BigInteger.valueOf(9)),
-            Range.openClosed(BigInteger.valueOf(9), BigInteger.valueOf(11))
+        Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(3)),
+        Range.openClosed(BigInteger.valueOf(3), BigInteger.valueOf(6)),
+        Range.openClosed(BigInteger.valueOf(6), BigInteger.valueOf(9)),
+        Range.openClosed(BigInteger.valueOf(9), BigInteger.valueOf(11))
         );
         assertEquals(expectedResult, RangeUtils.split(range, nrSplits));
     }
@@ -244,8 +244,8 @@ class RangeUtilsTest
         Range<BigInteger> range = Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(2));
         int nrSplits = 5;
         List<Range<BigInteger>> expectedResult = Arrays.asList(
-            Range.openClosed(BigInteger.ZERO, BigInteger.ONE),
-            Range.openClosed(BigInteger.ONE, BigInteger.valueOf(2))
+        Range.openClosed(BigInteger.ZERO, BigInteger.ONE),
+        Range.openClosed(BigInteger.ONE, BigInteger.valueOf(2))
         );
         assertEquals(expectedResult, RangeUtils.split(range, nrSplits));
     }
@@ -256,7 +256,7 @@ class RangeUtilsTest
         BigInteger[] tokens = getTokens(Partitioner.Murmur3Partitioner, nodes, numTokens);
         List<CassandraInstance> instances = getInstances(tokens, numTokens);
         Multimap<CassandraInstance, Range<BigInteger>> allRanges =
-                RangeUtils.calculateTokenRanges(instances, replicationFactor, Partitioner.Murmur3Partitioner);
+        RangeUtils.calculateTokenRanges(instances, replicationFactor, Partitioner.Murmur3Partitioner);
         for (int instance = 0; instance < nodes * numTokens; instance++)
         {
             assertExpectedRanges(allRanges.get(instances.get(instance)), ranges[instance]);
