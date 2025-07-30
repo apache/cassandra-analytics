@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -328,6 +329,12 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
 
     @Override
     public UUID getRestoreJobId()
+    {
+        return jobId;
+    }
+
+    @Override
+    public UUID getRestoreJobId(@Nullable String clusterId) throws NoSuchElementException
     {
         return jobId;
     }

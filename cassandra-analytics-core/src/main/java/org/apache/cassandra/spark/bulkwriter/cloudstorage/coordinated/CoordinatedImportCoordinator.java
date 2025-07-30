@@ -227,7 +227,11 @@ public class CoordinatedImportCoordinator implements ImportCoordinator, Coordina
         completedClusters.add(clusterId);
         String error = String.format("Some of the token ranges cannot satisfy with consistency level. " +
                                      "job=%s phase=%s consistencyLevel=%s clusterId=%s ranges=%s",
-                                     job.getRestoreJobId(), determineReadyPhase(), job.getConsistencyLevel(), clusterId, progress.failedRanges());
+                                     job.getRestoreJobId(clusterId),
+                                     determineReadyPhase(),
+                                     job.getConsistencyLevel(),
+                                     clusterId,
+                                     progress.failedRanges());
         LOGGER.error(error);
         ConsistencyNotSatisfiedException exception = new ConsistencyNotSatisfiedException(error);
         failureHandler.accept(clusterId, exception);

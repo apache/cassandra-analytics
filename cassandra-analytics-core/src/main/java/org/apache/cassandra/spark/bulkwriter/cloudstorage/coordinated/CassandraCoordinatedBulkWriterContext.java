@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated;
 
+import java.util.UUID;
+
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
 
@@ -80,6 +82,14 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
                                      "Keyspace %s is not replicated on datacenter %s in %s",
                                      conf.keyspace, localDc, clusterId);
         });
+    }
+
+    @Override
+    protected MultiClusterContainer<UUID> generateRestoreJobIds()
+    {
+        MultiClusterContainer<UUID> result = new MultiClusterContainer<>();
+        clusterInfoGroup().forEach((clusterId, ignored) -> result.setValue(clusterId, bridge().getTimeUUID()));
+        return result;
     }
 
     protected CassandraClusterInfoGroup clusterInfoGroup()

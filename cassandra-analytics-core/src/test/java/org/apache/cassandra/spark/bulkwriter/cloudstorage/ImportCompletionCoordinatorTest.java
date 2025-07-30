@@ -130,7 +130,7 @@ class ImportCompletionCoordinatorTest
         writerValidator = new BulkWriteValidator(mockWriterContext, new MultiClusterReplicaAwareFailureHandler<>(Partitioner.Murmur3Partitioner));
 
         // clients will not be used in this test class; mock is at the API method level
-        CloudStorageDataTransferApiImpl api = new CloudStorageDataTransferApiImpl(mockJobInfo, mock(SidecarClient.class), mock(StorageClient.class));
+        CloudStorageDataTransferApiImpl api = new CloudStorageDataTransferApiImpl(mockJobInfo, mock(SidecarClient.class), mock(StorageClient.class), null);
         dataTransferApi = spy(api);
 
         mockExtension = mock(StorageTransportExtension.class);

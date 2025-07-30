@@ -19,11 +19,14 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.data.QualifiedTableName;
+import org.apache.cassandra.spark.utils.Preconditions;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,12 +34,14 @@ public class CassandraJobInfo implements JobInfo
 {
     private static final long serialVersionUID = 6140098484732683759L;
     protected final BulkSparkConf conf;
-    protected final UUID restoreJobId;
+    // restoreJobId per cluster; it is guranteed to be non-empty
+    protected final MultiClusterContainer<UUID> restoreJobIds;
     protected final TokenPartitioner tokenPartitioner;
 
-    public CassandraJobInfo(BulkSparkConf conf, UUID restoreJobId, TokenPartitioner tokenPartitioner)
+    public CassandraJobInfo(BulkSparkConf conf, MultiClusterContainer<UUID> restoreJobIds, TokenPartitioner tokenPartitioner)
     {
-        this.restoreJobId = restoreJobId;
+        Preconditions.checkArgument(restoreJobIds.size() > 0, "restoreJobIds cannot be empty");
+        this.restoreJobIds = restoreJobIds;
         this.conf = conf;
         this.tokenPartitioner = tokenPartitioner;
     }
@@ -128,7 +133,22 @@ public class CassandraJobInfo implements JobInfo
     @Override
     public UUID getRestoreJobId()
     {
-        return restoreJobId;
+        // get the id assume it is single cluster scenario; using `null` to retrieve.
+        try
+        {
+            return getRestoreJobId(null);
+        }
+        catch (NoSuchElementException nsee)
+        {
+            // if it is multi-cluster scenario, id would be null; in this case, just retrieve a value
+            return restoreJobIds.getAnyValue();
+        }
+    }
+
+    @Override
+    public UUID getRestoreJobId(@Nullable String clusterId)
+    {
+        return restoreJobIds.getValueOrThrow(clusterId);
     }
 
     @Override

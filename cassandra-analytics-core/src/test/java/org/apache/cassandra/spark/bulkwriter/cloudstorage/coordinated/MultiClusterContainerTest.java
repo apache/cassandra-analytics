@@ -19,11 +19,15 @@
 
 package org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.NoSuchElementException;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
+
+import org.apache.cassandra.spark.utils.SerializationUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -187,6 +191,45 @@ class MultiClusterContainerTest
                 assertThat(value).isSameAs(v2);
             }
         });
+    }
+
+    @Test
+    void testSerializationAndDeserializationWithSingleClusterContainer() throws IOException, ClassNotFoundException
+    {
+        UUID expectedJobId = UUID.randomUUID();
+        MultiClusterContainer<UUID> container = MultiClusterContainer.ofSingle(expectedJobId);
+
+        byte[] serailized = SerializationUtils.serialize(container);
+        MultiClusterContainer<UUID> deserializedContainer = SerializationUtils.deserialize(serailized, MultiClusterContainer.class);
+
+        // Verify deserialized container works correctly
+        assertThat(deserializedContainer.getValueOrNull(null)).isEqualTo(expectedJobId);
+        assertThat(deserializedContainer.size()).isOne();
+        assertThat(deserializedContainer.getAnyValue()).isEqualTo(expectedJobId);
+    }
+
+    @Test
+    void testSerializationAndDeserializationWithMultiClusterContainer() throws IOException, ClassNotFoundException
+    {
+        UUID cluster1JobId = UUID.randomUUID();
+        UUID cluster2JobId = UUID.randomUUID();
+
+        MultiClusterContainer<UUID> container = new MultiClusterContainer<>();
+        container.setValue("cluster1", cluster1JobId);
+        container.setValue("cluster2", cluster2JobId);
+
+        byte[] serailized = SerializationUtils.serialize(container);
+        MultiClusterContainer<UUID> deserializedContainer = SerializationUtils.deserialize(serailized, MultiClusterContainer.class);
+
+        // Verify deserialized container works correctly
+        assertThat(deserializedContainer.getValueOrNull("cluster1")).isEqualTo(cluster1JobId);
+        assertThat(deserializedContainer.getValueOrNull("cluster2")).isEqualTo(cluster2JobId);
+        assertThat(deserializedContainer.getValueOrNull(null)).isNull();
+        assertThat(deserializedContainer.size()).isEqualTo(2);
+
+        // Verify getAnyValue returns one of the values
+        UUID anyValue = deserializedContainer.getAnyValue();
+        assertThat(anyValue).isIn(cluster1JobId, cluster2JobId);
     }
 
     private static class Value
