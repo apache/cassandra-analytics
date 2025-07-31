@@ -199,8 +199,8 @@ class MultiClusterContainerTest
         UUID expectedJobId = UUID.randomUUID();
         MultiClusterContainer<UUID> container = MultiClusterContainer.ofSingle(expectedJobId);
 
-        byte[] serailized = SerializationUtils.serialize(container);
-        MultiClusterContainer<UUID> deserializedContainer = SerializationUtils.deserialize(serailized, MultiClusterContainer.class);
+        byte[] serialized = SerializationUtils.serialize(container);
+        MultiClusterContainer<UUID> deserializedContainer = SerializationUtils.deserialize(serialized, MultiClusterContainer.class);
 
         // Verify deserialized container works correctly
         assertThat(deserializedContainer.getValueOrNull(null)).isEqualTo(expectedJobId);
@@ -218,8 +218,8 @@ class MultiClusterContainerTest
         container.setValue("cluster1", cluster1JobId);
         container.setValue("cluster2", cluster2JobId);
 
-        byte[] serailized = SerializationUtils.serialize(container);
-        MultiClusterContainer<UUID> deserializedContainer = SerializationUtils.deserialize(serailized, MultiClusterContainer.class);
+        byte[] serialized = SerializationUtils.serialize(container);
+        MultiClusterContainer<UUID> deserializedContainer = SerializationUtils.deserialize(serialized, MultiClusterContainer.class);
 
         // Verify deserialized container works correctly
         assertThat(deserializedContainer.getValueOrNull("cluster1")).isEqualTo(cluster1JobId);

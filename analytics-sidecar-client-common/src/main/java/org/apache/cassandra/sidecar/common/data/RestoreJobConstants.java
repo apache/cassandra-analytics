@@ -44,7 +44,7 @@ public class RestoreJobConstants
      * datacenter, but the table replicates to multiple datacenters, it could cause a large amount of repair streaming
      * traffic. Arguably, you might want to leverage the intra-node repair feature, then you can enable this option.
      * Another use case that could justify the option is running distinct restore jobs, one per datacenter, concurrently.
-     * In this case, there is an external coordinator that manges the restore job in each datacenter.
+     * In this case, there is an external coordinator that manages the restore job in each datacenter.
      */
     public static final String JOB_RESTORE_TO_LOCAL_DATA_CENTER_ONLY = "restoreToLocalDatacenterOnly";
     public static final String SLICE_ID = "sliceId";

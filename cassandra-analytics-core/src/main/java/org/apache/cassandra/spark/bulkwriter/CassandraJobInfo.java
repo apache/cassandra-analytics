@@ -34,7 +34,7 @@ public class CassandraJobInfo implements JobInfo
 {
     private static final long serialVersionUID = 6140098484732683759L;
     protected final BulkSparkConf conf;
-    // restoreJobId per cluster; it is guranteed to be non-empty
+    // restoreJobId per cluster; it is guaranteed to be non-empty
     protected final MultiClusterContainer<UUID> restoreJobIds;
     protected final TokenPartitioner tokenPartitioner;
 
