@@ -1,5 +1,6 @@
 0.2.0
 -----
+ * Unique restoreJobId per write target (CASSANALYTICS-81)
  * Allow writing to local datacenter only for coordinated write (CASSANALYTICS-75)
 
 0.1.0

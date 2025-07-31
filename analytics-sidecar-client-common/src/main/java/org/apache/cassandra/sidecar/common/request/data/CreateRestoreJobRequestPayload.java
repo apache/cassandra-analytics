@@ -76,7 +76,7 @@ public class CreateRestoreJobRequestPayload
      * CreateRestoreJobRequest deserializer
      *
      * @param jobId            job id of restore job
-     * @param jobAgent         arbitrary text a job can put, which can be used to identity itself during Http request
+     * @param jobAgent         arbitrary text a job can put, which can be used to identify itself during Http request
      * @param secrets          secrets to be used by restore job to download data
      * @param importOptions    the configured options for SSTable import
      * @param expireAtInMillis a timestamp in the future when the job is considered expired

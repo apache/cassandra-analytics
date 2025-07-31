@@ -19,9 +19,12 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.util.UUID;
+
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
 
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
@@ -56,5 +59,11 @@ public class CassandraBulkWriterContext extends AbstractBulkWriterContext
         boolean isReplicatedToLocalDc = !StringUtils.isEmpty(conf.localDC)
                                         && cluster().replicationFactor().getOptions().containsKey(conf.localDC);
         Preconditions.checkState(isReplicatedToLocalDc, "Keyspace %s is not replicated on datacenter %s", conf.keyspace, conf.localDC);
+    }
+
+    @Override
+    protected MultiClusterContainer<UUID> generateRestoreJobIds()
+    {
+        return MultiClusterContainer.ofSingle(bridge().getTimeUUID());
     }
 }

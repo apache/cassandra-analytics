@@ -32,6 +32,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.apache.cassandra.spark.common.stats.LogStatsPublisher;
@@ -104,13 +105,20 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         validateKeyspaceReplication();
         BulkSparkConf conf = bulkSparkConf();
         TokenRangeMapping<RingInstance> tokenRangeMapping = cluster().getTokenRangeMapping(true);
-        UUID restoreJobId = bridge().getTimeUUID(); // used for creating restore job on sidecar
         TokenPartitioner tokenPartitioner = new TokenPartitioner(tokenRangeMapping,
                                                                  conf.numberSplits,
                                                                  sparkDefaultParallelism(),
                                                                  conf.getCores());
-        return new CassandraJobInfo(conf, restoreJobId, tokenPartitioner);
+        return new CassandraJobInfo(conf, generateRestoreJobIds(), tokenPartitioner);
     }
+
+    /**
+     * Generate the restore job IDs used in the receiving Cassandra Sidecar clusters.
+     * In the coordinated write mode, there should be a unique uuid per cluster;
+     * In the single cluster write mode, the MultiClusterContainer would contain one single entry.
+     * @return restore job ids that are unique per cluster
+     */
+    protected abstract MultiClusterContainer<UUID> generateRestoreJobIds();
 
     protected CassandraBridge buildCassandraBridge()
     {
