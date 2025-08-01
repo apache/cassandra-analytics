@@ -43,6 +43,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class SslConfigSecretsProviderTest
@@ -107,9 +108,7 @@ public class SslConfigSecretsProviderTest
         assertThat(provider.trustStoreType()).isEqualTo("JKS");
         assertThat(new String(provider.trustStorePassword())).isEqualTo(trustStorePassword);
         provider.validateMutualTLS();
-
-        assertThatThrownBy(() -> buildSslConfig(provider))
-                .doesNotThrowAnyException();
+        assertThatCode(() -> buildSslConfig(provider)).doesNotThrowAnyException();
     }
 
     @Test
@@ -144,8 +143,7 @@ public class SslConfigSecretsProviderTest
         assertThat(new String(provider.trustStorePassword())).isEqualTo(trustStorePassword);
         provider.validateMutualTLS();
 
-        assertThatThrownBy(() -> buildSslConfig(provider))
-                .doesNotThrowAnyException();
+        assertThatCode(() -> buildSslConfig(provider)).doesNotThrowAnyException();
     }
 
     @Test
