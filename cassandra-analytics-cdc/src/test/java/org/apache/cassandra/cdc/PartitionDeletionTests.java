@@ -39,10 +39,7 @@ import static org.apache.cassandra.cdc.CdcTester.testWith;
 import static org.apache.cassandra.cdc.CdcTests.BRIDGE;
 import static org.apache.cassandra.cdc.CdcTests.directory;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
 public class PartitionDeletionTests
@@ -142,18 +139,22 @@ public class PartitionDeletionTests
                     {
                         CdcEvent event = events.get(i);
                         long lmtInMillis = event.getTimestamp(TimeUnit.MILLISECONDS);
-                        assertTrue(lmtInMillis >= minTimestamp,
-                                   "Last modification time should have a lower bound of " + minTimestamp);
-                        assertEquals(partitionKeys, event.getPartitionKeys().size(),
-                                     "Regardless of being row deletion or not, the partition key must present");
+                        assertThat(lmtInMillis)
+                            .as("Last modification time should have a lower bound of " + minTimestamp)
+                            .isGreaterThanOrEqualTo(minTimestamp);
+                        assertThat(event.getPartitionKeys())
+                            .as("Regardless of being row deletion or not, the partition key must present")
+                            .hasSize(partitionKeys);
 
                         if (partitionDeletionIndices.contains(i)) // verify partition deletion
                         {
-                            assertEquals(CdcEvent.Kind.PARTITION_DELETE, event.getKind());
-                            assertNull(event.getClusteringKeys(), "Partition deletion has no clustering keys");
+                            assertThat(event.getKind()).isEqualTo(CdcEvent.Kind.PARTITION_DELETE);
+                            assertThat(event.getClusteringKeys())
+                                .as("Partition deletion has no clustering keys")
+                                .isNull();
 
-                            assertNull(event.getStaticColumns());
-                            assertNull(event.getValueColumns());
+                            assertThat(event.getStaticColumns()).isNull();
+                            assertThat(event.getValueColumns()).isNull();
 
                             List<Object> testPKs = event.getPartitionKeys().stream()
                                                         .map(v -> {
@@ -163,30 +164,31 @@ public class PartitionDeletionTests
                                                         .collect(Collectors.toList());
 
                             List<Object> expectedPK = validationPk.get(pkValidationIdx++);
-                            assertTrue(ComparisonUtils.equals(expectedPK.toArray(), testPKs.toArray()),
-                                       "Partition deletion should indicate the correct partition at row" + i +
-                                       ". Expected: " + expectedPK + ", actual: " + testPKs);
+                            assertThat(ComparisonUtils.equals(expectedPK.toArray(), testPKs.toArray()))
+                                .as("Partition deletion should indicate the correct partition at row" + i +
+                                    ". Expected: " + expectedPK + ", actual: " + testPKs)
+                                .isTrue();
                         }
                         else // verify update
                         {
-                            assertEquals(CdcEvent.Kind.INSERT, event.getKind());
+                            assertThat(event.getKind()).isEqualTo(CdcEvent.Kind.INSERT);
                             if (hasClustering)
                             {
-                                assertNotNull(event.getClusteringKeys());
+                                assertThat(event.getClusteringKeys()).isNotNull();
                             }
                             else
                             {
-                                assertNull(event.getClusteringKeys());
+                                assertThat(event.getClusteringKeys()).isNull();
                             }
                             if (hasStatic)
                             {
-                                assertNotNull(event.getStaticColumns());
+                                assertThat(event.getStaticColumns()).isNotNull();
                             }
                             else
                             {
-                                assertNull(event.getStaticColumns());
+                                assertThat(event.getStaticColumns()).isNull();
                             }
-                            assertNotNull(event.getValueColumns());
+                            assertThat(event.getValueColumns()).isNotNull();
                         }
                     }
                 })

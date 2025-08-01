@@ -52,6 +52,7 @@ dependencies {
     testImplementation project(":cassandra-four-zero-types")
     testImplementation project(":cassandra-avro-converter")
     testImplementation project(":cassandra-four-zero-avro-converter")
+    testImplementation("org.assertj:assertj-core:${assertjCoreVersion}")
 
     testImplementation "com.google.guava:guava:${guavaVersion}"
     testImplementation "org.junit.jupiter:junit-jupiter-api:${project.junitVersion}"

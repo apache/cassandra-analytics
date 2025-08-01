@@ -37,10 +37,7 @@ import static org.apache.cassandra.cdc.CdcTests.BRIDGE;
 import static org.apache.cassandra.cdc.CdcTests.MESSAGE_CONVERTER;
 import static org.apache.cassandra.cdc.CdcTests.directory;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
 public class RowDeletionTests
@@ -120,35 +117,35 @@ public class RowDeletionTests
                             CdcEvent event = events.get(i);
                             long lmtInMillis = event.getTimestamp(TimeUnit.MILLISECONDS);
                             UUID pk = (UUID) MESSAGE_CONVERTER.toCdcMessage(event.getPartitionKeys().get(0)).value();
-                            assertTrue(lmtInMillis >= minTimestamp, "Last modification time should have a lower bound of " + minTimestamp);
-                            assertEquals(1, event.getPartitionKeys().size(), "Regardless of being row deletion or not, the partition key must present");
+                            assertThat(lmtInMillis).as("Last modification time should have a lower bound of " + minTimestamp).isGreaterThanOrEqualTo(minTimestamp);
+                            assertThat(event.getPartitionKeys().size()).as("Regardless of being row deletion or not, the partition key must present").isEqualTo(1);
                             if (hasClustering) // and ck to be set.
                             {
-                                assertEquals(1, event.getClusteringKeys().size());
+                                assertThat(event.getClusteringKeys().size()).isEqualTo(1);
                             }
                             else
                             {
-                                assertNull(event.getClusteringKeys());
+                                assertThat(event.getClusteringKeys()).isNull();
                             }
 
                             if (rowDeletionIndices.contains(pk)) // verify row deletion
                             {
-                                assertNull(event.getStaticColumns(), "None primary key columns should be null");
-                                assertNull(event.getValueColumns(), "None primary key columns should be null");
-                                assertEquals(CdcEvent.Kind.ROW_DELETE, event.getKind());
+                                assertThat(event.getStaticColumns()).as("None primary key columns should be null").isNull();
+                                assertThat(event.getValueColumns()).as("None primary key columns should be null").isNull();
+                                assertThat(event.getKind()).isEqualTo(CdcEvent.Kind.ROW_DELETE);
                             }
                             else // verify update
                             {
                                 if (hasStatic)
                                 {
-                                    assertNotNull(event.getStaticColumns());
+                                    assertThat(event.getStaticColumns()).isNotNull();
                                 }
                                 else
                                 {
-                                    assertNull(event.getStaticColumns());
+                                    assertThat(event.getStaticColumns()).isNull();
                                 }
-                                assertNotNull(event.getValueColumns());
-                                assertEquals(CdcEvent.Kind.INSERT, event.getKind());
+                                assertThat(event.getValueColumns()).isNotNull();
+                                assertThat(event.getKind()).isEqualTo(CdcEvent.Kind.INSERT);
                             }
                         }
                     })

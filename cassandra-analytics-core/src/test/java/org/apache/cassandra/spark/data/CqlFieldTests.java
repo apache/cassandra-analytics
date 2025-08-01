@@ -26,11 +26,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class CqlFieldTests extends VersionRunner
 {
@@ -41,13 +37,13 @@ public class CqlFieldTests extends VersionRunner
     {
         CqlField field1 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
         CqlField field2 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
-        assertNotSame(field1, field2);
-        assertEquals(field1, field2);
-        assertEquals(field1.hashCode(), field2.hashCode());
-        assertNotEquals(null, field1);
-        assertNotEquals(null, field2);
-        assertNotEquals(new ArrayList<>(), field1);
-        assertEquals(field1, field1);
+        assertThat(field1).isNotSameAs(field2);
+        assertThat(field1).isEqualTo(field2);
+        assertThat(field1.hashCode()).isEqualTo(field2.hashCode());
+        assertThat(field1).isNotEqualTo(null);
+        assertThat(field2).isNotEqualTo(null);
+        assertThat(field1).isNotEqualTo(new ArrayList<>());
+        assertThat(field1).isEqualTo(field1);
     }
 
     @ParameterizedTest
@@ -56,9 +52,9 @@ public class CqlFieldTests extends VersionRunner
     {
         CqlField field1 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
         CqlField field2 = new CqlField(true, false, false, "b", bridge.bigint(), 0);
-        assertNotSame(field1, field2);
-        assertNotEquals(field1, field2);
-        assertNotEquals(field1.hashCode(), field2.hashCode());
+        assertThat(field1).isNotSameAs(field2);
+        assertThat(field1).isNotEqualTo(field2);
+        assertThat(field1.hashCode()).isNotEqualTo(field2.hashCode());
     }
 
     @ParameterizedTest
@@ -67,9 +63,9 @@ public class CqlFieldTests extends VersionRunner
     {
         CqlField field1 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
         CqlField field2 = new CqlField(true, false, false, "a", bridge.timestamp(), 0);
-        assertNotSame(field1, field2);
-        assertNotEquals(field1, field2);
-        assertNotEquals(field1.hashCode(), field2.hashCode());
+        assertThat(field1).isNotSameAs(field2);
+        assertThat(field1).isNotEqualTo(field2);
+        assertThat(field1.hashCode()).isNotEqualTo(field2.hashCode());
     }
 
     @ParameterizedTest
@@ -78,9 +74,9 @@ public class CqlFieldTests extends VersionRunner
     {
         CqlField field1 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
         CqlField field2 = new CqlField(false, true, false, "a", bridge.bigint(), 0);
-        assertNotSame(field1, field2);
-        assertNotEquals(field1, field2);
-        assertNotEquals(field1.hashCode(), field2.hashCode());
+        assertThat(field1).isNotSameAs(field2);
+        assertThat(field1).isNotEqualTo(field2);
+        assertThat(field1.hashCode()).isNotEqualTo(field2.hashCode());
     }
 
     @ParameterizedTest
@@ -89,9 +85,9 @@ public class CqlFieldTests extends VersionRunner
     {
         CqlField field1 = new CqlField(true, false, false, "a", bridge.bigint(), 0);
         CqlField field2 = new CqlField(true, false, false, "a", bridge.bigint(), 1);
-        assertNotSame(field1, field2);
-        assertNotEquals(field1, field2);
-        assertNotEquals(field1.hashCode(), field2.hashCode());
+        assertThat(field1).isNotSameAs(field2);
+        assertThat(field1).isNotEqualTo(field2);
+        assertThat(field1.hashCode()).isNotEqualTo(field2.hashCode());
     }
 
     @ParameterizedTest
@@ -140,13 +136,13 @@ public class CqlFieldTests extends VersionRunner
     @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
     public void testCqlNames(CassandraBridge bridge)
     {
-        assertEquals("set<bigint>", bridge.collection("set", bridge.bigint()).cqlName());
-        assertEquals("list<timestamp>", bridge.collection("LIST", bridge.timestamp()).cqlName());
-        assertEquals("map<text, int>", bridge.collection("Map", bridge.text(), bridge.aInt()).cqlName());
-        assertEquals("tuple<int, blob, varchar>",
-                     bridge.collection("tuple", bridge.aInt(), bridge.blob(), bridge.varchar()).cqlName());
-        assertEquals("tuple<int, blob, map<int, float>>",
-                     bridge.collection("tuPLe", bridge.aInt(), bridge.blob(), bridge.map(bridge.aInt(), bridge.aFloat())).cqlName());
+        assertThat(bridge.collection("set", bridge.bigint()).cqlName()).isEqualTo("set<bigint>");
+        assertThat(bridge.collection("LIST", bridge.timestamp()).cqlName()).isEqualTo("list<timestamp>");
+        assertThat(bridge.collection("Map", bridge.text(), bridge.aInt()).cqlName()).isEqualTo("map<text, int>");
+        assertThat(bridge.collection("tuple", bridge.aInt(), bridge.blob(), bridge.varchar()).cqlName())
+            .isEqualTo("tuple<int, blob, varchar>");
+        assertThat(bridge.collection("tuPLe", bridge.aInt(), bridge.blob(), bridge.map(bridge.aInt(), bridge.aFloat())).cqlName())
+            .isEqualTo("tuple<int, blob, map<int, float>>");
     }
 
     @ParameterizedTest
@@ -154,13 +150,13 @@ public class CqlFieldTests extends VersionRunner
     public void testTuple(CassandraBridge bridge)
     {
         String[] result = CassandraTypes.splitInnerTypes("a, b, c, d,e, f, g");
-        assertEquals("a", result[0]);
-        assertEquals("b", result[1]);
-        assertEquals("c", result[2]);
-        assertEquals("d", result[3]);
-        assertEquals("e", result[4]);
-        assertEquals("f", result[5]);
-        assertEquals("g", result[6]);
+        assertThat(result[0]).isEqualTo("a");
+        assertThat(result[1]).isEqualTo("b");
+        assertThat(result[2]).isEqualTo("c");
+        assertThat(result[3]).isEqualTo("d");
+        assertThat(result[4]).isEqualTo("e");
+        assertThat(result[5]).isEqualTo("f");
+        assertThat(result[6]).isEqualTo("g");
     }
 
     private static void splitMap(String str, String left, String right)
@@ -168,11 +164,11 @@ public class CqlFieldTests extends VersionRunner
         String[] result = CassandraTypes.splitInnerTypes(str);
         if (left != null)
         {
-            assertEquals(left, result[0]);
+            assertThat(result[0]).isEqualTo(left);
         }
         if (right != null)
         {
-            assertEquals(right, result[1]);
+            assertThat(result[1]).isEqualTo(right);
         }
     }
 
@@ -181,15 +177,15 @@ public class CqlFieldTests extends VersionRunner
     public void testNestedSet(CassandraBridge bridge)
     {
         CqlField.CqlType type = bridge.parseType("set<frozen<map<text, list<double>>>>");
-        assertNotNull(type);
-        assertEquals(type.internalType(), CqlField.CqlType.InternalType.Set);
+        assertThat(type).isNotNull();
+        assertThat(type.internalType()).isEqualTo(CqlField.CqlType.InternalType.Set);
         CqlField.CqlType frozen = ((CqlField.CqlSet) type).type();
-        assertEquals(frozen.internalType(), CqlField.CqlType.InternalType.Frozen);
+        assertThat(frozen.internalType()).isEqualTo(CqlField.CqlType.InternalType.Frozen);
         CqlField.CqlMap map = (CqlField.CqlMap) ((CqlField.CqlFrozen) frozen).inner();
-        assertEquals(map.keyType(), bridge.text());
-        assertEquals(map.valueType().internalType(), CqlField.CqlType.InternalType.List);
+        assertThat(map.keyType()).isEqualTo(bridge.text());
+        assertThat(map.valueType().internalType()).isEqualTo(CqlField.CqlType.InternalType.List);
         CqlField.CqlList list = (CqlField.CqlList) map.valueType();
-        assertEquals(list.type(), bridge.aDouble());
+        assertThat(list.type()).isEqualTo(bridge.aDouble());
     }
 
     @ParameterizedTest
@@ -197,13 +193,13 @@ public class CqlFieldTests extends VersionRunner
     public void testFrozenCqlTypeParser(CassandraBridge bridge)
     {
         CqlField.CqlType type = bridge.parseType("frozen<map<text, float>>");
-        assertNotNull(type);
-        assertEquals(type.internalType(), CqlField.CqlType.InternalType.Frozen);
+        assertThat(type).isNotNull();
+        assertThat(type.internalType()).isEqualTo(CqlField.CqlType.InternalType.Frozen);
         CqlField.CqlType inner = ((CqlField.CqlFrozen) type).inner();
-        assertEquals(inner.internalType(), CqlField.CqlType.InternalType.Map);
+        assertThat(inner.internalType()).isEqualTo(CqlField.CqlType.InternalType.Map);
         CqlField.CqlMap map = (CqlField.CqlMap) inner;
-        assertEquals(map.keyType(), bridge.text());
-        assertEquals(map.valueType(), bridge.aFloat());
+        assertThat(map.keyType()).isEqualTo(bridge.text());
+        assertThat(map.valueType()).isEqualTo(bridge.aFloat());
     }
 
     @ParameterizedTest
@@ -211,23 +207,23 @@ public class CqlFieldTests extends VersionRunner
     public void testFrozenCqlTypeNested(CassandraBridge bridge)
     {
         CqlField.CqlType type = bridge.parseType("map<frozen<set<text>>, frozen<map<int, list<blob>>>>");
-        assertNotNull(type);
-        assertEquals(type.internalType(), CqlField.CqlType.InternalType.Map);
+        assertThat(type).isNotNull();
+        assertThat(type.internalType()).isEqualTo(CqlField.CqlType.InternalType.Map);
 
         CqlField.CqlType key = ((CqlField.CqlMap) type).keyType();
-        assertEquals(key.internalType(), CqlField.CqlType.InternalType.Frozen);
+        assertThat(key.internalType()).isEqualTo(CqlField.CqlType.InternalType.Frozen);
         CqlField.CqlCollection keyInner = (CqlField.CqlCollection) ((CqlField.CqlFrozen) key).inner();
-        assertEquals(keyInner.internalType(), CqlField.CqlType.InternalType.Set);
-        assertEquals(keyInner.type(), bridge.text());
+        assertThat(keyInner.internalType()).isEqualTo(CqlField.CqlType.InternalType.Set);
+        assertThat(keyInner.type()).isEqualTo(bridge.text());
 
         CqlField.CqlType value = ((CqlField.CqlMap) type).valueType();
-        assertEquals(value.internalType(), CqlField.CqlType.InternalType.Frozen);
+        assertThat(value.internalType()).isEqualTo(CqlField.CqlType.InternalType.Frozen);
         CqlField.CqlCollection valueInner = (CqlField.CqlCollection) ((CqlField.CqlFrozen) value).inner();
-        assertEquals(valueInner.internalType(), CqlField.CqlType.InternalType.Map);
+        assertThat(valueInner.internalType()).isEqualTo(CqlField.CqlType.InternalType.Map);
         CqlField.CqlMap valueMap = (CqlField.CqlMap) valueInner;
-        assertEquals(valueMap.keyType(), bridge.aInt());
-        assertEquals(valueMap.valueType().internalType(), CqlField.CqlType.InternalType.List);
-        assertEquals(((CqlField.CqlList) valueMap.valueType()).type(), bridge.blob());
+        assertThat(valueMap.keyType()).isEqualTo(bridge.aInt());
+        assertThat(valueMap.valueType().internalType()).isEqualTo(CqlField.CqlType.InternalType.List);
+        assertThat(((CqlField.CqlList) valueMap.valueType()).type()).isEqualTo(bridge.blob());
     }
 
     private void testCqlTypeParser(String str, CqlField.CqlType expectedType, CassandraBridge bridge)
@@ -240,25 +236,25 @@ public class CqlFieldTests extends VersionRunner
         CqlField.CqlType type = bridge.parseType(str);
         if (type instanceof CqlField.CqlTuple)
         {
-            assertEquals(((CqlField.CqlTuple) type).type(0), expectedType);
+            assertThat(((CqlField.CqlTuple) type).type(0)).isEqualTo(expectedType);
             if (otherType != null)
             {
-                assertEquals(((CqlField.CqlTuple) type).type(1), otherType);
+                assertThat(((CqlField.CqlTuple) type).type(1)).isEqualTo(otherType);
             }
         }
         else if (type instanceof CqlField.CqlCollection)
         {
-            assertEquals(((CqlField.CqlCollection) type).type(), expectedType);
+            assertThat(((CqlField.CqlCollection) type).type()).isEqualTo(expectedType);
             if (otherType != null)
             {
-                assertTrue(type instanceof CqlField.CqlMap);
-                assertEquals(((CqlField.CqlMap) type).valueType(), otherType);
+                assertThat(type).isInstanceOf(CqlField.CqlMap.class);
+                assertThat(((CqlField.CqlMap) type).valueType()).isEqualTo(otherType);
             }
         }
         else
         {
-            assertTrue(type instanceof CqlField.NativeType);
-            assertEquals(type, expectedType);
+            assertThat(type).isInstanceOf(CqlField.NativeType.class);
+            assertThat(type).isEqualTo(expectedType);
         }
     }
 }

@@ -48,9 +48,7 @@ import org.apache.spark.sql.sources.StringStartsWith;
 
 import static org.apache.cassandra.spark.TestUtils.getFileType;
 import static org.apache.cassandra.spark.TestUtils.runTest;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DataLayerUnsupportedPushDownFiltersTest
 {
@@ -63,8 +61,8 @@ public class DataLayerUnsupportedPushDownFiltersTest
             TestDataLayer dataLayer = new TestDataLayer(bridge, dataFiles, schema.buildTable());
 
             Filter[] unsupportedFilters = dataLayer.unsupportedPushDownFilters(new Filter[0]);
-            assertNotNull(unsupportedFilters);
-            assertEquals(0, unsupportedFilters.length);
+            assertThat(unsupportedFilters).isNotNull();
+            assertThat(unsupportedFilters).hasSize(0);
         });
     }
 
@@ -78,9 +76,9 @@ public class DataLayerUnsupportedPushDownFiltersTest
 
             Filter[] allFilters = {new EqualTo("a", 5)};
             Filter[] unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
-            assertNotNull(unsupportedFilters);
+            assertThat(unsupportedFilters).isNotNull();
             // EqualTo is supported and 'a' is the partition key
-            assertEquals(0, unsupportedFilters.length);
+            assertThat(unsupportedFilters).hasSize(0);
         });
     }
 
@@ -94,9 +92,9 @@ public class DataLayerUnsupportedPushDownFiltersTest
 
             Filter[] allFilters = {new EqualTo("A", 5)};
             Filter[] unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
-            assertNotNull(unsupportedFilters);
+            assertThat(unsupportedFilters).isNotNull();
             // EqualTo is supported and 'a' is the partition key
-            assertEquals(0, unsupportedFilters.length);
+            assertThat(unsupportedFilters).hasSize(0);
         });
     }
 
@@ -110,9 +108,9 @@ public class DataLayerUnsupportedPushDownFiltersTest
 
             Filter[] allFilters = {new In("a", new Object[]{5, 6, 7})};
             Filter[] unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
-            assertNotNull(unsupportedFilters);
+            assertThat(unsupportedFilters).isNotNull();
             // In is supported and 'a' is the partition key
-            assertEquals(0, unsupportedFilters.length);
+            assertThat(unsupportedFilters).hasSize(0);
         });
     }
 
@@ -126,9 +124,9 @@ public class DataLayerUnsupportedPushDownFiltersTest
 
             Filter[] allFilters = {new EqualTo("a", 5), new EqualTo("b", 8)};
             Filter[] unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
-            assertNotNull(unsupportedFilters);
+            assertThat(unsupportedFilters).isNotNull();
             // EqualTo is supported and 'a' is the partition key, the clustering key 'b' is not pushed down
-            assertEquals(1, unsupportedFilters.length);
+            assertThat(unsupportedFilters).hasSize(1);
         });
     }
 
@@ -143,10 +141,10 @@ public class DataLayerUnsupportedPushDownFiltersTest
             EqualTo unsupportedNonPartitionKeyColumnFilter = new EqualTo("c", 25);
             Filter[] allFilters = {new EqualTo("a", 5), unsupportedNonPartitionKeyColumnFilter};
             Filter[] unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
-            assertNotNull(unsupportedFilters);
+            assertThat(unsupportedFilters).isNotNull();
             // EqualTo is supported and 'a' is the partition key, 'c' is not supported
-            assertEquals(1, unsupportedFilters.length);
-            assertSame(unsupportedNonPartitionKeyColumnFilter, unsupportedFilters[0]);
+            assertThat(unsupportedFilters).hasSize(1);
+            assertThat(unsupportedFilters[0]).isSameAs(unsupportedNonPartitionKeyColumnFilter);
         });
     }
 
@@ -176,9 +174,9 @@ public class DataLayerUnsupportedPushDownFiltersTest
             {
                 Filter[] allFilters = {unsupportedFilter};
                 Filter[] unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
-                assertNotNull(unsupportedFilters);
+                assertThat(unsupportedFilters).isNotNull();
                 // Not supported
-                assertEquals(1, unsupportedFilters.length);
+                assertThat(unsupportedFilters).hasSize(1);
             }
         });
     }
@@ -194,30 +192,30 @@ public class DataLayerUnsupportedPushDownFiltersTest
             // a is part of a composite partition column
             Filter[] allFilters = {new EqualTo("a", 5)};
             Filter[] unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
-            assertNotNull(unsupportedFilters);
+            assertThat(unsupportedFilters).isNotNull();
             // Filter push-down is disabled because not all partition columns are in the filter array
-            assertEquals(1, unsupportedFilters.length);
+            assertThat(unsupportedFilters).hasSize(1);
 
             // a and b are part of a composite partition column
             allFilters = new Filter[]{new EqualTo("a", 5), new EqualTo("b", 10)};
             unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
-            assertNotNull(unsupportedFilters);
+            assertThat(unsupportedFilters).isNotNull();
             // Filter push-down is disabled because not all partition columns are in the filter array
-            assertEquals(2, unsupportedFilters.length);
+            assertThat(unsupportedFilters).hasSize(2);
 
             // a and b are part of a composite partition column, but d is not
             allFilters = new Filter[]{new EqualTo("a", 5), new EqualTo("b", 10), new EqualTo("d", 20)};
             unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
-            assertNotNull(unsupportedFilters);
+            assertThat(unsupportedFilters).isNotNull();
             // Filter push-down is disabled because not all partition columns are in the filter array
-            assertEquals(3, unsupportedFilters.length);
+            assertThat(unsupportedFilters).hasSize(3);
 
             // a and b are part of a composite partition column
             allFilters = new Filter[]{new EqualTo("a", 5), new EqualTo("b", 10), new EqualTo("c", 15)};
             unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
-            assertNotNull(unsupportedFilters);
+            assertThat(unsupportedFilters).isNotNull();
             // Filter push-down is enabled because all the partition columns are part of the filter array
-            assertEquals(0, unsupportedFilters.length);
+            assertThat(unsupportedFilters).hasSize(0);
         });
     }
 
@@ -232,9 +230,9 @@ public class DataLayerUnsupportedPushDownFiltersTest
             // b is not the partition column
             Filter[] allFilters = {new EqualTo("b", 25)};
             Filter[] unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
-            assertNotNull(unsupportedFilters);
+            assertThat(unsupportedFilters).isNotNull();
             // Filter push-down is disabled because the partition column is missing in the filters
-            assertEquals(1, unsupportedFilters.length);
+            assertThat(unsupportedFilters).hasSize(1);
         });
     }
 

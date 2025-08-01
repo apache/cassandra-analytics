@@ -42,11 +42,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class SslConfigSecretsProviderTest
 {
@@ -81,7 +78,7 @@ public class SslConfigSecretsProviderTest
     {
         SslConfig config = new SslConfig.Builder<>().build();
         SecretsProvider secretsConfigProvider = new SslConfigSecretsProvider(config);
-        assertNotNull(secretsConfigProvider);
+        assertThat(secretsConfigProvider).isNotNull();
     }
 
     @Test
@@ -99,26 +96,20 @@ public class SslConfigSecretsProviderTest
         SecretsProvider provider = new SslConfigSecretsProvider(config);
         provider.initialize(Collections.emptyMap());
 
-        assertTrue(provider.hasKeyStoreSecrets());
+        assertThat(provider.hasKeyStoreSecrets()).isTrue();
         long totalRead = fullyReadStream(provider.keyStoreInputStream()); // Read keyStore
-        assertTrue(totalRead > 0);
-        assertEquals("PKCS12", provider.keyStoreType());
-        assertEquals(keyStorePassword, new String(provider.keyStorePassword()));
-        assertTrue(provider.hasTrustStoreSecrets());
+        assertThat(totalRead).isGreaterThan(0);
+        assertThat(provider.keyStoreType()).isEqualTo("PKCS12");
+        assertThat(new String(provider.keyStorePassword())).isEqualTo(keyStorePassword);
+        assertThat(provider.hasTrustStoreSecrets()).isTrue();
         totalRead = fullyReadStream(provider.trustStoreInputStream()); // Read trustStore
-        assertTrue(totalRead > 0);
-        assertEquals("JKS", provider.trustStoreType());
-        assertEquals(trustStorePassword, new String(provider.trustStorePassword()));
+        assertThat(totalRead).isGreaterThan(0);
+        assertThat(provider.trustStoreType()).isEqualTo("JKS");
+        assertThat(new String(provider.trustStorePassword())).isEqualTo(trustStorePassword);
         provider.validateMutualTLS();
 
-        try
-        {
-            buildSslConfig(provider);
-        }
-        catch (GeneralSecurityException e)
-        {
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> buildSslConfig(provider))
+                .doesNotThrowAnyException();
     }
 
     @Test
@@ -141,26 +132,20 @@ public class SslConfigSecretsProviderTest
         SecretsProvider provider = new SslConfigSecretsProvider(config);
         provider.initialize(Collections.emptyMap());
 
-        assertTrue(provider.hasKeyStoreSecrets());
+        assertThat(provider.hasKeyStoreSecrets()).isTrue();
         long totalRead = fullyReadStream(provider.keyStoreInputStream()); // Read keyStore
-        assertTrue(totalRead > 0);
-        assertEquals("PKCS12", provider.keyStoreType());
-        assertEquals(keyStorePassword, new String(provider.keyStorePassword()));
-        assertTrue(provider.hasTrustStoreSecrets());
+        assertThat(totalRead).isGreaterThan(0);
+        assertThat(provider.keyStoreType()).isEqualTo("PKCS12");
+        assertThat(new String(provider.keyStorePassword())).isEqualTo(keyStorePassword);
+        assertThat(provider.hasTrustStoreSecrets()).isTrue();
         totalRead = fullyReadStream(provider.trustStoreInputStream()); // Read trustStore
-        assertTrue(totalRead > 0);
-        assertEquals("JKS", provider.trustStoreType());
-        assertEquals(trustStorePassword, new String(provider.trustStorePassword()));
+        assertThat(totalRead).isGreaterThan(0);
+        assertThat(provider.trustStoreType()).isEqualTo("JKS");
+        assertThat(new String(provider.trustStorePassword())).isEqualTo(trustStorePassword);
         provider.validateMutualTLS();
 
-        try
-        {
-            buildSslConfig(provider);
-        }
-        catch (GeneralSecurityException e)
-        {
-            fail(e.getMessage());
-        }
+        assertThatThrownBy(() -> buildSslConfig(provider))
+                .doesNotThrowAnyException();
     }
 
     @Test
@@ -178,16 +163,10 @@ public class SslConfigSecretsProviderTest
         SecretsProvider provider = new SslConfigSecretsProvider(config);
         provider.initialize(Collections.emptyMap());
 
-        assertFalse(provider.hasKeyStoreSecrets());
-        try
-        {
-            provider.validateMutualTLS();
-            fail("it should fail when the path is invalid");
-        }
-        catch (RuntimeException e)
-        {
-            assertEquals("No valid keystore/password provided in options", e.getMessage());
-        }
+        assertThat(provider.hasKeyStoreSecrets()).isFalse();
+        assertThatThrownBy(provider::validateMutualTLS)
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("No valid keystore/password provided in options");
     }
 
     @Test
@@ -205,16 +184,10 @@ public class SslConfigSecretsProviderTest
         SecretsProvider provider = new SslConfigSecretsProvider(config);
         provider.initialize(Collections.emptyMap());
 
-        assertFalse(provider.hasTrustStoreSecrets());
-        try
-        {
-            provider.validateMutualTLS();
-            fail("it should fail when the path is invalid");
-        }
-        catch (RuntimeException e)
-        {
-            assertEquals("No valid keystore/password provided in options", e.getMessage());
-        }
+        assertThat(provider.hasTrustStoreSecrets()).isFalse();
+        assertThatThrownBy(provider::validateMutualTLS)
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("No valid keystore/password provided in options");
     }
 
     private void buildSslConfig(SecretsProvider provider) throws IOException, GeneralSecurityException

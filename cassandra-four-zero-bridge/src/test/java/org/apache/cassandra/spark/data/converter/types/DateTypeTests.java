@@ -27,8 +27,7 @@ import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.serializers.SimpleDateSerializer;
 import org.apache.cassandra.spark.data.types.Date;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DateTypeTests
 {
@@ -38,21 +37,21 @@ public class DateTypeTests
     public void testDateConversion()
     {
         int cassandraDate = SimpleDateSerializer.dateStringToDays("2021-07-16");
-        assertTrue(cassandraDate < 0);
-        assertEquals("2021-07-16", SimpleDateSerializer.instance.toString(cassandraDate));
+        assertThat(cassandraDate < 0).isTrue();
+        assertThat(SimpleDateSerializer.instance.toString(cassandraDate)).isEqualTo("2021-07-16");
         Object sparkSqlDate = SparkDate.INSTANCE.toSparkSqlType(cassandraDate, false);
-        assertTrue(sparkSqlDate instanceof Integer);
+        assertThat(sparkSqlDate instanceof Integer).isTrue();
         int numDays = (int) sparkSqlDate;
-        assertTrue(numDays > 0);
+        assertThat(numDays > 0).isTrue();
         LocalDate end = LocalDate.of(1970, 1, 1)
                                        .plusDays(numDays);
-        assertEquals(2021, end.getYear());
-        assertEquals(7, end.getMonthValue());
-        assertEquals(16, end.getDayOfMonth());
+        assertThat(end.getYear()).isEqualTo(2021);
+        assertThat(end.getMonthValue()).isEqualTo(7);
+        assertThat(end.getDayOfMonth()).isEqualTo(16);
         Object cqlWriterObj = Date.INSTANCE.convertForCqlWriter(numDays, BRIDGE.getVersion(), false);
         org.apache.cassandra.cql3.functions.types.LocalDate cqlWriterDate = (org.apache.cassandra.cql3.functions.types.LocalDate) cqlWriterObj;
-        assertEquals(2021, cqlWriterDate.getYear());
-        assertEquals(7, cqlWriterDate.getMonth());
-        assertEquals(16, cqlWriterDate.getDay());
+        assertThat(cqlWriterDate.getYear()).isEqualTo(2021);
+        assertThat(cqlWriterDate.getMonth()).isEqualTo(7);
+        assertThat(cqlWriterDate.getDay()).isEqualTo(16);
     }
 }

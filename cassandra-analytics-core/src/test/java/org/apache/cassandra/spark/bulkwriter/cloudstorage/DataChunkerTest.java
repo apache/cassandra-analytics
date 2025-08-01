@@ -32,8 +32,7 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DataChunkerTest
 {
@@ -67,8 +66,8 @@ public class DataChunkerTest
                 bos.write(ByteBufferUtils.getArray(buffer));
                 size += 1;
             }
-            assertEquals(expectedChunks, size);
-            assertArrayEquals(expected, bos.toByteArray());
+            assertThat(size).isEqualTo(expectedChunks);
+            assertThat(bos.toByteArray()).isEqualTo(expected);
         }
     }
 }

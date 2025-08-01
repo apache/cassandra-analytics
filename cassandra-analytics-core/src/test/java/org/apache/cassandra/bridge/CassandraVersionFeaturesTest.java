@@ -21,8 +21,8 @@ package org.apache.cassandra.bridge;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class CassandraVersionFeaturesTest
 {
@@ -46,18 +46,18 @@ public class CassandraVersionFeaturesTest
     @Test()
     public void testInvalidInput()
     {
-        assertThrows(RuntimeException.class, () ->
+        assertThatThrownBy(() ->
             CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion("qwerty")
-        );
+        ).isInstanceOf(RuntimeException.class);
     }
 
     private static void testCassandraVersion(String version, int major, int minor, String suffix)
     {
         CassandraVersionFeatures features = CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version);
 
-        assertEquals(major, features.getMajorVersion(), "Wrong major version for " + version + ",");
-        assertEquals(minor, features.getMinorVersion(), "Wrong minor version for " + version + ",");
-        assertEquals(suffix, features.getSuffix(), "Wrong version suffix for " + version + ",");
-        assertEquals(version, features.getRawVersionString());
+        assertThat(features.getMajorVersion()).as("Wrong major version for " + version + ",").isEqualTo(major);
+        assertThat(features.getMinorVersion()).as("Wrong minor version for " + version + ",").isEqualTo(minor);
+        assertThat(features.getSuffix()).as("Wrong version suffix for " + version + ",").isEqualTo(suffix);
+        assertThat(features.getRawVersionString()).isEqualTo(version);
     }
 }

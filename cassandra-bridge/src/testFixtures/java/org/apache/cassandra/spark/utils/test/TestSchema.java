@@ -856,11 +856,13 @@ public final class TestSchema
                                                   .collect(Collectors.joining(", ")));
         }
 
+        @Override
         public int hashCode()
         {
             return Objects.hash(values);
         }
 
+        @Override
         public boolean equals(Object other)
         {
             return other instanceof TestRow && ComparisonUtils.equals(this.values, ((TestRow) other).values);

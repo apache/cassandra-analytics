@@ -27,7 +27,7 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for {@link BigNumberConfigImpl}
@@ -43,6 +43,6 @@ public class BigNumberConfigImplTest
                                                                "field2", BigNumberConfigImpl.of(10, 4, 38, 19));
         String json = MAPPER.writeValueAsString(map);
         Map<String, BigNumberConfigImpl> deserialized = BigNumberConfigImpl.build(json);
-        assertEquals(map, deserialized);
+        assertThat(deserialized).isEqualTo(map);
     }
 }

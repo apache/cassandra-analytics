@@ -21,7 +21,7 @@ package org.apache.cassandra.spark.data;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for the {@link DefaultSizing} class
@@ -32,9 +32,9 @@ public class DefaultSizingTest
     public void testDefaultSizing()
     {
         Sizing sizing = new DefaultSizing(10);
-        assertEquals(10, sizing.getEffectiveNumberOfCores());
+        assertThat(sizing.getEffectiveNumberOfCores()).isEqualTo(10);
 
         sizing = new DefaultSizing(100);
-        assertEquals(100, sizing.getEffectiveNumberOfCores());
+        assertThat(sizing.getEffectiveNumberOfCores()).isEqualTo(100);
     }
 }

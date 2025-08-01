@@ -44,9 +44,8 @@ import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 
 import static org.apache.cassandra.spark.bulkwriter.cloudstorage.SSTableListerTest.calculateFileDigests;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -74,16 +73,16 @@ class SSTablesBundlerTest
             ssTablesBundler.includeDirectory(outputDir);
             ssTablesBundler.finish();
             List<Bundle> bundles = ImmutableList.copyOf(ssTablesBundler);
-            assertEquals(2, bundles.size());
+            assertThat(bundles).hasSize(2);
 
             Path bundle0 = outputDir.resolve("0");
             Path bundle1 = outputDir.resolve("1");
-            assertTrue(Files.exists(bundle0) && Files.isDirectory(bundle0));
-            assertTrue(Files.exists(bundle1) && Files.isDirectory(bundle1));
+            assertThat(Files.exists(bundle0) && Files.isDirectory(bundle0)).isTrue();
+            assertThat(Files.exists(bundle1) && Files.isDirectory(bundle1)).isTrue();
             String expectedZippedBundlePath1 = "b_" + jobId + "_" + sessionId + "_1_3";
             String expectedZippedBundlePath2 = "e_" + jobId + "_" + sessionId + "_4_6";
-            assertTrue(Files.exists(outputDir.resolve(expectedZippedBundlePath1)));
-            assertTrue(Files.exists(outputDir.resolve(expectedZippedBundlePath2)));
+            assertThat(Files.exists(outputDir.resolve(expectedZippedBundlePath1))).isTrue();
+            assertThat(Files.exists(outputDir.resolve(expectedZippedBundlePath2))).isTrue();
         }
     }
 
@@ -141,15 +140,15 @@ class SSTablesBundlerTest
                                              + "}";
             Path bundle0Manifest = outputDir.resolve("0").resolve("manifest.json");
             Path bundle1Manifest = outputDir.resolve("1").resolve("manifest.json");
-            assertTrue(Files.exists(bundle0Manifest));
-            assertTrue(Files.exists(bundle1Manifest));
+            assertThat(Files.exists(bundle0Manifest)).isTrue();
+            assertThat(Files.exists(bundle1Manifest)).isTrue();
             ObjectMapper mapper = new ObjectMapper();
             Map actualBundle0 = mapper.readValue(bundle0Manifest.toFile(), Map.class);
             Map expectedBundle0 = mapper.readValue(expectedBundle0Manifest, Map.class);
-            assertEquals(expectedBundle0, actualBundle0);
+            assertThat(actualBundle0).isEqualTo(expectedBundle0);
             Map actualBundle1 = mapper.readValue(bundle1Manifest.toFile(), Map.class);
             Map expectedBundle1 = mapper.readValue(expectedBundle1Manifest, Map.class);
-            assertEquals(expectedBundle1, actualBundle1);
+            assertThat(actualBundle1).isEqualTo(expectedBundle1);
         }
     }
 
@@ -159,7 +158,7 @@ class SSTablesBundlerTest
         try (TemporaryDirectory tempDir = new TemporaryDirectory())
         {
             Path empty = Files.createFile(tempDir.path().resolve("empty"));
-            assertEquals("2cc5d05", IOUtils.xxhash32(empty));
+            assertThat(IOUtils.xxhash32(empty)).isEqualTo("2cc5d05");
         }
     }
 
@@ -174,7 +173,7 @@ class SSTablesBundlerTest
             CassandraBridge bridge = mockCassandraBridge(outputDir);
             SSTableLister ssTableLister = new SSTableLister(new QualifiedTableName("ks", "table1"), bridge);
             SSTablesBundler ssTablesBundler = new SSTablesBundler(outputDir, ssTableLister, nameGenerator, 200);
-            assertThrows(NoSuchElementException.class, ssTablesBundler::next);
+            assertThatThrownBy(ssTablesBundler::next).isInstanceOf(NoSuchElementException.class);
         }
     }
 

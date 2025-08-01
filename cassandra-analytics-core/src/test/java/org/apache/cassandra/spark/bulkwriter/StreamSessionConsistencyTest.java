@@ -49,14 +49,10 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
-import org.assertj.core.api.Assertions;
 
 import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class StreamSessionConsistencyTest
 {
@@ -125,12 +121,12 @@ public class StreamSessionConsistencyTest
         Future<?> fut = streamSession.finalizeStreamAsync();
         if (shouldFail)
         {
-            ExecutionException exception = assertThrows(ExecutionException.class, fut::get);
-            Assertions.assertThat(exception)
-                      .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
-                      .hasMessageContaining("Failed to write 1 ranges with " + consistencyLevel
-                                            + " for job " + writerContext.job().getId()
-                                            + " in phase UploadAndCommit.");
+            assertThatThrownBy(fut::get)
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
+                    .hasMessageContaining("Failed to write 1 ranges with " + consistencyLevel
+                                        + " for job " + writerContext.job().getId()
+                                        + " in phase UploadAndCommit.");
         }
         else
         {
@@ -139,12 +135,12 @@ public class StreamSessionConsistencyTest
         executor.assertFuturesCalled();
         assertThat(writerContext.getUploads().values().stream()
                                 .mapToInt(Collection::size)
-                                .sum(),
-                   equalTo(REPLICATION_FACTOR * NUMBER_DCS * FILES_PER_SSTABLE));
+                                .sum())
+                .isEqualTo(REPLICATION_FACTOR * NUMBER_DCS * FILES_PER_SSTABLE);
         List<String> instances = writerContext.getUploads().keySet().stream()
                                               .map(CassandraInstance::nodeName)
                                               .collect(Collectors.toList());
-        assertThat(instances, containsInAnyOrder(EXPECTED_INSTANCES.toArray()));
+        assertThat(instances).containsExactlyInAnyOrder(EXPECTED_INSTANCES.toArray(new String[0]));
     }
 
     @ParameterizedTest(name = "CL: {0}, numFailures: {1}")
@@ -165,13 +161,12 @@ public class StreamSessionConsistencyTest
         Future<?> fut =  streamSession.finalizeStreamAsync();
         if (shouldFail)
         {
-            ExecutionException exception = assertThrows(ExecutionException.class, fut::get);
-            assertInstanceOf(ConsistencyNotSatisfiedException.class, exception.getCause());
-            Assertions.assertThat(exception)
-                      .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
-                      .hasMessageContaining("Failed to write 1 ranges with " + consistencyLevel
-                                            + " for job " + writerContext.job().getId()
-                                            + " in phase UploadAndCommit.");
+            assertThatThrownBy(fut::get)
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
+                    .hasMessageContaining("Failed to write 1 ranges with " + consistencyLevel
+                                        + " for job " + writerContext.job().getId()
+                                        + " in phase UploadAndCommit.");
         }
         else
         {
@@ -183,12 +178,12 @@ public class StreamSessionConsistencyTest
         int filesSkipped = (numFailures * (FILES_PER_SSTABLE - 1));
         assertThat(writerContext.getUploads().values().stream()
                                 .mapToInt(Collection::size)
-                                .sum(),
-                   equalTo(totalFilesToUpload - filesSkipped));
+                                .sum())
+                .isEqualTo(totalFilesToUpload - filesSkipped);
         List<String> instances = writerContext.getUploads().keySet().stream()
                                               .map(CassandraInstance::nodeName)
                                               .collect(Collectors.toList());
-        assertThat(instances, containsInAnyOrder(EXPECTED_INSTANCES.toArray()));
+        assertThat(instances).containsExactlyInAnyOrder(EXPECTED_INSTANCES.toArray(new String[0]));
     }
 
     private boolean calculateFailure(ConsistencyLevel.CL consistencyLevel, int dc1Failures, int dc2Failures)

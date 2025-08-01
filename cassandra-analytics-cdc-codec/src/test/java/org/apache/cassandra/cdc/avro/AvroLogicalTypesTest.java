@@ -44,8 +44,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class AvroLogicalTypesTest
 {
@@ -125,8 +124,8 @@ public class AvroLogicalTypesTest
 
         Class<? extends T> type = (Class<? extends T>) testData.getClass();
         T actualData = getAs(payloadRecord, "a", type);
-        assertSame(type, actualData.getClass());
-        assertEquals(testData, actualData);
+        assertThat(actualData.getClass()).isSameAs(type);
+        assertThat(actualData).isEqualTo(testData);
     }
 
     public static <T> T getAs(GenericRecord avroRec, String fieldName, Class<T> type) throws AvroRuntimeException

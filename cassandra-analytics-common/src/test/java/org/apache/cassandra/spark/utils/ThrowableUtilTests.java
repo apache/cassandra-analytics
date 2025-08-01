@@ -26,9 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.exceptions.TransportFailureException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class ThrowableUtilTests
 {
@@ -36,7 +34,7 @@ public class ThrowableUtilTests
     public void testNoNesting()
     {
         Throwable throwable = new RuntimeException();
-        assertEquals(throwable, ThrowableUtils.rootCause(throwable));
+        assertThat(ThrowableUtils.rootCause(throwable)).isEqualTo(throwable);
     }
 
     @Test
@@ -44,8 +42,8 @@ public class ThrowableUtilTests
     {
         Throwable throwable2 = new RuntimeException();
         Throwable throwable1 = new RuntimeException(throwable2);
-        assertEquals(throwable2, ThrowableUtils.rootCause(throwable1));
-        assertEquals(throwable2, ThrowableUtils.rootCause(throwable2));
+        assertThat(ThrowableUtils.rootCause(throwable1)).isEqualTo(throwable2);
+        assertThat(ThrowableUtils.rootCause(throwable2)).isEqualTo(throwable2);
     }
 
     @Test
@@ -55,10 +53,10 @@ public class ThrowableUtilTests
         Throwable throwable3 = new RuntimeException(throwable4);
         Throwable throwable2 = new RuntimeException(throwable3);
         Throwable throwable1 = new RuntimeException(throwable2);
-        assertEquals(throwable4, ThrowableUtils.rootCause(throwable1));
-        assertEquals(throwable4, ThrowableUtils.rootCause(throwable2));
-        assertEquals(throwable4, ThrowableUtils.rootCause(throwable3));
-        assertEquals(throwable4, ThrowableUtils.rootCause(throwable4));
+        assertThat(ThrowableUtils.rootCause(throwable1)).isEqualTo(throwable4);
+        assertThat(ThrowableUtils.rootCause(throwable2)).isEqualTo(throwable4);
+        assertThat(ThrowableUtils.rootCause(throwable3)).isEqualTo(throwable4);
+        assertThat(ThrowableUtils.rootCause(throwable4)).isEqualTo(throwable4);
     }
 
     @Test
@@ -66,8 +64,8 @@ public class ThrowableUtilTests
     {
         IOException io = new IOException();
         Throwable throwable = new RuntimeException(io);
-        assertEquals(io, ThrowableUtils.rootCause(throwable, IOException.class));
-        assertEquals(io, ThrowableUtils.rootCause(io, IOException.class));
+        assertThat(ThrowableUtils.rootCause(throwable, IOException.class)).isEqualTo(io);
+        assertThat(ThrowableUtils.rootCause(io, IOException.class)).isEqualTo(io);
     }
 
     @Test
@@ -75,9 +73,9 @@ public class ThrowableUtilTests
     {
         TransportFailureException exception = TransportFailureException.nonretryable(404);
         Throwable throwable = new RuntimeException(exception);
-        assertEquals(exception, ThrowableUtils.rootCause(throwable, TransportFailureException.class));
-        assertTrue(Objects.requireNonNull(ThrowableUtils.rootCause(throwable, TransportFailureException.class)).isNotFound());
-        assertEquals(exception, ThrowableUtils.rootCause(exception, TransportFailureException.class));
+        assertThat(ThrowableUtils.rootCause(throwable, TransportFailureException.class)).isEqualTo(exception);
+        assertThat(Objects.requireNonNull(ThrowableUtils.rootCause(throwable, TransportFailureException.class)).isNotFound()).isTrue();
+        assertThat(ThrowableUtils.rootCause(exception, TransportFailureException.class)).isEqualTo(exception);
     }
 
     @Test
@@ -88,16 +86,16 @@ public class ThrowableUtilTests
         Throwable throwable3 = new RuntimeException(io);
         Throwable throwable2 = new RuntimeException(throwable3);
         Throwable throwable1 = new RuntimeException(throwable2);
-        assertEquals(io, ThrowableUtils.rootCause(throwable1, IOException.class));
-        assertEquals(io, ThrowableUtils.rootCause(throwable2, IOException.class));
-        assertNull(ThrowableUtils.rootCause(throwable4, IOException.class));
+        assertThat(ThrowableUtils.rootCause(throwable1, IOException.class)).isEqualTo(io);
+        assertThat(ThrowableUtils.rootCause(throwable2, IOException.class)).isEqualTo(io);
+        assertThat(ThrowableUtils.rootCause(throwable4, IOException.class)).isNull();
     }
 
     @Test
     public void testOfTypeNotFound()
     {
         Throwable throwable = new RuntimeException();
-        assertNull(ThrowableUtils.rootCause(throwable, IOException.class));
+        assertThat(ThrowableUtils.rootCause(throwable, IOException.class)).isNull();
     }
 
     @Test
@@ -107,6 +105,6 @@ public class ThrowableUtilTests
         Throwable throwable3 = new RuntimeException(throwable4);
         Throwable throwable2 = new RuntimeException(throwable3);
         Throwable throwable1 = new RuntimeException(throwable2);
-        assertNull(ThrowableUtils.rootCause(throwable1, IOException.class));
+        assertThat(ThrowableUtils.rootCause(throwable1, IOException.class)).isNull();
     }
 }

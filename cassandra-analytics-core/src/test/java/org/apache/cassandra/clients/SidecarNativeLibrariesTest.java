@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.io.vertx.core.net.OpenSSLEngineOptions;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests to ensure that Sidecar client native libraries are loaded correctly
@@ -35,6 +35,6 @@ public class SidecarNativeLibrariesTest
     @Test
     void openSslIsAvailable()
     {
-        assertTrue(OpenSSLEngineOptions.isAvailable());
+        assertThat(OpenSSLEngineOptions.isAvailable()).isTrue();
     }
 }

@@ -24,10 +24,8 @@ import java.util.ArrayList;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class ReplicationFactorTests
 {
@@ -38,10 +36,10 @@ public class ReplicationFactorTests
                 "class", "NetworkTopologyStrategy",
                 "datacenter1", "3",
                 "datacenter2", "5"));
-        assertEquals(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
-                     replicationFactor.getReplicationStrategy());
-        assertEquals(Integer.valueOf(3), replicationFactor.getOptions().get("datacenter1"));
-        assertEquals(Integer.valueOf(5), replicationFactor.getOptions().get("datacenter2"));
+        assertThat(replicationFactor.getReplicationStrategy())
+            .isEqualTo(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy);
+        assertThat(replicationFactor.getOptions().get("datacenter1")).isEqualTo(Integer.valueOf(3));
+        assertThat(replicationFactor.getOptions().get("datacenter2")).isEqualTo(Integer.valueOf(5));
     }
 
     @Test
@@ -51,10 +49,10 @@ public class ReplicationFactorTests
                 "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
                 "datacenter1", "9",
                 "datacenter2", "2"));
-        assertEquals(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
-                     replicationFactor.getReplicationStrategy());
-        assertEquals(Integer.valueOf(9), replicationFactor.getOptions().get("datacenter1"));
-        assertEquals(Integer.valueOf(2), replicationFactor.getOptions().get("datacenter2"));
+        assertThat(replicationFactor.getReplicationStrategy())
+            .isEqualTo(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy);
+        assertThat(replicationFactor.getOptions().get("datacenter1")).isEqualTo(Integer.valueOf(9));
+        assertThat(replicationFactor.getOptions().get("datacenter2")).isEqualTo(Integer.valueOf(2));
     }
 
     @Test
@@ -63,8 +61,8 @@ public class ReplicationFactorTests
         ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
                 "class", "SimpleStrategy",
                 "replication_factor", "3"));
-        assertEquals(ReplicationFactor.ReplicationStrategy.SimpleStrategy, replicationFactor.getReplicationStrategy());
-        assertEquals(Integer.valueOf(3), replicationFactor.getOptions().get("replication_factor"));
+        assertThat(replicationFactor.getReplicationStrategy()).isEqualTo(ReplicationFactor.ReplicationStrategy.SimpleStrategy);
+        assertThat(replicationFactor.getOptions().get("replication_factor")).isEqualTo(Integer.valueOf(3));
     }
 
     @Test
@@ -73,28 +71,26 @@ public class ReplicationFactorTests
         ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
                 "class", "org.apache.cassandra.locator.SimpleStrategy",
                 "replication_factor", "5"));
-        assertEquals(ReplicationFactor.ReplicationStrategy.SimpleStrategy, replicationFactor.getReplicationStrategy());
-        assertEquals(Integer.valueOf(5), replicationFactor.getOptions().get("replication_factor"));
+        assertThat(replicationFactor.getReplicationStrategy()).isEqualTo(ReplicationFactor.ReplicationStrategy.SimpleStrategy);
+        assertThat(replicationFactor.getOptions().get("replication_factor")).isEqualTo(Integer.valueOf(5));
     }
 
     @Test()
     public void testUnexpectedRFClass()
     {
-        assertThrows(IllegalArgumentException.class,
-                     () -> new ReplicationFactor(ImmutableMap.of(
-                     "class", "org.apache.cassandra.locator.NotSimpleStrategy",
-                     "replication_factor", "5"))
-        );
+        assertThatThrownBy(() -> new ReplicationFactor(ImmutableMap.of(
+                "class", "org.apache.cassandra.locator.NotSimpleStrategy",
+                "replication_factor", "5")))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test()
     public void testUnknownRFClass()
     {
-        assertThrows(IllegalArgumentException.class,
-                     () -> new ReplicationFactor(ImmutableMap.of(
-                     "class", "NoSuchStrategy",
-                     "replication_factor", "5"))
-        );
+        assertThatThrownBy(() -> new ReplicationFactor(ImmutableMap.of(
+                "class", "NoSuchStrategy",
+                "replication_factor", "5")))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -106,13 +102,13 @@ public class ReplicationFactorTests
         ReplicationFactor replicationFactor2 = new ReplicationFactor(ImmutableMap.of(
                 "class", "org.apache.cassandra.locator.SimpleStrategy",
                 "replication_factor", "5"));
-        assertNotSame(replicationFactor1, replicationFactor2);
-        assertNotEquals(null, replicationFactor1);
-        assertNotEquals(replicationFactor2, null);
-        assertEquals(replicationFactor1, replicationFactor1);
-        assertEquals(replicationFactor2, replicationFactor2);
-        assertNotEquals(new ArrayList<>(), replicationFactor1);
-        assertEquals(replicationFactor1, replicationFactor2);
-        assertEquals(replicationFactor1.hashCode(), replicationFactor2.hashCode());
+        assertThat(replicationFactor1).isNotSameAs(replicationFactor2);
+        assertThat(replicationFactor1).isNotEqualTo(null);
+        assertThat(replicationFactor2).isNotEqualTo(null);
+        assertThat(replicationFactor1).isEqualTo(replicationFactor1);
+        assertThat(replicationFactor2).isEqualTo(replicationFactor2);
+        assertThat(replicationFactor1).isNotEqualTo(new ArrayList<>());
+        assertThat(replicationFactor1).isEqualTo(replicationFactor2);
+        assertThat(replicationFactor1.hashCode()).isEqualTo(replicationFactor2.hashCode());
     }
 }

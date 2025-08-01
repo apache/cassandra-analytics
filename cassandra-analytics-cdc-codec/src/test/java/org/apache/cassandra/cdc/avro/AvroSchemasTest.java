@@ -26,10 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.avro.Schema;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class AvroSchemasTest
 {
@@ -38,17 +35,17 @@ public class AvroSchemasTest
     {
         Schema schema = new Schema.Parser().parse(SCHEMA_JSON_NORMAL);
         Schema nullable = schema.getField("a").schema();
-        assertEquals(Schema.Type.UNION, nullable.getType());
+        assertThat(nullable.getType()).as("Nullable field should be UNION type").isEqualTo(Schema.Type.UNION);
         Schema unwrapped = AvroSchemas.unwrapNullable(nullable);
-        assertEquals(Schema.Type.INT, unwrapped.getType());
+        assertThat(unwrapped.getType()).as("Unwrapped type should be INT").isEqualTo(Schema.Type.INT);
         // assert the cqlType in schema
-        assertEquals("int", AvroSchemas.cqlType(unwrapped));
+        assertThat(AvroSchemas.cqlType(unwrapped)).as("CQL type should be 'int'").isEqualTo("int");
 
         // now run unwrap again. It should be the same schema instance
         Schema unwrapped2 = AvroSchemas.unwrapNullable(unwrapped);
-        assertSame(unwrapped, unwrapped2);
+        assertThat(unwrapped2).as("Second unwrap should return same instance").isSameAs(unwrapped);
         // also test the frozen flag
-        assertFalse(AvroSchemas.isFrozen(unwrapped));
+        assertThat(AvroSchemas.isFrozen(unwrapped)).as("Unwrapped schema should not be frozen").isFalse();
     }
 
     @Test
@@ -56,9 +53,9 @@ public class AvroSchemasTest
     {
         Schema schema = new Schema.Parser().parse(SCHEMA_JSON_FROZEN);
         Schema nullable = schema.getField("a").schema();
-        assertEquals(Schema.Type.UNION, nullable.getType());
+        assertThat(nullable.getType()).as("Nullable field should be UNION type").isEqualTo(Schema.Type.UNION);
         Schema unwrapped = AvroSchemas.unwrapNullable(nullable);
-        assertTrue(AvroSchemas.isFrozen(unwrapped));
+        assertThat(AvroSchemas.isFrozen(unwrapped)).as("Unwrapped schema should be frozen").isTrue();
     }
 
     @Test
@@ -68,7 +65,7 @@ public class AvroSchemasTest
         {
             Schema schema = new Schema.Parser().parse(String.format(SCHEMA_JSON_CQLTYPE_FORMATTER, cqlType));
             Schema unwrapped = AvroSchemas.unwrapNullable(schema.getField("a").schema());
-            assertEquals(cqlType, AvroSchemas.cqlType(unwrapped));
+            assertThat(AvroSchemas.cqlType(unwrapped)).as("CQL type should match for type: " + cqlType).isEqualTo(cqlType);
         }
     }
 
@@ -76,10 +73,10 @@ public class AvroSchemasTest
     public void testPrimaryKeys()
     {
         Schema schema = new Schema.Parser().parse(SCHEMA_JSON_PRIMARY_KEYS);
-        assertEquals(Arrays.asList("a", "b", "c", "d"), AvroSchemas.primaryKeys(schema));
-        assertEquals(Collections.singletonList("a"), AvroSchemas.partitionKeys(schema));
-        assertEquals(Arrays.asList("b", "c", "d"), AvroSchemas.clusteringKeys(schema));
-        assertEquals(Arrays.asList("e", "f", "g"), AvroSchemas.staticColumns(schema));
+        assertThat(AvroSchemas.primaryKeys(schema)).as("Primary keys should match expected list").isEqualTo(Arrays.asList("a", "b", "c", "d"));
+        assertThat(AvroSchemas.partitionKeys(schema)).as("Partition keys should match expected list").isEqualTo(Collections.singletonList("a"));
+        assertThat(AvroSchemas.clusteringKeys(schema)).as("Clustering keys should match expected list").isEqualTo(Arrays.asList("b", "c", "d"));
+        assertThat(AvroSchemas.staticColumns(schema)).as("Static columns should match expected list").isEqualTo(Arrays.asList("e", "f", "g"));
     }
 
     private static final String SCHEMA_JSON_NORMAL =

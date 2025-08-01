@@ -41,9 +41,9 @@ import org.apache.cassandra.spark.reader.SparkSSTableReader;
 import org.apache.cassandra.spark.reader.common.SSTableStreamException;
 import org.jetbrains.annotations.Nullable;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doCallRealMethod;
@@ -86,36 +86,32 @@ public class SingleReplicaTests
     @Test()
     public void testMissingDataFile()
     {
-        assertThrows(IOException.class,
-                     () -> runTest(true, FileType.DATA)
-        );
+        assertThatThrownBy(() -> runTest(true, FileType.DATA))
+            .isInstanceOf(IOException.class);
     }
 
     @Test()
     public void testMissingStatisticsFile()
-    {        assertThrows(IOException.class,
-                          () -> runTest(true, FileType.STATISTICS)
-    );
+    {        assertThatThrownBy(() -> runTest(true, FileType.STATISTICS))
+            .isInstanceOf(IOException.class);
     }
 
     @Test()
     public void testMissingSummaryPrimaryIndex()
     {
-        assertThrows(IOException.class,
-                     () -> runTest(true, FileType.SUMMARY, FileType.INDEX)
-        );
+        assertThatThrownBy(() -> runTest(true, FileType.SUMMARY, FileType.INDEX))
+            .isInstanceOf(IOException.class);
     }
 
     @Test()
     public void testFailOpenReader()
     {
-        assertThrows(IOException.class,
-                     () -> runTest(true,
-                                   (ssTable, isRepairPrimary) -> {
-                         throw new IOException("Couldn't open Summary.db file");
-                         },
-                Range.closed(BigInteger.valueOf(-9223372036854775808L), BigInteger.valueOf(8710962479251732707L)))
-        );
+        assertThatThrownBy(() -> runTest(true,
+                                       (ssTable, isRepairPrimary) -> {
+                     throw new IOException("Couldn't open Summary.db file");
+                     },
+            Range.closed(BigInteger.valueOf(-9223372036854775808L), BigInteger.valueOf(8710962479251732707L))))
+            .isInstanceOf(IOException.class);
     }
 
     @Test
@@ -197,7 +193,7 @@ public class SingleReplicaTests
         {
             fail("Should throw IOException because an SSTable is corrupt");
         }
-        assertEquals(3, readers.size());
+        assertThat(readers).hasSize(3);
     }
 
     static SSTable mockSSTable() throws IncompleteSSTableException

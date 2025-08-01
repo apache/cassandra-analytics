@@ -46,11 +46,9 @@ import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.utils.streaming.BufferingInputStream.timeoutLeftNanos;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Test the {@link BufferingInputStream} by mocking the {@link CassandraFileSource}
@@ -142,10 +140,10 @@ public class BufferingInputStreamTests
         }, null);
         BufferingInputStream<SSTable> is = new BufferingInputStream<>(mockedClient, STATS.bufferingInputStreamStats());
         readStreamFully(is);
-        assertEquals(numRequests, requestCount.get());
-        assertEquals(0L, is.bytesBuffered());
-        assertEquals(fileSize, is.bytesWritten());
-        assertEquals(fileSize, is.bytesRead());
+        assertThat(requestCount.get()).isEqualTo(numRequests);
+        assertThat(is.bytesBuffered()).isEqualTo(0L);
+        assertThat(is.bytesWritten()).isEqualTo(fileSize);
+        assertThat(is.bytesRead()).isEqualTo(fileSize);
     }
 
     @Test()
@@ -169,31 +167,30 @@ public class BufferingInputStreamTests
                 writeBuffers(consumer, randomBuffers(chunksPerRequest));
             }
         }, null);
-        assertThrows(IOException.class,
-                     () -> readStreamFully(new BufferingInputStream<>(source, STATS.bufferingInputStreamStats()))
-        );
+        assertThatThrownBy(() -> readStreamFully(new BufferingInputStream<>(source, STATS.bufferingInputStreamStats())))
+            .isInstanceOf(IOException.class);
     }
 
     @Test
     public void testTimeout()
     {
         long now = System.nanoTime();
-        assertEquals(Duration.ofMillis(100).toNanos(),
-                     timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(900).toNanos()));
-        assertEquals(Duration.ofMillis(-500).toNanos(),
-                     timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(1500).toNanos()));
-        assertEquals(Duration.ofMillis(995).toNanos(),
-                     timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(5).toNanos()));
-        assertEquals(Duration.ofMillis(1000).toNanos(),
-                     timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(0).toNanos()));
-        assertEquals(Duration.ofMillis(1000).toNanos(),
-                     timeoutLeftNanos(Duration.ofMillis(1000), now, now + Duration.ofMillis(500).toNanos()));
-        assertEquals(Duration.ofMillis(35000).toNanos(),
-                     timeoutLeftNanos(Duration.ofMillis(60000), now, now - Duration.ofMillis(25000).toNanos()));
-        assertEquals(Duration.ofMillis(-5000).toNanos(),
-                     timeoutLeftNanos(Duration.ofMillis(60000), now, now - Duration.ofMillis(65000).toNanos()));
-        assertEquals(Duration.ofMillis(0).toNanos(),
-                     timeoutLeftNanos(Duration.ofMillis(60000), now, now - Duration.ofMillis(60000).toNanos()));
+        assertThat(timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(900).toNanos()))
+            .isEqualTo(Duration.ofMillis(100).toNanos());
+        assertThat(timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(1500).toNanos()))
+            .isEqualTo(Duration.ofMillis(-500).toNanos());
+        assertThat(timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(5).toNanos()))
+            .isEqualTo(Duration.ofMillis(995).toNanos());
+        assertThat(timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(0).toNanos()))
+            .isEqualTo(Duration.ofMillis(1000).toNanos());
+        assertThat(timeoutLeftNanos(Duration.ofMillis(1000), now, now + Duration.ofMillis(500).toNanos()))
+            .isEqualTo(Duration.ofMillis(1000).toNanos());
+        assertThat(timeoutLeftNanos(Duration.ofMillis(60000), now, now - Duration.ofMillis(25000).toNanos()))
+            .isEqualTo(Duration.ofMillis(35000).toNanos());
+        assertThat(timeoutLeftNanos(Duration.ofMillis(60000), now, now - Duration.ofMillis(65000).toNanos()))
+            .isEqualTo(Duration.ofMillis(-5000).toNanos());
+        assertThat(timeoutLeftNanos(Duration.ofMillis(60000), now, now - Duration.ofMillis(60000).toNanos()))
+            .isEqualTo(Duration.ofMillis(0).toNanos());
     }
 
     @Test
@@ -228,13 +225,14 @@ public class BufferingInputStreamTests
         }
         catch (IOException exception)
         {
-            assertTrue(exception.getCause() instanceof TimeoutException);
+            assertThat(exception.getCause()).isInstanceOf(TimeoutException.class);
         }
         long readAndTimeoutTotal = TimeUnit.NANOSECONDS.toMillis(inputStream.timeBlockedNanos()) + timeout.toMillis();
         Duration clientTimeoutTotal = Duration.ofNanos(System.nanoTime() - startTime);
-        assertTrue(clientTimeoutTotal.toMillis() >= readAndTimeoutTotal,
-                   "Timeout didn't account for activity time. "
-                   + "Took " + clientTimeoutTotal.toMillis() + "ms should have taken at least " + readAndTimeoutTotal + "ms");
+        assertThat(clientTimeoutTotal.toMillis()).isGreaterThanOrEqualTo(readAndTimeoutTotal)
+            .describedAs("Timeout didn't account for activity time. "
+                       + "Took %dms should have taken at least %dms",
+                       clientTimeoutTotal.toMillis(), readAndTimeoutTotal);
     }
 
     @Test
@@ -250,7 +248,7 @@ public class BufferingInputStreamTests
             @Override
             public void request(long start, long end, StreamConsumer consumer)
             {
-                assertNotEquals(0, start);
+                assertThat(start).isNotEqualTo(0);
                 int length = (int) (end - start + 1);
                 consumer.onRead(randomBuffer(length));
                 bytesRead.add(length);
@@ -299,8 +297,8 @@ public class BufferingInputStreamTests
             readStreamFully(stream);
         }
         // Verify we only read final chunks and not the start of the file
-        assertEquals(bytesToRead, bytesRead.intValue());
-        assertEquals(numChunks, count.intValue());
+        assertThat(bytesRead.intValue()).isEqualTo(bytesToRead);
+        assertThat(count.intValue()).isEqualTo(numChunks);
     }
 
     @Test

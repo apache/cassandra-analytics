@@ -63,10 +63,7 @@ import static org.apache.cassandra.cdc.CdcTests.MESSAGE_CONVERTER;
 import static org.apache.cassandra.cdc.CdcTests.directory;
 import static org.apache.cassandra.cdc.CdcTests.logProvider;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -90,10 +87,10 @@ public class MicroBatchIteratorTests
         },
         (event, rows, nowMicros) -> {
             CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
-            assertEquals(msg.operationType(), CdcEvent.Kind.COMPLEX_ELEMENT_DELETE);
+            assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.COMPLEX_ELEMENT_DELETE);
             String expected = deletedValues.get(Objects.requireNonNull(msg.partitionKeys().get(0).value()).toString());
-            assertNotNull(msg.getComplexCellDeletion());
-            assertEquals(expected, msg.getComplexCellDeletion().get("b").get(0).toString());
+            assertThat(msg.getComplexCellDeletion()).isNotNull();
+            assertThat(msg.getComplexCellDeletion().get("b").get(0).toString()).isEqualTo(expected);
         }
         );
     }
@@ -115,10 +112,10 @@ public class MicroBatchIteratorTests
                 },
                 (event, rows, nowMicros) -> {
                     CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
-                    assertEquals(msg.operationType(), CdcEvent.Kind.COMPLEX_ELEMENT_DELETE);
+                    assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.COMPLEX_ELEMENT_DELETE);
                     String expected = deletedValues.get(Objects.requireNonNull(msg.partitionKeys().get(0).value()).toString());
-                    assertNotNull(msg.getComplexCellDeletion());
-                    assertEquals(expected, msg.getComplexCellDeletion().get("b").get(0).toString());
+                    assertThat(msg.getComplexCellDeletion()).isNotNull();
+                    assertThat(msg.getComplexCellDeletion().get("b").get(0).toString()).isEqualTo(expected);
                 }
         );
     }
@@ -145,26 +142,26 @@ public class MicroBatchIteratorTests
                 },
                 (event, rows, nowMicros) -> {
                     CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
-                    assertEquals(msg.operationType(), CdcEvent.Kind.RANGE_DELETE);
+                    assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.RANGE_DELETE);
                     List<RangeTombstoneMsg> tombstones = msg.rangeTombstones();
                     TestSchema.TestRow row = rows.get(msg.column("a").value().toString());
-                    assertEquals(1, tombstones.size());
+                    assertThat(tombstones).hasSize(1);
                     RangeTombstoneMsg tombstone = tombstones.get(0);
-                    assertTrue(tombstone.startInclusive);
-                    assertTrue(tombstone.endInclusive);
-                    assertEquals(2, tombstone.startBound().size());
-                    assertEquals(2, tombstone.endBound().size());
-                    assertEquals("b", tombstone.startBound().get(0).name());
-                    assertEquals("c", tombstone.startBound().get(1).name());
-                    assertEquals("b", tombstone.endBound().get(0).name());
-                    assertEquals("c", tombstone.endBound().get(1).name());
+                    assertThat(tombstone.startInclusive).isTrue();
+                    assertThat(tombstone.endInclusive).isTrue();
+                    assertThat(tombstone.startBound()).hasSize(2);
+                    assertThat(tombstone.endBound()).hasSize(2);
+                    assertThat(tombstone.startBound().get(0).name()).isEqualTo("b");
+                    assertThat(tombstone.startBound().get(1).name()).isEqualTo("c");
+                    assertThat(tombstone.endBound().get(0).name()).isEqualTo("b");
+                    assertThat(tombstone.endBound().get(1).name()).isEqualTo("c");
                     RangeTombstoneData expected = row.rangeTombstones().get(0);
-                    assertEquals(expected.open.values[0], tombstone.startBound().get(0).value());
-                    assertEquals(expected.open.values[1], tombstone.startBound().get(1).value());
-                    assertEquals(expected.close.values[0], tombstone.endBound().get(0).value());
-                    assertEquals(expected.close.values[1], tombstone.endBound().get(1).value());
-                    assertEquals(expected.open.inclusive, tombstone.startInclusive);
-                    assertEquals(expected.close.inclusive, tombstone.endInclusive);
+                    assertThat(tombstone.startBound().get(0).value()).isEqualTo(expected.open.values[0]);
+                    assertThat(tombstone.startBound().get(1).value()).isEqualTo(expected.open.values[1]);
+                    assertThat(tombstone.endBound().get(0).value()).isEqualTo(expected.close.values[0]);
+                    assertThat(tombstone.endBound().get(1).value()).isEqualTo(expected.close.values[1]);
+                    assertThat(tombstone.startInclusive).isEqualTo(expected.open.inclusive);
+                    assertThat(tombstone.endInclusive).isEqualTo(expected.close.inclusive);
                 }
         );
     }
@@ -185,14 +182,14 @@ public class MicroBatchIteratorTests
                 },
                 (event, rows, nowMicros) -> {
                     CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
-                    assertEquals(msg.operationType(), CdcEvent.Kind.ROW_DELETE);
-                    assertEquals(msg.lastModifiedTimeMicros(), nowMicros);
+                    assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.ROW_DELETE);
+                    assertThat(msg.lastModifiedTimeMicros()).isEqualTo(nowMicros);
                     String key = event.getHexKey();
-                    assertTrue(rows.containsKey(key));
-                    assertEquals(2, msg.partitionKeys().size());
-                    assertEquals(1, msg.clusteringKeys().size());
-                    assertEquals(0, msg.staticColumns().size());
-                    assertEquals(0, msg.valueColumns().size());
+                    assertThat(rows.containsKey(key)).isTrue();
+                    assertThat(msg.partitionKeys()).hasSize(2);
+                    assertThat(msg.clusteringKeys()).hasSize(1);
+                    assertThat(msg.staticColumns()).hasSize(0);
+                    assertThat(msg.valueColumns()).hasSize(0);
                 });
     }
 
@@ -212,17 +209,17 @@ public class MicroBatchIteratorTests
                 },
                 (event, rows, nowMicros) -> {
                     CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
-                    assertEquals(msg.operationType(), CdcEvent.Kind.INSERT);
-                    assertEquals(msg.lastModifiedTimeMicros(), nowMicros);
+                    assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.INSERT);
+                    assertThat(msg.lastModifiedTimeMicros()).isEqualTo(nowMicros);
                     String key = event.getHexKey();
-                    assertTrue(rows.containsKey(key));
+                    assertThat(rows.containsKey(key)).isTrue();
                     TestSchema.TestRow testRow = rows.get(key);
                     Map<String, Integer> expected = (Map<String, Integer>) testRow.get(3);
                     Column col = msg.valueColumns().get(0);
-                    assertEquals("d", col.name());
-                    assertEquals("map<text, int>", col.type().cqlName());
+                    assertThat(col.name()).isEqualTo("d");
+                    assertThat(col.type().cqlName()).isEqualTo("map<text, int>");
                     Map<String, Integer> actual = (Map<String, Integer>) col.value();
-                    assertEquals(expected, actual);
+                    assertThat(actual).isEqualTo(expected);
                 });
     }
 
@@ -241,14 +238,14 @@ public class MicroBatchIteratorTests
                 },
                 (event, rows, nowMicros) -> {
                     CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
-                    assertEquals(msg.operationType(), CdcEvent.Kind.PARTITION_DELETE);
-                    assertEquals(msg.lastModifiedTimeMicros(), nowMicros);
+                    assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.PARTITION_DELETE);
+                    assertThat(msg.lastModifiedTimeMicros()).isEqualTo(nowMicros);
                     String key = event.getHexKey();
-                    assertTrue(rows.containsKey(key));
-                    assertEquals(2, msg.partitionKeys().size());
-                    assertEquals(0, msg.clusteringKeys().size());
-                    assertEquals(0, msg.staticColumns().size());
-                    assertEquals(0, msg.valueColumns().size());
+                    assertThat(rows.containsKey(key)).isTrue();
+                    assertThat(msg.partitionKeys()).hasSize(2);
+                    assertThat(msg.clusteringKeys()).hasSize(0);
+                    assertThat(msg.staticColumns()).hasSize(0);
+                    assertThat(msg.valueColumns()).hasSize(0);
                 });
     }
 
@@ -275,26 +272,26 @@ public class MicroBatchIteratorTests
                              });
                 }))
                 .withCdcEventChecker((testRows, events) -> {
-                    assertFalse(events.isEmpty());
+                    assertThat(events).isNotEmpty();
                     for (CdcEvent event : events)
                     {
-                        assertEquals(1, event.getPartitionKeys().size());
+                        assertThat(event.getPartitionKeys()).hasSize(1);
                         Value pk = event.getPartitionKeys().get(0);
-                        assertEquals("pk", pk.columnName);
-                        assertEquals(1, event.getClusteringKeys().size());
+                        assertThat(pk.columnName).isEqualTo("pk");
+                        assertThat(event.getClusteringKeys()).hasSize(1);
                         Value ck = event.getClusteringKeys().get(0);
-                        assertEquals("ck", ck.columnName);
-                        assertEquals(1, event.getValueColumns().size());
+                        assertThat(ck.columnName).isEqualTo("ck");
+                        assertThat(event.getValueColumns()).hasSize(1);
                         Value c1 = event.getValueColumns().get(0);
-                        assertEquals("c1", c1.columnName);
-                        assertEquals(1, event.getStaticColumns().size());
+                        assertThat(c1.columnName).isEqualTo("c1");
+                        assertThat(event.getStaticColumns()).hasSize(1);
                         Value sc = event.getStaticColumns().get(0);
-                        assertEquals("sc", sc.columnName);
+                        assertThat(sc.columnName).isEqualTo("sc");
                         TestSchema.TestRow testRow = testRows.get(event.getHexKey());
-                        assertEquals(testRow.get(2), // static column matches
-                                     cqlType.deserializeToJavaType(sc.getValue()));
-                        assertEquals(testRow.get(3), // value column matches
-                                     cqlType.deserializeToJavaType(c1.getValue()));
+                        assertThat(cqlType.deserializeToJavaType(sc.getValue()))
+                            .isEqualTo(testRow.get(2)); // static column matches
+                        assertThat(cqlType.deserializeToJavaType(c1.getValue()))
+                            .isEqualTo(testRow.get(3)); // value column matches
                     }
                 })
                 .run();
@@ -317,17 +314,17 @@ public class MicroBatchIteratorTests
                 },
                 (event, rows, nowMicros) -> {
                     CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
-                    assertEquals(msg.operationType(), CdcEvent.Kind.UPDATE);
-                    assertEquals(msg.lastModifiedTimeMicros(), nowMicros);
+                    assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.UPDATE);
+                    assertThat(msg.lastModifiedTimeMicros()).isEqualTo(nowMicros);
                     String key = event.getHexKey();
-                    assertTrue(rows.containsKey(key));
-                    assertEquals(2, msg.partitionKeys().size());
-                    assertEquals(1, msg.clusteringKeys().size());
-                    assertEquals(0, msg.staticColumns().size());
-                    assertEquals(1, msg.valueColumns().size());
+                    assertThat(rows.containsKey(key)).isTrue();
+                    assertThat(msg.partitionKeys()).hasSize(2);
+                    assertThat(msg.clusteringKeys()).hasSize(1);
+                    assertThat(msg.staticColumns()).hasSize(0);
+                    assertThat(msg.valueColumns()).hasSize(1);
                     TestSchema.TestRow row = rows.get(key);
                     String expected = (String) row.get(3);
-                    assertEquals(expected, msg.valueColumns().get(0).value().toString());
+                    assertThat(msg.valueColumns().get(0).value().toString()).isEqualTo(expected);
                 }
         );
     }
@@ -405,7 +402,7 @@ public class MicroBatchIteratorTests
                         break;
                     }
                 }
-                assertEquals(numRows, count);
+                assertThat(count).isEqualTo(numRows);
             }
             catch (Exception e)
             {

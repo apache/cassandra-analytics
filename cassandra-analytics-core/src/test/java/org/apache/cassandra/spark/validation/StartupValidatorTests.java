@@ -23,9 +23,9 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests that cover basic functioning of the startup validation logic
@@ -41,7 +41,7 @@ public class StartupValidatorTests
     @Test
     public void testWithoutValidations()
     {
-        assertDoesNotThrow(StartupValidator.instance()::perform);
+        assertThatNoException().isThrownBy(StartupValidator.instance()::perform);
     }
 
     @Test
@@ -51,7 +51,7 @@ public class StartupValidatorTests
         StartupValidator.instance().register(TestValidation.succeeding());
         StartupValidator.instance().register(TestValidation.succeeding());
 
-        assertDoesNotThrow(StartupValidator.instance()::perform);
+        assertThatNoException().isThrownBy(StartupValidator.instance()::perform);
     }
 
     @Test
@@ -61,8 +61,9 @@ public class StartupValidatorTests
         StartupValidator.instance().register(TestValidation.failing());
         StartupValidator.instance().register(TestValidation.succeeding());
 
-        RuntimeException exception = assertThrows(RuntimeException.class, StartupValidator.instance()::perform);
-        assertEquals("Failed some of startup validations", exception.getMessage());
+        assertThatThrownBy(StartupValidator.instance()::perform)
+            .isInstanceOf(RuntimeException.class)
+            .hasMessage("Failed some of startup validations");
     }
 
     @Test

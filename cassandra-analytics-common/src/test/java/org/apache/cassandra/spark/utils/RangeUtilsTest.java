@@ -36,9 +36,8 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RangeUtilsTest
 {
@@ -167,11 +166,10 @@ class RangeUtilsTest
     @Test
     void testCalculateTokenRangesRFGreaterThanNodesFails()
     {
-        assertThrows(IllegalArgumentException.class,
-                     () -> assertTokenRanges(2, 3,
-                                             new String[]{"Does Not"},
-                                             new String[]{"Matter"})
-        );
+        assertThatThrownBy(() -> assertTokenRanges(2, 3,
+                                                  new String[]{"Does Not"},
+                                                  new String[]{"Matter"}))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -188,7 +186,7 @@ class RangeUtilsTest
         for (int nrSplits = 1; nrSplits < 5; nrSplits++)
         {
             // regardless of number of splits, the output should be a list of single range
-            assertEquals(expected, RangeUtils.split(range, nrSplits));
+            assertThat(RangeUtils.split(range, nrSplits)).isEqualTo(expected);
         }
     }
 
@@ -200,8 +198,8 @@ class RangeUtilsTest
         {
             for (Range<BigInteger> subrange : RangeUtils.split(range, nrSplit))
             {
-                assertEquals(BoundType.OPEN, subrange.lowerBoundType());
-                assertEquals(BoundType.CLOSED, subrange.upperBoundType());
+                assertThat(subrange.lowerBoundType()).isEqualTo(BoundType.OPEN);
+                assertThat(subrange.upperBoundType()).isEqualTo(BoundType.CLOSED);
             }
         }
     }
@@ -217,7 +215,7 @@ class RangeUtilsTest
         Range.openClosed(BigInteger.valueOf(6), BigInteger.valueOf(9)),
         Range.openClosed(BigInteger.valueOf(9), BigInteger.valueOf(11))
         );
-        assertEquals(expectedResult, RangeUtils.split(range, nrSplits));
+        assertThat(RangeUtils.split(range, nrSplits)).isEqualTo(expectedResult);
     }
 
     @Test
@@ -229,12 +227,12 @@ class RangeUtilsTest
         Range.openClosed(BigInteger.ZERO, BigInteger.ONE),
         Range.openClosed(BigInteger.ONE, BigInteger.valueOf(2))
         );
-        assertEquals(expectedResult, RangeUtils.split(range, nrSplits));
+        assertThat(RangeUtils.split(range, nrSplits)).isEqualTo(expectedResult);
     }
 
     private static void assertTokenRanges(int nodes, int replicationFactor, String[]... ranges)
     {
-        assertEquals(nodes, ranges.length);
+        assertThat(nodes).isEqualTo(ranges.length);
         BigInteger[] tokens = getTokens(Partitioner.Murmur3Partitioner, nodes);
         List<CassandraInstance> instances = getInstances(tokens);
         Multimap<CassandraInstance, Range<BigInteger>> allRanges =
@@ -247,11 +245,10 @@ class RangeUtilsTest
 
     private static void assertExpectedRanges(Collection<Range<BigInteger>> actual, String... expectedRanges)
     {
-        assertEquals(expectedRanges.length, actual.size());
+        assertThat(expectedRanges.length).isEqualTo(actual.size());
         for (String expected : expectedRanges)
         {
-            assertTrue(actual.contains(range(expected)),
-                       String.format("Expected range %s not found in %s", expected, actual));
+            assertThat(actual).as(String.format("Expected range %s not found in %s", expected, actual)).contains(range(expected));
         }
     }
 

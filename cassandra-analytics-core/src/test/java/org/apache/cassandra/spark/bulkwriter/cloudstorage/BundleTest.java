@@ -40,10 +40,7 @@ import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.SSTableCollector.SSTableFilesAndRange;
 import org.apache.cassandra.spark.common.Digest;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class BundleTest
 {
@@ -78,11 +75,11 @@ class BundleTest
                               .bundleStagingDirectory(stagingDir)
                               .fileDigests(fileDigests)
                               .build();
-        assertEquals(totalSize, bundle.bundleUncompressedSize);
-        assertEquals(BigInteger.ONE, bundle.firstToken);
-        assertEquals(BigInteger.TEN, bundle.endToken);
-        assertNotNull(bundle.bundleFile);
-        assertTrue(Files.exists(bundle.bundleFile));
+        assertThat(bundle.bundleUncompressedSize).isEqualTo(totalSize);
+        assertThat(bundle.firstToken).isEqualTo(BigInteger.ONE);
+        assertThat(bundle.endToken).isEqualTo(BigInteger.TEN);
+        assertThat(bundle.bundleFile).isNotNull();
+        assertThat(Files.exists(bundle.bundleFile)).isTrue();
         ZipInputStream zis = new ZipInputStream(new FileInputStream(bundle.bundleFile.toFile()));
         int acutalFilesCount = 0;
         ZipEntry entry = null;
@@ -98,17 +95,17 @@ class BundleTest
                 zis.transferTo(baos);
             }
         }
-        assertTrue(hasManifest);
+        assertThat(hasManifest).isTrue();
         Map manifest = objectMapper.readValue(baos.toByteArray(), Map.class);
         assertManifestEntries(manifest, sourceSSTables);
         // the extra file (+ 1) is the manifest file
-        assertEquals(sstableCount * componentCount + 1, acutalFilesCount);
+        assertThat(acutalFilesCount).isEqualTo(sstableCount * componentCount + 1);
 
         bundle.deleteAll();
-        assertFalse(Files.exists(bundle.bundleFile));
-        assertFalse(Files.exists(bundle.bundleDirectory));
+        assertThat(Files.exists(bundle.bundleFile)).isFalse();
+        assertThat(Files.exists(bundle.bundleDirectory)).isFalse();
         long filesCount = Files.list(stagingDir).count();
-        assertEquals(0, filesCount);
+        assertThat(filesCount).isEqualTo(0);
     }
 
     private void assertManifestEntries(Map manifest, List<SSTableFilesAndRange> sourceSSTables)
@@ -124,8 +121,9 @@ class BundleTest
             for (Path file : sstable.files)
             {
                 String fileName = file.getFileName().toString();
-                assertEquals(digests.getOrDefault(fileName, "File: " + fileName + " is not found in manifest"), fileName,
-                             "The digest in the manifest.json does not match with the filename (test configures filename as digest)");
+                assertThat(digests.getOrDefault(fileName, "File: " + fileName + " is not found in manifest"))
+                        .as("The digest in the manifest.json does not match with the filename (test configures filename as digest)")
+                        .isEqualTo(fileName);
             }
         }
     }

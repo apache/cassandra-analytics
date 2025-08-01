@@ -44,11 +44,7 @@ import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.RandomUtils;
 
 import static org.apache.cassandra.spark.utils.ArrayUtils.listOf;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class JsonSerializerTests
 {
@@ -77,35 +73,35 @@ public class JsonSerializerTests
         {
             ar = serializer.serialize("topic", eventBuilder.build());
         }
-        assertNotNull(ar);
+        assertThat(ar).isNotNull();
 
         JsonNode root = MAPPER.readTree(ar);
         JsonNode payload = root.get(AvroConstants.PAYLOAD_KEY);
-        assertEquals(1, payload.get("a").asInt());
-        assertEquals(2, payload.get("b").asInt());
-        assertEquals(3, payload.get("c").asInt());
-        assertTrue(root.has(AvroConstants.UPDATE_FIELDS_KEY));
+        assertThat(payload.get("a").asInt()).isEqualTo(1);
+        assertThat(payload.get("b").asInt()).isEqualTo(2);
+        assertThat(payload.get("c").asInt()).isEqualTo(3);
+        assertThat(root.has(AvroConstants.UPDATE_FIELDS_KEY)).isTrue();
         JsonNode updatedFields = root.get(AvroConstants.UPDATE_FIELDS_KEY);
-        assertTrue(updatedFields.isArray());
-        assertEquals("a", root.get(AvroConstants.UPDATE_FIELDS_KEY).get(0).textValue());
-        assertEquals("b", root.get(AvroConstants.UPDATE_FIELDS_KEY).get(1).textValue());
-        assertEquals("c", root.get(AvroConstants.UPDATE_FIELDS_KEY).get(2).textValue());
+        assertThat(updatedFields.isArray()).isTrue();
+        assertThat(root.get(AvroConstants.UPDATE_FIELDS_KEY).get(0).textValue()).isEqualTo("a");
+        assertThat(root.get(AvroConstants.UPDATE_FIELDS_KEY).get(1).textValue()).isEqualTo("b");
+        assertThat(root.get(AvroConstants.UPDATE_FIELDS_KEY).get(2).textValue()).isEqualTo("c");
         Iterator<JsonNode> fields = updatedFields.elements();
         while (fields.hasNext())
         {
             JsonNode field = fields.next();
-            assertTrue(payload.has(field.textValue()));
-            assertNotEquals("null", payload.get(field.textValue()));
+            assertThat(payload.has(field.textValue())).isTrue();
+            assertThat(payload.get(field.textValue())).isNotEqualTo("null");
         }
         // these 2 fields are not updated, hence having null value and not being included in updateFields
-        assertSame(NullNode.instance, payload.get("e"));
-        assertSame(NullNode.instance, payload.get("f"));
-        assertEquals("INSERT", root.get(AvroConstants.OPERATION_TYPE_KEY).asText());
-        assertTrue(root.has(AvroConstants.TIMESTAMP_KEY));
-        assertTrue(root.has(AvroConstants.TTL_KEY));
+        assertThat(payload.get("e")).isSameAs(NullNode.instance);
+        assertThat(payload.get("f")).isSameAs(NullNode.instance);
+        assertThat(root.get(AvroConstants.OPERATION_TYPE_KEY).asText()).isEqualTo("INSERT");
+        assertThat(root.has(AvroConstants.TIMESTAMP_KEY)).isTrue();
+        assertThat(root.has(AvroConstants.TTL_KEY)).isTrue();
         JsonNode ttl = root.get(AvroConstants.TTL_KEY);
-        assertEquals(10, ttl.get(AvroConstants.TTL_KEY).asInt());
-        assertEquals(1658269, ttl.get(AvroConstants.DELETED_AT_KEY).asInt());
+        assertThat(ttl.get(AvroConstants.TTL_KEY).asInt()).isEqualTo(10);
+        assertThat(ttl.get(AvroConstants.DELETED_AT_KEY).asInt()).isEqualTo(1658269);
     }
 
     @Test
@@ -126,20 +122,20 @@ public class JsonSerializerTests
         {
             ar = serializer.serialize("topic", eventBuilder.build());
         }
-        assertNotNull(ar);
+        assertThat(ar).isNotNull();
         JsonNode root = MAPPER.readTree(ar);
         JsonNode payload = root.get(AvroConstants.PAYLOAD_KEY);
 
         // assert on column b
-        assertTrue(payload.has("b"));
+        assertThat(payload.has("b")).isTrue();
         String base64Str = payload.get("b").asText();
         ByteBuffer decoded = ByteBuffer.wrap(Base64.getDecoder().decode(base64Str));
-        assertEquals(randomBytes, decoded);
+        assertThat(decoded).isEqualTo(randomBytes);
 
         // assert on colum c
-        assertTrue(payload.has("c"));
+        assertThat(payload.has("c")).isTrue();
         base64Str = payload.get("c").asText();
         InetAddress address = InetAddress.getByAddress(Base64.getDecoder().decode(base64Str));
-        assertEquals(InetAddress.getByName("127.0.0.1"), address);
+        assertThat(address).isEqualTo(InetAddress.getByName("127.0.0.1"));
     }
 }

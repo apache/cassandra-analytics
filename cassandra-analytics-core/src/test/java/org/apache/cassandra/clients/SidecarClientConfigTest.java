@@ -25,8 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.spark.bulkwriter.DataTransport;
 
 import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.DEFAULT_SIDECAR_PORT;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for the {@link Sidecar.ClientConfig} inner class
@@ -37,81 +36,81 @@ public class SidecarClientConfigTest
     public void testDefaults()
     {
         Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of());
-        assertEquals(-1, clientConfig.userProvidedPort());
-        assertEquals(DEFAULT_SIDECAR_PORT, clientConfig.effectivePort());
-        assertEquals(10, clientConfig.maxRetries());
-        assertEquals(500, clientConfig.millisToSleep());
-        assertEquals(60_000, clientConfig.maxMillisToSleep());
-        assertEquals(6L * 1024L * 1024L, clientConfig.maxBufferSize());
-        assertEquals(4L * 1024L * 1024L, clientConfig.chunkBufferSize());
-        assertEquals(64, clientConfig.maxPoolSize());
-        assertEquals(600, clientConfig.timeoutSeconds());
+        assertThat(clientConfig.userProvidedPort()).isEqualTo(-1);
+        assertThat(clientConfig.effectivePort()).isEqualTo(DEFAULT_SIDECAR_PORT);
+        assertThat(clientConfig.maxRetries()).isEqualTo(10);
+        assertThat(clientConfig.millisToSleep()).isEqualTo(500);
+        assertThat(clientConfig.maxMillisToSleep()).isEqualTo(60_000);
+        assertThat(clientConfig.maxBufferSize()).isEqualTo(6L * 1024L * 1024L);
+        assertThat(clientConfig.chunkBufferSize()).isEqualTo(4L * 1024L * 1024L);
+        assertThat(clientConfig.maxPoolSize()).isEqualTo(64);
+        assertThat(clientConfig.timeoutSeconds()).isEqualTo(600);
     }
 
     @Test
     public void testSidecarPort()
     {
         Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of("sidecar_port", "9999"));
-        assertEquals(9999, clientConfig.userProvidedPort());
-        assertEquals(9999, clientConfig.effectivePort());
+        assertThat(clientConfig.userProvidedPort()).isEqualTo(9999);
+        assertThat(clientConfig.effectivePort()).isEqualTo(9999);
     }
 
     @Test
     public void testMaxRetries()
     {
         Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of("maxretries", "5"));
-        assertEquals(5, clientConfig.maxRetries());
+        assertThat(clientConfig.maxRetries()).isEqualTo(5);
     }
 
     @Test
     public void testMillisToSleep()
     {
         Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of("defaultmillistosleep", "5000"));
-        assertEquals(5000, clientConfig.millisToSleep());
+        assertThat(clientConfig.millisToSleep()).isEqualTo(5000);
     }
 
     @Test
     public void testMaxMillisToSleep()
     {
         Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of("maxmillistosleep", "30000"));
-        assertEquals(30_000, clientConfig.maxMillisToSleep());
+        assertThat(clientConfig.maxMillisToSleep()).isEqualTo(30_000);
     }
 
     @Test
     public void testMaxBufferSize()
     {
         Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of("maxbuffersizebytes", "8"));
-        assertEquals(8, clientConfig.maxBufferSize());
+        assertThat(clientConfig.maxBufferSize()).isEqualTo(8);
     }
 
     @Test
     public void testChunkBufferSize()
     {
         Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of("chunkbuffersizebytes", "24"));
-        assertEquals(24, clientConfig.chunkBufferSize());
+        assertThat(clientConfig.chunkBufferSize()).isEqualTo(24);
     }
 
     @Test
     public void testMaxPoolSize()
     {
         Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of("maxpoolsize", "150"));
-        assertEquals(150, clientConfig.maxPoolSize());
+        assertThat(clientConfig.maxPoolSize()).isEqualTo(150);
     }
 
     @Test
     public void testTimeoutSeconds()
     {
         Sidecar.ClientConfig clientConfig = Sidecar.ClientConfig.create(ImmutableMap.of("timeoutseconds", "2"));
-        assertEquals(2, clientConfig.timeoutSeconds());
+        assertThat(clientConfig.timeoutSeconds()).isEqualTo(2);
     }
 
     @Test
     public void testTransportModeBasedWriterUserAgent()
     {
         String userAgentStr = AnalyticsSidecarClient.transportModeBasedWriterUserAgent(DataTransport.DIRECT);
-        assertTrue(userAgentStr.endsWith(" writer"));
+        assertThat(userAgentStr.endsWith(" writer")).isTrue();
 
         userAgentStr = AnalyticsSidecarClient.transportModeBasedWriterUserAgent(DataTransport.S3_COMPAT);
-        assertTrue(userAgentStr.endsWith(" writer-s3"));
+        assertThat(userAgentStr.endsWith(" writer-s3")).isTrue();
     }
 }

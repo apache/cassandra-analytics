@@ -52,9 +52,7 @@ import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.NotNull;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -78,10 +76,10 @@ public class JDKSerializationTests extends VersionRunner
                 }
                 byte[] bytes = bridge.javaSerialize(ring);
                 CassandraRing deserialized = bridge.javaDeserialize(bytes, CassandraRing.class);
-                assertNotNull(deserialized);
-                assertNotNull(deserialized.rangeMap());
-                assertNotNull(deserialized.tokenRanges());
-                assertEquals(ring, deserialized);
+                assertThat(deserialized).isNotNull();
+                assertThat(deserialized.rangeMap()).isNotNull();
+                assertThat(deserialized.tokenRanges()).isNotNull();
+                assertThat(deserialized).isEqualTo(ring);
             }));
     }
 
@@ -97,14 +95,14 @@ public class JDKSerializationTests extends VersionRunner
                 TokenPartitioner tokenPartitioner = new TokenPartitioner(ring, 4, numCores);
                 byte[] bytes = bridge.javaSerialize(tokenPartitioner);
                 TokenPartitioner deserialized = bridge.javaDeserialize(bytes, TokenPartitioner.class);
-                assertEquals(tokenPartitioner.ring(), deserialized.ring());
-                assertEquals(tokenPartitioner.numPartitions(), deserialized.numPartitions());
-                assertEquals(tokenPartitioner.subRanges(), deserialized.subRanges());
-                assertEquals(tokenPartitioner.partitionMap(), deserialized.partitionMap());
-                assertEquals(tokenPartitioner.reversePartitionMap(), deserialized.reversePartitionMap());
+                assertThat(deserialized.ring()).isEqualTo(tokenPartitioner.ring());
+                assertThat(deserialized.numPartitions()).isEqualTo(tokenPartitioner.numPartitions());
+                assertThat(deserialized.subRanges()).isEqualTo(tokenPartitioner.subRanges());
+                assertThat(deserialized.partitionMap()).isEqualTo(tokenPartitioner.partitionMap());
+                assertThat(deserialized.reversePartitionMap()).isEqualTo(tokenPartitioner.reversePartitionMap());
                 for (int partition = 0; partition < tokenPartitioner.numPartitions(); partition++)
                 {
-                    assertEquals(tokenPartitioner.getTokenRange(partition), deserialized.getTokenRange(partition));
+                    assertThat(deserialized.getTokenRange(partition)).isEqualTo(tokenPartitioner.getTokenRange(partition));
                 }
             }));
     }
@@ -119,11 +117,11 @@ public class JDKSerializationTests extends VersionRunner
         DataLayer partitionedDataLayer = new TestPartitionedDataLayer(bridge, 4, 16, null, ring, cqlTable);
         byte[] bytes = bridge.javaSerialize(partitionedDataLayer);
         TestPartitionedDataLayer deserialized = bridge.javaDeserialize(bytes, TestPartitionedDataLayer.class);
-        assertNotNull(deserialized);
-        assertNotNull(deserialized.ring());
-        assertNotNull(deserialized.partitioner());
-        assertNotNull(deserialized.tokenPartitioner());
-        assertEquals(Partitioner.Murmur3Partitioner, deserialized.partitioner());
+        assertThat(deserialized).isNotNull();
+        assertThat(deserialized.ring()).isNotNull();
+        assertThat(deserialized.partitioner()).isNotNull();
+        assertThat(deserialized.tokenPartitioner()).isNotNull();
+        assertThat(deserialized.partitioner()).isEqualTo(Partitioner.Murmur3Partitioner);
     }
 
     @ParameterizedTest
@@ -134,12 +132,12 @@ public class JDKSerializationTests extends VersionRunner
         CqlField field = new CqlField(true, false, false, RandomUtils.randomAlphanumeric(5, 20), setType, 10);
         byte[] bytes = bridge.javaSerialize(field);
         CqlField deserialized = bridge.javaDeserialize(bytes, CqlField.class);
-        assertEquals(field, deserialized);
-        assertEquals(field.name(), deserialized.name());
-        assertEquals(field.type(), deserialized.type());
-        assertEquals(field.position(), deserialized.position());
-        assertEquals(field.isPartitionKey(), deserialized.isPartitionKey());
-        assertEquals(field.isClusteringColumn(), deserialized.isClusteringColumn());
+        assertThat(deserialized).isEqualTo(field);
+        assertThat(deserialized.name()).isEqualTo(field.name());
+        assertThat(deserialized.type()).isEqualTo(field.type());
+        assertThat(deserialized.position()).isEqualTo(field.position());
+        assertThat(deserialized.isPartitionKey()).isEqualTo(field.isPartitionKey());
+        assertThat(deserialized.isClusteringColumn()).isEqualTo(field.isClusteringColumn());
     }
 
     @ParameterizedTest
@@ -158,14 +156,14 @@ public class JDKSerializationTests extends VersionRunner
                                .withField("b", bridge.timestamp())
                                .withField("c", bridge.text())
                                .build();
-        assertNotEquals(udt2, udt1);
+        assertThat(udt2).isNotEqualTo(udt1);
         byte[] bytes = bridge.javaSerialize(udt1);
         CqlField.CqlUdt deserialized = bridge.javaDeserialize(bytes, CqlField.CqlUdt.class);
-        assertEquals(udt1, deserialized);
-        assertNotEquals(udt2, deserialized);
+        assertThat(deserialized).isEqualTo(udt1);
+        assertThat(deserialized).isNotEqualTo(udt2);
         for (int field = 0; field < deserialized.fields().size(); field++)
         {
-            assertEquals(udt1.field(field), deserialized.field(field));
+            assertThat(deserialized.field(field)).isEqualTo(udt1.field(field));
         }
     }
 
@@ -288,13 +286,13 @@ public class JDKSerializationTests extends VersionRunner
         byte[] bytes = bridge.javaSerialize(config);
         SslConfig deserialized = bridge.javaDeserialize(bytes, SslConfig.class);
 
-        assertEquals(config.keyStorePath(), deserialized.keyStorePath());
-        assertEquals(config.base64EncodedKeyStore(), deserialized.base64EncodedKeyStore());
-        assertEquals(config.keyStorePassword(), deserialized.keyStorePassword());
-        assertEquals(config.keyStoreType(), deserialized.keyStoreType());
-        assertEquals(config.trustStorePath(), deserialized.trustStorePath());
-        assertEquals(config.base64EncodedTrustStore(), deserialized.base64EncodedTrustStore());
-        assertEquals(config.trustStorePassword(), deserialized.trustStorePassword());
-        assertEquals(config.trustStoreType(), deserialized.trustStoreType());
+        assertThat(deserialized.keyStorePath()).isEqualTo(config.keyStorePath());
+        assertThat(deserialized.base64EncodedKeyStore()).isEqualTo(config.base64EncodedKeyStore());
+        assertThat(deserialized.keyStorePassword()).isEqualTo(config.keyStorePassword());
+        assertThat(deserialized.keyStoreType()).isEqualTo(config.keyStoreType());
+        assertThat(deserialized.trustStorePath()).isEqualTo(config.trustStorePath());
+        assertThat(deserialized.base64EncodedTrustStore()).isEqualTo(config.base64EncodedTrustStore());
+        assertThat(deserialized.trustStorePassword()).isEqualTo(config.trustStorePassword());
+        assertThat(deserialized.trustStoreType()).isEqualTo(config.trustStoreType());
     }
 }

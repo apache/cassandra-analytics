@@ -28,9 +28,7 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.number.OrderingComparison.greaterThanOrEqualTo;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TokenPartitionerTest
 {
@@ -46,13 +44,13 @@ public class TokenPartitionerTest
     {
         TokenRangeMapping<RingInstance> tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), 3);
         partitioner = new TokenPartitioner(tokenRangeMapping, 1, 2, 1, false);
-        assertEquals(4, partitioner.numPartitions());
-        assertEquals(0, partitionForToken(new BigInteger("-9223372036854775807")));
-        assertEquals(0, partitionForToken(0));
-        assertEquals(1, partitionForToken(1));
-        assertEquals(2, partitionForToken(100_001));
-        assertEquals(3, partitionForToken(200_001));
-        assertEquals(3, partitionForToken(new BigInteger("9223372036854775807")));
+        assertThat(partitioner.numPartitions()).isEqualTo(4);
+        assertThat(partitionForToken(new BigInteger("-9223372036854775807"))).isEqualTo(0);
+        assertThat(partitionForToken(0)).isEqualTo(0);
+        assertThat(partitionForToken(1)).isEqualTo(1);
+        assertThat(partitionForToken(100_001)).isEqualTo(2);
+        assertThat(partitionForToken(200_001)).isEqualTo(3);
+        assertThat(partitionForToken(new BigInteger("9223372036854775807"))).isEqualTo(3);
     }
 
     @Test
@@ -70,47 +68,47 @@ public class TokenPartitionerTest
         // (150000‥200000]=5,
         // (200000‥4611686018427487904]=6,
         // (4611686018427487904‥9223372036854775807]=7
-        assertEquals(8, partitioner.numPartitions());
+        assertThat(partitioner.numPartitions()).isEqualTo(8);
 
         // Partition 0 -
         // Test with the min token of Murmur3Partitioner. It should not exit.
         // However, spark partitioner does not permit negative values, so it assigns the token to partition 0 artificially
-        assertEquals(0, partitionForToken(new BigInteger("-9223372036854775808")));
-        assertEquals(0, partitionForToken(new BigInteger("-9223372036854775807")));
+        assertThat(partitionForToken(new BigInteger("-9223372036854775808"))).isEqualTo(0);
+        assertThat(partitionForToken(new BigInteger("-9223372036854775807"))).isEqualTo(0);
         // Inclusive Boundary: -4611686018427387904
-        assertEquals(0, partitionForToken(new BigInteger("-4611686018427387904")));
+        assertThat(partitionForToken(new BigInteger("-4611686018427387904"))).isEqualTo(0);
 
         // Partition 1 - Exclusive Boundary: -4611686018427387904
-        assertEquals(1, partitionForToken(new BigInteger("-4611686018427387903")));
+        assertThat(partitionForToken(new BigInteger("-4611686018427387903"))).isEqualTo(1);
         // Inclusive Boundary: 0
-        assertEquals(1, partitionForToken(0));
+        assertThat(partitionForToken(0)).isEqualTo(1);
 
         // Partition 2 -
-        assertEquals(2, partitionForToken(1));
-        assertEquals(2, partitionForToken(50));
+        assertThat(partitionForToken(1)).isEqualTo(2);
+        assertThat(partitionForToken(50)).isEqualTo(2);
 
         // Partition 3 -
-        assertEquals(3, partitionForToken(51000));
-        assertEquals(3, partitionForToken(51100));
+        assertThat(partitionForToken(51000)).isEqualTo(3);
+        assertThat(partitionForToken(51100)).isEqualTo(3);
 
         // Partition 4 -
-        assertEquals(4, partitionForToken(100001));
-        assertEquals(4, partitionForToken(100150));
-        assertEquals(4, partitionForToken(150000));
+        assertThat(partitionForToken(100001)).isEqualTo(4);
+        assertThat(partitionForToken(100150)).isEqualTo(4);
+        assertThat(partitionForToken(150000)).isEqualTo(4);
 
         // Partition 5 -
-        assertEquals(5, partitionForToken(150001));
-        assertEquals(5, partitionForToken(200000));
+        assertThat(partitionForToken(150001)).isEqualTo(5);
+        assertThat(partitionForToken(200000)).isEqualTo(5);
 
         // Partition 6 -
-        assertEquals(6, partitionForToken(200001));
-        assertEquals(6, partitionForToken(new BigInteger("4611686018427388003")));
-        assertEquals(6, partitionForToken(new BigInteger("4611686018427487904")));
+        assertThat(partitionForToken(200001)).isEqualTo(6);
+        assertThat(partitionForToken(new BigInteger("4611686018427388003"))).isEqualTo(6);
+        assertThat(partitionForToken(new BigInteger("4611686018427487904"))).isEqualTo(6);
 
         // Partition 7 - Exclusive Boundary: 4611686018427487904
-        assertEquals(7, partitionForToken(new BigInteger("4611686018427487905"))); // boundary
+        assertThat(partitionForToken(new BigInteger("4611686018427487905"))).isEqualTo(7); // boundary
         // Inclusive Boundary: 9223372036854775807
-        assertEquals(7, partitionForToken(new BigInteger("9223372036854775807")));
+        assertThat(partitionForToken(new BigInteger("9223372036854775807"))).isEqualTo(7);
     }
 
     // It is possible for a keyspace to replicate to fewer than all datacenters. In these cases, the
@@ -124,13 +122,13 @@ public class TokenPartitionerTest
     {
         TokenRangeMapping<RingInstance> tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3, "DC2", 0), 3);
         partitioner = new TokenPartitioner(tokenRangeMapping, 1, 2, 1, false);
-        assertEquals(4, partitioner.numPartitions());
-        assertEquals(0, partitionForToken(new BigInteger("-9223372036854775807")));
-        assertEquals(0, partitionForToken(0));
-        assertEquals(1, partitionForToken(100000));
-        assertEquals(2, partitionForToken(100001));
-        assertEquals(3, partitionForToken(200001));
-        assertEquals(3, partitionForToken(new BigInteger("9223372036854775807")));
+        assertThat(partitioner.numPartitions()).isEqualTo(4);
+        assertThat(partitionForToken(new BigInteger("-9223372036854775807"))).isEqualTo(0);
+        assertThat(partitionForToken(0)).isEqualTo(0);
+        assertThat(partitionForToken(100000)).isEqualTo(1);
+        assertThat(partitionForToken(100001)).isEqualTo(2);
+        assertThat(partitionForToken(200001)).isEqualTo(3);
+        assertThat(partitionForToken(new BigInteger("9223372036854775807"))).isEqualTo(3);
     }
 
     @Test
@@ -142,8 +140,8 @@ public class TokenPartitionerTest
         // and a default parallelism of 50 (as we take the max of the two)
         // This results in slightly over 100 partitions, which is what we're looking for
         partitioner = new TokenPartitioner(tokenRangeMapping, -1, 50, 100, false);
-        assertEquals(25, partitioner.numSplits());
-        assertThat(partitioner.numPartitions(), greaterThanOrEqualTo(100));
+        assertThat(partitioner.numSplits()).isEqualTo(25);
+        assertThat(partitioner.numPartitions()).isGreaterThanOrEqualTo(100);
     }
 
     @Test
@@ -155,8 +153,8 @@ public class TokenPartitionerTest
         // and a default parallelism of 200 (as we take the max of the two)
         // This results in slightly over 200 partitions, which is what we're looking for
         partitioner = new TokenPartitioner(tokenRangeMapping, -1, 200, 100, false);
-        assertEquals(50, partitioner.numSplits());
-        assertThat(partitioner.numPartitions(), greaterThanOrEqualTo(200));
+        assertThat(partitioner.numSplits()).isEqualTo(50);
+        assertThat(partitioner.numPartitions()).isGreaterThanOrEqualTo(200);
     }
 
     @Test
@@ -170,8 +168,8 @@ public class TokenPartitionerTest
                                                           .build();
         TokenRangeMapping<RingInstance> tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, dcMap, 20);
         partitioner = new TokenPartitioner(tokenRangeMapping, -1, 1, 750, false);
-        assertEquals(10, partitioner.numSplits());
-        assertThat(partitioner.numPartitions(), greaterThanOrEqualTo(200));
+        assertThat(partitioner.numSplits()).isEqualTo(10);
+        assertThat(partitioner.numPartitions()).isGreaterThanOrEqualTo(200);
     }
 
     private int partitionForToken(int token)

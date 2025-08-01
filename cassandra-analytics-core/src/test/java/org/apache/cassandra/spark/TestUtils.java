@@ -62,7 +62,7 @@ import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.Nullable;
 import org.quicktheories.core.Gen;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -342,7 +342,7 @@ public final class TestUtils extends CommonTestUtils
         {
             instances.add(new CassandraInstance(token.toString(), "local-i" + instance, dataCenter));
             token = token.add(split);
-            assertTrue(token.compareTo(partitioner.maxToken()) <= 0);
+            assertThat(token.compareTo(partitioner.maxToken())).isLessThanOrEqualTo(0);
         }
         return instances;
     }

@@ -36,8 +36,7 @@ import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.utils.ComparisonUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -65,11 +64,11 @@ public class PartitionKeyTests
                 Object cassandraValue = partitionKeyType.deserializeToJavaType(buffer);
 
                 // compare using Cassandra types
-                assertTrue(ComparisonUtils.equals(value, cassandraValue));
+                assertThat(ComparisonUtils.equals(value, cassandraValue)).isTrue();
 
                 // convert SparkSQL types back into test row types to compare
                 Object sparkSqlValue = TYPE_CONVERTER.convert(partitionKeyType, cassandraValue, false);
-                assertTrue(ComparisonUtils.equals(value, TYPE_CONVERTER.toTestRowType(partitionKeyType, sparkSqlValue)));
+                assertThat(ComparisonUtils.equals(value, TYPE_CONVERTER.toTestRowType(partitionKeyType, sparkSqlValue))).isTrue();
         });
     }
 
@@ -98,11 +97,11 @@ public class PartitionKeyTests
 
                 ByteBuffer buffer = BRIDGE.buildPartitionKey(table, Arrays.asList(Integer.toString(columnA), columnBString, columnC));
                 ByteBuffer[] buffers = compositeType.split(buffer);
-                assertEquals(3, buffers.length);
+                assertThat(buffers.length).isEqualTo(3);
 
-                assertEquals(columnA, buffers[0].getInt());
-                assertEquals(columnB, partitionKeyType.deserializeToJavaType(buffers[1]));
-                assertEquals(columnC, TYPE_CONVERTER.toSparkType(BRIDGE.text()).toTestRowType(BRIDGE.text().deserializeToJavaType(buffers[2])));
+                assertThat(buffers[0].getInt()).isEqualTo(columnA);
+                assertThat(partitionKeyType.deserializeToJavaType(buffers[1])).isEqualTo(columnB);
+                assertThat(TYPE_CONVERTER.toSparkType(BRIDGE.text()).toTestRowType(BRIDGE.text().deserializeToJavaType(buffers[2]))).isEqualTo(columnC);
         });
     }
 }

@@ -56,10 +56,7 @@ import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -79,39 +76,39 @@ public class IndexReaderTests
     @Test
     public void testPartialCompressedSizeWithinChunk()
     {
-        assertEquals(64, IndexReader.partialCompressedSizeWithinChunk(0, 1024, 64, true));
-        assertEquals(32, IndexReader.partialCompressedSizeWithinChunk(512, 1024, 64, true));
-        assertEquals(16, IndexReader.partialCompressedSizeWithinChunk(768, 1024, 64, true));
-        assertEquals(2, IndexReader.partialCompressedSizeWithinChunk(992, 1024, 64, true));
-        assertEquals(2, IndexReader.partialCompressedSizeWithinChunk(995, 1024, 64, true));
-        assertEquals(1, IndexReader.partialCompressedSizeWithinChunk(1008, 1024, 64, true));
-        assertEquals(0, IndexReader.partialCompressedSizeWithinChunk(1023, 1024, 64, true));
-        assertEquals(64, IndexReader.partialCompressedSizeWithinChunk(1024, 1024, 64, true));
-        assertEquals(64, IndexReader.partialCompressedSizeWithinChunk(2048, 1024, 64, true));
-        assertEquals(32, IndexReader.partialCompressedSizeWithinChunk(2560, 1024, 64, true));
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(0, 1024, 64, true)).isEqualTo(64);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(512, 1024, 64, true)).isEqualTo(32);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(768, 1024, 64, true)).isEqualTo(16);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(992, 1024, 64, true)).isEqualTo(2);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(995, 1024, 64, true)).isEqualTo(2);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(1008, 1024, 64, true)).isEqualTo(1);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(1023, 1024, 64, true)).isEqualTo(0);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(1024, 1024, 64, true)).isEqualTo(64);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(2048, 1024, 64, true)).isEqualTo(64);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(2560, 1024, 64, true)).isEqualTo(32);
 
-        assertEquals(0, IndexReader.partialCompressedSizeWithinChunk(0, 1024, 64, false));
-        assertEquals(1, IndexReader.partialCompressedSizeWithinChunk(16, 1024, 64, false));
-        assertEquals(32, IndexReader.partialCompressedSizeWithinChunk(512, 1024, 64, false));
-        assertEquals(64, IndexReader.partialCompressedSizeWithinChunk(1023, 1024, 64, false));
-        assertEquals(32, IndexReader.partialCompressedSizeWithinChunk(2560, 1024, 64, false));
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(0, 1024, 64, false)).isEqualTo(0);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(16, 1024, 64, false)).isEqualTo(1);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(512, 1024, 64, false)).isEqualTo(32);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(1023, 1024, 64, false)).isEqualTo(64);
+        assertThat(IndexReader.partialCompressedSizeWithinChunk(2560, 1024, 64, false)).isEqualTo(32);
     }
 
     @Test
     public void testCompressedSizeWithinSameChunk()
     {
         // within the same chunk
-        assertEquals(64, calculateCompressedSize(128, 256, 0, 512));
-        assertEquals(128, calculateCompressedSize(0, 1024, 5, 128));
-        assertEquals(25, calculateCompressedSize(32, 64, 5, 800));
+        assertThat(calculateCompressedSize(128, 256, 0, 512)).isEqualTo(64);
+        assertThat(calculateCompressedSize(0, 1024, 5, 128)).isEqualTo(128);
+        assertThat(calculateCompressedSize(32, 64, 5, 800)).isEqualTo(25);
     }
 
     @Test
     public void testCompressedSizeMultipleChunks()
     {
         // partition straddles more than one chunk
-        assertEquals(448 + 128, calculateCompressedSize(128, 0, 512, 1536, 1, 256));
-        assertEquals(112 + (256 * 10) + 32, calculateCompressedSize(128, 0, 128, 11392, 11, 256));
+        assertThat(calculateCompressedSize(128, 0, 512, 1536, 1, 256)).isEqualTo(448 + 128);
+        assertThat(calculateCompressedSize(128, 0, 128, 11392, 11, 256)).isEqualTo(112 + (256 * 10) + 32);
     }
 
     private static long calculateCompressedSize(long start, long end, int startIdx, int startCompressedChunkSize)
@@ -205,8 +202,8 @@ public class IndexReaderTests
                             writer.write(i, ByteBuffer.wrap(lowEntropyData));
                         }
                     });
-                    assertFalse(expected.isEmpty());
-                    assertTrue(expected.size() < numPartitions);
+                    assertThat(expected.isEmpty()).isFalse();
+                    assertThat(expected.size() < numPartitions).isTrue();
 
                     List<Path> pathList;
                     try (Stream<Path> stream = TestUtils.getFileType(dir, FileType.DATA))
@@ -214,7 +211,7 @@ public class IndexReaderTests
                         pathList = stream.collect(Collectors.toList());
                     }
                     List<SSTable> ssTables = pathList.stream().map(TestSSTable::at).collect(Collectors.toList());
-                    assertFalse(ssTables.isEmpty());
+                    assertThat(ssTables.isEmpty()).isFalse();
                     AtomicReference<Throwable> error = new AtomicReference<>();
                     CountDownLatch latch = new CountDownLatch(ssTables.size());
                     AtomicInteger rowCount = new AtomicInteger(0);
@@ -241,14 +238,14 @@ public class IndexReaderTests
                             rowCount.getAndIncrement();
                             int pk = indexEntry.partitionKey.getInt();
                             int blobSize = expected.get(pk);
-                            assertTrue(expected.containsKey(pk));
-                            assertTrue(indexEntry.compressed > 0);
-                            assertTrue(withCompression
+                            assertThat(expected.containsKey(pk)).isTrue();
+                            assertThat(indexEntry.compressed > 0).isTrue();
+                            assertThat(withCompression
                                        ? indexEntry.compressed < indexEntry.uncompressed * 0.1
-                                       : indexEntry.compressed == indexEntry.uncompressed);
-                            assertTrue((int) indexEntry.uncompressed > blobSize);
+                                       : indexEntry.compressed == indexEntry.uncompressed).isTrue();
+                            assertThat((int) indexEntry.uncompressed > blobSize).isTrue();
                             // uncompressed size should be proportional to the blob size, with some serialization overhead
-                            assertTrue(((int) indexEntry.uncompressed - blobSize) < 40);
+                            assertThat(((int) indexEntry.uncompressed - blobSize) < 40).isTrue();
                         }
                     };
 
@@ -265,8 +262,8 @@ public class IndexReaderTests
                     {
                         throw new RuntimeException(e);
                     }
-                    assertNull(error.get());
-                    assertEquals(expected.size(), rowCount.get());
+                    assertThat(error.get()).isNull();
+                    assertThat(rowCount.get()).isEqualTo(expected.size());
                 }
                 catch (IOException e)
                 {

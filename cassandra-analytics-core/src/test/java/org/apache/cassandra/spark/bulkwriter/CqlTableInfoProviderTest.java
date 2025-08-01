@@ -22,77 +22,58 @@ package org.apache.cassandra.spark.bulkwriter;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.cassandra.spark.bulkwriter.CqlTableInfoProvider.removeDeprecatedOptions;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class CqlTableInfoProviderTest
 {
     @Test
     public void testRemoveDeprecatedOptionsInvalidInput()
     {
-        assertThrows(NullPointerException.class, () -> removeDeprecatedOptions(null));
-        assertEquals("", removeDeprecatedOptions(""));
-        assertEquals("qwerty", removeDeprecatedOptions("qwerty"));
+        assertThatThrownBy(() -> removeDeprecatedOptions(null)).isInstanceOf(NullPointerException.class);
+        assertThat(removeDeprecatedOptions("")).isEqualTo("");
+        assertThat(removeDeprecatedOptions("qwerty")).isEqualTo("qwerty");
     }
 
     @Test
     public void testRemoveDeprecatedOptionsOptionNames()
     {
-        assertEquals("... WITH qwerty = 42 ...",
-                     removeDeprecatedOptions("... WITH qwerty = 42 ..."));
-        assertEquals("... WITH ...",
-                     removeDeprecatedOptions("... WITH read_repair_chance = 42 ..."));
-        assertEquals("... WITH ...",
-                     removeDeprecatedOptions("... WITH dclocal_read_repair_chance = 42 ..."));
-        assertEquals("... WITH dclocal_dclocal_read_repair_chance = 42 ...",
-                     removeDeprecatedOptions("... WITH dclocal_dclocal_read_repair_chance = 42 ..."));
+        assertThat(removeDeprecatedOptions("... WITH qwerty = 42 ...")).isEqualTo("... WITH qwerty = 42 ...");
+        assertThat(removeDeprecatedOptions("... WITH read_repair_chance = 42 ...")).isEqualTo("... WITH ...");
+        assertThat(removeDeprecatedOptions("... WITH dclocal_read_repair_chance = 42 ...")).isEqualTo("... WITH ...");
+        assertThat(removeDeprecatedOptions("... WITH dclocal_dclocal_read_repair_chance = 42 ...")).isEqualTo("... WITH dclocal_dclocal_read_repair_chance = 42 ...");
     }
 
     @Test
     public void testRemoveDeprecatedOptionsOptionValues()
     {
-        assertEquals("... WITH ...",
-                     removeDeprecatedOptions("... WITH read_repair_chance = -42 ..."));
-        assertEquals("... WITH ...",
-                     removeDeprecatedOptions("... WITH read_repair_chance = 420.0e-1 ..."));
-        assertEquals("... WITH ...",
-                     removeDeprecatedOptions("... WITH read_repair_chance = +.42E+1.0 ..."));
-        assertEquals("... WITH read_repair_chance = true ...",
-                     removeDeprecatedOptions("... WITH read_repair_chance = true ..."));
+        assertThat(removeDeprecatedOptions("... WITH read_repair_chance = -42 ...")).isEqualTo("... WITH ...");
+        assertThat(removeDeprecatedOptions("... WITH read_repair_chance = 420.0e-1 ...")).isEqualTo("... WITH ...");
+        assertThat(removeDeprecatedOptions("... WITH read_repair_chance = +.42E+1.0 ...")).isEqualTo("... WITH ...");
+        assertThat(removeDeprecatedOptions("... WITH read_repair_chance = true ...")).isEqualTo("... WITH read_repair_chance = true ...");
     }
 
     @Test
     public void testRemoveDeprecatedOptionsOptionsOrder()
     {
-        assertEquals("... WITH ...",
-                     removeDeprecatedOptions("... WITH read_repair_chance = 1 ..."));
-        assertEquals("... WITH qwerty = 42 ...",
-                     removeDeprecatedOptions("... WITH read_repair_chance = 1 AND qwerty = 42 ..."));
-        assertEquals("... WITH qwerty = 42 ...",
-                     removeDeprecatedOptions("... WITH qwerty = 42 AND read_repair_chance = 1 ..."));
-        assertEquals("... WITH qwerty = 42 ...",
-                     removeDeprecatedOptions("... WITH read_repair_chance = 1 AND qwerty = 42"
-                                           + " AND dclocal_read_repair_chance = 1 ..."));
-        assertEquals("... WITH qwerty = 42 AND asdfgh = 43 ...",
-                     removeDeprecatedOptions("... WITH qwerty = 42 AND read_repair_chance = 1 AND asdfgh = 43 ..."));
-        assertEquals("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ...",
-                     removeDeprecatedOptions("... WITH qwerty = 42 AND read_repair_chance = 1 AND asdfgh = 43"
-                                           + " AND dclocal_read_repair_chance = 1 AND zxcvbn = 44 ..."));
-        assertEquals("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ...",
-                     removeDeprecatedOptions("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ..."));
+        assertThat(removeDeprecatedOptions("... WITH read_repair_chance = 1 ...")).isEqualTo("... WITH ...");
+        assertThat(removeDeprecatedOptions("... WITH read_repair_chance = 1 AND qwerty = 42 ...")).isEqualTo("... WITH qwerty = 42 ...");
+        assertThat(removeDeprecatedOptions("... WITH qwerty = 42 AND read_repair_chance = 1 ...")).isEqualTo("... WITH qwerty = 42 ...");
+        assertThat(removeDeprecatedOptions("... WITH read_repair_chance = 1 AND qwerty = 42"
+                                           + " AND dclocal_read_repair_chance = 1 ...")).isEqualTo("... WITH qwerty = 42 ...");
+        assertThat(removeDeprecatedOptions("... WITH qwerty = 42 AND read_repair_chance = 1 AND asdfgh = 43 ...")).isEqualTo("... WITH qwerty = 42 AND asdfgh = 43 ...");
+        assertThat(removeDeprecatedOptions("... WITH qwerty = 42 AND read_repair_chance = 1 AND asdfgh = 43"
+                                           + " AND dclocal_read_repair_chance = 1 AND zxcvbn = 44 ...")).isEqualTo("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ...");
+        assertThat(removeDeprecatedOptions("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ...")).isEqualTo("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ...");
     }
 
     @Test
     public void testRemoveDeprecatedOptionsStatementCase()
     {
-        assertEquals("... WITH ...",
-                     removeDeprecatedOptions("... WITH read_repair_chance = 1 AND dclocal_read_repair_chance = 1 ..."));
-        assertEquals("... WITH ...",
-                     removeDeprecatedOptions("... WITH READ_REPAIR_CHANCE = 1 AND DCLOCAL_READ_REPAIR_CHANCE = 1 ..."));
-        assertEquals("... with ...",
-                     removeDeprecatedOptions("... with read_repair_chance = 1 and dclocal_read_repair_chance = 1 ..."));
-        assertEquals("... WiTh ...",
-                     removeDeprecatedOptions("... WiTh ReAd_RePaIr_ChAnCe = 1 AnD dClOcAl_ReAd_RePaIr_ChAnCe = 1 ..."));
+        assertThat(removeDeprecatedOptions("... WITH read_repair_chance = 1 AND dclocal_read_repair_chance = 1 ...")).isEqualTo("... WITH ...");
+        assertThat(removeDeprecatedOptions("... WITH READ_REPAIR_CHANCE = 1 AND DCLOCAL_READ_REPAIR_CHANCE = 1 ...")).isEqualTo("... WITH ...");
+        assertThat(removeDeprecatedOptions("... with read_repair_chance = 1 and dclocal_read_repair_chance = 1 ...")).isEqualTo("... with ...");
+        assertThat(removeDeprecatedOptions("... WiTh ReAd_RePaIr_ChAnCe = 1 AnD dClOcAl_ReAd_RePaIr_ChAnCe = 1 ...")).isEqualTo("... WiTh ...");
     }
 
     @Test
@@ -122,6 +103,6 @@ public class CqlTableInfoProviderTest
                         + " AND max_index_interval = 2048 AND crc_check_chance = 1.0 AND cdc = false"
                         + " AND memtable_flush_period_in_ms = 0;";
         String actual = removeDeprecatedOptions(cql);
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 }

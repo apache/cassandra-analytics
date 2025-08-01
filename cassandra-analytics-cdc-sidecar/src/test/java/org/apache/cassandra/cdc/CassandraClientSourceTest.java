@@ -37,7 +37,7 @@ import org.apache.cassandra.bridge.CassandraTypesImplementation;
 import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.spark.data.CassandraTypes;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
@@ -53,7 +53,7 @@ public class CassandraClientSourceTest
     {
         String query = CassandraClientSource.getReadQuery("testKeyspace", "testTable", Arrays.asList("a", "b"), Arrays.asList("c", "d", "e"));
         String expectedQuery = "SELECT a,b from testKeyspace.testTable where c = ? , d = ? , e = ?";
-        assertEquals(expectedQuery, query);
+        assertThat(query).isEqualTo(expectedQuery);
     }
 
     @Test
@@ -64,8 +64,8 @@ public class CassandraClientSourceTest
         new TestValue("ks", "b", "text", ByteBuffer.wrap("test".getBytes(StandardCharsets.UTF_8)))
         );
         Object[] primaryKeyValues = CassandraClientSource.getPrimaryKeyObjects(TYPES, primaryKeyColumns);
-        assertEquals(1, primaryKeyValues[0]);
-        assertEquals("test", primaryKeyValues[1]);
+        assertThat(primaryKeyValues[0]).isEqualTo(1);
+        assertThat(primaryKeyValues[1]).isEqualTo("test");
     }
 
     @Test
@@ -76,7 +76,7 @@ public class CassandraClientSourceTest
         // column with name "a" of type int with value 1
         List<Value> primaryKeyColumns = Collections.singletonList(new TestValue("ks", "a", "int", TYPES.aInt().serialize(1)));
         List<ByteBuffer> result = cassandraSource.readFromCassandra("testKeyspace", "testTable", Collections.singletonList("b"), primaryKeyColumns);
-        assertEquals(100, result.get(0).getInt(result.get(0).position()));
+        assertThat(result.get(0).getInt(result.get(0).position())).isEqualTo(100);
     }
 
     // mock session that returns 100 on execution of query
