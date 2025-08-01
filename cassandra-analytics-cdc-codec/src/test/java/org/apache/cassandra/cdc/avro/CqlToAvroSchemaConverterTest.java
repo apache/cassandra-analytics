@@ -198,10 +198,14 @@ public class CqlToAvroSchemaConverterTest
                                         assertThat(AvroSchemas.isArrayBasedSet(key)).as("Map key should be array-based set").isTrue();
                                     },
                                     value -> {
-                                        assertThat(AvroSchemas.isFrozen(value)).as("Map value should be frozen: " + value.toString()).isTrue();
+                                        assertThat(AvroSchemas.isFrozen(value)).as("Map value should be frozen: " + value).isTrue();
                                         assertArrayBasedMap(value,
-                                                            innerKey -> assertThat(innerKey.getType()).as("Inner map key type should be INT").isEqualTo(INT),
-                                                            innerValue -> assertThat(innerValue.getType()).as("Inner map value type should be INT").isEqualTo(INT));
+                                                            innerKey -> assertThat(innerKey.getType())
+                                                                        .as("Inner map key type should be INT")
+                                                                        .isEqualTo(INT),
+                                                            innerValue -> assertThat(innerValue.getType())
+                                                                          .as("Inner map value type should be INT")
+                                                                          .isEqualTo(INT));
                                     });
         assertThat(readCqlType(schema, "an")).as("CQL type for 'an' field").isEqualTo("int");
         assertThat(readCqlType(schema, "m")).as("CQL type for 'm' field").isEqualTo("map<frozen<set<int>>, frozen<map<int, int>>>");
@@ -218,7 +222,9 @@ public class CqlToAvroSchemaConverterTest
                                     arrayMap -> assertThat(AvroSchemas.isFrozen(arrayMap)).as("Array map should be frozen").isTrue(),
                                     key -> assertThat(key.getType()).as("Map key type should be INT").isEqualTo(INT),
                                     value -> assertThat(value.getType()).as("Map value type should be BYTES").isEqualTo(BYTES));
-        assertThat(AvroSchemas.isFrozen(AvroSchemas.unwrapNullable(schema.getField("m").schema()))).as("Unwrapped schema should be frozen").isTrue();
+        assertThat(AvroSchemas.isFrozen(AvroSchemas.unwrapNullable(schema.getField("m").schema())))
+        .as("Unwrapped schema should be frozen")
+        .isTrue();
         assertThat(readCqlType(schema, "an")).as("CQL type for 'an' field").isEqualTo("int");
         assertThat(readCqlType(schema, "m")).as("CQL type for 'm' field").isEqualTo("frozen<map<int, blob>>");
     }

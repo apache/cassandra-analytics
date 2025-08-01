@@ -117,8 +117,12 @@ public class RowDeletionTests
                             CdcEvent event = events.get(i);
                             long lmtInMillis = event.getTimestamp(TimeUnit.MILLISECONDS);
                             UUID pk = (UUID) MESSAGE_CONVERTER.toCdcMessage(event.getPartitionKeys().get(0)).value();
-                            assertThat(lmtInMillis).as("Last modification time should have a lower bound of " + minTimestamp).isGreaterThanOrEqualTo(minTimestamp);
-                            assertThat(event.getPartitionKeys().size()).as("Regardless of being row deletion or not, the partition key must present").isEqualTo(1);
+                            assertThat(lmtInMillis)
+                            .as("Last modification time should have a lower bound of " + minTimestamp)
+                            .isGreaterThanOrEqualTo(minTimestamp);
+                            assertThat(event.getPartitionKeys().size())
+                            .as("Regardless of being row deletion or not, the partition key must present")
+                            .isEqualTo(1);
                             if (hasClustering) // and ck to be set.
                             {
                                 assertThat(event.getClusteringKeys().size()).isEqualTo(1);

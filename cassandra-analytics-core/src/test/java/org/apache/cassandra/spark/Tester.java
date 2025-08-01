@@ -53,7 +53,6 @@ import org.quicktheories.core.Gen;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 

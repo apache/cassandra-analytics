@@ -78,7 +78,8 @@ public class ByteBufferUtilsTests
 
     private static void testReadRemainingBytes(String str) throws IOException
     {
-        assertThat(new String(ByteBufferUtils.readRemainingBytes(new ByteArrayInputStream(str.getBytes()), str.length()), StandardCharsets.UTF_8)).isEqualTo(str);
+        assertThat(new String(ByteBufferUtils.readRemainingBytes(new ByteArrayInputStream(str.getBytes()), str.length()), StandardCharsets.UTF_8))
+        .isEqualTo(str);
     }
 
     private static void testSkipBytesFully(byte[] bytes) throws IOException

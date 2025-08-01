@@ -33,14 +33,32 @@ public class TopicSupplierTest
     {
         CdcEvent event1 = CdcEventBuilder.of(CdcEvent.Kind.INSERT, "ks", "tb").build();
         CdcEvent event2 = CdcEventBuilder.of(CdcEvent.Kind.UPDATE, "test_ks", "test_tb").build();
-        assertThat(TopicSupplier.staticTopicSupplier("org.apple.amp.topicName").topic(event1)).as("Static topic supplier should return configured topic name").isEqualTo("org.apple.amp.topicName");
-        assertThat(TopicSupplier.staticTopicSupplier("org.apple.amp.itms5.topicName").topic(event1)).as("Static topic supplier should return configured topic name with prefix").isEqualTo("org.apple.amp.itms5.topicName");
-        assertThat(TopicSupplier.keyspaceSupplier("org.apple.amp.itms5.%s").topic(event1)).as("Keyspace supplier should format topic with keyspace").isEqualTo("org.apple.amp.itms5.ks");
-        assertThat(TopicSupplier.keyspaceSupplier("org.apple.amp.itms5.%s").topic(event2)).as("Keyspace supplier should format topic with different keyspace").isEqualTo("org.apple.amp.itms5.test_ks");
-        assertThat(TopicSupplier.keyspaceTableSupplier("org.apple.amp.itms5.%s.%s").topic(event1)).as("Keyspace-table supplier should format topic with keyspace and table").isEqualTo("org.apple.amp.itms5.ks.tb");
-        assertThat(TopicSupplier.keyspaceTableSupplier("org.apple.amp.itms5.%s.%s").topic(event2)).as("Keyspace-table supplier should format topic with different keyspace and table").isEqualTo("org.apple.amp.itms5.test_ks.test_tb");
-        assertThat(TopicSupplier.tableSupplier("org.apple.amp.itms5.%s").topic(event1)).as("Table supplier should format topic with table name").isEqualTo("org.apple.amp.itms5.tb");
-        assertThat(TopicSupplier.tableSupplier("org.apple.amp.itms5.%s").topic(event2)).as("Table supplier should format topic with different table name").isEqualTo("org.apple.amp.itms5.test_tb");
-        assertThat(TopicSupplier.mapSupplier("{\"ks.tb\": \"org.apple.amp.itms5.test_tb\"}").topic(event1)).as("Map supplier should return mapped topic name").isEqualTo("org.apple.amp.itms5.test_tb");
+        assertThat(TopicSupplier.staticTopicSupplier("org.apple.amp.topicName").topic(event1))
+        .as("Static topic supplier should return configured topic name")
+        .isEqualTo("org.apple.amp.topicName");
+        assertThat(TopicSupplier.staticTopicSupplier("org.apple.amp.itms5.topicName").topic(event1))
+        .as("Static topic supplier should return configured topic name with prefix")
+        .isEqualTo("org.apple.amp.itms5.topicName");
+        assertThat(TopicSupplier.keyspaceSupplier("org.apple.amp.itms5.%s").topic(event1))
+        .as("Keyspace supplier should format topic with keyspace")
+        .isEqualTo("org.apple.amp.itms5.ks");
+        assertThat(TopicSupplier.keyspaceSupplier("org.apple.amp.itms5.%s").topic(event2))
+        .as("Keyspace supplier should format topic with different keyspace")
+        .isEqualTo("org.apple.amp.itms5.test_ks");
+        assertThat(TopicSupplier.keyspaceTableSupplier("org.apple.amp.itms5.%s.%s").topic(event1))
+        .as("Keyspace-table supplier should format topic with keyspace and table")
+        .isEqualTo("org.apple.amp.itms5.ks.tb");
+        assertThat(TopicSupplier.keyspaceTableSupplier("org.apple.amp.itms5.%s.%s").topic(event2))
+        .as("Keyspace-table supplier should format topic with different keyspace and table")
+        .isEqualTo("org.apple.amp.itms5.test_ks.test_tb");
+        assertThat(TopicSupplier.tableSupplier("org.apple.amp.itms5.%s").topic(event1))
+        .as("Table supplier should format topic with table name")
+        .isEqualTo("org.apple.amp.itms5.tb");
+        assertThat(TopicSupplier.tableSupplier("org.apple.amp.itms5.%s").topic(event2))
+        .as("Table supplier should format topic with different table name")
+        .isEqualTo("org.apple.amp.itms5.test_tb");
+        assertThat(TopicSupplier.mapSupplier("{\"ks.tb\": \"org.apple.amp.itms5.test_tb\"}").topic(event1))
+        .as("Map supplier should return mapped topic name")
+        .isEqualTo("org.apple.amp.itms5.test_tb");
     }
 }

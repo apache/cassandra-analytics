@@ -558,10 +558,12 @@ public class CqlUtilsTest extends VersionRunner
     public void testExtractClusteringKey(CassandraBridge bridge)
     {
         assertThat(CqlUtils.extractClustering("CREATE TABLE ks1.tb1 (a int, b text, c int, d timestamp, PRIMARY KEY ((a, b), c)"
-                                              + " WITH CLUSTERING ORDER BY (c ASC) AND additional_write_policy = '99p';")).isEqualTo("CLUSTERING ORDER BY (c ASC)");
+                                              + " WITH CLUSTERING ORDER BY (c ASC) AND additional_write_policy = '99p';"))
+        .isEqualTo("CLUSTERING ORDER BY (c ASC)");
         assertThat(CqlUtils.extractClustering("WITH CLUSTERING ORDER BY (c ASC)")).isEqualTo("CLUSTERING ORDER BY (c ASC)");
         assertThat(CqlUtils.extractClustering("WITH CLUSTERING ORDER BY (c ASC);")).isEqualTo("CLUSTERING ORDER BY (c ASC)");
-        assertThat(CqlUtils.extractClustering("**** WITH CLUSTERING ORDER BY (c ASC)  AND ****     AND   ******* AND '***';")).isEqualTo("CLUSTERING ORDER BY (c ASC)");
+        assertThat(CqlUtils.extractClustering("**** WITH CLUSTERING ORDER BY (c ASC)  AND ****     AND   ******* AND '***';"))
+        .isEqualTo("CLUSTERING ORDER BY (c ASC)");
         assertThat(CqlUtils.extractClustering("CREATE TABLE ks1.tb1 (a int, b text, c int, d timestamp, PRIMARY KEY ((a, b), c)"
                                               + " WITH CLUSTERING ORDER BY (a DESC, b ASC, c ASC) AND additional_write_policy = '99p'"
                                               + " AND bloom_filter_fp_chance = 0.1 AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}"
@@ -571,7 +573,8 @@ public class CqlUtilsTest extends VersionRunner
                                               + " 'org.apache.cassandra.io.compress.LZ4Compressor'} AND crc_check_chance = 1.0"
                                               + " AND default_time_to_live = 0 AND extensions = {} AND gc_grace_seconds = 864000"
                                               + " AND max_index_interval = 256 AND memtable_flush_period_in_ms = 0 AND min_index_interval = 64"
-                                              + " AND read_repair = 'BLOCKING' AND speculative_retry = 'MIN(99p,15ms)';")).isEqualTo("CLUSTERING ORDER BY (a DESC, b ASC, c ASC)");
+                                              + " AND read_repair = 'BLOCKING' AND speculative_retry = 'MIN(99p,15ms)';"))
+        .isEqualTo("CLUSTERING ORDER BY (a DESC, b ASC, c ASC)");
         assertThat(CqlUtils.extractClustering("CREATE TABLE ks1.tb1 (a int, b text, c int, d timestamp, PRIMARY KEY ((a, b), c)"
                                               + " WITH CLUSTERING ORDER BY (a DESC, b ASC, c ASC) AND additional_write_policy = '99p'"
                                               + " AND bloom_filter_fp_chance = 0.1 AND caching = {'keys': 'ALL', 'rows_per_partition': 'NONE'}"
@@ -581,10 +584,13 @@ public class CqlUtilsTest extends VersionRunner
                                               + " 'org.apache.cassandra.io.compress.LZ4Compressor'} AND crc_check_chance = 1.0"
                                               + " AND default_time_to_live = 0 AND extensions = {} AND gc_grace_seconds = 864000"
                                               + " AND max_index_interval = 256 AND memtable_flush_period_in_ms = 0 AND min_index_interval = 64"
-                                              + " AND read_repair = 'BLOCKING' AND speculative_retry = 'MIN(99p,15ms)'")).isEqualTo("CLUSTERING ORDER BY (a DESC, b ASC, c ASC)");
-        assertThat(CqlUtils.extractClustering("WITH CLUSTERING ORDER BY (a DESC, b ASC, c ASC)")).isEqualTo("CLUSTERING ORDER BY (a DESC, b ASC, c ASC)");
+                                              + " AND read_repair = 'BLOCKING' AND speculative_retry = 'MIN(99p,15ms)'"))
+        .isEqualTo("CLUSTERING ORDER BY (a DESC, b ASC, c ASC)");
+        assertThat(CqlUtils.extractClustering("WITH CLUSTERING ORDER BY (a DESC, b ASC, c ASC)"))
+        .isEqualTo("CLUSTERING ORDER BY (a DESC, b ASC, c ASC)");
         assertThat(CqlUtils.extractClustering("CREATE TABLE ks1.tb1 (a int, b text, c int, d timestamp, PRIMARY KEY ((a, b), c))"
-                                              + " WITH CLUSTERING ORDER BY (a ASC) AND speculative_retry = 'MIN(99p,15ms);")).isEqualTo("CLUSTERING ORDER BY (a ASC)");
+                                              + " WITH CLUSTERING ORDER BY (a ASC) AND speculative_retry = 'MIN(99p,15ms);"))
+        .isEqualTo("CLUSTERING ORDER BY (a ASC)");
 
         assertThat(CqlUtils.extractClustering("")).isNull();
         assertThat(CqlUtils.extractClustering("CREATE TABLE ks1.tb1 (a int, b text, c int, d timestamp, PRIMARY KEY ((a, b), c);")).isNull();

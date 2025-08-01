@@ -41,7 +41,8 @@ public class CqlTableInfoProviderTest
         assertThat(removeDeprecatedOptions("... WITH qwerty = 42 ...")).isEqualTo("... WITH qwerty = 42 ...");
         assertThat(removeDeprecatedOptions("... WITH read_repair_chance = 42 ...")).isEqualTo("... WITH ...");
         assertThat(removeDeprecatedOptions("... WITH dclocal_read_repair_chance = 42 ...")).isEqualTo("... WITH ...");
-        assertThat(removeDeprecatedOptions("... WITH dclocal_dclocal_read_repair_chance = 42 ...")).isEqualTo("... WITH dclocal_dclocal_read_repair_chance = 42 ...");
+        assertThat(removeDeprecatedOptions("... WITH dclocal_dclocal_read_repair_chance = 42 ..."))
+        .isEqualTo("... WITH dclocal_dclocal_read_repair_chance = 42 ...");
     }
 
     @Test
@@ -59,12 +60,15 @@ public class CqlTableInfoProviderTest
         assertThat(removeDeprecatedOptions("... WITH read_repair_chance = 1 ...")).isEqualTo("... WITH ...");
         assertThat(removeDeprecatedOptions("... WITH read_repair_chance = 1 AND qwerty = 42 ...")).isEqualTo("... WITH qwerty = 42 ...");
         assertThat(removeDeprecatedOptions("... WITH qwerty = 42 AND read_repair_chance = 1 ...")).isEqualTo("... WITH qwerty = 42 ...");
-        assertThat(removeDeprecatedOptions("... WITH read_repair_chance = 1 AND qwerty = 42"
-                                           + " AND dclocal_read_repair_chance = 1 ...")).isEqualTo("... WITH qwerty = 42 ...");
-        assertThat(removeDeprecatedOptions("... WITH qwerty = 42 AND read_repair_chance = 1 AND asdfgh = 43 ...")).isEqualTo("... WITH qwerty = 42 AND asdfgh = 43 ...");
+        assertThat(removeDeprecatedOptions("... WITH read_repair_chance = 1 AND qwerty = 42 AND dclocal_read_repair_chance = 1 ..."))
+        .isEqualTo("... WITH qwerty = 42 ...");
+        assertThat(removeDeprecatedOptions("... WITH qwerty = 42 AND read_repair_chance = 1 AND asdfgh = 43 ..."))
+        .isEqualTo("... WITH qwerty = 42 AND asdfgh = 43 ...");
         assertThat(removeDeprecatedOptions("... WITH qwerty = 42 AND read_repair_chance = 1 AND asdfgh = 43"
-                                           + " AND dclocal_read_repair_chance = 1 AND zxcvbn = 44 ...")).isEqualTo("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ...");
-        assertThat(removeDeprecatedOptions("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ...")).isEqualTo("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ...");
+                                           + " AND dclocal_read_repair_chance = 1 AND zxcvbn = 44 ..."))
+        .isEqualTo("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ...");
+        assertThat(removeDeprecatedOptions("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ..."))
+        .isEqualTo("... WITH qwerty = 42 AND asdfgh = 43 AND zxcvbn = 44 ...");
     }
 
     @Test

@@ -170,8 +170,8 @@ public class DataTypeSerializationTests
             assertThat(toDecimal(bridge, veryLargeValue)).isEqualTo(Decimal.apply(veryLargeValue));
             qt().withExamples(MAX_TESTS)
                 .forAll(bigDecimals().ofBytes(128).withScale(10))
-                .checkAssert(decimal -> assertThat(bridge.decimal().deserializeToType(getSparkSql(bridge),
-                                                                                                                bridge.decimal().serialize(decimal))).isEqualTo(Decimal.apply(decimal)));
+                .checkAssert(decimal -> assertThat(bridge.decimal().deserializeToType(getSparkSql(bridge), bridge.decimal().serialize(decimal)))
+                                        .isEqualTo(Decimal.apply(decimal)));
         });
     }
 
@@ -197,8 +197,8 @@ public class DataTypeSerializationTests
     {
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
             assertThat(toDouble(bridge, Double.MAX_VALUE)).isInstanceOf(Double.class);
-            assertThat(bridge.aDouble().deserializeToType(getSparkSql(bridge),
-                                                                              ByteBuffer.allocate(8).putDouble(0, Double.MAX_VALUE))).isEqualTo(Double.MAX_VALUE);
+            assertThat(bridge.aDouble().deserializeToType(getSparkSql(bridge), ByteBuffer.allocate(8).putDouble(0, Double.MAX_VALUE)))
+            .isEqualTo(Double.MAX_VALUE);
             qt().forAll(integers().all())
                 .checkAssert(integer -> assertThat(toDouble(bridge, (double) integer)).isEqualTo((double) integer));
             assertThat(toDouble(bridge, Double.MAX_VALUE)).isEqualTo(Double.MAX_VALUE);
@@ -388,7 +388,8 @@ public class DataTypeSerializationTests
             assertThat(toFloat(bridge, 58383.23737832839f)).isEqualTo(58383.23737832839f);
             try
             {
-                assertThat(InetAddress.getByAddress((byte[]) toInet(bridge, InetAddress.getByName("www.apache.org")))).isEqualTo(InetAddress.getByName("www.apache.org"));
+                assertThat(InetAddress.getByAddress((byte[]) toInet(bridge, InetAddress.getByName("www.apache.org"))))
+                .isEqualTo(InetAddress.getByName("www.apache.org"));
             }
             catch (UnknownHostException exception)
             {
