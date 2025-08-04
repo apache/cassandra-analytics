@@ -90,6 +90,6 @@ public class ByteBufferUtilsTests
         ByteBufferUtils.skipBytesFully(in, length - 2);
         assertThat(in.readByte()).isEqualTo(bytes[length - 1]);
         assertThatThrownBy(() -> ByteBufferUtils.skipBytesFully(in, 1))
-                .isInstanceOf(EOFException.class);
+        .isInstanceOf(EOFException.class);
     }
 }

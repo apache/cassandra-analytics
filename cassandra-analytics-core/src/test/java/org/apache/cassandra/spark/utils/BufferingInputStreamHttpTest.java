@@ -66,13 +66,13 @@ import static org.quicktheories.generators.SourceDSL.arbitrary;
 public class BufferingInputStreamHttpTest
 {
     static final ExecutorService HTTP_EXECUTOR =
-            Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("http-server-%d")
-                                                                      .setDaemon(true)
-                                                                      .build());
+    Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("http-server-%d")
+                                                              .setDaemon(true)
+                                                              .build());
     static final ExecutorService HTTP_CLIENT =
-            Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("http-client-%d")
-                                                                      .setDaemon(true)
-                                                                      .build());
+    Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("http-client-%d")
+                                                              .setDaemon(true)
+                                                              .build());
     private static final Logger LOGGER = LoggerFactory.getLogger(BufferingInputStreamHttpTest.class);
 
     @TempDir
@@ -279,7 +279,7 @@ public class BufferingInputStreamHttpTest
                 }
             }
             byte[] expectedMD5 = digest.digest();
-            assertThat(Files.size(path)).isEqualTo(size);
+            assertThat(path).hasSize(size);
             LOGGER.info("Created random file path={} fileSize={}", path, size);
 
             // Use HTTP client source to read files across HTTP and verify MD5 matches expected

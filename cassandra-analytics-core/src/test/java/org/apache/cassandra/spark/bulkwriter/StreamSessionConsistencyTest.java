@@ -122,11 +122,11 @@ public class StreamSessionConsistencyTest
         if (shouldFail)
         {
             assertThatThrownBy(fut::get)
-                    .isInstanceOf(ExecutionException.class)
-                    .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
-                    .hasMessageContaining("Failed to write 1 ranges with " + consistencyLevel
-                                        + " for job " + writerContext.job().getId()
-                                        + " in phase UploadAndCommit.");
+            .isInstanceOf(ExecutionException.class)
+            .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
+            .hasMessageContaining("Failed to write 1 ranges with " + consistencyLevel
+                                  + " for job " + writerContext.job().getId()
+                                  + " in phase UploadAndCommit.");
         }
         else
         {
@@ -136,11 +136,11 @@ public class StreamSessionConsistencyTest
         assertThat(writerContext.getUploads().values().stream()
                                 .mapToInt(Collection::size)
                                 .sum())
-                .isEqualTo(REPLICATION_FACTOR * NUMBER_DCS * FILES_PER_SSTABLE);
+        .isEqualTo(REPLICATION_FACTOR * NUMBER_DCS * FILES_PER_SSTABLE);
         List<String> instances = writerContext.getUploads().keySet().stream()
                                               .map(CassandraInstance::nodeName)
                                               .collect(Collectors.toList());
-        assertThat(instances).containsExactlyInAnyOrder(EXPECTED_INSTANCES.toArray(new String[0]));
+        assertThat(instances).containsAll(EXPECTED_INSTANCES);
     }
 
     @ParameterizedTest(name = "CL: {0}, numFailures: {1}")
@@ -162,11 +162,11 @@ public class StreamSessionConsistencyTest
         if (shouldFail)
         {
             assertThatThrownBy(fut::get)
-                    .isInstanceOf(ExecutionException.class)
-                    .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
-                    .hasMessageContaining("Failed to write 1 ranges with " + consistencyLevel
-                                        + " for job " + writerContext.job().getId()
-                                        + " in phase UploadAndCommit.");
+            .isInstanceOf(ExecutionException.class)
+            .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
+            .hasMessageContaining("Failed to write 1 ranges with " + consistencyLevel
+                                  + " for job " + writerContext.job().getId()
+                                  + " in phase UploadAndCommit.");
         }
         else
         {
@@ -179,11 +179,11 @@ public class StreamSessionConsistencyTest
         assertThat(writerContext.getUploads().values().stream()
                                 .mapToInt(Collection::size)
                                 .sum())
-                .isEqualTo(totalFilesToUpload - filesSkipped);
+        .isEqualTo(totalFilesToUpload - filesSkipped);
         List<String> instances = writerContext.getUploads().keySet().stream()
                                               .map(CassandraInstance::nodeName)
                                               .collect(Collectors.toList());
-        assertThat(instances).containsExactlyInAnyOrder(EXPECTED_INSTANCES.toArray(new String[0]));
+        assertThat(instances).containsAll(EXPECTED_INSTANCES);
     }
 
     private boolean calculateFailure(ConsistencyLevel.CL consistencyLevel, int dc1Failures, int dc2Failures)

@@ -96,21 +96,21 @@ public class MultipleReplicasTests
     public void testRF1NotEnoughReplicas()
     {
         assertThatThrownBy(() -> runTest(1, 1, 1, 0))
-            .isInstanceOf(AssertionError.class);
+        .isInstanceOf(AssertionError.class);
     }
 
     @Test()
     public void testRF3QuorumNotEnoughReplicas()
     {
         assertThatThrownBy(() -> runTest(3, 2, 1, 1))
-            .isInstanceOf(AssertionError.class);
+        .isInstanceOf(AssertionError.class);
     }
 
     @Test()
     public void testRFAllNotEnoughReplicas()
     {
         assertThatThrownBy(() -> runTest(3, 3, 1, 0))
-            .isInstanceOf(AssertionError.class);
+        .isInstanceOf(AssertionError.class);
     }
 
     private static void runTest(int numInstances, int rfFactor, int numDownPrimaryInstances, int numDownBackupInstances)
@@ -158,8 +158,7 @@ public class MultipleReplicasTests
             // if insufficient primary or backup replicas available to meet consistency level
             MultipleReplicas replicas = new MultipleReplicas(primaryReplicas, backupReplicas, Stats.DoNothingStats.INSTANCE);
             Set<TestSSTableReader> readers = replicas.openAll((ssTable, isRepairPrimary) -> new TestSSTableReader(ssTable));
-            assertThat(readers.size()).isEqualTo(expectedSSTables);
-
+            assertThat(readers).hasSize(expectedSSTables);
             // Verify list instance attempted on all primary instances
             // and any backup instances that needed to be called to meet consistency
             for (CassandraInstance instance : requestedInstances)

@@ -35,11 +35,11 @@ public class LoggerHelperTests
         LoggerHelper loggerHelper = new LoggerHelper(LOGGER, "a", "1", "b", "2", "c", "3");
         Object[] additionalArgs = new Object[]{"d", "4", "e", "5", "f", "6"};
         assertThat(loggerHelper.logMsg("hello this is the log message", additionalArgs))
-            .isEqualTo("hello this is the log message a={} b={} c={} d={} e={} f={}");
+        .isEqualTo("hello this is the log message a={} b={} c={} d={} e={} f={}");
         assertThat(loggerHelper.buildArguments(null, additionalArgs))
-            .isEqualTo(new Object[]{"1", "2", "3", "4", "5", "6"});
+        .isEqualTo(new Object[]{"1", "2", "3", "4", "5", "6"});
         Throwable throwable = new RuntimeException("Error");
         assertThat(loggerHelper.buildArguments(throwable, additionalArgs))
-            .isEqualTo(new Object[]{"1", "2", "3", "4", "5", "6", throwable});
+        .isEqualTo(new Object[]{"1", "2", "3", "4", "5", "6", throwable});
     }
 }

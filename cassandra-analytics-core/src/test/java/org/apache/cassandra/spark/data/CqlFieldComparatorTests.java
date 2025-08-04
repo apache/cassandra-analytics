@@ -267,9 +267,10 @@ public class CqlFieldComparatorTests extends VersionRunner
     {
         byte byte1 = 101;
         byte byte2 = 102;
-        assertThat(toSparkType(bridge, bridge.tinyint()).compare(byte1, byte2) < 0).isTrue();
-        assertThat(toSparkType(bridge, bridge.tinyint()).compare(byte1, byte1)).isEqualTo(0);
-        assertThat(toSparkType(bridge, bridge.tinyint()).compare(byte2, byte2)).isEqualTo(0);
-        assertThat(toSparkType(bridge, bridge.tinyint()).compare(byte2, byte1) > 0).isTrue();
+        SparkType type = toSparkType(bridge, bridge.tinyint());
+        assertThat(type.compare(byte1, byte2)).isLessThan(0);
+        assertThat(type.compare(byte1, byte1)).isEqualTo(0);
+        assertThat(type.compare(byte2, byte2)).isEqualTo(0);
+        assertThat(type.compare(byte2, byte1)).isGreaterThan(0);
     }
 }

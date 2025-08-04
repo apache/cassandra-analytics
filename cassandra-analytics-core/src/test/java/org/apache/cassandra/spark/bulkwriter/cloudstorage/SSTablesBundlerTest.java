@@ -77,12 +77,12 @@ class SSTablesBundlerTest
 
             Path bundle0 = outputDir.resolve("0");
             Path bundle1 = outputDir.resolve("1");
-            assertThat(Files.exists(bundle0) && Files.isDirectory(bundle0)).isTrue();
-            assertThat(Files.exists(bundle1) && Files.isDirectory(bundle1)).isTrue();
+            assertThat(bundle0).exists().isDirectory();
+            assertThat(bundle1).exists().isDirectory();
             String expectedZippedBundlePath1 = "b_" + jobId + "_" + sessionId + "_1_3";
             String expectedZippedBundlePath2 = "e_" + jobId + "_" + sessionId + "_4_6";
-            assertThat(Files.exists(outputDir.resolve(expectedZippedBundlePath1))).isTrue();
-            assertThat(Files.exists(outputDir.resolve(expectedZippedBundlePath2))).isTrue();
+            assertThat(outputDir.resolve(expectedZippedBundlePath1)).exists();
+            assertThat(outputDir.resolve(expectedZippedBundlePath2)).exists();
         }
     }
 
@@ -140,8 +140,8 @@ class SSTablesBundlerTest
                                              + "}";
             Path bundle0Manifest = outputDir.resolve("0").resolve("manifest.json");
             Path bundle1Manifest = outputDir.resolve("1").resolve("manifest.json");
-            assertThat(Files.exists(bundle0Manifest)).isTrue();
-            assertThat(Files.exists(bundle1Manifest)).isTrue();
+            assertThat(bundle0Manifest).exists();
+            assertThat(bundle1Manifest).exists();
             ObjectMapper mapper = new ObjectMapper();
             Map actualBundle0 = mapper.readValue(bundle0Manifest.toFile(), Map.class);
             Map expectedBundle0 = mapper.readValue(expectedBundle0Manifest, Map.class);

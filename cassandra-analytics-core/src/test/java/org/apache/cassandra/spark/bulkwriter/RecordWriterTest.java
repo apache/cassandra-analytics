@@ -117,8 +117,8 @@ class RecordWriterTest
         Set<Integer> s3 = new HashSet<>(Arrays.asList(5, 6, 7));
         Set<Integer> s4 = new HashSet<>(Arrays.asList(5, 6, 7));
         Set<Integer> s5 = new HashSet<>();
-        assertThat(RecordWriter.symmetricDifference(s1, s2)).isEqualTo(new HashSet<>(Arrays.asList(1, 4)));
-        assertThat(RecordWriter.symmetricDifference(s2, s3)).isEqualTo(new HashSet<>(Arrays.asList(2, 3, 4, 5, 6, 7)));
+        assertThat(RecordWriter.symmetricDifference(s1, s2)).containsExactly(1, 4);
+        assertThat(RecordWriter.symmetricDifference(s2, s3)).containsExactly(2, 3, 4, 5, 6, 7);
         assertThat(RecordWriter.symmetricDifference(s3, s4)).isEmpty();
         assertThat(RecordWriter.symmetricDifference(s4, s5)).isEqualTo(s4);
     }

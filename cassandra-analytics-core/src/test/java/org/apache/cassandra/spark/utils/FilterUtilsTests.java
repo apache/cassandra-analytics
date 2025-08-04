@@ -41,7 +41,7 @@ public class FilterUtilsTests
     {
         Filter[] filters = new Filter[]{new EqualTo("a", "1")};
         assertThatThrownBy(() -> FilterUtils.extractPartitionKeyValues(filters, new HashSet<>(Arrays.asList("a", "b"))))
-                .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -49,9 +49,9 @@ public class FilterUtilsTests
     {
         Filter[] filters = new Filter[]{new EqualTo("a", "1"), new In("b", new String[]{"2", "3"}), new EqualTo("c", "2")};
         Map<String, List<String>> partitionKeyValues = FilterUtils.extractPartitionKeyValues(filters, new HashSet<>(Arrays.asList("a", "b")));
-        assertThat(partitionKeyValues.containsKey("c")).isFalse();
-        assertThat(partitionKeyValues.containsKey("a")).isTrue();
-        assertThat(partitionKeyValues.containsKey("b")).isTrue();
+        assertThat(partitionKeyValues).containsKey("c");
+        assertThat(partitionKeyValues).containsKey("a");
+        assertThat(partitionKeyValues).containsKey("b");
     }
 
     @Test()
@@ -59,7 +59,7 @@ public class FilterUtilsTests
     {
         List<List<String>> orderedValues = Arrays.asList(Arrays.asList("1", "2"), Arrays.asList("a", "b", "c"), Collections.emptyList());
         assertThatThrownBy(() -> FilterUtils.cartesianProduct(orderedValues))
-                .isInstanceOf(IllegalArgumentException.class);
+        .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -67,9 +67,9 @@ public class FilterUtilsTests
     {
         List<List<String>> orderedValues = Collections.emptyList();
         List<List<String>> product = FilterUtils.cartesianProduct(orderedValues);
-        assertThat(product.isEmpty()).isFalse();
+        assertThat(product).isNotEmpty();
         assertThat(product).hasSize(1);
-        assertThat(product.get(0).isEmpty()).isTrue();
+        assertThat(product.get(0)).isEmpty();
     }
 
     @Test

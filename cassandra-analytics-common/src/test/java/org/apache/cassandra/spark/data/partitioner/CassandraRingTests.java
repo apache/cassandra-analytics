@@ -76,20 +76,20 @@ public class CassandraRingTests
         CassandraRing ring = new CassandraRing(Partitioner.Murmur3Partitioner,
                                                "test",
                                                new ReplicationFactor(ImmutableMap.of(
-                                                       "class", "org.apache.cassandra.locator.SimpleStrategy",
-                                                       "replication_factor", "3")),
+                                               "class", "org.apache.cassandra.locator.SimpleStrategy",
+                                               "replication_factor", "3")),
                                                instances);
 
         assertThat(ring.tokens().toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
-                                                                 BigInteger.valueOf(100L),
-                                                                 BigInteger.valueOf(200L)).toArray());
+                                                                    BigInteger.valueOf(100L),
+                                                                    BigInteger.valueOf(200L)).toArray());
 
         Multimap<CassandraInstance, Range<BigInteger>> tokenRanges = ring.tokenRanges();
         for (CassandraInstance instance : instances)
         {
             assertThat(mergeRanges(tokenRanges.get(instance)))
-                         .isEqualTo(Range.openClosed(Partitioner.Murmur3Partitioner.minToken(),
-                                          Partitioner.Murmur3Partitioner.maxToken()));
+            .isEqualTo(Range.openClosed(Partitioner.Murmur3Partitioner.minToken(),
+                                        Partitioner.Murmur3Partitioner.maxToken()));
         }
     }
 
@@ -102,13 +102,13 @@ public class CassandraRingTests
         CassandraRing ring = new CassandraRing(Partitioner.Murmur3Partitioner,
                                                "test",
                                                new ReplicationFactor(ImmutableMap.of(
-                                                       "class", "org.apache.cassandra.locator.SimpleStrategy",
-                                                       "replication_factor", "1")),
+                                               "class", "org.apache.cassandra.locator.SimpleStrategy",
+                                               "replication_factor", "1")),
                                                instances);
 
         assertThat(ring.tokens().toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
-                                                                 BigInteger.valueOf(100L),
-                                                                 BigInteger.valueOf(200L)).toArray());
+                                                                    BigInteger.valueOf(100L),
+                                                                    BigInteger.valueOf(200L)).toArray());
 
         Multimap<CassandraInstance, Range<BigInteger>> tokenRanges = ring.tokenRanges();
 
@@ -154,13 +154,13 @@ public class CassandraRingTests
         CassandraRing ring = new CassandraRing(Partitioner.Murmur3Partitioner,
                                                "test",
                                                new ReplicationFactor(ImmutableMap.of(
-                                                       "class", "org.apache.cassandra.locator.SimpleStrategy",
-                                                       "replication_factor", "2")),
+                                               "class", "org.apache.cassandra.locator.SimpleStrategy",
+                                               "replication_factor", "2")),
                                                instances);
 
         assertThat(ring.tokens().toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
-                                                                 BigInteger.valueOf(100L),
-                                                                 BigInteger.valueOf(200L)).toArray());
+                                                                    BigInteger.valueOf(100L),
+                                                                    BigInteger.valueOf(200L)).toArray());
 
         Multimap<CassandraInstance, Range<BigInteger>> tokenRanges = ring.tokenRanges();
 
@@ -206,32 +206,32 @@ public class CassandraRingTests
                                                           new CassandraInstance("201", "local1-i3", "DC2"));
 
         CassandraRing ring = new CassandraRing(
-                Partitioner.Murmur3Partitioner,
-                "test",
-                new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
-                                                      "DC1", "3",
-                                                      "DC2", "3")),
-                Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
-                              new CassandraInstance("100", "local0-i2", "DC1"),
-                              new CassandraInstance("200", "local0-i3", "DC1"),
-                              new CassandraInstance("1", "local1-i1", "DC2"),
-                              new CassandraInstance("101", "local1-i2", "DC2"),
-                              new CassandraInstance("201", "local1-i3", "DC2")));
+        Partitioner.Murmur3Partitioner,
+        "test",
+        new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                              "DC1", "3",
+                                              "DC2", "3")),
+        Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
+                      new CassandraInstance("100", "local0-i2", "DC1"),
+                      new CassandraInstance("200", "local0-i3", "DC1"),
+                      new CassandraInstance("1", "local1-i1", "DC2"),
+                      new CassandraInstance("101", "local1-i2", "DC2"),
+                      new CassandraInstance("201", "local1-i3", "DC2")));
 
         assertThat(ring.tokens().toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
-                                                                 BigInteger.valueOf(1L),
-                                                                 BigInteger.valueOf(100L),
-                                                                 BigInteger.valueOf(101L),
-                                                                 BigInteger.valueOf(200L),
-                                                                 BigInteger.valueOf(201L)).toArray());
+                                                                    BigInteger.valueOf(1L),
+                                                                    BigInteger.valueOf(100L),
+                                                                    BigInteger.valueOf(101L),
+                                                                    BigInteger.valueOf(200L),
+                                                                    BigInteger.valueOf(201L)).toArray());
 
         assertThat(ring.tokens("DC1").toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
-                                                                      BigInteger.valueOf(100L),
-                                                                      BigInteger.valueOf(200L)).toArray());
+                                                                         BigInteger.valueOf(100L),
+                                                                         BigInteger.valueOf(200L)).toArray());
 
         assertThat(ring.tokens("DC2").toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(1L),
-                                                                      BigInteger.valueOf(101L),
-                                                                      BigInteger.valueOf(201L)).toArray());
+                                                                         BigInteger.valueOf(101L),
+                                                                         BigInteger.valueOf(201L)).toArray());
 
         Multimap<CassandraInstance, Range<BigInteger>> tokenRanges = ring.tokenRanges();
         for (CassandraInstance instance : instances)
@@ -253,32 +253,32 @@ public class CassandraRingTests
                                                           new CassandraInstance("201", "local1-i3", "DC2"));
 
         CassandraRing ring = new CassandraRing(
-                Partitioner.Murmur3Partitioner,
-                "test",
-                new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
-                                                      "DC1", "1",
-                                                      "DC2", "1")),
-                Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
-                              new CassandraInstance("100", "local0-i2", "DC1"),
-                              new CassandraInstance("200", "local0-i3", "DC1"),
-                              new CassandraInstance("1", "local1-i1", "DC2"),
-                              new CassandraInstance("101", "local1-i2", "DC2"),
-                              new CassandraInstance("201", "local1-i3", "DC2")));
+        Partitioner.Murmur3Partitioner,
+        "test",
+        new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                              "DC1", "1",
+                                              "DC2", "1")),
+        Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
+                      new CassandraInstance("100", "local0-i2", "DC1"),
+                      new CassandraInstance("200", "local0-i3", "DC1"),
+                      new CassandraInstance("1", "local1-i1", "DC2"),
+                      new CassandraInstance("101", "local1-i2", "DC2"),
+                      new CassandraInstance("201", "local1-i3", "DC2")));
 
         assertThat(ring.tokens().toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
-                                                                 BigInteger.valueOf(1L),
-                                                                 BigInteger.valueOf(100L),
-                                                                 BigInteger.valueOf(101L),
-                                                                 BigInteger.valueOf(200L),
-                                                                 BigInteger.valueOf(201L)).toArray());
+                                                                    BigInteger.valueOf(1L),
+                                                                    BigInteger.valueOf(100L),
+                                                                    BigInteger.valueOf(101L),
+                                                                    BigInteger.valueOf(200L),
+                                                                    BigInteger.valueOf(201L)).toArray());
 
         assertThat(ring.tokens("DC1").toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
-                                                                      BigInteger.valueOf(100L),
-                                                                      BigInteger.valueOf(200L)).toArray());
+                                                                         BigInteger.valueOf(100L),
+                                                                         BigInteger.valueOf(200L)).toArray());
 
         assertThat(ring.tokens("DC2").toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(1L),
-                                                                      BigInteger.valueOf(101L),
-                                                                      BigInteger.valueOf(201L)).toArray());
+                                                                         BigInteger.valueOf(101L),
+                                                                         BigInteger.valueOf(201L)).toArray());
 
         Multimap<CassandraInstance, Range<BigInteger>> tokenRanges = ring.tokenRanges();
 
@@ -358,32 +358,32 @@ public class CassandraRingTests
                                                           new CassandraInstance("201", "local1-i3", "DC2"));
 
         CassandraRing ring = new CassandraRing(
-                Partitioner.Murmur3Partitioner,
-                "test",
-                new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
-                                                      "DC1", "2",
-                                                      "DC2", "2")),
-                Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
-                              new CassandraInstance("100", "local0-i2", "DC1"),
-                              new CassandraInstance("200", "local0-i3", "DC1"),
-                              new CassandraInstance("1", "local1-i1", "DC2"),
-                              new CassandraInstance("101", "local1-i2", "DC2"),
-                              new CassandraInstance("201", "local1-i3", "DC2")));
+        Partitioner.Murmur3Partitioner,
+        "test",
+        new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                              "DC1", "2",
+                                              "DC2", "2")),
+        Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
+                      new CassandraInstance("100", "local0-i2", "DC1"),
+                      new CassandraInstance("200", "local0-i3", "DC1"),
+                      new CassandraInstance("1", "local1-i1", "DC2"),
+                      new CassandraInstance("101", "local1-i2", "DC2"),
+                      new CassandraInstance("201", "local1-i3", "DC2")));
 
         assertThat(ring.tokens().toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
-                                                                 BigInteger.valueOf(1L),
-                                                                 BigInteger.valueOf(100L),
-                                                                 BigInteger.valueOf(101L),
-                                                                 BigInteger.valueOf(200L),
-                                                                 BigInteger.valueOf(201L)).toArray());
+                                                                    BigInteger.valueOf(1L),
+                                                                    BigInteger.valueOf(100L),
+                                                                    BigInteger.valueOf(101L),
+                                                                    BigInteger.valueOf(200L),
+                                                                    BigInteger.valueOf(201L)).toArray());
 
         assertThat(ring.tokens("DC1").toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
-                                                                      BigInteger.valueOf(100L),
-                                                                      BigInteger.valueOf(200L)).toArray());
+                                                                         BigInteger.valueOf(100L),
+                                                                         BigInteger.valueOf(200L)).toArray());
 
         assertThat(ring.tokens("DC2").toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(1L),
-                                                                      BigInteger.valueOf(101L),
-                                                                      BigInteger.valueOf(201L)).toArray());
+                                                                         BigInteger.valueOf(101L),
+                                                                         BigInteger.valueOf(201L)).toArray());
 
         Multimap<CassandraInstance, Range<BigInteger>> tokenRanges = ring.tokenRanges();
 

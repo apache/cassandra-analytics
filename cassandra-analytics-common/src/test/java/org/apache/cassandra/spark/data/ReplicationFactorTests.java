@@ -33,11 +33,11 @@ public class ReplicationFactorTests
     public void testReplicationFactorNtsClassNameOnly()
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
-                "class", "NetworkTopologyStrategy",
-                "datacenter1", "3",
-                "datacenter2", "5"));
+        "class", "NetworkTopologyStrategy",
+        "datacenter1", "3",
+        "datacenter2", "5"));
         assertThat(replicationFactor.getReplicationStrategy())
-            .isEqualTo(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy);
+        .isEqualTo(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy);
         assertThat(replicationFactor.getOptions().get("datacenter1")).isEqualTo(Integer.valueOf(3));
         assertThat(replicationFactor.getOptions().get("datacenter2")).isEqualTo(Integer.valueOf(5));
     }
@@ -46,11 +46,11 @@ public class ReplicationFactorTests
     public void testReplicationFactorNtsFullyQualifiedClassName()
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
-                "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
-                "datacenter1", "9",
-                "datacenter2", "2"));
+        "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+        "datacenter1", "9",
+        "datacenter2", "2"));
         assertThat(replicationFactor.getReplicationStrategy())
-            .isEqualTo(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy);
+        .isEqualTo(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy);
         assertThat(replicationFactor.getOptions().get("datacenter1")).isEqualTo(Integer.valueOf(9));
         assertThat(replicationFactor.getOptions().get("datacenter2")).isEqualTo(Integer.valueOf(2));
     }
@@ -59,8 +59,8 @@ public class ReplicationFactorTests
     public void testReplicationFactorSimpleClassNameOnly()
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
-                "class", "SimpleStrategy",
-                "replication_factor", "3"));
+        "class", "SimpleStrategy",
+        "replication_factor", "3"));
         assertThat(replicationFactor.getReplicationStrategy()).isEqualTo(ReplicationFactor.ReplicationStrategy.SimpleStrategy);
         assertThat(replicationFactor.getOptions().get("replication_factor")).isEqualTo(Integer.valueOf(3));
     }
@@ -69,8 +69,8 @@ public class ReplicationFactorTests
     public void testReplicationFactorSimpleFullyQualifiedClassName()
     {
         ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
-                "class", "org.apache.cassandra.locator.SimpleStrategy",
-                "replication_factor", "5"));
+        "class", "org.apache.cassandra.locator.SimpleStrategy",
+        "replication_factor", "5"));
         assertThat(replicationFactor.getReplicationStrategy()).isEqualTo(ReplicationFactor.ReplicationStrategy.SimpleStrategy);
         assertThat(replicationFactor.getOptions().get("replication_factor")).isEqualTo(Integer.valueOf(5));
     }
@@ -79,29 +79,29 @@ public class ReplicationFactorTests
     public void testUnexpectedRFClass()
     {
         assertThatThrownBy(() -> new ReplicationFactor(ImmutableMap.of(
-                "class", "org.apache.cassandra.locator.NotSimpleStrategy",
-                "replication_factor", "5")))
-            .isInstanceOf(IllegalArgumentException.class);
+        "class", "org.apache.cassandra.locator.NotSimpleStrategy",
+        "replication_factor", "5")))
+        .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test()
     public void testUnknownRFClass()
     {
         assertThatThrownBy(() -> new ReplicationFactor(ImmutableMap.of(
-                "class", "NoSuchStrategy",
-                "replication_factor", "5")))
-            .isInstanceOf(IllegalArgumentException.class);
+        "class", "NoSuchStrategy",
+        "replication_factor", "5")))
+        .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void testEquality()
     {
         ReplicationFactor replicationFactor1 = new ReplicationFactor(ImmutableMap.of(
-                "class", "org.apache.cassandra.locator.SimpleStrategy",
-                "replication_factor", "5"));
+        "class", "org.apache.cassandra.locator.SimpleStrategy",
+        "replication_factor", "5"));
         ReplicationFactor replicationFactor2 = new ReplicationFactor(ImmutableMap.of(
-                "class", "org.apache.cassandra.locator.SimpleStrategy",
-                "replication_factor", "5"));
+        "class", "org.apache.cassandra.locator.SimpleStrategy",
+        "replication_factor", "5"));
         assertThat(replicationFactor1).isNotSameAs(replicationFactor2);
         assertThat(replicationFactor1).isNotEqualTo(null);
         assertThat(replicationFactor2).isNotEqualTo(null);

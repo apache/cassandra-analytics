@@ -143,7 +143,7 @@ public class DataTypeSerializationTests
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
             assertThat(toBigInt(bridge, Long.MAX_VALUE)).isInstanceOf(Long.class);
             assertThat(bridge.bigint().deserializeToType(getSparkSql(bridge),
-                                                                           ByteBuffer.allocate(8).putLong(0, Long.MAX_VALUE))).isEqualTo(Long.MAX_VALUE);
+                                                         ByteBuffer.allocate(8).putLong(0, Long.MAX_VALUE))).isEqualTo(Long.MAX_VALUE);
             qt().forAll(integers().all())
                 .checkAssert(integer -> assertThat(toBigInt(bridge, (long) integer)).isEqualTo((long) integer));
             assertThat(toJavaType(bridge, CassandraBridge::bigint, Long.MAX_VALUE)).isEqualTo(Long.MAX_VALUE);
@@ -181,7 +181,7 @@ public class DataTypeSerializationTests
         qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
             assertThat(toFloat(bridge, Float.MAX_VALUE)).isInstanceOf(Float.class);
             assertThat(bridge.aFloat().deserializeToType(getSparkSql(bridge),
-                                                                            ByteBuffer.allocate(4).putFloat(0, Float.MAX_VALUE))).isEqualTo(Float.MAX_VALUE);
+                                                         ByteBuffer.allocate(4).putFloat(0, Float.MAX_VALUE))).isEqualTo(Float.MAX_VALUE);
             qt().forAll(integers().all())
                 .checkAssert(integer -> assertThat(toFloat(bridge, (float) integer)).isEqualTo((float) integer));
             assertThat(toFloat(bridge, Float.MAX_VALUE)).isEqualTo(Float.MAX_VALUE);
@@ -489,7 +489,7 @@ public class DataTypeSerializationTests
                         {
                             assertThat(actual.get(entry.getKey())).isEqualTo(entry.getValue());
                         }
-                }));
+                    }));
     }
 
     @Test

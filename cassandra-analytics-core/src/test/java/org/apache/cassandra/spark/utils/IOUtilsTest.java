@@ -51,8 +51,8 @@ class IOUtilsTest
         }
         File targetZip = tempFolder.resolve("zip").toFile();
         long zipFileSize = IOUtils.zip(zipSourceDir.toPath(), targetZip.toPath());
-        assertThat(targetZip.exists()).isTrue();
-        assertThat(zipFileSize > 0).isTrue();
+        assertThat(targetZip).exists();
+        assertThat(zipFileSize).isGreaterThan(0);
 
         ZipInputStream zis = new ZipInputStream(new FileInputStream(targetZip));
         int acutalFilesCount = 0;
@@ -68,8 +68,8 @@ class IOUtilsTest
     {
         Path file = tempFolder.resolve("file");
         assertThatThrownBy(() -> IOUtils.zip(file, file))
-                .isInstanceOf(IOException.class)
-                .hasMessageContaining("Not a directory");
+        .isInstanceOf(IOException.class)
+        .hasMessageContaining("Not a directory");
     }
 
     @Test
@@ -80,16 +80,16 @@ class IOUtilsTest
         String checksum1 = IOUtils.xxhash32(file);
         String checksum2 = IOUtils.xxhash32(file);
         assertThat(checksum2)
-                .as("Deterministic checksum calculation should yield same result for same input")
-                .isEqualTo(checksum1);
+        .as("Deterministic checksum calculation should yield same result for same input")
+        .isEqualTo(checksum1);
         assertThat(checksum1).isEqualTo("bd69788");
 
         Path anotherFile = tempFolder.resolve("anotherFile");
         Files.write(anotherFile, "Hello World!".getBytes(StandardCharsets.UTF_8));
         String checksum3 = IOUtils.xxhash32(anotherFile);
         assertThat(checksum3)
-                .as("Checksum should be same for the same content")
-                .isEqualTo(checksum1);
+        .as("Checksum should be same for the same content")
+        .isEqualTo(checksum1);
     }
 
     @Test

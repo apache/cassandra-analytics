@@ -84,28 +84,28 @@ public class CqlTableInfoProviderTest
     public void testRemoveDeprecatedOptionsRealStatement()
     {
         String cql = "CREATE TABLE test_simple_rf_3_batch_10000_splits_3.test"
-                   + " (id int, course text, foo text, marks int, PRIMARY KEY ((id, course)))"
-                   + " WITH read_repair_chance = 0.0 AND dclocal_read_repair_chance = 0.0"
-                   + " AND gc_grace_seconds = 864000 AND bloom_filter_fp_chance = 0.1"
-                   + " AND caching = { 'keys' : 'ALL', 'rows_per_partition' : 'NONE' } AND comment = ''"
-                   + " AND compaction = { 'class' : 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy',"
-                   +                    " 'enabled' : 'true', 'max_threshold' : 32, 'min_threshold' : 4 }"
-                   + " AND compression = { 'chunk_length_in_kb' : 16,"
-                   +                     " 'class' : 'org.apache.cassandra.io.compress.ZstdCompressor' }"
-                   + " AND default_time_to_live = 0 AND speculative_retry = '99p' AND min_index_interval = 128"
-                   + " AND max_index_interval = 2048 AND crc_check_chance = 1.0 AND cdc = false"
-                   + " AND memtable_flush_period_in_ms = 0;";
+                     + " (id int, course text, foo text, marks int, PRIMARY KEY ((id, course)))"
+                     + " WITH read_repair_chance = 0.0 AND dclocal_read_repair_chance = 0.0"
+                     + " AND gc_grace_seconds = 864000 AND bloom_filter_fp_chance = 0.1"
+                     + " AND caching = { 'keys' : 'ALL', 'rows_per_partition' : 'NONE' } AND comment = ''"
+                     + " AND compaction = { 'class' : 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy',"
+                     +                    " 'enabled' : 'true', 'max_threshold' : 32, 'min_threshold' : 4 }"
+                     + " AND compression = { 'chunk_length_in_kb' : 16,"
+                     +                     " 'class' : 'org.apache.cassandra.io.compress.ZstdCompressor' }"
+                     + " AND default_time_to_live = 0 AND speculative_retry = '99p' AND min_index_interval = 128"
+                     + " AND max_index_interval = 2048 AND crc_check_chance = 1.0 AND cdc = false"
+                     + " AND memtable_flush_period_in_ms = 0;";
         String expected = "CREATE TABLE test_simple_rf_3_batch_10000_splits_3.test"
-                        + " (id int, course text, foo text, marks int, PRIMARY KEY ((id, course)))"
-                        + " WITH gc_grace_seconds = 864000 AND bloom_filter_fp_chance = 0.1"
-                        + " AND caching = { 'keys' : 'ALL', 'rows_per_partition' : 'NONE' } AND comment = ''"
-                        + " AND compaction = { 'class' : 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy',"
-                        +                    " 'enabled' : 'true', 'max_threshold' : 32, 'min_threshold' : 4 }"
-                        + " AND compression = { 'chunk_length_in_kb' : 16,"
-                        +                     " 'class' : 'org.apache.cassandra.io.compress.ZstdCompressor' }"
-                        + " AND default_time_to_live = 0 AND speculative_retry = '99p' AND min_index_interval = 128"
-                        + " AND max_index_interval = 2048 AND crc_check_chance = 1.0 AND cdc = false"
-                        + " AND memtable_flush_period_in_ms = 0;";
+                          + " (id int, course text, foo text, marks int, PRIMARY KEY ((id, course)))"
+                          + " WITH gc_grace_seconds = 864000 AND bloom_filter_fp_chance = 0.1"
+                          + " AND caching = { 'keys' : 'ALL', 'rows_per_partition' : 'NONE' } AND comment = ''"
+                          + " AND compaction = { 'class' : 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy',"
+                          +                    " 'enabled' : 'true', 'max_threshold' : 32, 'min_threshold' : 4 }"
+                          + " AND compression = { 'chunk_length_in_kb' : 16,"
+                          +                     " 'class' : 'org.apache.cassandra.io.compress.ZstdCompressor' }"
+                          + " AND default_time_to_live = 0 AND speculative_retry = '99p' AND min_index_interval = 128"
+                          + " AND max_index_interval = 2048 AND crc_check_chance = 1.0 AND cdc = false"
+                          + " AND memtable_flush_period_in_ms = 0;";
         String actual = removeDeprecatedOptions(cql);
         assertThat(actual).isEqualTo(expected);
     }

@@ -37,14 +37,14 @@ public class DateTypeTests
     public void testDateConversion()
     {
         int cassandraDate = SimpleDateSerializer.dateStringToDays("2021-07-16");
-        assertThat(cassandraDate < 0).isTrue();
+        assertThat(cassandraDate).isLessThan(0);
         assertThat(SimpleDateSerializer.instance.toString(cassandraDate)).isEqualTo("2021-07-16");
         Object sparkSqlDate = SparkDate.INSTANCE.toSparkSqlType(cassandraDate, false);
         assertThat(sparkSqlDate instanceof Integer).isTrue();
         int numDays = (int) sparkSqlDate;
-        assertThat(numDays > 0).isTrue();
+        assertThat(numDays).isGreaterThan(0);
         LocalDate end = LocalDate.of(1970, 1, 1)
-                                       .plusDays(numDays);
+                                 .plusDays(numDays);
         assertThat(end.getYear()).isEqualTo(2021);
         assertThat(end.getMonthValue()).isEqualTo(7);
         assertThat(end.getDayOfMonth()).isEqualTo(16);

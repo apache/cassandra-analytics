@@ -59,7 +59,7 @@ public class SslConfigTest
         catch (IllegalArgumentException exception)
         {
             assertThat(exception.getMessage()).isEqualTo("Both 'KEYSTORE_PATH' and 'KEYSTORE_BASE64_ENCODED' options were provided. "
-                       + "Only one of the options can be provided");
+                                                         + "Only one of the options can be provided");
         }
     }
 
@@ -76,7 +76,7 @@ public class SslConfigTest
         catch (IllegalArgumentException exception)
         {
             assertThat(exception.getMessage()).isEqualTo("The 'KEYSTORE_PASSWORD' option must be provided when either the 'KEYSTORE_PATH'"
-                       + " or 'KEYSTORE_BASE64_ENCODED' options are provided");
+                                                         + " or 'KEYSTORE_BASE64_ENCODED' options are provided");
         }
     }
 
@@ -93,7 +93,7 @@ public class SslConfigTest
         catch (IllegalArgumentException exception)
         {
             assertThat(exception.getMessage()).isEqualTo("The 'KEYSTORE_PASSWORD' option must be provided when either the 'KEYSTORE_PATH'"
-                       + " or 'KEYSTORE_BASE64_ENCODED' options are provided");
+                                                         + " or 'KEYSTORE_BASE64_ENCODED' options are provided");
         }
     }
 
@@ -114,7 +114,7 @@ public class SslConfigTest
         catch (IllegalArgumentException exception)
         {
             assertThat(exception.getMessage()).isEqualTo("Both 'TRUSTSTORE_PATH' and 'TRUSTSTORE_BASE64_ENCODED' options were provided. "
-                       + "Only one of the options can be provided");
+                                                         + "Only one of the options can be provided");
         }
     }
 
@@ -133,7 +133,7 @@ public class SslConfigTest
         catch (IllegalArgumentException exception)
         {
             assertThat(exception.getMessage()).isEqualTo("The 'TRUSTSTORE_PASSWORD' option must be provided when either the 'TRUSTSTORE_PATH'"
-                       + " or 'TRUSTSTORE_BASE64_ENCODED' options are provided");
+                                                         + " or 'TRUSTSTORE_BASE64_ENCODED' options are provided");
         }
     }
 
@@ -152,7 +152,7 @@ public class SslConfigTest
         catch (IllegalArgumentException exception)
         {
             assertThat(exception.getMessage()).isEqualTo("The 'TRUSTSTORE_PASSWORD' option must be provided when either the 'TRUSTSTORE_PATH'"
-                       + " or 'TRUSTSTORE_BASE64_ENCODED' options are provided");
+                                                         + " or 'TRUSTSTORE_BASE64_ENCODED' options are provided");
         }
     }
 

@@ -22,7 +22,6 @@ package org.apache.cassandra.bridge;
 import java.io.IOException;
 import java.util.Map;
 
-import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -39,8 +38,8 @@ public class BigNumberConfigImplTest
     @Test
     public void testJsonSerialization() throws IOException
     {
-        Map<String, BigNumberConfigImpl> map = ImmutableMap.of("field1", BigNumberConfigImpl.of(10, 4, 38, 19),
-                                                               "field2", BigNumberConfigImpl.of(10, 4, 38, 19));
+        Map<String, BigNumberConfigImpl> map = Map.of("field1", BigNumberConfigImpl.of(10, 4, 38, 19),
+                                                      "field2", BigNumberConfigImpl.of(10, 4, 38, 19));
         String json = MAPPER.writeValueAsString(map);
         Map<String, BigNumberConfigImpl> deserialized = BigNumberConfigImpl.build(json);
         assertThat(deserialized).isEqualTo(map);

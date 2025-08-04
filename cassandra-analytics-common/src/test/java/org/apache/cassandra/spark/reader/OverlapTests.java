@@ -111,7 +111,7 @@ public class OverlapTests
         assertThat(SparkSSTableReader.overlaps(minReader, range(0L, 0L))).isFalse();
         assertThat(SparkSSTableReader.overlaps(minReader, range(512409557603043100L, 8710962479251732707L))).isFalse();
         assertThat(SparkSSTableReader.overlaps(minReader, range(Partitioner.Murmur3Partitioner.maxToken(),
-                                                                 Partitioner.Murmur3Partitioner.maxToken()))).isFalse();
+                                                                Partitioner.Murmur3Partitioner.maxToken()))).isFalse();
     }
 
     @Test
@@ -120,9 +120,9 @@ public class OverlapTests
         SparkSSTableReader maxReader = reader(BigInteger.valueOf(2049638230412172401L),
                                               Partitioner.Murmur3Partitioner.maxToken());
         assertThat(SparkSSTableReader.overlaps(maxReader, range(Partitioner.Murmur3Partitioner.minToken(),
-                                                                 Partitioner.Murmur3Partitioner.minToken()))).isFalse();
+                                                                Partitioner.Murmur3Partitioner.minToken()))).isFalse();
         assertThat(SparkSSTableReader.overlaps(maxReader, range(Partitioner.Murmur3Partitioner.minToken(),
-                                                                 Partitioner.Murmur3Partitioner.minToken().add(BigInteger.TEN)))).isFalse();
+                                                                Partitioner.Murmur3Partitioner.minToken().add(BigInteger.TEN)))).isFalse();
         assertThat(SparkSSTableReader.overlaps(maxReader, range(-3074457345618258603L, -1537228672809129302L))).isFalse();
         assertThat(SparkSSTableReader.overlaps(maxReader, range(-512409557603043101L, 0L))).isFalse();
         assertThat(SparkSSTableReader.overlaps(maxReader, range(-512409557603043101L, 1024819115206086200L))).isFalse();
@@ -144,7 +144,7 @@ public class OverlapTests
     {
         SparkSSTableReader reader = reader(-1537228672809129302L, 1537228672809129301L);
         assertThat(SparkSSTableReader.overlaps(reader, range(Partitioner.Murmur3Partitioner.minToken(),
-                                                              Partitioner.Murmur3Partitioner.minToken()))).isFalse();
+                                                             Partitioner.Murmur3Partitioner.minToken()))).isFalse();
         assertThat(SparkSSTableReader.overlaps(reader, range(-5636505133633474105L, -2562047788015215503L))).isFalse();
         assertThat(SparkSSTableReader.overlaps(reader, range(-1537228672809129303L, -1537228672809129303L))).isFalse();
         assertThat(SparkSSTableReader.overlaps(reader, range(-1537228672809129302L, -1537228672809129302L))).isTrue();

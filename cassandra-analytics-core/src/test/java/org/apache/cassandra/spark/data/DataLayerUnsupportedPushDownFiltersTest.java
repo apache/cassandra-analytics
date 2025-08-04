@@ -215,7 +215,7 @@ public class DataLayerUnsupportedPushDownFiltersTest
             unsupportedFilters = dataLayer.unsupportedPushDownFilters(allFilters);
             assertThat(unsupportedFilters).isNotNull();
             // Filter push-down is enabled because all the partition columns are part of the filter array
-            assertThat(unsupportedFilters).hasSize(0);
+            assertThat(unsupportedFilters).isEmpty();
         });
     }
 

@@ -163,8 +163,8 @@ public class SslConfigSecretsProviderTest
 
         assertThat(provider.hasKeyStoreSecrets()).isFalse();
         assertThatThrownBy(provider::validateMutualTLS)
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("No valid keystore/password provided in options");
+        .isInstanceOf(RuntimeException.class)
+        .hasMessage("No valid keystore/password provided in options");
     }
 
     @Test
@@ -184,8 +184,8 @@ public class SslConfigSecretsProviderTest
 
         assertThat(provider.hasTrustStoreSecrets()).isFalse();
         assertThatThrownBy(provider::validateMutualTLS)
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("No valid keystore/password provided in options");
+        .isInstanceOf(RuntimeException.class)
+        .hasMessage("No valid keystore/password provided in options");
     }
 
     private void buildSslConfig(SecretsProvider provider) throws IOException, GeneralSecurityException

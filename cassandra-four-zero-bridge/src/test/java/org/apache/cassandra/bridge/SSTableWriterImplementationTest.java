@@ -85,14 +85,14 @@ class SSTableWriterImplementationTest
                                                                              Collections.emptySet(),
                                                                              1);
         writer.setSSTablesProducedListener(produced::addAll);
-        assertThat(produced.isEmpty()).isTrue();
+        assertThat(produced).isEmpty();
 
         for (int i = 0; i < 300_000; i++)
         {
             writer.addRow(ImmutableMap.of("a", i, "b", "val_" + i));
         }
 
-        assertThat(produced.size()).isEqualTo(2);
+        assertThat(produced).hasSize(2);
         Set<SSTableDescriptor> expected = new HashSet<>(Arrays.asList(new SSTableDescriptor("nb-1-big"),
                                                                       new SSTableDescriptor("nb-2-big")));
         assertThat(produced).isEqualTo(expected);
