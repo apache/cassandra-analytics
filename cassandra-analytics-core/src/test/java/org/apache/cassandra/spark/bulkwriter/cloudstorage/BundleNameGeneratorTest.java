@@ -24,8 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.integers;
 
@@ -39,9 +38,9 @@ class BundleNameGeneratorTest
         BundleNameGenerator nameGenerator = new BundleNameGenerator(jobId, sessionId);
 
         String expectedName = "b_" + jobId + '_' + sessionId + "_1_3";
-        assertEquals(expectedName, nameGenerator.generate(BigInteger.valueOf(1L), BigInteger.valueOf(3L)));
+        assertThat(nameGenerator.generate(BigInteger.valueOf(1L), BigInteger.valueOf(3L))).isEqualTo(expectedName);
         expectedName = "d_" + jobId + '_' + sessionId + "_3_6";
-        assertEquals(expectedName, nameGenerator.generate(BigInteger.valueOf(3L), BigInteger.valueOf(6L)));
+        assertThat(nameGenerator.generate(BigInteger.valueOf(3L), BigInteger.valueOf(6L))).isEqualTo(expectedName);
     }
 
     @Test
@@ -56,7 +55,8 @@ class BundleNameGeneratorTest
         // till 61 because of mod 62 results possible
         for (int i = 0; i < 62; i++)
         {
-            assertEquals(expectedResults[i], nameGenerator.generate(BigInteger.valueOf(i), BigInteger.valueOf(i + 1)).charAt(0));
+            assertThat(nameGenerator.generate(BigInteger.valueOf(i), BigInteger.valueOf(i + 1)).charAt(0))
+                    .isEqualTo(expectedResults[i]);
         }
     }
 
@@ -68,10 +68,11 @@ class BundleNameGeneratorTest
             .forAll(integers().all())
             .checkAssert(i -> {
                 char prefix = BundleNameGenerator.generatePrefixChar(i);
-                assertTrue((prefix >= 'a' && prefix <= 'z')
+                assertThat((prefix >= 'a' && prefix <= 'z')
                            || (prefix >= 'A' && prefix <= 'Z')
-                           || (prefix >= '0' && prefix <= '9'),
-                           "Seed " + i + " produces invalid prefix " + prefix);
+                           || (prefix >= '0' && prefix <= '9'))
+                        .as("Seed " + i + " produces invalid prefix " + prefix)
+                        .isTrue();
             });
     }
 }

@@ -92,13 +92,8 @@ import static org.apache.cassandra.cdc.CdcTester.assertCqlTypeEquals;
 import static org.apache.cassandra.cdc.CdcTester.newUniqueRow;
 import static org.apache.cassandra.cdc.CdcTester.testWith;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -282,12 +277,11 @@ public class CdcTests
                     startMillis = System.currentTimeMillis();
                 }
 
-                assertEquals(writtenRows.size(), seenMutations.size());
-                assertEquals(writtenRows.values()
+                assertThat(seenMutations.size()).isEqualTo(writtenRows.size());
+                assertThat(seenMutations).isEqualTo(writtenRows.values()
                                         .stream()
                                         .map(TestSchema.TestRow::getPrimaryHexKey)
-                                        .collect(Collectors.toSet()),
-                             seenMutations);
+                                        .collect(Collectors.toSet()));
             }
             catch (InterruptedException e)
             {
@@ -298,10 +292,10 @@ public class CdcTests
             // verify state is correct
             CdcState endState = statePersister.loadCanonicalState("101", 0, null);
             long numSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startTime);
-            assertTrue(endState.epoch >= Math.max(0, numSeconds - 4)); // epochs should be around ~ 1 per second
-            assertTrue(endState.replicaCount.isEmpty());
+            assertThat(endState.epoch >= Math.max(0, numSeconds - 4)).isTrue(); // epochs should be around ~ 1 per second
+            assertThat(endState.replicaCount.isEmpty()).isTrue();
             Marker endMarker = endState.markers.startMarker(new CassandraInstance("0", "local-instance", "DC1"));
-            assertTrue(logProvider(directory).logs().map(CommitLog::segmentId).collect(Collectors.toSet()).contains(endMarker.segmentId));
+            assertThat(logProvider(directory).logs().map(CommitLog::segmentId).collect(Collectors.toSet()).contains(endMarker.segmentId)).isTrue();
         }
         finally
         {
@@ -321,18 +315,17 @@ public class CdcTests
                                                                .withColumn("c1", BRIDGE.bigint())
                                                                .withColumn("c2", type))
                          .withCdcEventChecker((testRows, events) -> {
-                             assertFalse(events.isEmpty());
+                             assertThat(events.isEmpty()).isFalse();
                              for (CdcEvent event : events)
                              {
-                                 assertEquals(1, event.getPartitionKeys().size());
-                                 assertEquals("pk", event.getPartitionKeys().get(0).columnName);
-                                 assertNull(event.getClusteringKeys());
-                                 assertNull(event.getStaticColumns());
-                                 assertEquals(Arrays.asList("c1", "c2"),
-                                              event.getValueColumns().stream()
+                                 assertThat(event.getPartitionKeys().size()).isEqualTo(1);
+                                 assertThat(event.getPartitionKeys().get(0).columnName).isEqualTo("pk");
+                                 assertThat(event.getClusteringKeys()).isNull();
+                                 assertThat(event.getStaticColumns()).isNull();
+                                 assertThat(event.getValueColumns().stream()
                                                    .map(v -> v.columnName)
-                                                   .collect(Collectors.toList()));
-                                 assertNull(event.getTtl());
+                                                   .collect(Collectors.toList())).isEqualTo(Arrays.asList("c1", "c2"));
+                                 assertThat(event.getTtl()).isNull();
                              }
                          })
                          .run());
@@ -352,17 +345,16 @@ public class CdcTests
                          .withCdcEventChecker((testRows, events) -> {
                              for (CdcEvent event : events)
                              {
-                                 assertEquals(1, event.getPartitionKeys().size());
-                                 assertEquals("pk", event.getPartitionKeys().get(0).columnName);
-                                 assertEquals(1, event.getClusteringKeys().size());
-                                 assertEquals("ck", event.getClusteringKeys().get(0).columnName);
+                                 assertThat(event.getPartitionKeys().size()).isEqualTo(1);
+                                 assertThat(event.getPartitionKeys().get(0).columnName).isEqualTo("pk");
+                                 assertThat(event.getClusteringKeys().size()).isEqualTo(1);
+                                 assertThat(event.getClusteringKeys().get(0).columnName).isEqualTo("ck");
                                  assertCqlTypeEquals(type.cqlName(), event.getClusteringKeys().get(0).columnType);
-                                 assertNull(event.getStaticColumns());
-                                 assertEquals(Arrays.asList("c1", "c2"),
-                                              event.getValueColumns().stream()
+                                 assertThat(event.getStaticColumns()).isNull();
+                                 assertThat(event.getValueColumns().stream()
                                                    .map(v -> v.columnName)
-                                                   .collect(Collectors.toList()));
-                                 assertNull(event.getTtl());
+                                                   .collect(Collectors.toList())).isEqualTo(Arrays.asList("c1", "c2"));
+                                 assertThat(event.getTtl()).isNull();
                              }
                          })
                          .run());
@@ -387,21 +379,19 @@ public class CdcTests
             .withCdcEventChecker((testRows, events) -> {
                 for (CdcEvent event : events)
                 {
-                    assertEquals(1, event.getPartitionKeys().size());
-                    assertEquals("pk", event.getPartitionKeys().get(0).columnName);
-                    assertEquals(Arrays.asList("ck1", "ck2", "ck3"),
-                                 event.getClusteringKeys().stream()
+                    assertThat(event.getPartitionKeys().size()).isEqualTo(1);
+                    assertThat(event.getPartitionKeys().get(0).columnName).isEqualTo("pk");
+                    assertThat(event.getClusteringKeys().stream()
                                       .map(v -> v.columnName)
-                                      .collect(Collectors.toList()));
+                                      .collect(Collectors.toList())).isEqualTo(Arrays.asList("ck1", "ck2", "ck3"));
                     assertCqlTypeEquals(t1.cqlName(), event.getClusteringKeys().get(0).columnType);
                     assertCqlTypeEquals(t2.cqlName(), event.getClusteringKeys().get(1).columnType);
                     assertCqlTypeEquals(t3.cqlName(), event.getClusteringKeys().get(2).columnType);
-                    assertNull(event.getStaticColumns());
-                    assertEquals(Arrays.asList("c1", "c2"),
-                                 event.getValueColumns().stream()
+                    assertThat(event.getStaticColumns()).isNull();
+                    assertThat(event.getValueColumns().stream()
                                       .map(v -> v.columnName)
-                                      .collect(Collectors.toList()));
-                    assertNull(event.getTtl());
+                                      .collect(Collectors.toList())).isEqualTo(Arrays.asList("c1", "c2"));
+                    assertThat(event.getTtl()).isNull();
                 }
             })
             .run());
@@ -420,24 +410,23 @@ public class CdcTests
                  .withCdcEventChecker((testRows, events) -> {
                      for (CdcEvent event : events)
                      {
-                         assertEquals(1, event.getPartitionKeys().size());
-                         assertEquals("pk", event.getPartitionKeys().get(0).columnName);
-                         assertNull(event.getClusteringKeys());
-                         assertNull(event.getStaticColumns());
-                         assertEquals(Arrays.asList("c1", "c2"),
-                                      event.getValueColumns().stream()
+                         assertThat(event.getPartitionKeys().size()).isEqualTo(1);
+                         assertThat(event.getPartitionKeys().get(0).columnName).isEqualTo("pk");
+                         assertThat(event.getClusteringKeys()).isNull();
+                         assertThat(event.getStaticColumns()).isNull();
+                         assertThat(event.getValueColumns().stream()
                                            .map(v -> v.columnName)
-                                           .collect(Collectors.toList()));
+                                           .collect(Collectors.toList())).isEqualTo(Arrays.asList("c1", "c2"));
                          Value setValue = event.getValueColumns().get(1);
                          String setType = setValue.columnType;
-                         assertTrue(setType.startsWith("set<"));
+                         assertThat(setType.startsWith("set<")).isTrue();
                          assertCqlTypeEquals(t.cqlName(),
                                              setType.substring(4, setType.length() - 1)); // extract the type in set<>
                          Object v = BRIDGE.parseType(setType).deserializeToJavaType(setValue.getValue());
-                         assertInstanceOf(Set.class, v);
+                         assertThat(v).isInstanceOf(Set.class);
                          Set set = (Set) v;
-                         assertFalse(set.isEmpty());
-                         assertNull(event.getTtl());
+                         assertThat(set.isEmpty()).isFalse();
+                         assertThat(event.getTtl()).isNull();
                      }
                  })
                  .run());
@@ -465,24 +454,23 @@ public class CdcTests
             .withCdcEventChecker((testRows, events) -> {
                 for (CdcEvent event : events)
                 {
-                    assertEquals(1, event.getPartitionKeys().size());
-                    assertEquals("pk", event.getPartitionKeys().get(0).columnName);
-                    assertNull(event.getClusteringKeys());
-                    assertNull(event.getStaticColumns());
-                    assertEquals(Arrays.asList("c1", "c2"),
-                                 event.getValueColumns().stream()
+                    assertThat(event.getPartitionKeys().size()).isEqualTo(1);
+                    assertThat(event.getPartitionKeys().get(0).columnName).isEqualTo("pk");
+                    assertThat(event.getClusteringKeys()).isNull();
+                    assertThat(event.getStaticColumns()).isNull();
+                    assertThat(event.getValueColumns().stream()
                                       .map(v -> v.columnName)
-                                      .collect(Collectors.toList()));
+                                      .collect(Collectors.toList())).isEqualTo(Arrays.asList("c1", "c2"));
                     Value listValue = event.getValueColumns().get(1);
                     String listType = listValue.columnType;
-                    assertTrue(listType.startsWith("list<"));
+                    assertThat(listType.startsWith("list<")).isTrue();
                     assertCqlTypeEquals(BRIDGE.aInt().cqlName(),
                                         listType.substring(5, listType.length() - 1)); // extract the type in list<>
                     Object v = BRIDGE.parseType(listType).deserializeToJavaType(listValue.getValue());
-                    assertInstanceOf(List.class, v);
+                    assertThat(v).isInstanceOf(List.class);
                     List list = (List) v;
-                    assertEquals(Arrays.asList(1, 2, 3, 4), list);
-                    assertNull(event.getTtl());
+                    assertThat(list).isEqualTo(Arrays.asList(1, 2, 3, 4));
+                    assertThat(event.getTtl()).isNull();
                 }
             })
             .run());
@@ -501,17 +489,16 @@ public class CdcTests
                         .withCdcEventChecker((testRows, events) -> {
                             for (CdcEvent event : events)
                             {
-                                assertEquals(1, event.getPartitionKeys().size());
-                                assertEquals("pk", event.getPartitionKeys().get(0).columnName);
-                                assertNull(event.getClusteringKeys());
-                                assertNull(event.getStaticColumns());
-                                assertEquals(Arrays.asList("c1", "c2"),
-                                             event.getValueColumns().stream()
+                                assertThat(event.getPartitionKeys().size()).isEqualTo(1);
+                                assertThat(event.getPartitionKeys().get(0).columnName).isEqualTo("pk");
+                                assertThat(event.getClusteringKeys()).isNull();
+                                assertThat(event.getStaticColumns()).isNull();
+                                assertThat(event.getValueColumns().stream()
                                                   .map(v -> v.columnName)
-                                                  .collect(Collectors.toList()));
+                                                  .collect(Collectors.toList())).isEqualTo(Arrays.asList("c1", "c2"));
                                 Value mapValue = event.getValueColumns().get(1);
                                 String mapType = mapValue.columnType;
-                                assertTrue(mapType.startsWith("map<"));
+                                assertThat(mapType.startsWith("map<")).isTrue();
                                 int commaIndex = mapType.indexOf(',');
                                 assertCqlTypeEquals(t1.cqlName(),
                                                     // extract the key type in map<>
@@ -520,10 +507,10 @@ public class CdcTests
                                                     // extract the value type in map<>; +2 to exclude , and the following space
                                                     mapType.substring(commaIndex + 2, mapType.length() - 1));
                                 Object v = BRIDGE.parseType(mapType).deserializeToJavaType(mapValue.getValue());
-                                assertInstanceOf(Map.class, v);
+                                assertThat(v).isInstanceOf(Map.class);
                                 Map map = (Map) v;
-                                assertTrue(map.size() > 0);
-                                assertNull(event.getTtl());
+                                assertThat(map.size() > 0).isTrue();
+                                assertThat(event.getTtl()).isNull();
                             }
                         })
                         .run());
@@ -609,16 +596,16 @@ public class CdcTests
                                                  .withExpectedNumRows(numRows * 2)
                                                  .withCdcEventChecker((testRows, events) -> {
                                                      TestSchema schema1 = schema1Holder.get();
-                                                     assertEquals(numRows * 2, events.size());
-                                                     assertEquals(numRows, events.stream()
+                                                     assertThat(events.size()).isEqualTo(numRows * 2);
+                                                     assertThat(events.stream()
                                                                                  .filter(f -> f.keyspace.equals(schema1.keyspace))
-                                                                                 .filter(f -> f.table.equals(schema1.table)).count());
-                                                     assertEquals(numRows, events.stream()
+                                                                                 .filter(f -> f.table.equals(schema1.table)).count()).isEqualTo(numRows);
+                                                     assertThat(events.stream()
                                                                                  .filter(f -> f.keyspace.equals(schema2.keyspace))
-                                                                                 .filter(f -> f.table.equals(schema2.table)).count());
-                                                     assertEquals(0, events.stream()
+                                                                                 .filter(f -> f.table.equals(schema2.table)).count()).isEqualTo(numRows);
+                                                     assertThat(events.stream()
                                                                            .filter(f -> f.keyspace.equals(schema3.keyspace))
-                                                                           .filter(f -> f.table.equals(schema3.table)).count());
+                                                                           .filter(f -> f.table.equals(schema3.table)).count()).isEqualTo(0);
                                                  });
         CdcTester cdcTester = testBuilder.build();
         schema1Holder.set(cdcTester.schema);
@@ -650,16 +637,16 @@ public class CdcTests
                 .withCdcEventChecker((testRows, events) -> {
                     for (CdcEvent event : events)
                     {
-                        assertEquals(1, event.getPartitionKeys().size());
+                        assertThat(event.getPartitionKeys().size()).isEqualTo(1);
                         Value pk = event.getPartitionKeys().get(0);
-                        assertEquals("pk", pk.columnName);
-                        assertNull(event.getClusteringKeys());
-                        assertNull(event.getValueColumns());
-                        assertEquals(1, event.getStaticColumns().size());
+                        assertThat(pk.columnName).isEqualTo("pk");
+                        assertThat(event.getClusteringKeys()).isNull();
+                        assertThat(event.getValueColumns()).isNull();
+                        assertThat(event.getStaticColumns().size()).isEqualTo(1);
                         Value sc = event.getStaticColumns().get(0);
-                        assertEquals("sc", sc.columnName);
+                        assertThat(sc.columnName).isEqualTo("sc");
                         TestSchema.TestRow testRow = testRows.get(ByteBufferUtils.toHexString(pk.getValue()) + ":null:");
-                        assertEquals(testRow.get(2), cqlType.deserializeToJavaType(sc.getValue()));
+                        assertThat(cqlType.deserializeToJavaType(sc.getValue())).isEqualTo(testRow.get(2));
                     }
                 })
                 .run();
@@ -699,24 +686,23 @@ public class CdcTests
                 .withCdcEventChecker((testRows, events) -> {
                     for (CdcEvent event : events)
                     {
-                        assertEquals(1, event.getPartitionKeys().size());
-                        assertEquals("pk", event.getPartitionKeys().get(0).columnName);
+                        assertThat(event.getPartitionKeys().size()).isEqualTo(1);
+                        assertThat(event.getPartitionKeys().get(0).columnName).isEqualTo("pk");
                         UUID pk = (UUID) MESSAGE_CONVERTER.toCdcMessage(event.getPartitionKeys().get(0)).value();
-                        assertNull(event.getClusteringKeys());
-                        assertNull(event.getStaticColumns());
-                        assertEquals(ImmutableList.of("c2"),
-                                     event.getValueColumns().stream()
+                        assertThat(event.getClusteringKeys()).isNull();
+                        assertThat(event.getStaticColumns()).isNull();
+                        assertThat(event.getValueColumns().stream()
                                           .map(v -> v.columnName)
-                                          .collect(Collectors.toList()));
+                                          .collect(Collectors.toList())).isEqualTo(ImmutableList.of("c2"));
 
                         if (ttlRowIdx.contains(pk))
                         {
-                            assertNotNull(event.getTtl());
-                            assertEquals(TTL, event.getTtl().ttlInSec);
+                            assertThat(event.getTtl()).isNotNull();
+                            assertThat(event.getTtl().ttlInSec).isEqualTo(TTL);
                         }
                         else
                         {
-                            assertNull(event.getTtl());
+                            assertThat(event.getTtl()).isNull();
                         }
                     }
                 })
@@ -751,18 +737,17 @@ public class CdcTests
             .withCdcEventChecker((testRows, events) -> {
                 for (CdcEvent event : events)
                 {
-                    assertEquals(CdcEvent.Kind.DELETE, event.getKind());
-                    assertEquals(1, event.getPartitionKeys().size());
-                    assertEquals("pk", event.getPartitionKeys().get(0).columnName);
-                    assertNull(event.getClusteringKeys());
-                    assertNull(event.getStaticColumns());
-                    assertEquals(Arrays.asList("c2", "c3"), // c1 is not updated
-                                 event.getValueColumns().stream()
+                    assertThat(event.getKind()).isEqualTo(CdcEvent.Kind.DELETE);
+                    assertThat(event.getPartitionKeys().size()).isEqualTo(1);
+                    assertThat(event.getPartitionKeys().get(0).columnName).isEqualTo("pk");
+                    assertThat(event.getClusteringKeys()).isNull();
+                    assertThat(event.getStaticColumns()).isNull();
+                    assertThat(event.getValueColumns().stream()
                                       .map(v -> v.columnName)
-                                      .collect(Collectors.toList()));
+                                      .collect(Collectors.toList())).isEqualTo(Arrays.asList("c2", "c3")); // c1 is not updated
                     Value c2 = event.getValueColumns().get(0);
                     assertCqlTypeEquals(type.cqlName(), c2.columnType);
-                    assertNull(event.getTtl());
+                    assertThat(event.getTtl()).isNull();
                 }
             })
             .run());
@@ -784,18 +769,16 @@ public class CdcTests
             .withCdcEventChecker((testRows, events) -> {
                 for (CdcEvent event : events)
                 {
-                    assertEquals(3, event.getPartitionKeys().size());
-                    assertEquals(Arrays.asList("pk1", "pk2", "pk3"),
-                                 event.getPartitionKeys().stream()
+                    assertThat(event.getPartitionKeys().size()).isEqualTo(3);
+                    assertThat(event.getPartitionKeys().stream()
                                       .map(v -> v.columnName)
-                                      .collect(Collectors.toList()));
-                    assertNull(event.getClusteringKeys());
-                    assertNull(event.getStaticColumns());
-                    assertEquals(Arrays.asList("c1", "c2"),
-                                 event.getValueColumns().stream()
+                                      .collect(Collectors.toList())).isEqualTo(Arrays.asList("pk1", "pk2", "pk3"));
+                    assertThat(event.getClusteringKeys()).isNull();
+                    assertThat(event.getStaticColumns()).isNull();
+                    assertThat(event.getValueColumns().stream()
                                       .map(v -> v.columnName)
-                                      .collect(Collectors.toList()));
-                    assertNull(event.getTtl());
+                                      .collect(Collectors.toList())).isEqualTo(Arrays.asList("c1", "c2"));
+                    assertThat(event.getTtl()).isNull();
                 }
             })
             .run());
@@ -831,21 +814,20 @@ public class CdcTests
                     int halfway = events.size() / 2;
                     for (CdcEvent event : events)
                     {
-                        assertEquals(1, event.getPartitionKeys().size());
-                        assertEquals("pk", event.getPartitionKeys().get(0).columnName);
-                        assertNull(event.getClusteringKeys());
-                        assertNull(event.getStaticColumns());
-                        assertEquals(Arrays.asList("c1", "c2"),
-                                     event.getValueColumns().stream()
+                        assertThat(event.getPartitionKeys().size()).isEqualTo(1);
+                        assertThat(event.getPartitionKeys().get(0).columnName).isEqualTo("pk");
+                        assertThat(event.getClusteringKeys()).isNull();
+                        assertThat(event.getStaticColumns()).isNull();
+                        assertThat(event.getValueColumns().stream()
                                           .map(v -> v.columnName)
-                                          .collect(Collectors.toList()));
+                                          .collect(Collectors.toList())).isEqualTo(Arrays.asList("c1", "c2"));
                         ByteBuffer c1Bb = event.getValueColumns().get(0).getValue();
                         int i = (Integer) BRIDGE.aInt().deserializeToJavaType(c1Bb);
                         CdcEvent.Kind expectedKind = i >= halfway
                                                      ? CdcEvent.Kind.UPDATE
                                                      : CdcEvent.Kind.INSERT;
-                        assertEquals(expectedKind, event.getKind());
-                        assertEquals(TTL, event.getTtl().ttlInSec);
+                        assertThat(event.getKind()).isEqualTo(expectedKind);
+                        assertThat(event.getTtl().ttlInSec).isEqualTo(TTL);
                     }
                 })
                 .run();
@@ -890,7 +872,7 @@ public class CdcTests
                     }
                 })
                 .withCdcEventChecker((testRows, events) -> {
-                    assertEquals(testRows.size() * 2, events.size(), "Each PK should get 2 mutations");
+                    assertThat(events.size()).as("Each PK should get 2 mutations").isEqualTo(testRows.size() * 2);
                     long ts = -1L;
                     int partitions = testRows.size();
                     int i = 0;
@@ -904,12 +886,12 @@ public class CdcTests
                         {
                             long lastTs = ts;
                             ts = event.getTimestamp(TimeUnit.MICROSECONDS);
-                            assertTrue(lastTs < ts, "Writetime should be monotonic increasing");
+                            assertThat(lastTs < ts).as("Writetime should be monotonic increasing").isTrue();
                         }
                         if (i >= partitions) // the rows in the second batch has ttl specified.
                         {
-                            assertNotNull(event.getTtl());
-                            assertEquals(TTL, event.getTtl().ttlInSec);
+                            assertThat(event.getTtl()).isNotNull();
+                            assertThat(event.getTtl().ttlInSec).isEqualTo(TTL);
                         }
                         i++;
                     }

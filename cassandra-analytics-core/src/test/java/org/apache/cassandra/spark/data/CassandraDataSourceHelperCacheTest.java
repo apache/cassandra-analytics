@@ -37,10 +37,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.secrets.SslConfig;
 
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests the cache in {@link CassandraDataSourceHelper}
@@ -69,21 +66,21 @@ public class CassandraDataSourceHelperCacheTest
         Cache<Map<String, String>, CassandraDataLayer> cassandraDataLayerCache = CassandraDataSourceHelper.getCassandraDataLayerCache();
         CassandraDataLayer dataLayer = getCassandraDataLayer(cassandraDataLayerCache, options, options);
 
-        assertNotNull(dataLayer);
+        assertThat(dataLayer).isNotNull();
 
         // Advance ticker 1 minute
         cacheTicker.advance(1, TimeUnit.MINUTES);
 
         // Should get the same instance
         CassandraDataLayer dataLayer1 = getCassandraDataLayer(cassandraDataLayerCache, options, options);
-        assertSame(dataLayer, dataLayer1);
+        assertThat(dataLayer1).isSameAs(dataLayer);
 
         // Advance ticker 1 hour
         cacheTicker.advance(1, TimeUnit.HOURS);
 
         // Should still get the same instance
         CassandraDataLayer dataLayer2 = getCassandraDataLayer(cassandraDataLayerCache, options, options);
-        assertSame(dataLayer, dataLayer2);
+        assertThat(dataLayer2).isSameAs(dataLayer);
 
         // Advance ticker 10 hours and 58 minutes and 59 seconds
         cacheTicker.advance(10, TimeUnit.HOURS);
@@ -92,14 +89,14 @@ public class CassandraDataSourceHelperCacheTest
 
         // Should still get the same instance
         CassandraDataLayer dataLayer3 = getCassandraDataLayer(cassandraDataLayerCache, options, options);
-        assertSame(dataLayer, dataLayer3);
+        assertThat(dataLayer3).isSameAs(dataLayer);
 
         // Advance ticker for 1 second
         cacheTicker.advance(1, TimeUnit.SECONDS);
 
         // Should get a different instance
         CassandraDataLayer dataLayer4 = getCassandraDataLayer(cassandraDataLayerCache, options, options);
-        assertNotSame(dataLayer, dataLayer4);
+        assertThat(dataLayer4).isNotSameAs(dataLayer);
     }
 
     @Test
@@ -134,16 +131,16 @@ public class CassandraDataSourceHelperCacheTest
         }
 
         pool.shutdown();
-        assertTrue(pool.awaitTermination(1, TimeUnit.MINUTES));
+        assertThat(pool.awaitTermination(1, TimeUnit.MINUTES)).isTrue();
 
         for (int thread = 1; thread < threads; thread++)
         {
-            assertSame(cassandraDataLayerArray[0], cassandraDataLayerArray[thread]);
+            assertThat(cassandraDataLayerArray[thread]).isSameAs(cassandraDataLayerArray[0]);
         }
 
         // Advance ticker for 12 hours
         cacheTicker.advance(12, TimeUnit.HOURS);
-        assertNotSame(cassandraDataLayerArray[0], getCassandraDataLayer(cassandraDataLayerCache, options, options));
+        assertThat(getCassandraDataLayer(cassandraDataLayerCache, options, options)).isNotSameAs(cassandraDataLayerArray[0]);
     }
 
     private CassandraDataLayer getCassandraDataLayer(Cache<Map<String, String>, CassandraDataLayer> cassandraDataLayerCache,

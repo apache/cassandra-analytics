@@ -31,10 +31,8 @@ import static org.apache.cassandra.secrets.SslConfig.KEYSTORE_PATH;
 import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_BASE64_ENCODED;
 import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_PASSWORD;
 import static org.apache.cassandra.secrets.SslConfig.TRUSTSTORE_PATH;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Unit tests for the {@link SslConfig} class
@@ -44,7 +42,7 @@ public class SslConfigTest
     @Test
     public void testEmptyConfiguration()
     {
-        assertNull(SslConfig.create(Collections.emptyMap()));
+        assertThat(SslConfig.create(Collections.emptyMap())).isNull();
     }
 
     @Test
@@ -60,8 +58,8 @@ public class SslConfigTest
         }
         catch (IllegalArgumentException exception)
         {
-            assertEquals("Both 'KEYSTORE_PATH' and 'KEYSTORE_BASE64_ENCODED' options were provided. "
-                       + "Only one of the options can be provided", exception.getMessage());
+            assertThat(exception.getMessage()).isEqualTo("Both 'KEYSTORE_PATH' and 'KEYSTORE_BASE64_ENCODED' options were provided. "
+                                                         + "Only one of the options can be provided");
         }
     }
 
@@ -77,8 +75,8 @@ public class SslConfigTest
         }
         catch (IllegalArgumentException exception)
         {
-            assertEquals("The 'KEYSTORE_PASSWORD' option must be provided when either the 'KEYSTORE_PATH'"
-                       + " or 'KEYSTORE_BASE64_ENCODED' options are provided", exception.getMessage());
+            assertThat(exception.getMessage()).isEqualTo("The 'KEYSTORE_PASSWORD' option must be provided when either the 'KEYSTORE_PATH'"
+                                                         + " or 'KEYSTORE_BASE64_ENCODED' options are provided");
         }
     }
 
@@ -94,8 +92,8 @@ public class SslConfigTest
         }
         catch (IllegalArgumentException exception)
         {
-            assertEquals("The 'KEYSTORE_PASSWORD' option must be provided when either the 'KEYSTORE_PATH'"
-                       + " or 'KEYSTORE_BASE64_ENCODED' options are provided", exception.getMessage());
+            assertThat(exception.getMessage()).isEqualTo("The 'KEYSTORE_PASSWORD' option must be provided when either the 'KEYSTORE_PATH'"
+                                                         + " or 'KEYSTORE_BASE64_ENCODED' options are provided");
         }
     }
 
@@ -115,8 +113,8 @@ public class SslConfigTest
         }
         catch (IllegalArgumentException exception)
         {
-            assertEquals("Both 'TRUSTSTORE_PATH' and 'TRUSTSTORE_BASE64_ENCODED' options were provided. "
-                       + "Only one of the options can be provided", exception.getMessage());
+            assertThat(exception.getMessage()).isEqualTo("Both 'TRUSTSTORE_PATH' and 'TRUSTSTORE_BASE64_ENCODED' options were provided. "
+                                                         + "Only one of the options can be provided");
         }
     }
 
@@ -134,8 +132,8 @@ public class SslConfigTest
         }
         catch (IllegalArgumentException exception)
         {
-            assertEquals("The 'TRUSTSTORE_PASSWORD' option must be provided when either the 'TRUSTSTORE_PATH'"
-                       + " or 'TRUSTSTORE_BASE64_ENCODED' options are provided", exception.getMessage());
+            assertThat(exception.getMessage()).isEqualTo("The 'TRUSTSTORE_PASSWORD' option must be provided when either the 'TRUSTSTORE_PATH'"
+                                                         + " or 'TRUSTSTORE_BASE64_ENCODED' options are provided");
         }
     }
 
@@ -153,8 +151,8 @@ public class SslConfigTest
         }
         catch (IllegalArgumentException exception)
         {
-            assertEquals("The 'TRUSTSTORE_PASSWORD' option must be provided when either the 'TRUSTSTORE_PATH'"
-                       + " or 'TRUSTSTORE_BASE64_ENCODED' options are provided", exception.getMessage());
+            assertThat(exception.getMessage()).isEqualTo("The 'TRUSTSTORE_PASSWORD' option must be provided when either the 'TRUSTSTORE_PATH'"
+                                                         + " or 'TRUSTSTORE_BASE64_ENCODED' options are provided");
         }
     }
 
@@ -165,9 +163,9 @@ public class SslConfigTest
         options.put(KEYSTORE_PATH, "/foo");
         options.put(KEYSTORE_PASSWORD, "pass");
         SslConfig config = SslConfig.create(options);
-        assertNotNull(config);
-        assertEquals("/foo", config.keyStorePath());
-        assertEquals("pass", config.keyStorePassword());
+        assertThat(config).isNotNull();
+        assertThat(config.keyStorePath()).isEqualTo("/foo");
+        assertThat(config.keyStorePassword()).isEqualTo("pass");
     }
 
     @Test
@@ -177,9 +175,9 @@ public class SslConfigTest
         options.put(KEYSTORE_BASE64_ENCODED, "AA");
         options.put(KEYSTORE_PASSWORD, "pass");
         SslConfig config = SslConfig.create(options);
-        assertNotNull(config);
-        assertEquals("AA", config.base64EncodedKeyStore());
-        assertEquals("pass", config.keyStorePassword());
+        assertThat(config).isNotNull();
+        assertThat(config.base64EncodedKeyStore()).isEqualTo("AA");
+        assertThat(config.keyStorePassword()).isEqualTo("pass");
     }
 
     @Test
@@ -191,11 +189,11 @@ public class SslConfigTest
         options.put(TRUSTSTORE_PATH, "/bar");
         options.put(TRUSTSTORE_PASSWORD, "passs");
         SslConfig config = SslConfig.create(options);
-        assertNotNull(config);
-        assertEquals("/foo", config.keyStorePath());
-        assertEquals("pass", config.keyStorePassword());
-        assertEquals("/bar", config.trustStorePath());
-        assertEquals("passs", config.trustStorePassword());
+        assertThat(config).isNotNull();
+        assertThat(config.keyStorePath()).isEqualTo("/foo");
+        assertThat(config.keyStorePassword()).isEqualTo("pass");
+        assertThat(config.trustStorePath()).isEqualTo("/bar");
+        assertThat(config.trustStorePassword()).isEqualTo("passs");
     }
 
     @Test
@@ -207,10 +205,10 @@ public class SslConfigTest
         options.put(TRUSTSTORE_BASE64_ENCODED, "AAA");
         options.put(TRUSTSTORE_PASSWORD, "passs");
         SslConfig config = SslConfig.create(options);
-        assertNotNull(config);
-        assertEquals("/foo", config.keyStorePath());
-        assertEquals("pass", config.keyStorePassword());
-        assertEquals("AAA", config.base64EncodedTrustStore());
-        assertEquals("passs", config.trustStorePassword());
+        assertThat(config).isNotNull();
+        assertThat(config.keyStorePath()).isEqualTo("/foo");
+        assertThat(config.keyStorePassword()).isEqualTo("pass");
+        assertThat(config.base64EncodedTrustStore()).isEqualTo("AAA");
+        assertThat(config.trustStorePassword()).isEqualTo("passs");
     }
 }

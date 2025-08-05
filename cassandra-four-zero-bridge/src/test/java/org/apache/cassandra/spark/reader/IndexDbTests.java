@@ -51,10 +51,7 @@ import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.NotNull;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.Generate.constant;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
@@ -106,17 +103,17 @@ public class IndexDbTests
                             writer.write(row, 0, row);
                         }
                     });
-                    assertEquals(1, TestSSTable.countIn(directory.path()));
+                    assertThat(TestSSTable.countIn(directory.path())).isEqualTo(1);
                     Collections.sort(tokens);
 
                     TableMetadata metadata = Schema.instance.getTableMetadata(schema.keyspace, schema.table);
-                    assertNotNull(metadata, "Could not find table metadata");
+                    assertThat(metadata).as("Could not find table metadata").isNotNull();
 
                     Path summaryDb = TestSSTable.firstIn(directory.path(), FileType.SUMMARY);
-                    assertNotNull(summaryDb, "Could not find summary");
+                    assertThat(summaryDb).as("Could not find summary").isNotNull();
 
                     SSTable ssTable = TestSSTable.firstIn(directory.path());
-                    assertNotNull(ssTable, "Could not find SSTable");
+                    assertThat(ssTable).as("Could not find SSTable").isNotNull();
 
                     int rowSize = 39;
                     int sample = 4;
@@ -128,7 +125,7 @@ public class IndexDbTests
                                                            .filter(index -> index > 0 && index % sample == 0)
                                                            .mapToObj(tokens::get)
                                                            .collect(Collectors.toList());
-                    assertEquals((numRows / 4) - 1, sparseList.size());
+                    assertThat(sparseList).hasSize((numRows / 4) - 1);
                     try (DataInputStream in = new DataInputStream(Objects.requireNonNull(ssTable.openPrimaryIndexStream())))
                     {
                         try
@@ -141,7 +138,7 @@ public class IndexDbTests
                                                                            iPartitioner,
                                                                            TokenRange.singleton(token),
                                                                            Stats.DoNothingStats.INSTANCE);
-                                assertEquals(expectedOffset, offset);
+                                assertThat(offset).isEqualTo(expectedOffset);
                                 ReaderUtils.skipRowIndexEntry(in);
                             }
                         }
@@ -187,7 +184,7 @@ public class IndexDbTests
                                                                         iPartitioner,
                                                                         TokenRange.singleton(startRow.token),
                                                                         Stats.DoNothingStats.INSTANCE);
-                        assertEquals(rows[startPos - 1].position, startOffset);
+                        assertThat(rows[startPos - 1].position).isEqualTo(startOffset);
                         ReaderUtils.skipRowIndexEntry(in);
                     }
                     catch (IOException exception)
@@ -212,8 +209,8 @@ public class IndexDbTests
                     {
                         public void readPartitionIndexDb(ByteBuffer key, BigInteger token)
                         {
-                            assertEquals(value.intValue(), key.getInt());
-                            assertEquals(expectedToken, token);
+                            assertThat(key.getInt()).isEqualTo(value.intValue());
+                            assertThat(token).isEqualTo(expectedToken);
                         }
                     });
                 }
@@ -228,14 +225,14 @@ public class IndexDbTests
     @Test
     public void testLessThan()
     {
-        assertTrue(IndexDbUtils.isLessThan(BigInteger.valueOf(4L), TokenRange.openClosed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
-        assertTrue(IndexDbUtils.isLessThan(BigInteger.valueOf(4L), TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
+        assertThat(IndexDbUtils.isLessThan(BigInteger.valueOf(4L), TokenRange.openClosed(BigInteger.valueOf(5L), BigInteger.valueOf(10L)))).isTrue();
+        assertThat(IndexDbUtils.isLessThan(BigInteger.valueOf(4L), TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(10L)))).isTrue();
 
-        assertTrue(IndexDbUtils.isLessThan(BigInteger.valueOf(5L), TokenRange.openClosed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
-        assertFalse(IndexDbUtils.isLessThan(BigInteger.valueOf(5L), TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
+        assertThat(IndexDbUtils.isLessThan(BigInteger.valueOf(5L), TokenRange.openClosed(BigInteger.valueOf(5L), BigInteger.valueOf(10L)))).isTrue();
+        assertThat(IndexDbUtils.isLessThan(BigInteger.valueOf(5L), TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(10L)))).isFalse();
 
-        assertFalse(IndexDbUtils.isLessThan(BigInteger.valueOf(6L), TokenRange.openClosed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
-        assertFalse(IndexDbUtils.isLessThan(BigInteger.valueOf(6L), TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(10L))));
+        assertThat(IndexDbUtils.isLessThan(BigInteger.valueOf(6L), TokenRange.openClosed(BigInteger.valueOf(5L), BigInteger.valueOf(10L)))).isFalse();
+        assertThat(IndexDbUtils.isLessThan(BigInteger.valueOf(6L), TokenRange.closed(BigInteger.valueOf(5L), BigInteger.valueOf(10L)))).isFalse();
     }
 
     private static BigInteger token(IPartitioner iPartitioner, int value)

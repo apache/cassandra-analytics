@@ -28,8 +28,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.spark.utils.RandomUtils;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class CompressionTests
 {
@@ -61,7 +60,7 @@ public class CompressionTests
         ByteBuffer uncompressed = bridge.uncompress(compressed);
         byte[] result = new byte[uncompressed.remaining()];
         uncompressed.get(result);
-        assertEquals(bytes.length, result.length);
-        assertArrayEquals(bytes, result);
+        assertThat(result.length).isEqualTo(bytes.length);
+        assertThat(result).isEqualTo(bytes);
     }
 }

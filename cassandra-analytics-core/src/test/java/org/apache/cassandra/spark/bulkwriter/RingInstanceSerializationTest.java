@@ -26,7 +26,7 @@ import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 
 import static org.apache.cassandra.spark.utils.SerializationUtils.deserialize;
 import static org.apache.cassandra.spark.utils.SerializationUtils.serialize;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class RingInstanceSerializationTest
 {
@@ -53,7 +53,7 @@ public class RingInstanceSerializationTest
 
         byte[] bytes = serialize(ring);
         RingInstance deserialized = deserialize(bytes, RingInstance.class);
-        assertEquals(ring, deserialized);
+        assertThat(deserialized).isEqualTo(ring);
     }
 
     @Test
@@ -73,6 +73,6 @@ public class RingInstanceSerializationTest
 
         byte[] bytes = serialize(ring);
         RingInstance deserialized = deserialize(bytes, RingInstance.class);
-        assertEquals(ring, deserialized);
+        assertThat(deserialized).isEqualTo(ring);
     }
 }

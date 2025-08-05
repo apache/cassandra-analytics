@@ -45,9 +45,7 @@ import org.jetbrains.annotations.Nullable;
 import static org.apache.cassandra.cdc.CdcTests.BRIDGE;
 import static org.apache.cassandra.cdc.CdcTests.CDC_BRIDGE;
 import static org.apache.cassandra.cdc.CdcTests.directory;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class BufferingCommitLogReaderTests
 {
@@ -92,7 +90,7 @@ public class BufferingCommitLogReaderTests
         // read entire commit log and verify correct
         Consumer<Marker> listener = markers::add;
         Set<Long> allRows = readLog(null, keys, firstLog, listener);
-        assertEquals(numRows, allRows.size());
+        assertThat(allRows).hasSize(numRows);
 
         // re-read commit log from each watermark position
         // and verify subset of partitions are read
@@ -100,16 +98,16 @@ public class BufferingCommitLogReaderTests
         allRows.clear();
         List<Marker> allMarkers = new ArrayList<>(markers);
         Marker prevMarker = null;
-        assertFalse(allMarkers.isEmpty());
+        assertThat(allMarkers).isNotEmpty();
         for (Marker marker : allMarkers)
         {
             Set<Long> result = readLog(marker, keys, firstLog, null);
-            assertTrue(result.size() < foundRows);
+            assertThat(result.size()).isLessThan(foundRows);
             foundRows = result.size();
             if (prevMarker != null)
             {
-                assertTrue(prevMarker.compareTo(marker) < 0);
-                assertTrue(prevMarker.position < marker.position);
+                assertThat(prevMarker).isLessThan(marker);
+                assertThat(prevMarker.position).isLessThan(marker.position);
             }
             prevMarker = marker;
 
@@ -117,11 +115,11 @@ public class BufferingCommitLogReaderTests
             {
                 // last marker should return 0 updates
                 // and be at the end of the file
-                assertTrue(result.isEmpty());
+                assertThat(result).isEmpty();
             }
             else
             {
-                assertFalse(result.isEmpty());
+                assertThat(result).isNotEmpty();
             }
         }
     }
@@ -142,9 +140,9 @@ public class BufferingCommitLogReaderTests
             for (PartitionUpdateWrapper update : result.updates())
             {
                 long key = Objects.requireNonNull(update.partitionKey()).getLong();
-                assertFalse(keysRead.contains(key));
+                assertThat(keysRead).doesNotContain(key);
                 keysRead.add(key);
-                assertTrue(keys.contains(key));
+                assertThat(keys).contains(key);
             }
 
             return keysRead;

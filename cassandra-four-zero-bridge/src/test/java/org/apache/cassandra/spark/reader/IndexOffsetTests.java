@@ -45,8 +45,7 @@ import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 import static org.quicktheories.generators.SourceDSL.booleans;
@@ -97,16 +96,16 @@ public class IndexOffsetTests
                             writer.write(index, 0, index);
                         }
                     });
-                    assertEquals(1, TestSSTable.countIn(directory.path()));
+                    assertThat(TestSSTable.countIn(directory.path())).isEqualTo(1);
 
                     TableMetadata metadata = Schema.instance.getTableMetadata(schema.keyspace, schema.table);
-                    assertNotNull(metadata, "Could not find table metadata");
+                    assertThat(metadata).as("Could not find table metadata").isNotNull();
 
                     SSTable ssTable = TestSSTable.firstIn(directory.path());
-                    assertNotNull(ssTable, "Could not find SSTable");
+                    assertThat(ssTable).as("Could not find SSTable").isNotNull();
 
                     Collection<TokenRange> ranges = RANGES.get(partitioner);
-                    assertNotNull(ranges, "Unknown paritioner");
+                    assertThat(ranges).as("Unknown paritioner").isNotNull();
 
                     LOGGER.info("Testing index offsets numKeys={} sparkPartitions={} partitioner={} enableCompression={}",
                                 numKeys, ranges.size(), partitioner.name(), enableCompression);
@@ -150,7 +149,7 @@ public class IndexOffsetTests
                     }
 
                     // Verify we read each key exactly once across all Spark partitions
-                    assertEquals(counts.length, numKeys);
+                    assertThat(counts.length).isEqualTo(numKeys);
                     int index = 0;
                     for (int count : counts)
                     {
@@ -176,8 +175,8 @@ public class IndexOffsetTests
                                                 .getToken()),
                                          partitioner.name());
                         }
-                        assertEquals(1, count, count > 0 ? "Key " + index + " read " + count + " times"
-                                                         : "Key not found: " + index);
+                        assertThat(count).as(count > 0 ? "Key " + index + " read " + count + " times"
+                                                         : "Key not found: " + index).isEqualTo(1);
                         index++;
                     }
 

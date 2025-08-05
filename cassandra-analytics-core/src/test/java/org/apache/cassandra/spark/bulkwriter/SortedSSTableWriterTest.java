@@ -47,7 +47,6 @@ import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class SortedSSTableWriterTest
 {
@@ -104,8 +103,8 @@ public class SortedSSTableWriterTest
         {
             dataFileStream.forEach(dataFilePath -> {
                 dataFilePaths.add(dataFilePath);
-                assertEquals(CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion(),
-                             SSTables.cassandraVersionFromTable(dataFilePath).getMajorVersion());
+                assertThat(SSTables.cassandraVersionFromTable(dataFilePath).getMajorVersion())
+                        .isEqualTo(CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion());
             });
         }
         // no exception should be thrown from both the validate methods

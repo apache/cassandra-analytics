@@ -57,10 +57,7 @@ import org.apache.cassandra.spark.utils.test.TestSchema;
 import static org.apache.cassandra.spark.Tester.DEFAULT_NUM_ROWS;
 import static org.apache.cassandra.spark.utils.ByteBufferUtils.readShortLengthCompositeTypeString;
 import static org.apache.cassandra.spark.utils.RandomUtils.randomAlphanumeric;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
 public class CassandraBridgeUtilTests
@@ -79,7 +76,7 @@ public class CassandraBridgeUtilTests
 
             try
             {
-                assertEquals(0, bridge.lastRepairTime("ks", "tb", TestSSTable.firstIn(testDir)));
+                assertThat(bridge.lastRepairTime("ks", "tb", TestSSTable.firstIn(testDir))).isEqualTo(0);
             }
             catch (IOException e)
             {
@@ -93,10 +90,10 @@ public class CassandraBridgeUtilTests
     {
         runTest((partitioner, bridge, schema, testDir) -> {
             ByteBuffer pk1 = bridge.encodePartitionKey(partitioner, "ks", schema.createStatement, Collections.singletonList("a"));
-            assertEquals("a", ByteBufferUtils.string(pk1));
+            assertThat(ByteBufferUtils.string(pk1)).isEqualTo("a");
             String str1 = randomAlphanumeric();
             ByteBuffer pk2 = bridge.encodePartitionKey(partitioner, "ks", schema.createStatement, Collections.singletonList(str1));
-            assertEquals(str1, ByteBufferUtils.string(pk2));
+            assertThat(ByteBufferUtils.string(pk2)).isEqualTo(str1);
             List<String> keys = Arrays.asList(randomAlphanumeric(), randomAlphanumeric(), randomAlphanumeric());
 
             TestSchema threePkSchema = TestSchema.builder(bridge)
@@ -107,9 +104,9 @@ public class CassandraBridgeUtilTests
                                                  .withColumn("e", bridge.aInt())
                                                  .build();
             ByteBuffer pk3 = bridge.encodePartitionKey(partitioner, "ks", threePkSchema.createStatement, keys);
-            assertEquals(keys.get(0), readShortLengthCompositeTypeString(pk3));
-            assertEquals(keys.get(1), readShortLengthCompositeTypeString(pk3));
-            assertEquals(keys.get(2), readShortLengthCompositeTypeString(pk3));
+            assertThat(readShortLengthCompositeTypeString(pk3)).isEqualTo(keys.get(0));
+            assertThat(readShortLengthCompositeTypeString(pk3)).isEqualTo(keys.get(1));
+            assertThat(readShortLengthCompositeTypeString(pk3)).isEqualTo(keys.get(2));
         });
     }
 
@@ -132,10 +129,10 @@ public class CassandraBridgeUtilTests
                                             .map(partitioner::hash)
                                             .sorted()
                                             .collect(Collectors.toList());
-            assertTrue(TestSSTable.allIn(testDir).isEmpty());
+            assertThat(TestSSTable.allIn(testDir)).isEmpty();
             writeSSTable(partitioner, bridge, schema, testDir,
                          (writer) -> keys.forEach(key -> writer.write(key, randomAlphanumeric(), randomAlphanumeric())));
-            assertEquals(1, TestSSTable.allIn(testDir).size());
+            assertThat(TestSSTable.allIn(testDir)).hasSize(1);
 
             TestSSTable ssTable = (TestSSTable) TestSSTable.firstIn(testDir);
             List<TokenRange> testRanges = Arrays.asList(
@@ -151,19 +148,19 @@ public class CassandraBridgeUtilTests
             for (int j = 0; j < 2; j++) // loop around after deleting Summary.db file to verify we can check using Index.db file
             {
                 SSTableSummary summary = bridge.getSSTableSummary(partitioner, ssTable, 128, 256);
-                assertEquals(sortedTokens.get(0), summary.firstToken);
-                assertEquals(sortedTokens.get(2), summary.lastToken);
+                assertThat(summary.firstToken).isEqualTo(sortedTokens.get(0));
+                assertThat(summary.lastToken).isEqualTo(sortedTokens.get(2));
                 TokenRange sstableRange = TokenRange.closed(summary.firstToken, summary.lastToken);
                 for (BigInteger token : sortedTokens)
                 {
-                    assertTrue(sstableRange.contains(token));
+                    assertThat(sstableRange.contains(token)).isTrue();
                 }
                 List<Boolean> result = bridge.overlaps(ssTable, partitioner, 128, 256, testRanges);
 
-                assertEquals(testRanges.size(), result.size());
+                assertThat(result).hasSize(testRanges.size());
                 for (int i = 0; i < result.size(); i++)
                 {
-                    assertEquals(i < result.size() - 1, result.get(i));
+                    assertThat(result.get(i)).isEqualTo(i < result.size() - 1);
                 }
 
                 // delete Summary.db file and check we can read the Index.db file too
@@ -186,18 +183,18 @@ public class CassandraBridgeUtilTests
                 .map(Collections::singletonList)
                 .collect(Collectors.toList())
             );
-            assertTrue(TestSSTable.allIn(testDir).isEmpty());
+            assertThat(TestSSTable.allIn(testDir)).isEmpty();
             writeSSTable(partitioner, bridge, schema, testDir,
                          (writer) -> keys.forEach(key -> writer.write(key, randomAlphanumeric(), randomAlphanumeric())));
-            assertEquals(1, TestSSTable.allIn(testDir).size());
+            assertThat(TestSSTable.allIn(testDir)).hasSize(1);
 
             TestSSTable ssTable = (TestSSTable) TestSSTable.firstIn(testDir);
 
             // should return all positives for the keys contained in the SSTable
             BloomFilter filter = bridge.openBloomFilter(partitioner, schema.keyspace, schema.table, ssTable);
             List<Boolean> result = buffers.stream().map(filter::mightContain).collect(Collectors.toList());
-            assertEquals(result.size(), buffers.size());
-            assertTrue(result.stream().allMatch(boolValue -> boolValue));
+            assertThat(result).hasSameSizeAs(buffers);
+            assertThat(result.stream().allMatch(boolValue -> boolValue)).isTrue();
 
             // random keys should return some negatives for keys not contained in the SSTable
             List<String> otherKeys = IntStream.range(0, DEFAULT_NUM_ROWS).mapToObj(i -> randomAlphanumeric(keys)).collect(Collectors.toList());
@@ -211,30 +208,30 @@ public class CassandraBridgeUtilTests
             );
             BloomFilter randomBloomFilter = bridge.openBloomFilter(partitioner, schema.keyspace, schema.table, ssTable);
             List<Boolean> randomResult = randomBuffers.stream().map(randomBloomFilter::mightContain).collect(Collectors.toList());
-            assertEquals(randomResult.size(), otherKeys.size());
-            assertTrue(randomResult.stream().anyMatch(boolValue -> !boolValue));
+            assertThat(randomResult).hasSameSizeAs(otherKeys);
+            assertThat(randomResult.stream().anyMatch(boolValue -> !boolValue)).isTrue();
 
             // perform exact contains query to confirm expected keys exist and random keys don't
-            assertTrue(bridge.contains(partitioner, schema.keyspace, schema.table, ssTable, buffers).stream().allMatch(aBoolean -> aBoolean));
-            assertTrue(bridge.contains(partitioner, schema.keyspace, schema.table, ssTable, randomBuffers).stream().noneMatch(aBoolean -> aBoolean));
+            assertThat(bridge.contains(partitioner, schema.keyspace, schema.table, ssTable, buffers).stream().allMatch(aBoolean -> aBoolean)).isTrue();
+            assertThat(bridge.contains(partitioner, schema.keyspace, schema.table, ssTable, randomBuffers).stream().noneMatch(aBoolean -> aBoolean)).isTrue();
             List<ByteBuffer> allKeys = new ArrayList<>();
             allKeys.addAll(buffers);
             allKeys.addAll(randomBuffers);
             List<Boolean> exactResult = bridge.contains(partitioner, schema.keyspace, schema.table, ssTable, allKeys);
-            assertEquals(allKeys.size(), exactResult.size());
+            assertThat(exactResult).hasSameSizeAs(allKeys);
             for (int i = 0; i < exactResult.size(); i++)
             {
                 boolean contains = exactResult.get(i);
-                assertEquals(i < buffers.size(), contains);
+                assertThat(contains).isEqualTo(i < buffers.size());
                 if (filter.doesNotContain(allKeys.get(i)))
                 {
                     // if bloom filter returns true for `doesNotContain` then contains should always be false
-                    assertFalse(contains);
+                    assertThat(contains).isFalse();
                 }
                 if (contains)
                 {
                     // bloom filter should always return true if SSTable contains key
-                    assertTrue(filter.mightContain(allKeys.get(i)));
+                    assertThat(filter.mightContain(allKeys.get(i))).isTrue();
                 }
             }
         });
@@ -262,13 +259,13 @@ public class CassandraBridgeUtilTests
                                            null,
                                            (row) -> actual.put(row.get("a").toString(), row)
             );
-            assertEquals(expected.size(), actual.size());
+            assertThat(actual).hasSameSizeAs(expected);
             for (Map.Entry<String, String> entry : expected.entrySet())
             {
                 Map<String, Object> actualRow = actual.get(entry.getKey());
-                assertNotNull(actualRow);
-                assertEquals(actualRow.get("b"), entry.getValue());
-                assertEquals(actualRow.get("c"), entry.getValue());
+                assertThat(actualRow).isNotNull();
+                assertThat(actualRow.get("b")).isEqualTo(entry.getValue());
+                assertThat(actualRow.get("c")).isEqualTo(entry.getValue());
             }
         }
         );

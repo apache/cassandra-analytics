@@ -64,14 +64,8 @@ import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHAR;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCqlType;
 import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.empty;
-import static org.hamcrest.Matchers.is;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
@@ -123,10 +117,10 @@ class RecordWriterTest
         Set<Integer> s3 = new HashSet<>(Arrays.asList(5, 6, 7));
         Set<Integer> s4 = new HashSet<>(Arrays.asList(5, 6, 7));
         Set<Integer> s5 = new HashSet<>();
-        assertThat(RecordWriter.symmetricDifference(s1, s2), is(new HashSet<>(Arrays.asList(1, 4))));
-        assertThat(RecordWriter.symmetricDifference(s2, s3), is(new HashSet<>(Arrays.asList(2, 3, 4, 5, 6, 7))));
-        assertThat(RecordWriter.symmetricDifference(s3, s4), empty());
-        assertThat(RecordWriter.symmetricDifference(s4, s5), is(s4));
+        assertThat(RecordWriter.symmetricDifference(s1, s2)).containsExactly(1, 4);
+        assertThat(RecordWriter.symmetricDifference(s2, s3)).containsExactly(2, 3, 4, 5, 6, 7);
+        assertThat(RecordWriter.symmetricDifference(s3, s4)).isEmpty();
+        assertThat(RecordWriter.symmetricDifference(s4, s5)).isEqualTo(s4);
     }
 
     @Test
@@ -147,8 +141,9 @@ class RecordWriterTest
 
         when(m.getTokenRangeMapping(false)).thenCallRealMethod().thenReturn(testMapping);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
-        assertThat(ex.getMessage(), containsString("Token range mappings have changed since the task started"));
+        assertThatThrownBy(() -> rw.write(data))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Token range mappings have changed since the task started");
     }
 
     @Test
@@ -167,7 +162,7 @@ class RecordWriterTest
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         rw.write(data);
         Map<CassandraInstance, List<UploadRequest>> uploads = writerContext.getUploads();
-        assertThat(uploads.keySet().size(), is(REPLICA_COUNT));  // Should upload to 3 replicas
+        assertThat(uploads.keySet().size()).isEqualTo(REPLICA_COUNT);  // Should upload to 3 replicas
     }
 
     @Test
@@ -208,12 +203,12 @@ class RecordWriterTest
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         rw.write(data);
         Map<CassandraInstance, List<UploadRequest>> uploads = writerContext.getUploads();
-        assertThat(uploads.keySet().size(), is(REPLICA_COUNT));  // Should upload to 3 replicas
-        assertThat(uploads.values().stream().mapToInt(List::size).sum(), is(REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_SSTABLES));
+        assertThat(uploads.keySet().size()).isEqualTo(REPLICA_COUNT);  // Should upload to 3 replicas
+        assertThat(uploads.values().stream().mapToInt(List::size).sum()).isEqualTo(REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_SSTABLES);
         List<UploadRequest> requests = uploads.values().stream().flatMap(List::stream).collect(Collectors.toList());
         for (UploadRequest ur : requests)
         {
-            assertNotNull(ur.digest);
+            assertThat(ur.digest).isNotNull();
         }
     }
 
@@ -278,17 +273,17 @@ class RecordWriterTest
         rw = new RecordWriter(m, COLUMN_NAMES, () -> tc, SortedSSTableWriter::new);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateDataWithFakeToken(ROWS_COUNT, range);
         List<StreamResult> res = rw.write(data).streamResults();
-        assertEquals(1, res.size());
-        assertNotEquals(overlapRange, res.get(0).tokenRange);
-        assertEquals(range, res.get(0).tokenRange);
+        assertThat(res).hasSize(1);
+        assertThat(res.get(0).tokenRange).isNotEqualTo(overlapRange);
+        assertThat(res.get(0).tokenRange).isEqualTo(range);
         Map<CassandraInstance, List<UploadRequest>> uploads = m.getUploads();
         // Should upload to 3 replicas
-        assertEquals(REPLICA_COUNT, uploads.keySet().size());
-        assertEquals(REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_SSTABLES, uploads.values().stream().mapToInt(List::size).sum());
+        assertThat(uploads.keySet()).hasSize(REPLICA_COUNT);
+        assertThat(uploads.values().stream().mapToInt(List::size).sum()).isEqualTo(REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_SSTABLES);
         List<UploadRequest> requests = uploads.values().stream().flatMap(List::stream).collect(Collectors.toList());
         for (UploadRequest ur : requests)
         {
-            assertNotNull(ur.digest);
+            assertThat(ur.digest).isNotNull();
         }
     }
 
@@ -307,18 +302,18 @@ class RecordWriterTest
         // Generate rows that belong to the first sub-range
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateDataWithFakeToken(ROWS_COUNT, firstSubrange);
         List<StreamResult> res = rw.write(data).streamResults();
-        assertEquals(1, res.size());
-        assertNotEquals(overlapRange, res.get(0).tokenRange);
-        assertEquals(firstSubrange, res.get(0).tokenRange);
+        assertThat(res).hasSize(1);
+        assertThat(res.get(0).tokenRange).isNotEqualTo(overlapRange);
+        assertThat(res.get(0).tokenRange).isEqualTo(firstSubrange);
         Map<CassandraInstance, List<UploadRequest>> uploads = m.getUploads();
         // Should upload to 3 replicas
-        assertEquals(REPLICA_COUNT, uploads.keySet().size());
-        assertEquals(REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_SSTABLES,
-                     uploads.values().stream().mapToInt(List::size).sum());
+        assertThat(uploads.keySet()).hasSize(REPLICA_COUNT);
+        assertThat(uploads.values().stream().mapToInt(List::size).sum())
+                     .isEqualTo(REPLICA_COUNT * FILES_PER_SSTABLE * UPLOADED_SSTABLES);
         List<UploadRequest> requests = uploads.values().stream().flatMap(List::stream).collect(Collectors.toList());
         for (UploadRequest ur : requests)
         {
-            assertNotNull(ur.digest);
+            assertThat(ur.digest).isNotNull();
         }
     }
 
@@ -341,19 +336,19 @@ class RecordWriterTest
         Iterator<Tuple2<DecoratedKey, Object[]>> data = Iterators.concat(firstRangeData, secondRangeData);
         List<StreamResult> res = rw.write(data).streamResults();
         // We expect 2 streams since rows belong to different sub-ranges
-        assertEquals(2, res.size());
-        assertNotEquals(overlapRange, res.get(0).tokenRange);
+        assertThat(res).hasSize(2);
+        assertThat(res.get(0).tokenRange).isNotEqualTo(overlapRange);
         final Map<CassandraInstance, List<UploadRequest>> uploads = m.getUploads();
         // Should upload to 3 replicas
-        assertEquals((REPLICA_COUNT + 1), uploads.keySet().size());
+        assertThat(uploads.keySet()).hasSize(REPLICA_COUNT + 1);
 
         // There are a total of 2 SSTable files - One for each sub-range
         // Although the replica-sets for each file were different they will still be 3 for each subrange
-        assertEquals(REPLICA_COUNT * FILES_PER_SSTABLE * 2, uploads.values().stream().mapToInt(List::size).sum());
+        assertThat(uploads.values().stream().mapToInt(List::size).sum()).isEqualTo(REPLICA_COUNT * FILES_PER_SSTABLE * 2);
         List<UploadRequest> requests = uploads.values().stream().flatMap(List::stream).collect(Collectors.toList());
         for (UploadRequest ur : requests)
         {
-            assertNotNull(ur.digest);
+            assertThat(ur.digest).isNotNull();
         }
     }
 
@@ -365,7 +360,8 @@ class RecordWriterTest
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
         // TODO: Add better error handling with human-readable exception messages in SSTableReader::new
         // That way we can assert on the exception thrown here
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
+        assertThatThrownBy(() -> rw.write(data))
+                .isInstanceOf(RuntimeException.class);
     }
 
     @Test
@@ -374,10 +370,11 @@ class RecordWriterTest
         rw = new RecordWriter(writerContext, COLUMN_NAMES, () -> tc,
                               (wc, path, dp, pid) -> new SortedSSTableWriter(tw, folder, digestAlgorithm, pid));
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, Range.all(), false, false, false);
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
         String expectedErr = "java.lang.IllegalStateException: Received Token " +
                              "5765203080415074583 outside the expected ranges [(-9223372036854775808‥100000]]";
-        assertEquals(expectedErr, ex.getMessage());
+        assertThatThrownBy(() -> rw.write(data))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage(expectedErr);
     }
 
     @Test
@@ -387,8 +384,9 @@ class RecordWriterTest
                               (wc, path, dp, pid) -> new SortedSSTableWriter(tw, folder, digestAlgorithm, pid));
         tw.setAddRowThrows(true);
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
-        RuntimeException ex = assertThrows(RuntimeException.class, () -> rw.write(data));
-        assertEquals("java.lang.RuntimeException: Failed to write because addRow throws", ex.getMessage());
+        assertThatThrownBy(() -> rw.write(data))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("java.lang.RuntimeException: Failed to write because addRow throws");
     }
 
     @Test
@@ -400,12 +398,13 @@ class RecordWriterTest
                               (wc, path, dp, pid) -> new SortedSSTableWriter(tw, folder, digestAlgorithm, pid));
         writerContext.setTimeSkewTooLargeException(new TimeSkewTooLargeException(60, localNow, remoteNow, "test-cluster"));
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData();
-        TimeSkewTooLargeException ex = assertThrows(TimeSkewTooLargeException.class, () -> rw.write(data));
-        assertEquals(ex.getMessage(), "Time skew between Spark and Cassandra is too large. " +
-                                      "allowableSkewInMinutes=60, " +
-                                      "localTime=2024-09-17T20:18:09.530Z, " +
-                                      "remoteCassandraTime=2024-09-17T18:18:09.530Z, " +
-                                      "clusterId=test-cluster");
+        assertThatThrownBy(() -> rw.write(data))
+                .isInstanceOf(TimeSkewTooLargeException.class)
+                .hasMessage("Time skew between Spark and Cassandra is too large. "
+                          + "allowableSkewInMinutes=60, "
+                          + "localTime=2024-09-17T20:18:09.530Z, "
+                          + "remoteCassandraTime=2024-09-17T18:18:09.530Z, "
+                          + "clusterId=test-cluster");
     }
 
     private void validateSuccessfulWrite(MockBulkWriterContext writerContext,
@@ -430,12 +429,12 @@ class RecordWriterTest
 
         uploadsLatch.await(1, TimeUnit.SECONDS);
         Map<CassandraInstance, List<UploadRequest>> uploads = writerContext.getUploads();
-        assertThat(uploads.keySet().size(), is(REPLICA_COUNT));  // Should upload to 3 replicas
-        assertThat(uploads.values().stream().mapToInt(List::size).sum(), is(expectedUploads));
+        assertThat(uploads.keySet().size()).isEqualTo(REPLICA_COUNT);  // Should upload to 3 replicas
+        assertThat(uploads.values().stream().mapToInt(List::size).sum()).isEqualTo(expectedUploads);
         List<UploadRequest> requests = uploads.values().stream().flatMap(List::stream).collect(Collectors.toList());
         for (UploadRequest ur : requests)
         {
-            assertNotNull(ur.digest);
+            assertThat(ur.digest).isNotNull();
         }
     }
 

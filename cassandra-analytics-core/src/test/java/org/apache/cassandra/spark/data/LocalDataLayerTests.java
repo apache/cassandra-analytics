@@ -37,11 +37,7 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.SchemaTests;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class LocalDataLayerTests extends VersionRunner
 {
@@ -59,14 +55,14 @@ public class LocalDataLayerTests extends VersionRunner
                 Stream.of(directory1, directory2, directory3, directory4)
                       .map(directory -> directory.toAbsolutePath().toString())
                       .toArray(String[]::new));
-        assertEquals(version, dataLayer.version());
-        assertEquals(1, dataLayer.partitionCount());
-        assertNotNull(dataLayer.cqlTable());
-        assertTrue(dataLayer.isInPartition(0, BigInteger.ZERO, ByteBuffer.wrap(ByteBufferUtils.EMPTY)));
-        assertEquals(Partitioner.Murmur3Partitioner, dataLayer.partitioner());
+        assertThat(dataLayer.version()).isEqualTo(version);
+        assertThat(dataLayer.partitionCount()).isEqualTo(1);
+        assertThat(dataLayer.cqlTable()).isNotNull();
+        assertThat(dataLayer.isInPartition(0, BigInteger.ZERO, ByteBuffer.wrap(ByteBufferUtils.EMPTY))).isTrue();
+        assertThat(dataLayer.partitioner()).isEqualTo(Partitioner.Murmur3Partitioner);
         SSTablesSupplier ssTables = dataLayer.sstables(0, null, Collections.emptyList());
-        assertNotNull(ssTables);
-        assertTrue(ssTables.openAll((ssTable, isRepairPrimary) -> null).isEmpty());
+        assertThat(ssTables).isNotNull();
+        assertThat(ssTables.openAll((ssTable, isRepairPrimary) -> null).isEmpty()).isTrue();
     }
 
     @ParameterizedTest
@@ -84,12 +80,12 @@ public class LocalDataLayerTests extends VersionRunner
                 "/var/lib/cassandra/data2/data/backup_test/sbr_test/snapshot/snapshotName/",
                 "/var/lib/cassandra/data3/data/backup_test/sbr_test/snapshot/snapshotName/",
                 "/var/lib/cassandra/data4/data/backup_test/sbr_test/snapshot/snapshotName/");
-        assertNotSame(dataLayer1, dataLayer2);
-        assertEquals(dataLayer1, dataLayer1);
-        assertEquals(dataLayer2, dataLayer2);
-        assertNotEquals(null, dataLayer2);
-        assertNotEquals(new ArrayList<>(), dataLayer1);
-        assertEquals(dataLayer1, dataLayer2);
-        assertEquals(dataLayer1.hashCode(), dataLayer2.hashCode());
+        assertThat(dataLayer2).isNotSameAs(dataLayer1);
+        assertThat(dataLayer1).isEqualTo(dataLayer1);
+        assertThat(dataLayer2).isEqualTo(dataLayer2);
+        assertThat(dataLayer2).isNotEqualTo(null);
+        assertThat(dataLayer1).isNotEqualTo(new ArrayList<>());
+        assertThat(dataLayer2).isEqualTo(dataLayer1);
+        assertThat(dataLayer2.hashCode()).isEqualTo(dataLayer1.hashCode());
     }
 }

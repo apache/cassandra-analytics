@@ -41,14 +41,8 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.utils.MapUtils.mapOf;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNotSame;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.quicktheories.QuickTheory.qt;
 
 public class SchemaTests extends VersionRunner
@@ -80,19 +74,19 @@ public class SchemaTests extends VersionRunner
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
         CqlTable table = bridge.buildSchema(SCHEMA, "backup_test", replicationFactor);
         List<CqlField> fields = table.fields();
-        assertNotNull(fields);
-        assertEquals(3, fields.size());
-        assertEquals("account_id", fields.get(0).name());
-        assertEquals("balance", fields.get(1).name());
-        assertEquals("name", fields.get(2).name());
-        assertEquals(SCHEMA, table.createStatement());
-        assertEquals(3, table.replicationFactor().getOptions().get("DC1").intValue());
-        assertEquals(3, table.replicationFactor().getOptions().get("DC2").intValue());
-        assertNull(table.replicationFactor().getOptions().get("DC3"));
-        assertEquals(1, table.numPartitionKeys());
-        assertEquals(0, table.numClusteringKeys());
-        assertEquals(0, table.numStaticColumns());
-        assertEquals(2, table.numValueColumns());
+        assertThat(fields).isNotNull();
+        assertThat(fields).hasSize(3);
+        assertThat(fields.get(0).name()).isEqualTo("account_id");
+        assertThat(fields.get(1).name()).isEqualTo("balance");
+        assertThat(fields.get(2).name()).isEqualTo("name");
+        assertThat(table.createStatement()).isEqualTo(SCHEMA);
+        assertThat(table.replicationFactor().getOptions().get("DC1")).isEqualTo(3);
+        assertThat(table.replicationFactor().getOptions().get("DC2")).isEqualTo(3);
+        assertThat(table.replicationFactor().getOptions().get("DC3")).isNull();
+        assertThat(table.numPartitionKeys()).isEqualTo(1);
+        assertThat(table.numClusteringKeys()).isEqualTo(0);
+        assertThat(table.numStaticColumns()).isEqualTo(0);
+        assertThat(table.numValueColumns()).isEqualTo(2);
     }
 
     @ParameterizedTest
@@ -103,13 +97,13 @@ public class SchemaTests extends VersionRunner
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
         CqlTable table1 = bridge.buildSchema(SCHEMA, "backup_test", replicationFactor);
         CqlTable table2 = bridge.buildSchema(SCHEMA, "backup_test", replicationFactor);
-        assertNotSame(table1, table2);
-        assertNotEquals(null, table2);
-        assertNotEquals(null, table1);
-        assertNotEquals(new ArrayList<>(), table1);
-        assertEquals(table1, table1);
-        assertEquals(table1, table2);
-        assertEquals(table1.hashCode(), table2.hashCode());
+        assertThat(table1).isNotSameAs(table2);
+        assertThat(table2).isNotEqualTo(null);
+        assertThat(table1).isNotEqualTo(null);
+        assertThat(table1).isNotEqualTo(new ArrayList<>());
+        assertThat(table1).isEqualTo(table1);
+        assertThat(table1).isEqualTo(table2);
+        assertThat(table1.hashCode()).isEqualTo(table2.hashCode());
     }
 
     @ParameterizedTest
@@ -120,9 +114,9 @@ public class SchemaTests extends VersionRunner
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
         CqlTable table1 = bridge.buildSchema(SCHEMA, "backup_test", replicationFactor);
         CqlTable table2 = bridge.buildSchema(SCHEMA.replace("sbr_test", "sbr_test2"), "backup_test", replicationFactor);
-        assertNotSame(table1, table2);
-        assertEquals("sbr_test2", table2.table());
-        assertEquals("sbr_test", table1.table());
+        assertThat(table1).isNotSameAs(table2);
+        assertThat(table2.table()).isEqualTo("sbr_test2");
+        assertThat(table1.table()).isEqualTo("sbr_test");
     }
 
     @ParameterizedTest
@@ -130,21 +124,21 @@ public class SchemaTests extends VersionRunner
     public void testHasher(CassandraBridge bridge)
     {
         // Casts to (ByteBuffer) required when compiling with Java 8
-        assertEquals(BigInteger.valueOf(6747049197585865300L),
-                     bridge.hash(Partitioner.Murmur3Partitioner, (ByteBuffer) ByteBuffer.allocate(8).putLong(992393994949L).flip()));
-        assertEquals(BigInteger.valueOf(7071430368280192841L),
-                     bridge.hash(Partitioner.Murmur3Partitioner, (ByteBuffer) ByteBuffer.allocate(4).putInt(999).flip()));
-        assertEquals(new BigInteger("28812675363873787366858706534556752548"),
-                     bridge.hash(Partitioner.RandomPartitioner, (ByteBuffer) ByteBuffer.allocate(8).putLong(34828288292L).flip()));
-        assertEquals(new BigInteger("154860613751552680515987154638148676974"),
-                     bridge.hash(Partitioner.RandomPartitioner, (ByteBuffer) ByteBuffer.allocate(4).putInt(1929239).flip()));
+        assertThat(bridge.hash(Partitioner.Murmur3Partitioner, (ByteBuffer) ByteBuffer.allocate(8).putLong(992393994949L).flip()))
+                .isEqualTo(BigInteger.valueOf(6747049197585865300L));
+        assertThat(bridge.hash(Partitioner.Murmur3Partitioner, (ByteBuffer) ByteBuffer.allocate(4).putInt(999).flip()))
+                .isEqualTo(BigInteger.valueOf(7071430368280192841L));
+        assertThat(bridge.hash(Partitioner.RandomPartitioner, (ByteBuffer) ByteBuffer.allocate(8).putLong(34828288292L).flip()))
+                .isEqualTo(new BigInteger("28812675363873787366858706534556752548"));
+        assertThat(bridge.hash(Partitioner.RandomPartitioner, (ByteBuffer) ByteBuffer.allocate(4).putInt(1929239).flip()))
+                .isEqualTo(new BigInteger("154860613751552680515987154638148676974"));
     }
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
     public void testUUID(CassandraBridge bridge)
     {
-        assertEquals(1, bridge.getTimeUUID().version());
+        assertThat(bridge.getTimeUUID().version()).isEqualTo(1);
     }
 
     @ParameterizedTest
@@ -155,7 +149,7 @@ public class SchemaTests extends VersionRunner
         ReplicationFactor replicationFactor = new ReplicationFactor(
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
         CqlTable table = bridge.buildSchema(createStatement, "backup_test", replicationFactor);
-        assertEquals(CqlField.CqlType.InternalType.Set, table.getField("names").type().internalType());
+        assertThat(table.getField("names").type().internalType()).isEqualTo(CqlField.CqlType.InternalType.Set);
     }
 
     @ParameterizedTest
@@ -195,9 +189,8 @@ public class SchemaTests extends VersionRunner
         String createStatement = "CREATE TABLE backup_test.sbr_test (account_id uuid, transactions counter, PRIMARY KEY(account_id));";
         ReplicationFactor replicationFactor = new ReplicationFactor(
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
-        assertThrows(UnsupportedOperationException.class,
-                     () -> bridge.buildSchema(createStatement, "backup_test", replicationFactor)
-        );
+        assertThatThrownBy(() -> bridge.buildSchema(createStatement, "backup_test", replicationFactor))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @ParameterizedTest
@@ -207,9 +200,8 @@ public class SchemaTests extends VersionRunner
         String createStatement = "CREATE TABLE backup_test.sbr_test (account_id uuid, transactions counter, PRIMARY KEY(account_id));";
         ReplicationFactor replicationFactor = new ReplicationFactor(
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
-        assertThrows(UnsupportedOperationException.class,
-                     () -> bridge.buildSchema(createStatement, "backup_test", replicationFactor)
-        );
+        assertThatThrownBy(() -> bridge.buildSchema(createStatement, "backup_test", replicationFactor))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @ParameterizedTest
@@ -219,10 +211,9 @@ public class SchemaTests extends VersionRunner
         String createStatement = "CREATE TABLE backup_test.sbr_test (account_id uuid, transactions frozen<testudt>, PRIMARY KEY (account_id));";
         ReplicationFactor replicationFactor = new ReplicationFactor(
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
-        assertThrows(UnsupportedOperationException.class,
-                     () -> bridge.buildSchema(createStatement, "backup_test", replicationFactor, Partitioner.Murmur3Partitioner,
-                                              ImmutableSet.of("CREATE TYPE backup_test.testudt(birthday timestamp, count bigint, length counter);"))
-        );
+        assertThatThrownBy(() -> bridge.buildSchema(createStatement, "backup_test", replicationFactor, Partitioner.Murmur3Partitioner,
+                                              ImmutableSet.of("CREATE TYPE backup_test.testudt(birthday timestamp, count bigint, length counter);")))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @ParameterizedTest
@@ -265,17 +256,17 @@ public class SchemaTests extends VersionRunner
         }
 
         Matcher matcher = CassandraTypes.COLLECTION_PATTERN.matcher(string);
-        assertEquals(collection != null && first != null, matcher.matches());
+        assertThat(collection != null && first != null).isEqualTo(matcher.matches());
         if (matcher.matches())
         {
-            assertNotNull(collection);
-            assertNotNull(first);
-            assertEquals(collection, matcher.group(1));
+            assertThat(collection).isNotNull();
+            assertThat(first).isNotNull();
+            assertThat(matcher.group(1)).isEqualTo(collection);
             String[] types = CassandraTypes.splitInnerTypes(matcher.group(2));
-            assertEquals(first, bridge.nativeType(types[0].toUpperCase()));
+            assertThat(bridge.nativeType(types[0].toUpperCase())).isEqualTo(first);
             if (isMap)
             {
-                assertEquals(second, bridge.nativeType(types[1].toUpperCase()));
+                assertThat(bridge.nativeType(types[1].toUpperCase())).isEqualTo(second);
             }
         }
         else
@@ -305,16 +296,16 @@ public class SchemaTests extends VersionRunner
     {
         String pattern = "map<text, frozen<set<bigint>>>";
         CqlField.CqlType type = bridge.parseType(pattern);
-        assertNotNull(type);
-        assertTrue(type instanceof CqlField.CqlMap);
+        assertThat(type).isNotNull();
+        assertThat(type).isInstanceOf(CqlField.CqlMap.class);
         CqlField.CqlMap map = (CqlField.CqlMap) type;
-        assertTrue(map.keyType() instanceof CqlField.NativeType);
-        assertTrue(map.valueType() instanceof CqlField.CqlFrozen);
+        assertThat(map.keyType()).isInstanceOf(CqlField.NativeType.class);
+        assertThat(map.valueType()).isInstanceOf(CqlField.CqlFrozen.class);
         CqlField.NativeType key = (CqlField.NativeType) map.keyType();
-        assertSame(key, bridge.text());
+        assertThat(key).isSameAs(bridge.text());
         CqlField.CqlFrozen value = (CqlField.CqlFrozen) map.valueType();
         CqlField.CqlSet inner = (CqlField.CqlSet) value.inner();
-        assertSame(inner.type(), bridge.bigint());
+        assertThat(inner.type()).isSameAs(bridge.bigint());
     }
 
     @ParameterizedTest
@@ -323,17 +314,17 @@ public class SchemaTests extends VersionRunner
     {
         String pattern = "map<text, frozen<map<bigint, text>>>";
         CqlField.CqlType type = bridge.parseType(pattern);
-        assertNotNull(type);
-        assertTrue(type instanceof CqlField.CqlMap);
+        assertThat(type).isNotNull();
+        assertThat(type).isInstanceOf(CqlField.CqlMap.class);
         CqlField.CqlMap map = (CqlField.CqlMap) type;
-        assertTrue(map.keyType() instanceof CqlField.NativeType);
-        assertTrue(map.valueType() instanceof CqlField.CqlFrozen);
+        assertThat(map.keyType()).isInstanceOf(CqlField.NativeType.class);
+        assertThat(map.valueType()).isInstanceOf(CqlField.CqlFrozen.class);
         CqlField.NativeType key = (CqlField.NativeType) map.keyType();
-        assertSame(key, bridge.text());
+        assertThat(key).isSameAs(bridge.text());
         CqlField.CqlFrozen value = (CqlField.CqlFrozen) map.valueType();
         CqlField.CqlMap inner = (CqlField.CqlMap) value.inner();
-        assertSame(inner.keyType(), bridge.bigint());
-        assertSame(inner.valueType(), bridge.text());
+        assertThat(inner.keyType()).isSameAs(bridge.bigint());
+        assertThat(inner.valueType()).isSameAs(bridge.text());
     }
 
     private void testFrozen(String pattern,
@@ -350,17 +341,17 @@ public class SchemaTests extends VersionRunner
     {
         pattern = second != null ? String.format(pattern, first, second) : String.format(pattern, first);
         CqlField.CqlType type = bridge.parseType(pattern);
-        assertNotNull(type);
-        assertTrue(type instanceof CqlField.CqlFrozen);
+        assertThat(type).isNotNull();
+        assertThat(type).isInstanceOf(CqlField.CqlFrozen.class);
         CqlField.CqlFrozen frozen = (CqlField.CqlFrozen) type;
         CqlField.CqlCollection inner = (CqlField.CqlCollection) frozen.inner();
-        assertNotNull(inner);
-        assertTrue(collectionType.isInstance(inner));
-        assertEquals(first, inner.type());
+        assertThat(inner).isNotNull();
+        assertThat(collectionType.isInstance(inner)).isTrue();
+        assertThat(inner.type()).isEqualTo(first);
         if (second != null)
         {
             CqlField.CqlMap map = (CqlField.CqlMap) inner;
-            assertEquals(second, map.valueType());
+            assertThat(map.valueType()).isEqualTo(second);
         }
     }
 
@@ -386,30 +377,30 @@ public class SchemaTests extends VersionRunner
                                                             + "  weight float,\n"
                                                             + "  height int\n"
                                                             + ");"));
-        assertEquals(1, table.udts().size());
+        assertThat(table.udts()).hasSize(1);
         CqlField.CqlUdt udt = table.udts().stream().findFirst().get();
-        assertEquals(udtName, udt.name());
+        assertThat(udt.name()).isEqualTo(udtName);
         List<CqlField> udtFields = udt.fields();
-        assertEquals(4, udtFields.size());
-        assertEquals(bridge.timestamp(), udtFields.get(0).type());
-        assertEquals(bridge.text(), udtFields.get(1).type());
-        assertEquals(bridge.aFloat(), udtFields.get(2).type());
-        assertEquals(bridge.aInt(), udtFields.get(3).type());
+        assertThat(udtFields).hasSize(4);
+        assertThat(udtFields.get(0).type()).isEqualTo(bridge.timestamp());
+        assertThat(udtFields.get(1).type()).isEqualTo(bridge.text());
+        assertThat(udtFields.get(2).type()).isEqualTo(bridge.aFloat());
+        assertThat(udtFields.get(3).type()).isEqualTo(bridge.aInt());
 
         List<CqlField> fields = table.fields();
-        assertEquals(bridge.uuid(), fields.get(0).type());
-        assertEquals(bridge.bigint(), fields.get(1).type());
-        assertEquals(CqlField.CqlType.InternalType.Frozen, fields.get(2).type().internalType());
-        assertEquals(bridge.text(), fields.get(3).type());
+        assertThat(fields.get(0).type()).isEqualTo(bridge.uuid());
+        assertThat(fields.get(1).type()).isEqualTo(bridge.bigint());
+        assertThat(fields.get(2).type().internalType()).isEqualTo(CqlField.CqlType.InternalType.Frozen);
+        assertThat(fields.get(3).type()).isEqualTo(bridge.text());
 
         CqlField.CqlFrozen frozenField = (CqlField.CqlFrozen) fields.get(2).type();
-        assertEquals(CqlField.CqlType.InternalType.Udt, frozenField.inner().internalType());
+        assertThat(frozenField.inner().internalType()).isEqualTo(CqlField.CqlType.InternalType.Udt);
 
         CqlField.CqlUdt udtField = (CqlField.CqlUdt) frozenField.inner();
-        assertEquals(bridge.timestamp(), udtField.field(0).type());
-        assertEquals(bridge.text(), udtField.field(1).type());
-        assertEquals(bridge.aFloat(), udtField.field(2).type());
-        assertEquals(bridge.aInt(), udtField.field(3).type());
+        assertThat(udtField.field(0).type()).isEqualTo(bridge.timestamp());
+        assertThat(udtField.field(1).type()).isEqualTo(bridge.text());
+        assertThat(udtField.field(2).type()).isEqualTo(bridge.aFloat());
+        assertThat(udtField.field(3).type()).isEqualTo(bridge.aInt());
     }
 
     @ParameterizedTest
@@ -433,19 +424,19 @@ public class SchemaTests extends VersionRunner
                                                             + "  height int\n"
                                                             + ");"));
         List<CqlField> fields = table.fields();
-        assertEquals(bridge.uuid(), fields.get(0).type());
-        assertEquals(bridge.bigint(), fields.get(1).type());
-        assertEquals(CqlField.CqlType.InternalType.Frozen, fields.get(2).type().internalType());
-        assertEquals(bridge.text(), fields.get(3).type());
+        assertThat(fields.get(0).type()).isEqualTo(bridge.uuid());
+        assertThat(fields.get(1).type()).isEqualTo(bridge.bigint());
+        assertThat(fields.get(2).type().internalType()).isEqualTo(CqlField.CqlType.InternalType.Frozen);
+        assertThat(fields.get(3).type()).isEqualTo(bridge.text());
 
         CqlField.CqlMap mapField = (CqlField.CqlMap) ((CqlField.CqlFrozen) fields.get(2).type()).inner();
-        assertEquals(bridge.text(), mapField.keyType());
+        assertThat(mapField.keyType()).isEqualTo(bridge.text());
         CqlField.CqlFrozen valueType = (CqlField.CqlFrozen) mapField.valueType();
         CqlField.CqlUdt udtField = (CqlField.CqlUdt) valueType.inner();
-        assertEquals(bridge.timestamp(), udtField.field(0).type());
-        assertEquals(bridge.text(), udtField.field(1).type());
-        assertEquals(bridge.aFloat(), udtField.field(2).type());
-        assertEquals(bridge.aInt(), udtField.field(3).type());
+        assertThat(udtField.field(0).type()).isEqualTo(bridge.timestamp());
+        assertThat(udtField.field(1).type()).isEqualTo(bridge.text());
+        assertThat(udtField.field(2).type()).isEqualTo(bridge.aFloat());
+        assertThat(udtField.field(3).type()).isEqualTo(bridge.aInt());
     }
 
     @ParameterizedTest
@@ -456,15 +447,15 @@ public class SchemaTests extends VersionRunner
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
         CqlTable table = bridge.buildSchema(SCHEMA, "backup_test", replicationFactor, Partitioner.Murmur3Partitioner,
                                             ImmutableSet.of("CREATE TYPE backup_test.tuple_test (a int, b bigint, c blob, d text)"));
-        assertEquals(1, table.udts().size());
+        assertThat(table.udts()).hasSize(1);
         CqlField.CqlUdt udt = table.udts().stream().findFirst().get();
-        assertEquals("tuple_test", udt.name());
+        assertThat(udt.name()).isEqualTo("tuple_test");
         List<CqlField> fields = udt.fields();
-        assertEquals(4, fields.size());
-        assertEquals(bridge.aInt(), fields.get(0).type());
-        assertEquals(bridge.bigint(), fields.get(1).type());
-        assertEquals(bridge.blob(), fields.get(2).type());
-        assertEquals(bridge.text(), fields.get(3).type());
+        assertThat(fields).hasSize(4);
+        assertThat(fields.get(0).type()).isEqualTo(bridge.aInt());
+        assertThat(fields.get(1).type()).isEqualTo(bridge.bigint());
+        assertThat(fields.get(2).type()).isEqualTo(bridge.blob());
+        assertThat(fields.get(3).type()).isEqualTo(bridge.text());
     }
 
     @ParameterizedTest
@@ -480,17 +471,17 @@ public class SchemaTests extends VersionRunner
                                             + "    name text\n"
                                             + ")", "tuple_keyspace", replicationFactor, Partitioner.Murmur3Partitioner);
         List<CqlField> fields = table.fields();
-        assertEquals(4, fields.size());
-        assertEquals(bridge.uuid(), fields.get(0).type());
-        assertEquals(bridge.bigint(), fields.get(1).type());
-        assertEquals(bridge.text(), fields.get(3).type());
+        assertThat(fields).hasSize(4);
+        assertThat(fields.get(0).type()).isEqualTo(bridge.uuid());
+        assertThat(fields.get(1).type()).isEqualTo(bridge.bigint());
+        assertThat(fields.get(3).type()).isEqualTo(bridge.text());
 
-        assertEquals(CqlField.CqlType.InternalType.Frozen, fields.get(2).type().internalType());
+        assertThat(fields.get(2).type().internalType()).isEqualTo(CqlField.CqlType.InternalType.Frozen);
         CqlField.CqlTuple tuple = (CqlField.CqlTuple) ((CqlField.CqlFrozen) fields.get(2).type()).inner();
-        assertEquals(bridge.bigint(), tuple.type(0));
-        assertEquals(bridge.text(), tuple.type(1));
-        assertEquals(bridge.aFloat(), tuple.type(2));
-        assertEquals(bridge.bool(), tuple.type(3));
+        assertThat(tuple.type(0)).isEqualTo(bridge.bigint());
+        assertThat(tuple.type(1)).isEqualTo(bridge.text());
+        assertThat(tuple.type(2)).isEqualTo(bridge.aFloat());
+        assertThat(tuple.type(3)).isEqualTo(bridge.bool());
     }
 
     @ParameterizedTest
@@ -538,57 +529,57 @@ public class SchemaTests extends VersionRunner
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
         CqlTable table = bridge.buildSchema(tableStr, keyspace, replicationFactor, Partitioner.Murmur3Partitioner,
                                             ImmutableSet.of(type1, type2, type3, type4));
-        assertEquals("books_ltd_v3", table.table());
-        assertEquals(keyspace, table.keyspace());
-        assertEquals(7, table.fields().size());
-        assertEquals(1, table.partitionKeys().size());
-        assertEquals(1, table.clusteringKeys().size());
+        assertThat(table.table()).isEqualTo("books_ltd_v3");
+        assertThat(table.keyspace()).isEqualTo(keyspace);
+        assertThat(table.fields()).hasSize(7);
+        assertThat(table.partitionKeys()).hasSize(1);
+        assertThat(table.clusteringKeys()).hasSize(1);
 
         List<CqlField> fields = table.fields();
-        assertEquals(7, fields.size());
-        assertEquals("consumerId", fields.get(0).name());
-        assertEquals(bridge.text(), fields.get(0).type());
+        assertThat(fields).hasSize(7);
+        assertThat(fields.get(0).name()).isEqualTo("consumerId");
+        assertThat(fields.get(0).type()).isEqualTo(bridge.text());
         CqlField clusteringKey = fields.get(1);
-        assertEquals("dimensions", clusteringKey.name());
-        assertEquals(CqlField.CqlType.InternalType.Frozen, clusteringKey.type().internalType());
+        assertThat(clusteringKey.name()).isEqualTo("dimensions");
+        assertThat(clusteringKey.type().internalType()).isEqualTo(CqlField.CqlType.InternalType.Frozen);
 
         CqlField.CqlUdt clusteringUDT = (CqlField.CqlUdt) ((CqlField.CqlFrozen) clusteringKey.type()).inner();
-        assertEquals("first_last_seen_dimensions_v1", clusteringUDT.name());
-        assertEquals(keyspace, clusteringUDT.keyspace());
-        assertEquals("osMajorVersion", clusteringUDT.field(0).name());
-        assertEquals(bridge.text(), clusteringUDT.field(0).type());
-        assertEquals("storeFrontId", clusteringUDT.field(1).name());
-        assertEquals(bridge.text(), clusteringUDT.field(1).type());
-        assertEquals("platform", clusteringUDT.field(2).name());
-        assertEquals(bridge.text(), clusteringUDT.field(2).type());
-        assertEquals("time_range", clusteringUDT.field(3).name());
-        assertEquals(bridge.text(), clusteringUDT.field(3).type());
+        assertThat(clusteringUDT.name()).isEqualTo("first_last_seen_dimensions_v1");
+        assertThat(clusteringUDT.keyspace()).isEqualTo(keyspace);
+        assertThat(clusteringUDT.field(0).name()).isEqualTo("osMajorVersion");
+        assertThat(clusteringUDT.field(0).type()).isEqualTo(bridge.text());
+        assertThat(clusteringUDT.field(1).name()).isEqualTo("storeFrontId");
+        assertThat(clusteringUDT.field(1).type()).isEqualTo(bridge.text());
+        assertThat(clusteringUDT.field(2).name()).isEqualTo("platform");
+        assertThat(clusteringUDT.field(2).type()).isEqualTo(bridge.text());
+        assertThat(clusteringUDT.field(3).name()).isEqualTo("time_range");
+        assertThat(clusteringUDT.field(3).type()).isEqualTo(bridge.text());
 
         CqlField.CqlUdt fieldsUDT = (CqlField.CqlUdt) ((CqlField.CqlFrozen) fields.get(2).type()).inner();
-        assertEquals("first_last_seen_fields_v1", fieldsUDT.name());
-        assertEquals("firstSeen", fieldsUDT.field(0).name());
-        assertEquals("field_with_timestamp", ((CqlField.CqlFrozen) fieldsUDT.field(0).type()).inner().name());
-        assertEquals("lastSeen", fieldsUDT.field(1).name());
-        assertEquals("field_with_timestamp", ((CqlField.CqlFrozen) fieldsUDT.field(1).type()).inner().name());
-        assertEquals("firstTransaction", fieldsUDT.field(2).name());
-        assertEquals("field_with_timestamp", ((CqlField.CqlFrozen) fieldsUDT.field(2).type()).inner().name());
-        assertEquals("lastTransaction", fieldsUDT.field(3).name());
-        assertEquals("field_with_timestamp", ((CqlField.CqlFrozen) fieldsUDT.field(3).type()).inner().name());
-        assertEquals("firstListening", fieldsUDT.field(4).name());
-        assertEquals("field_with_timestamp", ((CqlField.CqlFrozen) fieldsUDT.field(4).type()).inner().name());
-        assertEquals("lastListening", fieldsUDT.field(5).name());
-        assertEquals("field_with_timestamp", ((CqlField.CqlFrozen) fieldsUDT.field(5).type()).inner().name());
-        assertEquals("firstReading", fieldsUDT.field(6).name());
-        assertEquals("field_with_timestamp", ((CqlField.CqlFrozen) fieldsUDT.field(6).type()).inner().name());
-        assertEquals("lastReading", fieldsUDT.field(7).name());
-        assertEquals("field_with_timestamp", ((CqlField.CqlFrozen) fieldsUDT.field(7).type()).inner().name());
-        assertEquals("outputEvent", fieldsUDT.field(8).name());
-        assertEquals(bridge.text(), fieldsUDT.field(8).type());
-        assertEquals("eventHistory", fieldsUDT.field(9).name());
-        assertEquals(bridge.bigint(),
-                     ((CqlField.CqlMap) ((CqlField.CqlFrozen) fieldsUDT.field(9).type()).inner()).keyType());
-        assertEquals(CqlField.CqlType.InternalType.Frozen,
-                     ((CqlField.CqlMap) ((CqlField.CqlFrozen) fieldsUDT.field(9).type()).inner()).valueType().internalType());
+        assertThat(fieldsUDT.name()).isEqualTo("first_last_seen_fields_v1");
+        assertThat(fieldsUDT.field(0).name()).isEqualTo("firstSeen");
+        assertThat(((CqlField.CqlFrozen) fieldsUDT.field(0).type()).inner().name()).isEqualTo("field_with_timestamp");
+        assertThat(fieldsUDT.field(1).name()).isEqualTo("lastSeen");
+        assertThat(((CqlField.CqlFrozen) fieldsUDT.field(1).type()).inner().name()).isEqualTo("field_with_timestamp");
+        assertThat(fieldsUDT.field(2).name()).isEqualTo("firstTransaction");
+        assertThat(((CqlField.CqlFrozen) fieldsUDT.field(2).type()).inner().name()).isEqualTo("field_with_timestamp");
+        assertThat(fieldsUDT.field(3).name()).isEqualTo("lastTransaction");
+        assertThat(((CqlField.CqlFrozen) fieldsUDT.field(3).type()).inner().name()).isEqualTo("field_with_timestamp");
+        assertThat(fieldsUDT.field(4).name()).isEqualTo("firstListening");
+        assertThat(((CqlField.CqlFrozen) fieldsUDT.field(4).type()).inner().name()).isEqualTo("field_with_timestamp");
+        assertThat(fieldsUDT.field(5).name()).isEqualTo("lastListening");
+        assertThat(((CqlField.CqlFrozen) fieldsUDT.field(5).type()).inner().name()).isEqualTo("field_with_timestamp");
+        assertThat(fieldsUDT.field(6).name()).isEqualTo("firstReading");
+        assertThat(((CqlField.CqlFrozen) fieldsUDT.field(6).type()).inner().name()).isEqualTo("field_with_timestamp");
+        assertThat(fieldsUDT.field(7).name()).isEqualTo("lastReading");
+        assertThat(((CqlField.CqlFrozen) fieldsUDT.field(7).type()).inner().name()).isEqualTo("field_with_timestamp");
+        assertThat(fieldsUDT.field(8).name()).isEqualTo("outputEvent");
+        assertThat(fieldsUDT.field(8).type()).isEqualTo(bridge.text());
+        assertThat(fieldsUDT.field(9).name()).isEqualTo("eventHistory");
+        assertThat(((CqlField.CqlMap) ((CqlField.CqlFrozen) fieldsUDT.field(9).type()).inner()).keyType())
+                .isEqualTo(bridge.bigint());
+        assertThat(((CqlField.CqlMap) ((CqlField.CqlFrozen) fieldsUDT.field(9).type()).inner()).valueType().internalType())
+                .isEqualTo(CqlField.CqlType.InternalType.Frozen);
     }
 
     @ParameterizedTest
@@ -606,7 +597,7 @@ public class SchemaTests extends VersionRunner
                                             ImmutableSet.of("CREATE TYPE " + keyspace + ".a_udt (col1 bigint, col2 text, col3 frozen<map<uuid, b_udt>>);",
                                                             "CREATE TYPE " + keyspace + ".b_udt (col1 timeuuid, col2 text, col3 frozen<set<c_udt>>);",
                                                             "CREATE TYPE " + keyspace + ".c_udt (col1 float, col2 uuid, col3 int);"));
-        assertEquals(3, table.udts().size());
+        assertThat(table.udts()).hasSize(3);
     }
 
     @ParameterizedTest
@@ -616,11 +607,11 @@ public class SchemaTests extends VersionRunner
         ReplicationFactor rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, mapOf("DC1", 3));
         String createStatement1 = "CREATE TABLE test_ks.test_tbl (a int PRIMARY KEY, b int);";
         CqlTable schema1 = bridge.buildSchema(createStatement1, "test_ks", rf, Partitioner.Murmur3Partitioner);
-        assertEquals(2, schema1.fields().size());
+        assertThat(schema1.fields()).hasSize(2);
 
         String createStatement2 = "CREATE TABLE test_ks.test_tbl (a int PRIMARY KEY, b int, c int);";
         CqlTable schema2 = bridge.buildSchema(createStatement2, "test_ks", rf, Partitioner.Murmur3Partitioner);
-        assertEquals(3, schema2.fields().size());
-        assertNotEquals(schema1, schema2);
+        assertThat(schema2.fields()).hasSize(3);
+        assertThat(schema1).isNotEqualTo(schema2);
     }
 }

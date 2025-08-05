@@ -49,7 +49,7 @@ import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
 import static org.apache.cassandra.spark.TestUtils.countSSTables;
 import static org.apache.cassandra.spark.TestUtils.getFileType;
 import static org.apache.cassandra.spark.TestUtils.runTest;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
 public class SSTableReaderTests
@@ -90,7 +90,7 @@ public class SSTableReaderTests
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             });
             int t1 = navigatableTimeProvider.nowInSeconds();
-            assertEquals(1, countSSTables(dir));
+            assertThat(countSSTables(dir)).isEqualTo(1);
 
             // open CompactionStreamScanner over SSTables
             CqlTable table = schema.buildTable();
@@ -125,18 +125,18 @@ public class SSTableReaderTests
                     {
                         continue;
                     }
-                    assertEquals("b", colName);
+                    assertThat(colName).isEqualTo("b");
 
                     // extract value column
                     ByteBuffer b = rowData.getValue();
                     Set<?> set = new HashSet<>(Arrays.asList(((GenericArrayData) bridge.set(bridge.aInt())
                                                                                        .deserializeToType(getSparkSql(bridge), b))
                                                              .array()));
-                    assertEquals(expectedColValue, set);
+                    assertThat(set).isEqualTo(expectedColValue);
                     count++;
                 }
             }
-            assertEquals(expectedValues, count);
+            assertThat(count).isEqualTo(expectedValues);
         };
 
         qt()

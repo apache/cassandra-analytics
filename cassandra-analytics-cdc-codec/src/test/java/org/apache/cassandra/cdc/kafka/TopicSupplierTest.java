@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.msg.CdcEventBuilder;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class TopicSupplierTest
 {
@@ -33,14 +33,32 @@ public class TopicSupplierTest
     {
         CdcEvent event1 = CdcEventBuilder.of(CdcEvent.Kind.INSERT, "ks", "tb").build();
         CdcEvent event2 = CdcEventBuilder.of(CdcEvent.Kind.UPDATE, "test_ks", "test_tb").build();
-        assertEquals("org.apple.amp.topicName", TopicSupplier.staticTopicSupplier("org.apple.amp.topicName").topic(event1));
-        assertEquals("org.apple.amp.itms5.topicName", TopicSupplier.staticTopicSupplier("org.apple.amp.itms5.topicName").topic(event1));
-        assertEquals("org.apple.amp.itms5.ks", TopicSupplier.keyspaceSupplier("org.apple.amp.itms5.%s").topic(event1));
-        assertEquals("org.apple.amp.itms5.test_ks", TopicSupplier.keyspaceSupplier("org.apple.amp.itms5.%s").topic(event2));
-        assertEquals("org.apple.amp.itms5.ks.tb", TopicSupplier.keyspaceTableSupplier("org.apple.amp.itms5.%s.%s").topic(event1));
-        assertEquals("org.apple.amp.itms5.test_ks.test_tb", TopicSupplier.keyspaceTableSupplier("org.apple.amp.itms5.%s.%s").topic(event2));
-        assertEquals("org.apple.amp.itms5.tb", TopicSupplier.tableSupplier("org.apple.amp.itms5.%s").topic(event1));
-        assertEquals("org.apple.amp.itms5.test_tb", TopicSupplier.tableSupplier("org.apple.amp.itms5.%s").topic(event2));
-        assertEquals("org.apple.amp.itms5.test_tb", TopicSupplier.mapSupplier("{\"ks.tb\": \"org.apple.amp.itms5.test_tb\"}").topic(event1));
+        assertThat(TopicSupplier.staticTopicSupplier("org.apache.cassandra.topicName").topic(event1))
+        .as("Static topic supplier should return configured topic name")
+        .isEqualTo("org.apache.cassandra.topicName");
+        assertThat(TopicSupplier.staticTopicSupplier("org.apache.cassandra.analytics.topicName").topic(event1))
+        .as("Static topic supplier should return configured topic name with prefix")
+        .isEqualTo("org.apache.cassandra.analytics.topicName");
+        assertThat(TopicSupplier.keyspaceSupplier("org.apache.cassandra.analytics.%s").topic(event1))
+        .as("Keyspace supplier should format topic with keyspace")
+        .isEqualTo("org.apache.cassandra.analytics.ks");
+        assertThat(TopicSupplier.keyspaceSupplier("org.apache.cassandra.analytics.%s").topic(event2))
+        .as("Keyspace supplier should format topic with different keyspace")
+        .isEqualTo("org.apache.cassandra.analytics.test_ks");
+        assertThat(TopicSupplier.keyspaceTableSupplier("org.apache.cassandra.analytics.%s.%s").topic(event1))
+        .as("Keyspace-table supplier should format topic with keyspace and table")
+        .isEqualTo("org.apache.cassandra.analytics.ks.tb");
+        assertThat(TopicSupplier.keyspaceTableSupplier("org.apache.cassandra.analytics.%s.%s").topic(event2))
+        .as("Keyspace-table supplier should format topic with different keyspace and table")
+        .isEqualTo("org.apache.cassandra.analytics.test_ks.test_tb");
+        assertThat(TopicSupplier.tableSupplier("org.apache.cassandra.analytics.%s").topic(event1))
+        .as("Table supplier should format topic with table name")
+        .isEqualTo("org.apache.cassandra.analytics.tb");
+        assertThat(TopicSupplier.tableSupplier("org.apache.cassandra.analytics.%s").topic(event2))
+        .as("Table supplier should format topic with different table name")
+        .isEqualTo("org.apache.cassandra.analytics.test_tb");
+        assertThat(TopicSupplier.mapSupplier("{\"ks.tb\": \"org.apache.cassandra.analytics.test_tb\"}").topic(event1))
+        .as("Map supplier should return mapped topic name")
+        .isEqualTo("org.apache.cassandra.analytics.test_tb");
     }
 }

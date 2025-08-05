@@ -35,9 +35,8 @@ import org.apache.cassandra.cdc.msg.Value;
 import org.apache.cassandra.spark.utils.TableIdentifier;
 
 import static org.apache.cassandra.spark.utils.ArrayUtils.listOf;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class KafkaPublisherTest
 {
@@ -50,12 +49,12 @@ public class KafkaPublisherTest
         CdcEvent event2 = makeEvent("str", 123, 456L,
                                         1.2, "bytes".getBytes(),
                                     listOf(1, 2), 1);
-        assertEquals(EventHasher.MURMUR2.hashEvent(event1),
-                     EventHasher.MURMUR2.hashEvent(event2),
-                     "Hash should be the same from rows with the same partition key values");
-        assertEquals(EventHasher.MURMUR2.hashEvent(event1),
-                     EventHasher.MURMUR2.hashEvent(event1),
-                     "Hash should be the same from the same row");
+        assertThat(EventHasher.MURMUR2.hashEvent(event2))
+                .isEqualTo(EventHasher.MURMUR2.hashEvent(event1))
+                .as("Hash should be the same from rows with the same partition key values");
+        assertThat(EventHasher.MURMUR2.hashEvent(event1))
+                .isEqualTo(EventHasher.MURMUR2.hashEvent(event1))
+                .as("Hash should be the same from the same row");
     }
 
     @Test
@@ -67,26 +66,26 @@ public class KafkaPublisherTest
         CdcEvent event2 = makeEvent("bar", 123, 456L,
                                         1.2, "much long bytes".getBytes(),
                                     Arrays.asList(1, 2), 1);
-        assertNotEquals("Hash should be different from different rows",
-                        EventHasher.MURMUR2.hashEvent(event1),
-                        EventHasher.MURMUR2.hashEvent(event2));
+        assertThat(EventHasher.MURMUR2.hashEvent(event2))
+                .isNotEqualTo(EventHasher.MURMUR2.hashEvent(event1))
+                .as("Hash should be different from different rows");
     }
 
     @Test
     public void extractTableId()
     {
         TableIdentifier id = KafkaPublisher.extractTableIdFromPublishKey("ks:table:1234");
-        assertEquals("ks", id.keyspace());
-        assertEquals("table", id.table());
+        assertThat(id.keyspace()).isEqualTo("ks");
+        assertThat(id.table()).isEqualTo("table");
     }
 
     @Test
     public void extractTableIdThrows()
     {
-        assertThrows(IllegalArgumentException.class, () -> KafkaPublisher.extractTableIdFromPublishKey(":ks:tbl:123"));
-        assertThrows(IllegalArgumentException.class, () -> KafkaPublisher.extractTableIdFromPublishKey(":tbl:123"));
-        assertThrows(IllegalArgumentException.class, () -> KafkaPublisher.extractTableIdFromPublishKey("ks::123"));
-        assertThrows(IllegalArgumentException.class, () -> KafkaPublisher.extractTableIdFromPublishKey("na"));
+        assertThatThrownBy(() -> KafkaPublisher.extractTableIdFromPublishKey(":ks:tbl:123")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> KafkaPublisher.extractTableIdFromPublishKey(":tbl:123")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> KafkaPublisher.extractTableIdFromPublishKey("ks::123")).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> KafkaPublisher.extractTableIdFromPublishKey("na")).isInstanceOf(IllegalArgumentException.class);
     }
 
     private CdcEvent makeEvent(String primaryKey1Value,

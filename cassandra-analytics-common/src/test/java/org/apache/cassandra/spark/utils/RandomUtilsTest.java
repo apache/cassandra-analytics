@@ -24,9 +24,8 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class RandomUtilsTest
 {
@@ -39,24 +38,24 @@ public class RandomUtilsTest
     {
         for (int i = 0; i < 1000; i++)
         {
-            assertEquals(4, RandomUtils.nextInt(4, 5));
+            assertThat(RandomUtils.nextInt(4, 5)).isEqualTo(4);
         }
 
         for (int i = 0; i < 1000; i++)
         {
             int r = RandomUtils.nextInt(4, 7);
-            assertTrue(r >= 4);
-            assertTrue(r < 7);
+            assertThat(r >= 4).isTrue();
+            assertThat(r < 7).isTrue();
         }
     }
 
     @Test
     public void testNextIntThrows()
     {
-        assertThrows(IllegalArgumentException.class, () -> RandomUtils.nextInt(-1, 5));
-        assertThrows(IllegalArgumentException.class, () -> RandomUtils.nextInt(-5, -2));
-        assertThrows(IllegalArgumentException.class, () -> RandomUtils.nextInt(5, 5));
-        assertThrows(IllegalArgumentException.class, () -> RandomUtils.nextInt(10, 5));
+        assertThatThrownBy(() -> RandomUtils.nextInt(-1, 5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> RandomUtils.nextInt(-5, -2)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> RandomUtils.nextInt(5, 5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> RandomUtils.nextInt(10, 5)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -64,7 +63,7 @@ public class RandomUtilsTest
     {
         for (int i = 0; i < 1000000; i++)
         {
-            assertTrue(ALPHANUMERIC_CHARS.contains(RandomUtils.randomAsciiAlphanumeric()));
+            assertThat(ALPHANUMERIC_CHARS.contains(RandomUtils.randomAsciiAlphanumeric())).isTrue();
         }
     }
 
@@ -75,10 +74,10 @@ public class RandomUtilsTest
         {
             int len = RandomUtils.nextInt(20, 100);
             String str = RandomUtils.randomAlphanumeric(len);
-            assertEquals(len, str.length());
+            assertThat(str.length()).isEqualTo(len);
             for (int j = 0; j < str.length(); j++)
             {
-                assertTrue(ALPHANUMERIC_CHARS.contains(str.charAt(j)));
+                assertThat(ALPHANUMERIC_CHARS.contains(str.charAt(j))).isTrue();
             }
         }
     }

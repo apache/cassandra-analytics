@@ -29,8 +29,7 @@ import org.apache.cassandra.spark.bulkwriter.RingInstance;
 import org.apache.cassandra.spark.bulkwriter.TokenRangeMappingUtils;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -44,7 +43,7 @@ class CassandraTopologyMonitorTest
         AtomicBoolean noChange = new AtomicBoolean(true);
         CassandraTopologyMonitor monitor = new CassandraTopologyMonitor(mockClusterInfo, event -> noChange.set(false));
         monitor.checkTopologyOnDemand();
-        assertTrue(noChange.get());
+        assertThat(noChange.get()).isTrue();
     }
 
     @Test
@@ -57,7 +56,7 @@ class CassandraTopologyMonitorTest
         AtomicBoolean noChange = new AtomicBoolean(true);
         CassandraTopologyMonitor monitor = new CassandraTopologyMonitor(mockClusterInfo, event -> noChange.set(false));
         monitor.checkTopologyOnDemand();
-        assertFalse(noChange.get());
+        assertThat(noChange.get()).isFalse();
     }
 
     private TokenRangeMapping<RingInstance> buildTopology(int instancesCount)

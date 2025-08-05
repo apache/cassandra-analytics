@@ -70,11 +70,8 @@ import org.mockito.stubbing.Answer;
 
 import static org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionCoordinator.estimateTimeoutNanos;
 import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -150,9 +147,10 @@ class ImportCompletionCoordinatorTest
                                        writerValidator, resultList, mockExtension, onCancelJob)
                                    .await();
         validateAllSlicesWereCalledAtMostOnce(resultList);
-        assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
-                     "All objects should be applied and reported for exactly once");
-        assertEquals(allTestObjectKeys(), new HashSet<>(appliedObjectKeys.getAllValues()));
+        assertThat(appliedObjectKeys.getAllValues())
+                .as("All objects should be applied and reported for exactly once")
+                .hasSize(resultList.size());
+        assertThat(new HashSet<>(appliedObjectKeys.getAllValues())).isEqualTo(allTestObjectKeys());
     }
 
     @Test
@@ -163,9 +161,10 @@ class ImportCompletionCoordinatorTest
                                        writerValidator, resultList, mockExtension, onCancelJob)
                                    .await();
         validateAllSlicesWereCalledAtMostOnce(resultList);
-        assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
-                     "All objects should be applied and reported for exactly once");
-        assertEquals(allTestObjectKeys(), new HashSet<>(appliedObjectKeys.getAllValues()));
+        assertThat(appliedObjectKeys.getAllValues())
+                .as("All objects should be applied and reported for exactly once")
+                .hasSize(resultList.size());
+        assertThat(new HashSet<>(appliedObjectKeys.getAllValues())).isEqualTo(allTestObjectKeys());
     }
 
     @Test // the test scenario has error when checking, but CL passes overall and the import is successful
@@ -177,9 +176,10 @@ class ImportCompletionCoordinatorTest
                                        writerValidator, resultList, mockExtension, onCancelJob)
                                    .await();
         validateAllSlicesWereCalledAtMostOnce(resultList);
-        assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
-                     "All objects should be applied and reported for exactly once");
-        assertEquals(allTestObjectKeys(), new HashSet<>(appliedObjectKeys.getAllValues()));
+        assertThat(appliedObjectKeys.getAllValues())
+                .as("All objects should be applied and reported for exactly once")
+                .hasSize(resultList.size());
+        assertThat(new HashSet<>(appliedObjectKeys.getAllValues())).isEqualTo(allTestObjectKeys());
     }
 
     @Test // the test scenario has errors that fails CL, the import fails
@@ -190,18 +190,21 @@ class ImportCompletionCoordinatorTest
         // Therefore, the assertion omits the number of ranges in the message
         String errorMessage = "ranges with QUORUM for job " + jobId + " in phase WaitForImportCompletion";
         List<CloudStorageStreamResult> resultList = buildBlobStreamResult(2, false, 0);
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+        assertThatThrownBy(() -> {
             ImportCompletionCoordinator.of(0, mockWriterContext, dataTransferApi,
                                            writerValidator, resultList, mockExtension, onCancelJob)
                                        .await();
-        });
-        assertNotNull(exception.getMessage());
-        assertTrue(exception.getMessage().contains("Failed to write"), "Actual error message: " + exception.getMessage());
-        assertTrue(exception.getMessage().contains(errorMessage));
-        assertNotNull(exception.getCause());
+        })
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("Failed to write")
+        .hasMessageContaining(errorMessage)
+        .cause().isNotNull();
+
         validateAllSlicesWereCalledAtMostOnce(resultList);
-        assertEquals(0, appliedObjectKeys.getAllValues().size(),
-                     "No object should be applied and reported");
+
+        assertThat(appliedObjectKeys.getAllValues())
+        .as("No object should be applied and reported")
+        .hasSize(0);
     }
 
     @Test
@@ -211,17 +214,17 @@ class ImportCompletionCoordinatorTest
         // CL check won't fail as there is no failed instances.
         // The check won't be satisfied too since there is not enough available instances.
         List<CloudStorageStreamResult> resultList = buildBlobStreamResult(0, false, 2);
-        RuntimeException exception = assertThrows(RuntimeException.class, () -> {
+        assertThatThrownBy(() -> {
             ImportCompletionCoordinator.of(0, mockWriterContext, dataTransferApi,
                                            writerValidator, resultList, mockExtension, onCancelJob)
                                        .await();
-        });
-        assertNotNull(exception.getMessage());
-        assertTrue(exception.getMessage().contains(errorMessage));
-        assertNull(exception.getCause());
+        }).isInstanceOf(RuntimeException.class)
+          .hasMessageContaining(errorMessage)
+          .hasNoCause();
         validateAllSlicesWereCalledAtMostOnce(resultList);
-        assertEquals(0, appliedObjectKeys.getAllValues().size(),
-                     "No object should be applied and reported");
+        assertThat(appliedObjectKeys.getAllValues())
+                .as("No object should be applied and reported")
+                .hasSize(0);
     }
 
     @Test
@@ -241,13 +244,15 @@ class ImportCompletionCoordinatorTest
         ImportCompletionCoordinator coordinator = ImportCompletionCoordinator.of(0, mockWriterContext, dataTransferApi,
                                                                                  writerValidator, resultList, mockExtension, onCancelJob);
         coordinator.await();
-        assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
-                     "All objects should be applied and reported for exactly once");
-        assertEquals(allTestObjectKeys(), new HashSet<>(appliedObjectKeys.getAllValues()));
+        assertThat(appliedObjectKeys.getAllValues())
+                .as("All objects should be applied and reported for exactly once")
+                .hasSize(resultList.size());
+        assertThat(new HashSet<>(appliedObjectKeys.getAllValues())).isEqualTo(allTestObjectKeys());
         Map<CompletableFuture<Void>, RequestAndInstance> importFutures = coordinator.importFutures();
         int cancelledImports = importFutures.keySet().stream().mapToInt(f -> f.isCancelled() ? 1 : 0).sum();
-        assertEquals(TOTAL_INSTANCES, cancelledImports,
-                     "Each replica set should have a slice gets cancelled due to making no progress");
+        assertThat(cancelledImports)
+                .as("Each replica set should have a slice gets cancelled due to making no progress")
+                .isEqualTo(TOTAL_INSTANCES);
     }
 
     @Test
@@ -263,14 +268,16 @@ class ImportCompletionCoordinatorTest
                                                                                  writerValidator, resultList, mockExtension, onCancelJob);
         coordinator.await();
         // the import should complete as soon as CL is satisfied
-        assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
-                     "All objects should be applied and reported for exactly once");
-        assertEquals(allTestObjectKeys(), new HashSet<>(appliedObjectKeys.getAllValues()));
+        assertThat(appliedObjectKeys.getAllValues())
+                .as("All objects should be applied and reported for exactly once")
+                .hasSize(resultList.size());
+        assertThat(new HashSet<>(appliedObjectKeys.getAllValues())).isEqualTo(allTestObjectKeys());
         Map<CompletableFuture<Void>, RequestAndInstance> importFutures = coordinator.importFutures();
         // all the other imports should be cancelled, given  timeout has exceeded
         int cancelledImports = importFutures.keySet().stream().mapToInt(f -> f.isCancelled() ? 1 : 0).sum();
-        assertEquals(TOTAL_INSTANCES, cancelledImports,
-                     "Each replica set should have a slice gets cancelled due to making no progress");
+        assertThat(cancelledImports)
+                .as("Each replica set should have a slice gets cancelled due to making no progress")
+                .isEqualTo(TOTAL_INSTANCES);
     }
 
     @Test
@@ -287,16 +294,19 @@ class ImportCompletionCoordinatorTest
         ImportCompletionCoordinator coordinator = ImportCompletionCoordinator.of(startNanos, mockWriterContext, dataTransferApi,
                                                                                  writerValidator, resultList, mockExtension, onCancelJob);
         coordinator.await();
-        assertEquals(resultList.size(), appliedObjectKeys.getAllValues().size(),
-                     "All objects should be applied and reported for exactly once");
-        assertEquals(allTestObjectKeys(), new HashSet<>(appliedObjectKeys.getAllValues()));
+        assertThat(appliedObjectKeys.getAllValues())
+                .as("All objects should be applied and reported for exactly once")
+                .hasSize(resultList.size());
+        assertThat(new HashSet<>(appliedObjectKeys.getAllValues())).isEqualTo(allTestObjectKeys());
         Map<CompletableFuture<Void>, RequestAndInstance> importFutures = coordinator.importFutures();
         // all the other imports should be cancelled, given  timeout has exceeded
         int cancelledImports = importFutures.keySet().stream().mapToInt(f -> f.isCancelled() ? 1 : 0).sum();
-        assertEquals(TOTAL_INSTANCES, cancelledImports,
-                     "Each replica set should have a slice gets cancelled due to making no progress");
-        assertTrue(System.nanoTime() - startNanos > TimeUnit.SECONDS.toNanos(timeout),
-                   "ImportCompletionCoordinator should wait for at least " + timeout + " seconds");
+        assertThat(cancelledImports)
+                .as("Each replica set should have a slice gets cancelled due to making no progress")
+                .isEqualTo(TOTAL_INSTANCES);
+        assertThat(System.nanoTime() - startNanos)
+                .as("ImportCompletionCoordinator should wait for at least " + timeout + " seconds")
+                .isGreaterThan(TimeUnit.SECONDS.toNanos(timeout));
     }
 
     @Test
@@ -325,13 +335,11 @@ class ImportCompletionCoordinatorTest
                                                                                       return monitorRef.get();
                                                                                   });
         monitorRef.get().checkTopologyOnDemand();
-        ImportFailedException importFailedException = assertThrows(ImportFailedException.class, coordinator::await);
-        assertEquals("Topology changed during bulk write", importFailedException.getMessage());
-        assertTrue(isCancelled.get());
-        ImportFailedException failure = coordinator.failure();
-        assertNotNull(failure);
-        // todo
-        assertEquals(importFailedException, failure);
+        assertThatThrownBy(coordinator::await)
+        .isInstanceOf(ImportFailedException.class)
+        .hasMessage("Topology changed during bulk write")
+        .isEqualTo(coordinator.failure());
+        assertThat(isCancelled.get()).isTrue();
     }
 
     @Test
@@ -350,32 +358,36 @@ class ImportCompletionCoordinatorTest
                                                      importCoordinatorTimeoutMultiplier,
                                                      minSliceSize, maxSliceSize,
                                                      jobTimeoutSeconds);
-        assertEquals(0, estimatedTimeout,
-                     "jobTimeoutSeconds is 0. It should not wait for any additional time");
+        assertThat(estimatedTimeout)
+                .as("jobTimeoutSeconds is 0. It should not wait for any additional time")
+                .isEqualTo(0);
 
         jobTimeoutSeconds = Integer.MAX_VALUE;
         estimatedTimeout = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
                                                 importCoordinatorTimeoutMultiplier,
                                                 minSliceSize, maxSliceSize,
                                                 jobTimeoutSeconds);
-        assertEquals(TimeUnit.SECONDS.toNanos(6), estimatedTimeout,
-                     "It takes 3 seconds to achieve CL; Based on the size estimate, it should take 200 / 100 * 3 seconds in addition");
+        assertThat(estimatedTimeout)
+                .as("It takes 3 seconds to achieve CL; Based on the size estimate, it should take 200 / 100 * 3 seconds in addition")
+                .isEqualTo(TimeUnit.SECONDS.toNanos(6));
 
         importCoordinatorTimeoutMultiplier = 0;
         estimatedTimeout = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
                                                 importCoordinatorTimeoutMultiplier,
                                                 minSliceSize, maxSliceSize,
                                                 jobTimeoutSeconds);
-        assertEquals(0, estimatedTimeout,
-                     "When timeout multiplier is 0, there is no additional wait time");
+        assertThat(estimatedTimeout)
+                .as("When timeout multiplier is 0, there is no additional wait time")
+                .isEqualTo(0);
 
         importCoordinatorTimeoutMultiplier = 0.5;
         estimatedTimeout = estimateTimeoutNanos(timeToAllSatisfiedNanos, elapsedNanos,
                                                 importCoordinatorTimeoutMultiplier,
                                                 minSliceSize, maxSliceSize,
                                                 jobTimeoutSeconds);
-        assertEquals(TimeUnit.SECONDS.toNanos(3), estimatedTimeout,
-                     "The estimate is 200 / 100 * 3 * 0.5 == 3");
+        assertThat(estimatedTimeout)
+                .as("The estimate is 200 / 100 * 3 * 0.5 == 3")
+                .isEqualTo(TimeUnit.SECONDS.toNanos(3));
     }
 
     private Set<String> allTestObjectKeys()

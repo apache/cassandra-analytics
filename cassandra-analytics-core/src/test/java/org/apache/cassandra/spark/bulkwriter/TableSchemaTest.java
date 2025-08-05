@@ -45,12 +45,8 @@ import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.DATE;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.INT;
 import static org.apache.cassandra.spark.bulkwriter.SqlToCqlTypeConverter.VARCHAR;
 import static org.apache.cassandra.spark.bulkwriter.TableSchemaTestCommon.mockCqlType;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsEqual.equalTo;
-import static org.hamcrest.core.StringStartsWith.startsWith;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -83,24 +79,24 @@ public class TableSchemaTest
     {
         TableSchema schema = getValidSchemaBuilder()
                 .build();
-        assertThat(trimUniqueTableName(schema.modificationStatement),
-                   is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks);")));
+        assertThat(trimUniqueTableName(schema.modificationStatement))
+                .isEqualTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks);");
     }
 
     @Test
     public void testInsertStatementWithConstantTTL()
     {
         TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("1000")).build();
-        assertThat(trimUniqueTableName(schema.modificationStatement),
-                   is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL 1000;")));
+        assertThat(trimUniqueTableName(schema.modificationStatement))
+                .isEqualTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL 1000;");
     }
 
     @Test
     public void testInsertStatementWithTTLColumn()
     {
         TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("ttl")).build();
-        assertThat(trimUniqueTableName(schema.modificationStatement),
-                   is(equalTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL :ttl;")));
+        assertThat(trimUniqueTableName(schema.modificationStatement))
+                .isEqualTo("INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TTL :ttl;");
     }
 
     @Test
@@ -108,7 +104,7 @@ public class TableSchemaTest
     {
         TableSchema schema = getValidSchemaBuilder().withTimeStampSetting(TimestampOption.from("1000")).build();
         String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP 1000;";
-        assertThat(trimUniqueTableName(schema.modificationStatement), is(equalTo(expectedQuery)));
+        assertThat(trimUniqueTableName(schema.modificationStatement)).isEqualTo(expectedQuery);
     }
 
     @Test
@@ -116,14 +112,14 @@ public class TableSchemaTest
     {
         TableSchema schema = getValidSchemaBuilder().withTimeStampSetting(TimestampOption.from("timestamp")).build();
         String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP :timestamp;";
-        assertThat(trimUniqueTableName(schema.modificationStatement), is(equalTo(expectedQuery)));
+        assertThat(trimUniqueTableName(schema.modificationStatement)).isEqualTo(expectedQuery);
     }
     @Test
     public void testInsertStatementWithTTLAndTimestampColumn()
     {
         TableSchema schema = getValidSchemaBuilder().withTTLSetting(TTLOption.from("ttl")).withTimeStampSetting(TimestampOption.from("timestamp")).build();
         String expectedQuery = "INSERT INTO test.test (id,date,course,marks) VALUES (:id,:date,:course,:marks) USING TIMESTAMP :timestamp AND TTL :ttl;";
-        assertThat(trimUniqueTableName(schema.modificationStatement), is(equalTo(expectedQuery)));
+        assertThat(trimUniqueTableName(schema.modificationStatement)).isEqualTo(expectedQuery);
     }
 
     @Test
@@ -138,18 +134,18 @@ public class TableSchemaTest
         TableSchema schema = getValidSchemaBuilder()
                 .withWriteMode(WriteMode.DELETE_PARTITION)
                 .build();
-        assertThat(trimUniqueTableName(schema.modificationStatement), is(equalTo("DELETE FROM test.test where id=?;")));
+        assertThat(trimUniqueTableName(schema.modificationStatement)).isEqualTo("DELETE FROM test.test where id=?;");
     }
 
     @Test
     public void testDeleteWithNonPartitionKeyFieldsInDfFails()
     {
-        IllegalArgumentException iex = assertThrows(IllegalArgumentException.class, () -> getValidSchemaBuilder()
+        assertThatThrownBy(() -> getValidSchemaBuilder()
                 .withWriteMode(WriteMode.DELETE_PARTITION)
-                .build());
-        assertThat(iex.getMessage(),
-                   is(equalTo("Only partition key columns (id) are supported in the input Dataframe when "
-                            + "WRITE_MODE=DELETE_PARTITION but (id,date,course,marks) columns were provided")));
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Only partition key columns (id) are supported in the input Dataframe when "
+                            + "WRITE_MODE=DELETE_PARTITION but (id,date,course,marks) columns were provided");
     }
 
     @Test
@@ -157,7 +153,7 @@ public class TableSchemaTest
     {
         TableSchema schema = getValidSchemaBuilder()
                 .build();
-        assertThat(schema.partitionKeyColumns, is(equalTo(Arrays.asList("id"))));
+        assertThat(schema.partitionKeyColumns).isEqualTo(Arrays.asList("id"));
     }
 
     @Test
@@ -165,7 +161,7 @@ public class TableSchemaTest
     {
         TableSchema schema = getValidSchemaBuilder()
                 .build();
-        assertThat(schema.partitionKeyColumnTypes, is(equalTo(Arrays.asList(ColumnTypes.INT))));
+        assertThat(schema.partitionKeyColumnTypes).isEqualTo(Arrays.asList(ColumnTypes.INT));
     }
 
     @Test
@@ -174,8 +170,8 @@ public class TableSchemaTest
         TableSchema schema = getValidSchemaBuilder()
                 .build();
 
-        assertThat(schema.normalize(new Object[]{1, 1L, "foo", 2}),
-                   is(equalTo(new Object[]{1, -2147483648, "foo", 2})));
+        assertThat(schema.normalize(new Object[]{1, 1L, "foo", 2}))
+                .isEqualTo(new Object[]{1, -2147483648, "foo", 2});
     }
 
     @Test
@@ -188,13 +184,11 @@ public class TableSchemaTest
                 .add("course", DataTypes.StringType)
                 .add("marks", DataTypes.IntegerType);
 
-        IllegalArgumentException iex = assertThrows(IllegalArgumentException.class,
-                                                    () ->
-        getValidSchemaBuilder()
+        assertThatThrownBy(() -> getValidSchemaBuilder()
                 .withDataFrameSchema(extraFieldsDataFrameSchema)
-                .build()
-        );
-        assertThat(iex.getMessage(), startsWith("Unknown fields"));
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("Unknown fields");
     }
 
     @Test
@@ -209,8 +203,8 @@ public class TableSchemaTest
         TableSchema schema = getValidSchemaBuilder()
                 .withDataFrameSchema(outOfOrderDataFrameSchema)
                 .build();
-        assertThat(schema.getKeyColumns(new Object[]{"date_val", "id_val", "course_val", "marks_val"}),
-                   is(equalTo(new Object[]{"id_val", "date_val"})));
+        assertThat(schema.getKeyColumns(new Object[]{"date_val", "id_val", "course_val", "marks_val"}))
+                .isEqualTo(new Object[]{"id_val", "date_val"});
     }
 
     @Test
@@ -218,10 +212,9 @@ public class TableSchemaTest
     {
         TableSchema schema = getValidSchemaBuilder()
                 .build();
-        NullPointerException npe = assertThrows(NullPointerException.class,
-                                                () -> schema.getKeyColumns(new Object[]{"foo", null, "baz", "boo"}));
-        assertThat(npe.getMessage(),
-                   is(equalTo("Found a null primary or composite key column in source data. All key columns must be non-null.")));
+        assertThatThrownBy(() -> schema.getKeyColumns(new Object[]{"foo", null, "baz", "boo"}))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("Found a null primary or composite key column in source data. All key columns must be non-null.");
     }
 
     @Test
@@ -232,11 +225,12 @@ public class TableSchemaTest
                 .add("course", DataTypes.StringType)
                 .add("marks", DataTypes.IntegerType);
 
-        IllegalArgumentException iex = assertThrows(IllegalArgumentException.class, () -> getValidSchemaBuilder()
+        assertThatThrownBy(() -> getValidSchemaBuilder()
                 .withWriteMode(WriteMode.INSERT)
                 .withDataFrameSchema(missingFieldsDataFrame)
-                .build());
-        assertThat(iex.getMessage(), is(equalTo("Missing some required key components in DataFrame => date")));
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Missing some required key components in DataFrame => date");
     }
 
     @Test
@@ -245,13 +239,13 @@ public class TableSchemaTest
         Path fullSchemaSampleFile = ResourceUtils.writeResourceToPath(CqlUtilsTest.class.getClassLoader(), tempPath, "cql/fullSchema.cql");
         String fullSchemaSample = FileUtils.readFileToString(fullSchemaSampleFile.toFile(), StandardCharsets.UTF_8);
         int indexCount = CqlUtils.extractIndexCount(fullSchemaSample, "cycling", "rank_by_year_and_name");
-        assertEquals(3, indexCount);
+        assertThat(indexCount).isEqualTo(3);
         CqlTable table = mock(CqlTable.class);
         when(table.indexCount()).thenReturn(indexCount);
         TableInfoProvider tableInfoProvider = new CqlTableInfoProvider("", table);
-        UnsupportedAnalyticsOperationException ex = assertThrows(UnsupportedAnalyticsOperationException.class,
-                                                                 () -> TableSchema.validateNoSecondaryIndexes(tableInfoProvider));
-        assertEquals("Bulkwriter doesn't support secondary indexes", ex.getMessage());
+        assertThatThrownBy(() -> TableSchema.validateNoSecondaryIndexes(tableInfoProvider))
+                .isInstanceOf(UnsupportedAnalyticsOperationException.class)
+                .hasMessage("Bulkwriter doesn't support secondary indexes");
     }
 
     private TableSchemaTestCommon.MockTableSchemaBuilder getValidSchemaBuilder()

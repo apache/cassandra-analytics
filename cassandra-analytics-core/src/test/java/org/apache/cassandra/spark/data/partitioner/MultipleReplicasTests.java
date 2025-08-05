@@ -37,8 +37,8 @@ import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.reader.SparkSSTableReader;
 import org.apache.cassandra.analytics.stats.Stats;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -95,26 +95,22 @@ public class MultipleReplicasTests
     @Test()
     public void testRF1NotEnoughReplicas()
     {
-        assertThrows(AssertionError.class,
-                     () -> runTest(1, 1, 1, 0)
-        );
+        assertThatThrownBy(() -> runTest(1, 1, 1, 0))
+        .isInstanceOf(AssertionError.class);
     }
 
     @Test()
     public void testRF3QuorumNotEnoughReplicas()
     {
-        assertThrows(AssertionError.class,
-                     () -> runTest(3, 2, 1, 1)
-        );
+        assertThatThrownBy(() -> runTest(3, 2, 1, 1))
+        .isInstanceOf(AssertionError.class);
     }
 
     @Test()
     public void testRFAllNotEnoughReplicas()
     {
-        assertThrows(AssertionError.class,
-                     () ->
-                     runTest(3, 3, 1, 0)
-        );
+        assertThatThrownBy(() -> runTest(3, 3, 1, 0))
+        .isInstanceOf(AssertionError.class);
     }
 
     private static void runTest(int numInstances, int rfFactor, int numDownPrimaryInstances, int numDownBackupInstances)
@@ -162,8 +158,7 @@ public class MultipleReplicasTests
             // if insufficient primary or backup replicas available to meet consistency level
             MultipleReplicas replicas = new MultipleReplicas(primaryReplicas, backupReplicas, Stats.DoNothingStats.INSTANCE);
             Set<TestSSTableReader> readers = replicas.openAll((ssTable, isRepairPrimary) -> new TestSSTableReader(ssTable));
-            assertEquals(expectedSSTables, readers.size());
-
+            assertThat(readers).hasSize(expectedSSTables);
             // Verify list instance attempted on all primary instances
             // and any backup instances that needed to be called to meet consistency
             for (CassandraInstance instance : requestedInstances)

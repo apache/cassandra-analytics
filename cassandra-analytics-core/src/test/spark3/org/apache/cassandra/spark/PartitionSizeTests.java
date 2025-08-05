@@ -35,8 +35,7 @@ import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class PartitionSizeTests extends VersionRunner
 {
@@ -78,18 +77,18 @@ public class PartitionSizeTests extends VersionRunner
                                                                      Collections.emptySet(),
                                                                      null);
             List<Row> rows = ds.collectAsList();
-            assertEquals(numRows, rows.size());
+            assertThat(rows).hasSize(numRows);
             for (Row row : rows)
             {
                 String key = row.getString(0);
                 long uncompressed = row.getLong(1);
                 long compressed = row.getLong(2);
-                assertTrue(sizes.containsKey(key));
+                assertThat(sizes).containsKey(key);
                 long len = sizes.get(key);
-                assertTrue(len < uncompressed);
-                assertTrue(Math.abs(uncompressed - len) < 500); // uncompressed size should be ~len size but with a fixed overhead
-                assertTrue(compressed < uncompressed);
-                assertTrue(compressed / (float) uncompressed < 0.1);
+                assertThat(len).isLessThan(uncompressed);
+                assertThat(Math.abs(uncompressed - len)).isLessThan(500); // uncompressed size should be ~len size but with a fixed overhead
+                assertThat(compressed).isLessThan(uncompressed);
+                assertThat(compressed / (float) uncompressed).isLessThan(0.1f);
             }
         });
     }

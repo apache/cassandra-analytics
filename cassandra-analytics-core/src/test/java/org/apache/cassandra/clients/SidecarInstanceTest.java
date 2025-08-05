@@ -23,9 +23,8 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Abstract class that provides a set of base unit tests for the {@link SidecarInstance} interface
@@ -49,8 +48,7 @@ public abstract class SidecarInstanceTest
             }
             catch (IllegalArgumentException illegalArgumentException)
             {
-                assertEquals("Invalid port number for the Sidecar service: " + invalidPortNumber,
-                             illegalArgumentException.getMessage());
+                assertThat(illegalArgumentException.getMessage()).isEqualTo("Invalid port number for the Sidecar service: " + invalidPortNumber);
             }
         }
     }
@@ -65,7 +63,7 @@ public abstract class SidecarInstanceTest
         }
         catch (NullPointerException npe)
         {
-            assertEquals("The Sidecar hostname must be non-null", npe.getMessage());
+            assertThat(npe.getMessage()).isEqualTo("The Sidecar hostname must be non-null");
         }
     }
 
@@ -73,13 +71,13 @@ public abstract class SidecarInstanceTest
     public void testConstructorWithValidParameters()
     {
         SidecarInstance instance1 = newInstance("localhost", 8080);
-        assertNotNull(instance1);
-        assertEquals(8080, instance1.port());
-        assertEquals("localhost", instance1.hostname());
+        assertThat(instance1).isNotNull();
+        assertThat(instance1.port()).isEqualTo(8080);
+        assertThat(instance1.hostname()).isEqualTo("localhost");
 
         SidecarInstance instance2 = newInstance("127.0.0.1", 1234);
-        assertNotNull(instance2);
-        assertEquals(1234, instance2.port());
-        assertEquals("127.0.0.1", instance2.hostname());
+        assertThat(instance2).isNotNull();
+        assertThat(instance2.port()).isEqualTo(1234);
+        assertThat(instance2.hostname()).isEqualTo("127.0.0.1");
     }
 }

@@ -28,8 +28,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CassandraDataLayerTests
 {
@@ -43,12 +41,12 @@ class CassandraDataLayerTests
     {
         Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         ClientConfig clientConfig = ClientConfig.create(options);
-        assertEquals("big-data", clientConfig.keyspace());
-        assertEquals("customers", clientConfig.table());
-        assertEquals("localhost", clientConfig.sidecarContactPoints());
+        assertThat(clientConfig.keyspace()).isEqualTo("big-data");
+        assertThat(clientConfig.table()).isEqualTo("customers");
+        assertThat(clientConfig.sidecarContactPoints()).isEqualTo("localhost");
         ClientConfig.ClearSnapshotStrategy clearSnapshotStrategy = clientConfig.clearSnapshotStrategy();
-        assertTrue(clearSnapshotStrategy.shouldClearOnCompletion());
-        assertEquals("2d", clearSnapshotStrategy.ttl());
+        assertThat(clearSnapshotStrategy.shouldClearOnCompletion()).isTrue();
+        assertThat(clearSnapshotStrategy.ttl()).isEqualTo("2d");
     }
 
     @ParameterizedTest

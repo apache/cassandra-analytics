@@ -22,8 +22,8 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.sidecar.common.exceptions.RangeException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * RangeTest
@@ -35,26 +35,26 @@ public class HttpRangeTest
     {
         String rangeHeaderVal = "bytes=2-";
         HttpRange range = HttpRange.parseHeader(rangeHeaderVal, 5);
-        assertEquals(3, range.length());
-        assertEquals(2, range.start());
-        assertEquals(4, range.end());
+        assertThat(range.length()).isEqualTo(3);
+        assertThat(range.start()).isEqualTo(2);
+        assertThat(range.end()).isEqualTo(4);
 
         rangeHeaderVal = "bytes=-100";
         range = HttpRange.parseHeader(rangeHeaderVal, 5);
-        assertEquals(5, range.length());
-        assertEquals(0, range.start());
-        assertEquals(4, range.end());
+        assertThat(range.length()).isEqualTo(5);
+        assertThat(range.start()).isEqualTo(0);
+        assertThat(range.end()).isEqualTo(4);
 
         rangeHeaderVal = "bytes=-100";
         range = HttpRange.parseHeader(rangeHeaderVal, 200);
-        assertEquals(100, range.length());
-        assertEquals(100, range.start());
-        assertEquals(199, range.end());
+        assertThat(range.length()).isEqualTo(100);
+        assertThat(range.start()).isEqualTo(100);
+        assertThat(range.end()).isEqualTo(199);
 
         range = HttpRange.parseHeader(null, 200);
-        assertEquals(200, range.length());
-        assertEquals(0, range.start());
-        assertEquals(199, range.end());
+        assertThat(range.length()).isEqualTo(200);
+        assertThat(range.start()).isEqualTo(0);
+        assertThat(range.end()).isEqualTo(199);
     }
 
     @Test
@@ -62,62 +62,62 @@ public class HttpRangeTest
     {
         final String rangeHeaderVal = "bytes=0-100";
         final HttpRange range = HttpRange.parseHeader(rangeHeaderVal, 500);
-        assertEquals(101, range.length());
-        assertEquals(0, range.start());
-        assertEquals(100, range.end());
+        assertThat(range.length()).isEqualTo(101);
+        assertThat(range.start()).isEqualTo(0);
+        assertThat(range.end()).isEqualTo(100);
     }
 
     @Test
     public void testInvalidRangeFormat()
     {
         String rangeHeader = "bytes=2344--3432";
-        IllegalArgumentException thrownException = assertThrows(IllegalArgumentException.class, () -> {
-            HttpRange.parseHeader(rangeHeader, Long.MAX_VALUE);
-        });
         String msg = "Invalid range header: bytes=2344--3432. Supported Range formats are bytes=<start>-<end>, " +
                      "bytes=<start>-, bytes=-<suffix-length>";
-        assertEquals(msg, thrownException.getMessage());
+        assertThatThrownBy(() -> {
+            HttpRange.parseHeader(rangeHeader, Long.MAX_VALUE);
+        }).isInstanceOf(IllegalArgumentException.class)
+          .hasMessage(msg);
 
-        thrownException = assertThrows(IllegalArgumentException.class, () -> {
-            HttpRange.parseHeader("bytes=-", Long.MAX_VALUE);
-        });
         msg = "Invalid range header: bytes=-. Supported Range formats are bytes=<start>-<end>, " +
               "bytes=<start>-, bytes=-<suffix-length>";
-        assertEquals(msg, thrownException.getMessage());
+        assertThatThrownBy(() -> {
+            HttpRange.parseHeader("bytes=-", Long.MAX_VALUE);
+        }).isInstanceOf(IllegalArgumentException.class)
+          .hasMessage(msg);
     }
 
     @Test
     public void testInvalidSuffixLength()
     {
         final String rangeHeader = "bytes=-0";
-        IllegalArgumentException thrownException = assertThrows(IllegalArgumentException.class, () -> {
-            HttpRange.parseHeader(rangeHeader, Long.MAX_VALUE);
-        });
         String msg = "Range does not satisfy boundary requirements. range=[9223372036854775807, 9223372036854775806]";
-        assertEquals(msg, thrownException.getMessage());
+        assertThatThrownBy(() -> {
+            HttpRange.parseHeader(rangeHeader, Long.MAX_VALUE);
+        }).isInstanceOf(IllegalArgumentException.class)
+          .hasMessage(msg);
     }
 
     @Test
     public void testInvalidRangeBoundary()
     {
         final String rangeHeader = "bytes=9-2";
-        IllegalArgumentException thrownException = assertThrows(IllegalArgumentException.class, () -> {
-            HttpRange.parseHeader(rangeHeader, Long.MAX_VALUE);
-        });
         String msg = "Range does not satisfy boundary requirements. range=[9, 2]";
-        assertEquals(msg, thrownException.getMessage());
+        assertThatThrownBy(() -> {
+            HttpRange.parseHeader(rangeHeader, Long.MAX_VALUE);
+        }).isInstanceOf(IllegalArgumentException.class)
+          .hasMessage(msg);
     }
 
     @Test
     public void testWrongRangeUnitUsed()
     {
         final String rangeVal = "bits=0-";
-        IllegalArgumentException thrownException = assertThrows(IllegalArgumentException.class, () -> {
-            HttpRange.parseHeader(rangeVal, 5);
-        });
         String msg = "Invalid range header: bits=0-. Supported Range formats are bytes=<start>-<end>, " +
                      "bytes=<start>-, bytes=-<suffix-length>";
-        assertEquals(msg, thrownException.getMessage());
+        assertThatThrownBy(() -> {
+            HttpRange.parseHeader(rangeVal, 5);
+        }).isInstanceOf(IllegalArgumentException.class)
+          .hasMessage(msg);
     }
 
     @Test
@@ -125,7 +125,7 @@ public class HttpRangeTest
     {
         final String rangeHeaderVal = "bytes=0-100";
         final HttpRange range = HttpRange.parseHeader(rangeHeaderVal, Long.MAX_VALUE);
-        assertEquals("bytes=0-100", range.toString());
+        assertThat(range.toString()).isEqualTo("bytes=0-100");
     }
 
     @Test
@@ -133,12 +133,12 @@ public class HttpRangeTest
     {
         // the right end of range is larger than long
         final String rangeHeader = "bytes=0-1" + Long.MAX_VALUE;
-        IllegalArgumentException thrownException = assertThrows(IllegalArgumentException.class, () -> {
-            HttpRange.parseHeader(rangeHeader, Long.MAX_VALUE);
-        });
         String msg = "Invalid range header: bytes=0-19223372036854775807. Supported Range formats are " +
                      "bytes=<start>-<end>, bytes=<start>-, bytes=-<suffix-length>";
-        assertEquals(msg, thrownException.getMessage());
+        assertThatThrownBy(() -> {
+            HttpRange.parseHeader(rangeHeader, Long.MAX_VALUE);
+        }).isInstanceOf(IllegalArgumentException.class)
+          .hasMessage(msg);
     }
 
     @Test
@@ -150,20 +150,20 @@ public class HttpRangeTest
         range1 = HttpRange.of(5, 10);
         range2 = HttpRange.of(9, 15);
         expected = HttpRange.of(9, 10);
-        assertEquals(expected, range1.intersect(range2));
-        assertEquals(expected, range2.intersect(range1));
+        assertThat(range1.intersect(range2)).isEqualTo(expected);
+        assertThat(range2.intersect(range1)).isEqualTo(expected);
 
         range1 = HttpRange.of(1, 5);
         range2 = HttpRange.of(5, 15);
         expected = HttpRange.of(5, 5);
-        assertEquals(expected, range1.intersect(range2));
-        assertEquals(expected, range2.intersect(range1));
+        assertThat(range1.intersect(range2)).isEqualTo(expected);
+        assertThat(range2.intersect(range1)).isEqualTo(expected);
 
         range1 = HttpRange.of(1, 15);
         range2 = HttpRange.of(5, 10);
         expected = HttpRange.of(5, 10);
-        assertEquals(expected, range1.intersect(range2));
-        assertEquals(expected, range2.intersect(range1));
+        assertThat(range1.intersect(range2)).isEqualTo(expected);
+        assertThat(range2.intersect(range1)).isEqualTo(expected);
     }
 
     @Test
@@ -172,6 +172,6 @@ public class HttpRangeTest
         HttpRange range1 = HttpRange.of(1, 5);
         HttpRange range2 = HttpRange.of(9, 15);
 
-        assertThrows(RangeException.class, () -> range1.intersect(range2));
+        assertThatThrownBy(() -> range1.intersect(range2)).isInstanceOf(RangeException.class);
     }
 }

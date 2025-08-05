@@ -36,7 +36,7 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.utils.FBUtilities;
 
 import static org.apache.cassandra.spark.reader.SchemaBuilder.rfToMap;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class SchemaBuilderTests
 {
@@ -49,47 +49,47 @@ public class SchemaBuilderTests
     @Test
     public void testDataTypes()
     {
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.dht.Murmur3Partitioner", "Murmur3Partitioner"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.dht.RandomPartitioner", "RandomPartitioner"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.AbstractCompositeType", "AbstractCompositeType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.AbstractType", "AbstractType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.AsciiType", "AsciiType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.BooleanType", "BooleanType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.BytesType", "BytesType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.ByteType", "ByteType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.CollectionType", "CollectionType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.CompositeType", "CompositeType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.CounterColumnType", "CounterColumnType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.DateType", "DateType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.DecimalType", "DecimalType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.DoubleType", "DoubleType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.DurationType", "DurationType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.DynamicCompositeType", "DynamicCompositeType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.EmptyType", "EmptyType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.FloatType", "FloatType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.FrozenType", "FrozenType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.InetAddressType", "InetAddressType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.Int32Type", "Int32Type"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.IntegerType", "IntegerType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.LexicalUUIDType", "LexicalUUIDType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.ListType", "ListType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.LongType", "LongType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.MapType", "MapType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.NumberType", "NumberType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.PartitionerDefinedOrder", "PartitionerDefinedOrder"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.ReversedType", "ReversedType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.SetType", "SetType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.ShortType", "ShortType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.SimpleDateType", "SimpleDateType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.TemporalType", "TemporalType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.TimestampType", "TimestampType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.TimeType", "TimeType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.TimeUUIDType", "TimeUUIDType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.TupleType", "TupleType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.TypeParser", "TypeParser"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.UserType", "UserType"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.UTF8Type", "UTF8Type"));
-        assertNotNull(FBUtilities.classForName("org.apache.cassandra.db.marshal.UUIDType", "UUIDType"));
+        assertThat(FBUtilities.classForName("org.apache.cassandra.dht.Murmur3Partitioner", "Murmur3Partitioner")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.dht.RandomPartitioner", "RandomPartitioner")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.AbstractCompositeType", "AbstractCompositeType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.AbstractType", "AbstractType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.AsciiType", "AsciiType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.BooleanType", "BooleanType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.BytesType", "BytesType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.ByteType", "ByteType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.CollectionType", "CollectionType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.CompositeType", "CompositeType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.CounterColumnType", "CounterColumnType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.DateType", "DateType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.DecimalType", "DecimalType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.DoubleType", "DoubleType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.DurationType", "DurationType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.DynamicCompositeType", "DynamicCompositeType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.EmptyType", "EmptyType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.FloatType", "FloatType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.FrozenType", "FrozenType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.InetAddressType", "InetAddressType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.Int32Type", "Int32Type")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.IntegerType", "IntegerType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.LexicalUUIDType", "LexicalUUIDType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.ListType", "ListType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.LongType", "LongType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.MapType", "MapType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.NumberType", "NumberType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.PartitionerDefinedOrder", "PartitionerDefinedOrder")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.ReversedType", "ReversedType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.SetType", "SetType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.ShortType", "ShortType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.SimpleDateType", "SimpleDateType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.TemporalType", "TemporalType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.TimestampType", "TimestampType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.TimeType", "TimeType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.TimeUUIDType", "TimeUUIDType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.TupleType", "TupleType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.TypeParser", "TypeParser")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.UserType", "UserType")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.UTF8Type", "UTF8Type")).isNotNull();
+        assertThat(FBUtilities.classForName("org.apache.cassandra.db.marshal.UUIDType", "UUIDType")).isNotNull();
     }
 
     @Test

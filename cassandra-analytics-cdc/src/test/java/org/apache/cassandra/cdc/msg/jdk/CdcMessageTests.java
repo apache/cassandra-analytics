@@ -31,7 +31,7 @@ import org.apache.cassandra.spark.data.types.Timestamp;
 import org.apache.cassandra.spark.data.types.UUID;
 import org.apache.cassandra.spark.utils.TimeUtils;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class CdcMessageTests
 {
@@ -54,13 +54,12 @@ public class CdcMessageTests
         CdcEvent.Kind.INSERT,
         ImmutableList.of(), null, null
         );
-        assertEquals(4, msg.allColumns().size());
-        assertEquals("{\"operation\": INSERT, " +
+        assertThat(msg.allColumns()).hasSize(4);
+        assertThat(msg.toString()).isEqualTo("{\"operation\": INSERT, " +
                      "\"lastModifiedTimestamp\": " + now +
                      ", \"a\": \"" + colA +
                      "\", \"b\": \"" + colB +
                      "\", \"c\": \"" + colC +
-                     "\", \"d\": \"" + colD + "\"}",
-                     msg.toString());
+                     "\", \"d\": \"" + colD + "\"}");
     }
 }

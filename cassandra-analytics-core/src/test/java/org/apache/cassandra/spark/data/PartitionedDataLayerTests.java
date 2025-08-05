@@ -69,11 +69,8 @@ import static org.apache.cassandra.spark.data.partitioner.ConsistencyLevel.LOCAL
 import static org.apache.cassandra.spark.data.partitioner.ConsistencyLevel.ONE;
 import static org.apache.cassandra.spark.data.partitioner.ConsistencyLevel.TWO;
 import static org.apache.cassandra.spark.data.partitioner.Partitioner.Murmur3Partitioner;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
@@ -139,32 +136,32 @@ public class PartitionedDataLayerTests extends VersionRunner
     @Test
     public void testParsingAvailabilityHint()
     {
-        assertEquals(DOWN,    PartitionedDataLayer.AvailabilityHint.fromState("DOWN", "NORMAL"));
-        assertEquals(MOVING,  PartitionedDataLayer.AvailabilityHint.fromState("UP", "MOVING"));
-        assertEquals(LEAVING, PartitionedDataLayer.AvailabilityHint.fromState("UP", "LEAVING"));
-        assertEquals(UP,      PartitionedDataLayer.AvailabilityHint.fromState("UP", "NORMAL"));
-        assertEquals(UP,      PartitionedDataLayer.AvailabilityHint.fromState("UP", "STARTING"));
-        assertEquals(DOWN,    PartitionedDataLayer.AvailabilityHint.fromState("DOWN", "LEAVING"));
-        assertEquals(DOWN,    PartitionedDataLayer.AvailabilityHint.fromState("DOWN", "MOVING"));
-        assertEquals(DOWN,    PartitionedDataLayer.AvailabilityHint.fromState("DOWN", "NORMAL"));
-        assertEquals(UNKNOWN, PartitionedDataLayer.AvailabilityHint.fromState("UNKNOWN", "LEAVING"));
-        assertEquals(UNKNOWN, PartitionedDataLayer.AvailabilityHint.fromState("UNKNOWN", "MOVING"));
-        assertEquals(UNKNOWN, PartitionedDataLayer.AvailabilityHint.fromState("UNKNOWN", "NORMAL"));
-        assertEquals(JOINING, PartitionedDataLayer.AvailabilityHint.fromState("UP", "JOINING"));
-        assertEquals(UNKNOWN, PartitionedDataLayer.AvailabilityHint.fromState("randomState", "randomStatus"));
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("DOWN", "NORMAL")).isEqualTo(DOWN);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("UP", "MOVING")).isEqualTo(MOVING);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("UP", "LEAVING")).isEqualTo(LEAVING);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("UP", "NORMAL")).isEqualTo(UP);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("UP", "STARTING")).isEqualTo(UP);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("DOWN", "LEAVING")).isEqualTo(DOWN);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("DOWN", "MOVING")).isEqualTo(DOWN);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("DOWN", "NORMAL")).isEqualTo(DOWN);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("UNKNOWN", "LEAVING")).isEqualTo(UNKNOWN);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("UNKNOWN", "MOVING")).isEqualTo(UNKNOWN);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("UNKNOWN", "NORMAL")).isEqualTo(UNKNOWN);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("UP", "JOINING")).isEqualTo(JOINING);
+        assertThat(PartitionedDataLayer.AvailabilityHint.fromState("randomState", "randomStatus")).isEqualTo(UNKNOWN);
     }
 
     @Test
     public void testAvailabilityHintComparator()
     {
-        assertEquals(1,  AVAILABILITY_HINT_COMPARATOR.compare(UP, MOVING));
-        assertEquals(0,  AVAILABILITY_HINT_COMPARATOR.compare(LEAVING, MOVING));
-        assertEquals(-1, AVAILABILITY_HINT_COMPARATOR.compare(UNKNOWN, MOVING));
-        assertEquals(1,  AVAILABILITY_HINT_COMPARATOR.compare(LEAVING, UNKNOWN));
-        assertEquals(0,  AVAILABILITY_HINT_COMPARATOR.compare(DOWN, UNKNOWN));
-        assertEquals(0,  AVAILABILITY_HINT_COMPARATOR.compare(JOINING, DOWN));
-        assertEquals(1,  AVAILABILITY_HINT_COMPARATOR.compare(UP, DOWN));
-        assertEquals(-1, AVAILABILITY_HINT_COMPARATOR.compare(JOINING, UP));
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UP, MOVING)).isEqualTo(1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(LEAVING, MOVING)).isEqualTo(0);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UNKNOWN, MOVING)).isEqualTo(-1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(LEAVING, UNKNOWN)).isEqualTo(1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(DOWN, UNKNOWN)).isEqualTo(0);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(JOINING, DOWN)).isEqualTo(0);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UP, DOWN)).isEqualTo(1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(JOINING, UP)).isEqualTo(-1);
     }
 
     @Test
@@ -209,34 +206,31 @@ public class PartitionedDataLayerTests extends VersionRunner
     public void testReplicationFactorDCRequired()
     {
         // DC required for DC-local consistency level
-        assertThrows(IllegalArgumentException.class,
-                     () -> PartitionedDataLayer
+        assertThatThrownBy(() -> PartitionedDataLayer
                            .validateReplicationFactor(LOCAL_QUORUM,
                                                       TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 3)),
-                                                      null)
-        );
+                                                      null))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test()
     public void testReplicationFactorUnknownDC()
     {
-        assertThrows(IllegalArgumentException.class,
-                     () -> PartitionedDataLayer
+        assertThatThrownBy(() -> PartitionedDataLayer
                            .validateReplicationFactor(LOCAL_QUORUM,
                                                       TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 3)),
-                                                      "ST")
-        );
+                                                      "ST"))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     public void testReplicationFactorRF0()
     {
-        assertThrows(IllegalArgumentException.class,
-                     () -> PartitionedDataLayer
+        assertThatThrownBy(() -> PartitionedDataLayer
                            .validateReplicationFactor(LOCAL_QUORUM,
                                                       TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 0)),
-                                                      "MR")
-        );
+                                                      "MR"))
+            .isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
@@ -249,7 +243,7 @@ public class PartitionedDataLayerTests extends VersionRunner
         SSTablesSupplier supplier = dataLayer.sstables(partitionId, null, new ArrayList<>());
         Set<MultipleReplicasTests.TestSSTableReader> ssTableReaders =
                 supplier.openAll((ssTable, isRepairPrimary) -> new MultipleReplicasTests.TestSSTableReader(ssTable));
-        assertNotNull(ssTableReaders);
+        assertThat(ssTableReaders).isNotNull();
     }
 
     @ParameterizedTest
@@ -265,7 +259,7 @@ public class PartitionedDataLayerTests extends VersionRunner
         SSTablesSupplier supplier = dataLayer.sstables(partitionId, null, Collections.singletonList(filter));
         Set<MultipleReplicasTests.TestSSTableReader> ssTableReaders =
                 supplier.openAll((ssTable, isRepairPrimary) -> new MultipleReplicasTests.TestSSTableReader(ssTable));
-        assertNotNull(ssTableReaders);
+        assertThat(ssTableReaders).isNotNull();
     }
 
     @ParameterizedTest
@@ -278,9 +272,8 @@ public class PartitionedDataLayerTests extends VersionRunner
 
         PartitionKeyFilter filter = PartitionKeyFilter.create(ByteBuffer.wrap(RandomUtils.nextBytes(10)),
                                                               BigInteger.valueOf(6917529027641081853L));
-        assertThrows(NotEnoughReplicasException.class,
-                     () -> dataLayer.sstables(partitionId, null, Collections.singletonList(filter))
-        );
+        assertThatThrownBy(() -> dataLayer.sstables(partitionId, null, Collections.singletonList(filter)))
+            .isInstanceOf(NotEnoughReplicasException.class);
     }
 
     @Test
@@ -301,17 +294,17 @@ public class PartitionedDataLayerTests extends VersionRunner
         PartitionKeyFilter randomFilter = mock(PartitionKeyFilter.class);
         when(randomFilter.overlaps(any())).thenReturn(true);
 
-        assertFalse(dataLayer.partitionKeyFiltersInRange(partitionId,
-                                                         Collections.singletonList(randomFilter)).isEmpty());
-        assertEquals(2, dataLayer.partitionKeyFiltersInRange(partitionId,
-                                                             Arrays.asList(filterInRange, randomFilter)).size());
-        assertEquals(2, dataLayer.partitionKeyFiltersInRange(partitionId,
-                                                             Arrays.asList(filterInRange, filterOutsideRange, randomFilter)).size());
+        assertThat(dataLayer.partitionKeyFiltersInRange(partitionId,
+                                                         Collections.singletonList(randomFilter))).isNotEmpty();
+        assertThat(dataLayer.partitionKeyFiltersInRange(partitionId,
+                                                             Arrays.asList(filterInRange, randomFilter))).hasSize(2);
+        assertThat(dataLayer.partitionKeyFiltersInRange(partitionId,
+                                                             Arrays.asList(filterInRange, filterOutsideRange, randomFilter))).hasSize(2);
 
         // Filter does not fall in spark token range
         StreamScanner scanner = dataLayer.openCompactionScanner(partitionId,
                                                                 Collections.singletonList(filterOutsideRange));
-        assertTrue(scanner instanceof EmptyStreamScanner);
+        assertThat(scanner).isInstanceOf(EmptyStreamScanner.class);
     }
 
     @SuppressWarnings("UnstableApiUsage")
@@ -333,8 +326,8 @@ public class PartitionedDataLayerTests extends VersionRunner
                     ring.getSubRanges(tokenPartitioner.getTokenRange(0)).asMapOfRanges();
             PartitionedDataLayer.ReplicaSet replicaSet =
                     PartitionedDataLayer.splitReplicas(instances, ranges, availableMap::get, minReplicas, 0);
-            assertEquals(minReplicas, replicaSet.primary().size());
-            assertEquals(numInstances - minReplicas, replicaSet.backup().size());
+            assertThat(replicaSet.primary()).hasSize(minReplicas);
+            assertThat(replicaSet.backup()).hasSize(numInstances - minReplicas);
 
             List<CassandraInstance> sortedInstances = new ArrayList<>(instances);
             sortedInstances.sort(Comparator.comparing(availableMap::get, AVAILABILITY_HINT_COMPARATOR));
@@ -342,11 +335,11 @@ public class PartitionedDataLayerTests extends VersionRunner
             {
                 if (instance < minReplicas)
                 {
-                    assertTrue(replicaSet.primary().contains(sortedInstances.get(instance)));
+                    assertThat(replicaSet.primary()).contains(sortedInstances.get(instance));
                 }
                 else
                 {
-                    assertTrue(replicaSet.backup().contains(sortedInstances.get(instance)));
+                    assertThat(replicaSet.backup()).contains(sortedInstances.get(instance));
                 }
             }
         });
@@ -394,9 +387,9 @@ public class PartitionedDataLayerTests extends VersionRunner
                                                                                             availability,
                                                                                             minReplicas,
                                                                                             0);
-            assertNotNull(replicaSet);
-            assertTrue(Collections.disjoint(replicaSet.primary(), replicaSet.backup()));
-            assertEquals(replicas.size(), replicaSet.primary().size() + replicaSet.backup().size());
+            assertThat(replicaSet).isNotNull();
+            assertThat(Collections.disjoint(replicaSet.primary(), replicaSet.backup())).isTrue();
+            assertThat(replicaSet.primary().size() + replicaSet.backup().size()).isEqualTo(replicas.size());
         }
     }
 }

@@ -27,8 +27,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class SimpleTaskSchedulerTest
 {
@@ -48,8 +47,8 @@ public class SimpleTaskSchedulerTest
         long start = System.nanoTime();
         simpleTaskScheduler.schedulePeriodic(taskName, Duration.ofMillis(10), latch::countDown);
         Uninterruptibles.awaitUninterruptibly(latch);
-        assertEquals(0, latch.getCount());
-        assertTrue(System.nanoTime() > start + TimeUnit.MILLISECONDS.toNanos(10 * 10));
+        assertThat(latch.getCount()).isEqualTo(0);
+        assertThat(System.nanoTime()).isGreaterThan(start + TimeUnit.MILLISECONDS.toNanos(10 * 10));
     }
 
     @Test
@@ -62,7 +61,7 @@ public class SimpleTaskSchedulerTest
             throw new RuntimeException("It fails");
         });
         Uninterruptibles.awaitUninterruptibly(latch);
-        assertEquals(0, latch.getCount());
-        assertTrue(System.nanoTime() > start + TimeUnit.MILLISECONDS.toNanos(10 * 10));
+        assertThat(latch.getCount()).isEqualTo(0);
+        assertThat(System.nanoTime()).isGreaterThan(start + TimeUnit.MILLISECONDS.toNanos(10 * 10));
     }
 }

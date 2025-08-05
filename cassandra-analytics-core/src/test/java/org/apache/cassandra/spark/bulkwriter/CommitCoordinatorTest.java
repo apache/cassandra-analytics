@@ -35,7 +35,7 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for {@link CommitCoordinator}
@@ -65,10 +65,10 @@ class CommitCoordinatorTest
         try (CommitCoordinator coordinator = CommitCoordinator.commit(context, transportContext, uploadResult))
         {
             List<CommitResult> commitResults = coordinator.get();
-            assertEquals(successfulUploads, commitResults.size());
+            assertThat(commitResults).hasSize(successfulUploads);
             commitResults.forEach(cr -> {
-                assertEquals(0, cr.failures.size());
-                assertEquals(1, cr.passed.size());
+                assertThat(cr.failures).isEmpty();
+                assertThat(cr.passed).hasSize(1);
             });
         }
     }
@@ -86,10 +86,10 @@ class CommitCoordinatorTest
         try (CommitCoordinator coordinator = CommitCoordinator.commit(context, transportContext, uploadResult))
         {
             List<CommitResult> commitResults = coordinator.get();
-            assertEquals(successfulUploads, commitResults.size());
+            assertThat(commitResults).hasSize(successfulUploads);
             CommitResult cr = commitResults.get(0);
-            assertEquals(0, cr.failures.size());  // Failed uploads should not be committed at all
-            assertEquals(successfulUploads, cr.passed.size());
+            assertThat(cr.failures).isEmpty();  // Failed uploads should not be committed at all
+            assertThat(cr.passed).hasSize(successfulUploads);
         }
     }
 
@@ -111,10 +111,10 @@ class CommitCoordinatorTest
         try (CommitCoordinator coordinator = CommitCoordinator.commit(context, transportContext, uploadResults))
         {
             List<CommitResult> commitResults = coordinator.get();
-            assertEquals(successfulUploads, commitResults.size());
+            assertThat(commitResults).hasSize(successfulUploads);
             commitResults.forEach(cr -> {
-                assertEquals(0, cr.failures.size());
-                assertEquals(1, cr.passed.size());
+                assertThat(cr.failures).isEmpty();
+                assertThat(cr.passed).hasSize(1);
             });
         }
     }
@@ -133,10 +133,10 @@ class CommitCoordinatorTest
         try (CommitCoordinator coordinator = CommitCoordinator.commit(context, transportContext, uploadResults))
         {
             List<CommitResult> commitResults = coordinator.get();
-            assertEquals(successfulUploads, commitResults.size());
+            assertThat(commitResults).hasSize(successfulUploads);
             commitResults.forEach(cr -> {
-                assertEquals(1, cr.failures.size());
-                assertEquals(0, cr.passed.size());
+                assertThat(cr.failures).hasSize(1);
+                assertThat(cr.passed).isEmpty();
             });
         }
     }
@@ -153,10 +153,10 @@ class CommitCoordinatorTest
         try (CommitCoordinator coordinator = CommitCoordinator.commit(context, transportContext, uploadResults))
         {
             List<CommitResult> commitResults = coordinator.get();
-            assertEquals(successfulUploads, commitResults.size());
+            assertThat(commitResults).hasSize(successfulUploads);
             commitResults.forEach(cr -> {
-                assertEquals(1, cr.failures.size());
-                assertEquals(0, cr.passed.size());
+                assertThat(cr.failures).hasSize(1);
+                assertThat(cr.passed).isEmpty();
             });
         }
     }
@@ -173,10 +173,10 @@ class CommitCoordinatorTest
         try (CommitCoordinator coordinator = CommitCoordinator.commit(context, transportContext, uploadResults))
         {
             List<CommitResult> commitResults = coordinator.get();
-            assertEquals(successfulUploads, commitResults.size());
+            assertThat(commitResults).hasSize(successfulUploads);
             commitResults.forEach(cr -> {
-                assertEquals(1, cr.failures.size());
-                assertEquals(0, cr.passed.size());
+                assertThat(cr.failures).hasSize(1);
+                assertThat(cr.passed).isEmpty();
             });
         }
     }

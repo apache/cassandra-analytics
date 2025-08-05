@@ -49,6 +49,7 @@ dependencies {
     implementation(project(':analytics-sidecar-vertx-client'))
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.9.1'
+    testImplementation("org.assertj:assertj-core:${assertjCoreVersion}")
     testImplementation(project(path: ':analytics-sidecar-vertx-client-shaded', configuration: 'shadow'))
 }
 

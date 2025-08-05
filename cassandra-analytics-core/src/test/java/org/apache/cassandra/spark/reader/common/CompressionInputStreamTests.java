@@ -34,10 +34,8 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.analytics.reader.common.RawInputStream;
 import org.apache.cassandra.analytics.stats.Stats;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class CompressionInputStreamTests
 {
@@ -67,47 +65,46 @@ public class CompressionInputStreamTests
         try (DataInputStream dis = new DataInputStream(new RawInputStream(new DataInputStream(
                 new BufferedInputStream(Files.newInputStream(path))), buffer, Stats.DoNothingStats.INSTANCE)))
         {
-            assertEquals(filename, dis.readUTF());
+            assertThat(dis.readUTF()).isEqualTo(filename);
             int numReads = dis.readInt();
             for (int read = 0; read < numReads; read++)
             {
-                assertEquals(read, dis.readInt());
+                assertThat(dis.readInt()).isEqualTo(read);
             }
             for (int read = 0; read < numReads; read++)
             {
-                assertEquals(read, dis.readLong());
+                assertThat(dis.readLong()).isEqualTo(read);
             }
-            assertFalse(dis.readBoolean());
-            assertTrue(dis.readBoolean());
+            assertThat(dis.readBoolean()).isFalse();
+            assertThat(dis.readBoolean()).isTrue();
         }
     }
 
     @Test()
     public void testBigLongArrayIllegalSize()
     {
-        assertThrows(IndexOutOfBoundsException.class,
-                     () -> new BigLongArray(-1)
-        );
+        assertThatThrownBy(() -> new BigLongArray(-1))
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     @Test()
     public void testBigLongArrayEmpty()
     {
-        assertThrows(IndexOutOfBoundsException.class,
-                     () -> {
+        assertThatThrownBy(() -> {
                          BigLongArray array = new BigLongArray(0);
                          array.set(0, 0L);
-                     });
+                     })
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     @Test()
     public void testBigLongArrayOutOfRange()
     {
-        assertThrows(IndexOutOfBoundsException.class,
-                     () -> {
+        assertThatThrownBy(() -> {
                          BigLongArray array = new BigLongArray(500);
                          array.set(501, 999L);
-                     });
+                     })
+                .isInstanceOf(IndexOutOfBoundsException.class);
     }
 
     @Test
@@ -115,7 +112,7 @@ public class CompressionInputStreamTests
     {
         BigLongArray array = new BigLongArray(1);
         array.set(0, 999L);
-        assertEquals(999L, array.get(0));
+        assertThat(array.get(0)).isEqualTo(999L);
     }
 
     @Test
@@ -129,7 +126,7 @@ public class CompressionInputStreamTests
         }
         for (int index = 0; index < size; index++)
         {
-            assertEquals(index * 5L, array.get(index));
+            assertThat(array.get(index)).isEqualTo(index * 5L);
         }
     }
 }
