@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
@@ -53,9 +54,20 @@ public interface JobInfo extends Serializable
     UUID getRestoreJobId();
 
     /**
+     * Returns the restore job identifier on Cassandra Sidecar of the cluster identified by the clusterId
+     * The method should be called in the coordinated write code path.
+     *
+     * @param clusterId identifies the Cassandra cluster
+     * @return restore job identifier, a time-based uuid
+     * @throws NoSuchElementException when there is no restoreJobId associated with the clusterId
+     */
+    UUID getRestoreJobId(@Nullable String clusterId) throws NoSuchElementException;
+
+    /**
      * An optional unique identified supplied in spark configuration
      * @return a id string or null
      */
+    @Nullable
     String getConfiguredJobId();
 
     // Convenient method to decide a unique identified used for the job.

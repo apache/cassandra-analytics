@@ -36,6 +36,17 @@ public class RestoreJobConstants
     public static final String JOB_CONSISTENCY_LEVEL = "consistencyLevel";
     public static final String JOB_OPERATION_REASON = "reason";
     public static final String JOB_LOCAL_DATA_CENTER = "localDatacenter";
+    /**
+     * A boolean field; when restoreToLocalDatacenterOnly is set to true, localDatacenter must also be specified, and
+     * the restore job will only restore to the specified localDatacenter, regardless of the replication configuration
+     * of the belonging keyspace.
+     * The option should be used with caution. To help build an educated decision, when only restoring to the local
+     * datacenter, but the table replicates to multiple datacenters, it could cause a large amount of repair streaming
+     * traffic. Arguably, you might want to leverage the intra-node repair feature, then you can enable this option.
+     * Another use case that could justify the option is running distinct restore jobs, one per datacenter, concurrently.
+     * In this case, there is an external coordinator that manages the restore job in each datacenter.
+     */
+    public static final String JOB_RESTORE_TO_LOCAL_DATA_CENTER_ONLY = "restoreToLocalDatacenterOnly";
     public static final String SLICE_ID = "sliceId";
     public static final String BUCKET_ID = "bucketId";
     public static final String SLICE_START_TOKEN = "startToken";
@@ -60,8 +71,4 @@ public class RestoreJobConstants
     public static final String JOB_PROGRESS_ABORTED_RANGES = "abortedRanges";
     public static final String JOB_PROGRESS_PENDING_RANGES = "pendingRanges";
     public static final String JOB_PROGRESS_SUCCEEDED_RANGES = "succeededRanges";
-
-    private RestoreJobConstants()
-    {
-    }
 }

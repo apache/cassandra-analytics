@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -41,11 +40,11 @@ import o.a.c.sidecar.client.shaded.common.request.data.CreateRestoreJobRequestPa
 import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPayload;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageStreamResult;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCoordinator;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionCoordinator;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCoordinator;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCloudStorageDataTransferApi;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedImportCoordinator;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
@@ -279,7 +278,11 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         context.transportExtensionImplementation()
                .onAllObjectsPersisted(objectCount, rowCount, elapsedTimeMillis());
 
-        setSliceCountForRestoreJob(context, objectCount);
+        // only need to set the slice count (for better progress tracking) when in coordinated write mode
+        if (writerContext.job().isCoordinatedWriteEnabled())
+        {
+            setSliceCountForRestoreJob(context, objectCount);
+        }
 
         awaitImportCompletion(context, resultsAsCloudStorageStreamResults);
         markRestoreJobAsSucceeded(context);
@@ -460,8 +463,11 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                                             .toRestoreJobSecrets();
             CoordinatedWriteConf.ClusterConf cluster = coordinatedWriteConf.cluster(clusterId);
             String localDc = cluster.resolveLocalDc(cl); // resolve the cluster specific localDc name
-            CreateRestoreJobRequestPayload payload = createJobPayloadBuilder(job, secrets)
+            CreateRestoreJobRequestPayload payload = createJobPayloadBuilder(job, secrets, clusterId)
                                                      .consistencyLevel(toSidecarConsistencyLevel(cl), localDc)
+                                                     // TODO: add test case once we advance the sidecar version that understands the flag,
+                                                     //       or a better testing strategy is figured out
+                                                     .restoreToLocalDatacenterOnly(cluster.writeToLocalDcOnly())
                                                      .build();
             api.createRestoreJob(payload);
         });
@@ -469,9 +475,14 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
     private CreateRestoreJobRequestPayload.Builder createJobPayloadBuilder(JobInfo job, RestoreJobSecrets secrets)
     {
+        return createJobPayloadBuilder(job, secrets, null);
+    }
+
+    private CreateRestoreJobRequestPayload.Builder createJobPayloadBuilder(JobInfo job, RestoreJobSecrets secrets, String clusterId)
+    {
         CreateRestoreJobRequestPayload.Builder builder = CreateRestoreJobRequestPayload.builder(secrets, updatedLeaseTime());
         builder.jobAgent(BuildInfo.APPLICATION_NAME)
-               .jobId(job.getRestoreJobId())
+               .jobId(job.getRestoreJobId(clusterId))
                .updateImportOptions(importOptions -> {
                    importOptions.verifySSTables(true) // we disallow the end-user to bypass the non-extended verify anymore
                                 .extendedVerify(false); // always turn off
@@ -487,15 +498,14 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     private void setSliceCountForRestoreJob(TransportContext.CloudStorageTransportContext context, long sliceCount)
     {
         UpdateRestoreJobRequestPayload requestPayload = UpdateRestoreJobRequestPayload.builder().withSliceCount(sliceCount).build();
-        UUID jobId = writerContext.job().getRestoreJobId();
         try
         {
-            LOGGER.info("Setting slice count for the restore job. jobId={} sliceCount={}", jobId, sliceCount);
+            LOGGER.info("Setting slice count for the restore job. sliceCount={}", sliceCount);
             context.dataTransferApi().updateRestoreJob(requestPayload);
         }
         catch (Exception e)
         {
-            LOGGER.warn("Failed to set slice count for the restore job. jobId={}", jobId, e);
+            LOGGER.warn("Failed to set slice count for the restore job.", e);
             // Do not rethrow - avoid triggering the catch block at the call-site that marks job as failed.
         }
     }
@@ -503,17 +513,16 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     private void markRestoreJobAsSucceeded(TransportContext.CloudStorageTransportContext context)
     {
         UpdateRestoreJobRequestPayload requestPayload = UpdateRestoreJobRequestPayload.builder().withStatus(RestoreJobStatus.SUCCEEDED).build();
-        UUID jobId = writerContext.job().getRestoreJobId();
         try
         {
-            LOGGER.info("Marking the restore job as succeeded. jobId={}", jobId);
+            LOGGER.info("Marking the restore job as succeeded.");
             // Prioritize the call to extension, so onJobSucceeded is always invoked.
             context.transportExtensionImplementation().onJobSucceeded(elapsedTimeMillis());
             context.dataTransferApi().updateRestoreJob(requestPayload);
         }
         catch (Exception e)
         {
-            LOGGER.warn("Failed to mark the restore job as succeeded. jobId={}", jobId, e);
+            LOGGER.warn("Failed to mark the restore job as succeeded.", e);
             // Do not rethrow - avoid triggering the catch block at the call-site that marks job as failed.
         }
     }
@@ -522,8 +531,6 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     {
         // Prioritize the call to extension, so onJobFailed is always invoked.
         context.transportExtensionImplementation().onJobFailed(elapsedTimeMillis(), cause);
-        UUID jobId = writerContext.job().getRestoreJobId();
-        LOGGER.info("Aborting job. jobId={}", jobId);
         context.dataTransferApi().abortRestoreJob();
     }
 

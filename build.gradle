@@ -303,7 +303,7 @@ ext {
   //    https://docs.gradle.org/current/userguide/build_environment.html#sec:gradle_properties_and_system_properties
   propertyWithDefault = { property, defaultValue ->
     def value = defaultValue
-    def envValue = System.getenv("CASSANDRA_DEP_DIR")
+    def envValue = System.getenv(property)
     if (envValue != null) {
       value = envValue
     }

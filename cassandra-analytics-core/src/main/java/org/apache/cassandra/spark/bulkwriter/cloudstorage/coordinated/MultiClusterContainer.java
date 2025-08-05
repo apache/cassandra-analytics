@@ -48,6 +48,13 @@ public class MultiClusterContainer<T> implements Serializable, MultiClusterSuppo
     // For coordinated write, the key should be String values of clusterId
     private final Map<Object, T> byCluster = new ConcurrentHashMap<>();
 
+    public static <T> MultiClusterContainer<T> ofSingle(T value)
+    {
+        MultiClusterContainer<T> result = new MultiClusterContainer<>();
+        result.setValue(null, value);
+        return result;
+    }
+
     @Nullable
     @Override
     public T getValueOrNull(@Nullable String clusterId)

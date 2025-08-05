@@ -33,6 +33,7 @@ import org.apache.cassandra.sidecar.common.data.RestoreJobSecrets;
 import org.apache.cassandra.sidecar.common.data.RestoreJobStatus;
 import org.apache.cassandra.sidecar.common.data.SSTableImportOptions;
 import org.apache.cassandra.sidecar.common.utils.Preconditions;
+import org.apache.cassandra.sidecar.common.utils.StringUtils;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_AGENT;
@@ -41,12 +42,13 @@ import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_E
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_ID;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_IMPORT_OPTIONS;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_LOCAL_DATA_CENTER;
+import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_RESTORE_TO_LOCAL_DATA_CENTER_ONLY;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_SECRETS;
 
 /**
  * Request payload for creating restore jobs.
  */
-@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonInclude(JsonInclude.Include.NON_DEFAULT)
 public class CreateRestoreJobRequestPayload
 {
     private final UUID jobId;
@@ -55,6 +57,7 @@ public class CreateRestoreJobRequestPayload
     private final SSTableImportOptions importOptions;
     private final long expireAtInMillis;
     private final ConsistencyConfig consistencyConfig;
+    private final boolean localDatacenterOnly;
 
     /**
      * Builder to build a CreateRestoreJobRequest
@@ -73,11 +76,13 @@ public class CreateRestoreJobRequestPayload
      * CreateRestoreJobRequest deserializer
      *
      * @param jobId            job id of restore job
-     * @param jobAgent         arbitrary text a job can put, which can be used to identity itself during Http request
+     * @param jobAgent         arbitrary text a job can put, which can be used to identify itself during Http request
      * @param secrets          secrets to be used by restore job to download data
      * @param importOptions    the configured options for SSTable import
      * @param expireAtInMillis a timestamp in the future when the job is considered expired
      * @param consistencyLevel consistency level a job should satisfy
+     * @param localDatacenter  the local datacenter name; required if using local consistency level and localDatacenterOnly is specified
+     * @param localDatacenterOnly whether the job should restore to the specified local datacenter only
      */
     @JsonCreator
     public CreateRestoreJobRequestPayload(@JsonProperty(JOB_ID) UUID jobId,
@@ -86,7 +91,8 @@ public class CreateRestoreJobRequestPayload
                                           @JsonProperty(JOB_IMPORT_OPTIONS) SSTableImportOptions importOptions,
                                           @JsonProperty(JOB_EXPIRE_AT) long expireAtInMillis,
                                           @JsonProperty(JOB_CONSISTENCY_LEVEL) String consistencyLevel,
-                                          @JsonProperty(JOB_LOCAL_DATA_CENTER) String localDatacenter)
+                                          @JsonProperty(JOB_LOCAL_DATA_CENTER) String localDatacenter,
+                                          @JsonProperty(JOB_RESTORE_TO_LOCAL_DATA_CENTER_ONLY) boolean localDatacenterOnly)
     {
         Preconditions.checkArgument(jobId == null || jobId.version() == 1,
                                     "Only time based UUIDs allowed for jobId");
@@ -101,6 +107,9 @@ public class CreateRestoreJobRequestPayload
                              : importOptions;
         this.expireAtInMillis = expireAtInMillis;
         this.consistencyConfig = ConsistencyConfig.parseString(consistencyLevel, localDatacenter);
+        Preconditions.checkArgument(!localDatacenterOnly || StringUtils.isNotEmpty(localDatacenter),
+                                    "Must specify a localDatacenter when restoreToLocalDatacenterOnly is true");
+        this.localDatacenterOnly = localDatacenterOnly;
     }
 
     private CreateRestoreJobRequestPayload(Builder builder)
@@ -111,7 +120,8 @@ public class CreateRestoreJobRequestPayload
              builder.importOptions,
              builder.expireAtInMillis,
              nameOrNull(builder.consistencyLevel),
-             builder.localDc);
+             builder.localDc,
+             builder.localDatacenterOnly);
     }
 
     /**
@@ -189,6 +199,15 @@ public class CreateRestoreJobRequestPayload
         return consistencyConfig.localDatacenter;
     }
 
+    /**
+     * @return whether the job should restore only to its specified localDatacenter
+     */
+    @JsonProperty(JOB_RESTORE_TO_LOCAL_DATA_CENTER_ONLY)
+    public boolean shouldRestoreToLocalDatacenterOnly()
+    {
+        return localDatacenterOnly;
+    }
+
     public ConsistencyConfig consistencyConfig()
     {
         return consistencyConfig;
@@ -204,6 +223,7 @@ public class CreateRestoreJobRequestPayload
                JOB_EXPIRE_AT + "='" + expireAtInMillis + "', " +
                JOB_CONSISTENCY_LEVEL + "='" + consistencyLevel() + "', " +
                JOB_LOCAL_DATA_CENTER + "='" + localDatacenter() + "', " +
+               JOB_RESTORE_TO_LOCAL_DATA_CENTER_ONLY + "='" + shouldRestoreToLocalDatacenterOnly() + "', " +
                JOB_IMPORT_OPTIONS + "='" + importOptions + "'}";
     }
 
@@ -220,6 +240,7 @@ public class CreateRestoreJobRequestPayload
         private String jobAgent = null;
         private ConsistencyLevel consistencyLevel = null;
         private String localDc = null;
+        private boolean localDatacenterOnly = false;
 
         Builder(RestoreJobSecrets secrets, long expireAtInMillis)
         {
@@ -253,6 +274,11 @@ public class CreateRestoreJobRequestPayload
                 b.consistencyLevel = consistencyLevel;
                 b.localDc = localDc;
             });
+        }
+
+        public Builder restoreToLocalDatacenterOnly(boolean localDatacenterOnly)
+        {
+            return update(b -> b.localDatacenterOnly = localDatacenterOnly);
         }
 
         @Override

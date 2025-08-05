@@ -121,7 +121,7 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
     @Override
     public void createRestoreSliceFromExecutor(String clusterId, CreateSliceRequestPayload createSliceRequestPayload) throws SidecarApiCallException
     {
-        createRestoreSliceInternal(dataTransferApis.getValueOrThrow(clusterId), createSliceRequestPayload);
+        createRestoreSliceInternal(clusterId, dataTransferApis.getValueOrThrow(clusterId), createSliceRequestPayload);
     }
 
     @Override
@@ -161,15 +161,17 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
         throw new UnsupportedOperationException("Not supported for coordinated write");
     }
 
-    private void createRestoreSliceInternal(CloudStorageDataTransferApiImpl dataTransferApi,
+    private void createRestoreSliceInternal(String clusterId,
+                                            CloudStorageDataTransferApiImpl dataTransferApi,
                                             CreateSliceRequestPayload createSliceRequestPayload) throws SidecarApiCallException
     {
         JobInfo jobInfo = dataTransferApi.jobInfo();
         SidecarClient sidecarClient = dataTransferApi.sidecarClient();
         QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
+        UUID restoreJobId = jobInfo.getRestoreJobId(clusterId);
         CreateRestoreJobSliceRequest request = new CreateRestoreJobSliceRequest(qualifiedTableName.keyspace(),
                                                                                 qualifiedTableName.table(),
-                                                                                jobInfo.getRestoreJobId(),
+                                                                                restoreJobId,
                                                                                 createSliceRequestPayload);
         RetryPolicy retryPolicy = new CloudStorageDataTransferApiImpl.ExecutorCreateSliceRetryPolicy(sidecarClient);
         RequestContext requestContext = sidecarClient.requestBuilder().retryPolicy(retryPolicy).request(request).build();
@@ -181,7 +183,7 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
         {
             handleInterruption(exception);
             throw new SidecarApiCallException("Failed to create restore job slice. " +
-                                              "restoreJobId=" + jobInfo.getRestoreJobId() +
+                                              "restoreJobId=" + restoreJobId +
                                               " sliceId=" + createSliceRequestPayload.sliceId(),
                                               exception);
         }
@@ -194,7 +196,7 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
     {
         JobInfo jobInfo = dataTransferApi.jobInfo();
         QualifiedTableName qualifiedTableName = jobInfo.qualifiedTableName();
-        UUID restoreJobId = jobInfo.getRestoreJobId();
+        UUID restoreJobId = jobInfo.getRestoreJobId(clusterId);
         RestoreJobProgressRequestParams requestParams = new RestoreJobProgressRequestParams(qualifiedTableName.keyspace(),
                                                                                             qualifiedTableName.table(),
                                                                                             restoreJobId,

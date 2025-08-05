@@ -164,6 +164,8 @@ public class CoordinatedWriteConf
         @Nullable
         String localDc();
 
+        boolean writeToLocalDcOnly();
+
         @Nullable
         default String resolveLocalDc(ConsistencyLevel cl)
         {
@@ -188,14 +190,22 @@ public class CoordinatedWriteConf
         private final List<String> sidecarContactPointsValue;
         private final Set<SidecarInstance> sidecarContactPoints;
         private final @Nullable String localDc;
+        private final boolean writeToLocalDcOnly;
 
         @JsonCreator
         public SimpleClusterConf(@JsonProperty("sidecarContactPoints") List<String> sidecarContactPointsValue,
-                                 @JsonProperty("localDc") String localDc)
+                                 @JsonProperty("localDc") String localDc,
+                                 @JsonProperty("writeToLocalDcOnly") boolean writeToLocalDcOnly)
         {
             this.sidecarContactPointsValue = sidecarContactPointsValue;
             this.sidecarContactPoints = buildSidecarContactPoints(sidecarContactPointsValue);
             this.localDc = localDc;
+            this.writeToLocalDcOnly = writeToLocalDcOnly;
+        }
+
+        public SimpleClusterConf(List<String> sidecarContactPointsValue, String localDc)
+        {
+            this(sidecarContactPointsValue, localDc, false);
         }
 
         @JsonProperty("sidecarContactPoints")
@@ -210,6 +220,12 @@ public class CoordinatedWriteConf
         public String localDc()
         {
             return localDc;
+        }
+
+        @JsonProperty("writeToLocalDcOnly")
+        public boolean writeToLocalDcOnly()
+        {
+            return writeToLocalDcOnly;
         }
 
         @Override

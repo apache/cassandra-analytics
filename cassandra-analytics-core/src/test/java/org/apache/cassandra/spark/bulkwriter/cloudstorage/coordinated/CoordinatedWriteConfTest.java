@@ -49,11 +49,15 @@ class CoordinatedWriteConfTest
         String json = conf.toJson();
         assertThat(json)
         .isEqualTo("{\"cluster1\":" +
-                   "{\"sidecarContactPoints\":[\"instance-1:9999\",\"instance-2:9999\",\"instance-3:9999\"]," +
-                   "\"localDc\":\"dc1\"}," +
+                   "{\"sidecarContactPoints\":" +
+                   "[\"instance-1:9999\",\"instance-2:9999\",\"instance-3:9999\"]," +
+                   "\"localDc\":\"dc1\"," +
+                   "\"writeToLocalDcOnly\":false}," +
                    "\"cluster2\":" +
-                   "{\"sidecarContactPoints\":[\"instance-4:8888\",\"instance-5:8888\",\"instance-6:8888\"]," +
-                   "\"localDc\":\"dc1\"}}");
+                   "{\"sidecarContactPoints\":" +
+                   "[\"instance-4:8888\",\"instance-5:8888\",\"instance-6:8888\"]," +
+                   "\"localDc\":\"dc1\"," +
+                   "\"writeToLocalDcOnly\":false}}");
         CoordinatedWriteConf deser = CoordinatedWriteConf.create(json, CL.LOCAL_QUORUM, SimpleClusterConf.class);
         assertThat(deser.clusters()).containsKeys("cluster1", "cluster2");
         assertThat(deser.cluster("cluster1")).isNotNull();

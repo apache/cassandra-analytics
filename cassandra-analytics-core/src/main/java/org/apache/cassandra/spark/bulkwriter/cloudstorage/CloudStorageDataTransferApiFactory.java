@@ -26,6 +26,7 @@ import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCloudStorageDataTransferApi;
+import org.jetbrains.annotations.Nullable;
 
 public class CloudStorageDataTransferApiFactory
 {
@@ -46,15 +47,19 @@ public class CloudStorageDataTransferApiFactory
         }
         else
         {
-            return createForSingleCluster(storageClient, jobInfo, clusterInfo);
+            return createForSingleCluster(storageClient, jobInfo, clusterInfo, null);
         }
     }
 
-    private CloudStorageDataTransferApiImpl createForSingleCluster(StorageClient storageClient, JobInfo jobInfo, ClusterInfo clusterInfo)
+    private CloudStorageDataTransferApiImpl createForSingleCluster(StorageClient storageClient,
+                                                                   JobInfo jobInfo,
+                                                                   ClusterInfo clusterInfo,
+                                                                   @Nullable String clusterId)
     {
         return new CloudStorageDataTransferApiImpl(jobInfo,
                                                    clusterInfo.getCassandraContext().getSidecarClient(),
-                                                   storageClient);
+                                                   storageClient,
+                                                   clusterId);
     }
 
     private CoordinatedCloudStorageDataTransferApi createForCoordinated(StorageClient storageClient,
@@ -63,7 +68,7 @@ public class CloudStorageDataTransferApiFactory
     {
         Map<String, CloudStorageDataTransferApiImpl> apiByClusterId = new HashMap<>(clusterInfoGroup.size());
         clusterInfoGroup.forEach((clusterId, clusterInfo) -> {
-            apiByClusterId.put(clusterId, createForSingleCluster(storageClient, jobInfo, clusterInfo));
+            apiByClusterId.put(clusterId, createForSingleCluster(storageClient, jobInfo, clusterInfo, clusterId));
         });
 
         return new CoordinatedCloudStorageDataTransferApi(apiByClusterId);

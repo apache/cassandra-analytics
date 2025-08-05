@@ -136,8 +136,7 @@ public class CassandraCloudStorageTransportContext implements TransportContext.C
         {
             Class<StorageTransportExtension> clazz = (Class<StorageTransportExtension>) Class.forName(transportExtensionClass);
             StorageTransportExtension extension = clazz.getConstructor().newInstance();
-            LOGGER.info("Initializing storage transport extension. jobId={}, restoreJobId={}",
-                        jobInfo.getId(), jobInfo.getRestoreJobId());
+            LOGGER.info("Initializing storage transport extension. jobId={}", jobInfo.getId());
             extension.initialize(jobInfo.getId(), conf.getSparkConf(), isOnDriver);
             // Only assign when initialization is complete
             // to avoid exposing uninitialized extension object, which leads to unexpected behavior

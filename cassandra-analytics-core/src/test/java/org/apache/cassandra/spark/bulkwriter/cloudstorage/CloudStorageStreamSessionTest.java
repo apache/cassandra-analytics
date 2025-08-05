@@ -201,7 +201,7 @@ class CloudStorageStreamSessionTest
 
         MockBlobTransferApi(JobInfo jobInfo, SidecarClient sidecarClient, StorageClient storageClient)
         {
-            super(jobInfo, sidecarClient, storageClient);
+            super(jobInfo, sidecarClient, storageClient, null);
         }
 
         @Override

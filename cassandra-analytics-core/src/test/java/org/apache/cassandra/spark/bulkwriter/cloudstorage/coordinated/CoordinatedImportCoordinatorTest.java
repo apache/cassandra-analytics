@@ -61,6 +61,7 @@ import static org.assertj.core.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -72,7 +73,9 @@ import static org.mockito.Mockito.when;
 class CoordinatedImportCoordinatorTest
 {
     CoordinatedImportCoordinator coordinator;
-    UUID jobId;
+    UUID restoreJobId1 = UUID.randomUUID();
+    UUID restoreJobId2 = UUID.randomUUID();
+    String jobId = restoreJobId1.toString();
     JobInfo mockJobInfo;
     CassandraCoordinatedBulkWriterContext mockWriterContext;
     StorageTransportExtension mockExtension;
@@ -89,9 +92,9 @@ class CoordinatedImportCoordinatorTest
     public void setup() throws Exception
     {
         mockJobInfo = mock(JobInfo.class);
-        jobId = UUID.randomUUID();
-        when(mockJobInfo.getId()).thenReturn(jobId.toString());
-        when(mockJobInfo.getRestoreJobId()).thenReturn(jobId);
+        when(mockJobInfo.getId()).thenReturn(jobId);
+        when(mockJobInfo.getRestoreJobId(eq(clusterId1))).thenReturn(restoreJobId1);
+        when(mockJobInfo.getRestoreJobId(eq(clusterId2))).thenReturn(restoreJobId2);
         when(mockJobInfo.qualifiedTableName()).thenReturn(new QualifiedTableName("testkeyspace", "testtable"));
         when(mockJobInfo.getConsistencyLevel()).thenReturn(ConsistencyLevel.CL.LOCAL_QUORUM);
         when(mockJobInfo.jobKeepAliveMinutes()).thenReturn(-1);
@@ -137,14 +140,14 @@ class CoordinatedImportCoordinatorTest
         assertThat(coordinator.isStageReady()).isFalse();
         assertThat(coordinator.isImportReady()).isFalse();
         // signal stage ready
-        coordinator.onStageReady(jobId.toString());
+        coordinator.onStageReady(jobId);
         assertThat(coordinator.isStageReady()).isTrue();
 
         loopAssert(() -> stagedClusters.getAllValues().size() == 2, "waiting for all cluster to stage successfully");
         assertThat(stagedClusters.getAllValues()).containsExactlyInAnyOrder(clusterId1, clusterId2);
 
         // signal apply read
-        coordinator.onImportReady(jobId.toString());
+        coordinator.onImportReady(jobId);
 
         loopAssert(() -> appliedClusters.getAllValues().size() == 2, "waiting for all cluster to import successfully");
         assertThat(appliedClusters.getAllValues()).containsExactlyInAnyOrder(clusterId1, clusterId2);
@@ -165,7 +168,7 @@ class CoordinatedImportCoordinatorTest
         CompletableFuture<Void> fut = CompletableFuture.runAsync(coordinator::await);
 
         // signal stage ready
-        coordinator.onStageReady(jobId.toString());
+        coordinator.onStageReady(jobId);
 
         loopAssert(() -> coordinator.failure() != null, "waiting for coordinator to fail");
         assertThat(coordinator.succeeded()).isFalse();
@@ -196,7 +199,7 @@ class CoordinatedImportCoordinatorTest
         CompletableFuture.runAsync(coordinator::await);
 
         // signal stage ready
-        coordinator.onStageReady(jobId.toString());
+        coordinator.onStageReady(jobId);
 
         loopAssert(() -> coordinator.failure() != null, "waiting for coordinator to fail");
         assertThat(coordinator.succeeded()).isFalse();
@@ -204,7 +207,7 @@ class CoordinatedImportCoordinatorTest
         .isExactlyInstanceOf(ImportFailedException.class)
         .hasRootCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
         .hasRootCauseMessage("Some of the token ranges cannot satisfy with consistency level. " +
-                             "job=" + jobId +
+                             "job=" + restoreJobId1 +
                              " phase=STAGE_READY consistencyLevel=LOCAL_QUORUM clusterId=cluster1 ranges=null");
     }
 
@@ -224,13 +227,13 @@ class CoordinatedImportCoordinatorTest
         CompletableFuture.runAsync(coordinator::await);
 
         // signal stage ready
-        coordinator.onStageReady(jobId.toString());
+        coordinator.onStageReady(jobId);
 
         loopAssert(() -> stagedClusters.getAllValues().size() == 2, "waiting for all cluster to stage successfully");
         assertThat(stagedClusters.getAllValues()).containsExactlyInAnyOrder(clusterId1, clusterId2);
 
         // signal apply read
-        coordinator.onImportReady(jobId.toString());
+        coordinator.onImportReady(jobId);
 
         loopAssert(() -> coordinator.failure() != null, "waiting for coordinator to fail");
         assertThat(coordinator.succeeded()).isFalse();
@@ -238,7 +241,7 @@ class CoordinatedImportCoordinatorTest
         .isExactlyInstanceOf(ImportFailedException.class)
         .hasRootCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
         .hasRootCauseMessage("Some of the token ranges cannot satisfy with consistency level. " +
-                             "job=" + jobId +
+                             "job=" + restoreJobId1 +
                              " phase=IMPORT_READY consistencyLevel=LOCAL_QUORUM clusterId=cluster1 ranges=null");
     }
 

@@ -95,7 +95,7 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
 
         JobInfo job = bulkWriterContext.job();
         long maxSizePerBundleInBytes = job.transportInfo().getMaxSizePerBundleInBytes();
-        this.bundleNameGenerator = new BundleNameGenerator(job.getRestoreJobId().toString(), sessionID);
+        this.bundleNameGenerator = new BundleNameGenerator(job.getId(), sessionID);
         this.dataTransferApi = transportContext.dataTransferApi();
         this.bridge = bridge;
         QualifiedTableName qualifiedTableName = job.qualifiedTableName();
