@@ -49,7 +49,7 @@ public class FilterUtilsTests
     {
         Filter[] filters = new Filter[]{new EqualTo("a", "1"), new In("b", new String[]{"2", "3"}), new EqualTo("c", "2")};
         Map<String, List<String>> partitionKeyValues = FilterUtils.extractPartitionKeyValues(filters, new HashSet<>(Arrays.asList("a", "b")));
-        assertThat(partitionKeyValues).containsKey("c");
+        assertThat(partitionKeyValues).doesNotContainKey("c");
         assertThat(partitionKeyValues).containsKey("a");
         assertThat(partitionKeyValues).containsKey("b");
     }
