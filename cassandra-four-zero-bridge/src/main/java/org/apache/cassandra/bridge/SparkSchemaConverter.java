@@ -21,7 +21,6 @@ package org.apache.cassandra.bridge;
 
 import java.lang.reflect.Method;
 
-import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.SchemaConverter;
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;

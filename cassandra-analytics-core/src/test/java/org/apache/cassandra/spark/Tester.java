@@ -452,7 +452,7 @@ public final class Tester
                 }
 
                 TestSchema.TestRow actualRow = schema.toTestRow(row, requiredColumns,
-                                                                  (SparkSqlTypeConverter) CassandraBridgeFactory.get(version).getSparkSqlTypeConverter());
+                                                                  (SparkSqlTypeConverter) CassandraBridgeFactory.get(version).getTypeConverter());
                 if (numRandomRows > 0)
                 {
                     // If we wrote random data, verify values exist

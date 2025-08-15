@@ -129,7 +129,7 @@ public class SSTableReaderTests
 
                     // extract value column
                     ByteBuffer b = rowData.getValue();
-                    SparkSqlTypeConverter typeConverter = (SparkSqlTypeConverter) bridge.getSparkSqlTypeConverter();
+                    SparkSqlTypeConverter typeConverter = (SparkSqlTypeConverter) bridge.getTypeConverter();
                     Set<?> set = new HashSet<>(Arrays.asList(((GenericArrayData) bridge.set(bridge.aInt())
                                                                                        .deserializeToType(typeConverter, b))
                                                              .array()));

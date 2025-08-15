@@ -173,7 +173,7 @@ public class SparkRowIteratorTests
                                         TestSchema.TestRow[] testRows) throws IOException
     {
         CassandraBridge bridge = CassandraBridgeFactory.get(version);
-        SparkSqlTypeConverter typeConverter = (SparkSqlTypeConverter) bridge.getSparkSqlTypeConverter();
+        SparkSqlTypeConverter typeConverter = (SparkSqlTypeConverter) bridge.getTypeConverter();
         CqlTable cqlTable = schema.buildTable();
         int numRows = testRows.length;
         int numColumns = cqlTable.fields().size() - cqlTable.numPartitionKeys() - cqlTable.numClusteringKeys();

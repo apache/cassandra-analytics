@@ -73,7 +73,7 @@ public class DataTypeSerializationTests
 
     private static SparkSqlTypeConverter getSparkSql(CassandraBridge bridge)
     {
-        return (SparkSqlTypeConverter) bridge.getSparkSqlTypeConverter();
+        return (SparkSqlTypeConverter) bridge.getTypeConverter();
     }
 
     @Test

@@ -95,20 +95,6 @@ public abstract class CassandraBridge
      */
     public abstract TypeConverter getTypeConverter();
 
-    /**
-     * Returns the underlying SparkSqlTypeConverter for test compatibility.
-     * This method is provided for backwards compatibility with existing tests
-     * and should not be used in production code.
-     *
-     * @return the underlying SparkSqlTypeConverter instance
-     * @throws UnsupportedOperationException if the bridge doesn't use SparkSqlTypeConverter
-     */
-    @VisibleForTesting
-    public Object getSparkSqlTypeConverter()
-    {
-        throw new UnsupportedOperationException("Bridge implementation does not provide SparkSqlTypeConverter access");
-    }
-
     public abstract AbstractMap.SimpleEntry<ByteBuffer, BigInteger> getPartitionKey(@NotNull CqlTable table,
                                                                                     @NotNull Partitioner partitioner,
                                                                                     @NotNull List<String> keys);

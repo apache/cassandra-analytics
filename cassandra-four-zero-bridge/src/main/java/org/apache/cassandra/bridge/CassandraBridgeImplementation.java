@@ -145,7 +145,6 @@ public class CassandraBridgeImplementation extends CassandraBridge
 
     private SparkSchemaConverter sparkSchemaConverter;
     private SparkTypeMapper sparkTypeMapper;
-    private SparkTypeConverterWrapper sparkTypeConverterWrapper;
 
     public CassandraTypes cassandraTypes()
     {
@@ -174,17 +173,6 @@ public class CassandraBridgeImplementation extends CassandraBridge
 
     @Override
     public TypeConverter getTypeConverter()
-    {
-        if (sparkTypeConverterWrapper == null)
-        {
-            sparkTypeConverterWrapper = new SparkTypeConverterWrapper(loadSparkSqlTypeConverter());
-        }
-        return sparkTypeConverterWrapper;
-    }
-
-    @Override
-    @VisibleForTesting
-    public Object getSparkSqlTypeConverter()
     {
         return loadSparkSqlTypeConverter();
     }
