@@ -1,5 +1,6 @@
 0.2.0
 -----
+ * Fix abstraction leak in CassandraBridgeFactory (CASSANALYTICS-83)
  * Unique restoreJobId per write target (CASSANALYTICS-81)
  * Allow writing to local datacenter only for coordinated write (CASSANALYTICS-75)
 
