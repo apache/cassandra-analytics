@@ -33,10 +33,9 @@ import org.apache.commons.lang.StringUtils;
 
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraBridge;
-import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.config.SchemaFeature;
-import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
+import org.apache.spark.sql.types.DataType;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.EmptyStreamScanner;
 import org.apache.cassandra.spark.reader.IndexEntry;
@@ -76,7 +75,7 @@ public abstract class DataLayer implements Serializable
         {
             MetadataBuilder metadata = fieldMetaData(field);
             structType = structType.add(field.name(),
-                                        typeConverter().sparkSqlType(field, bigNumberConfig(field)),
+                                        (DataType) schemaConverter().getDataType(field, bigNumberConfig(field)),
                                         true,
                                         metadata.build());
         }
@@ -100,7 +99,7 @@ public abstract class DataLayer implements Serializable
             // Pass Cassandra field metadata in StructField metadata
             MetadataBuilder metadata = fieldMetaData(field);
             structType = structType.add(field.name(),
-                                        typeConverter().sparkSqlType(field, bigNumberConfig(field)),
+                                        (DataType) schemaConverter().getDataType(field, bigNumberConfig(field)),
                                         true,
                                         metadata.build());
         }
@@ -158,11 +157,19 @@ public abstract class DataLayer implements Serializable
     public abstract CassandraBridge bridge();
 
     /**
-     * @return SparkSQL type converter that maps version-specific Cassandra types to SparkSQL types
+     * @return schema converter that maps version-specific Cassandra types to target schema types
      */
-    public SparkSqlTypeConverter typeConverter()
+    public SchemaConverter schemaConverter()
     {
-        return CassandraBridgeFactory.getSparkSql(version());
+        return bridge().getSchemaConverter();
+    }
+
+    /**
+     * @return type converter for converting CQL values to target format
+     */
+    public TypeConverter typeConverter()
+    {
+        return bridge().getTypeConverter();
     }
 
     public abstract int partitionCount();

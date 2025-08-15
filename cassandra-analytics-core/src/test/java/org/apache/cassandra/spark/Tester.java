@@ -51,7 +51,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.quicktheories.core.Gen;
 
-import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
@@ -450,7 +451,8 @@ public final class Tester
                     .isEqualTo(requiredColumns);
                 }
 
-                TestSchema.TestRow actualRow = schema.toTestRow(row, requiredColumns, getSparkSql(version));
+                TestSchema.TestRow actualRow = schema.toTestRow(row, requiredColumns,
+                                                                  (SparkSqlTypeConverter) CassandraBridgeFactory.get(version).getSparkSqlTypeConverter());
                 if (numRandomRows > 0)
                 {
                     // If we wrote random data, verify values exist

@@ -26,26 +26,14 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.google.common.base.Preconditions;
 
-import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
+import org.apache.cassandra.spark.data.TypeConverter;
 import org.jetbrains.annotations.NotNull;
 
 public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
 {
-    // maps Cassandra version-specific jar name (e.g. 'four-zero') to matching CassandraBridge and SparkSqlTypeConverter
-    private static final Map<String, VersionSpecificBridge> CASSANDRA_BRIDGES =
+    // maps Cassandra version-specific jar name (e.g. 'four-zero') to matching CassandraBridge
+    private static final Map<String, CassandraBridge> CASSANDRA_BRIDGES =
     new ConcurrentHashMap<>(CassandraVersion.values().length);
-
-    public static class VersionSpecificBridge
-    {
-        public final CassandraBridge cassandraBridge;
-        public final SparkSqlTypeConverter sparkSqlTypeConverter;
-
-        public VersionSpecificBridge(CassandraBridge cassandraBridge, SparkSqlTypeConverter sparkSqlTypeConverter)
-        {
-            this.cassandraBridge = cassandraBridge;
-            this.sparkSqlTypeConverter = sparkSqlTypeConverter;
-        }
-    }
 
     private CassandraBridgeFactory()
     {
@@ -70,27 +58,25 @@ public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
     {
         String jarBaseName = version.jarBaseName();
         Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
-        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).cassandraBridge;
+        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create);
     }
 
     @NotNull
-    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraVersionFeatures features)
+    public static TypeConverter getTypeConverter(@NotNull CassandraVersionFeatures features)
     {
-        return getSparkSql(getCassandraVersion(features));
+        return get(getCassandraVersion(features)).getTypeConverter();
     }
 
     @NotNull
-    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraBridge bridge)
+    public static TypeConverter getTypeConverter(@NotNull CassandraBridge bridge)
     {
-        return getSparkSql(bridge.getVersion());
+        return bridge.getTypeConverter();
     }
 
     @NotNull
-    public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraVersion version)
+    public static TypeConverter getTypeConverter(@NotNull CassandraVersion version)
     {
-        String jarBaseName = version.jarBaseName();
-        Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
-        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).sparkSqlTypeConverter;
+        return get(version).getTypeConverter();
     }
 
     @NotNull
@@ -101,7 +87,7 @@ public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
 
     @NotNull
     @SuppressWarnings("unchecked")
-    private static VersionSpecificBridge create(@NotNull String label)
+    private static CassandraBridge create(@NotNull String label)
     {
         try
         {
@@ -112,14 +98,7 @@ public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
             sparkSqlResourceName(label));
             Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass(CassandraBridge.IMPLEMENTATION_FQCN);
             Constructor<CassandraBridge> constructor = bridge.getConstructor();
-            CassandraBridge bridgeInstance = constructor.newInstance();
-
-            Class<SparkSqlTypeConverter> typeConverter = (Class<SparkSqlTypeConverter>)
-                                                         loader
-                                                         .loadClass(SparkSqlTypeConverter.IMPLEMENTATION_FQCN);
-            Constructor<SparkSqlTypeConverter> typeConverterConstructor = typeConverter.getConstructor();
-            SparkSqlTypeConverter typeConverterInstance = typeConverterConstructor.newInstance();
-            return new VersionSpecificBridge(bridgeInstance, typeConverterInstance);
+            return constructor.newInstance();
         }
         catch (ClassNotFoundException | NoSuchMethodException | InstantiationException
                | IllegalAccessException | InvocationTargetException exception)

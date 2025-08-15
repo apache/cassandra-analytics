@@ -45,7 +45,7 @@ import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.catalyst.util.GenericArrayData;
 
-import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import static org.apache.cassandra.spark.TestUtils.countSSTables;
 import static org.apache.cassandra.spark.TestUtils.getFileType;
 import static org.apache.cassandra.spark.TestUtils.runTest;
@@ -129,8 +129,9 @@ public class SSTableReaderTests
 
                     // extract value column
                     ByteBuffer b = rowData.getValue();
+                    SparkSqlTypeConverter typeConverter = (SparkSqlTypeConverter) bridge.getSparkSqlTypeConverter();
                     Set<?> set = new HashSet<>(Arrays.asList(((GenericArrayData) bridge.set(bridge.aInt())
-                                                                                       .deserializeToType(getSparkSql(bridge), b))
+                                                                                       .deserializeToType(typeConverter, b))
                                                              .array()));
                     assertThat(set).isEqualTo(expectedColValue);
                     count++;

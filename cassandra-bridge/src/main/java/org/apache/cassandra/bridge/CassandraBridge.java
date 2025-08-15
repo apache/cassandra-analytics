@@ -53,6 +53,9 @@ import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
+import org.apache.cassandra.spark.data.SchemaConverter;
+import org.apache.cassandra.spark.data.TypeConverter;
+import org.apache.cassandra.spark.data.TypeMapper;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.RowData;
@@ -76,6 +79,35 @@ public abstract class CassandraBridge
     public static final String IMPLEMENTATION_FQCN = "org.apache.cassandra.bridge.CassandraBridgeImplementation";
 
     public abstract CassandraTypes cassandraTypes();
+
+    /**
+     * @return schema converter for mapping CQL types to target schema types
+     */
+    public abstract SchemaConverter getSchemaConverter();
+
+    /**
+     * @return type mapper for mapping CQL types to target type objects
+     */
+    public abstract TypeMapper getTypeMapper();
+
+    /**
+     * @return type converter for converting CQL values to target format
+     */
+    public abstract TypeConverter getTypeConverter();
+
+    /**
+     * Returns the underlying SparkSqlTypeConverter for test compatibility.
+     * This method is provided for backwards compatibility with existing tests
+     * and should not be used in production code.
+     *
+     * @return the underlying SparkSqlTypeConverter instance
+     * @throws UnsupportedOperationException if the bridge doesn't use SparkSqlTypeConverter
+     */
+    @VisibleForTesting
+    public Object getSparkSqlTypeConverter()
+    {
+        throw new UnsupportedOperationException("Bridge implementation does not provide SparkSqlTypeConverter access");
+    }
 
     public abstract AbstractMap.SimpleEntry<ByteBuffer, BigInteger> getPartitionKey(@NotNull CqlTable table,
                                                                                     @NotNull Partitioner partitioner,

@@ -31,7 +31,6 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.data.converter.types.SparkType;
 import org.apache.spark.sql.types.Decimal;
 
-import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.integers;
@@ -41,7 +40,7 @@ public class CqlFieldComparatorTests extends VersionRunner
 
     private static SparkType toSparkType(CassandraBridge bridge, CqlField.CqlType type)
     {
-        return getSparkSql(bridge).toSparkType(type);
+        return (SparkType) bridge.getTypeMapper().mapType(type);
     }
 
     @ParameterizedTest

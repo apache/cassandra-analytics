@@ -43,7 +43,7 @@ import static org.quicktheories.generators.SourceDSL.arbitrary;
 public class PartitionKeyTests
 {
     private static final CassandraBridgeImplementation BRIDGE = new CassandraBridgeImplementation();
-    private static final SparkSqlTypeConverter TYPE_CONVERTER = TestSchema.getSparkSql();
+    private static final SparkSqlTypeConverter TYPE_CONVERTER = (SparkSqlTypeConverter) BRIDGE.getSparkSqlTypeConverter();
 
     @Test
     @SuppressWarnings("static-access")

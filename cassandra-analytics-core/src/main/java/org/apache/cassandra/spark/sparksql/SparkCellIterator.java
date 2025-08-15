@@ -28,7 +28,7 @@ import java.util.stream.Collectors;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.DataLayer;
-import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
+import org.apache.cassandra.spark.data.TypeMapper;
 import org.apache.cassandra.spark.data.converter.types.SparkType;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
@@ -57,10 +57,10 @@ public class SparkCellIterator extends CellIterator
               dataLayer::openCompactionScanner);
         this.dataLayer = dataLayer;
         this.sparkTypes = new SparkType[cqlTable.numFields()];
-        SparkSqlTypeConverter sparkSqlTypeConverter = ((SparkSqlTypeConverter) this.typeConverter);
+        TypeMapper typeMapper = dataLayer.bridge().getTypeMapper();
         for (int index = 0; index < cqlTable.numFields(); index++)
         {
-            this.sparkTypes[index] = sparkSqlTypeConverter.toSparkType(cqlTable.field(index).type());
+            this.sparkTypes[index] = (SparkType) typeMapper.mapType(cqlTable.field(index).type());
         }
     }
 

@@ -84,7 +84,10 @@ import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
+import org.apache.cassandra.spark.data.SchemaConverter;
 import org.apache.cassandra.spark.data.TypeConverter;
+import org.apache.cassandra.spark.data.TypeMapper;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import org.apache.cassandra.spark.data.complex.CqlTuple;
 import org.apache.cassandra.spark.data.complex.CqlUdt;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -140,9 +143,65 @@ public class CassandraBridgeImplementation extends CassandraBridge
         kryoSerializers.put(CqlUdt.class, new CqlUdt.Serializer(cassandraTypes()));
     }
 
+    private SparkSchemaConverter sparkSchemaConverter;
+    private SparkTypeMapper sparkTypeMapper;
+    private SparkTypeConverterWrapper sparkTypeConverterWrapper;
+
     public CassandraTypes cassandraTypes()
     {
         return CassandraTypesImplementation.INSTANCE;
+    }
+
+    @Override
+    public SchemaConverter getSchemaConverter()
+    {
+        if (sparkSchemaConverter == null)
+        {
+            sparkSchemaConverter = new SparkSchemaConverter(loadSparkSqlTypeConverter());
+        }
+        return sparkSchemaConverter;
+    }
+
+    @Override
+    public TypeMapper getTypeMapper()
+    {
+        if (sparkTypeMapper == null)
+        {
+            sparkTypeMapper = new SparkTypeMapper(loadSparkSqlTypeConverter());
+        }
+        return sparkTypeMapper;
+    }
+
+    @Override
+    public TypeConverter getTypeConverter()
+    {
+        if (sparkTypeConverterWrapper == null)
+        {
+            sparkTypeConverterWrapper = new SparkTypeConverterWrapper(loadSparkSqlTypeConverter());
+        }
+        return sparkTypeConverterWrapper;
+    }
+
+    @Override
+    @VisibleForTesting
+    public Object getSparkSqlTypeConverter()
+    {
+        return loadSparkSqlTypeConverter();
+    }
+
+    private SparkSqlTypeConverter loadSparkSqlTypeConverter()
+    {
+        try
+        {
+            ClassLoader classLoader = this.getClass().getClassLoader();
+            Class<?> implClass = classLoader.loadClass(SparkSqlTypeConverter.IMPLEMENTATION_FQCN);
+            Object instance = implClass.getDeclaredField("INSTANCE").get(null);
+            return (SparkSqlTypeConverter) instance;
+        }
+        catch (Exception e)
+        {
+            throw new RuntimeException("Failed to load SparkSqlTypeConverter implementation", e);
+        }
     }
 
     @Override

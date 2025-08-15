@@ -49,11 +49,12 @@ import org.apache.cassandra.spark.utils.SparkTypeUtils;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.catalyst.util.ArrayBasedMapData;
 import org.apache.spark.sql.catalyst.util.ArrayData;
+import org.apache.spark.sql.types.DataType;
 import org.apache.spark.sql.types.Decimal;
 import org.apache.spark.unsafe.types.CalendarInterval;
 import org.apache.spark.unsafe.types.UTF8String;
 
-import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
+import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
 import static org.apache.cassandra.spark.TestUtils.runTest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
@@ -69,6 +70,11 @@ import static org.quicktheories.generators.SourceDSL.strings;
 public class DataTypeSerializationTests
 {
     private static final int MAX_TESTS = 1000;
+
+    private static SparkSqlTypeConverter getSparkSql(CassandraBridge bridge)
+    {
+        return (SparkSqlTypeConverter) bridge.getSparkSqlTypeConverter();
+    }
 
     @Test
     public void testVarInt()
@@ -417,7 +423,7 @@ public class DataTypeSerializationTests
         runTest((partitioner, directory, bridge) ->
                 qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
                     CqlField.CqlList list = bridge.list(type);
-                    SparkType sparkType = getSparkSql(bridge).toSparkType(type);
+                    SparkType sparkType = (SparkType) bridge.getTypeMapper().mapType(type);
                     List<Object> expected = IntStream.range(0, 128)
                                                      .mapToObj(index -> type.randomValue())
                                                      .collect(Collectors.toList());
@@ -437,7 +443,7 @@ public class DataTypeSerializationTests
         runTest((partitioner, directory, bridge) ->
                 qt().forAll(TestUtils.cql3Type(bridge)).assuming(CqlField.CqlType::supportedAsSetElement).checkAssert(type -> {
                     CqlField.CqlSet set = bridge.set(type);
-                    SparkType sparkType = getSparkSql(bridge).toSparkType(type);
+                    SparkType sparkType = (SparkType) bridge.getTypeMapper().mapType(type);
                     Set<Object> expected = IntStream.range(0, 128)
                                                     .mapToObj(integer -> type.randomValue())
                                                     .collect(Collectors.toSet());
@@ -459,8 +465,8 @@ public class DataTypeSerializationTests
                     .assuming((keyType, valueType) -> keyType.supportedAsMapKey())
                     .checkAssert((keyType, valueType) -> {
                         CqlField.CqlMap map = bridge.map(keyType, valueType);
-                        SparkType keySparkType = getSparkSql(bridge).toSparkType(keyType);
-                        SparkType valueSparkType = getSparkSql(bridge).toSparkType(valueType);
+                        SparkType keySparkType = (SparkType) bridge.getTypeMapper().mapType(keyType);
+                        SparkType valueSparkType = (SparkType) bridge.getTypeMapper().mapType(valueType);
 
                         int count = keyType.cardinality(128);
                         Map<Object, Object> expected = new HashMap<>(count);
@@ -480,8 +486,8 @@ public class DataTypeSerializationTests
                         Map<Object, Object> actual = new HashMap<>(keys.numElements());
                         for (int index = 0; index < keys.numElements(); index++)
                         {
-                            Object key = keySparkType.toTestRowType(keys.get(index, getSparkSql(bridge).sparkSqlType(keyType)));
-                            Object value = valueSparkType.toTestRowType(values.get(index, getSparkSql(bridge).sparkSqlType(valueType)));
+                            Object key = keySparkType.toTestRowType(keys.get(index, (DataType) bridge.getSchemaConverter().getDataType(keyType)));
+                            Object value = valueSparkType.toTestRowType(values.get(index, (DataType) bridge.getSchemaConverter().getDataType(valueType)));
                             actual.put(key, value);
                         }
                         assertThat(actual.size()).isEqualTo(expected.size());
@@ -510,7 +516,7 @@ public class DataTypeSerializationTests
                     assertThat(actual.size()).isEqualTo(expected.size());
                     for (Map.Entry<String, Object> entry : expected.entrySet())
                     {
-                        SparkType sparkType = getSparkSql(bridge).toSparkType(udt.field(entry.getKey()).type());
+                        SparkType sparkType = (SparkType) bridge.getTypeMapper().mapType(udt.field(entry.getKey()).type());
                         assertThat(sparkType.toTestRowType(actual.get(entry.getKey()))).isEqualTo(entry.getValue());
                     }
                 }));
@@ -535,7 +541,7 @@ public class DataTypeSerializationTests
                     assertThat(actual.length).isEqualTo(expected.length);
                     for (int index = 0; index < expected.length; index++)
                     {
-                        SparkType sparkType = getSparkSql(bridge).toSparkType(tuple.type(index));
+                        SparkType sparkType = (SparkType) bridge.getTypeMapper().mapType(tuple.type(index));
                         assertThat(sparkType.toTestRowType(actual[index])).isEqualTo(expected[index]);
                     }
                 }));
