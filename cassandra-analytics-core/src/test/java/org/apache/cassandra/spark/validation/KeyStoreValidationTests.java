@@ -24,10 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.secrets.TestSecretsProvider;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests that cover startup validation of a KeyStore
@@ -51,8 +48,8 @@ public class KeyStoreValidationTests
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertInstanceOf(RuntimeException.class, throwable);
-        assertEquals("KeyStore is empty", throwable.getMessage());
+        assertThat(throwable).isInstanceOf(RuntimeException.class);
+        assertThat(throwable.getMessage()).isEqualTo("KeyStore is empty");
     }
 
     @Test
@@ -62,8 +59,8 @@ public class KeyStoreValidationTests
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertInstanceOf(RuntimeException.class, throwable);
-        assertEquals("KeyStore is misconfigured", throwable.getMessage());
+        assertThat(throwable).isInstanceOf(RuntimeException.class);
+        assertThat(throwable.getMessage()).isEqualTo("KeyStore is misconfigured");
     }
 
     @Test
@@ -73,8 +70,8 @@ public class KeyStoreValidationTests
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertInstanceOf(RuntimeException.class, throwable);
-        assertEquals("KeyStore is empty", throwable.getMessage());
+        assertThat(throwable).isInstanceOf(RuntimeException.class);
+        assertThat(throwable.getMessage()).isEqualTo("KeyStore is empty");
     }
 
     @Test
@@ -84,8 +81,8 @@ public class KeyStoreValidationTests
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertInstanceOf(RuntimeException.class, throwable);
-        assertEquals("KeyStore contains no private keys", throwable.getMessage());
+        assertThat(throwable).isInstanceOf(RuntimeException.class);
+        assertThat(throwable.getMessage()).isEqualTo("KeyStore contains no private keys");
     }
 
     @Test
@@ -95,7 +92,7 @@ public class KeyStoreValidationTests
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertNull(throwable);
+        assertThat(throwable).isNull();
     }
 
     @Test
@@ -105,7 +102,7 @@ public class KeyStoreValidationTests
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertInstanceOf(RuntimeException.class, throwable);
+        assertThat(throwable).isInstanceOf(RuntimeException.class);
         assertThat(throwable.getMessage()).startsWith("Certificate with alias '1' is expired.");
     }
 }

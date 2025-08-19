@@ -30,9 +30,7 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class PartitionKeyFilterTests
 {
@@ -50,13 +48,13 @@ public class PartitionKeyFilterTests
         PartitionKeyFilter filter3 = PartitionKeyFilter.create(ByteBuffer.wrap(new byte[]{'g', 'h', 'i'}), partitioner.minToken());
         PartitionKeyFilter filter4 = PartitionKeyFilter.create(ByteBuffer.wrap(new byte[]{'a', 'b', 'c'}), partitioner.minToken());
 
-        assertEquals(filter1, filter1);
-        assertEquals(filter2, filter2);
-        assertEquals(filter3, filter3);
-        assertNotEquals(filter1, filter2);
-        assertNotEquals(filter1, filter3);
-        assertNotEquals(filter2, filter3);
-        assertNotEquals(filter1, filter4);
+        assertThat(filter1).isEqualTo(filter1);
+        assertThat(filter2).isEqualTo(filter2);
+        assertThat(filter3).isEqualTo(filter3);
+        assertThat(filter1).isNotEqualTo(filter2);
+        assertThat(filter1).isNotEqualTo(filter3);
+        assertThat(filter2).isNotEqualTo(filter3);
+        assertThat(filter1).isNotEqualTo(filter4);
 
         byte[] bytes1 = serialize(filter1);
         byte[] bytes2 = serialize(filter2);
@@ -64,18 +62,18 @@ public class PartitionKeyFilterTests
 
         // should be able to serialize without changing state of ByteBuffer
         byte[] bytes1Again = serialize(filter1);
-        assertArrayEquals(bytes1, bytes1Again);
+        assertThat(bytes1Again).isEqualTo(bytes1);
 
         PartitionKeyFilter deserialized1 = deserialize(bytes1, PartitionKeyFilter.class);
         PartitionKeyFilter deserialized2 = deserialize(bytes2, PartitionKeyFilter.class);
         PartitionKeyFilter deserialized3 = deserialize(bytes3, PartitionKeyFilter.class);
 
-        assertEquals(filter1, deserialized1);
-        assertNotEquals(filter2, deserialized1);
-        assertEquals(filter2, deserialized2);
-        assertEquals(filter2, deserialized2);
-        assertEquals(filter3, deserialized3);
-        assertEquals(filter3, deserialized3);
+        assertThat(deserialized1).isEqualTo(filter1);
+        assertThat(deserialized1).isNotEqualTo(filter2);
+        assertThat(deserialized2).isEqualTo(filter2);
+        assertThat(deserialized2).isEqualTo(filter2);
+        assertThat(deserialized3).isEqualTo(filter3);
+        assertThat(deserialized3).isEqualTo(filter3);
     }
 
     public static byte[] serialize(Object object)

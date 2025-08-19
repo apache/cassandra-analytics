@@ -33,8 +33,7 @@ import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
 
 import static org.apache.cassandra.spark.TestUtils.runTest;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -51,9 +50,9 @@ public class PartitionKeyTests
             ByteBuffer key = ByteBuffer.wrap(new byte[]{0, 0, 0, 1});
             AbstractMap.SimpleEntry<ByteBuffer, BigInteger> actualKey = bridge.getPartitionKey(table, partitioner, ImmutableList.of("1"));
 
-            assertEquals(key, actualKey.getKey());
-            assertEquals(bridge.hash(partitioner, key), actualKey.getValue());
-            assertNotEquals(bridge.aInt().serialize(2), actualKey.getKey());
+            assertThat(actualKey.getKey()).isEqualTo(key);
+            assertThat(actualKey.getValue()).isEqualTo(bridge.hash(partitioner, key));
+            assertThat(actualKey.getKey()).isNotEqualTo(bridge.aInt().serialize(2));
         });
     }
 
@@ -70,8 +69,8 @@ public class PartitionKeyTests
             ByteBuffer key = ByteBuffer.wrap(new byte[]{0, 4, 0, 0, 0, 3, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 3, 120, 121, 122, 0});
             AbstractMap.SimpleEntry<ByteBuffer, BigInteger> actualKey = bridge.getPartitionKey(table, partitioner, ImmutableList.of("3", "1", "xyz"));
 
-            assertEquals(key, actualKey.getKey());
-            assertEquals(bridge.hash(partitioner, key), actualKey.getValue());
+            assertThat(actualKey.getKey()).isEqualTo(key);
+            assertThat(actualKey.getValue()).isEqualTo(bridge.hash(partitioner, key));
         });
     }
 }

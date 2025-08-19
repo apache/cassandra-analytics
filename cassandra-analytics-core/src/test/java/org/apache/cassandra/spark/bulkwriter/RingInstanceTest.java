@@ -33,10 +33,7 @@ import org.junit.jupiter.api.Test;
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.jetbrains.annotations.NotNull;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class RingInstanceTest
 {
@@ -68,7 +65,7 @@ public class RingInstanceTest
     {
         RingInstance instance1 = mockRingInstance();
         RingInstance instance2 = mockRingInstance();
-        assertEquals(instance1, instance2);
+        assertThat(instance1).isEqualTo(instance2);
     }
 
     @Test
@@ -76,7 +73,7 @@ public class RingInstanceTest
     {
         RingInstance instance1 = mockRingInstance();
         RingInstance instance2 = mockRingInstance();
-        assertEquals(instance1.hashCode(), instance2.hashCode());
+        assertThat(instance1.hashCode()).isEqualTo(instance2.hashCode());
     }
 
     @Test
@@ -98,8 +95,8 @@ public class RingInstanceTest
                                                   .hostId("2")
                                                   .owns("2")
                                                   .build());
-        assertEquals(instance1, instance2);
-        assertEquals(instance1.hashCode(), instance2.hashCode());
+        assertThat(instance1).isEqualTo(instance2);
+        assertThat(instance1.hashCode()).isEqualTo(instance2.hashCode());
     }
 
     @Test
@@ -110,11 +107,11 @@ public class RingInstanceTest
         RingInstance c1i2 = new RingInstance(ringEntry, "cluster1");
         RingInstance c2i1 = new RingInstance(ringEntry, "cluster2");
 
-        assertEquals(c1i1, c1i2);
-        assertEquals(c1i1.hashCode(), c1i2.hashCode());
+        assertThat(c1i1).isEqualTo(c1i2);
+        assertThat(c1i1.hashCode()).isEqualTo(c1i2.hashCode());
 
-        assertNotEquals(c1i1, c2i1);
-        assertNotEquals(c1i1.hashCode(), c2i1.hashCode());
+        assertThat(c1i1).isNotEqualTo(c2i1);
+        assertThat(c1i1.hashCode()).isNotEqualTo(c2i1.hashCode());
     }
 
     @Test
@@ -122,11 +119,11 @@ public class RingInstanceTest
     {
         RingEntry ringEntry = mockRingEntry();
         RingInstance instance = new RingInstance(ringEntry);
-        assertNull(instance.clusterId());
+        assertThat(instance.clusterId()).isNull();
 
         RingInstance instanceWithClusterId = new RingInstance(ringEntry, "cluster1");
-        assertNotNull(instanceWithClusterId.clusterId());
-        assertEquals("cluster1", instanceWithClusterId.clusterId());
+        assertThat(instanceWithClusterId.clusterId()).isNotNull();
+        assertThat(instanceWithClusterId.clusterId()).isEqualTo("cluster1");
     }
 
     @Test
@@ -158,7 +155,7 @@ public class RingInstanceTest
         Multimap<RingInstance, String> newErrorMap = ArrayListMultimap.create(initialErrorMap);
         newErrorMap.put(instance2, "Failure2");
 
-        assertEquals(1, newErrorMap.keySet().size());
+        assertThat(newErrorMap.keySet()).hasSize(1);
     }
 
     @Test
@@ -166,16 +163,14 @@ public class RingInstanceTest
     {
         RingEntry ringEntry = mockRingEntry();
         RingInstance instanceWithoutClusterId = new RingInstance(ringEntry);
-        assertEquals("RingInstance{cluster='null', " +
+        assertThat(instanceWithoutClusterId.toString()).isEqualTo("RingInstance{cluster='null', " +
                      "RingEntry{datacenter='DATACENTER1', address='127.0.0.1', port=0, rack='Rack', " +
-                     "status='UP', state='NORMAL', load='0', owns='', token='0', fqdn='DATACENTER1-i1', hostId=''}}",
-                     instanceWithoutClusterId.toString());
+                     "status='UP', state='NORMAL', load='0', owns='', token='0', fqdn='DATACENTER1-i1', hostId=''}}");
 
         RingInstance instanceWithClusterId = new RingInstance(ringEntry, "clusterId");
-        assertEquals("RingInstance{cluster='clusterId', " +
+        assertThat(instanceWithClusterId.toString()).isEqualTo("RingInstance{cluster='clusterId', " +
                      "RingEntry{datacenter='DATACENTER1', address='127.0.0.1', port=0, rack='Rack', " +
-                     "status='UP', state='NORMAL', load='0', owns='', token='0', fqdn='DATACENTER1-i1', hostId=''}}",
-                     instanceWithClusterId.toString());
+                     "status='UP', state='NORMAL', load='0', owns='', token='0', fqdn='DATACENTER1-i1', hostId=''}}");
     }
 
 

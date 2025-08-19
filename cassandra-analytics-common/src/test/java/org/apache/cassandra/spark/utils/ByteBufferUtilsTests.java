@@ -29,8 +29,8 @@ import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteStreams;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SuppressWarnings("UnstableApiUsage")
 public class ByteBufferUtilsTests
@@ -62,23 +62,24 @@ public class ByteBufferUtilsTests
     public void testHexString()
     {
         // Casts to (ByteBuffer) required when compiling with Java 8
-        assertEquals("00000000000001F4", ByteBufferUtils.toHexString((ByteBuffer) ByteBuffer.allocate(8).putLong(500L).flip()));
-        assertEquals("616263", ByteBufferUtils.toHexString(ByteBuffer.wrap(new byte[]{'a', 'b', 'c'})));
-        assertEquals("000000000588C164", ByteBufferUtils.toHexString((ByteBuffer) ByteBuffer.allocate(8).putLong(92848484L).asReadOnlyBuffer().flip()));
-        assertEquals("null", ByteBufferUtils.toHexString(null));
+        assertThat(ByteBufferUtils.toHexString((ByteBuffer) ByteBuffer.allocate(8).putLong(500L).flip())).isEqualTo("00000000000001F4");
+        assertThat(ByteBufferUtils.toHexString(ByteBuffer.wrap(new byte[]{'a', 'b', 'c'}))).isEqualTo("616263");
+        assertThat(ByteBufferUtils.toHexString((ByteBuffer) ByteBuffer.allocate(8).putLong(92848484L).asReadOnlyBuffer().flip())).isEqualTo("000000000588C164");
+        assertThat(ByteBufferUtils.toHexString(null)).isEqualTo("null");
 
-        assertEquals("616263", ByteBufferUtils.toHexString(new byte[]{'a', 'b', 'c'}, 0, 3));
-        assertEquals("63", ByteBufferUtils.toHexString(new byte[]{'a', 'b', 'c'}, 2, 1));
+        assertThat(ByteBufferUtils.toHexString(new byte[]{'a', 'b', 'c'}, 0, 3)).isEqualTo("616263");
+        assertThat(ByteBufferUtils.toHexString(new byte[]{'a', 'b', 'c'}, 2, 1)).isEqualTo("63");
     }
 
     private static void testGetArray(String str)
     {
-        assertEquals(str, new String(ByteBufferUtils.getArray(ByteBuffer.wrap(str.getBytes())), StandardCharsets.UTF_8));
+        assertThat(new String(ByteBufferUtils.getArray(ByteBuffer.wrap(str.getBytes())), StandardCharsets.UTF_8)).isEqualTo(str);
     }
 
     private static void testReadRemainingBytes(String str) throws IOException
     {
-        assertEquals(str, new String(ByteBufferUtils.readRemainingBytes(new ByteArrayInputStream(str.getBytes()), str.length()), StandardCharsets.UTF_8));
+        assertThat(new String(ByteBufferUtils.readRemainingBytes(new ByteArrayInputStream(str.getBytes()), str.length()), StandardCharsets.UTF_8))
+        .isEqualTo(str);
     }
 
     private static void testSkipBytesFully(byte[] bytes) throws IOException
@@ -87,14 +88,8 @@ public class ByteBufferUtilsTests
         ByteArrayDataInput in = ByteStreams.newDataInput(bytes, 0);
         ByteBufferUtils.skipBytesFully(in, 1);
         ByteBufferUtils.skipBytesFully(in, length - 2);
-        assertEquals(bytes[length - 1], in.readByte());
-        try
-        {
-            ByteBufferUtils.skipBytesFully(in, 1);
-            fail("EOFException should have been thrown");
-        }
-        catch (EOFException ignore)
-        {
-        }
+        assertThat(in.readByte()).isEqualTo(bytes[length - 1]);
+        assertThatThrownBy(() -> ByteBufferUtils.skipBytesFully(in, 1))
+        .isInstanceOf(EOFException.class);
     }
 }

@@ -71,7 +71,7 @@ import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
 
 import static org.apache.cassandra.spark.bulkwriter.cloudstorage.SSTableListerTest.calculateFileDigests;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
@@ -153,31 +153,32 @@ class CloudStorageStreamSessionTest
                 ss.sendBundle(bundle, true);
             }
 
-            assertEquals(bundles.size(), ss.createdRestoreSlices().size(),
-                         "It should create 1 slice per bundle");
+            assertThat(ss.createdRestoreSlices())
+                .as("It should create 1 slice per bundle")
+                .hasSize(bundles.size());
             Bundle actualBundle1 = blobDataTransferApi.uploadedBundleManifest.get(BigInteger.valueOf(1L));
             BundleManifest.Entry actualBundle1Entry = actualBundle1.manifestEntry("na-1-big-");
-            assertEquals(BigInteger.valueOf(1L), actualBundle1Entry.firstToken());
-            assertEquals(BigInteger.valueOf(3L), actualBundle1Entry.endToken());
+            assertThat(actualBundle1Entry.firstToken()).isEqualTo(BigInteger.valueOf(1L));
+            assertThat(actualBundle1Entry.endToken()).isEqualTo(BigInteger.valueOf(3L));
             Map<String, String> bundle1ComponentsChecksum = actualBundle1Entry.componentsChecksum();
-            assertEquals("f48b39a3", bundle1ComponentsChecksum.get("na-1-big-Data.db"));
-            assertEquals("ee128018", bundle1ComponentsChecksum.get("na-1-big-Index.db"));
-            assertEquals("e2c32c23", bundle1ComponentsChecksum.get("na-1-big-Summary.db"));
-            assertEquals("f773fcc6", bundle1ComponentsChecksum.get("na-1-big-Statistics.db"));
-            assertEquals("7c8ef1f5", bundle1ComponentsChecksum.get("na-1-big-TOC.txt"));
-            assertEquals("72fc4f9c", bundle1ComponentsChecksum.get("na-1-big-Filter.db"));
+            assertThat(bundle1ComponentsChecksum.get("na-1-big-Data.db")).isEqualTo("f48b39a3");
+            assertThat(bundle1ComponentsChecksum.get("na-1-big-Index.db")).isEqualTo("ee128018");
+            assertThat(bundle1ComponentsChecksum.get("na-1-big-Summary.db")).isEqualTo("e2c32c23");
+            assertThat(bundle1ComponentsChecksum.get("na-1-big-Statistics.db")).isEqualTo("f773fcc6");
+            assertThat(bundle1ComponentsChecksum.get("na-1-big-TOC.txt")).isEqualTo("7c8ef1f5");
+            assertThat(bundle1ComponentsChecksum.get("na-1-big-Filter.db")).isEqualTo("72fc4f9c");
 
             Bundle actualBundle2 = blobDataTransferApi.uploadedBundleManifest.get(BigInteger.valueOf(3L));
             BundleManifest.Entry actualBundle2Entry = actualBundle2.manifestEntry("na-2-big-");
-            assertEquals(BigInteger.valueOf(3L), actualBundle2Entry.firstToken());
-            assertEquals(BigInteger.valueOf(6L), actualBundle2Entry.endToken());
+            assertThat(actualBundle2Entry.firstToken()).isEqualTo(BigInteger.valueOf(3L));
+            assertThat(actualBundle2Entry.endToken()).isEqualTo(BigInteger.valueOf(6L));
             Map<String, String> bundle2ComponentsChecksum = actualBundle2Entry.componentsChecksum();
-            assertEquals("f48b39a3", bundle2ComponentsChecksum.get("na-2-big-Data.db"));
-            assertEquals("ee128018", bundle2ComponentsChecksum.get("na-2-big-Index.db"));
-            assertEquals("e2c32c23", bundle2ComponentsChecksum.get("na-2-big-Summary.db"));
-            assertEquals("f773fcc6", bundle2ComponentsChecksum.get("na-2-big-Statistics.db"));
-            assertEquals("7c8ef1f5", bundle2ComponentsChecksum.get("na-2-big-TOC.txt"));
-            assertEquals("72fc4f9c", bundle2ComponentsChecksum.get("na-2-big-Filter.db"));
+            assertThat(bundle2ComponentsChecksum.get("na-2-big-Data.db")).isEqualTo("f48b39a3");
+            assertThat(bundle2ComponentsChecksum.get("na-2-big-Index.db")).isEqualTo("ee128018");
+            assertThat(bundle2ComponentsChecksum.get("na-2-big-Summary.db")).isEqualTo("e2c32c23");
+            assertThat(bundle2ComponentsChecksum.get("na-2-big-Statistics.db")).isEqualTo("f773fcc6");
+            assertThat(bundle2ComponentsChecksum.get("na-2-big-TOC.txt")).isEqualTo("7c8ef1f5");
+            assertThat(bundle2ComponentsChecksum.get("na-2-big-Filter.db")).isEqualTo("72fc4f9c");
         }
     }
 

@@ -33,9 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.utils.RandomUtils;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -57,11 +55,11 @@ public class TokenPartitionerTests
         TokenPartitioner tokenPartitioner = new TokenPartitioner(TestUtils.createRing(partitioner, numInstances), 1, numCores);
         if (numInstances == 1 && numCores == 1)
         {
-            assertEquals(1, tokenPartitioner.numPartitions());
+            assertThat(tokenPartitioner.numPartitions()).isEqualTo(1);
         }
         else
         {
-            assertTrue(tokenPartitioner.numPartitions() > 1);
+            assertThat(tokenPartitioner.numPartitions()).isGreaterThan(1);
         }
 
         // Generate some random tokens and verify they only exist in a single token partition
@@ -77,15 +75,19 @@ public class TokenPartitionerTests
                 if (range.contains(token))
                 {
                     tokens.put(token, tokens.get(token) + 1);
-                    assertTrue(tokenPartitioner.isInPartition(token, ByteBuffer.wrap("not important".getBytes()), partition));
+                    assertThat(tokenPartitioner.isInPartition(token, ByteBuffer.wrap("not important".getBytes()), partition)).isTrue();
                 }
             }
         }
 
         for (Map.Entry<BigInteger, Integer> entry : tokens.entrySet())
         {
-            assertFalse(entry.getValue() < 1, "Token not found in any token partitions: " + entry.getKey());
-            assertFalse(entry.getValue() > 1, "Token exists in more than one token partition: " + entry.getKey());
+            assertThat(entry.getValue())
+                .as("Token not found in any token partitions: " + entry.getKey())
+                .isGreaterThanOrEqualTo(1);
+            assertThat(entry.getValue())
+                .as("Token exists in more than one token partition: " + entry.getKey())
+                .isLessThanOrEqualTo(1);
         }
     }
 }

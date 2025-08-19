@@ -50,8 +50,7 @@ import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.cassandra.spark.utils.RandomUtils;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 import static org.quicktheories.generators.SourceDSL.booleans;
@@ -98,12 +97,12 @@ public class KryoSerializationTests
                                               position);
                 Output out = serialize(field);
                 CqlField deserialized = deserialize(out, CqlField.class);
-                assertEquals(field, deserialized);
-                assertEquals(field.name(), deserialized.name());
-                assertEquals(field.type(), deserialized.type());
-                assertEquals(field.position(), deserialized.position());
-                assertEquals(field.isPartitionKey(), deserialized.isPartitionKey());
-                assertEquals(field.isClusteringColumn(), deserialized.isClusteringColumn());
+                assertThat(deserialized).isEqualTo(field);
+                assertThat(deserialized.name()).isEqualTo(field.name());
+                assertThat(deserialized.type()).isEqualTo(field.type());
+                assertThat(deserialized.position()).isEqualTo(field.position());
+                assertThat(deserialized.isPartitionKey()).isEqualTo(field.isPartitionKey());
+                assertThat(deserialized.isClusteringColumn()).isEqualTo(field.isClusteringColumn());
             });
     }
 
@@ -123,12 +122,12 @@ public class KryoSerializationTests
                                               position);
                 Output out = serialize(field);
                 CqlField deserialized = deserialize(out, CqlField.class);
-                assertEquals(field, deserialized);
-                assertEquals(field.name(), deserialized.name());
-                assertEquals(field.type(), deserialized.type());
-                assertEquals(field.position(), deserialized.position());
-                assertEquals(field.isPartitionKey(), deserialized.isPartitionKey());
-                assertEquals(field.isClusteringColumn(), deserialized.isClusteringColumn());
+                assertThat(deserialized).isEqualTo(field);
+                assertThat(deserialized.name()).isEqualTo(field.name());
+                assertThat(deserialized.type()).isEqualTo(field.type());
+                assertThat(deserialized.position()).isEqualTo(field.position());
+                assertThat(deserialized.isPartitionKey()).isEqualTo(field.isPartitionKey());
+                assertThat(deserialized.isClusteringColumn()).isEqualTo(field.isClusteringColumn());
             });
     }
 
@@ -148,12 +147,12 @@ public class KryoSerializationTests
                                               position);
                 Output out = serialize(field);
                 CqlField deserialized = deserialize(out, CqlField.class);
-                assertEquals(field, deserialized);
-                assertEquals(field.name(), deserialized.name());
-                assertEquals(field.type(), deserialized.type());
-                assertEquals(field.position(), deserialized.position());
-                assertEquals(field.isPartitionKey(), deserialized.isPartitionKey());
-                assertEquals(field.isClusteringColumn(), deserialized.isClusteringColumn());
+                assertThat(deserialized).isEqualTo(field);
+                assertThat(deserialized.name()).isEqualTo(field.name());
+                assertThat(deserialized.type()).isEqualTo(field.type());
+                assertThat(deserialized.position()).isEqualTo(field.position());
+                assertThat(deserialized.isPartitionKey()).isEqualTo(field.isPartitionKey());
+                assertThat(deserialized.isClusteringColumn()).isEqualTo(field.isClusteringColumn());
             });
     }
 
@@ -173,12 +172,12 @@ public class KryoSerializationTests
                                               2);
                 Output out = serialize(field);
                 CqlField deserialized = deserialize(out, CqlField.class);
-                assertEquals(field, deserialized);
-                assertEquals(field.name(), deserialized.name());
-                assertEquals(field.type(), deserialized.type());
-                assertEquals(field.position(), deserialized.position());
-                assertEquals(field.isPartitionKey(), deserialized.isPartitionKey());
-                assertEquals(field.isClusteringColumn(), deserialized.isClusteringColumn());
+                assertThat(deserialized).isEqualTo(field);
+                assertThat(deserialized.name()).isEqualTo(field.name());
+                assertThat(deserialized.type()).isEqualTo(field.type());
+                assertThat(deserialized.position()).isEqualTo(field.position());
+                assertThat(deserialized.isPartitionKey()).isEqualTo(field.isPartitionKey());
+                assertThat(deserialized.isClusteringColumn()).isEqualTo(field.isClusteringColumn());
             });
     }
 
@@ -196,12 +195,12 @@ public class KryoSerializationTests
                 CqlField field = new CqlField(false, false, false, RandomUtils.randomAlphanumeric(5, 20), udt, 2);
                 Output out = serialize(field);
                 CqlField deserialized = deserialize(out, CqlField.class);
-                assertEquals(field, deserialized);
-                assertEquals(field.name(), deserialized.name());
-                assertEquals(udt, deserialized.type());
-                assertEquals(field.position(), deserialized.position());
-                assertEquals(field.isPartitionKey(), deserialized.isPartitionKey());
-                assertEquals(field.isClusteringColumn(), deserialized.isClusteringColumn());
+                assertThat(deserialized).isEqualTo(field);
+                assertThat(deserialized.name()).isEqualTo(field.name());
+                assertThat(deserialized.type()).isEqualTo(udt);
+                assertThat(deserialized.position()).isEqualTo(field.position());
+                assertThat(deserialized.isPartitionKey()).isEqualTo(field.isPartitionKey());
+                assertThat(deserialized.isClusteringColumn()).isEqualTo(field.isClusteringColumn());
             });
     }
 
@@ -221,12 +220,12 @@ public class KryoSerializationTests
                 CqlField field = new CqlField(false, false, false, RandomUtils.randomAlphanumeric(5, 20), tuple, 2);
                 Output out = serialize(field);
                 CqlField deserialized = deserialize(out, CqlField.class);
-                assertEquals(field, deserialized);
-                assertEquals(field.name(), deserialized.name());
-                assertEquals(tuple, deserialized.type());
-                assertEquals(field.position(), deserialized.position());
-                assertEquals(field.isPartitionKey(), deserialized.isPartitionKey());
-                assertEquals(field.isClusteringColumn(), deserialized.isClusteringColumn());
+                assertThat(deserialized).isEqualTo(field);
+                assertThat(deserialized.name()).isEqualTo(field.name());
+                assertThat(deserialized.type()).isEqualTo(tuple);
+                assertThat(deserialized.position()).isEqualTo(field.position());
+                assertThat(deserialized.isPartitionKey()).isEqualTo(field.isPartitionKey());
+                assertThat(deserialized.isClusteringColumn()).isEqualTo(field.isClusteringColumn());
             });
     }
 
@@ -250,8 +249,8 @@ public class KryoSerializationTests
 
         Output out = serialize(table);
         CqlTable deserialized = deserialize(out, CqlTable.class);
-        assertNotNull(deserialized);
-        assertEquals(table, deserialized);
+        assertThat(deserialized).isNotNull();
+        assertThat(deserialized).isEqualTo(table);
     }
 
     @ParameterizedTest
@@ -261,8 +260,8 @@ public class KryoSerializationTests
         CassandraInstance instance = new CassandraInstance("-9223372036854775807", "local1-i1", "DC1");
         Output out = serialize(instance);
         CassandraInstance deserialized = deserialize(out, CassandraInstance.class);
-        assertNotNull(deserialized);
-        assertEquals(instance, deserialized);
+        assertThat(deserialized).isNotNull();
+        assertThat(deserialized).isEqualTo(instance);
     }
 
     @ParameterizedTest
@@ -274,9 +273,9 @@ public class KryoSerializationTests
                 CassandraRing ring = TestUtils.createRing(partitioner, ImmutableMap.of("DC1", 3, "DC2", 3));
                 Output out = serialize(ring);
                 CassandraRing deserialized = deserialize(out, CassandraRing.class);
-                assertNotNull(deserialized);
-                assertEquals(ring, deserialized);
-                assertEquals(partitioner, deserialized.partitioner());
+                assertThat(deserialized).isNotNull();
+                assertThat(deserialized).isEqualTo(ring);
+                assertThat(deserialized.partitioner()).isEqualTo(partitioner);
             });
     }
 
@@ -296,9 +295,9 @@ public class KryoSerializationTests
                                                            path3);
         Output out = serialize(localDataLayer);
         LocalDataLayer deserialized = deserialize(out, LocalDataLayer.class);
-        assertNotNull(deserialized);
-        assertEquals(localDataLayer.version(), deserialized.version());
-        assertEquals(localDataLayer, deserialized);
+        assertThat(deserialized).isNotNull();
+        assertThat(deserialized.version()).isEqualTo(localDataLayer.version());
+        assertThat(deserialized).isEqualTo(localDataLayer);
     }
 
     @Test
@@ -313,14 +312,14 @@ public class KryoSerializationTests
                 TokenPartitioner tokenPartitioner = new TokenPartitioner(ring, defaultParallelism, numCores);
                 Output out = serialize(tokenPartitioner);
                 TokenPartitioner deserialized = deserialize(out, TokenPartitioner.class);
-                assertNotNull(deserialized);
-                assertEquals(tokenPartitioner.numPartitions(), deserialized.numPartitions());
-                assertEquals(tokenPartitioner.subRanges().size(), deserialized.subRanges().size());
+                assertThat(deserialized).isNotNull();
+                assertThat(deserialized.numPartitions()).isEqualTo(tokenPartitioner.numPartitions());
+                assertThat(deserialized.subRanges()).hasSameSizeAs(tokenPartitioner.subRanges());
                 for (int index = 0; index < tokenPartitioner.subRanges().size(); index++)
                 {
-                    assertEquals(tokenPartitioner.subRanges().get(index), deserialized.subRanges().get(index));
+                    assertThat(deserialized.subRanges().get(index)).isEqualTo(tokenPartitioner.subRanges().get(index));
                 }
-                assertEquals(tokenPartitioner.ring(), deserialized.ring());
+                assertThat(deserialized.ring()).isEqualTo(tokenPartitioner.ring());
             });
     }
 
@@ -338,10 +337,10 @@ public class KryoSerializationTests
         out.close();
         Input in = new Input(out.getBuffer(), 0, out.position());
         CqlField.CqlUdt deserialized = (CqlField.CqlUdt) CqlField.CqlType.read(in, bridge.cassandraTypes());
-        assertEquals(udt, deserialized);
+        assertThat(deserialized).isEqualTo(udt);
         for (int index = 0; index < deserialized.fields().size(); index++)
         {
-            assertEquals(udt.field(index), deserialized.field(index));
+            assertThat(deserialized.field(index)).isEqualTo(udt.field(index));
         }
     }
 
@@ -361,14 +360,14 @@ public class KryoSerializationTests
         Output out = serialize(config);
         SslConfig deserialized = deserialize(out, SslConfig.class);
 
-        assertEquals(config.keyStorePath(), deserialized.keyStorePath());
-        assertEquals(config.base64EncodedKeyStore(), deserialized.base64EncodedKeyStore());
-        assertEquals(config.keyStorePassword(), deserialized.keyStorePassword());
-        assertEquals(config.keyStoreType(), deserialized.keyStoreType());
-        assertEquals(config.trustStorePath(), deserialized.trustStorePath());
-        assertEquals(config.base64EncodedTrustStore(), deserialized.base64EncodedTrustStore());
-        assertEquals(config.trustStorePassword(), deserialized.trustStorePassword());
-        assertEquals(config.trustStoreType(), deserialized.trustStoreType());
+        assertThat(deserialized.keyStorePath()).isEqualTo(config.keyStorePath());
+        assertThat(deserialized.base64EncodedKeyStore()).isEqualTo(config.base64EncodedKeyStore());
+        assertThat(deserialized.keyStorePassword()).isEqualTo(config.keyStorePassword());
+        assertThat(deserialized.keyStoreType()).isEqualTo(config.keyStoreType());
+        assertThat(deserialized.trustStorePath()).isEqualTo(config.trustStorePath());
+        assertThat(deserialized.base64EncodedTrustStore()).isEqualTo(config.base64EncodedTrustStore());
+        assertThat(deserialized.trustStorePassword()).isEqualTo(config.trustStorePassword());
+        assertThat(deserialized.trustStoreType()).isEqualTo(config.trustStoreType());
     }
 
     @Test
@@ -432,7 +431,7 @@ public class KryoSerializationTests
         {
             deserialized = deserialize(out, type);
         }
-        assertEquals(origin, deserialized);
+        assertThat(deserialized).isEqualTo(origin);
     }
 
     static

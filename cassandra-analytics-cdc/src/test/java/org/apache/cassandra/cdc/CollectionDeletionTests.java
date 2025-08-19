@@ -43,11 +43,7 @@ import static org.apache.cassandra.cdc.CdcTester.testWith;
 import static org.apache.cassandra.cdc.CdcTests.BRIDGE;
 import static org.apache.cassandra.cdc.CdcTests.directory;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
 public class CollectionDeletionTests
@@ -136,34 +132,42 @@ public class CollectionDeletionTests
                         {
                             CdcEvent event = events.get(i);
                             long lmtInMillis = event.getTimestamp(TimeUnit.MILLISECONDS);
-                            assertTrue(lmtInMillis >= minTimestamp, "Last modification time should have a lower bound of " + minTimestamp);
-                            assertEquals(numOfPKs, event.getPartitionKeys().size(), "Regardless of being row deletion or not, the partition key must present");
-                            assertNull(event.getClusteringKeys());
-                            assertNull(event.getStaticColumns());
+                            assertThat(lmtInMillis)
+                                .as("Last modification time should have a lower bound of " + minTimestamp)
+                                .isGreaterThanOrEqualTo(minTimestamp);
+                            assertThat(event.getPartitionKeys())
+                                .as("Regardless of being row deletion or not, the partition key must present")
+                                .hasSize(numOfPKs);
+                            assertThat(event.getClusteringKeys()).isNull();
+                            assertThat(event.getStaticColumns()).isNull();
 
                             if (elementDeletionIndices.containsKey(i)) // verify deletion
                             {
-                                assertEquals(CdcEvent.Kind.COMPLEX_ELEMENT_DELETE, event.getKind());
+                                assertThat(event.getKind()).isEqualTo(CdcEvent.Kind.COMPLEX_ELEMENT_DELETE);
                                 Map<String, List<ByteBuffer>> cellTombstonesPerCol = event.getTombstonedCellsInComplex();
-                                assertNotNull(cellTombstonesPerCol);
+                                assertThat(cellTombstonesPerCol).isNotNull();
                                 Map<String, Value> valueColMap = event.getValueColumns()
                                                                       .stream()
                                                                       .collect(Collectors.toMap(value -> value.columnName, Function.identity()));
                                 for (String name : collectionColumnNames)
                                 {
-                                    assertNull(valueColMap.get(name).getValue(), "Collection column's value should be null since only deletion applies");
-                                    assertNotNull(cellTombstonesPerCol.get(name));
+                                    assertThat(valueColMap.get(name).getValue())
+                                        .as("Collection column's value should be null since only deletion applies")
+                                        .isNull();
+                                    assertThat(cellTombstonesPerCol.get(name)).isNotNull();
                                     List<ByteBuffer> deletedCellKeys = cellTombstonesPerCol.get(name);
-                                    assertEquals(1, deletedCellKeys.size());
+                                    assertThat(deletedCellKeys).hasSize(1);
                                     assert deletedCellKeys.get(0).hasArray();
                                     byte[] keyBytesRead = deletedCellKeys.get(0).array();
-                                    assertArrayEquals(elementDeletionIndices.get(i), keyBytesRead, "The key encoded should be the same");
+                                    assertThat(keyBytesRead)
+                                        .as("The key encoded should be the same")
+                                        .isEqualTo(elementDeletionIndices.get(i));
                                 }
                             }
                             else // verify update
                             {
-                                assertEquals(CdcEvent.Kind.INSERT, event.getKind());
-                                assertNotNull(event.getValueColumns());
+                                assertThat(event.getKind()).isEqualTo(CdcEvent.Kind.INSERT);
+                                assertThat(event.getValueColumns()).isNotNull();
                             }
                         }
                     })

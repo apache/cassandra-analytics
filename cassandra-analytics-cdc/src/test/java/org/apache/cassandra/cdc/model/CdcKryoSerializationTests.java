@@ -35,9 +35,7 @@ import org.apache.cassandra.spark.utils.TimeUtils;
 
 import static org.apache.cassandra.spark.utils.KryoUtils.deserialize;
 import static org.apache.cassandra.spark.utils.KryoUtils.serializeToBytes;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class CdcKryoSerializationTests
 {
@@ -81,10 +79,10 @@ public class CdcKryoSerializationTests
     {
         byte[] ar = serializeToBytes(kryo(), DIGEST_1);
         PartitionUpdateWrapper.Digest deserialized = deserialize(kryo(), ar, PartitionUpdateWrapper.Digest.class);
-        assertNotNull(deserialized);
-        assertEquals(DIGEST_1, deserialized);
-        assertNotEquals(DIGEST_2, deserialized);
-        assertNotEquals(DIGEST_3, deserialized);
+        assertThat(deserialized).isNotNull();
+        assertThat(deserialized).isEqualTo(DIGEST_1);
+        assertThat(deserialized).isNotEqualTo(DIGEST_2);
+        assertThat(deserialized).isNotEqualTo(DIGEST_3);
     }
 
     @Test
@@ -109,7 +107,7 @@ public class CdcKryoSerializationTests
     {
         byte[] ar = serializeToBytes(kryo(), expected);
         CdcState deserialized = deserialize(kryo(), ar, CdcState.class);
-        assertNotNull(deserialized);
-        assertEquals(expected, deserialized);
+        assertThat(deserialized).isNotNull();
+        assertThat(deserialized).isEqualTo(expected);
     }
 }

@@ -25,12 +25,8 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TypeCacheTests
 {
@@ -38,34 +34,34 @@ public class TypeCacheTests
     public void testTypeCache()
     {
         TypeCache typeCache = TypeCache.get(CassandraVersion.FOURZERO);
-        assertNull(typeCache.cqlTypeCache);
+        assertThat(typeCache.cqlTypeCache).isNull();
 
         CqlField.CqlType ksBigInt = typeCache.getType("ks", "bigint");
-        assertNotNull(typeCache.cqlTypeCache);
-        assertEquals("bigint", ksBigInt.cqlName());
-        assertEquals(1, typeCache.cqlTypeCache.size());
+        assertThat(typeCache.cqlTypeCache).isNotNull();
+        assertThat(ksBigInt.cqlName()).isEqualTo("bigint");
+        assertThat(typeCache.cqlTypeCache.size()).isOne();
         typeCache.getType("ks", "bigint");
         typeCache.getType("ks", "bigint");
         typeCache.getType("ks", "bigint");
-        assertEquals(1, typeCache.cqlTypeCache.size());
+        assertThat(typeCache.cqlTypeCache.size()).isOne();
 
         CqlField.CqlType ks2BigInt = typeCache.getType("ks2", "bigint");
-        assertEquals("bigint", ks2BigInt.cqlName());
-        assertSame(ksBigInt, ks2BigInt);
+        assertThat(ks2BigInt.cqlName()).isEqualTo("bigint");
+        assertThat(ks2BigInt).isSameAs(ksBigInt);
 
-        assertSame(typeCache.getType("ks", "int"), typeCache.getType("ks2", "int"));
-        assertSame(typeCache.getType("ks", "text"), typeCache.getType("ks2", "text"));
-        assertSame(typeCache.getType("ks", "boolean"), typeCache.getType("ks2", "boolean"));
-        assertSame(typeCache.getType("ks", "double"), typeCache.getType("ks2", "double"));
-        assertSame(typeCache.getType("ks", "float"), typeCache.getType("ks2", "float"));
-        assertEquals(12, typeCache.cqlTypeCache.size());
+        assertThat(typeCache.getType("ks2", "int")).isSameAs(typeCache.getType("ks", "int"));
+        assertThat(typeCache.getType("ks2", "text")).isSameAs(typeCache.getType("ks", "text"));
+        assertThat(typeCache.getType("ks2", "boolean")).isSameAs(typeCache.getType("ks", "boolean"));
+        assertThat(typeCache.getType("ks2", "double")).isSameAs(typeCache.getType("ks", "double"));
+        assertThat(typeCache.getType("ks2", "float")).isSameAs(typeCache.getType("ks", "float"));
+        assertThat(typeCache.cqlTypeCache.size()).isEqualTo(12);
 
         // test collections
-        assertInstanceOf(CqlField.CqlMap.class, typeCache.getType("ks", "map<text, int>"));
-        assertInstanceOf(CqlField.CqlList.class, typeCache.getType("ks", "list<ascii>"));
-        assertInstanceOf(CqlField.CqlSet.class, typeCache.getType("ks", "set<date>"));
-        assertInstanceOf(CqlField.CqlFrozen.class, typeCache.getType("ks", "frozen<set<blob>>"));
-        assertEquals(16, typeCache.cqlTypeCache.size());
+        assertThat(typeCache.getType("ks", "map<text, int>")).isInstanceOf(CqlField.CqlMap.class);
+        assertThat(typeCache.getType("ks", "list<ascii>")).isInstanceOf(CqlField.CqlList.class);
+        assertThat(typeCache.getType("ks", "set<date>")).isInstanceOf(CqlField.CqlSet.class);
+        assertThat(typeCache.getType("ks", "frozen<set<blob>>")).isInstanceOf(CqlField.CqlFrozen.class);
+        assertThat(typeCache.cqlTypeCache.size()).isEqualTo(16);
 
         // test udt
         CassandraTypes cassandraTypes = typeCache.getTypes();
@@ -77,9 +73,10 @@ public class TypeCacheTests
                                         .withField("d", cassandraTypes.aInt())
                                         .build());
         CqlField.CqlType udtType = typeCache.getType("ks", "my_udt");
-        assertEquals("my_udt", udtType.cqlName());
-        assertEquals(17, typeCache.cqlTypeCache.size());
+        assertThat(udtType.cqlName()).isEqualTo("my_udt");
+        assertThat(typeCache.cqlTypeCache.size()).isEqualTo(17);
 
-        assertThrows(RuntimeException.class, () -> assertNull(typeCache.getType("ks2", "my_udt")));
+        assertThatThrownBy(() -> typeCache.getType("ks2", "my_udt"))
+                .isInstanceOf(RuntimeException.class);
     }
 }

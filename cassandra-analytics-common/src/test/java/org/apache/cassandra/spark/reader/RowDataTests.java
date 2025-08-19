@@ -25,11 +25,7 @@ import java.nio.charset.StandardCharsets;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class RowDataTests
 {
@@ -37,10 +33,10 @@ public class RowDataTests
     public void testInit()
     {
         RowData rowData = new RowData();
-        assertNull(rowData.getPartitionKey());
-        assertNull(rowData.getColumnName());
-        assertNull(rowData.getValue());
-        assertFalse(rowData.isNewPartition);
+        assertThat(rowData.getPartitionKey()).isNull();
+        assertThat(rowData.getColumnName()).isNull();
+        assertThat(rowData.getValue()).isNull();
+        assertThat(rowData.isNewPartition).isFalse();
     }
 
     @Test
@@ -48,83 +44,83 @@ public class RowDataTests
     {
         RowData rowData = new RowData();
         rowData.setPartitionKeyCopy(ByteBuffer.wrap("101".getBytes()), BigInteger.ZERO);
-        assertNotNull(rowData.getPartitionKey());
-        assertNull(rowData.getColumnName());
-        assertNull(rowData.getValue());
+        assertThat(rowData.getPartitionKey()).isNotNull();
+        assertThat(rowData.getColumnName()).isNull();
+        assertThat(rowData.getValue()).isNull();
 
-        assertTrue(rowData.isNewPartition);
-        assertTrue(rowData.isNewPartition());
-        assertFalse(rowData.isNewPartition);
-        assertEquals("101", toString(rowData.getPartitionKey()));
+        assertThat(rowData.isNewPartition).isTrue();
+        assertThat(rowData.isNewPartition()).isTrue();
+        assertThat(rowData.isNewPartition).isFalse();
+        assertThat(toString(rowData.getPartitionKey())).isEqualTo("101");
 
         rowData.setPartitionKeyCopy(ByteBuffer.wrap("102".getBytes()), BigInteger.ZERO);
-        assertTrue(rowData.isNewPartition);
-        assertTrue(rowData.isNewPartition());
-        assertFalse(rowData.isNewPartition);
-        assertEquals("102", toString(rowData.getPartitionKey()));
+        assertThat(rowData.isNewPartition).isTrue();
+        assertThat(rowData.isNewPartition()).isTrue();
+        assertThat(rowData.isNewPartition).isFalse();
+        assertThat(toString(rowData.getPartitionKey())).isEqualTo("102");
     }
 
     @Test
     public void testSetColumnKey()
     {
         RowData rowData = new RowData();
-        assertNull(rowData.getPartitionKey());
-        assertNull(rowData.getColumnName());
-        assertNull(rowData.getValue());
+        assertThat(rowData.getPartitionKey()).isNull();
+        assertThat(rowData.getColumnName()).isNull();
+        assertThat(rowData.getValue()).isNull();
         rowData.setColumnNameCopy(ByteBuffer.wrap("101".getBytes()));
 
-        assertNull(rowData.getPartitionKey());
-        assertNotNull(rowData.getColumnName());
-        assertNull(rowData.getValue());
-        assertEquals("101", toString(rowData.getColumnName()));
+        assertThat(rowData.getPartitionKey()).isNull();
+        assertThat(rowData.getColumnName()).isNotNull();
+        assertThat(rowData.getValue()).isNull();
+        assertThat(toString(rowData.getColumnName())).isEqualTo("101");
     }
 
     @Test
     public void testSetValue()
     {
         RowData rowData = new RowData();
-        assertNull(rowData.getPartitionKey());
-        assertNull(rowData.getColumnName());
-        assertNull(rowData.getValue());
+        assertThat(rowData.getPartitionKey()).isNull();
+        assertThat(rowData.getColumnName()).isNull();
+        assertThat(rowData.getValue()).isNull();
         rowData.setValueCopy(ByteBuffer.wrap("101".getBytes()));
 
-        assertNull(rowData.getPartitionKey());
-        assertNull(rowData.getColumnName());
-        assertNotNull(rowData.getValue());
-        assertEquals("101", toString(rowData.getValue()));
+        assertThat(rowData.getPartitionKey()).isNull();
+        assertThat(rowData.getColumnName()).isNull();
+        assertThat(rowData.getValue()).isNotNull();
+        assertThat(toString(rowData.getValue())).isEqualTo("101");
     }
 
     @Test
     public void testSetAll()
     {
         RowData rowData = new RowData();
-        assertNull(rowData.getPartitionKey());
-        assertNull(rowData.getColumnName());
-        assertNull(rowData.getValue());
+        assertThat(rowData.getPartitionKey()).isNull();
+        assertThat(rowData.getColumnName()).isNull();
+        assertThat(rowData.getValue()).isNull();
         rowData.setPartitionKeyCopy(ByteBuffer.wrap("101".getBytes()), BigInteger.ZERO);
         rowData.setColumnNameCopy(ByteBuffer.wrap("102".getBytes()));
         rowData.setValueCopy(ByteBuffer.wrap("103".getBytes()));
 
-        assertTrue(rowData.isNewPartition);
-        assertTrue(rowData.isNewPartition());
-        assertFalse(rowData.isNewPartition);
+        assertThat(rowData.isNewPartition).isTrue();
+        assertThat(rowData.isNewPartition()).isTrue();
+        assertThat(rowData.isNewPartition).isFalse();
 
-        assertNotNull(rowData.getPartitionKey());
-        assertNotNull(rowData.getColumnName());
-        assertNotNull(rowData.getValue());
-        assertEquals("101", toString(rowData.getPartitionKey()));
-        assertEquals("102", toString(rowData.getColumnName()));
-        assertEquals("103", toString(rowData.getValue()));
+        assertThat(rowData.getPartitionKey()).isNotNull();
+        assertThat(rowData.getColumnName()).isNotNull();
+        assertThat(rowData.getValue()).isNotNull();
+        assertThat(toString(rowData.getPartitionKey())).isEqualTo("101");
+        assertThat(toString(rowData.getColumnName())).isEqualTo("102");
+        assertThat(toString(rowData.getValue())).isEqualTo("103");
 
         rowData.setPartitionKeyCopy(ByteBuffer.wrap("104".getBytes()), BigInteger.ZERO);
-        assertTrue(rowData.isNewPartition);
-        assertTrue(rowData.isNewPartition());
-        assertFalse(rowData.isNewPartition);
+        assertThat(rowData.isNewPartition).isTrue();
+        assertThat(rowData.isNewPartition()).isTrue();
+        assertThat(rowData.isNewPartition).isFalse();
         rowData.setColumnNameCopy(ByteBuffer.wrap("105".getBytes()));
         rowData.setValueCopy(ByteBuffer.wrap("106".getBytes()));
-        assertEquals("104", toString(rowData.getPartitionKey()));
-        assertEquals("105", toString(rowData.getColumnName()));
-        assertEquals("106", toString(rowData.getValue()));
+        assertThat(toString(rowData.getPartitionKey())).isEqualTo("104");
+        assertThat(toString(rowData.getColumnName())).isEqualTo("105");
+        assertThat(toString(rowData.getValue())).isEqualTo("106");
     }
 
     private static String toString(ByteBuffer buffer)

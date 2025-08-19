@@ -55,8 +55,7 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -67,13 +66,13 @@ import static org.quicktheories.generators.SourceDSL.arbitrary;
 public class BufferingInputStreamHttpTest
 {
     static final ExecutorService HTTP_EXECUTOR =
-            Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("http-server-%d")
-                                                                      .setDaemon(true)
-                                                                      .build());
+    Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("http-server-%d")
+                                                              .setDaemon(true)
+                                                              .build());
     static final ExecutorService HTTP_CLIENT =
-            Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("http-client-%d")
-                                                                      .setDaemon(true)
-                                                                      .build());
+    Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("http-client-%d")
+                                                              .setDaemon(true)
+                                                              .build());
     private static final Logger LOGGER = LoggerFactory.getLogger(BufferingInputStreamHttpTest.class);
 
     @TempDir
@@ -280,7 +279,7 @@ public class BufferingInputStreamHttpTest
                 }
             }
             byte[] expectedMD5 = digest.digest();
-            assertEquals(size, Files.size(path));
+            assertThat(path).hasSize(size);
             LOGGER.info("Created random file path={} fileSize={}", path, size);
 
             // Use HTTP client source to read files across HTTP and verify MD5 matches expected
@@ -294,12 +293,12 @@ public class BufferingInputStreamHttpTest
             {
                 actualMD5 = DigestUtils.md5(is);
                 blockingTimeMillis = TimeUnit.MILLISECONDS.convert(is.timeBlockedNanos(), TimeUnit.NANOSECONDS);
-                assertEquals(size, is.bytesRead());
-                assertEquals(0L, is.bytesBuffered());
+                assertThat(is.bytesRead()).isEqualTo(size);
+                assertThat(is.bytesBuffered()).isEqualTo(0L);
             }
             LOGGER.info("Time spent blocking on InputStream thread blockingTimeMillis={} fileSize={}",
                         blockingTimeMillis, size);
-            assertArrayEquals(actualMD5, expectedMD5);
+            assertThat(actualMD5).isEqualTo(expectedMD5);
         }
         catch (IOException exception)
         {

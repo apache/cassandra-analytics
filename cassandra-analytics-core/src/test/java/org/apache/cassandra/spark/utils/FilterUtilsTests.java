@@ -31,10 +31,8 @@ import org.apache.spark.sql.sources.EqualTo;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.sources.In;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class FilterUtilsTests
 {
@@ -42,9 +40,8 @@ public class FilterUtilsTests
     public void testPartialPartitionKeyFilter()
     {
         Filter[] filters = new Filter[]{new EqualTo("a", "1")};
-        assertThrows(IllegalArgumentException.class,
-                     () -> FilterUtils.extractPartitionKeyValues(filters, new HashSet<>(Arrays.asList("a", "b")))
-        );
+        assertThatThrownBy(() -> FilterUtils.extractPartitionKeyValues(filters, new HashSet<>(Arrays.asList("a", "b"))))
+        .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -52,18 +49,17 @@ public class FilterUtilsTests
     {
         Filter[] filters = new Filter[]{new EqualTo("a", "1"), new In("b", new String[]{"2", "3"}), new EqualTo("c", "2")};
         Map<String, List<String>> partitionKeyValues = FilterUtils.extractPartitionKeyValues(filters, new HashSet<>(Arrays.asList("a", "b")));
-        assertFalse(partitionKeyValues.containsKey("c"));
-        assertTrue(partitionKeyValues.containsKey("a"));
-        assertTrue(partitionKeyValues.containsKey("b"));
+        assertThat(partitionKeyValues).doesNotContainKey("c");
+        assertThat(partitionKeyValues).containsKey("a");
+        assertThat(partitionKeyValues).containsKey("b");
     }
 
     @Test()
     public void testCartesianProductOfInValidValues()
     {
         List<List<String>> orderedValues = Arrays.asList(Arrays.asList("1", "2"), Arrays.asList("a", "b", "c"), Collections.emptyList());
-        assertThrows(IllegalArgumentException.class,
-                     () -> FilterUtils.cartesianProduct(orderedValues)
-        );
+        assertThatThrownBy(() -> FilterUtils.cartesianProduct(orderedValues))
+        .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -71,15 +67,15 @@ public class FilterUtilsTests
     {
         List<List<String>> orderedValues = Collections.emptyList();
         List<List<String>> product = FilterUtils.cartesianProduct(orderedValues);
-        assertFalse(product.isEmpty());
-        assertEquals(1, product.size());
-        assertTrue(product.get(0).isEmpty());
+        assertThat(product).isNotEmpty();
+        assertThat(product).hasSize(1);
+        assertThat(product.get(0)).isEmpty();
     }
 
     @Test
     public void testCartesianProductOfSingleton()
     {
         List<List<String>> orderedValues = Collections.singletonList(Arrays.asList("a", "b", "c"));
-        assertEquals(3, FilterUtils.cartesianProduct(orderedValues).size());
+        assertThat(FilterUtils.cartesianProduct(orderedValues)).hasSize(3);
     }
 }

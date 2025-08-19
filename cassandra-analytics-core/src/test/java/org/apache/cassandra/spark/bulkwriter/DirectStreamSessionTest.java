@@ -47,21 +47,11 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
-import org.assertj.core.api.Assertions;
 import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.iterableWithSize;
-import static org.hamcrest.Matchers.matchesPattern;
-import static org.hamcrest.Matchers.startsWith;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class DirectStreamSessionTest
 {
@@ -102,9 +92,9 @@ public class DirectStreamSessionTest
     {
         StreamSession<?> streamSession = createStreamSession(SortedSSTableWriter::new);
         List<RingInstance> replicas = streamSession.getReplicas();
-        assertNotNull(replicas);
+        assertThat(replicas).isNotNull();
         List<String> actualInstances = replicas.stream().map(RingInstance::nodeName).collect(Collectors.toList());
-        assertThat(actualInstances, containsInAnyOrder(expectedInstances.toArray()));
+        assertThat(actualInstances).containsExactlyInAnyOrder(expectedInstances.toArray(new String[0]));
     }
 
     @Test
@@ -112,29 +102,29 @@ public class DirectStreamSessionTest
     {
         StreamSession<?> ss = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
-        assertThat(ss.rowCount(), is(1L));
+        assertThat(ss.rowCount()).isEqualTo(1L);
         StreamResult streamResult = ss.finalizeStreamAsync().get();
-        assertThat(streamResult.rowCount, is(1L));
+        assertThat(streamResult.rowCount).isEqualTo(1L);
         executor.assertFuturesCalled();
-        assertThat(executor.futures.size(), equalTo(1));  // We only scheduled one SSTable
-        assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));
+        assertThat(executor.futures).hasSize(1);  // We only scheduled one SSTable
+        assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum()).isEqualTo(RF * FILES_PER_SSTABLE);
         final List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::nodeName).collect(Collectors.toList());
-        assertThat(instances, containsInAnyOrder(expectedInstances.toArray()));
+        assertThat(instances).containsExactlyInAnyOrder(expectedInstances.toArray(new String[0]));
     }
 
     @Test
     void testEmptyTokenRangeFails()
     {
-        Exception exception = assertThrows(IllegalStateException.class,
-                                           () -> new DirectStreamSession(
+        assertThatThrownBy(() -> new DirectStreamSession(
                                            writerContext,
                                            new NonValidatingTestSortedSSTableWriter(tableWriter, folder, digestAlgorithm, 1),
                                            transportContext,
                                            "sessionId",
                                            Range.range(BigInteger.valueOf(0L), BoundType.OPEN, BigInteger.valueOf(0L), BoundType.CLOSED),
                                            replicaAwareFailureHandler(), null)
-                                           );
-        assertThat(exception.getMessage(), is("No replicas found for range (0‥0]"));
+                                           )
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage("No replicas found for range (0‥0]");
     }
 
     @Test
@@ -142,10 +132,9 @@ public class DirectStreamSessionTest
     {
         StreamSession<?> ss = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
         ss.addRow(BigInteger.valueOf(9999L), COLUMN_BOUND_VALUES);
-        IllegalStateException illegalStateException = assertThrows(IllegalStateException.class,
-                                                                   ss::finalizeStreamAsync);
-        assertThat(illegalStateException.getMessage(), matchesPattern(
-        "SSTable range \\[9999(‥|..)9999] should be enclosed in the partition range \\[101(‥|..)199]"));
+        assertThatThrownBy(ss::finalizeStreamAsync)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageMatching("SSTable range \\[9999(‥|..)9999] should be enclosed in the partition range \\[101(‥|..)199]");
     }
 
     @Test
@@ -156,7 +145,7 @@ public class DirectStreamSessionTest
         List<String> actualInstances = writerContext.getCleanedInstances().stream()
                                                     .map(CassandraInstance::nodeName)
                                                     .collect(Collectors.toList());
-        assertThat(actualInstances, containsInAnyOrder(expectedInstances.toArray()));
+        assertThat(actualInstances).containsExactlyInAnyOrder(expectedInstances.toArray(new String[0]));
     }
 
     @Test
@@ -168,38 +157,38 @@ public class DirectStreamSessionTest
         List<String> actualInstances = writerContext.getCleanedInstances().stream()
                                                     .map(CassandraInstance::nodeName)
                                                     .collect(Collectors.toList());
-        assertThat(actualInstances, iterableWithSize(0));
+        assertThat(actualInstances).isEmpty();
         final List<UploadRequest> uploads = writerContext.getUploads().values()
                                                          .stream()
                                                          .flatMap(Collection::stream)
                                                          .collect(Collectors.toList());
-        assertFalse(uploads.isEmpty());
-        assertTrue(uploads.stream().noneMatch(u -> u.uploadSucceeded));
+        assertThat(uploads).isNotEmpty();
+        assertThat(uploads).allMatch(u -> !u.uploadSucceeded);
     }
 
     @Test
     void testUploadFailureRefreshesClusterInfo() throws IOException, ExecutionException, InterruptedException
     {
         runFailedUpload();
-        assertThat(writerContext.refreshClusterInfoCallCount(), equalTo(3));
+        assertThat(writerContext.refreshClusterInfoCallCount()).isEqualTo(3);
     }
 
     @Test
     void testOutDirCreationFailureCleansAllReplicas()
     {
-        ExecutionException ex = assertThrows(ExecutionException.class, () -> {
+        assertThatThrownBy(() -> {
             StreamSession<?> ss = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
             ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
             Future<?> fut = ss.finalizeStreamAsync();
             tableWriter.removeOutDir();
             fut.get();
-        });
-
-        Assertions.assertThat(ex).hasRootCauseInstanceOf(NoSuchFileException.class);
+        })
+                .isInstanceOf(ExecutionException.class)
+                .hasRootCauseInstanceOf(NoSuchFileException.class);
         List<String> actualInstances = writerContext.getCleanedInstances().stream()
                                                     .map(CassandraInstance::nodeName)
                                                     .collect(Collectors.toList());
-        assertThat(actualInstances, containsInAnyOrder(expectedInstances.toArray()));
+        assertThat(actualInstances).containsExactlyInAnyOrder(expectedInstances.toArray(new String[0]));
     }
 
     @Test
@@ -228,9 +217,9 @@ public class DirectStreamSessionTest
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
         ss.finalizeStreamAsync().get();
         executor.assertFuturesCalled();
-        assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));
+        assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum()).isEqualTo(RF * FILES_PER_SSTABLE);
         final List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::nodeName).collect(Collectors.toList());
-        assertThat(instances, containsInAnyOrder(expectedInstances.toArray()));
+        assertThat(instances).containsExactlyInAnyOrder(expectedInstances.toArray(new String[0]));
     }
 
     @Test
@@ -250,16 +239,15 @@ public class DirectStreamSessionTest
             }
         });
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
-        ExecutionException exception = assertThrows(ExecutionException.class,
-                                                    () -> ss.finalizeStreamAsync().get());
-        Assertions.assertThat(exception)
-                  .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
-                  .hasMessageContaining("Failed to write 1 ranges with LOCAL_QUORUM for job " + writerContext.job().getId()
-                                        + " in phase UploadAndCommit.");
+        assertThatThrownBy(() -> ss.finalizeStreamAsync().get())
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
+                .hasMessageContaining("Failed to write 1 ranges with LOCAL_QUORUM for job " + writerContext.job().getId()
+                                      + " in phase UploadAndCommit.");
         executor.assertFuturesCalled();
-        assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum(), equalTo(RF * FILES_PER_SSTABLE));
+        assertThat(writerContext.getUploads().values().stream().mapToInt(Collection::size).sum()).isEqualTo(RF * FILES_PER_SSTABLE);
         List<String> instances = writerContext.getUploads().keySet().stream().map(CassandraInstance::nodeName).collect(Collectors.toList());
-        assertThat(instances, containsInAnyOrder(expectedInstances.toArray()));
+        assertThat(instances).containsExactlyInAnyOrder(expectedInstances.toArray(new String[0]));
     }
 
     private void runFailedUpload() throws IOException
@@ -267,9 +255,13 @@ public class DirectStreamSessionTest
         writerContext.setUploadSupplier(instance -> false);
         StreamSession<?> ss = createStreamSession(NonValidatingTestSortedSSTableWriter::new);
         ss.addRow(BigInteger.valueOf(102L), COLUMN_BOUND_VALUES);
-        ExecutionException ex = assertThrows(ExecutionException.class,
-                                             () -> ss.finalizeStreamAsync().get());
-        assertThat(ex.getCause().getMessage(), startsWith(LOAD_RANGE_ERROR_PREFIX));
+        assertThatThrownBy(() -> ss.finalizeStreamAsync().get())
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(Exception.class)
+                .extracting(Throwable::getCause)
+                .extracting(Throwable::getMessage)
+                .asString()
+                .startsWith(LOAD_RANGE_ERROR_PREFIX);
     }
 
     @NotNull

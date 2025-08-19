@@ -36,8 +36,8 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TypeConversionsTest
 {
@@ -46,18 +46,17 @@ public class TypeConversionsTest
     {
         TypeConversion.DateConversion dateConversion = new TypeConversion.DateConversion();
         LocalDate result = dateConversion.convert(null, 1234);
-        assertEquals(LocalDate.ofEpochDay(1234), result);
+        assertThat(result).as("Date conversion result should match expected local date").isEqualTo(LocalDate.ofEpochDay(1234));
     }
 
     @Test
     public void testDateConversionTypeMismatch()
     {
         TypeConversion.DateConversion dateConversion = new TypeConversion.DateConversion();
-        assertThrows(
-        IllegalArgumentException.class,
-        () -> dateConversion.convert(null, 1234L),
-        "DateConversion expects Integer input, but has Long"
-        );
+        assertThatThrownBy(() -> dateConversion.convert(null, 1234L))
+            .as("DateConversion should throw IllegalArgumentException for Long input")
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("DateConversion expects Integer input, but has Long");
     }
 
     @Test
@@ -67,7 +66,7 @@ public class TypeConversionsTest
         UUID testUUID = UUID.randomUUID();
         // convert string
         UUID result = uuidConversion.convert(null, testUUID.toString());
-        assertEquals(testUUID, result);
+        assertThat(result).as("UUID conversion from string should match original UUID").isEqualTo(testUUID);
     }
 
     @Test
@@ -77,7 +76,7 @@ public class TypeConversionsTest
         UUID testUUID = UUID.randomUUID();
         // convert string
         UUID result = uuidConversion.convert(null, new Utf8(testUUID.toString()));
-        assertEquals(testUUID, result);
+        assertThat(result).as("UUID conversion from Utf8 should match original UUID").isEqualTo(testUUID);
     }
 
     @Test
@@ -86,19 +85,18 @@ public class TypeConversionsTest
         String uuidStr = "203366be-7209-443b-adba-9f2cef199454";
         TypeConversion.UUIDConversion uuidConversion = new TypeConversion.UUIDConversion();
         UUID result = uuidConversion.convert(null, uuidStr);
-        assertEquals(4, result.version());
-        assertEquals(uuidStr, result.toString());
+        assertThat(result.version()).as("UUID version should be 4").isEqualTo(4);
+        assertThat(result.toString()).as("UUID string representation should match input").isEqualTo(uuidStr);
     }
 
     @Test
     public void testUuidConversionTypeMismatch()
     {
         TypeConversion.UUIDConversion uuidConversion = new TypeConversion.UUIDConversion();
-        assertThrows(
-        IllegalArgumentException.class,
-        () -> uuidConversion.convert(null, 1234L),
-        "UUIDConversion expects String input, but has Long"
-        );
+        assertThatThrownBy(() -> uuidConversion.convert(null, 1234L))
+            .as("UUIDConversion should throw IllegalArgumentException for Long input")
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessage("UUIDConversion expects String input, but has Long");
     }
 
     @Test
@@ -107,7 +105,7 @@ public class TypeConversionsTest
         TypeConversion.InetAddressConversion conversion = new TypeConversion.InetAddressConversion();
         InetAddress testData = InetAddress.getByName("127.0.0.1");
         InetAddress result = conversion.convert(null, ByteBuffer.wrap(testData.getAddress()));
-        assertEquals(testData, result);
+        assertThat(result).as("InetAddress conversion should match expected address").isEqualTo(testData);
     }
 
     @Test
@@ -118,7 +116,7 @@ public class TypeConversionsTest
         Schema varint = LogicalTypes.decimal(5, 0).addToSchema(SchemaBuilder.fixed("fixed").size(5));
         AvroSchemas.flagCqlType(varint, "varint");
         BigInteger result = conversion.convert(varint, new GenericData.Fixed(varint, testData.toByteArray()));
-        assertEquals(testData, result);
+        assertThat(result).as("VarInt conversion should match expected value").isEqualTo(testData);
     }
 
     @Test
@@ -128,11 +126,10 @@ public class TypeConversionsTest
         BigDecimal testData = BigDecimal.valueOf(1234.56789);
         Schema invalidVarint = LogicalTypes.decimal(5, 5).addToSchema(SchemaBuilder.fixed("fixed").size(5));
         AvroSchemas.flagCqlType(invalidVarint, "varint");
-        assertThrows(
-        IllegalStateException.class,
-        () -> conversion.convert(invalidVarint, new GenericData.Fixed(invalidVarint, testData.unscaledValue().toByteArray())),
-        "Not a valid varint type"
-        );
+        assertThatThrownBy(() -> conversion.convert(invalidVarint, new GenericData.Fixed(invalidVarint, testData.unscaledValue().toByteArray())))
+            .as("VarIntConversion should throw IllegalStateException for invalid varint type")
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessage("Not a valid varint type");
     }
 
     @Test
@@ -142,7 +139,7 @@ public class TypeConversionsTest
         BigDecimal testData = BigDecimal.valueOf(1234.56789);
         Schema decimal = LogicalTypes.decimal(5, 5).addToSchema(SchemaBuilder.fixed("fixed").size(5));
         BigDecimal result = conversion.convert(decimal, new GenericData.Fixed(decimal, testData.unscaledValue().toByteArray()));
-        assertEquals(testData, result);
+        assertThat(result).as("Decimal conversion should match expected value").isEqualTo(testData);
     }
 
     @Test
@@ -152,6 +149,6 @@ public class TypeConversionsTest
         long testDataInMicros = 1000000L;
         Date result = conversion.convert(null, testDataInMicros);
         Date testData = new Date(TimeUnit.MICROSECONDS.toMillis(testDataInMicros));
-        assertEquals(testData, result);
+        assertThat(result).as("Timestamp conversion should match expected date").isEqualTo(testData);
     }
 }

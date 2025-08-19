@@ -32,10 +32,8 @@ import org.junit.jupiter.api.io.TempDir;
 
 import org.apache.cassandra.spark.bulkwriter.util.IOUtils;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class IOUtilsTest
 {
@@ -53,8 +51,8 @@ class IOUtilsTest
         }
         File targetZip = tempFolder.resolve("zip").toFile();
         long zipFileSize = IOUtils.zip(zipSourceDir.toPath(), targetZip.toPath());
-        assertTrue(targetZip.exists());
-        assertTrue(zipFileSize > 0);
+        assertThat(targetZip).exists();
+        assertThat(zipFileSize).isGreaterThan(0);
 
         ZipInputStream zis = new ZipInputStream(new FileInputStream(targetZip));
         int acutalFilesCount = 0;
@@ -62,16 +60,16 @@ class IOUtilsTest
         {
             acutalFilesCount++;
         }
-        assertEquals(expectedFileCount, acutalFilesCount);
+        assertThat(acutalFilesCount).isEqualTo(expectedFileCount);
     }
 
     @Test
     void testZipFailsOnInvalidInput()
     {
         Path file = tempFolder.resolve("file");
-        IOException thrown = assertThrows(IOException.class,
-                                          () -> IOUtils.zip(file, file));
-        assertTrue(thrown.getMessage().contains("Not a directory"));
+        assertThatThrownBy(() -> IOUtils.zip(file, file))
+        .isInstanceOf(IOException.class)
+        .hasMessageContaining("Not a directory");
     }
 
     @Test
@@ -81,14 +79,17 @@ class IOUtilsTest
         Files.write(file, "Hello World!".getBytes(StandardCharsets.UTF_8));
         String checksum1 = IOUtils.xxhash32(file);
         String checksum2 = IOUtils.xxhash32(file);
-        assertEquals(checksum1, checksum2,
-                     "Deterministic checksum calculation should yield same result for same input");
-        assertEquals("bd69788", checksum1);
+        assertThat(checksum2)
+        .as("Deterministic checksum calculation should yield same result for same input")
+        .isEqualTo(checksum1);
+        assertThat(checksum1).isEqualTo("bd69788");
 
         Path anotherFile = tempFolder.resolve("anotherFile");
         Files.write(anotherFile, "Hello World!".getBytes(StandardCharsets.UTF_8));
         String checksum3 = IOUtils.xxhash32(anotherFile);
-        assertEquals(checksum1, checksum3, "Checksum should be same for the same content");
+        assertThat(checksum3)
+        .as("Checksum should be same for the same content")
+        .isEqualTo(checksum1);
     }
 
     @Test
@@ -100,8 +101,8 @@ class IOUtilsTest
         Files.write(file2, "File 2 is where you find me".getBytes(StandardCharsets.UTF_8));
         String checksum1 = IOUtils.xxhash32(file1);
         String checksum2 = IOUtils.xxhash32(file2);
-        assertNotEquals(checksum1, checksum2);
-        assertEquals("a6a6a5ba", checksum1);
-        assertEquals("9e9b9db5", checksum2);
+        assertThat(checksum1).isNotEqualTo(checksum2);
+        assertThat(checksum1).isEqualTo("a6a6a5ba");
+        assertThat(checksum2).isEqualTo("9e9b9db5");
     }
 }

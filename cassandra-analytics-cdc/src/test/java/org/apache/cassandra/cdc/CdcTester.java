@@ -53,8 +53,8 @@ import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.cdc.CdcTests.CDC_BRIDGE;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 public class CdcTester
 {
@@ -326,7 +326,7 @@ public class CdcTester
 
                 if (eventsChecker != null)
                 {
-                    assertNotNull(cdcEvents);
+                    assertThat(cdcEvents).isNotNull();
                     eventsChecker.accept(rows, cdcEvents);
                 }
             }

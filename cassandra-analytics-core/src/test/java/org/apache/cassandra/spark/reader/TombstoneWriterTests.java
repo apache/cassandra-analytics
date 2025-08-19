@@ -31,9 +31,7 @@ import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
 /**
@@ -75,16 +73,16 @@ public class TombstoneWriterTests
                 }
 
                 // Verify SSTable contains partition tombstones
-                assertEquals(NUM_ROWS, node.size());
+                assertThat(node).hasSize(NUM_ROWS);
                 for (int index = 0; index < NUM_ROWS; index++)
                 {
                     JsonNode partition = node.get(index).get("partition");
                     int key = partition.get("key").get(0).asInt();
-                    assertTrue(0 <= key && key < NUM_ROWS);
-                    assertTrue(node.get(index).has("rows"));
-                    assertTrue(partition.has("deletion_info"));
-                    assertTrue(partition.get("deletion_info").has("marked_deleted"));
-                    assertTrue(partition.get("deletion_info").has("local_delete_time"));
+                    assertThat(key).isBetween(0, NUM_ROWS - 1);
+                    assertThat(node.get(index).has("rows")).isTrue();
+                    assertThat(partition.has("deletion_info")).isTrue();
+                    assertThat(partition.get("deletion_info").has("marked_deleted")).isTrue();
+                    assertThat(partition.get("deletion_info").has("local_delete_time")).isTrue();
                 }
             }));
     }
@@ -120,21 +118,21 @@ public class TombstoneWriterTests
                 }
 
                 // Verify SSTable contains row tombstones
-                assertEquals(NUM_ROWS, node.size());
+                assertThat(node).hasSize(NUM_ROWS);
                 for (int index = 0; index < NUM_ROWS; index++)
                 {
                     JsonNode partition = node.get(index).get("partition");
                     int key = partition.get("key").get(0).asInt();
-                    assertTrue(0 <= key && key < NUM_ROWS);
-                    assertFalse(partition.has("deletion_info"));
+                    assertThat(key).isBetween(0, NUM_ROWS - 1);
+                    assertThat(partition.has("deletion_info")).isFalse();
 
-                    assertTrue(node.get(index).has("rows"));
+                    assertThat(node.get(index).has("rows")).isTrue();
                     JsonNode row = node.get(index).get("rows").get(0);
-                    assertEquals("row", row.get("type").asText());
-                    assertEquals(key, row.get("clustering").get(0).asInt());
-                    assertTrue(row.has("deletion_info"));
-                    assertTrue(row.get("deletion_info").has("marked_deleted"));
-                    assertTrue(row.get("deletion_info").has("local_delete_time"));
+                    assertThat(row.get("type").asText()).isEqualTo("row");
+                    assertThat(row.get("clustering").get(0).asInt()).isEqualTo(key);
+                    assertThat(row.has("deletion_info")).isTrue();
+                    assertThat(row.get("deletion_info").has("marked_deleted")).isTrue();
+                    assertThat(row.get("deletion_info").has("local_delete_time")).isTrue();
                 }
             }));
     }
@@ -170,34 +168,34 @@ public class TombstoneWriterTests
                 }
 
                 // Verify SSTable contains range tombstones
-                assertEquals(NUM_ROWS, node.size());
+                assertThat(node).hasSize(NUM_ROWS);
                 for (int index = 0; index < NUM_ROWS; index++)
                 {
                     JsonNode partition = node.get(index).get("partition");
                     int key = partition.get("key").get(0).asInt();
-                    assertTrue(0 <= key && key < NUM_ROWS);
-                    assertFalse(partition.has("deletion_info"));
+                    assertThat(key).isBetween(0, NUM_ROWS - 1);
+                    assertThat(partition.has("deletion_info")).isFalse();
 
-                    assertTrue(node.get(index).has("rows"));
-                    assertEquals(2, node.get(index).get("rows").size());
+                    assertThat(node.get(index).has("rows")).isTrue();
+                    assertThat(node.get(index).get("rows")).hasSize(2);
 
                     JsonNode row1 = node.get(index).get("rows").get(0);
-                    assertEquals("range_tombstone_bound", row1.get("type").asText());
+                    assertThat(row1.get("type").asText()).isEqualTo("range_tombstone_bound");
                     JsonNode start = row1.get("start");
-                    assertEquals("inclusive", start.get("type").asText());
-                    assertEquals(50, start.get("clustering").get(0).asInt());
-                    assertTrue(start.has("deletion_info"));
-                    assertTrue(start.get("deletion_info").has("marked_deleted"));
-                    assertTrue(start.get("deletion_info").has("local_delete_time"));
+                    assertThat(start.get("type").asText()).isEqualTo("inclusive");
+                    assertThat(start.get("clustering").get(0).asInt()).isEqualTo(50);
+                    assertThat(start.has("deletion_info")).isTrue();
+                    assertThat(start.get("deletion_info").has("marked_deleted")).isTrue();
+                    assertThat(start.get("deletion_info").has("local_delete_time")).isTrue();
 
                     JsonNode row2 = node.get(index).get("rows").get(1);
-                    assertEquals("range_tombstone_bound", row2.get("type").asText());
+                    assertThat(row2.get("type").asText()).isEqualTo("range_tombstone_bound");
                     JsonNode end = row2.get("end");
-                    assertEquals("exclusive", end.get("type").asText());
-                    assertEquals(999, end.get("clustering").get(0).asInt());
-                    assertTrue(end.has("deletion_info"));
-                    assertTrue(end.get("deletion_info").has("marked_deleted"));
-                    assertTrue(end.get("deletion_info").has("local_delete_time"));
+                    assertThat(end.get("type").asText()).isEqualTo("exclusive");
+                    assertThat(end.get("clustering").get(0).asInt()).isEqualTo(999);
+                    assertThat(end.has("deletion_info")).isTrue();
+                    assertThat(end.get("deletion_info").has("marked_deleted")).isTrue();
+                    assertThat(end.get("deletion_info").has("local_delete_time")).isTrue();
                 }
             }));
     }

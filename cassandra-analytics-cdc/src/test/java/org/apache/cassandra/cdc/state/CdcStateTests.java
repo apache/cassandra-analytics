@@ -40,10 +40,7 @@ import static org.apache.cassandra.cdc.model.CdcKryoSerializationTests.DIGEST_4;
 import static org.apache.cassandra.cdc.model.CdcKryoSerializationTests.INST_1;
 import static org.apache.cassandra.cdc.model.CdcKryoSerializationTests.INST_2;
 import static org.apache.cassandra.cdc.model.CdcKryoSerializationTests.INST_3;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class CdcStateTests
 {
@@ -53,7 +50,7 @@ public class CdcStateTests
         CdcState state1 = CdcState.of(500L);
         CdcState state2 = CdcState.of(1000L);
         CdcState merged = state1.merge(TokenRange.openClosed(BigInteger.ONE, BigInteger.TEN), state2);
-        assertEquals(1000, merged.epoch);
+        assertThat(merged.epoch).isEqualTo(1000);
     }
 
     /**
@@ -81,38 +78,38 @@ public class CdcStateTests
                                       ImmutableMap.of(DIGEST_1, 1, DIGEST_2, 1, DIGEST_3, 1, DIGEST_4, 1));
 
         CdcState merged = state1.merge(TokenRange.openClosed(BigInteger.ZERO, BigInteger.valueOf(20)), state2);
-        assertEquals(Math.max(state1.epoch, state2.epoch), merged.epoch);
-        assertEquals(TokenRange.openClosed(BigInteger.ZERO, BigInteger.valueOf(20)), merged.range);
+        assertThat(merged.epoch).isEqualTo(Math.max(state1.epoch, state2.epoch));
+        assertThat(merged.range).isEqualTo(TokenRange.openClosed(BigInteger.ZERO, BigInteger.valueOf(20)));
 
         // Verify we maintain the token history.
         // We should ignore commit log markers that have already been read per token range.
-        assertTrue(merged.markers.canIgnore(INST_1.markerAt(999L, 150), BigInteger.ONE));
-        assertTrue(merged.markers.canIgnore(INST_1.markerAt(1000L, 50), BigInteger.ONE));
-        assertFalse(merged.markers.canIgnore(INST_1.markerAt(1000L, 150), BigInteger.ONE));
-        assertTrue(merged.markers.canIgnore(INST_2.markerAt(2000L, 150), BigInteger.valueOf(5)));
-        assertFalse(merged.markers.canIgnore(INST_2.markerAt(2000L, 225), BigInteger.valueOf(5)));
-        assertTrue(merged.markers.canIgnore(INST_2.markerAt(2000L, 150), BigInteger.valueOf(7)));
-        assertFalse(merged.markers.canIgnore(INST_2.markerAt(2500L, 50), BigInteger.valueOf(7)));
-        assertTrue(merged.markers.canIgnore(INST_3.markerAt(2500L, 150), BigInteger.valueOf(7)));
-        assertTrue(merged.markers.canIgnore(INST_3.markerAt(3000L, 150), BigInteger.valueOf(7)));
-        assertFalse(merged.markers.canIgnore(INST_3.markerAt(3000L, 305), BigInteger.valueOf(7)));
-        assertFalse(merged.markers.canIgnore(INST_3.markerAt(3000L, 305), BigInteger.TEN));
+        assertThat(merged.markers.canIgnore(INST_1.markerAt(999L, 150), BigInteger.ONE)).isTrue();
+        assertThat(merged.markers.canIgnore(INST_1.markerAt(1000L, 50), BigInteger.ONE)).isTrue();
+        assertThat(merged.markers.canIgnore(INST_1.markerAt(1000L, 150), BigInteger.ONE)).isFalse();
+        assertThat(merged.markers.canIgnore(INST_2.markerAt(2000L, 150), BigInteger.valueOf(5))).isTrue();
+        assertThat(merged.markers.canIgnore(INST_2.markerAt(2000L, 225), BigInteger.valueOf(5))).isFalse();
+        assertThat(merged.markers.canIgnore(INST_2.markerAt(2000L, 150), BigInteger.valueOf(7))).isTrue();
+        assertThat(merged.markers.canIgnore(INST_2.markerAt(2500L, 50), BigInteger.valueOf(7))).isFalse();
+        assertThat(merged.markers.canIgnore(INST_3.markerAt(2500L, 150), BigInteger.valueOf(7))).isTrue();
+        assertThat(merged.markers.canIgnore(INST_3.markerAt(3000L, 150), BigInteger.valueOf(7))).isTrue();
+        assertThat(merged.markers.canIgnore(INST_3.markerAt(3000L, 305), BigInteger.valueOf(7))).isFalse();
+        assertThat(merged.markers.canIgnore(INST_3.markerAt(3000L, 305), BigInteger.TEN)).isFalse();
 
-        assertTrue(merged.markers.canIgnore(INST_1.markerAt(3999L, 450), BigInteger.valueOf(11)));
-        assertTrue(merged.markers.canIgnore(INST_1.markerAt(4000L, 350), BigInteger.valueOf(15)));
-        assertFalse(merged.markers.canIgnore(INST_1.markerAt(4000L, 550), BigInteger.valueOf(15)));
-        assertTrue(merged.markers.canIgnore(INST_2.markerAt(5000L, 450), BigInteger.valueOf(15)));
-        assertFalse(merged.markers.canIgnore(INST_2.markerAt(5000L, 550), BigInteger.valueOf(15)));
-        assertTrue(merged.markers.canIgnore(INST_3.markerAt(5000L, 900), BigInteger.valueOf(20)));
-        assertFalse(merged.markers.canIgnore(INST_3.markerAt(6000L, 600), BigInteger.valueOf(20)));
-        assertTrue(merged.markers.canIgnore(INST_3.markerAt(6000L, 599), BigInteger.valueOf(20)));
-        assertFalse(merged.markers.canIgnore(INST_3.markerAt(6000L, 650), BigInteger.valueOf(20)));
+        assertThat(merged.markers.canIgnore(INST_1.markerAt(3999L, 450), BigInteger.valueOf(11))).isTrue();
+        assertThat(merged.markers.canIgnore(INST_1.markerAt(4000L, 350), BigInteger.valueOf(15))).isTrue();
+        assertThat(merged.markers.canIgnore(INST_1.markerAt(4000L, 550), BigInteger.valueOf(15))).isFalse();
+        assertThat(merged.markers.canIgnore(INST_2.markerAt(5000L, 450), BigInteger.valueOf(15))).isTrue();
+        assertThat(merged.markers.canIgnore(INST_2.markerAt(5000L, 550), BigInteger.valueOf(15))).isFalse();
+        assertThat(merged.markers.canIgnore(INST_3.markerAt(5000L, 900), BigInteger.valueOf(20))).isTrue();
+        assertThat(merged.markers.canIgnore(INST_3.markerAt(6000L, 600), BigInteger.valueOf(20))).isFalse();
+        assertThat(merged.markers.canIgnore(INST_3.markerAt(6000L, 599), BigInteger.valueOf(20))).isTrue();
+        assertThat(merged.markers.canIgnore(INST_3.markerAt(6000L, 650), BigInteger.valueOf(20))).isFalse();
 
         // verify it takes the max replica count for each mutation digest
-        assertEquals(1, merged.replicaCount.get(DIGEST_1));
-        assertEquals(2, merged.replicaCount.get(DIGEST_2));
-        assertEquals(3, merged.replicaCount.get(DIGEST_3));
-        assertEquals(1, merged.replicaCount.get(DIGEST_4));
+        assertThat(merged.replicaCount.get(DIGEST_1)).isEqualTo(1);
+        assertThat(merged.replicaCount.get(DIGEST_2)).isEqualTo(2);
+        assertThat(merged.replicaCount.get(DIGEST_3)).isEqualTo(3);
+        assertThat(merged.replicaCount.get(DIGEST_4)).isEqualTo(1);
     }
 
     @Test
@@ -146,13 +143,13 @@ public class CdcStateTests
                                           INST_3, INST_3.markerAt(3000L, 300)
                                           )),
                                           ImmutableMap.of(digest1, 1, digest2, 2, digest3, 3));
-        assertEquals(3, startState.size());
+        assertThat(startState.size()).isEqualTo(3);
         CdcState endState = startState.mutate().purge(CdcStats.STUB, now - maxAgeMicros).build();
-        assertEquals(2, endState.size());
-        assertEquals(startState.epoch, endState.epoch);
-        assertEquals(startState.markers, endState.markers);
-        assertEquals(startState.range, endState.range);
-        assertNotEquals(startState.replicaCount, endState.replicaCount);
+        assertThat(endState.size()).isEqualTo(2);
+        assertThat(endState.epoch).isEqualTo(startState.epoch);
+        assertThat(endState.markers).isEqualTo(startState.markers);
+        assertThat(endState.range).isEqualTo(startState.range);
+        assertThat(endState.replicaCount).isNotEqualTo(startState.replicaCount);
     }
 
     @Test
@@ -186,7 +183,7 @@ public class CdcStateTests
                                      INST_3, INST_3.markerAt(3000L, 300)
                                      )),
                                      ImmutableMap.of(digest1, 1, digest2, 2, digest3, 3));
-        assertEquals(3, startState.size());
+        assertThat(startState.size()).isEqualTo(3);
         CdcState endState = startState.purgeIfFull(CdcStats.STUB, new CdcOptions()
         {
             @Override
@@ -207,10 +204,10 @@ public class CdcStateTests
             }
         });
 
-        assertEquals(2, endState.size());
-        assertEquals(startState.epoch, endState.epoch);
-        assertEquals(startState.markers, endState.markers);
-        assertEquals(startState.range, endState.range);
-        assertNotEquals(startState.replicaCount, endState.replicaCount);
+        assertThat(endState.size()).isEqualTo(2);
+        assertThat(endState.epoch).isEqualTo(startState.epoch);
+        assertThat(endState.markers).isEqualTo(startState.markers);
+        assertThat(endState.range).isEqualTo(startState.range);
+        assertThat(endState.replicaCount).isNotEqualTo(startState.replicaCount);
     }
 }

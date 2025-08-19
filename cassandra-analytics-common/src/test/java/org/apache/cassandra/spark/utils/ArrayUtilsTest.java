@@ -19,12 +19,11 @@
 
 package org.apache.cassandra.spark.utils;
 
-import java.util.function.Consumer;
-
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import static org.apache.cassandra.spark.utils.ArrayUtils.retain;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class ArrayUtilsTest
 {
@@ -32,35 +31,16 @@ public class ArrayUtilsTest
     public void testRetain()
     {
         Object[] source = new Object[]{1, 2, 3, 4, 5};
-        Assertions.assertArrayEquals(new Object[]{1, 2, 3}, retain(source, 0, 3));
+        assertThat(retain(source, 0, 3)).isEqualTo(new Object[]{1, 2, 3});
     }
 
     @Test
     public void testRetainThrows()
     {
         // Not using JUnit rule ExpectedException in order to assert multiple throwables
-        expectedThrows(() -> retain(null, 0, 1),
-                       throwable -> Assertions.assertSame(IllegalArgumentException.class, throwable.getClass()));
-
-        expectedThrows(() -> retain(new Object[]{1, 2, 3}, -1, 1),
-                       throwable -> Assertions.assertSame(IllegalArgumentException.class, throwable.getClass()));
-
-        expectedThrows(() -> retain(new Object[]{1, 2, 3}, 0, -1),
-                       throwable -> Assertions.assertSame(IllegalArgumentException.class, throwable.getClass()));
-
-        expectedThrows(() -> retain(new Object[]{1, 2, 3}, 0, 5),
-                       throwable -> Assertions.assertSame(IllegalArgumentException.class, throwable.getClass()));
-    }
-
-    private void expectedThrows(Runnable test, Consumer<Throwable> throwableVerifier)
-    {
-        try
-        {
-            test.run();
-        }
-        catch (Throwable throwable)
-        {
-            throwableVerifier.accept(throwable);
-        }
+        assertThatThrownBy(() -> retain(null, 0, 1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> retain(new Object[]{1, 2, 3}, -1, 1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> retain(new Object[]{1, 2, 3}, 0, -1)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> retain(new Object[]{1, 2, 3}, 0, 5)).isInstanceOf(IllegalArgumentException.class);
     }
 }

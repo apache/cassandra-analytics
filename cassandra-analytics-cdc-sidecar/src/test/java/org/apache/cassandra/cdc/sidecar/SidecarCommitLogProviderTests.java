@@ -42,7 +42,7 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.NotNull;
 import org.mockito.stubbing.Answer;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -103,13 +103,13 @@ public class SidecarCommitLogProviderTests
                                .sorted()
                                .collect(Collectors.toList());
         int expectedNumberOfLogs = aPrimeNumber + (2 * aPrimeNumber) + (3 * aPrimeNumber);
-        assertEquals(expectedNumberOfLogs, logs.size());
+        assertThat(logs).hasSize(expectedNumberOfLogs);
         IntStream.range(0, logs.size())
-                 .forEach(index -> assertEquals(index, logs.get(index).segmentId()));
-        assertEquals(3, instanceListCount.size());
-        assertEquals(1, instanceListCount.get(instance1));
-        assertEquals(1, instanceListCount.get(instance2));
-        assertEquals(1, instanceListCount.get(instance3));
+                 .forEach(index -> assertThat(logs.get(index).segmentId()).isEqualTo(index));
+        assertThat(instanceListCount).hasSize(3);
+        assertThat(instanceListCount.get(instance1)).isEqualTo(1);
+        assertThat(instanceListCount.get(instance2)).isEqualTo(1);
+        assertThat(instanceListCount.get(instance3)).isEqualTo(1);
 
         // list logs on instance4, instance5, instance6
         TokenRange tokenRange2 = TokenRange.openClosed(
@@ -120,16 +120,16 @@ public class SidecarCommitLogProviderTests
                                 .logs(tokenRange2)
                                 .collect(Collectors.toList());
         expectedNumberOfLogs = (4 * aPrimeNumber) + (5 * aPrimeNumber) + (6 * aPrimeNumber);
-        assertEquals(expectedNumberOfLogs, logs2.size());
+        assertThat(logs2).hasSize(expectedNumberOfLogs);
         IntStream.range(0, logs2.size())
-                 .forEach(index -> assertEquals(index + logs.size(), logs2.get(index).segmentId()));
-        assertEquals(6, instanceListCount.size());
-        assertEquals(1, instanceListCount.get(instance1));
-        assertEquals(1, instanceListCount.get(instance2));
-        assertEquals(1, instanceListCount.get(instance3));
-        assertEquals(1, instanceListCount.get(instance4));
-        assertEquals(1, instanceListCount.get(instance5));
-        assertEquals(1, instanceListCount.get(instance6));
+                 .forEach(index -> assertThat(logs2.get(index).segmentId()).isEqualTo(index + logs.size()));
+        assertThat(instanceListCount).hasSize(6);
+        assertThat(instanceListCount.get(instance1)).isEqualTo(1);
+        assertThat(instanceListCount.get(instance2)).isEqualTo(1);
+        assertThat(instanceListCount.get(instance3)).isEqualTo(1);
+        assertThat(instanceListCount.get(instance4)).isEqualTo(1);
+        assertThat(instanceListCount.get(instance5)).isEqualTo(1);
+        assertThat(instanceListCount.get(instance6)).isEqualTo(1);
     }
 
     @NotNull

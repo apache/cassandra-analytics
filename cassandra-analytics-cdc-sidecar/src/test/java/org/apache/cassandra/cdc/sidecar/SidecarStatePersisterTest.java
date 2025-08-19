@@ -43,9 +43,7 @@ import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -96,9 +94,9 @@ public class SidecarStatePersisterTest
         cassandraClient,
         asyncExecutor
         );
-        assertEquals(-1, statePersister.timerId);
+        assertThat(statePersister.timerId).isEqualTo(-1);
         statePersister.start();
-        assertTrue(statePersister.timerId >= 0);
+        assertThat(statePersister.timerId).isGreaterThanOrEqualTo(0);
 
         // write random data
         byte[] data = new byte[1024];
@@ -109,10 +107,10 @@ public class SidecarStatePersisterTest
         // wait for write to complete and verify data matches
         writeLatch.await(5, TimeUnit.SECONDS);
         List<byte[]> result = statePersister.loadStateForRange("101", tokenRange).collect(Collectors.toList());
-        assertEquals(1, result.size());
-        assertArrayEquals(data, result.get(0));
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0)).isEqualTo(data);
 
         statePersister.stop();
-        assertEquals(-1, statePersister.timerId);
+        assertThat(statePersister.timerId).isEqualTo(-1);
     }
 }

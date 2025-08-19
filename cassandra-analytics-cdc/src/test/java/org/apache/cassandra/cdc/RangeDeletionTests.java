@@ -41,10 +41,7 @@ import static org.apache.cassandra.cdc.CdcTester.testWith;
 import static org.apache.cassandra.cdc.CdcTests.BRIDGE;
 import static org.apache.cassandra.cdc.CdcTests.directory;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
 public class RangeDeletionTests
@@ -123,28 +120,33 @@ public class RangeDeletionTests
                 {
                     CdcEvent event = events.get(i);
                     long lmtInMillis = event.getTimestamp(TimeUnit.MILLISECONDS);
-                    assertTrue(lmtInMillis >= minTimestamp,
-                               "Last modification time should have a lower bound of " + minTimestamp);
-                    assertEquals(numOfPartitionKeys, event.getPartitionKeys().size(),
-                                 "Regardless of being row deletion or not, the partition key must present");
+                    assertThat(lmtInMillis)
+                        .as("Last modification time should have a lower bound of " + minTimestamp)
+                        .isGreaterThanOrEqualTo(minTimestamp);
+                    assertThat(event.getPartitionKeys())
+                        .as("Regardless of being row deletion or not, the partition key must present")
+                        .hasSize(numOfPartitionKeys);
 
                     if (rangeTombstones.containsKey(i)) // verify deletion
                     {
-                        assertEquals(CdcEvent.Kind.RANGE_DELETE, event.getKind());
+                        assertThat(event.getKind()).isEqualTo(CdcEvent.Kind.RANGE_DELETE);
                         // the bounds are added in its dedicated column.
-                        assertNull(event.getClusteringKeys(), "Clustering keys should be absent for range deletion");
-                        assertNull(event.getStaticColumns());
+                        assertThat(event.getClusteringKeys())
+                            .as("Clustering keys should be absent for range deletion")
+                            .isNull();
+                        assertThat(event.getStaticColumns()).isNull();
                         List<RangeTombstone> rangeTombstoneList = event.getRangeTombstoneList();
-                        assertNotNull(rangeTombstoneList);
-                        assertEquals(1, rangeTombstoneList.size(), "There should be 1 range tombstone");
+                        assertThat(rangeTombstoneList).isNotNull();
+                        assertThat(rangeTombstoneList)
+                            .as("There should be 1 range tombstone")
+                            .hasSize(1);
                         TestSchema.TestRow sourceRow = rangeTombstones.get(i);
                         RangeTombstoneData expectedRT = sourceRow.rangeTombstones().get(0);
                         RangeTombstone rt = rangeTombstoneList.get(0);
-                        assertEquals(expectedRT.open.inclusive, rt.startInclusive);
-                        assertEquals(expectedRT.close.inclusive, rt.endInclusive);
-                        assertEquals(numOfClusteringKeys, rt.getStartBound().size());
-                        assertEquals(withOpenEnd ? numOfClusteringKeys - 1 : numOfClusteringKeys,
-                                     rt.getEndBound().size());
+                        assertThat(rt.startInclusive).isEqualTo(expectedRT.open.inclusive);
+                        assertThat(rt.endInclusive).isEqualTo(expectedRT.close.inclusive);
+                        assertThat(rt.getStartBound()).hasSize(numOfClusteringKeys);
+                        assertThat(rt.getEndBound()).hasSize(withOpenEnd ? numOfClusteringKeys - 1 : numOfClusteringKeys);
                         Object[] startBoundVals = rt.getStartBound().stream()
                                                     .map(v -> v.getCqlType(BRIDGE::parseType)
                                                                .deserializeToJavaType(v.getValue()))
@@ -166,17 +168,17 @@ public class RangeDeletionTests
                     }
                     else // verify update
                     {
-                        assertEquals(CdcEvent.Kind.INSERT, event.getKind());
-                        assertNotNull(event.getClusteringKeys());
+                        assertThat(event.getKind()).isEqualTo(CdcEvent.Kind.INSERT);
+                        assertThat(event.getClusteringKeys()).isNotNull();
                         if (hasStatic)
                         {
-                            assertNotNull(event.getStaticColumns());
+                            assertThat(event.getStaticColumns()).isNotNull();
                         }
                         else
                         {
-                            assertNull(event.getStaticColumns());
+                            assertThat(event.getStaticColumns()).isNull();
                         }
-                        assertNotNull(event.getValueColumns());
+                        assertThat(event.getValueColumns()).isNotNull();
                     }
                 }
             })
@@ -238,7 +240,8 @@ public class RangeDeletionTests
 
     public static void assertComparisonEquals(Object expected, Object actual)
     {
-        assertTrue(ComparisonUtils.equals(expected, actual),
-                   String.format("Expect %s to equal to %s, but not.", expected, actual));
+        assertThat(ComparisonUtils.equals(expected, actual))
+            .as("Expect %s to equal to %s, but not.", expected, actual)
+            .isTrue();
     }
 }

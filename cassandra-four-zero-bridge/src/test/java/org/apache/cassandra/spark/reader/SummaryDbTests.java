@@ -42,9 +42,7 @@ import org.apache.cassandra.spark.utils.TemporaryDirectory;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -103,17 +101,17 @@ public class SummaryDbTests
                             writer.write(row, 0, row);
                         }
                     });
-                    assertEquals(1, TestSSTable.countIn(directory.path()));
+                    assertThat(TestSSTable.countIn(directory.path())).isEqualTo(1);
                     Collections.sort(tokens);
 
                     TableMetadata metadata = Schema.instance.getTableMetadata(schema.keyspace, schema.table);
-                    assertNotNull(metadata, "Could not find table metadata");
+                    assertThat(metadata).as("Could not find table metadata").isNotNull();
 
                     Path summaryDb = TestSSTable.firstIn(directory.path(), FileType.SUMMARY);
-                    assertNotNull(summaryDb, "Could not find summary");
+                    assertThat(summaryDb).as("Could not find summary").isNotNull();
 
                     SSTable ssTable = TestSSTable.firstIn(directory.path());
-                    assertNotNull(ssTable, "Could not find SSTable");
+                    assertThat(ssTable).as("Could not find SSTable").isNotNull();
 
                     // Binary search Summary.db file in token order and verify offsets are ordered
                     SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(metadata, ssTable);
@@ -123,11 +121,11 @@ public class SummaryDbTests
                         long offset = SummaryDbUtils.findIndexOffsetInSummary(summary.summary(), iPartitioner, token);
                         if (previous < 0)
                         {
-                            assertEquals(offset, 0);
+                            assertThat(offset).isEqualTo(0);
                         }
                         else
                         {
-                            assertTrue(previous <= offset);
+                            assertThat(previous).isLessThanOrEqualTo(offset);
                         }
                         previous = offset;
                     }
@@ -143,34 +141,34 @@ public class SummaryDbTests
     public void testSummaryBinarySearch()
     {
         SummaryDbUtils.TokenList list = new ArrayTokenList(LongStream.range(5, 10000).boxed().toArray(Long[]::new));
-        assertEquals(148, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(154L)));
-        assertEquals(0, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(-500L)));
-        assertEquals(0, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(4L)));
-        assertEquals(0, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(3L)));
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(154L))).isEqualTo(148);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(-500L))).isEqualTo(0);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(4L))).isEqualTo(0);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(3L))).isEqualTo(0);
         for (int token = 5; token < 10000; token++)
         {
             int index = SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(token));
-            assertEquals(Math.max(0, token - 6), index);
+            assertThat(index).isEqualTo(Math.max(0, token - 6));
         }
-        assertEquals(9994, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(10000L)));
-        assertEquals(9994, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(10001L)));
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(10000L))).isEqualTo(9994);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(10001L))).isEqualTo(9994);
     }
 
     @Test
     public void testSummaryBinarySearchSparse()
     {
         SummaryDbUtils.TokenList list = new ArrayTokenList(5L, 10L, 15L, 20L, 25L);
-        assertEquals(0, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(-500L)));
-        assertEquals(0, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(3L)));
-        assertEquals(0, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(5L)));
-        assertEquals(0, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(6L)));
-        assertEquals(0, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(10L)));
-        assertEquals(1, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(11L)));
-        assertEquals(1, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(13L)));
-        assertEquals(1, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(15L)));
-        assertEquals(2, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(16L)));
-        assertEquals(3, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(25L)));
-        assertEquals(4, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(26L)));
-        assertEquals(4, SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(100L)));
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(-500L))).isEqualTo(0);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(3L))).isEqualTo(0);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(5L))).isEqualTo(0);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(6L))).isEqualTo(0);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(10L))).isEqualTo(0);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(11L))).isEqualTo(1);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(13L))).isEqualTo(1);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(15L))).isEqualTo(1);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(16L))).isEqualTo(2);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(25L))).isEqualTo(3);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(26L))).isEqualTo(4);
+        assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(100L))).isEqualTo(4);
     }
 }

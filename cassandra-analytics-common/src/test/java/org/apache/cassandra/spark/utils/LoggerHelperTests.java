@@ -23,8 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class LoggerHelperTests
 {
@@ -35,9 +34,12 @@ public class LoggerHelperTests
     {
         LoggerHelper loggerHelper = new LoggerHelper(LOGGER, "a", "1", "b", "2", "c", "3");
         Object[] additionalArgs = new Object[]{"d", "4", "e", "5", "f", "6"};
-        assertEquals("hello this is the log message a={} b={} c={} d={} e={} f={}", loggerHelper.logMsg("hello this is the log message", additionalArgs));
-        assertArrayEquals(new Object[]{"1", "2", "3", "4", "5", "6"}, loggerHelper.buildArguments(null, additionalArgs));
+        assertThat(loggerHelper.logMsg("hello this is the log message", additionalArgs))
+        .isEqualTo("hello this is the log message a={} b={} c={} d={} e={} f={}");
+        assertThat(loggerHelper.buildArguments(null, additionalArgs))
+        .isEqualTo(new Object[]{"1", "2", "3", "4", "5", "6"});
         Throwable throwable = new RuntimeException("Error");
-        assertArrayEquals(new Object[]{"1", "2", "3", "4", "5", "6", throwable}, loggerHelper.buildArguments(throwable, additionalArgs));
+        assertThat(loggerHelper.buildArguments(throwable, additionalArgs))
+        .isEqualTo(new Object[]{"1", "2", "3", "4", "5", "6", throwable});
     }
 }

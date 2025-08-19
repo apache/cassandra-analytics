@@ -36,9 +36,8 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RangeUtilsTest
 {
@@ -48,130 +47,129 @@ class RangeUtilsTest
     void testCalculateTokenRangesTenNodesRF10()
     {
         assertTokenRanges(10, 10,
-                new String[]{"(-9223372036854775808,9223372036854775807]"},
-                new String[]{"(-7378697629483820647,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
-                new String[]{"(-5534023222112865486,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
-                new String[]{"(-3689348814741910325,9223372036854775807]", "(-9223372036854775808,-3689348814741910325]"},
-                new String[]{"(-1844674407370955164,9223372036854775807]", "(-9223372036854775808,-1844674407370955164]"},
-                new String[]{"(-3,9223372036854775807]", "(-9223372036854775808,-3]"},
-                new String[]{"(1844674407370955158,9223372036854775807]", "(-9223372036854775808,1844674407370955158]"},
-                new String[]{"(3689348814741910319,9223372036854775807]", "(-9223372036854775808,3689348814741910319]"},
-                new String[]{"(5534023222112865480,9223372036854775807]", "(-9223372036854775808,5534023222112865480]"},
-                new String[]{"(7378697629483820641,9223372036854775807]", "(-9223372036854775808,7378697629483820641]"});
+                          new String[]{"(-9223372036854775808,9223372036854775807]"},
+                          new String[]{"(-7378697629483820647,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
+                          new String[]{"(-5534023222112865486,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
+                          new String[]{"(-3689348814741910325,9223372036854775807]", "(-9223372036854775808,-3689348814741910325]"},
+                          new String[]{"(-1844674407370955164,9223372036854775807]", "(-9223372036854775808,-1844674407370955164]"},
+                          new String[]{"(-3,9223372036854775807]", "(-9223372036854775808,-3]"},
+                          new String[]{"(1844674407370955158,9223372036854775807]", "(-9223372036854775808,1844674407370955158]"},
+                          new String[]{"(3689348814741910319,9223372036854775807]", "(-9223372036854775808,3689348814741910319]"},
+                          new String[]{"(5534023222112865480,9223372036854775807]", "(-9223372036854775808,5534023222112865480]"},
+                          new String[]{"(7378697629483820641,9223372036854775807]", "(-9223372036854775808,7378697629483820641]"});
     }
 
     @Test
     void testCalculateTokenRangesTenNodesRF7()
     {
         assertTokenRanges(10, 7,
-                new String[]{"(-3689348814741910325,9223372036854775807]"},
-                new String[]{"(-1844674407370955164,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
-                new String[]{"(-3,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
-                new String[]{"(1844674407370955158,9223372036854775807]", "(-9223372036854775808,-3689348814741910325]"},
-                new String[]{"(3689348814741910319,9223372036854775807]", "(-9223372036854775808,-1844674407370955164]"},
-                new String[]{"(5534023222112865480,9223372036854775807]", "(-9223372036854775808,-3]"},
-                new String[]{"(7378697629483820641,9223372036854775807]", "(-9223372036854775808,1844674407370955158]"},
-                new String[]{"(-9223372036854775808,3689348814741910319]"},
-                new String[]{"(-7378697629483820647,5534023222112865480]"},
-                new String[]{"(-5534023222112865486,7378697629483820641]"});
+                          new String[]{"(-3689348814741910325,9223372036854775807]"},
+                          new String[]{"(-1844674407370955164,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
+                          new String[]{"(-3,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
+                          new String[]{"(1844674407370955158,9223372036854775807]", "(-9223372036854775808,-3689348814741910325]"},
+                          new String[]{"(3689348814741910319,9223372036854775807]", "(-9223372036854775808,-1844674407370955164]"},
+                          new String[]{"(5534023222112865480,9223372036854775807]", "(-9223372036854775808,-3]"},
+                          new String[]{"(7378697629483820641,9223372036854775807]", "(-9223372036854775808,1844674407370955158]"},
+                          new String[]{"(-9223372036854775808,3689348814741910319]"},
+                          new String[]{"(-7378697629483820647,5534023222112865480]"},
+                          new String[]{"(-5534023222112865486,7378697629483820641]"});
     }
 
     @Test
     void testCalculateTokenRangesTenNodesRF5()
     {
         assertTokenRanges(10, 5,
-                new String[]{"(-3,9223372036854775807]"},
-                new String[]{"(1844674407370955158,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
-                new String[]{"(3689348814741910319,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
-                new String[]{"(5534023222112865480,9223372036854775807]", "(-9223372036854775808,-3689348814741910325]"},
-                new String[]{"(7378697629483820641,9223372036854775807]", "(-9223372036854775808,-1844674407370955164]"},
-                new String[]{"(-9223372036854775808,-3]"},
-                new String[]{"(-7378697629483820647,1844674407370955158]"},
-                new String[]{"(-5534023222112865486,3689348814741910319]"},
-                new String[]{"(-3689348814741910325,5534023222112865480]"},
-                new String[]{"(-1844674407370955164,7378697629483820641]"});
+                          new String[]{"(-3,9223372036854775807]"},
+                          new String[]{"(1844674407370955158,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
+                          new String[]{"(3689348814741910319,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
+                          new String[]{"(5534023222112865480,9223372036854775807]", "(-9223372036854775808,-3689348814741910325]"},
+                          new String[]{"(7378697629483820641,9223372036854775807]", "(-9223372036854775808,-1844674407370955164]"},
+                          new String[]{"(-9223372036854775808,-3]"},
+                          new String[]{"(-7378697629483820647,1844674407370955158]"},
+                          new String[]{"(-5534023222112865486,3689348814741910319]"},
+                          new String[]{"(-3689348814741910325,5534023222112865480]"},
+                          new String[]{"(-1844674407370955164,7378697629483820641]"});
     }
 
     @Test
     void testCalculateTokenRangesTenNodesRF3()
     {
         assertTokenRanges(10, 3,
-                new String[]{"(3689348814741910319,9223372036854775807]"},
-                new String[]{"(5534023222112865480,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
-                new String[]{"(7378697629483820641,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
-                new String[]{"(-9223372036854775808,-3689348814741910325]"},
-                new String[]{"(-7378697629483820647,-1844674407370955164]"},
-                new String[]{"(-5534023222112865486,-3]"},
-                new String[]{"(-3689348814741910325,1844674407370955158]"},
-                new String[]{"(-1844674407370955164,3689348814741910319]"},
-                new String[]{"(-3,5534023222112865480]"},
-                new String[]{"(1844674407370955158,7378697629483820641]"});
+                          new String[]{"(3689348814741910319,9223372036854775807]"},
+                          new String[]{"(5534023222112865480,9223372036854775807]", "(-9223372036854775808,-7378697629483820647]"},
+                          new String[]{"(7378697629483820641,9223372036854775807]", "(-9223372036854775808,-5534023222112865486]"},
+                          new String[]{"(-9223372036854775808,-3689348814741910325]"},
+                          new String[]{"(-7378697629483820647,-1844674407370955164]"},
+                          new String[]{"(-5534023222112865486,-3]"},
+                          new String[]{"(-3689348814741910325,1844674407370955158]"},
+                          new String[]{"(-1844674407370955164,3689348814741910319]"},
+                          new String[]{"(-3,5534023222112865480]"},
+                          new String[]{"(1844674407370955158,7378697629483820641]"});
     }
 
     @Test
     void testCalculateTokenRangesTenNodesRF1()
     {
         assertTokenRanges(10, 1,
-                new String[]{"(7378697629483820641,9223372036854775807]"},
-                new String[]{"(-9223372036854775808,-7378697629483820647]"},
-                new String[]{"(-7378697629483820647,-5534023222112865486]"},
-                new String[]{"(-5534023222112865486,-3689348814741910325]"},
-                new String[]{"(-3689348814741910325,-1844674407370955164]"},
-                new String[]{"(-1844674407370955164,-3]"},
-                new String[]{"(-3,1844674407370955158]"},
-                new String[]{"(1844674407370955158,3689348814741910319]"},
-                new String[]{"(3689348814741910319,5534023222112865480]"},
-                new String[]{"(5534023222112865480,7378697629483820641]"});
+                          new String[]{"(7378697629483820641,9223372036854775807]"},
+                          new String[]{"(-9223372036854775808,-7378697629483820647]"},
+                          new String[]{"(-7378697629483820647,-5534023222112865486]"},
+                          new String[]{"(-5534023222112865486,-3689348814741910325]"},
+                          new String[]{"(-3689348814741910325,-1844674407370955164]"},
+                          new String[]{"(-1844674407370955164,-3]"},
+                          new String[]{"(-3,1844674407370955158]"},
+                          new String[]{"(1844674407370955158,3689348814741910319]"},
+                          new String[]{"(3689348814741910319,5534023222112865480]"},
+                          new String[]{"(5534023222112865480,7378697629483820641]"});
     }
 
     @Test
     void testCalculateTokenRangesFourNodesRF4()
     {
         assertTokenRanges(4, 4,
-                new String[]{"(-9223372036854775808,9223372036854775807]"},
-                new String[]{"(-4611686018427387904,9223372036854775807]", "(-9223372036854775808,-4611686018427387904]"},
-                new String[]{"(0,9223372036854775807]", "(-9223372036854775808,0]"},
-                new String[]{"(4611686018427387904,9223372036854775807]", "(-9223372036854775808,4611686018427387904]"});
+                          new String[]{"(-9223372036854775808,9223372036854775807]"},
+                          new String[]{"(-4611686018427387904,9223372036854775807]", "(-9223372036854775808,-4611686018427387904]"},
+                          new String[]{"(0,9223372036854775807]", "(-9223372036854775808,0]"},
+                          new String[]{"(4611686018427387904,9223372036854775807]", "(-9223372036854775808,4611686018427387904]"});
     }
 
     @Test
     void testCalculateTokenRangesFourNodesRF3()
     {
         assertTokenRanges(4, 3,
-                new String[]{"(-4611686018427387904,9223372036854775807]"},
-                new String[]{"(0,9223372036854775807]", "(-9223372036854775808,-4611686018427387904]"},
-                new String[]{"(4611686018427387904,9223372036854775807]", "(-9223372036854775808,0]"},
-                new String[]{"(-9223372036854775808,4611686018427387904]"});
+                          new String[]{"(-4611686018427387904,9223372036854775807]"},
+                          new String[]{"(0,9223372036854775807]", "(-9223372036854775808,-4611686018427387904]"},
+                          new String[]{"(4611686018427387904,9223372036854775807]", "(-9223372036854775808,0]"},
+                          new String[]{"(-9223372036854775808,4611686018427387904]"});
     }
 
     @Test
     void testCalculateTokenRangesFourNodesRF2()
     {
         assertTokenRanges(4, 2,
-                new String[]{"(0,9223372036854775807]"},
-                new String[]{"(4611686018427387904,9223372036854775807]", "(-9223372036854775808,-4611686018427387904]"},
-                new String[]{"(-9223372036854775808,0]"},
-                new String[]{"(-4611686018427387904,4611686018427387904]"});
+                          new String[]{"(0,9223372036854775807]"},
+                          new String[]{"(4611686018427387904,9223372036854775807]", "(-9223372036854775808,-4611686018427387904]"},
+                          new String[]{"(-9223372036854775808,0]"},
+                          new String[]{"(-4611686018427387904,4611686018427387904]"});
     }
 
     @Test
     void testCalculateTokenRangesFourNodesRF1()
     {
         assertTokenRanges(4, 1,
-                new String[]{"(4611686018427387904,9223372036854775807]"},
-                new String[]{"(-9223372036854775808,-4611686018427387904]"},
-                new String[]{"(-4611686018427387904,0]"},
-                new String[]{"(0,4611686018427387904]"});
+                          new String[]{"(4611686018427387904,9223372036854775807]"},
+                          new String[]{"(-9223372036854775808,-4611686018427387904]"},
+                          new String[]{"(-4611686018427387904,0]"},
+                          new String[]{"(0,4611686018427387904]"});
     }
 
     @Test
     void testCalculateTokenRangesRFGreaterThanNodesFails()
     {
-        assertThrows(IllegalArgumentException.class,
-                     () -> assertTokenRanges(2, 3,
-                                             new String[]{"Does Not"},
-                                             new String[]{"Matter"})
-        );
+        assertThatThrownBy(() -> assertTokenRanges(2, 3,
+                                                   new String[]{"Does Not"},
+                                                   new String[]{"Matter"}))
+        .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -188,7 +186,7 @@ class RangeUtilsTest
         for (int nrSplits = 1; nrSplits < 5; nrSplits++)
         {
             // regardless of number of splits, the output should be a list of single range
-            assertEquals(expected, RangeUtils.split(range, nrSplits));
+            assertThat(RangeUtils.split(range, nrSplits)).isEqualTo(expected);
         }
     }
 
@@ -200,8 +198,8 @@ class RangeUtilsTest
         {
             for (Range<BigInteger> subrange : RangeUtils.split(range, nrSplit))
             {
-                assertEquals(BoundType.OPEN, subrange.lowerBoundType());
-                assertEquals(BoundType.CLOSED, subrange.upperBoundType());
+                assertThat(subrange.lowerBoundType()).isEqualTo(BoundType.OPEN);
+                assertThat(subrange.upperBoundType()).isEqualTo(BoundType.CLOSED);
             }
         }
     }
@@ -217,7 +215,7 @@ class RangeUtilsTest
         Range.openClosed(BigInteger.valueOf(6), BigInteger.valueOf(9)),
         Range.openClosed(BigInteger.valueOf(9), BigInteger.valueOf(11))
         );
-        assertEquals(expectedResult, RangeUtils.split(range, nrSplits));
+        assertThat(RangeUtils.split(range, nrSplits)).isEqualTo(expectedResult);
     }
 
     @Test
@@ -229,12 +227,12 @@ class RangeUtilsTest
         Range.openClosed(BigInteger.ZERO, BigInteger.ONE),
         Range.openClosed(BigInteger.ONE, BigInteger.valueOf(2))
         );
-        assertEquals(expectedResult, RangeUtils.split(range, nrSplits));
+        assertThat(RangeUtils.split(range, nrSplits)).isEqualTo(expectedResult);
     }
 
     private static void assertTokenRanges(int nodes, int replicationFactor, String[]... ranges)
     {
-        assertEquals(nodes, ranges.length);
+        assertThat(nodes).isEqualTo(ranges.length);
         BigInteger[] tokens = getTokens(Partitioner.Murmur3Partitioner, nodes);
         List<CassandraInstance> instances = getInstances(tokens);
         Multimap<CassandraInstance, Range<BigInteger>> allRanges =
@@ -247,11 +245,10 @@ class RangeUtilsTest
 
     private static void assertExpectedRanges(Collection<Range<BigInteger>> actual, String... expectedRanges)
     {
-        assertEquals(expectedRanges.length, actual.size());
+        assertThat(expectedRanges.length).isEqualTo(actual.size());
         for (String expected : expectedRanges)
         {
-            assertTrue(actual.contains(range(expected)),
-                       String.format("Expected range %s not found in %s", expected, actual));
+            assertThat(actual).as(String.format("Expected range %s not found in %s", expected, actual)).contains(range(expected));
         }
     }
 
@@ -262,8 +259,8 @@ class RangeUtilsTest
         for (int node = 0; node < nodes; node++)
         {
             tokens[node] = partitioner == Partitioner.Murmur3Partitioner
-                    ? getMurmur3Token(nodes, node)
-                    : getRandomToken(nodes, node);
+                           ? getMurmur3Token(nodes, node)
+                           : getRandomToken(nodes, node);
         }
         return tokens;
     }

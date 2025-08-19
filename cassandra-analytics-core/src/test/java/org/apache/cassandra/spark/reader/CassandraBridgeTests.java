@@ -25,7 +25,7 @@ import org.apache.cassandra.spark.TestUtils;
 import org.apache.spark.sql.types.DataTypes;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
 public class CassandraBridgeTests
@@ -35,24 +35,24 @@ public class CassandraBridgeTests
     {
         qt().forAll(TestUtils.bridges())
             .checkAssert(bridge -> {
-                assertEquals(DataTypes.StringType, getSparkSql(bridge).sparkSqlType(bridge.timeuuid()));
-                assertEquals(DataTypes.StringType, getSparkSql(bridge).sparkSqlType(bridge.uuid()));
-                assertEquals(DataTypes.StringType, getSparkSql(bridge).sparkSqlType(bridge.ascii()));
-                assertEquals(DataTypes.StringType, getSparkSql(bridge).sparkSqlType(bridge.varchar()));
-                assertEquals(DataTypes.StringType, getSparkSql(bridge).sparkSqlType(bridge.text()));
-                assertEquals(DataTypes.BinaryType, getSparkSql(bridge).sparkSqlType(bridge.inet()));
-                assertEquals(DataTypes.BinaryType, getSparkSql(bridge).sparkSqlType(bridge.blob()));
-                assertEquals(DataTypes.IntegerType, getSparkSql(bridge).sparkSqlType(bridge.aInt()));
-                assertEquals(DataTypes.DateType, getSparkSql(bridge).sparkSqlType(bridge.date()));
-                assertEquals(DataTypes.LongType, getSparkSql(bridge).sparkSqlType(bridge.bigint()));
-                assertEquals(DataTypes.LongType, getSparkSql(bridge).sparkSqlType(bridge.time()));
-                assertEquals(DataTypes.BooleanType, getSparkSql(bridge).sparkSqlType(bridge.bool()));
-                assertEquals(DataTypes.FloatType, getSparkSql(bridge).sparkSqlType(bridge.aFloat()));
-                assertEquals(DataTypes.DoubleType, getSparkSql(bridge).sparkSqlType(bridge.aDouble()));
-                assertEquals(DataTypes.TimestampType, getSparkSql(bridge).sparkSqlType(bridge.timestamp()));
-                assertEquals(DataTypes.NullType, getSparkSql(bridge).sparkSqlType(bridge.empty()));
-                assertEquals(DataTypes.ShortType, getSparkSql(bridge).sparkSqlType(bridge.smallint()));
-                assertEquals(DataTypes.ByteType, getSparkSql(bridge).sparkSqlType(bridge.tinyint()));
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.timeuuid())).isEqualTo(DataTypes.StringType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.uuid())).isEqualTo(DataTypes.StringType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.ascii())).isEqualTo(DataTypes.StringType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.varchar())).isEqualTo(DataTypes.StringType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.text())).isEqualTo(DataTypes.StringType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.inet())).isEqualTo(DataTypes.BinaryType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.blob())).isEqualTo(DataTypes.BinaryType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.aInt())).isEqualTo(DataTypes.IntegerType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.date())).isEqualTo(DataTypes.DateType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.bigint())).isEqualTo(DataTypes.LongType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.time())).isEqualTo(DataTypes.LongType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.bool())).isEqualTo(DataTypes.BooleanType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.aFloat())).isEqualTo(DataTypes.FloatType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.aDouble())).isEqualTo(DataTypes.DoubleType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.timestamp())).isEqualTo(DataTypes.TimestampType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.empty())).isEqualTo(DataTypes.NullType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.smallint())).isEqualTo(DataTypes.ShortType);
+                assertThat(getSparkSql(bridge).sparkSqlType(bridge.tinyint())).isEqualTo(DataTypes.ByteType);
             });
     }
 }

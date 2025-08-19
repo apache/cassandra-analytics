@@ -24,9 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.secrets.TestSecretsProvider;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests that cover startup validation of a TrustStore
@@ -40,7 +38,7 @@ public class TrustStoreValidationTests
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertNull(throwable);  // TrustStore is optional
+        assertThat(throwable).isNull();  // TrustStore is optional
     }
 
     @Test
@@ -50,8 +48,8 @@ public class TrustStoreValidationTests
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertInstanceOf(RuntimeException.class, throwable);
-        assertEquals("TrustStore is empty", throwable.getMessage());
+        assertThat(throwable).isInstanceOf(RuntimeException.class);
+        assertThat(throwable.getMessage()).isEqualTo("TrustStore is empty");
     }
 
     @Test
@@ -61,8 +59,8 @@ public class TrustStoreValidationTests
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertInstanceOf(RuntimeException.class, throwable);
-        assertEquals("TrustStore is misconfigured", throwable.getMessage());
+        assertThat(throwable).isInstanceOf(RuntimeException.class);
+        assertThat(throwable.getMessage()).isEqualTo("TrustStore is misconfigured");
     }
 
     @Test
@@ -72,8 +70,8 @@ public class TrustStoreValidationTests
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertInstanceOf(RuntimeException.class, throwable);
-        assertEquals("TrustStore is empty", throwable.getMessage());
+        assertThat(throwable).isInstanceOf(RuntimeException.class);
+        assertThat(throwable.getMessage()).isEqualTo("TrustStore is empty");
     }
 
     @Test
@@ -83,8 +81,8 @@ public class TrustStoreValidationTests
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertInstanceOf(RuntimeException.class, throwable);
-        assertEquals("TrustStore contains no certificates", throwable.getMessage());
+        assertThat(throwable).isInstanceOf(RuntimeException.class);
+        assertThat(throwable.getMessage()).isEqualTo("TrustStore contains no certificates");
     }
 
     @Test
@@ -94,6 +92,6 @@ public class TrustStoreValidationTests
         TrustStoreValidation validation = new TrustStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertNull(throwable);
+        assertThat(throwable).isNull();
     }
 }

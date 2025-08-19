@@ -24,8 +24,7 @@ import java.nio.ByteBuffer;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class DecoratedKeyTest
 {
@@ -34,7 +33,7 @@ public class DecoratedKeyTest
     {
         DecoratedKey key1 = new DecoratedKey(BigInteger.valueOf(1), ByteBuffer.wrap(new byte[]{'a', 'a'}));
         DecoratedKey key2 = new DecoratedKey(BigInteger.valueOf(1), ByteBuffer.wrap(new byte[]{'a', 'z'}));
-        assertNotEquals(key2.compareTo(key1), 0);
+        assertThat(key2.compareTo(key1)).isNotEqualTo(0);
     }
 
     @Test
@@ -42,7 +41,7 @@ public class DecoratedKeyTest
     {
         DecoratedKey key1 = new DecoratedKey(BigInteger.valueOf(1), ByteBuffer.wrap(new byte[]{'a'}));
         DecoratedKey key2 = new DecoratedKey(BigInteger.valueOf(1), ByteBuffer.wrap(new byte[]{'a', 'a'}));
-        assertNotEquals(key2.compareTo(key1), 0);
+        assertThat(key2.compareTo(key1)).isNotEqualTo(0);
     }
 
     @Test
@@ -50,7 +49,7 @@ public class DecoratedKeyTest
     {
         DecoratedKey key1 = new DecoratedKey(BigInteger.valueOf(1), ByteBuffer.wrap(new byte[]{'a'}));
         DecoratedKey key2 = new DecoratedKey(BigInteger.valueOf(2), ByteBuffer.wrap(new byte[]{'a'}));
-        assertNotEquals(key1.compareTo(key2), 0);
+        assertThat(key1.compareTo(key2)).isNotEqualTo(0);
     }
 
     @Test
@@ -58,6 +57,6 @@ public class DecoratedKeyTest
     {
         DecoratedKey key1 = new DecoratedKey(BigInteger.valueOf(1), ByteBuffer.wrap(new byte[]{'a'}));
         DecoratedKey key2 = new DecoratedKey(BigInteger.valueOf(1), ByteBuffer.wrap(new byte[]{'a'}));
-        assertEquals(key1, key2);
+        assertThat(key1).isEqualTo(key2);
     }
 }

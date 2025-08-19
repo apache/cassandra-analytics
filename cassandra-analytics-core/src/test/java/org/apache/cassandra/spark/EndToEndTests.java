@@ -44,13 +44,13 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
-import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
 import org.apache.cassandra.spark.utils.test.TestSchema;
@@ -58,11 +58,7 @@ import org.apache.spark.sql.Row;
 import scala.collection.mutable.AbstractSeq;
 
 import static org.apache.cassandra.spark.utils.ScalaConversionUtils.mutableSeqAsJavaList;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.booleans;
 import static org.quicktheories.generators.SourceDSL.characters;
@@ -269,26 +265,26 @@ public class EndToEndTests
                   for (UUID pk : column1.keySet())
                   {
                       long newBalance = (long) RandomUtils.RANDOM.nextInt(10_000_000) + column1.get(pk);
-                      assertTrue(newBalance > column1.get(pk));
+                      assertThat(newBalance).isGreaterThan(column1.get(pk));
                       newTotal.addAndGet(newBalance);
                       column1.put(pk, newBalance);
                       writer.write(pk, newBalance, column2.get(pk));
                   }
               })
               .withCheck(dataset -> {
-                  assertTrue(startTotal.get() < newTotal.get());
+                  assertThat(startTotal.get()).isLessThan(newTotal.get());
                   long sum = 0;
                   int count = 0;
                   for (Row row : dataset.collectAsList())
                   {
                       UUID pk = UUID.fromString(row.getString(0));
-                      assertEquals(row.getLong(1), column1.get(pk).longValue());
-                      assertEquals(row.getString(2), column2.get(pk));
+                      assertThat(row.getLong(1)).isEqualTo(column1.get(pk).longValue());
+                      assertThat(row.getString(2)).isEqualTo(column2.get(pk));
                       sum += (long) row.get(1);
                       count++;
                   }
-                  assertEquals(Tester.DEFAULT_NUM_ROWS, count);
-                  assertEquals(newTotal.get(), sum);
+                  assertThat(count).isEqualTo(Tester.DEFAULT_NUM_ROWS);
+                  assertThat(sum).isEqualTo(newTotal.get());
               })
               .withReset(() -> {
                   startTotal.set(0);
@@ -345,9 +341,8 @@ public class EndToEndTests
                   assert row.getInteger("b") * 500 == row.getInteger("c");
               })
               // Verify sums to correct total
-              .withCheck(dataset -> assertEquals(total.get(), dataset.groupBy().sum("c").first().getLong(0)))
-              .withCheck(dataset -> assertEquals(numRowsColumns * numRowsColumns,
-                                                 dataset.groupBy().count().first().getLong(0)))
+              .withCheck(dataset -> assertThat(dataset.groupBy().sum("c").first().getLong(0)).isEqualTo(total.get()))
+              .withCheck(dataset -> assertThat(dataset.groupBy().count().first().getLong(0)).isEqualTo(numRowsColumns * numRowsColumns))
               .withReset(() -> total.set(0))
               .run();
     }
@@ -386,25 +381,25 @@ public class EndToEndTests
               })
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS * clusteringKeys.size())
               .withCheck(dataset -> {
-                  assertEquals(total.get(), testSum.values().stream().mapToLong(MutableLong::getValue).sum());
+                  assertThat(testSum.values().stream().mapToLong(MutableLong::getValue).sum()).isEqualTo(total.get());
                   long sum = 0;
                   int count = 0;
                   for (Row row : dataset.collectAsList())
                   {
-                      assertNotNull(row.getString(0));
+                      assertThat(row.getString(0)).isNotNull();
                       long balance = row.getLong(2);
-                      assertNotNull(row.getString(3));
+                      assertThat(row.getString(3)).isNotNull();
                       sum += balance;
                       count++;
                   }
-                  assertEquals(total.get(), sum);
-                  assertEquals(Tester.DEFAULT_NUM_ROWS * clusteringKeys.size(), count);
+                  assertThat(sum).isEqualTo(total.get());
+                  assertThat(count).isEqualTo(Tester.DEFAULT_NUM_ROWS * clusteringKeys.size());
               })
               .withCheck(dataset -> {
                   // Test basic group by matches expected
                   for (Row row : dataset.groupBy("b").sum("c").collectAsList())
                   {
-                      assertEquals(testSum.get(row.getInt(0)).getValue().longValue(), row.getLong(1));
+                      assertThat(row.getLong(1)).isEqualTo(testSum.get(row.getInt(0)).getValue().longValue());
                   }
               })
               .withReset(() -> {
@@ -480,7 +475,7 @@ public class EndToEndTests
                   assert row.getInteger("c") == row.getInteger("a") * (numColumns * 2 - 1);
               })
               // Verify row count is correct
-              .withCheck(dataset -> assertEquals(numRows * numColumns * 2, dataset.count()))
+              .withCheck(dataset -> assertThat(dataset.count()).isEqualTo(numRows * numColumns * 2))
               .run();
     }
 
@@ -509,11 +504,11 @@ public class EndToEndTests
                   String staticCol = row.isNull("c") ? null : row.getString("c");
                   if (row.getInteger("d") % 2 == 0)
                   {
-                      assertNull(staticCol);
+                      assertThat(staticCol).isNull();
                   }
                   else
                   {
-                      assertEquals("Non-null", staticCol);
+                      assertThat(staticCol).isEqualTo("Non-null");
                   }
               })
               .run();
@@ -570,13 +565,12 @@ public class EndToEndTests
                   }
               })
               // Verify rows returned by Spark match expected
-              .withReadListener(actualRow -> assertTrue(rows.containsKey(actualRow.getUUID("a"))))
-              .withReadListener(actualRow -> assertEquals(rows.get(actualRow.getUUID("a")), actualRow))
-              .withReadListener(actualRow -> assertEquals(rows.get(actualRow.getUUID("a")).getLong("e"),
-                                                                   actualRow.getLong("e")))
+              .withReadListener(actualRow -> assertThat(rows.containsKey(actualRow.getUUID("a"))).isTrue())
+              .withReadListener(actualRow -> assertThat(actualRow).isEqualTo(rows.get(actualRow.getUUID("a"))))
+              .withReadListener(actualRow -> assertThat(actualRow.getLong("e")).isEqualTo(rows.get(actualRow.getUUID("a")).getLong("e")))
               // Verify Spark aggregations match expected
-              .withCheck(dataset -> assertEquals(total.get(), dataset.groupBy().sum("e").first().getLong(0)))
-              .withCheck(dataset -> assertEquals(rows.size(), dataset.groupBy().count().first().getLong(0)))
+              .withCheck(dataset -> assertThat(dataset.groupBy().sum("e").first().getLong(0)).isEqualTo(total.get()))
+              .withCheck(dataset -> assertThat(dataset.groupBy().count().first().getLong(0)).isEqualTo(rows.size()))
               .withReset(() -> {
                   total.set(0);
                   rows.clear();
@@ -624,11 +618,11 @@ public class EndToEndTests
                           for (Row row : dataset.collectAsList())
                           {
                               int value = row.getInt(0);
-                              assertTrue(0 <= value && value < numRows);
-                              assertTrue(value < deleteRangeStart || value >= deleteRangeEnd);
+                              assertThat(value).isBetween(0, numRows - 1);
+                              assertThat(value < deleteRangeStart || value >= deleteRangeEnd).isTrue();
                               count++;
                           }
-                          assertEquals((numRows - (deleteRangeEnd - deleteRangeStart)) * numColumns, count);
+                          assertThat(count).isEqualTo((numRows - (deleteRangeEnd - deleteRangeStart)) * numColumns);
                       })
                       .run();
             });
@@ -668,12 +662,12 @@ public class EndToEndTests
                           for (Row row : dataset.collectAsList())
                           {
                               int value = row.getInt(0);
-                              assertTrue(row.getInt(0) >= 0 && value < numRows);
-                              assertTrue(row.getInt(1) != colNum);
-                              assertEquals(row.get(1), row.get(2));
+                              assertThat(row.getInt(0)).isBetween(0, numRows - 1);
+                              assertThat(row.getInt(1)).isNotEqualTo(colNum);
+                              assertThat(row.get(2)).isEqualTo(row.get(1));
                               count++;
                           }
-                          assertEquals(numRows * (numColumns - 1), count);
+                          assertThat(count).isEqualTo(numRows * (numColumns - 1));
                       })
                       .run()
             );
@@ -688,9 +682,9 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(integers().between(0, numColumns - 1))
             .checkAssert(startBound -> {
-                assertTrue(startBound < numColumns);
+                assertThat(startBound).isLessThan(numColumns);
                 int endBound = startBound + RandomUtils.RANDOM.nextInt(numColumns - startBound);
-                assertTrue(endBound >= startBound && endBound <= numColumns);
+                assertThat(endBound).isBetween(startBound, numColumns);
                 int numTombstones = endBound - startBound;
 
                 Tester.builder(TestSchema.basicBuilder(bridge)
@@ -719,12 +713,12 @@ public class EndToEndTests
                           {
                               // Verify row values exist within correct range with range tombstoned values removed
                               int value = row.getInt(1);
-                              assertEquals(value, row.getInt(2));
-                              assertTrue(value <= numColumns);
-                              assertTrue(value < startBound || value >= endBound);
+                              assertThat(row.getInt(2)).isEqualTo(value);
+                              assertThat(value).isLessThanOrEqualTo(numColumns);
+                              assertThat(value < startBound || value >= endBound).isTrue();
                               count++;
                           }
-                          assertEquals(numRows * (numColumns - numTombstones), count);
+                          assertThat(count).isEqualTo(numRows * (numColumns - numTombstones));
                       })
                       .run();
             });
@@ -739,9 +733,9 @@ public class EndToEndTests
         qt().withExamples(10)
             .forAll(characters().ascii())
             .checkAssert(startBound -> {
-                assertTrue(startBound <= numColumns);
+                assertThat((int) startBound).isLessThanOrEqualTo(numColumns);
                 char endBound = (char) (startBound + RandomUtils.RANDOM.nextInt(numColumns - startBound));
-                assertTrue(endBound >= startBound && endBound <= numColumns);
+                assertThat(endBound).isBetween(startBound, (char) numColumns);
                 int numTombstones = endBound - startBound;
 
                 Tester.builder(TestSchema.builder(bridge)
@@ -773,12 +767,12 @@ public class EndToEndTests
                           for (Row row : dataset.collectAsList())
                           {
                               // Verify row values exist within correct range with range tombstoned values removed
-                              char character = row.getString(1).charAt(0);
-                              assertTrue(character <= numColumns);
-                              assertTrue(character < startBound || character >= endBound);
+                              int character = row.getString(1).charAt(0);
+                              assertThat(character).isLessThanOrEqualTo(numColumns);
+                              assertThat(character < startBound || character >= endBound).isTrue();
                               count++;
                           }
-                          assertEquals(numRows * (numColumns - numTombstones), count);
+                          assertThat(count).isEqualTo(numRows * (numColumns - numTombstones));
                       })
                       .run();
             });
@@ -812,16 +806,16 @@ public class EndToEndTests
               .withCheck(dataset -> {
                   for (Row row : dataset.collectAsList())
                   {
-                      assertEquals(6, row.size());
+                      assertThat(row.size()).isEqualTo(6);
                       UUID key = UUID.fromString(row.getString(0));
                       UUID value1 = UUID.fromString(row.getString(2));
                       UUID value2 = UUID.fromString(row.getString(4));
-                      assertTrue(rows.containsKey(key));
-                      assertEquals(rows.get(key), value1);
-                      assertEquals(value2, value1);
-                      assertNull(row.get(1));
-                      assertNull(row.get(3));
-                      assertNull(row.get(5));
+                      assertThat(rows.containsKey(key)).isTrue();
+                      assertThat(value1).isEqualTo(rows.get(key));
+                      assertThat(value2).isEqualTo(value1);
+                      assertThat(row.get(1)).isNull();
+                      assertThat(row.get(3)).isNull();
+                      assertThat(row.get(5)).isNull();
                   }
               })
               .withReset(rows::clear)
@@ -861,7 +855,7 @@ public class EndToEndTests
               .withCheck(dataset -> {
                   for (Row row : dataset.collectAsList())
                   {
-                      assertEquals(8, row.size());
+                      assertThat(row.size()).isEqualTo(8);
                       String a = row.getString(0);
                       String b = row.getString(1);
                       String c = row.getString(2);
@@ -869,11 +863,11 @@ public class EndToEndTests
                       String g = row.getString(6);
                       String key = a + ":" + b + ":" + c;
                       String value = e + ":" + g;
-                      assertTrue(rows.containsKey(key));
-                      assertEquals(rows.get(key), value);
-                      assertNull(row.get(3));
-                      assertNull(row.get(5));
-                      assertNull(row.get(7));
+                      assertThat(rows.containsKey(key)).isTrue();
+                      assertThat(value).isEqualTo(rows.get(key));
+                      assertThat(row.get(3)).isNull();
+                      assertThat(row.get(5)).isNull();
+                      assertThat(row.get(7)).isNull();
                   }
               })
               .withReset(rows::clear)
@@ -1067,7 +1061,7 @@ public class EndToEndTests
                   for (Row row : dataset.collectAsList())
                   {
                       int a = row.getInt(0);
-                      assertEquals(1, a);
+                      assertThat(a).isEqualTo(1);
                   }
               })
               .run();
@@ -1098,13 +1092,13 @@ public class EndToEndTests
               .withFilter("a in (2, 3) and b in (2, 3, 4)")
               .withCheck(dataset -> {
                   List<Row> rows = dataset.collectAsList();
-                  assertEquals(2, rows.size());
+                  assertThat(rows.size()).isEqualTo(2);
                   for (Row row : rows)
                   {
                       int a = row.getInt(0);
                       int b = row.getInt(1);
                       String key = a + ":" + b;
-                      assertTrue(keys.contains(key));
+                      assertThat(keys.contains(key)).isTrue();
                   }
               })
               .run();
@@ -1126,7 +1120,7 @@ public class EndToEndTests
                   }
               })
               .withFilter("a=11")
-              .withCheck(dataset -> assertTrue(dataset.collectAsList().isEmpty()))
+              .withCheck(dataset -> assertThat(dataset.collectAsList().isEmpty()).isTrue())
               .run();
     }
 
@@ -1149,12 +1143,12 @@ public class EndToEndTests
               .withFilter("a=200 and b='def'")
               .withCheck(dataset -> {
                   List<Row> rows = dataset.collectAsList();
-                  assertFalse(rows.isEmpty());
-                  assertEquals(7, rows.size());
+                  assertThat(rows.isEmpty()).isFalse();
+                  assertThat(rows.size()).isEqualTo(7);
                   for (Row row : rows)
                   {
-                      assertEquals(200, row.getInt(0));
-                      assertEquals("def", row.getString(1));
+                      assertThat(row.getInt(0)).isEqualTo(200);
+                      assertThat(row.getString(1)).isEqualTo("def");
                   }
               })
               .run();
@@ -1821,21 +1815,21 @@ public class EndToEndTests
 
                       Set<Map<String, Object>> expectedUdtSet = udtSetValues.get(pk);
                       List<Row> udtSet = mutableSeqAsJavaList((AbstractSeq<Row>) row.get(1));
-                      assertEquals(expectedUdtSet.size(), udtSet.size());
+                      assertThat(udtSet.size()).isEqualTo(expectedUdtSet.size());
                       for (Row udt : udtSet)
                       {
                           Map<String, Object> expectedUdt = Maps.newHashMapWithExpectedSize(2);
                           expectedUdt.put("a", UUID.fromString(udt.getString(0)));
                           expectedUdt.put("b", udt.getString(1));
-                          assertTrue(expectedUdtSet.contains(expectedUdt));
+                          assertThat(expectedUdtSet.contains(expectedUdt)).isTrue();
                       }
 
                       Object[] expectedTuple = tupleValues.get(pk);
                       Row tuple = (Row) row.get(2);
-                      assertEquals(expectedTuple.length, tuple.length());
-                      assertEquals(expectedTuple[0], tuple.getLong(0));
-                      assertEquals(expectedTuple[1], tuple.getString(1));
-                      assertEquals(expectedTuple[2], tuple.getInt(2));
+                      assertThat(tuple.length()).isEqualTo(expectedTuple.length);
+                      assertThat(tuple.getLong(0)).isEqualTo(expectedTuple[0]);
+                      assertThat(tuple.getString(1)).isEqualTo(expectedTuple[1]);
+                      assertThat(tuple.getInt(2)).isEqualTo(expectedTuple[2]);
                   }
               })
               .run();
@@ -1880,12 +1874,12 @@ public class EndToEndTests
                   Map<Long, Row> rows = dataset.collectAsList().stream()
                                                                .collect(Collectors.toMap(row -> row.getLong(0),
                                                                                          row -> row.getStruct(1)));
-                  assertEquals(values.size(), rows.size());
+                  assertThat(rows.size()).isEqualTo(values.size());
                   for (Map.Entry<Long, Row> pk : rows.entrySet())
                   {
-                      assertEquals(values.get(pk.getKey()).get("a"), pk.getValue().getString(0));
-                      assertEquals(values.get(pk.getKey()).get("b"), pk.getValue().getString(1));
-                      assertEquals(values.get(pk.getKey()).get("c"), pk.getValue().getString(2));
+                      assertThat(pk.getValue().getString(0)).isEqualTo(values.get(pk.getKey()).get("a"));
+                      assertThat(pk.getValue().getString(1)).isEqualTo(values.get(pk.getKey()).get("b"));
+                      assertThat(pk.getValue().getString(2)).isEqualTo(values.get(pk.getKey()).get("c"));
                   }
               })
               .run();
@@ -2009,22 +2003,22 @@ public class EndToEndTests
                       .withCheck(dataset -> {
                           EndToEndTests.resetStats();
                           List<Row> rows = dataset.collectAsList();
-                          assertFalse(rows.isEmpty());
+                          assertThat(rows.isEmpty()).isFalse();
                           for (Row row : rows)
                           {
-                              assertTrue(row.schema().getFieldIndex("pk").isDefined());
-                              assertTrue(row.schema().getFieldIndex("ck").isDefined());
-                              assertTrue(row.schema().getFieldIndex("a").isDefined());
-                              assertFalse(row.schema().getFieldIndex("b").isDefined());
-                              assertFalse(row.schema().getFieldIndex("c").isDefined());
-                              assertEquals(3, row.length());
-                              assertTrue(row.get(0) instanceof String);
-                              assertTrue(row.get(1) instanceof Integer);
-                              assertTrue(row.get(2) instanceof Long);
+                              assertThat(row.schema().getFieldIndex("pk").isDefined()).isTrue();
+                              assertThat(row.schema().getFieldIndex("ck").isDefined()).isTrue();
+                              assertThat(row.schema().getFieldIndex("a").isDefined()).isTrue();
+                              assertThat(row.schema().getFieldIndex("b").isDefined()).isFalse();
+                              assertThat(row.schema().getFieldIndex("c").isDefined()).isFalse();
+                              assertThat(row.length()).isEqualTo(3);
+                              assertThat(row.get(0) instanceof String).isTrue();
+                              assertThat(row.get(1) instanceof Integer).isTrue();
+                              assertThat(row.get(2) instanceof Long).isTrue();
                           }
-                          assertTrue(skippedRawBytes.get() > 50_000_000);
-                          assertTrue(skippedInputStreamBytes.get() > 2_500_000);
-                          assertTrue(skippedRangeBytes.get() > 5_000_000);
+                          assertThat(skippedRawBytes.get() > 50_000_000).isTrue();
+                          assertThat(skippedInputStreamBytes.get() > 2_500_000).isTrue();
+                          assertThat(skippedRangeBytes.get() > 5_000_000).isTrue();
                       })
                       .withReset(EndToEndTests::resetStats)
                       .run()
@@ -2047,22 +2041,22 @@ public class EndToEndTests
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withCheck(dataset -> {
                   List<Row> rows = dataset.collectAsList();
-                  assertFalse(rows.isEmpty());
+                  assertThat(rows.isEmpty()).isFalse();
                   for (Row row : rows)
                   {
-                      assertTrue(row.schema().getFieldIndex("pk").isDefined());
-                      assertTrue(row.schema().getFieldIndex("ck").isDefined());
-                      assertTrue(row.schema().getFieldIndex("a").isDefined());
-                      assertFalse(row.schema().getFieldIndex("b").isDefined());
-                      assertTrue(row.schema().getFieldIndex("c").isDefined());
-                      assertFalse(row.schema().getFieldIndex("d").isDefined());
-                      assertTrue(row.schema().getFieldIndex("e").isDefined());
-                      assertEquals(5, row.length());
-                      assertTrue(row.get(0) instanceof String);
-                      assertTrue(row.get(1) instanceof Integer);
-                      assertTrue(row.get(2) instanceof Long);
-                      assertTrue(row.get(3) instanceof String);
-                      assertTrue(row.get(4) instanceof scala.collection.immutable.Map);
+                      assertThat(row.schema().getFieldIndex("pk").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("ck").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("a").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("b").isDefined()).isFalse();
+                      assertThat(row.schema().getFieldIndex("c").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("d").isDefined()).isFalse();
+                      assertThat(row.schema().getFieldIndex("e").isDefined()).isTrue();
+                      assertThat(row.length()).isEqualTo(5);
+                      assertThat(row.get(0) instanceof String).isTrue();
+                      assertThat(row.get(1) instanceof Integer).isTrue();
+                      assertThat(row.get(2) instanceof Long).isTrue();
+                      assertThat(row.get(3) instanceof String).isTrue();
+                      assertThat(row.get(4) instanceof scala.collection.immutable.Map).isTrue();
                   }
               })
               .run();
@@ -2085,22 +2079,22 @@ public class EndToEndTests
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withCheck(dataset -> {
                   List<Row> rows = dataset.collectAsList();
-                  assertFalse(rows.isEmpty());
+                  assertThat(rows.isEmpty()).isFalse();
                   for (Row row : rows)
                   {
-                      assertTrue(row.schema().getFieldIndex("pk").isDefined());
-                      assertTrue(row.schema().getFieldIndex("ck").isDefined());
-                      assertTrue(row.schema().getFieldIndex("a").isDefined());
-                      assertFalse(row.schema().getFieldIndex("b").isDefined());
-                      assertTrue(row.schema().getFieldIndex("c").isDefined());
-                      assertFalse(row.schema().getFieldIndex("d").isDefined());
-                      assertTrue(row.schema().getFieldIndex("e").isDefined());
-                      assertEquals(5, row.length());
-                      assertTrue(row.get(0) instanceof String);
-                      assertTrue(row.get(1) instanceof Integer);
-                      assertTrue(row.get(2) instanceof Long);
-                      assertTrue(row.get(3) instanceof String);
-                      assertTrue(row.get(4) instanceof scala.collection.immutable.Map);
+                      assertThat(row.schema().getFieldIndex("pk").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("ck").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("a").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("b").isDefined()).isFalse();
+                      assertThat(row.schema().getFieldIndex("c").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("d").isDefined()).isFalse();
+                      assertThat(row.schema().getFieldIndex("e").isDefined()).isTrue();
+                      assertThat(row.length()).isEqualTo(5);
+                      assertThat(row.get(0) instanceof String).isTrue();
+                      assertThat(row.get(1) instanceof Integer).isTrue();
+                      assertThat(row.get(2) instanceof Long).isTrue();
+                      assertThat(row.get(3) instanceof String).isTrue();
+                      assertThat(row.get(4) instanceof scala.collection.immutable.Map).isTrue();
                   }
               })
               .run();
@@ -2285,13 +2279,13 @@ public class EndToEndTests
               .withCheck(dataset -> {
                   for (Row row : dataset.collectAsList())
                   {
-                      assertEquals(4, row.length());
-                      assertEquals("text4", String.valueOf(row.get(2)));
+                      assertThat(row.length()).isEqualTo(4);
+                      assertThat(String.valueOf(row.get(2))).isEqualTo("text4");
                       long lmt = row.getTimestamp(3).getTime();
-                      assertTrue(lmt > leastExpectedTimestamp);
+                      assertThat(lmt > leastExpectedTimestamp).isTrue();
                       // Due to the static column so the LMT is the same per partition.
                       // Using the pair of ck and lmt for uniqueness check.
-                      assertTrue(observedLMT.add(Pair.of(row.getInt(1), lmt)), "Observed a duplicated LMT");
+                      assertThat(observedLMT.add(Pair.of(row.getInt(1), lmt))).as("Observed a duplicated LMT").isTrue();
                   }
               })
               .run();
@@ -2313,25 +2307,25 @@ public class EndToEndTests
               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
               .withCheck(dataset -> {
                   List<Row> rows = dataset.collectAsList();
-                  assertFalse(rows.isEmpty());
+                  assertThat(rows.isEmpty()).isFalse();
                   for (Row row : rows)
                   {
-                      assertTrue(row.schema().getFieldIndex("pk").isDefined());
-                      assertTrue(row.schema().getFieldIndex("ck").isDefined());
-                      assertTrue(row.schema().getFieldIndex("a").isDefined());
-                      assertFalse(row.schema().getFieldIndex("b").isDefined());
-                      assertTrue(row.schema().getFieldIndex("c").isDefined());
-                      assertFalse(row.schema().getFieldIndex("d").isDefined());
-                      assertTrue(row.schema().getFieldIndex("e").isDefined());
-                      assertTrue(row.schema().getFieldIndex("last_modified_timestamp").isDefined());
-                      assertEquals(6, row.length());
-                      assertTrue(row.get(0) instanceof String);
-                      assertTrue(row.get(1) instanceof Integer);
-                      assertTrue(row.get(2) instanceof Long);
-                      assertTrue(row.get(3) instanceof String);
-                      assertTrue(row.get(4) instanceof scala.collection.immutable.Map);
-                      assertTrue(row.get(5) instanceof java.sql.Timestamp);
-                      assertTrue(((java.sql.Timestamp) row.get(5)).getTime() > 0);
+                      assertThat(row.schema().getFieldIndex("pk").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("ck").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("a").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("b").isDefined()).isFalse();
+                      assertThat(row.schema().getFieldIndex("c").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("d").isDefined()).isFalse();
+                      assertThat(row.schema().getFieldIndex("e").isDefined()).isTrue();
+                      assertThat(row.schema().getFieldIndex("last_modified_timestamp").isDefined()).isTrue();
+                      assertThat(row.length()).isEqualTo(6);
+                      assertThat(row.get(0) instanceof String).isTrue();
+                      assertThat(row.get(1) instanceof Integer).isTrue();
+                      assertThat(row.get(2) instanceof Long).isTrue();
+                      assertThat(row.get(3) instanceof String).isTrue();
+                      assertThat(row.get(4) instanceof scala.collection.immutable.Map).isTrue();
+                      assertThat(row.get(5) instanceof java.sql.Timestamp).isTrue();
+                      assertThat(((java.sql.Timestamp) row.get(5)).getTime() > 0).isTrue();
                   }
               })
               .run();
@@ -2370,10 +2364,10 @@ public class EndToEndTests
               .withCheck(dataset -> {
                   for (Row row : dataset.collectAsList())
                   {
-                      assertEquals(5, row.length());
+                      assertThat(row.length()).isEqualTo(5);
                       long lmt = row.getTimestamp(4).getTime();
-                      assertTrue(lmt > leastExpectedTimestamp + 10);
-                      assertTrue(observedLMT.add(lmt), "Observed a duplicated LMT");
+                      assertThat(lmt > leastExpectedTimestamp + 10).isTrue();
+                      assertThat(observedLMT.add(lmt)).as("Observed a duplicated LMT").isTrue();
                   }
               })
               .run();
@@ -2407,10 +2401,10 @@ public class EndToEndTests
               .withCheck(dataset -> {
                   for (Row row : dataset.collectAsList())
                   {
-                      assertEquals(8, row.length());
+                      assertThat(row.length()).isEqualTo(8);
                       long lmt = row.getTimestamp(7).getTime();
-                      assertTrue(lmt > leastExpectedTimestamp);
-                      assertTrue(observedLMT.add(lmt), "Observed a duplicated LMT");
+                      assertThat(lmt > leastExpectedTimestamp).isTrue();
+                      assertThat(observedLMT.add(lmt)).as("Observed a duplicated LMT").isTrue();
                   }
               })
               .run();
@@ -2655,8 +2649,8 @@ public class EndToEndTests
                   for (Row row : ds.collectAsList())
                   {
                       int a = row.getInt(0);
-                      assertEquals(1, a);
-                      assertNull(row.get(1));
+                      assertThat(a).isEqualTo(1);
+                      assertThat(row.get(1)).isNull();
                   }
               })
               .run();

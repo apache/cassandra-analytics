@@ -21,7 +21,7 @@ package org.apache.cassandra.bridge.type;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class InternalDurationTest
 {
@@ -29,9 +29,9 @@ public class InternalDurationTest
     public void testDurationToString()
     {
         InternalDuration duration = new InternalDuration(1, 2, 123456789123L);
-        assertEquals("mo1d2ns123456789123", duration.toString());
+        assertThat(duration.toString()).isEqualTo("mo1d2ns123456789123");
 
         duration = new InternalDuration(0, -3, 987L);
-        assertEquals("-mo0d3ns987", duration.toString());
+        assertThat(duration.toString()).isEqualTo("-mo0d3ns987");
     }
 }

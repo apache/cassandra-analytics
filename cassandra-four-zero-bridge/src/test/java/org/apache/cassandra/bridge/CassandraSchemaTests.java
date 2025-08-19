@@ -29,8 +29,7 @@ import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class CassandraSchemaTests
 {
@@ -56,39 +55,39 @@ public class CassandraSchemaTests
                                                  .build();
         final CqlTable cqlTable2 = testSchema2.buildTable();
 
-        assertFalse(CassandraSchema.isCdcEnabled(schema, cqlTable1));
-        assertFalse(CassandraSchema.isCdcEnabled(schema, cqlTable2));
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable1)).isFalse();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable2)).isFalse();
 
         CassandraSchema.updateCdcSchema(schema, ImmutableSet.of(cqlTable1, cqlTable2), Partitioner.Murmur3Partitioner, (keyspace, table) -> null);
-        assertTrue(CassandraSchema.isCdcEnabled(schema, cqlTable1));
-        assertTrue(CassandraSchema.isCdcEnabled(schema, cqlTable2));
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable1)).isTrue();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable2)).isTrue();
 
         CassandraSchema.updateCdcSchema(schema, ImmutableSet.of(cqlTable1, cqlTable2), Partitioner.Murmur3Partitioner, (keyspace, table) -> null);
-        assertTrue(CassandraSchema.isCdcEnabled(schema, cqlTable1));
-        assertTrue(CassandraSchema.isCdcEnabled(schema, cqlTable2));
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable1)).isTrue();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable2)).isTrue();
 
         CassandraSchema.disableCdc(schema, cqlTable2);
-        assertTrue(CassandraSchema.isCdcEnabled(schema, cqlTable1));
-        assertFalse(CassandraSchema.isCdcEnabled(schema, cqlTable2));
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable1)).isTrue();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable2)).isFalse();
 
         CassandraSchema.disableCdc(schema, cqlTable1);
-        assertFalse(CassandraSchema.isCdcEnabled(schema, cqlTable1));
-        assertFalse(CassandraSchema.isCdcEnabled(schema, cqlTable2));
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable1)).isFalse();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable2)).isFalse();
 
         CassandraSchema.enableCdc(schema, cqlTable1);
-        assertTrue(CassandraSchema.isCdcEnabled(schema, cqlTable1));
-        assertFalse(CassandraSchema.isCdcEnabled(schema, cqlTable2));
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable1)).isTrue();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable2)).isFalse();
 
         CassandraSchema.enableCdc(schema, cqlTable2);
-        assertTrue(CassandraSchema.isCdcEnabled(schema, cqlTable1));
-        assertTrue(CassandraSchema.isCdcEnabled(schema, cqlTable2));
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable1)).isTrue();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable2)).isTrue();
 
         CassandraSchema.updateCdcSchema(schema, ImmutableSet.of(cqlTable1), Partitioner.Murmur3Partitioner, (keyspace, table) -> null);
-        assertTrue(CassandraSchema.isCdcEnabled(schema, cqlTable1));
-        assertFalse(CassandraSchema.isCdcEnabled(schema, cqlTable2));
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable1)).isTrue();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable2)).isFalse();
 
         CassandraSchema.updateCdcSchema(schema, ImmutableSet.of(), Partitioner.Murmur3Partitioner, (keyspace, table) -> null);
-        assertFalse(CassandraSchema.isCdcEnabled(schema, cqlTable1));
-        assertFalse(CassandraSchema.isCdcEnabled(schema, cqlTable2));
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable1)).isFalse();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable2)).isFalse();
     }
 }

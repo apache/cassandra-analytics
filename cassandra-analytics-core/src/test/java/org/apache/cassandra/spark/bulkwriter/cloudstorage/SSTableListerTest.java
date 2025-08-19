@@ -48,11 +48,7 @@ import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -69,39 +65,39 @@ class SSTableListerTest
         List<SSTableLister.SSTableFilesAndRange> sstables = new ArrayList<>();
         // 10196 is the total size of files in /data/ks/table1-ea3b3e6b-0d78-4913-89f2-15fcf98711d0
         // If this line fails, maybe something has been changed in the folder.
-        assertEquals(10196, sstableLister.totalSize());
+        assertThat(sstableLister.totalSize()).isEqualTo(10196);
         while (!sstableLister.isEmpty())
         {
             sstables.add(sstableLister.consumeOne());
         }
-        assertEquals(2, sstables.size());
+        assertThat(sstables).hasSize(2);
         Set<String> ssTablePrefixes = sstables.stream()
                                               .map(sstable -> sstable.summary.sstableId)
                                               .collect(Collectors.toSet());
 
-        assertTrue(ssTablePrefixes.contains("na-1-big-"));
-        assertTrue(ssTablePrefixes.contains("na-2-big-"));
+        assertThat(ssTablePrefixes).contains("na-1-big-");
+        assertThat(ssTablePrefixes).contains("na-2-big-");
 
         Set<Path> range1Files = sstables.get(0).files;
         Set<Path> range2Files = sstables.get(1).files;
 
-        assertTrue(range1Files.contains(outputDir.resolve("na-1-big-Data.db")));
-        assertTrue(range1Files.contains(outputDir.resolve("na-1-big-Index.db")));
-        assertTrue(range1Files.contains(outputDir.resolve("na-1-big-Summary.db")));
-        assertTrue(range1Files.contains(outputDir.resolve("na-1-big-Statistics.db")));
-        assertTrue(range1Files.contains(outputDir.resolve("na-1-big-TOC.txt")));
+        assertThat(range1Files).contains(outputDir.resolve("na-1-big-Data.db"));
+        assertThat(range1Files).contains(outputDir.resolve("na-1-big-Index.db"));
+        assertThat(range1Files).contains(outputDir.resolve("na-1-big-Summary.db"));
+        assertThat(range1Files).contains(outputDir.resolve("na-1-big-Statistics.db"));
+        assertThat(range1Files).contains(outputDir.resolve("na-1-big-TOC.txt"));
 
-        assertTrue(range2Files.contains(outputDir.resolve("na-2-big-Data.db")));
-        assertTrue(range2Files.contains(outputDir.resolve("na-2-big-Index.db")));
-        assertTrue(range2Files.contains(outputDir.resolve("na-2-big-Summary.db")));
-        assertTrue(range2Files.contains(outputDir.resolve("na-2-big-Statistics.db")));
-        assertTrue(range2Files.contains(outputDir.resolve("na-2-big-TOC.txt")));
+        assertThat(range2Files).contains(outputDir.resolve("na-2-big-Data.db"));
+        assertThat(range2Files).contains(outputDir.resolve("na-2-big-Index.db"));
+        assertThat(range2Files).contains(outputDir.resolve("na-2-big-Summary.db"));
+        assertThat(range2Files).contains(outputDir.resolve("na-2-big-Statistics.db"));
+        assertThat(range2Files).contains(outputDir.resolve("na-2-big-TOC.txt"));
 
         for (SSTableLister.SSTableFilesAndRange sstable : sstables)
         {
             for (Path file : sstable.files)
             {
-                assertNotNull(sstableLister.fileDigests(Collections.singleton(file)), "Digest for file should exist. file: " + file);
+                assertThat(sstableLister.fileDigests(Collections.singleton(file))).as("Digest for file should exist. file: " + file).isNotNull();
             }
         }
     }
@@ -114,9 +110,9 @@ class SSTableListerTest
             CassandraBridge bridge = mock(CassandraBridge.class);
             SSTableLister ssTableLister = new SSTableLister(new QualifiedTableName("ks", "table1"), bridge);
             ssTableLister.includeDirectory(tempDir.path());
-            assertNull(ssTableLister.peek());
-            assertNull(ssTableLister.consumeOne());
-            assertTrue(ssTableLister.isEmpty());
+            assertThat(ssTableLister.peek()).isNull();
+            assertThat(ssTableLister.consumeOne()).isNull();
+            assertThat(ssTableLister.isEmpty()).isTrue();
         }
     }
 
@@ -131,42 +127,42 @@ class SSTableListerTest
         }
         sstableLister.includeSSTable(sstableComponents);
         List<SSTableLister.SSTableFilesAndRange> sstables = new ArrayList<>();
-        assertFalse(sstableLister.isEmpty());
-        assertEquals(5098, sstableLister.totalSize());
+        assertThat(sstableLister.isEmpty()).isFalse();
+        assertThat(sstableLister.totalSize()).isEqualTo(5098);
         while (!sstableLister.isEmpty())
         {
             sstables.add(sstableLister.consumeOne());
         }
-        assertEquals(0, sstableLister.totalSize());
-        assertEquals(1, sstables.size());
+        assertThat(sstableLister.totalSize()).isEqualTo(0);
+        assertThat(sstables).hasSize(1);
         Set<Path> range1Files = sstables.get(0).files;
-        assertTrue(range1Files.contains(outputDir.resolve("na-1-big-Data.db")));
-        assertTrue(range1Files.contains(outputDir.resolve("na-1-big-Index.db")));
-        assertTrue(range1Files.contains(outputDir.resolve("na-1-big-Summary.db")));
-        assertTrue(range1Files.contains(outputDir.resolve("na-1-big-Statistics.db")));
-        assertTrue(range1Files.contains(outputDir.resolve("na-1-big-TOC.txt")));
+        assertThat(range1Files).contains(outputDir.resolve("na-1-big-Data.db"));
+        assertThat(range1Files).contains(outputDir.resolve("na-1-big-Index.db"));
+        assertThat(range1Files).contains(outputDir.resolve("na-1-big-Summary.db"));
+        assertThat(range1Files).contains(outputDir.resolve("na-1-big-Statistics.db"));
+        assertThat(range1Files).contains(outputDir.resolve("na-1-big-TOC.txt"));
 
         // now include the entire directory
         // note that one sstable has been included. The sstable should be ignored when including the directory
         sstableLister.includeDirectory(outputDir);
-        assertFalse(sstableLister.isEmpty());
-        assertEquals(5098, sstableLister.totalSize());
+        assertThat(sstableLister.isEmpty()).isFalse();
+        assertThat(sstableLister.totalSize()).isEqualTo(5098);
         int producedSSTables = 0;
         while (!sstableLister.isEmpty())
         {
             producedSSTables += 1;
             sstables.add(sstableLister.consumeOne());
         }
-        assertEquals(1, producedSSTables);
-        assertEquals(0, sstableLister.totalSize());
-        assertEquals(2, sstables.size());
+        assertThat(producedSSTables).isEqualTo(1);
+        assertThat(sstableLister.totalSize()).isEqualTo(0);
+        assertThat(sstables).hasSize(2);
 
         Set<Path> range2Files = sstables.get(1).files;
-        assertTrue(range2Files.contains(outputDir.resolve("na-2-big-Data.db")));
-        assertTrue(range2Files.contains(outputDir.resolve("na-2-big-Index.db")));
-        assertTrue(range2Files.contains(outputDir.resolve("na-2-big-Summary.db")));
-        assertTrue(range2Files.contains(outputDir.resolve("na-2-big-Statistics.db")));
-        assertTrue(range2Files.contains(outputDir.resolve("na-2-big-TOC.txt")));
+        assertThat(range2Files).contains(outputDir.resolve("na-2-big-Data.db"));
+        assertThat(range2Files).contains(outputDir.resolve("na-2-big-Index.db"));
+        assertThat(range2Files).contains(outputDir.resolve("na-2-big-Summary.db"));
+        assertThat(range2Files).contains(outputDir.resolve("na-2-big-Statistics.db"));
+        assertThat(range2Files).contains(outputDir.resolve("na-2-big-TOC.txt"));
     }
 
     private SSTableLister setupSSTableLister() throws URISyntaxException

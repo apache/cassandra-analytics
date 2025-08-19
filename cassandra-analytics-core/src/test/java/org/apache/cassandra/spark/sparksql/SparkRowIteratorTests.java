@@ -44,7 +44,7 @@ import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyListOf;
@@ -275,10 +275,10 @@ public class SparkRowIteratorTests
             }
 
             TestSchema.TestRow row = testRows[rowCount];
-            assertEquals(row, schema.toTestRow(it.get(), typeConverter));
+            assertThat(schema.toTestRow(it.get(), typeConverter)).isEqualTo(row);
             rowCount++;
         }
-        assertEquals(numRows, rowCount);
+        assertThat(rowCount).isEqualTo(numRows);
         it.close();
     }
 }

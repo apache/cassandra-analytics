@@ -31,10 +31,8 @@ import org.junit.jupiter.api.io.TempDir;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 import static org.apache.cassandra.spark.bulkwriter.cloudstorage.BundleManifest.Entry;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class BundleManifestTest
 {
@@ -46,18 +44,18 @@ class BundleManifestTest
     {
         BundleManifest bundleManifest = testManifest();
         String value = BundleManifest.OBJECT_WRITER.writeValueAsString(bundleManifest);
-        assertEquals(EXPECTED_JSON, value);
+        assertThat(value).isEqualTo(EXPECTED_JSON);
     }
 
     @Test
     void testPersistToFile() throws Exception
     {
         Path manifestFile = tempFolder.resolve("manifest.json");
-        assertFalse(Files.exists(manifestFile));
+        assertThat(Files.exists(manifestFile)).isFalse();
         BundleManifest bundleManifest = testManifest();
         bundleManifest.persistTo(manifestFile);
         String persistedContent = FileUtils.readFileToString(manifestFile.toFile());
-        assertEquals(EXPECTED_JSON, persistedContent);
+        assertThat(persistedContent).isEqualTo(EXPECTED_JSON);
     }
 
     @Test
@@ -65,9 +63,9 @@ class BundleManifestTest
     {
         // the file already exist
         Path manifestFile = Files.createFile(tempFolder.resolve("manifest.json"));
-        assertTrue(Files.exists(manifestFile));
-        assertThrows(FileAlreadyExistsException.class,
-                     () -> testManifest().persistTo(manifestFile));
+        assertThat(Files.exists(manifestFile)).isTrue();
+        assertThatThrownBy(() -> testManifest().persistTo(manifestFile))
+                .isInstanceOf(FileAlreadyExistsException.class);
     }
 
     private BundleManifest testManifest()

@@ -34,11 +34,8 @@ import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class CommitLogMarkerTests
 {
@@ -47,11 +44,11 @@ public class CommitLogMarkerTests
     {
         CassandraInstance inst = new CassandraInstance("0", "local1-i1", "DC1");
         Marker marker = CommitLogMarkers.EMPTY.startMarker(inst);
-        assertEquals(0, marker.segmentId);
-        assertEquals(0, marker.position);
-        assertFalse(CommitLogMarkers.EMPTY.canIgnore(inst.zeroMarker(), BigInteger.ZERO));
-        assertFalse(CommitLogMarkers.EMPTY.canIgnore(inst.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE), Partitioner.Murmur3Partitioner.maxToken()));
-        assertFalse(CommitLogMarkers.EMPTY.canIgnore(inst.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE), Partitioner.Murmur3Partitioner.minToken()));
+        assertThat(marker.segmentId).isEqualTo(0);
+        assertThat(marker.position).isEqualTo(0);
+        assertThat(CommitLogMarkers.EMPTY.canIgnore(inst.zeroMarker(), BigInteger.ZERO)).isFalse();
+        assertThat(CommitLogMarkers.EMPTY.canIgnore(inst.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE), Partitioner.Murmur3Partitioner.maxToken())).isFalse();
+        assertThat(CommitLogMarkers.EMPTY.canIgnore(inst.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE), Partitioner.Murmur3Partitioner.minToken())).isFalse();
     }
 
     @Test
@@ -69,12 +66,12 @@ public class CommitLogMarkerTests
         )
         );
 
-        assertEquals(inst1.markerAt(500, 10000), markers.startMarker(inst1));
-        assertEquals(inst2.markerAt(99999, 0), markers.startMarker(inst2));
-        assertEquals(inst3.markerAt(10000000, 120301312), markers.startMarker(inst3));
+        assertThat(markers.startMarker(inst1)).isEqualTo(inst1.markerAt(500, 10000));
+        assertThat(markers.startMarker(inst2)).isEqualTo(inst2.markerAt(99999, 0));
+        assertThat(markers.startMarker(inst3)).isEqualTo(inst3.markerAt(10000000, 120301312));
 
-        assertFalse(markers.canIgnore(inst1.zeroMarker(), BigInteger.ZERO));
-        assertFalse(markers.canIgnore(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE), BigInteger.ZERO));
+        assertThat(markers.canIgnore(inst1.zeroMarker(), BigInteger.ZERO)).isFalse();
+        assertThat(markers.canIgnore(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE), BigInteger.ZERO)).isFalse();
     }
 
     @Test
@@ -96,34 +93,34 @@ public class CommitLogMarkerTests
         PerRangeCommitLogMarkers markers = builder.build();
 
         // verify start marker is the min
-        assertEquals(inst1.markerAt(500, 10000), markers.startMarker(inst1));
-        assertEquals(inst2.markerAt(2000, 500), markers.startMarker(inst2));
-        assertEquals(inst3.zeroMarker(), markers.startMarker(inst3));
+        assertThat(markers.startMarker(inst1)).isEqualTo(inst1.markerAt(500, 10000));
+        assertThat(markers.startMarker(inst2)).isEqualTo(inst2.markerAt(2000, 500));
+        assertThat(markers.startMarker(inst3)).isEqualTo(inst3.zeroMarker());
 
         // verify CommitLog positions we can/can't ignore on instance 1
-        assertTrue(markers.canIgnore(inst1.markerAt(400, 0), BigInteger.ZERO));
-        assertTrue(markers.canIgnore(inst1.markerAt(400, 0), BigInteger.ONE));
-        assertTrue(markers.canIgnore(inst1.markerAt(500, 0), BigInteger.ONE));
-        assertFalse(markers.canIgnore(inst1.markerAt(500, 10000), BigInteger.ZERO));
-        assertFalse(markers.canIgnore(inst1.markerAt(500, 10000), BigInteger.ONE));
-        assertFalse(markers.canIgnore(inst1.markerAt(500, 10001), BigInteger.ONE));
-        assertFalse(markers.canIgnore(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE), BigInteger.ONE));
+        assertThat(markers.canIgnore(inst1.markerAt(400, 0), BigInteger.ZERO)).isTrue();
+        assertThat(markers.canIgnore(inst1.markerAt(400, 0), BigInteger.ONE)).isTrue();
+        assertThat(markers.canIgnore(inst1.markerAt(500, 0), BigInteger.ONE)).isTrue();
+        assertThat(markers.canIgnore(inst1.markerAt(500, 10000), BigInteger.ZERO)).isFalse();
+        assertThat(markers.canIgnore(inst1.markerAt(500, 10000), BigInteger.ONE)).isFalse();
+        assertThat(markers.canIgnore(inst1.markerAt(500, 10001), BigInteger.ONE)).isFalse();
+        assertThat(markers.canIgnore(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE), BigInteger.ONE)).isFalse();
 
         // verify CommitLog positions we can/can't ignore on instance 2
-        assertFalse(markers.canIgnore(inst2.zeroMarker(), BigInteger.ZERO));
-        assertFalse(markers.canIgnore(inst2.zeroMarker(), BigInteger.valueOf(7000)));
-        assertTrue(markers.canIgnore(inst2.zeroMarker(), BigInteger.valueOf(11000)));
-        assertTrue(markers.canIgnore(inst2.markerAt(99998, Integer.MAX_VALUE), BigInteger.valueOf(11000)));
-        assertFalse(markers.canIgnore(inst2.markerAt(99999, 0), BigInteger.valueOf(11000)));
+        assertThat(markers.canIgnore(inst2.zeroMarker(), BigInteger.ZERO)).isFalse();
+        assertThat(markers.canIgnore(inst2.zeroMarker(), BigInteger.valueOf(7000))).isFalse();
+        assertThat(markers.canIgnore(inst2.zeroMarker(), BigInteger.valueOf(11000))).isTrue();
+        assertThat(markers.canIgnore(inst2.markerAt(99998, Integer.MAX_VALUE), BigInteger.valueOf(11000))).isTrue();
+        assertThat(markers.canIgnore(inst2.markerAt(99999, 0), BigInteger.valueOf(11000))).isFalse();
 
         // verify CommitLog positions we can/can't ignore on instance 3
-        assertFalse(markers.canIgnore(inst3.zeroMarker(), BigInteger.ZERO));
-        assertFalse(markers.canIgnore(inst3.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE - 1), BigInteger.valueOf(20000)));
-        assertTrue(markers.canIgnore(inst3.zeroMarker(), BigInteger.valueOf(20000)));
-        assertTrue(markers.canIgnore(inst3.markerAt(500, 499), BigInteger.valueOf(20000)));
-        assertFalse(markers.canIgnore(inst3.markerAt(500, 500), BigInteger.valueOf(20000)));
-        assertTrue(markers.canIgnore(inst3.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE - 1), BigInteger.valueOf(25000)));
-        assertTrue(markers.canIgnore(inst3.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE - 1), BigInteger.valueOf(30000)));
+        assertThat(markers.canIgnore(inst3.zeroMarker(), BigInteger.ZERO)).isFalse();
+        assertThat(markers.canIgnore(inst3.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE - 1), BigInteger.valueOf(20000))).isFalse();
+        assertThat(markers.canIgnore(inst3.zeroMarker(), BigInteger.valueOf(20000))).isTrue();
+        assertThat(markers.canIgnore(inst3.markerAt(500, 499), BigInteger.valueOf(20000))).isTrue();
+        assertThat(markers.canIgnore(inst3.markerAt(500, 500), BigInteger.valueOf(20000))).isFalse();
+        assertThat(markers.canIgnore(inst3.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE - 1), BigInteger.valueOf(25000))).isTrue();
+        assertThat(markers.canIgnore(inst3.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE - 1), BigInteger.valueOf(30000))).isTrue();
     }
 
     @Test
@@ -131,28 +128,28 @@ public class CommitLogMarkerTests
     {
         CassandraInstance inst1 = new CassandraInstance("0", "local1-i1", "DC1");
 
-        assertFalse(inst1.zeroMarker().isBefore(inst1.zeroMarker()));
+        assertThat(inst1.zeroMarker().isBefore(inst1.zeroMarker())).isFalse();
 
-        assertTrue(inst1.zeroMarker().isBefore(inst1.markerAt(0, 1)));
-        assertTrue(inst1.zeroMarker().isBefore(inst1.markerAt(1, 1)));
-        assertTrue(inst1.markerAt(1, 0).isBefore(inst1.markerAt(1, 1)));
-        assertTrue(inst1.markerAt(10000, Integer.MAX_VALUE).isBefore(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE)));
-        assertTrue(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE - 1).isBefore(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE)));
+        assertThat(inst1.zeroMarker().isBefore(inst1.markerAt(0, 1))).isTrue();
+        assertThat(inst1.zeroMarker().isBefore(inst1.markerAt(1, 1))).isTrue();
+        assertThat(inst1.markerAt(1, 0).isBefore(inst1.markerAt(1, 1))).isTrue();
+        assertThat(inst1.markerAt(10000, Integer.MAX_VALUE).isBefore(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE))).isTrue();
+        assertThat(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE - 1).isBefore(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE))).isTrue();
 
-        assertFalse(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE).isBefore(inst1.zeroMarker()));
-        assertFalse(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE).isBefore(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE)));
-        assertFalse(inst1.markerAt(10000, 5001).isBefore(inst1.markerAt(10000, 5000)));
-        assertFalse(inst1.markerAt(10001, 5000).isBefore(inst1.markerAt(10000, 5000)));
+        assertThat(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE).isBefore(inst1.zeroMarker())).isFalse();
+        assertThat(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE).isBefore(inst1.markerAt(Long.MAX_VALUE, Integer.MAX_VALUE))).isFalse();
+        assertThat(inst1.markerAt(10000, 5001).isBefore(inst1.markerAt(10000, 5000))).isFalse();
+        assertThat(inst1.markerAt(10001, 5000).isBefore(inst1.markerAt(10000, 5000))).isFalse();
     }
 
     @Test
     public void testIsBeforeException()
     {
-        assertThrows(IllegalArgumentException.class, () -> {
+        assertThatThrownBy(() -> {
             CassandraInstance inst1 = new CassandraInstance("0", "local1-i1", "DC1");
             CassandraInstance inst2 = new CassandraInstance("1", "local2-i1", "DC1");
-            assertTrue(inst1.zeroMarker().isBefore(inst2.zeroMarker()));
-        });
+            inst1.zeroMarker().isBefore(inst2.zeroMarker());
+        }).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -172,11 +169,11 @@ public class CommitLogMarkerTests
 
         byte[] ar = serialize(markers);
         CommitLogMarkers deserialized = deserialize(ar, PerInstanceCommitLogMarkers.class);
-        assertNotNull(deserialized);
-        assertEquals(markers, deserialized);
-        assertEquals(inst1.markerAt(500, 10000), deserialized.startMarker(inst1));
-        assertEquals(inst2.markerAt(99999, 0), deserialized.startMarker(inst2));
-        assertEquals(inst3.markerAt(10000000, 120301312), deserialized.startMarker(inst3));
+        assertThat(deserialized).isNotNull();
+        assertThat(deserialized).isEqualTo(markers);
+        assertThat(deserialized.startMarker(inst1)).isEqualTo(inst1.markerAt(500, 10000));
+        assertThat(deserialized.startMarker(inst2)).isEqualTo(inst2.markerAt(99999, 0));
+        assertThat(deserialized.startMarker(inst3)).isEqualTo(inst3.markerAt(10000000, 120301312));
     }
 
     @Test
@@ -198,11 +195,11 @@ public class CommitLogMarkerTests
 
         byte[] ar = serialize(markers);
         CommitLogMarkers deserialized = deserialize(ar, PerRangeCommitLogMarkers.class);
-        assertNotNull(deserialized);
-        assertEquals(markers, deserialized);
-        assertEquals(inst1.markerAt(500, 10000), deserialized.startMarker(inst1));
-        assertEquals(inst2.markerAt(2000, 500), deserialized.startMarker(inst2));
-        assertEquals(inst3.zeroMarker(), deserialized.startMarker(inst3));
+        assertThat(deserialized).isNotNull();
+        assertThat(deserialized).isEqualTo(markers);
+        assertThat(deserialized.startMarker(inst1)).isEqualTo(inst1.markerAt(500, 10000));
+        assertThat(deserialized.startMarker(inst2)).isEqualTo(inst2.markerAt(2000, 500));
+        assertThat(deserialized.startMarker(inst3)).isEqualTo(inst3.zeroMarker());
     }
 
     public static <T> T deserialize(byte[] ar, Class<T> cType)
