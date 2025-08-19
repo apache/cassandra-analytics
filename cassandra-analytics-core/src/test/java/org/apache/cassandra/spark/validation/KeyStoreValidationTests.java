@@ -38,7 +38,7 @@ public class KeyStoreValidationTests
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertNull(throwable);  // KeyStore is optional
+        assertThat(throwable).isNull(); // KeyStore is optional
     }
 
     @Test
