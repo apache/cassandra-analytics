@@ -38,8 +38,7 @@ public class KeyStoreValidationTests
         KeyStoreValidation validation = new KeyStoreValidation(secrets);
 
         Throwable throwable = validation.perform();
-        assertThat(throwable).isInstanceOf(RuntimeException.class);
-        assertThat(throwable.getMessage()).isEqualTo("KeyStore is not configured");
+        assertThat(throwable).isNull(); // KeyStore is optional
     }
 
     @Test

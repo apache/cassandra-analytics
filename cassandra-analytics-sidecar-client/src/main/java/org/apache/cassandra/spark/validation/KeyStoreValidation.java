@@ -74,7 +74,7 @@ public class KeyStoreValidation implements StartupValidation
         {
             if (!configured)
             {
-                throw new RuntimeException("KeyStore is not configured");
+                return;  // KeyStore is optional
             }
 
             if (password == null)
