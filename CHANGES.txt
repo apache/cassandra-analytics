@@ -1,5 +1,6 @@
 0.2.0
 -----
+ * Analytics job fails when source table has secondary indexes (CASSANALYTICS-86)
  * Set KeyStore to be optional (CASSANALYTICS-69)
  * Unique restoreJobId per write target (CASSANALYTICS-81)
  * Allow writing to local datacenter only for coordinated write (CASSANALYTICS-75)

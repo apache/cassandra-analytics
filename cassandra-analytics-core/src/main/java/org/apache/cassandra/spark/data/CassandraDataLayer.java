@@ -549,7 +549,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                             + "instance={} port={} keyspace={} tableName={} snapshotName={} cacheKey={}",
                             partitionId, range.lowerEndpoint(), range.upperEndpoint(),
                             sidecarInstance.hostname(), sidecarInstance.port(), maybeQuotedKeyspace, maybeQuotedTable, snapshotName, key);
-                return sidecar.listSnapshotFiles(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName)
+                return sidecar.listSnapshotFiles(sidecarInstance, maybeQuotedKeyspace, maybeQuotedTable, snapshotName, false)
                               .thenApply(response -> collectSSTableList(sidecarInstance, response, partitionId));
             }).thenApply(Collection::stream);
         }
