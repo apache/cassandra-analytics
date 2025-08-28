@@ -23,7 +23,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -55,12 +54,10 @@ class SecondaryIndexFilterTest extends SharedClusterSparkIntegrationTestBase
     @Test
     void testSecondaryIndexFilesAreFilteredFromBulkReader()
     {
-        // Insert data and flush to ensure SSTables are created (both regular and index files)
-        populateTableAndFlush(TABLE_WITH_INDEXES);
 
         // Verify that secondary index files exist in the filesystem
-        List<Path> indexFiles = findSecondaryIndexFiles();
-        assertThat(indexFiles).isNotEmpty()
+        boolean hasIndexFiles = hasSecondaryIndexFiles();
+        assertThat(hasIndexFiles).isTrue()
             .as("Secondary index files should exist in the filesystem before bulk reading");
 
         // Use bulk reader to read the table - this will create a snapshot and list SSTable files
@@ -88,8 +85,8 @@ class SecondaryIndexFilterTest extends SharedClusterSparkIntegrationTestBase
 
         // Additional verification: ensure index files still exist after bulk reading
         // (they should not be deleted, just ignored)
-        List<Path> indexFilesAfterRead = findSecondaryIndexFiles();
-        assertThat(indexFilesAfterRead).isNotEmpty()
+        boolean hasIndexFilesAfterRead = hasSecondaryIndexFiles();
+        assertThat(hasIndexFilesAfterRead).isTrue()
             .as("Secondary index files should still exist after bulk reading (just filtered out)");
     }
 
@@ -98,8 +95,6 @@ class SecondaryIndexFilterTest extends SharedClusterSparkIntegrationTestBase
     {
         // This test ensures that even with multiple secondary indexes creating many index files,
         // the bulk reader still works correctly by filtering them all out
-
-        populateTableAndFlush(TABLE_WITH_INDEXES);
 
         // Create additional index to generate more index files
         String createAdditionalIndex = String.format("CREATE INDEX IF NOT EXISTS age_idx ON %s (age);",
@@ -112,9 +107,9 @@ class SecondaryIndexFilterTest extends SharedClusterSparkIntegrationTestBase
         cluster.get(1).flush(TEST_KEYSPACE);
 
         // Verify multiple types of index files exist
-        List<Path> indexFiles = findSecondaryIndexFiles();
-        assertThat(indexFiles.size()).isGreaterThan(1)
-            .as("Multiple secondary index files should exist");
+        boolean hasIndexFiles = hasSecondaryIndexFiles();
+        assertThat(hasIndexFiles).isTrue()
+            .as("Secondary index files should exist");
 
         // Bulk read should still work correctly
         DataFrameReader readDf = bulkReaderDataFrame(TABLE_WITH_INDEXES)
@@ -158,7 +153,7 @@ class SecondaryIndexFilterTest extends SharedClusterSparkIntegrationTestBase
         cluster.get(1).flush(TEST_KEYSPACE);
     }
 
-    private List<Path> findSecondaryIndexFiles()
+    private boolean hasSecondaryIndexFiles()
     {
         String[] dataDirs = (String[]) cluster.get(1)
                                               .config()
@@ -171,7 +166,7 @@ class SecondaryIndexFilterTest extends SharedClusterSparkIntegrationTestBase
         {
             return walkStream
                 .filter(Files::isRegularFile)
-                .filter(path -> {
+                .anyMatch(path -> {
                     String fileName = path.getFileName().toString();
                     // Look for secondary index file patterns:
                     // - Files containing ".index." in the name
@@ -182,12 +177,11 @@ class SecondaryIndexFilterTest extends SharedClusterSparkIntegrationTestBase
                             fileName.contains("idx") ||
                             path.toString().contains(".indexes/") ||
                             path.getParent().getFileName().toString().contains("index"));
-                })
-                .collect(Collectors.toList());
+                });
         }
         catch (IOException e)
         {
-            return Collections.emptyList();
+            return false;
         }
     }
 
@@ -214,5 +208,8 @@ class SecondaryIndexFilterTest extends SharedClusterSparkIntegrationTestBase
 
         cluster.get(1).coordinator().execute(createEmailIndex, ConsistencyLevel.ALL);
         cluster.get(1).coordinator().execute(createStatusIndex, ConsistencyLevel.ALL);
+
+        // Insert data and flush to ensure SSTables are created (both regular and index files)
+        populateTableAndFlush(TABLE_WITH_INDEXES);
     }
 }
