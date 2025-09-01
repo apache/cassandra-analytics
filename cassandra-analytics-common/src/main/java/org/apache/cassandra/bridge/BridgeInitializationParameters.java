@@ -17,24 +17,28 @@
  * under the License.
  */
 
-plugins {
-    id('java-library')
-}
+package org.apache.cassandra.bridge;
 
-configurations {
-    all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
-    all*.exclude(group: 'log4j', module: 'log4j')
-}
+/**
+ * Parameters required to initialize Cassandra bridge.
+ */
+public class BridgeInitializationParameters
+{
+    private final String sstableFormat;
 
-dependencies {
-    compileOnly project(":cassandra-analytics-common")
-    compileOnly project(":cassandra-four-zero-types")
-    compileOnly project(":cassandra-analytics-spark-converter")
-    compileOnly(project(path: ':cassandra-four-zero', configuration: 'shadow'))
-    compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-    compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-}
+    public BridgeInitializationParameters(String sstableFormat)
+    {
+        this.sstableFormat = sstableFormat;
+    }
 
-jar {
-    archiveFileName = "four-zero-sparksql.jar"
+    public static BridgeInitializationParameters fromEnvironment()
+    {
+        String sstableFormat = CassandraVersion.sstableFormat();
+        return new BridgeInitializationParameters(sstableFormat);
+    }
+
+    public String getSstableFormat()
+    {
+        return sstableFormat;
+    }
 }

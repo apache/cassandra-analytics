@@ -17,24 +17,13 @@
  * under the License.
  */
 
-plugins {
-    id('java-library')
-}
+package org.apache.cassandra.util;
 
-configurations {
-    all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
-    all*.exclude(group: 'log4j', module: 'log4j')
-}
-
-dependencies {
-    compileOnly project(":cassandra-analytics-common")
-    compileOnly project(":cassandra-four-zero-types")
-    compileOnly project(":cassandra-analytics-spark-converter")
-    compileOnly(project(path: ':cassandra-four-zero', configuration: 'shadow'))
-    compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-    compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
-}
-
-jar {
-    archiveFileName = "four-zero-sparksql.jar"
+/**
+ * A non-thread-safe wrapper of mutable int. It is useful for mutating int value in lambda function.
+ * When concurrency is required, use {@link java.util.concurrent.atomic.AtomicInteger}
+ */
+public class IntWrapper
+{
+    public int value = 0;
 }

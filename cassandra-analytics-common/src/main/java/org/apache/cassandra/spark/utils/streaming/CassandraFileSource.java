@@ -29,7 +29,7 @@ import org.jetbrains.annotations.Nullable;
  *
  * @param <T> CassandraFile type
  */
-public interface CassandraFileSource<T extends CassandraFile>
+public interface CassandraFileSource<T extends CassandraFile> extends AutoCloseable
 {
     long DEFAULT_MAX_BUFFER_SIZE = 6291460L;
     long DEFAULT_CHUNK_BUFFER_SIZE = 4194300L;
@@ -97,5 +97,10 @@ public interface CassandraFileSource<T extends CassandraFile>
     default Duration timeout()
     {
         return null;  // Disabled by default
+    }
+
+    @Override
+    default void close() throws Exception
+    {
     }
 }

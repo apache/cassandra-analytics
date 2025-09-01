@@ -32,6 +32,7 @@ import java.util.stream.LongStream;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.schema.Schema;
@@ -45,6 +46,7 @@ import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -83,6 +85,9 @@ public class SummaryDbTests
     @SuppressWarnings("static-access")
     public void testSearchSummary()
     {
+        // Summary.db file is present only in BIG sstables
+        assumeThat(CassandraVersion.sstableFormat()).isEqualTo("big");
+
         qt().forAll(arbitrary().enumValues(Partitioner.class))
             .checkAssert(partitioner -> {
                 DatabaseDescriptor.setSelectedSSTableFormat(TestUtils.BIG_FORMAT);
@@ -143,6 +148,9 @@ public class SummaryDbTests
     @Test
     public void testSummaryBinarySearch()
     {
+        // Summary.db file is present only in BIG sstables
+        assumeThat(CassandraVersion.sstableFormat()).isEqualTo("big");
+
         SummaryDbUtils.TokenList list = new ArrayTokenList(LongStream.range(5, 10000).boxed().toArray(Long[]::new));
         assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(154L))).isEqualTo(148);
         assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(-500L))).isEqualTo(0);
@@ -160,6 +168,9 @@ public class SummaryDbTests
     @Test
     public void testSummaryBinarySearchSparse()
     {
+        // Summary.db file is present only in BIG sstables
+        assumeThat(CassandraVersion.sstableFormat()).isEqualTo("big");
+
         SummaryDbUtils.TokenList list = new ArrayTokenList(5L, 10L, 15L, 20L, 25L);
         assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(-500L))).isEqualTo(0);
         assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(3L))).isEqualTo(0);
