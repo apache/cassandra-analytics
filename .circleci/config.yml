@@ -50,8 +50,11 @@ commands:
       jdk:
         type: string
       use_jdk11:
-          type: string
-          default: "false"
+        type: string
+        default: "false"
+      sstable_format:
+        type: string
+        default: "bti"
     description: Build and test against Spark <<parameters.spark>> Scala <<parameters.scala>> <<parameters.jdk>>
     steps:
       - run:
@@ -64,7 +67,7 @@ commands:
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
             # Run compile/unit tests, skipping integration tests
-            ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test
+            ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=<<parameters.sstable_format>>
 
   run_integration:
     parameters:
@@ -136,7 +139,7 @@ jobs:
             - "*.jar"
             - "org/**/*"
 
-  spark3-2_12-jdk11:
+  spark3-2_12-jdk11-big:
     docker:
       - image: cimg/openjdk:11.0
     resource_class: large
@@ -195,7 +198,7 @@ jobs:
       - store_test_results:
           path: build/test-reports
 
-  spark3-2_13-jdk11:
+  spark3-2_13-jdk11-big:
     docker:
       - image: cimg/openjdk:11.0
     resource_class: large
@@ -209,6 +212,33 @@ jobs:
           scala: "2.13"
           jdk: "11"
           use_jdk11: "true"
+
+      - store_artifacts:
+          path: build/test-reports
+          destination: test-reports
+
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+
+      - store_test_results:
+          path: build/test-reports
+
+  spark3-2_13-jdk11-bti:
+    docker:
+      - image: cimg/openjdk:11.0
+    resource_class: large
+    steps:
+      - install_common
+      - checkout
+      - attach_workspace:
+          at: dependencies
+      - run_build:
+          spark: "3"
+          scala: "2.13"
+          jdk: "11"
+          use_jdk11: "true"
+          sstable_format: "bti"
 
       - store_artifacts:
           path: build/test-reports
@@ -284,10 +314,13 @@ workflows:
   build-and-test:
     jobs:
       - build-deps-jdk11
-      - spark3-2_12-jdk11:
+      - spark3-2_12-jdk11-big:
           requires:
             - build-deps-jdk11
-      - spark3-2_13-jdk11:
+      - spark3-2_13-jdk11-big:
+          requires:
+            - build-deps-jdk11
+      - spark3-2_13-jdk11-bti:
           requires:
             - build-deps-jdk11
       - int-c4-spark3-2_12-jdk11:

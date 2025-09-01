@@ -263,8 +263,11 @@ public class SSTableReader implements SparkSSTableReader, Scannable
 
         if (keys == null)
         {
-            LOGGER.warn("Could not load first and last key from Summary.db file, so attempting Index.db fileName={}",
-                        ssTable.getDataFileName());
+            if (ssTable.isBigFormat())
+            {
+                LOGGER.warn("Could not load first and last key from Summary.db file, so attempting Index.db fileName={}",
+                            ssTable.getDataFileName());
+            }
             now = System.nanoTime();
             keys = SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable);
             stats.readIndexDb(ssTable, System.nanoTime() - now);

@@ -55,7 +55,7 @@ class SSTableWriterImplementationTest
 
     static
     {
-        CassandraTypesImplementation.setup();
+        CassandraTypesImplementation.setup(BridgeInitializationParameters.fromEnvironment());
     }
 
     @Test

@@ -383,7 +383,7 @@ public abstract class AbstractStreamScanner implements StreamScanner<RowData>, C
         {
             boolean isStatic = cell.column().isStatic();
             rowData.setColumnNameCopy(ReaderUtils.encodeCellName(metadata,
-                                                             isStatic ? Clustering.STATIC_CLUSTERING : clustering,
+                                                                 isStatic ? Clustering.STATIC_CLUSTERING : clustering,
                                                                  cell.column().name.bytes,
                                                                  null));
             if (cell.isTombstone())

@@ -35,7 +35,7 @@ public class CdcBridgeImplementation extends AbstractCdcBridgeImplementation
 
     public static void setup(Path path, int commitLogSegmentSize, boolean enableCompression)
     {
-        CassandraTypesImplementation.setup();
+        CassandraTypesImplementation.setup(BridgeInitializationParameters.fromEnvironment());
         setCDC(path, commitLogSegmentSize, enableCompression);
     }
 
