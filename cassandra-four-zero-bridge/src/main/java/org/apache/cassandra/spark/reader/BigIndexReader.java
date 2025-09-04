@@ -34,6 +34,7 @@ import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.io.sstable.Descriptor;
+import org.apache.cassandra.io.sstable.IndexSummary;
 import org.apache.cassandra.io.sstable.format.Version;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.FileType;
@@ -73,7 +74,7 @@ public class BigIndexReader implements IIndexReader
             now = System.nanoTime();
             if (rangeFilter != null)
             {
-                SummaryDbUtils.Summary summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
+                IndexSummaryComponent summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
                 if (summary != null)
                 {
                     this.ssTableRange = TokenRange.closed(ReaderUtils.tokenToBigInteger(summary.first().getToken()),
@@ -87,10 +88,12 @@ public class BigIndexReader implements IIndexReader
                         return;
                     }
 
-                    skipAhead = summary.summary().getPosition(
-                    SummaryDbUtils.binarySearchSummary(summary.summary(), metadata.partitioner, rangeFilter.tokenRange().firstEnclosedValue())
-                    );
-                    stats.indexSummaryFileRead(System.nanoTime() - now);
+                    try (IndexSummary indexSummary = summary.summarySharedCopy())
+                    {
+                        skipAhead = indexSummary.getPosition(
+                        IndexDbUtils.binarySearchSummary(indexSummary, metadata.partitioner, rangeFilter.tokenRange().firstEnclosedValue()));
+                        stats.indexSummaryFileRead(System.nanoTime() - now);
+                    }
                     now = System.nanoTime();
                 }
             }

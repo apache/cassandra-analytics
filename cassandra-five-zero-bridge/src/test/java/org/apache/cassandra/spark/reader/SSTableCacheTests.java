@@ -82,7 +82,7 @@ public class SSTableCacheTests
                     assertThat(SSTableCache.INSTANCE.containsStats(ssTable0)).isFalse();
                     assertThat(SSTableCache.INSTANCE.containsCompressionMetadata(ssTable0)).isFalse();
 
-                    SummaryDbUtils.Summary key1 = null;
+                    IndexSummaryComponent key1 = null;
                     if (ssTable0.isBigFormat())
                     {
                         key1 = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable0);
@@ -162,7 +162,7 @@ public class SSTableCacheTests
                     assertThat(SSTableCache.INSTANCE.containsCompressionMetadata(ssTable1)).isFalse();
                     if (ssTable1.isBigFormat())
                     {
-                        SummaryDbUtils.Summary key3 = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable1);
+                        IndexSummaryComponent key3 = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable1);
                         assertThat(key3.first()).isNotEqualTo(key1.first());
                         assertThat(key3.last()).isNotEqualTo(key1.last());
                         assertThat(SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable1).left)

@@ -34,6 +34,7 @@ import org.apache.cassandra.db.DecoratedKey;
 import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.format.Version;
+import org.apache.cassandra.io.sstable.indexsummary.IndexSummary;
 import org.apache.cassandra.io.util.File;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.FileType;
@@ -73,23 +74,29 @@ public class BigIndexReader implements IIndexReader
             now = System.nanoTime();
             if (rangeFilter != null)
             {
-                SummaryDbUtils.Summary summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
-                this.ssTableRange = TokenRange.closed(ReaderUtils.tokenToBigInteger(summary.first().getToken()),
-                                                      ReaderUtils.tokenToBigInteger(summary.last().getToken()));
-                if (!rangeFilter.overlaps(this.ssTableRange))
+                IndexSummaryComponent summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
+                if (summary != null)
                 {
-                    LOGGER.info("Skipping non-overlapping Index.db file rangeFilter='[{},{}]' sstableRange='[{},{}]'",
-                                rangeFilter.tokenRange().firstEnclosedValue(), rangeFilter.tokenRange().upperEndpoint(),
-                                this.ssTableRange.firstEnclosedValue(), this.ssTableRange.upperEndpoint());
-                    stats.indexFileSkipped();
-                    return;
-                }
+                    this.ssTableRange = TokenRange.closed(ReaderUtils.tokenToBigInteger(summary.first().getToken()),
+                                                          ReaderUtils.tokenToBigInteger(summary.last().getToken()));
+                    if (!rangeFilter.overlaps(this.ssTableRange))
+                    {
+                        LOGGER.info("Skipping non-overlapping Index.db file rangeFilter='[{},{}]' sstableRange='[{},{}]'",
+                                    rangeFilter.tokenRange().firstEnclosedValue(), rangeFilter.tokenRange().upperEndpoint(),
+                                    this.ssTableRange.firstEnclosedValue(), this.ssTableRange.upperEndpoint());
+                        stats.indexFileSkipped();
+                        return;
+                    }
 
-                skipAhead = summary.summary().getPosition(
-                SummaryDbUtils.binarySearchSummary(summary.summary(), metadata.partitioner, rangeFilter.tokenRange().firstEnclosedValue())
-                );
-                stats.indexSummaryFileRead(System.nanoTime() - now);
-                now = System.nanoTime();
+                    try (IndexSummary indexSummary = summary.summarySharedCopy())
+                    {
+                        skipAhead = indexSummary.getPosition(
+                        IndexDbUtils.binarySearchSummary(indexSummary, metadata.partitioner, rangeFilter.tokenRange().firstEnclosedValue())
+                        );
+                        stats.indexSummaryFileRead(System.nanoTime() - now);
+                    }
+                    now = System.nanoTime();
+                }
             }
 
             // read CompressionMetadata if it exists

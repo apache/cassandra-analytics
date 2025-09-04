@@ -28,6 +28,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.slf4j.Logger;
@@ -56,17 +57,24 @@ public class SSTableCache
     private static final Logger LOGGER = LoggerFactory.getLogger(SSTableCache.class);
 
     public static final SSTableCache INSTANCE = new SSTableCache();
-    private final Cache<SSTable, SummaryDbUtils.Summary>             summary = buildCache(propOrDefault("sbr.cache.summary.maxEntries", 4096),
-                                                                                          propOrDefault("sbr.cache.summary.expireAfterMins", 15));
-    private final Cache<SSTable, Pair<DecoratedKey, DecoratedKey>>     index = buildCache(propOrDefault("sbr.cache.index.maxEntries", 128),
-                                                                                          propOrDefault("sbr.cache.index.expireAfterMins", 60));
-    private final Cache<SSTable, Map<MetadataType, MetadataComponent>> stats = buildCache(propOrDefault("sbr.cache.stats.maxEntries", 16384),
-                                                                                          propOrDefault("sbr.cache.stats.expireAfterMins", 60));
-    private final Cache<SSTable, BloomFilter>                         filter = buildCache(propOrDefault("sbr.cache.filter.maxEntries", 16384),
-                                                                                          propOrDefault("sbr.cache.filter.expireAfterMins", 60));
+    private final Cache<SSTable, IndexSummaryComponent> summary = buildCache(
+    propOrDefault("sbr.cache.summary.maxEntries", 4096),
+    propOrDefault("sbr.cache.summary.expireAfterMins", 15));
+
+    private final Cache<SSTable, Pair<DecoratedKey, DecoratedKey>> index = buildCache(
+    propOrDefault("sbr.cache.index.maxEntries", 128),
+    propOrDefault("sbr.cache.index.expireAfterMins", 60));
+
+    private final Cache<SSTable, Map<MetadataType, MetadataComponent>> stats = buildCache(
+    propOrDefault("sbr.cache.stats.maxEntries", 16384),
+    propOrDefault("sbr.cache.stats.expireAfterMins", 60));
+
+    private final Cache<SSTable, BloomFilter> filter = buildCache(
+    propOrDefault("sbr.cache.filter.maxEntries", 16384),
+    propOrDefault("sbr.cache.filter.expireAfterMins", 60));
     // if compression is disabled then the CompressionInfo.db file will not exist
     // therefore we can cache as Optional to a) avoid null errors in the cache and b) record that the component does not exist
-    private final Cache<SSTable, Optional<CompressionMetadata>>       compressionMetadata = buildCache(
+    private final Cache<SSTable, Optional<CompressionMetadata>> compressionMetadata = buildCache(
     propOrDefault("sbr.cache.compressionInfo.maxEntries", 128),
     propOrDefault("sbr.cache.compressionInfo.expireAfterMins", 15));
 
@@ -107,11 +115,33 @@ public class SSTableCache
         return CacheBuilder.newBuilder()
                            .expireAfterAccess(expireAfterMins, TimeUnit.MINUTES)
                            .maximumSize(size)
+                           .removalListener(notification -> {
+                               // The function is to eliminate the LEAK DETECTED errors.
+                               // How it happens:
+                               // 1. AutoCloseable objects (e.g. IndexSummary and BloomFilter) are evicted from cache
+                               // 2. JVM GC and the close method is not called explicitly to reduce the reference count
+                               // 3. Reference-Reaper thread release the object and print the LEAK DETECTED error
+                               // The function fixes it by closing the object when evicting.
+                               Object val = notification.getValue();
+                               if (val instanceof AutoCloseable)
+                               {
+                                   String typeLiteral = val.getClass().getName();
+                                   try
+                                   {
+                                       LOGGER.debug("Evicting auto-closable of type: {}", typeLiteral);
+                                       ((AutoCloseable) val).close();
+                                   }
+                                   catch (Exception e)
+                                   {
+                                       LOGGER.error("Exception closing cached instance of {}", typeLiteral, e);
+                                   }
+                               }
+                           })
                            .build();
     }
 
-    public SummaryDbUtils.Summary keysFromSummary(@NotNull TableMetadata metadata,
-                                                  @NotNull SSTable ssTable) throws IOException
+    public IndexSummaryComponent keysFromSummary(@NotNull TableMetadata metadata,
+                                                 @NotNull SSTable ssTable) throws IOException
     {
         return get(summary, ssTable, () -> SummaryDbUtils.readSummary(metadata, ssTable));
     }
@@ -210,5 +240,15 @@ public class SSTableCache
     {
         IOException ioException = ThrowableUtils.rootCause(throwable, IOException.class);
         return ioException != null ? ioException : new IOException(ThrowableUtils.rootCause(throwable));
+    }
+
+    @VisibleForTesting
+    void invalidate(SSTable sstable)
+    {
+        summary.invalidate(sstable);
+        index.invalidate(sstable);
+        stats.invalidate(sstable);
+        filter.invalidate(sstable);
+        compressionMetadata.invalidate(sstable);
     }
 }

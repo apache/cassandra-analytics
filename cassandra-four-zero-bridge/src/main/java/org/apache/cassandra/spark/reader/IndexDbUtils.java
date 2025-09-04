@@ -53,7 +53,7 @@ final class IndexDbUtils
                                         @NotNull SSTable ssTable,
                                         @NotNull Stats stats) throws IOException
     {
-        long searchStartOffset = SummaryDbUtils.findIndexOffsetInSummary(indexSummary, partitioner, range.firstEnclosedValue());
+        long searchStartOffset = findIndexOffsetInSummary(indexSummary, partitioner, range.firstEnclosedValue());
 
         // Open the Index.db, skip to nearest offset found in Summary.db and find start & end offset for the Data.db file
         return findDataDbOffset(range, partitioner, ssTable, stats, searchStartOffset);
@@ -170,5 +170,51 @@ final class IndexDbUtils
         BigInteger token = ReaderUtils.tokenToBigInteger(partitioner.decorateKey(key).getToken());
         stats.readPartitionIndexDb((ByteBuffer) key.rewind(), token);
         return token;
+    }
+
+    /**
+     * Binary search Summary.db to find nearest offset in Index.db that precedes the token we are looking for
+     *
+     * @param summary     IndexSummary from Summary.db file
+     * @param partitioner Cassandra partitioner to hash partition keys to token
+     * @param token       the token we are trying to find
+     * @return offset into the Index.db file for the closest to partition in the Summary.db file that precedes the token we are looking for
+     */
+    public static long findIndexOffsetInSummary(IndexSummary summary, IPartitioner partitioner, BigInteger token)
+    {
+        return summary.getPosition(binarySearchSummary(summary, partitioner, token));
+    }
+
+    /**
+     * The class is private on purpose.
+     * Think carefully if you want to open up the access modifier from private to public.
+     * IndexSummary's underlying memory could be released. You do not want to leak the reference and get segment fault.
+     */
+    private static class IndexSummaryTokenList implements SummaryDbUtils.TokenList
+    {
+        final IPartitioner partitioner;
+        final IndexSummary summary;
+
+        IndexSummaryTokenList(IPartitioner partitioner,
+                              IndexSummary summary)
+        {
+            this.partitioner = partitioner;
+            this.summary = summary;
+        }
+
+        public int size()
+        {
+            return summary.size();
+        }
+
+        public BigInteger tokenAt(int index)
+        {
+            return ReaderUtils.tokenToBigInteger(partitioner.decorateKey(ByteBuffer.wrap(summary.getKey(index))).getToken());
+        }
+    }
+
+    public static int binarySearchSummary(IndexSummary summary, IPartitioner partitioner, BigInteger token)
+    {
+        return SummaryDbUtils.binarySearchSummary(new IndexSummaryTokenList(partitioner, summary), token);
     }
 }
