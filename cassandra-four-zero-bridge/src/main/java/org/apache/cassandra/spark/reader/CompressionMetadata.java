@@ -40,14 +40,16 @@ public class CompressionMetadata extends AbstractCompressionMetadata
 {
 
     private final CompressionParams parameters;
+    private final double crcCheckChance; // CRC check chance defined on table level
 
-    private CompressionMetadata(long dataLength, BigLongArray chunkOffsets, CompressionParams parameters)
+    private CompressionMetadata(long dataLength, BigLongArray chunkOffsets, CompressionParams parameters, double crcCheckChance)
     {
         super(dataLength, chunkOffsets);
         this.parameters = parameters;
+        this.crcCheckChance = crcCheckChance;
     }
 
-    static CompressionMetadata fromInputStream(InputStream inStream, boolean hasCompressedLength) throws IOException
+    static CompressionMetadata fromInputStream(InputStream inStream, boolean hasCompressedLength, double crcCheckChance) throws IOException
     {
         long dataLength;
         BigLongArray chunkOffsets;
@@ -70,7 +72,6 @@ public class CompressionMetadata extends AbstractCompressionMetadata
         }
 
         CompressionParams params = new CompressionParams(compressorName, chunkLength, minCompressRatio, options);
-        params.setCrcCheckChance(AbstractCompressionMetadata.CRC_CHECK_CHANCE);
 
         dataLength = inData.readLong();
 
@@ -90,7 +91,7 @@ public class CompressionMetadata extends AbstractCompressionMetadata
             }
         }
 
-        return new CompressionMetadata(dataLength, chunkOffsets, params);
+        return new CompressionMetadata(dataLength, chunkOffsets, params, crcCheckChance);
     }
 
     ICompressor compressor()
@@ -107,6 +108,6 @@ public class CompressionMetadata extends AbstractCompressionMetadata
     @Override
     protected double crcCheckChance()
     {
-        return parameters.getCrcCheckChance();
+        return crcCheckChance;
     }
 }

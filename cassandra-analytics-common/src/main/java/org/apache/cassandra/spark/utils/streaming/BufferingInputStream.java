@@ -136,6 +136,11 @@ public class BufferingInputStream<T extends CassandraFile> extends InputStream i
         return state == StreamState.Closed;
     }
 
+    public long chunkBufferSize()
+    {
+        return source.chunkBufferSize();
+    }
+
     /**
      * Can request more bytes if:
      * 1. a request not already in-flight

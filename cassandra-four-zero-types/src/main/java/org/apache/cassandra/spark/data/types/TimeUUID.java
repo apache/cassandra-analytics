@@ -19,36 +19,7 @@
 
 package org.apache.cassandra.spark.data.types;
 
-import org.apache.cassandra.cql3.functions.types.DataType;
-import org.apache.cassandra.db.marshal.AbstractType;
-import org.apache.cassandra.db.marshal.TimeUUIDType;
-import org.apache.cassandra.utils.UUIDGen;
-
-public class TimeUUID extends UUID
+public class TimeUUID extends AbstractTimeUUID
 {
     public static final TimeUUID INSTANCE = new TimeUUID();
-
-    @Override
-    public String name()
-    {
-        return "timeuuid";
-    }
-
-    @Override
-    public AbstractType<?> dataType()
-    {
-        return TimeUUIDType.instance;
-    }
-
-    @Override
-    public Object randomValue(int minCollectionSize)
-    {
-        return UUIDGen.getTimeUUID();
-    }
-
-    @Override
-    public DataType driverDataType(boolean isFrozen)
-    {
-        return DataType.timeuuid();
-    }
 }

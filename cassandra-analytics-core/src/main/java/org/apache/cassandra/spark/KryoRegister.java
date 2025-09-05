@@ -31,6 +31,7 @@ import org.slf4j.LoggerFactory;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
+import org.apache.cassandra.bridge.BaseCassandraBridgeFactory;
 import org.apache.cassandra.bridge.BigNumberConfigImpl;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
@@ -45,6 +46,8 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.serializer.KryoRegistrator;
 import org.jetbrains.annotations.NotNull;
 
+import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.CASSANDRA_VERSION;
+
 /**
  * Helper class to register classes for Kryo serialization
  */
@@ -54,6 +57,10 @@ public class KryoRegister implements KryoRegistrator
     private static final String SPARK_SERIALIZER = "spark.serializer";
     private static final String SPARK_REGISTRATORS = "spark.kryo.registrator";
     private static final Map<Class<?>, Serializer<?>> KRYO_SERIALIZERS = Collections.synchronizedMap(new LinkedHashMap<>());
+
+    public static final Map<CassandraVersion, Class<?>> KRYO_REGISTRATORS = Map.of(CassandraVersion.FOURZERO, V40.class,
+                                                                                   CassandraVersion.FOURONE, V41.class,
+                                                                                   CassandraVersion.FIVEZERO, V50.class);
 
     static
     {
@@ -74,15 +81,18 @@ public class KryoRegister implements KryoRegistrator
         KRYO_SERIALIZERS.put(type, serializer);
     }
 
+    private final CassandraVersion cassandraVersion;
+
+    protected KryoRegister(CassandraVersion cassandraVersion)
+    {
+        this.cassandraVersion = cassandraVersion;
+    }
+
     @Override
     public void registerClasses(@NotNull Kryo kryo)
     {
-        LOGGER.info("Initializing KryoRegister");
-
-        // TODO: Implicitly defaulting to Cassandra version 4.0 is a part of a previously published API.
-        //       We might want to persist the version of Cassandra into the Spark configuration instead.
-        CassandraBridgeFactory.get(CassandraVersion.FOURZERO).kryoRegister(kryo);
-
+        LOGGER.info("Initializing KryoRegister for Cassandra bridge {}", cassandraVersion);
+        CassandraBridgeFactory.get(cassandraVersion).kryoRegister(kryo);
         KRYO_SERIALIZERS.forEach(kryo::register);
     }
 
@@ -96,11 +106,45 @@ public class KryoRegister implements KryoRegistrator
         Set<String> registratorsSet = Arrays.stream(configuration.get(SPARK_REGISTRATORS, "").split(","))
                                             .filter(string -> string != null && !string.isEmpty())
                                             .collect(Collectors.toSet());
-        registratorsSet.add(KryoRegister.class.getName());
+
+        // TODO: Find a better way to initialize Kryo serializer, instead of relaying
+        //  on Cassandra version specified as parameter of Spark job. Can we get Cassandra version from Sidecar?
+        CassandraVersion cassandraVersion = BaseCassandraBridgeFactory.getCassandraVersion(configuration.get(CASSANDRA_VERSION, "4.0.0"));
+        Class<?> registratorClass = KRYO_REGISTRATORS.get(cassandraVersion);
+        if (registratorClass == null)
+        {
+            throw new IllegalArgumentException("Kryo registrator not configured for Cassandra version: " + cassandraVersion);
+        }
+
+        registratorsSet.add(registratorClass.getName());
         String registratorsString = String.join(",", registratorsSet);
         LOGGER.info("Setting kryo registrators: " + registratorsString);
         configuration.set(SPARK_REGISTRATORS, registratorsString);
 
-        configuration.registerKryoClasses(new Class<?>[]{KryoRegister.class});
+        configuration.registerKryoClasses(new Class<?>[]{registratorClass});
+    }
+
+    public static class V40 extends KryoRegister
+    {
+        public V40()
+        {
+            super(CassandraVersion.FOURZERO);
+        }
+    }
+
+    public static class V41 extends KryoRegister
+    {
+        public V41()
+        {
+            super(CassandraVersion.FOURONE);
+        }
+    }
+
+    public static class V50 extends KryoRegister
+    {
+        public V50()
+        {
+            super(CassandraVersion.FIVEZERO);
+        }
     }
 }

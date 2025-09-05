@@ -114,6 +114,7 @@ public class CdcTests
                                                                                 .setDaemon(true)
                                                                                 .build());
     public static final AsyncExecutor ASYNC_EXECUTOR = AsyncExecutor.wrap(EXECUTOR);
+    // TODO: Execute CDC tests also with Cassandra 5 bridge.
     public static final CassandraBridge BRIDGE = new CassandraBridgeImplementation();
     public static final JdkMessageConverter MESSAGE_CONVERTER = new JdkMessageConverter(BRIDGE.cassandraTypes());
     public static final CdcBridge CDC_BRIDGE = new CdcBridgeImplementation();

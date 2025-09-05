@@ -163,6 +163,7 @@ public class CoordinatedBulkWriteSimpleTest extends CoordinatedWriteTestBase
     private ClusterBuilderConfiguration clusterConfiguration()
     {
         ClusterBuilderConfiguration conf = new ClusterBuilderConfiguration();
+        conf.additionalInstanceConfig(Map.of("storage_compatibility_mode", "NONE"));
         conf.nodesPerDc(3);
         conf.dcCount(1);
         return conf;

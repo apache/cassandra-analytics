@@ -24,9 +24,6 @@ import java.io.IOException;
 
 public abstract class AbstractCompressionMetadata
 {
-    // From 3.0, CRC check chance is part of table schema not compression metadata
-    protected static final double CRC_CHECK_CHANCE = 1.0;
-
     private final long dataLength;
     private final BigLongArray chunkOffsets;
 

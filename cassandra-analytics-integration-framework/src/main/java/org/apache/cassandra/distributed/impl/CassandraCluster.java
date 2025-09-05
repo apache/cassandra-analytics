@@ -70,6 +70,7 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
         return className.equals("org.apache.cassandra.utils.concurrent.Ref$OnLeak")
                || className.startsWith("org.apache.cassandra.metrics.RestorableMeter")
                || className.equals("org.apache.logging.slf4j.EventDataConverter")
+               || className.equals("org.apache.cassandra.cql3.functions.masking.ColumnMask")
                || (className.startsWith("org.apache.cassandra.analytics.") && className.contains("BBHelper"));
     };
 

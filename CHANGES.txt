@@ -4,6 +4,7 @@
  * Set KeyStore to be optional (CASSANALYTICS-69)
  * Unique restoreJobId per write target (CASSANALYTICS-81)
  * Allow writing to local datacenter only for coordinated write (CASSANALYTICS-75)
+ * Create bridge modules for Cassandra 5.0 (CASSANALYTICS-84)
 
 0.1.0
 -----

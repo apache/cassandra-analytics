@@ -46,7 +46,7 @@ import org.apache.cassandra.db.rows.Unfiltered;
 import org.apache.cassandra.db.rows.UnfilteredRowIterator;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.TableMetadata;
-import org.apache.cassandra.spark.reader.ComplexTypeBuffer;
+import org.apache.cassandra.spark.reader.AbstractComplexTypeBuffer;
 
 public class FourZeroCdcEventBuilder extends CdcEventBuilder
 {
@@ -250,7 +250,7 @@ public class FourZeroCdcEventBuilder extends CdcEventBuilder
 
     private void processComplexData(List<Value> holder, ComplexColumnData complex)
     {
-        ComplexTypeBuffer buffer = ComplexTypeBuffer.newBuffer(complex.column().type, complex.cellsCount());
+        AbstractComplexTypeBuffer buffer = AbstractComplexTypeBuffer.newBuffer(complex.column().type, complex.cellsCount());
         boolean allTombstone = true;
         String columnName = complex.column().name.toCQLString();
         for (Cell<?> cell : complex)

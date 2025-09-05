@@ -105,7 +105,7 @@ public class CqlTableInfoProvider implements TableInfoProvider
                                                   if (type == null)
                                                   {
                                                       throw new RuntimeException(
-                                                      "Could not find ColumnType for type name" + typeName);
+                                                      "Could not find ColumnType for type name " + typeName);
                                                   }
                                                   return type;
                                               })

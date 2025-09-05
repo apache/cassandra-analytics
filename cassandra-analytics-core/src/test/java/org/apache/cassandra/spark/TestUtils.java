@@ -290,6 +290,11 @@ public final class TestUtils extends CommonTestUtils
         return ImmutableList.copyOf(CassandraVersion.implementedVersions());
     }
 
+    public static List<CassandraVersion> filterTestableVersions(List<CassandraVersion> candidates)
+    {
+        return testableVersions().stream().filter(candidates::contains).collect(Collectors.toList());
+    }
+
     public static Gen<CqlField.SortOrder> sortOrder()
     {
         return arbitrary().enumValues(CqlField.SortOrder.class);
@@ -303,7 +308,8 @@ public final class TestUtils extends CommonTestUtils
     public static List<CassandraVersion> tombstoneTestableVersions()
     {
         // Tombstone SSTable writing and SSTable-to-JSON conversion are not implemented for Cassandra version 3.0
-        return ImmutableList.of(CassandraVersion.FOURZERO);
+        List<CassandraVersion> tombstoneTestableVersions = ImmutableList.of(CassandraVersion.FOURZERO, CassandraVersion.FIVEZERO);
+        return filterTestableVersions(tombstoneTestableVersions);
     }
 
     public static Gen<Partitioner> partitioners()

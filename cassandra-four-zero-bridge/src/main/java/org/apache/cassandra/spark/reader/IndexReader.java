@@ -96,7 +96,9 @@ public class IndexReader implements IIndexReader
             }
 
             // read CompressionMetadata if it exists
-            CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(ssTable, version.hasMaxCompressedLength());
+            CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(ssTable,
+                                                                                                version.hasMaxCompressedLength(),
+                                                                                                metadata.params.crcCheckChance);
             if (compressionMetadata != null)
             {
                 stats.indexCompressionFileRead(System.nanoTime() - now);

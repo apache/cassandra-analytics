@@ -1,0 +1,104 @@
+import java.nio.file.Paths
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+plugins {
+    id('java-library')
+}
+
+configurations {
+    all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
+    all*.exclude(group: 'log4j', module: 'log4j')
+    implCassV4
+}
+
+dependencies {
+    // base this module on Cassandra 4.x bridges
+    implCassV4 project(':cassandra-four-zero-bridge')
+    compileOnly project(':cassandra-four-zero-bridge')
+    // test runtime dependencies are needed to make V4 main classes visible during unit test execution
+    testCompileOnly project(':cassandra-four-zero-types')
+    testRuntimeOnly project(':cassandra-four-zero-types')
+    testCompileOnly project(':cassandra-four-zero-bridge')
+    testRuntimeOnly project(':cassandra-four-zero-bridge')
+
+    compileOnly project(":cassandra-analytics-common")
+    compileOnly project(":cassandra-five-zero-types")
+    // some classes from cassandra-five-zero-types will be present in cassandra-four-zero-types module
+    compileOnly project(":cassandra-four-zero-types")
+    compileOnly(project(':cassandra-bridge'))
+    compileOnly project(":cassandra-analytics-spark-converter")
+
+    compileOnly(project(path: ':cassandra-five-zero', configuration: 'shadow'))
+
+    compileOnly(group: 'org.slf4j', name: 'slf4j-api', version: "${project.slf4jApiVersion}")
+    compileOnly(group: 'com.esotericsoftware', name: 'kryo-shaded', version: "${project.kryoVersion}")
+    compileOnly(group: 'com.google.guava', name: 'guava', version: "${project.guavaVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: "${project.jacksonVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: "${project.jacksonVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
+
+    testImplementation(testFixtures(project(':cassandra-bridge')))
+    testImplementation project(":cassandra-analytics-common")
+    testImplementation project(":cassandra-five-zero-types")
+    testImplementation(project(':cassandra-bridge'))
+    testImplementation project(":cassandra-analytics-spark-converter")
+    testImplementation project(":cassandra-analytics-spark-five-zero-converter")
+    testImplementation(project(path: ':cassandra-five-zero', configuration: 'shadow'))
+    testImplementation(testFixtures(project(':cassandra-bridge')))
+    testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
+    testImplementation("org.assertj:assertj-core:${assertjCoreVersion}")
+    testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
+    testImplementation("org.mockito:mockito-core:${project.rootProject.mockitoVersion}")
+    testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+    testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+    testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
+
+    testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
+    testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
+}
+
+jar {
+    archiveFileName = "five-zero-bridge.jar"
+    // trigger types testClasses and/or jar, so that dependent classes will be visible
+    // note that it should not depend on 'build', which depends on 'test'
+    dependsOn ':cassandra-five-zero-types:testClasses'
+    dependsOn ':cassandra-four-zero-bridge:jar'
+    // copy classes from V4 implementation and exclude duplicates that we override
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from { configurations.implCassV4.collect { it.isDirectory() ? it : zipTree(it) } }
+}
+
+test {
+    useJUnitPlatform()
+    reports {
+        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "five-zero-bridge").toFile()
+        junitXml {
+            enabled true
+            destination = destDir
+        }
+        html {
+            enabled true
+            destination = destDir
+        }
+    }
+}

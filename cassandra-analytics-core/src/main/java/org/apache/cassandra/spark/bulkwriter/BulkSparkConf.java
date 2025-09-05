@@ -98,6 +98,9 @@ public class BulkSparkConf implements Serializable
     //       which will throw a configuration exception for each setting with that prefix it does not recognize
     public static final String SETTING_PREFIX = "spark.cassandra_analytics.";
 
+    // Cassandra version of target cluster. Configuration parameter is exposed to be able to correctly initialize static
+    // components, before cluster version is discovered via Sidecar.
+    public static final String CASSANDRA_VERSION                       = SETTING_PREFIX + "cassandra.version";
     public static final String HTTP_MAX_CONNECTIONS                    = SETTING_PREFIX + "request.max_connections";
     public static final String HTTP_RESPONSE_TIMEOUT                   = SETTING_PREFIX + "request.response_timeout";
     public static final String HTTP_CONNECTION_TIMEOUT                 = SETTING_PREFIX + "request.connection_timeout";

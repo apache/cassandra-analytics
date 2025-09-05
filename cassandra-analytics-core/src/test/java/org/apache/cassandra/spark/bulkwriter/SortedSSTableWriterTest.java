@@ -55,7 +55,7 @@ public class SortedSSTableWriterTest
     public static Iterable<Object[]> data()
     {
         return Arrays.stream(CassandraVersion.supportedVersions())
-                     .map(version -> new Object[]{version })
+                     .map(version -> new Object[]{version})
                      .collect(Collectors.toList());
     }
 
@@ -97,7 +97,20 @@ public class SortedSSTableWriterTest
         tw.addRow(BigInteger.ONE, ImmutableMap.of("id", 1, "date", 1, "course", "foo", "marks", 1));
         tw.close(writerContext);
         assertThat(allSSTables).hasSize(1);
-        assertThat(allSSTables.get(0).baseFilename).isEqualTo("nb-1-big");
+        String baseFileName = allSSTables.get(0).baseFilename;
+        CassandraVersionFeatures cvf = CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version);
+        switch (cvf.getMajorVersion())
+        {
+            case 40:
+            case 41:
+                assertThat(baseFileName).isEqualTo("nb-1-big");
+                break;
+            case 50:
+                assertThat(baseFileName).isEqualTo("oa-2-big");
+                break;
+            default:
+                throw new UnsupportedOperationException("Unsupported version: " + version);
+        }
         Set<Path> dataFilePaths = new HashSet<>();
         try (DirectoryStream<Path> dataFileStream = Files.newDirectoryStream(tw.getOutDir(), "*Data.db"))
         {

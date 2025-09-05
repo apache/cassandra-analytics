@@ -40,6 +40,7 @@ import org.slf4j.LoggerFactory;
 import org.antlr.runtime.RecognitionException;
 import org.apache.cassandra.bridge.CassandraSchema;
 import org.apache.cassandra.bridge.CassandraTypesImplementation;
+import org.apache.cassandra.bridge.SchemaUpdater;
 import org.apache.cassandra.cql3.CQL3Type;
 import org.apache.cassandra.cql3.CQLFragmentParser;
 import org.apache.cassandra.cql3.CqlParser;
@@ -352,7 +353,7 @@ public class SchemaBuilder
                         keyspaceName, replicationFactor.getReplicationStrategy().name(), partitioner);
             KeyspaceMetadata keyspaceMetadata =
                     KeyspaceMetadata.create(keyspaceName, KeyspaceParams.create(true, rfToMap(replicationFactor)));
-            schema.load(keyspaceMetadata);
+            SchemaUpdater.load(schema, keyspaceMetadata);
         }
 
         if (!keyspaceInstanceExists(schema, keyspaceName))
@@ -386,7 +387,7 @@ public class SchemaBuilder
             LOGGER.info("Setting up table metadata in schema keyspace={} table={} partitioner={}",
                         keyspaceName, tableName, tableMetadata.partitioner.getClass().getName());
             keyspaceMetadata = keyspaceMetadata.withSwapped(keyspaceMetadata.tables.with(tableMetadata));
-            schema.load(keyspaceMetadata);
+            SchemaUpdater.load(schema, keyspaceMetadata, tableMetadata);
         }
 
         if (!tableMetadata.equals(schema.getTableMetadata(keyspaceName, tableMetadata.name)))
@@ -422,14 +423,15 @@ public class SchemaBuilder
                         keyspaceName, userTypes);
             // Update Schema instance with any user-defined types built
             keyspaceMetadata = keyspaceMetadata.withSwapped(userTypes);
-            schema.load(keyspaceMetadata);
+            SchemaUpdater.load(schema, keyspaceMetadata, userTypes);
         }
     }
 
     private static void updateTableMetaData(Schema schema, String keyspace, TableMetadata tableMetadata)
     {
         KeyspaceMetadata ks = schema.getKeyspaceMetadata(keyspace);
-        schema.load(ks.withSwapped(ks.tables.withSwapped(tableMetadata)));
+        ks = ks.withSwapped(ks.tables.withSwapped(tableMetadata));
+        SchemaUpdater.load(schema, ks, tableMetadata);
     }
 
     private static Pair<KeyspaceMetadata, TableMetadata> validateKeyspaceTable(Schema schema,

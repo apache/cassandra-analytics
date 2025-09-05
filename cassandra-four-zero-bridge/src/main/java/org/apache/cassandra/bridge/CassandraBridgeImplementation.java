@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.bridge;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -745,5 +746,12 @@ public class CassandraBridgeImplementation extends CassandraBridge
         {
             throw new RuntimeException(exception);
         }
+    }
+
+    public static String baseFilename(Descriptor descriptor)
+    {
+        // note that descriptor.baseFilename() contains the directory portion in the string. We do not include the directory portion
+        String baseFileNameWithDirectory = descriptor.baseFilename();
+        return baseFileNameWithDirectory.substring(baseFileNameWithDirectory.lastIndexOf(File.separatorChar) + 1);
     }
 }

@@ -21,7 +21,10 @@ package org.apache.cassandra.spark.data;
 
 import java.io.InputStream;
 import java.io.Serializable;
+import java.util.List;
 import java.util.Objects;
+
+import com.google.common.base.Splitter;
 
 import org.apache.cassandra.spark.utils.streaming.CassandraFile;
 import org.jetbrains.annotations.NotNull;
@@ -34,6 +37,9 @@ import org.jetbrains.annotations.Nullable;
 public abstract class SSTable implements Serializable, CassandraFile
 {
     public static final long serialVersionUID = 42L;
+
+    private static final String FILENAME_SEPARATOR = "-";
+    private static final Splitter filenameSplitter = Splitter.on(FILENAME_SEPARATOR);
 
     public SSTable()
     {
@@ -95,11 +101,38 @@ public abstract class SSTable implements Serializable, CassandraFile
             throw new IncompleteSSTableException(FileType.STATISTICS);
         }
         // Need Summary.db or Index.db to read first/last partition key
-        if (isMissing(FileType.SUMMARY) && isMissing(FileType.INDEX))
+        if (isBigFormat() && isMissing(FileType.SUMMARY) && isMissing(FileType.INDEX))
         {
             throw new IncompleteSSTableException(FileType.SUMMARY, FileType.INDEX);
+        }
+        // For BTI format, we just need partitions index
+        if (isBtiFormat() && isMissing(FileType.PARTITIONS_INDEX))
+        {
+            throw new IncompleteSSTableException(FileType.PARTITIONS_INDEX);
         }
     }
 
     public abstract String getDataFileName();
+
+    public boolean isBigFormat()
+    {
+        return getDataFileName().contains("-big-");
+    }
+
+    public boolean isBtiFormat()
+    {
+        return getDataFileName().contains("-bti-");
+    }
+
+    public String getFormat()
+    {
+        List<String> tokens = filenameSplitter.splitToList(getDataFileName());
+        return tokens.get(tokens.size() - 2);
+    }
+
+    public String getVersion()
+    {
+        List<String> tokens = filenameSplitter.splitToList(getDataFileName());
+        return tokens.get(tokens.size() - 4);
+    }
 }

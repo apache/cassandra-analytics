@@ -101,3 +101,11 @@ Run the following profile to copy code style used for this project:
 ```shell
 ./gradlew copyCodeStyle
 ```
+
+## Bridge Modules
+
+Major Cassandra versions require dedicated bridge modules (e.g. `cassandra-five-zero-bridge`) to be able to reference
+Cassandra as a library, and correctly read sstable files. Significant part of code may be based on previous module
+version. To minimise code duplication, Gradle build copies all source files from previous dependent module.
+If implementation of given component has to be updated, copy the file with the same name to a target module and
+modify its body.

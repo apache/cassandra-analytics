@@ -22,7 +22,7 @@ package org.apache.cassandra.cql3.functions.types;
 import java.util.stream.Collectors;
 
 import org.apache.cassandra.spark.data.CqlType;
-import org.apache.cassandra.spark.data.complex.CqlTuple;
+import org.apache.cassandra.spark.data.complex.AbstractCqlTuple;
 import org.apache.cassandra.transport.ProtocolVersion;
 import org.jetbrains.annotations.NotNull;
 
@@ -37,7 +37,7 @@ public final class TupleHelper
     }
 
     @NotNull
-    public static TupleType buildTupleType(CqlTuple tuple, boolean isFrozen)
+    public static TupleType buildTupleType(AbstractCqlTuple tuple, boolean isFrozen)
     {
         return new TupleType(tuple.types().stream()
                 .map(type -> ((CqlType) type).driverDataType(isFrozen))
@@ -45,13 +45,13 @@ public final class TupleHelper
     }
 
     @NotNull
-    public static TupleValue buildTupleValue(CqlTuple tuple)
+    public static TupleValue buildTupleValue(AbstractCqlTuple tuple)
     {
         return buildTupleValue(tuple, false);
     }
 
     @NotNull
-    public static TupleValue buildTupleValue(CqlTuple tuple, boolean isFrozen)
+    public static TupleValue buildTupleValue(AbstractCqlTuple tuple, boolean isFrozen)
     {
         return new TupleValue(buildTupleType(tuple, isFrozen));
     }

@@ -66,7 +66,7 @@ public class Date extends NativeType
     {
         // Cassandra 4.0 no longer allows writing date types as Integers in CqlWriter,
         // so we need to convert to LocalDate before writing in tests
-        if (version == CassandraVersion.FOURZERO)
+        if (version.versionNumber() >= CassandraVersion.FOURZERO.versionNumber())
         {
             return LocalDate.fromDaysSinceEpoch(((int) value));
         }

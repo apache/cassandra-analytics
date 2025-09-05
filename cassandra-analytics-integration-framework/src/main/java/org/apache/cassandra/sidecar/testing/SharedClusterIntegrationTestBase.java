@@ -180,7 +180,7 @@ public abstract class SharedClusterIntegrationTestBase
         Optional<TestVersion> maybeTestVersion = TestVersionSupplier.testVersions().findFirst();
         assertThat(maybeTestVersion).isPresent();
         this.testVersion = maybeTestVersion.get();
-        logger.info("Testing with version={}", testVersion);
+        logger.info("Testing with Cassandra version={}", testVersion);
 
         classLoaderWrapper = new IsolatedDTestClassLoaderWrapper();
         classLoaderWrapper.initializeDTestJarClassLoader(testVersion, TestVersion.class);
@@ -260,7 +260,10 @@ public abstract class SharedClusterIntegrationTestBase
      */
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        return new ClusterBuilderConfiguration();
+        ClusterBuilderConfiguration conf = new ClusterBuilderConfiguration();
+        // TODO: Shall we read requested compatibility from sidecar (CASSANALYTICS-24)?
+        conf.additionalInstanceConfig(Map.of("storage_compatibility_mode", "NONE"));
+        return conf;
     }
 
     /**
