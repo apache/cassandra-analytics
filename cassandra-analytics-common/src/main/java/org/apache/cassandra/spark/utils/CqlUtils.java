@@ -138,13 +138,13 @@ public final class CqlUtils
      * @return map of keyspace/table identifier to table create statements.
      */
     public static Map<TableIdentifier, String> extractCdcTables(@NotNull final String schemaStr) {
-        final String cleaned = cleanCql(schemaStr);
-        final Pattern pattern = Pattern.compile("CREATE TABLE \"?(\\w+)\"?\\.\"?(\\w+)\"?[^;]*cdc = true[^;]*;");
-        final Matcher matcher = pattern.matcher(cleaned);
-        final Map<TableIdentifier, String> createStmts = new HashMap<>();
+        String cleaned = cleanCql(schemaStr);
+        Pattern pattern = Pattern.compile("CREATE TABLE \"?(\\w+)\"?\\.\"?(\\w+)\"?[^;]*cdc = true[^;]*;");
+        Matcher matcher = pattern.matcher(cleaned);
+        Map<TableIdentifier, String> createStmts = new HashMap<>();
         while (matcher.find()) {
-            final String keyspace = matcher.group(1);
-            final String table = matcher.group(2);
+            String keyspace = matcher.group(1);
+            String table = matcher.group(2);
             createStmts.put(TableIdentifier.of(keyspace, table), extractCleanedTableSchema(cleaned, keyspace, table));
         }
         return createStmts;
