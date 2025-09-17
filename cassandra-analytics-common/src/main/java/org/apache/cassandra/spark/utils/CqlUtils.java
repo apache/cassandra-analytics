@@ -49,7 +49,8 @@ public final class CqlUtils
                                                                                         "compression",
                                                                                         "default_time_to_live",
                                                                                         "min_index_interval",
-                                                                                        "max_index_interval"
+                                                                                        "max_index_interval",
+                                                                                        "cdc"
                                                                                         );
     private static final Pattern REPLICATION_FACTOR_PATTERN = Pattern.compile("WITH REPLICATION = (\\{[^\\}]*\\})");
     // Initialize a mapper allowing single quotes to process the RF string from the CREATE KEYSPACE statement

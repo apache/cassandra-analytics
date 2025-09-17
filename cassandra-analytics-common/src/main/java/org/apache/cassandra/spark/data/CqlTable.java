@@ -46,18 +46,12 @@ public class CqlTable implements Serializable
 
     public enum TableProperty
     {
+        // This matches with the rg.apache.cassandra.spark.utils.CqlUtils#TABLE_PROPERTY_OVERRIDE_ALLOWLIST
         CDC("cdc"),
         MIN_INDEX_INTERVAL("min_index_interval"),
         MAX_INDEX_INTERVAL("max_index_interval"),
-        GC_GRACE_SECONDS("gc_grace_seconds"),
         BLOOM_FILTER_FP_CHANCE("bloom_filter_fp_chance"),
-        CRC_CHECK_CHANCE("crc_check_chance"),
-        DEFAULT_TIME_TO_LIVE("default_time_to_live"),
-        MEMTABLE_FLUSH_PERIOD_IN_MS("memtable_flush_period_in_ms"),
-        READ_REPAIR("read_repair"),
-        SPECULATIVE_RETRY("speculative_retry"),
-        ADDITIONAL_WRITE_POLICY("additional_write_policy"),
-        COMMENT("comment");
+        DEFAULT_TIME_TO_LIVE("default_time_to_live");
 
         private final String key;
 

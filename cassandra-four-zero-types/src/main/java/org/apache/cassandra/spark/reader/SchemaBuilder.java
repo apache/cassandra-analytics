@@ -491,15 +491,8 @@ public class SchemaBuilder
         properties.put(CqlTable.TableProperty.CDC.getKey(), "" + metadata.params.cdc);
         properties.put(CqlTable.TableProperty.MIN_INDEX_INTERVAL.getKey(), "" + metadata.params.minIndexInterval);
         properties.put(CqlTable.TableProperty.MAX_INDEX_INTERVAL.getKey(), "" + metadata.params.maxIndexInterval);
-        properties.put(CqlTable.TableProperty.GC_GRACE_SECONDS.getKey(), "" + metadata.params.gcGraceSeconds);
         properties.put(CqlTable.TableProperty.BLOOM_FILTER_FP_CHANCE.getKey(), "" + metadata.params.bloomFilterFpChance);
-        properties.put(CqlTable.TableProperty.CRC_CHECK_CHANCE.getKey(), "" + metadata.params.crcCheckChance);
         properties.put(CqlTable.TableProperty.DEFAULT_TIME_TO_LIVE.getKey(), "" + metadata.params.defaultTimeToLive);
-        properties.put(CqlTable.TableProperty.MEMTABLE_FLUSH_PERIOD_IN_MS.getKey(), "" + metadata.params.memtableFlushPeriodInMs);
-        properties.put(CqlTable.TableProperty.READ_REPAIR.getKey(), metadata.params.readRepair.toString());
-        properties.put(CqlTable.TableProperty.SPECULATIVE_RETRY.getKey(), metadata.params.speculativeRetry.toString());
-        properties.put(CqlTable.TableProperty.ADDITIONAL_WRITE_POLICY.getKey(), metadata.params.additionalWritePolicy.toString());
-        properties.put(CqlTable.TableProperty.COMMENT.getKey(), metadata.params.comment);
         return properties;
     }
 
