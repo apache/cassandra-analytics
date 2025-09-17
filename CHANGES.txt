@@ -1,5 +1,6 @@
 0.2.0
 -----
+ * Add table property support to CqlTable (CASSANALYTICS-90)
  * Add extractCdcTables method to CqlUtils (CASSANALYTICS-91)
  * Create bridge modules for Cassandra 5.0 (CASSANALYTICS-84)
  * Analytics job fails when source table has secondary indexes (CASSANALYTICS-86)

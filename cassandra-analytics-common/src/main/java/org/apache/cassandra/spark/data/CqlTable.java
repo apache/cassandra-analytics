@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.data;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -43,6 +44,34 @@ public class CqlTable implements Serializable
 {
     private static final long serialVersionUID = 1018995207366817661L;
 
+    public enum TableProperty
+    {
+        CDC("cdc"),
+        MIN_INDEX_INTERVAL("min_index_interval"),
+        MAX_INDEX_INTERVAL("max_index_interval"),
+        GC_GRACE_SECONDS("gc_grace_seconds"),
+        BLOOM_FILTER_FP_CHANCE("bloom_filter_fp_chance"),
+        CRC_CHECK_CHANCE("crc_check_chance"),
+        DEFAULT_TIME_TO_LIVE("default_time_to_live"),
+        MEMTABLE_FLUSH_PERIOD_IN_MS("memtable_flush_period_in_ms"),
+        READ_REPAIR("read_repair"),
+        SPECULATIVE_RETRY("speculative_retry"),
+        ADDITIONAL_WRITE_POLICY("additional_write_policy"),
+        COMMENT("comment");
+
+        private final String key;
+
+        TableProperty(String key)
+        {
+            this.key = key;
+        }
+
+        public String getKey()
+        {
+            return key;
+        }
+    }
+
     private final ReplicationFactor replicationFactor;
     private final String keyspace;
     private final String table;
@@ -57,6 +86,7 @@ public class CqlTable implements Serializable
     private final List<CqlField> staticColumns;
     private final List<CqlField> valueColumns;
     private final transient Map<String, CqlField> columns;
+    private final Map<String, String> tableOptions;
     private final int indexCount;
 
     public CqlTable(@NotNull String keyspace,
@@ -76,6 +106,18 @@ public class CqlTable implements Serializable
                     @NotNull Set<CqlField.CqlUdt> udts,
                     int indexCount)
     {
+        this(keyspace, table, createStatement, replicationFactor, fields, Collections.emptySet(), Collections.emptyMap(), 0);
+    }
+
+    public CqlTable(@NotNull String keyspace,
+                    @NotNull String table,
+                    @NotNull String createStatement,
+                    @NotNull ReplicationFactor replicationFactor,
+                    @NotNull List<CqlField> fields,
+                    @NotNull Set<CqlField.CqlUdt> udts,
+                    @NotNull Map<String, String> tableOptions,
+                    int indexCount)
+    {
         this.keyspace = keyspace;
         this.table = table;
         this.createStatement = createStatement;
@@ -87,6 +129,7 @@ public class CqlTable implements Serializable
         this.staticColumns = this.fields.stream().filter(CqlField::isStaticColumn).sorted().collect(Collectors.toList());
         this.valueColumns = this.fields.stream().filter(CqlField::isValueColumn).sorted().collect(Collectors.toList());
         this.udts = Collections.unmodifiableSet(udts);
+        this.tableOptions = tableOptions;
         this.indexCount = indexCount;
 
         // We use a linked hashmap to guarantee ordering of a 'SELECT * FROM ...'
@@ -221,6 +264,11 @@ public class CqlTable implements Serializable
                    .collect(Collectors.toSet());
     }
 
+    public Map<String, String> tableOptions()
+    {
+        return tableOptions;
+    }
+
     public CqlField getField(String name)
     {
         return fieldsMap.get(name);
@@ -278,7 +326,7 @@ public class CqlTable implements Serializable
     @Override
     public int hashCode()
     {
-        return Objects.hash(keyspace, table, createStatement, fields, udts);
+        return Objects.hash(keyspace, table, createStatement, fields, udts, tableOptions);
     }
 
     @Override
@@ -302,6 +350,7 @@ public class CqlTable implements Serializable
                && Objects.equals(this.table, that.table)
                && Objects.equals(this.createStatement, that.createStatement)
                && Objects.equals(this.fields, that.fields)
+               && Objects.equals(this.tableOptions, that.tableOptions)
                && Objects.equals(this.udts, that.udts);
     }
 
@@ -333,8 +382,14 @@ public class CqlTable implements Serializable
             {
                 udts.add((CqlField.CqlUdt) CqlField.CqlType.read(input, cassandraTypes));
             }
+            int numTableOptions = input.readInt();
+            Map<String, String> tableOptions = new HashMap<>();
+            for (int tableOptionsCount = 0; tableOptionsCount < numTableOptions; tableOptionsCount++)
+            {
+                tableOptions.put(input.readString(), input.readString());
+            }
             int indexCount = input.readInt();
-            return new CqlTable(keyspace, table, createStatement, replicationFactor, fields, udts, indexCount);
+            return new CqlTable(keyspace, table, createStatement, replicationFactor, fields, udts, tableOptions, indexCount);
         }
 
         @Override
@@ -355,6 +410,13 @@ public class CqlTable implements Serializable
             for (CqlField.CqlUdt udt : udts)
             {
                 udt.write(output);
+            }
+            Map<String, String> tableOptions = table.tableOptions;
+            output.writeInt(tableOptions.size());
+            for (Map.Entry<String, String> entry : tableOptions.entrySet())
+            {
+                output.writeString(entry.getKey());
+                output.writeString(entry.getValue());
             }
             output.writeInt(table.indexCount());
         }
