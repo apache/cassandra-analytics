@@ -772,6 +772,24 @@ public class CqlUtilsTest extends VersionRunner
                                                       Collections.singletonList("max_index_interval"))).contains("max_index_interval = 6");
     }
 
+    @Test
+    public void testCdcExtractSchema() {
+        final String schema = "CREATE KEYSPACE ks1 WITH REPLICATION = { 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy', 'MS': '3', 'ST': '3' } AND DURABLE_WRITES = true;\\n\\n" +
+                              "CREATE TABLE ks1.tb1 (\"a\" text, \"b\" text, \"c\" text, \"d\" text, e timestamp, f uuid, g blob, PRIMARY KEY ((\"a\", \"b\"), \"c\", \"d\")) WITH CLUSTERING ORDER BY (\"c\" DESC, \"d\" ASC) AND cdc = true;\n\n" +
+                              "CREATE TABLE ks1.tb2 (a text, b text, c text, d text, PRIMARY KEY ((a), b, c)) WITH CLUSTERING ORDER BY (b DESC, c ASC) AND cdc = true;\n\n" +
+                              "CREATE KEYSPACE ks2 WITH REPLICATION = { 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy', 'MS': '3', 'ST': '3' } AND DURABLE_WRITES = true;\\n\\n" +
+                              "CREATE TABLE ks2.tb3 (a text, b text, c text, d text, PRIMARY KEY ((a), b, c)) WITH CLUSTERING ORDER BY (b DESC, c ASC);\n\n" +
+                              "CREATE TABLE ks2.tb4 (a bigint, b int, c uuid, d text, PRIMARY KEY (a)) WITH cdc = true;\n\n";
+        final Map<TableIdentifier, String> createStmts = CqlUtils.extractCdcTables(schema);
+
+        assertThat(3).isEqualTo(createStmts.size());
+        assertThat(createStmts.containsKey(TableIdentifier.of("ks1", "tb1"))).isTrue();
+        assertThat(createStmts.containsKey(TableIdentifier.of("ks1", "tb2"))).isTrue();
+        assertThat(createStmts.containsKey(TableIdentifier.of("ks2", "tb3"))).isFalse();
+        assertThat(createStmts.containsKey(TableIdentifier.of("ks2", "tb4"))).isTrue();
+    }
+
+
     private static String loadFullSchemaSample() throws IOException
     {
         Path fullSchemaSampleFile = ResourceUtils.writeResourceToPath(CqlUtilsTest.class.getClassLoader(), tempPath, "cql/fullSchema.cql");
