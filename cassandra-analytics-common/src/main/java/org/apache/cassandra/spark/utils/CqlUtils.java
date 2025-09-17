@@ -137,12 +137,14 @@ public final class CqlUtils
      * @param schemaStr full cluster schema text.
      * @return map of keyspace/table identifier to table create statements.
      */
-    public static Map<TableIdentifier, String> extractCdcTables(@NotNull final String schemaStr) {
+    public static Map<TableIdentifier, String> extractCdcTables(@NotNull final String schemaStr)
+    {
         String cleaned = cleanCql(schemaStr);
         Pattern pattern = Pattern.compile("CREATE TABLE \"?(\\w+)\"?\\.\"?(\\w+)\"?[^;]*cdc = true[^;]*;");
         Matcher matcher = pattern.matcher(cleaned);
         Map<TableIdentifier, String> createStmts = new HashMap<>();
-        while (matcher.find()) {
+        while (matcher.find())
+        {
             String keyspace = matcher.group(1);
             String table = matcher.group(2);
             createStmts.put(TableIdentifier.of(keyspace, table), extractCleanedTableSchema(cleaned, keyspace, table));
