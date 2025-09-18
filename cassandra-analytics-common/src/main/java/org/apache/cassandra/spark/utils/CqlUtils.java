@@ -270,7 +270,8 @@ public final class CqlUtils
         MIN_INDEX_INTERVAL("min_index_interval"),
         MAX_INDEX_INTERVAL("max_index_interval"),
         BLOOM_FILTER_FP_CHANCE("bloom_filter_fp_chance"),
-        DEFAULT_TIME_TO_LIVE("default_time_to_live");
+        DEFAULT_TIME_TO_LIVE("default_time_to_live"),
+        COMPRESSION("compression");
 
         private final String key;
 

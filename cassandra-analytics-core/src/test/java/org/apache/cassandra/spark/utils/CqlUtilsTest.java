@@ -156,7 +156,8 @@ public class CqlUtilsTest extends VersionRunner
                    + " AND compression = { 'chunk_length_in_kb' : 16, 'class' : 'org.apache.cassandra.io.compress.LZ4Compressor' }"
                    + " AND default_time_to_live = 0"
                    + " AND min_index_interval = 128"
-                   + " AND max_index_interval = 2048;");
+                   + " AND max_index_interval = 2048"
+                   + " AND cdc = false;");
     }
 
     @ParameterizedTest
@@ -259,6 +260,7 @@ public class CqlUtilsTest extends VersionRunner
                                   + "value counter, "
                                   + "PRIMARY KEY (key, column1) ) WITH"
                                   + " bloom_filter_fp_chance = 0.1"
+                                  + " AND cdc = false"
                                   + " AND compression = {'chunk_length_in_kb': '64', 'class': 'org.apache.cassandra.io.compress.DeflateCompressor'}"
                                   + " AND default_time_to_live = 100 AND max_index_interval = 2048 "
                                   + "AND min_index_interval = 128;";
