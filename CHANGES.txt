@@ -1,5 +1,6 @@
 0.2.0
 -----
+ * Add extractCdcTables method to CqlUtils (CASSANALYTICS-91)
  * Create bridge modules for Cassandra 5.0 (CASSANALYTICS-84)
  * Analytics job fails when source table has secondary indexes (CASSANALYTICS-86)
  * Set KeyStore to be optional (CASSANALYTICS-69)
