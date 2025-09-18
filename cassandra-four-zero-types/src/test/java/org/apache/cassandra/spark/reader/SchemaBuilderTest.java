@@ -32,9 +32,8 @@ import org.apache.cassandra.spark.utils.CqlUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Unit tests for SchemaBuilder focusing on the getTableOptions method.
- * Tests the table options extraction functionality by testing through the public API
- * following the same pattern as CassandraDataLayer.
+ * Unit tests for SchemaBuilder.
+ * Tests the table options extraction functionality by testing through the public API.
  */
 public class SchemaBuilderTest
 {
