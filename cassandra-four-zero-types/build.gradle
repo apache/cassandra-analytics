@@ -33,6 +33,23 @@ dependencies {
     compileOnly project(":cassandra-analytics-common")
     compileOnly(project(path: ':cassandra-four-zero', configuration: 'shadow'))
     compileOnly "com.esotericsoftware:kryo-shaded:${kryoVersion}"
+
+    testImplementation project(":cassandra-analytics-common")
+    testImplementation(project(path: ':cassandra-four-zero', configuration: 'shadow'))
+    testImplementation project(":cassandra-bridge")
+    testImplementation project(":cassandra-four-zero-bridge")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
+    testImplementation("org.assertj:assertj-core:${assertjCoreVersion}")
+    testImplementation("com.esotericsoftware:kryo-shaded:${kryoVersion}")
+    testImplementation("com.google.guava:guava:${project.guavaVersion}")
+    testImplementation("org.slf4j:slf4j-api:${slf4jApiVersion}")
+    testImplementation("org.apache.commons:commons-lang3:${project.commonsLang3Version}")
+    testImplementation("com.fasterxml.jackson.core:jackson-core:${project.jacksonVersion}")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:${project.jacksonVersion}")
+    testImplementation("com.fasterxml.jackson.core:jackson-annotations:${project.jacksonVersion}")
+    testRuntimeOnly("org.slf4j:slf4j-simple:${slf4jApiVersion}")
 }
 
 jar {

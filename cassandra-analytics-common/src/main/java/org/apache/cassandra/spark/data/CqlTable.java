@@ -44,28 +44,6 @@ public class CqlTable implements Serializable
 {
     private static final long serialVersionUID = 1018995207366817661L;
 
-    public enum TableProperty
-    {
-        // This matches with the rg.apache.cassandra.spark.utils.CqlUtils#TABLE_PROPERTY_OVERRIDE_ALLOWLIST
-        CDC("cdc"),
-        MIN_INDEX_INTERVAL("min_index_interval"),
-        MAX_INDEX_INTERVAL("max_index_interval"),
-        BLOOM_FILTER_FP_CHANCE("bloom_filter_fp_chance"),
-        DEFAULT_TIME_TO_LIVE("default_time_to_live");
-
-        private final String key;
-
-        TableProperty(String key)
-        {
-            this.key = key;
-        }
-
-        public String getKey()
-        {
-            return key;
-        }
-    }
-
     private final ReplicationFactor replicationFactor;
     private final String keyspace;
     private final String table;

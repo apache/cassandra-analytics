@@ -44,14 +44,6 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class CqlUtils
 {
-    // Properties to be overridden when extracted from the table schema
-    private static final List<String> TABLE_PROPERTY_OVERRIDE_ALLOWLIST = Arrays.asList("bloom_filter_fp_chance",
-                                                                                        "compression",
-                                                                                        "default_time_to_live",
-                                                                                        "min_index_interval",
-                                                                                        "max_index_interval",
-                                                                                        "cdc"
-                                                                                        );
     private static final Pattern REPLICATION_FACTOR_PATTERN = Pattern.compile("WITH REPLICATION = (\\{[^\\}]*\\})");
     // Initialize a mapper allowing single quotes to process the RF string from the CREATE KEYSPACE statement
     private static final ObjectMapper MAPPER = new ObjectMapper().configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
@@ -201,7 +193,8 @@ public final class CqlUtils
                 separator = " AND ";
             }
 
-            List<String> propStrings = extractOverrideProperties(fullSchema, TABLE_PROPERTY_OVERRIDE_ALLOWLIST);
+            List<String> overrides = Arrays.stream(TableProperty.values()).map(v -> v.getKey()).collect(Collectors.toList());
+            List<String> propStrings = extractOverrideProperties(fullSchema, overrides);
             if (!propStrings.isEmpty())
             {
                 redactedSchema = redactedSchema + separator + String.join(" AND ", propStrings);
@@ -268,5 +261,27 @@ public final class CqlUtils
             indexCount++;
         }
         return indexCount;
+    }
+
+    public enum TableProperty
+    {
+        // This matches with the rg.apache.cassandra.spark.utils.CqlUtils#TABLE_PROPERTY_OVERRIDE_ALLOWLIST
+        CDC("cdc"),
+        MIN_INDEX_INTERVAL("min_index_interval"),
+        MAX_INDEX_INTERVAL("max_index_interval"),
+        BLOOM_FILTER_FP_CHANCE("bloom_filter_fp_chance"),
+        DEFAULT_TIME_TO_LIVE("default_time_to_live");
+
+        private final String key;
+
+        TableProperty(String key)
+        {
+            this.key = key;
+        }
+
+        public String getKey()
+        {
+            return key;
+        }
     }
 }

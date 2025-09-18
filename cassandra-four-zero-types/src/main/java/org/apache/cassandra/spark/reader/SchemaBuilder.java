@@ -70,6 +70,7 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.complex.CqlFrozen;
 import org.apache.cassandra.spark.data.complex.CqlUdt;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.utils.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -488,11 +489,11 @@ public class SchemaBuilder
     {
         Map<String, String> properties = new HashMap<>();
         // Serializable allowed table parameters
-        properties.put(CqlTable.TableProperty.CDC.getKey(), "" + metadata.params.cdc);
-        properties.put(CqlTable.TableProperty.MIN_INDEX_INTERVAL.getKey(), "" + metadata.params.minIndexInterval);
-        properties.put(CqlTable.TableProperty.MAX_INDEX_INTERVAL.getKey(), "" + metadata.params.maxIndexInterval);
-        properties.put(CqlTable.TableProperty.BLOOM_FILTER_FP_CHANCE.getKey(), "" + metadata.params.bloomFilterFpChance);
-        properties.put(CqlTable.TableProperty.DEFAULT_TIME_TO_LIVE.getKey(), "" + metadata.params.defaultTimeToLive);
+        properties.put(CqlUtils.TableProperty.CDC.getKey(), "" + metadata.params.cdc);
+        properties.put(CqlUtils.TableProperty.MIN_INDEX_INTERVAL.getKey(), "" + metadata.params.minIndexInterval);
+        properties.put(CqlUtils.TableProperty.MAX_INDEX_INTERVAL.getKey(), "" + metadata.params.maxIndexInterval);
+        properties.put(CqlUtils.TableProperty.BLOOM_FILTER_FP_CHANCE.getKey(), "" + metadata.params.bloomFilterFpChance);
+        properties.put(CqlUtils.TableProperty.DEFAULT_TIME_TO_LIVE.getKey(), "" + metadata.params.defaultTimeToLive);
         return properties;
     }
 
