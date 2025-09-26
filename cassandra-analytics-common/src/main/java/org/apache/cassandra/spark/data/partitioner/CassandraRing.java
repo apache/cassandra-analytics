@@ -109,6 +109,21 @@ public class CassandraRing implements Serializable
     public CassandraRing(Partitioner partitioner,
                          String keyspace,
                          ReplicationFactor replicationFactor,
+                         List<CassandraInstance> instances,
+                         RangeMap<BigInteger, List<CassandraInstance>> replicas,
+                         Multimap<CassandraInstance, Range<BigInteger>> tokenRangeMap)
+    {
+        this.partitioner = partitioner;
+        this.keyspace = keyspace;
+        this.replicationFactor = replicationFactor;
+        this.instances = instances;
+        this.replicas = replicas;
+        this.tokenRangeMap = tokenRangeMap;
+    }
+
+    public CassandraRing(Partitioner partitioner,
+                         String keyspace,
+                         ReplicationFactor replicationFactor,
                          Collection<CassandraInstance> instances)
     {
         this.partitioner = partitioner;

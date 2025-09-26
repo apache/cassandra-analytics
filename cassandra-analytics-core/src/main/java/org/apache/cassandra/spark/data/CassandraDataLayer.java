@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -50,7 +51,11 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
+import com.google.common.collect.RangeMap;
+import com.google.common.collect.TreeRangeMap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +67,7 @@ import o.a.c.sidecar.client.shaded.common.response.ListSnapshotFilesResponse;
 import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.common.response.RingResponse;
 import o.a.c.sidecar.client.shaded.common.response.SchemaResponse;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.BigNumberConfigImpl;
@@ -300,7 +306,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         udts.forEach(udt -> LOGGER.info("Adding schema UDT: '{}'", udt));
 
         cqlTable = bridge().buildSchema(createStmt, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
-        CassandraRing ring = createCassandraRingFromRing(partitioner, replicationFactor, ringFuture.get());
+
+        CompletableFuture<TokenRangeReplicasResponse> tokenRangeReplicasFuture = sidecar.tokenRangeReplicas(
+            new ArrayList<>(clusterConfig), maybeQuotedKeyspace);
+        CassandraRing ring = createCassandraRingFromTokenRangeReplicas(partitioner, replicationFactor, ringFuture.get(), tokenRangeReplicasFuture.get());
 
         int effectiveNumberOfCores = sizingFuture.get();
         tokenPartitioner = new TokenPartitioner(ring, options.defaultParallelism(), effectiveNumberOfCores);
@@ -654,6 +663,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
     /* Internal Cassandra SSTable */
 
+    // TODO(andrew.johnson): Remove
     @VisibleForTesting
     public CassandraRing createCassandraRingFromRing(Partitioner partitioner,
                                                      ReplicationFactor replicationFactor,
@@ -664,7 +674,72 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                                   .filter(status -> datacenter == null || datacenter.equalsIgnoreCase(status.datacenter()))
                                                   .map(status -> new CassandraInstance(status.token(), status.fqdn(), status.datacenter()))
                                                   .collect(Collectors.toList());
+
         return new CassandraRing(partitioner, keyspace, replicationFactor, instances);
+    }
+
+    @VisibleForTesting
+    public CassandraRing createCassandraRingFromTokenRangeReplicas(Partitioner partitioner,
+                                                     ReplicationFactor replicationFactor,
+                                                     RingResponse ring,
+                                                     TokenRangeReplicasResponse tokenRangeReplicas)
+    {
+        List<CassandraInstance> instances = new ArrayList<>();
+        Map<String, CassandraInstance> addressAndPortToInstance = new HashMap<>();
+
+        // Map of Token Ranges to Read Replicas
+        RangeMap<BigInteger, List<CassandraInstance>> replicas = TreeRangeMap.create();
+
+        // Map of Instances -> Owned Token Ranges
+        Multimap<CassandraInstance, Range<BigInteger>> tokenRangeMap = ArrayListMultimap.create();
+
+        ring.stream()
+                .filter(status -> datacenter == null || datacenter.equalsIgnoreCase(status.datacenter()))
+                .sorted(Comparator.comparing(instance -> new BigInteger(instance.token())))
+                .forEach(ringEntry ->
+                {
+                    CassandraInstance instance = new CassandraInstance(ringEntry.token(), ringEntry.fqdn(), ringEntry.datacenter());
+                    instances.add(instance);
+                    addressAndPortToInstance.put(String.format("%s:%d", ringEntry.address(), ringEntry.port()), instance);
+                });
+
+        tokenRangeReplicas.readReplicas()
+                .forEach(replicaInfo ->
+                {
+                    BigInteger rangeStart = new BigInteger(replicaInfo.start());
+                    BigInteger rangeEnd = new BigInteger(replicaInfo.end());
+                    Range<BigInteger> range = Range.openClosed(rangeStart, rangeEnd);
+
+                    List<CassandraInstance> instancesForRange = replicaInfo.replicasByDatacenter()
+                            .get(datacenter)
+                            .stream()
+                            .map(addressAndPortToInstance::get)
+                            .collect(Collectors.toList());
+
+                    replicas.put(range, instancesForRange);
+
+                    // If the range is up-to MAX_TOKEN and there's no instance which owns MAX_TOKEN
+                    // in the ring, then assign the owner of this range to the instance with the smallest
+                    // MAX_TOKEN to account for wraparound.
+                    CassandraInstance tokenOwner;
+                    if (rangeEnd.equals(partitioner.maxToken()) && instances.stream().noneMatch(x -> new BigInteger(x.token()).equals(partitioner.maxToken())))
+                    {
+                        tokenOwner = instances.stream()
+                                .min(Comparator.comparing(instance -> new BigInteger(instance.token())))
+                                .get();
+                    }
+                    else
+                    {
+                        tokenOwner = instancesForRange.stream()
+                                .filter(instance -> new BigInteger(instance.token()).equals(rangeEnd))
+                                .findFirst()
+                                .get();
+                    }
+
+                    tokenRangeMap.put(tokenOwner, range);
+                });
+
+        return new CassandraRing(partitioner, keyspace, replicationFactor, instances, replicas, tokenRangeMap);
     }
 
     // Startup Validation
