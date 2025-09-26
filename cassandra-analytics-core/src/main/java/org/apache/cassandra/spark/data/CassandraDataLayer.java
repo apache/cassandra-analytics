@@ -24,18 +24,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
@@ -685,7 +674,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                                      TokenRangeReplicasResponse tokenRangeReplicas)
     {
         List<CassandraInstance> instances = new ArrayList<>();
-        Map<String, CassandraInstance> addressAndPortToInstance = new HashMap<>();
+        Map<String, List<CassandraInstance>> addressAndPortToInstances = new HashMap<>();
 
         // Token Range -> Read replicas for range
         RangeMap<BigInteger, List<CassandraInstance>> replicas = TreeRangeMap.create();
@@ -698,8 +687,11 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 .sorted(Comparator.comparing(instance -> new BigInteger(instance.token())))
                 .forEach(ringEntry -> {
                     CassandraInstance instance = new CassandraInstance(ringEntry.token(), ringEntry.fqdn(), ringEntry.datacenter());
+                    String addressAndPort = String.format("%s:%d", ringEntry.address(), ringEntry.port());
+
                     instances.add(instance);
-                    addressAndPortToInstance.put(String.format("%s:%d", ringEntry.address(), ringEntry.port()), instance);
+                    addressAndPortToInstances.putIfAbsent(addressAndPort, new ArrayList<>());
+                    addressAndPortToInstances.get(addressAndPort).add(instance);
                 });
 
         tokenRangeReplicas.readReplicas()
@@ -707,14 +699,14 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                     BigInteger rangeStart = new BigInteger(replicaInfo.start());
                     BigInteger rangeEnd = new BigInteger(replicaInfo.end());
                     Range<BigInteger> range = Range.openClosed(rangeStart, rangeEnd);
+                    List<String> replicasForRange = replicaInfo.replicasByDatacenter().get(datacenter);
 
-                    List<CassandraInstance> instancesForRange = replicaInfo.replicasByDatacenter()
-                            .get(datacenter)
-                            .stream()
-                            .map(addressAndPortToInstance::get)
-                            .collect(Collectors.toList());
-
-                    replicas.put(range, instancesForRange);
+                    // This isn't correct. Because we have multiple instances per Cassandra node when using
+                    // num_tokens > 1, it means that replicas either maps to all instances or a single one.
+                    // For now taking the first, but this needs to be changed.
+                    replicas.put(range, replicasForRange.stream()
+                            .map(replica -> addressAndPortToInstances.get(replica).get(0))
+                            .collect(Collectors.toList()));
 
                     // If the range end is equal to MAX_TOKEN and the token of the last instance is
                     // not equal MAX_TOKEN, then the owner of this range should be the instance with
@@ -726,7 +718,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                     }
                     else
                     {
-                        tokenOwner = instancesForRange.stream()
+                        tokenOwner = replicasForRange.stream()
+                                .map(addressAndPortToInstances::get)
+                                .flatMap(Collection::stream)
                                 .filter(instance -> new BigInteger(instance.token()).equals(rangeEnd))
                                 .findFirst()
                                 .get();
