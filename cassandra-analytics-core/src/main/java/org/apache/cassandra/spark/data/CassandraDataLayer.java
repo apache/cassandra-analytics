@@ -701,13 +701,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                     Range<BigInteger> range = Range.openClosed(rangeStart, rangeEnd);
                     List<String> replicasForRange = replicaInfo.replicasByDatacenter().get(datacenter);
 
-                    // This isn't correct. Because we have multiple instances per Cassandra node when using
-                    // num_tokens > 1, it means that replicas either maps to all instances or a single one.
-                    // For now taking the first, but this needs to be changed.
-                    replicas.put(range, replicasForRange.stream()
-                            .map(replica -> addressAndPortToInstances.get(replica).get(0))
-                            .collect(Collectors.toList()));
-
                     // If the range end is equal to MAX_TOKEN and the token of the last instance is
                     // not equal MAX_TOKEN, then the owner of this range should be the instance with
                     // the smallest token. Otherwise, find the owner based on token equality.
@@ -728,6 +721,27 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
                     tokenRangeMap.put(tokenOwner, range);
                 });
+
+        // This has been extracted from CassandraRing.addReplica, however I'm not
+        // sure if it's applicable or correct when using vnodes. Rather than mapping
+        // Ranges to CassandraInstance which includes token details, the mapping should
+        // be Ranges to CassandraNode with either all tokens or none.
+        replicas.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), Collections.emptyList());
+        tokenRangeMap.asMap().forEach((instance, ranges) -> {
+            ranges.forEach(range -> {
+                // addReplica(instance, range, replicas)
+                RangeMap<BigInteger, List<CassandraInstance>> replicaRanges = replicas.subRangeMap(range);
+                RangeMap<BigInteger, List<CassandraInstance>> mappingsToAdd = TreeRangeMap.create();
+
+                replicaRanges.asMapOfRanges().forEach((key, value) -> {
+                    List<CassandraInstance> replicaInstances = new ArrayList<>(value);
+                    replicaInstances.add(instance);
+                    mappingsToAdd.put(key, replicaInstances);
+                });
+
+                replicas.putAll(mappingsToAdd);
+            });
+        });
 
         return new CassandraRing(partitioner, keyspace, replicationFactor, instances, replicas, tokenRangeMap);
     }
