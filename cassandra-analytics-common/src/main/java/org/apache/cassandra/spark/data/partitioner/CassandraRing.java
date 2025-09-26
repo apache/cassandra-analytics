@@ -31,9 +31,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
-import java.util.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
@@ -126,7 +126,7 @@ public class CassandraRing implements Serializable
             // Find the owner of this range
             CassandraInstance tokenOwner;
 
-            if (range.upperEndpoint().equals(partitioner.maxToken())
+            if ((range.upperEndpoint().compareTo(partitioner.maxToken()) > 0)
                     && !new BigInteger(this.instances.get(this.instances.size() - 1).token()).equals(partitioner.maxToken()))
             {
                 tokenOwner = this.instances.get(0);
