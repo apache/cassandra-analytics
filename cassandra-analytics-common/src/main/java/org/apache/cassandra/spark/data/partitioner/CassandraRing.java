@@ -126,7 +126,7 @@ public class CassandraRing implements Serializable
             // Find the owner of this range
             CassandraInstance tokenOwner;
 
-            if ((range.upperEndpoint().compareTo(partitioner.maxToken()) > 0)
+            if ((range.upperEndpoint().compareTo(partitioner.maxToken()) >= 0)
                     && !new BigInteger(this.instances.get(this.instances.size() - 1).token()).equals(partitioner.maxToken()))
             {
                 tokenOwner = this.instances.get(0);
