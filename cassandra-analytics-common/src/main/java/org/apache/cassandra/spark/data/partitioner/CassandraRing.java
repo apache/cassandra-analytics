@@ -109,16 +109,40 @@ public class CassandraRing implements Serializable
     public CassandraRing(Partitioner partitioner,
                          String keyspace,
                          ReplicationFactor replicationFactor,
-                         List<CassandraInstance> instances,
-                         RangeMap<BigInteger, List<CassandraInstance>> replicas,
-                         Multimap<CassandraInstance, Range<BigInteger>> tokenRangeMap)
+                         Collection<CassandraInstance> instances,
+                         Map<Range<BigInteger>, List<String>> rangeToReplicas)
     {
         this.partitioner = partitioner;
         this.keyspace = keyspace;
         this.replicationFactor = replicationFactor;
-        this.instances = instances;
-        this.replicas = replicas;
-        this.tokenRangeMap = tokenRangeMap;
+        this.instances = instances.stream()
+                .sorted(Comparator.comparing(instance -> new BigInteger(instance.token())))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        replicas = TreeRangeMap.create();
+        tokenRangeMap = ArrayListMultimap.create();
+
+        rangeToReplicas.forEach((range, rangeReplicas) -> {
+            // Find the owner of this range
+            CassandraInstance tokenOwner;
+
+            if (range.upperEndpoint().equals(partitioner.maxToken())
+                    && !new BigInteger(this.instances.get(this.instances.size() - 1).token()).equals(partitioner.maxToken()))
+            {
+                tokenOwner = this.instances.get(0);
+            }
+            else
+            {
+                tokenOwner = this.instances.stream()
+                        .filter(instance -> new BigInteger(instance.token()).equals(range.upperEndpoint()))
+                        .findFirst()
+                        .get();
+            }
+            tokenRangeMap.put(tokenOwner, range);
+        });
+
+        replicas.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), Collections.emptyList());
+        tokenRangeMap.asMap().forEach((instance, ranges) -> ranges.forEach(range -> addReplica(instance, range, replicas)));
     }
 
     public CassandraRing(Partitioner partitioner,
