@@ -687,10 +687,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         List<CassandraInstance> instances = new ArrayList<>();
         Map<String, CassandraInstance> addressAndPortToInstance = new HashMap<>();
 
-        // Map of Token Ranges to Read Replicas
+        // Token Range -> Read replicas for range
         RangeMap<BigInteger, List<CassandraInstance>> replicas = TreeRangeMap.create();
 
-        // Map of Instances -> Owned Token Ranges
+        // Instance -> Ranges owned by instance
         Multimap<CassandraInstance, Range<BigInteger>> tokenRangeMap = ArrayListMultimap.create();
 
         ring.stream()
@@ -716,15 +716,13 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
                     replicas.put(range, instancesForRange);
 
-                    // If the range is up-to MAX_TOKEN and there's no instance which owns MAX_TOKEN
-                    // in the ring, then assign the owner of this range to the instance with the smallest
-                    // MAX_TOKEN to account for wraparound.
+                    // If the range end is equal to MAX_TOKEN and the token of the last instance is
+                    // not equal MAX_TOKEN, then the owner of this range should be the instance with
+                    // the smallest token. Otherwise, find the owner based on token equality.
                     CassandraInstance tokenOwner;
-                    if (rangeEnd.equals(partitioner.maxToken()) && instances.stream().noneMatch(x -> new BigInteger(x.token()).equals(partitioner.maxToken())))
+                    if (rangeEnd.equals(partitioner.maxToken()) && !new BigInteger(instances.get(instances.size() - 1).token()).equals(partitioner.maxToken()))
                     {
-                        tokenOwner = instances.stream()
-                                .min(Comparator.comparing(instance -> new BigInteger(instance.token())))
-                                .get();
+                        tokenOwner = instances.get(0);
                     }
                     else
                     {
