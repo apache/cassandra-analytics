@@ -696,16 +696,14 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         ring.stream()
                 .filter(status -> datacenter == null || datacenter.equalsIgnoreCase(status.datacenter()))
                 .sorted(Comparator.comparing(instance -> new BigInteger(instance.token())))
-                .forEach(ringEntry ->
-                {
+                .forEach(ringEntry -> {
                     CassandraInstance instance = new CassandraInstance(ringEntry.token(), ringEntry.fqdn(), ringEntry.datacenter());
                     instances.add(instance);
                     addressAndPortToInstance.put(String.format("%s:%d", ringEntry.address(), ringEntry.port()), instance);
                 });
 
         tokenRangeReplicas.readReplicas()
-                .forEach(replicaInfo ->
-                {
+                .forEach(replicaInfo -> {
                     BigInteger rangeStart = new BigInteger(replicaInfo.start());
                     BigInteger rangeEnd = new BigInteger(replicaInfo.end());
                     Range<BigInteger> range = Range.openClosed(rangeStart, rangeEnd);
