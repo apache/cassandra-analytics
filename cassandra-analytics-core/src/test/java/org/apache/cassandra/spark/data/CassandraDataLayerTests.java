@@ -19,14 +19,20 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.math.BigInteger;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Range;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import static org.apache.cassandra.spark.data.CassandraDataLayer.dcReplicasByRange;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CassandraDataLayerTests
@@ -63,5 +69,37 @@ class CassandraDataLayerTests
         .isEqualTo(expectedClearSnapshotStrategy.shouldClearOnCompletion());
         assertThat(clearSnapshotStrategy.hasTTL()).isEqualTo(expectedClearSnapshotStrategy.hasTTL());
         assertThat(clearSnapshotStrategy.ttl()).isEqualTo(expectedClearSnapshotStrategy.ttl());
+    }
+
+    @Test
+    void testDcReplicasByRangeMultiDC()
+    {
+        List<TokenRangeReplicasResponse.ReplicaInfo> readReplicas = List.of(
+                new TokenRangeReplicasResponse.ReplicaInfo("-5000", "5000",
+                        Map.of(
+                            "dc1", List.of("localhost1:9000", "localhost2:9001", "localhost3:9002"),
+                            "dc2", List.of("localhost4:9003"))));
+
+        Map<String, TokenRangeReplicasResponse.ReplicaMetadata> replicaMetadata = Map.of(
+                "localhost1:9000", new TokenRangeReplicasResponse.ReplicaMetadata("Normal", "Up", "replica1-1", "localhost1", 9000, "dc1"),
+                "localhost2:9001", new TokenRangeReplicasResponse.ReplicaMetadata("Normal", "Up", "replica1-2", "localhost2", 9001, "dc1"),
+                "localhost3:9002", new TokenRangeReplicasResponse.ReplicaMetadata("Normal", "Up", "replica1-3", "localhost3", 9002, "dc1"),
+                "localhost4:9003", new TokenRangeReplicasResponse.ReplicaMetadata("Normal", "Up", "replica2-1", "localhost4", 9003, "dc2")
+        );
+
+        TokenRangeReplicasResponse response =
+                new TokenRangeReplicasResponse(Collections.EMPTY_LIST, readReplicas, replicaMetadata);
+
+        Map<Range<BigInteger>, List<String>> expectedDc1 = Map.of(
+                Range.openClosed(new BigInteger("-5000"), new BigInteger("5000")), List.of("replica1-1", "replica1-2", "replica1-3"));
+        Map<Range<BigInteger>, List<String>> actualDc1 = dcReplicasByRange(response, "dc1");
+
+        assertThat(actualDc1).isEqualTo(expectedDc1);
+
+        Map<Range<BigInteger>, List<String>> expectedDc2 = Map.of(
+                Range.openClosed(new BigInteger("-5000"), new BigInteger("5000")), List.of("replica2-1"));
+        Map<Range<BigInteger>, List<String>> actualDc2 = dcReplicasByRange(response, "dc2");
+
+        assertThat(actualDc2).isEqualTo(expectedDc2);
     }
 }

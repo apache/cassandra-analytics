@@ -679,12 +679,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                                      RingResponse ring,
                                                      TokenRangeReplicasResponse tokenRangeReplicas)
     {
-        Map<Range<BigInteger>, List<String>> replicas = tokenRangeReplicas.readReplicas()
-                .stream()
-                .map(replicaInfo -> Map.entry(
-                        Range.openClosed(new BigInteger(replicaInfo.start()), new BigInteger(replicaInfo.end())),
-                        replicaInfo.replicasByDatacenter().get(datacenter)))
-                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+        Map<Range<BigInteger>, List<String>> replicas = dcReplicasByRange(tokenRangeReplicas, datacenter);
 
         Collection<CassandraInstance> instances = ring
                 .stream()
@@ -1088,5 +1083,33 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         {
             requestedFeatures.set(index, featureAlias);
         }
+    }
+
+    @VisibleForTesting
+    static Map<Range<BigInteger>, List<String>> dcReplicasByRange(TokenRangeReplicasResponse tokenRangeReplicas, String datacenter)
+    {
+        Map<String, String> fqdnByAddressAndPort = new HashMap<>();
+        Map<Range<BigInteger>, List<String>> replicas = new HashMap<>();
+
+        tokenRangeReplicas.replicaMetadata().forEach((addressAndPort, metadata) -> {
+            fqdnByAddressAndPort.putIfAbsent(addressAndPort, metadata.fqdn());
+        });
+
+        tokenRangeReplicas.readReplicas().forEach(replicaInfo -> {
+            Range<BigInteger> range = Range.openClosed(new BigInteger(replicaInfo.start()), new BigInteger(replicaInfo.end()));
+            List<String> dcReplicas = replicaInfo.replicasByDatacenter()
+                    .entrySet()
+                    .stream()
+                    .filter(entry -> datacenter.equalsIgnoreCase(entry.getKey()))
+                    .findFirst()
+                    .get()
+                    .getValue()
+                    .stream().map(fqdnByAddressAndPort::get)
+                    .collect(Collectors.toList());
+
+            replicas.put(range, dcReplicas);
+        });
+
+        return replicas;
     }
 }

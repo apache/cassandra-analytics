@@ -32,7 +32,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
@@ -106,6 +108,32 @@ public class CassandraRing implements Serializable
         replicaMap.putAll(mappingsToAdd);
     }
 
+    /**
+     * Find the CassandraInstance which owns a given token from a list of
+     * __sorted__ CassandraInstances. If the token is greater than or equal to
+     * the partitioner max token then the CassandraInstance with the smallest
+     * token value is returned, assuming token ring wraparound.
+     */
+    private static int getTokenOwnerIdx(List<CassandraInstance> instances, Partitioner partitioner, BigInteger token)
+    {
+        OptionalInt maybeTokenOwnerIdx = IntStream.range(0, instances.size())
+                .filter(idx -> new BigInteger(instances.get(idx).token()).equals(token))
+                .findFirst();
+
+        if (maybeTokenOwnerIdx.isPresent())
+        {
+            return maybeTokenOwnerIdx.getAsInt();
+        }
+        else if (token.compareTo(partitioner.maxToken()) >= 0)
+        {
+            return 0;
+        }
+        else
+        {
+            throw new RuntimeException(String.format("Could not find instance for token: %s", token));
+        }
+    }
+
     public CassandraRing(Partitioner partitioner,
                          String keyspace,
                          ReplicationFactor replicationFactor,
@@ -119,26 +147,24 @@ public class CassandraRing implements Serializable
                 .sorted(Comparator.comparing(instance -> new BigInteger(instance.token())))
                 .collect(Collectors.toCollection(ArrayList::new));
 
+        // replicas is a mapping of token ranges to CassandraInstances
+        // which are replicas for that range
         replicas = TreeRangeMap.create();
+
+        // tokenRangeMap is mapping of CassandraInstances to token ranges
+        // that they own or are a replica for
         tokenRangeMap = ArrayListMultimap.create();
 
         rangeToReplicas.forEach((range, rangeReplicas) -> {
-            // Find the owner of this range
-            CassandraInstance tokenOwner;
+            int tokenOwnerIdx = getTokenOwnerIdx(this.instances, partitioner, range.upperEndpoint());
 
-            if ((range.upperEndpoint().compareTo(partitioner.maxToken()) >= 0)
-                    && !new BigInteger(this.instances.get(this.instances.size() - 1).token()).equals(partitioner.maxToken()))
-            {
-                tokenOwner = this.instances.get(0);
-            }
-            else
-            {
-                tokenOwner = this.instances.stream()
-                        .filter(instance -> new BigInteger(instance.token()).equals(range.upperEndpoint()))
+            // Find following closest CassandraInstance for each replica and update tokenRangeMap
+            rangeReplicas.forEach(replica ->
+                    IntStream.range(0, this.instances.size())
+                        .map(idx -> (idx + tokenOwnerIdx) % this.instances.size())
+                        .filter(idx -> this.instances.get(idx).nodeName().equals(replica))
                         .findFirst()
-                        .get();
-            }
-            tokenRangeMap.put(tokenOwner, range);
+                        .ifPresent(idx -> tokenRangeMap.get(this.instances.get(idx)).add(range)));
         });
 
         replicas.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), Collections.emptyList());
