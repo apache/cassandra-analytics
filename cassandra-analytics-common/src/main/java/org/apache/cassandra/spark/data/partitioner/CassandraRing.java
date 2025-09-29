@@ -75,6 +75,7 @@ public class CassandraRing implements Serializable
     private String keyspace;
     private ReplicationFactor replicationFactor;
     private List<CassandraInstance> instances;
+    private Map<Range<BigInteger>, List<String>> rangeToReplicas;
 
     private transient RangeMap<BigInteger, List<CassandraInstance>> replicas;
     private transient Multimap<CassandraInstance, Range<BigInteger>> tokenRangeMap;
@@ -146,29 +147,9 @@ public class CassandraRing implements Serializable
         this.instances = instances.stream()
                 .sorted(Comparator.comparing(instance -> new BigInteger(instance.token())))
                 .collect(Collectors.toCollection(ArrayList::new));
+        this.rangeToReplicas = rangeToReplicas;
 
-        // replicas is a mapping of token ranges to CassandraInstances
-        // which are replicas for that range
-        replicas = TreeRangeMap.create();
-
-        // tokenRangeMap is mapping of CassandraInstances to token ranges
-        // that they own or are a replica for
-        tokenRangeMap = ArrayListMultimap.create();
-
-        rangeToReplicas.forEach((range, rangeReplicas) -> {
-            int tokenOwnerIdx = getTokenOwnerIdx(this.instances, partitioner, range.upperEndpoint());
-
-            // Find following closest CassandraInstance for each replica and update tokenRangeMap
-            rangeReplicas.forEach(replica ->
-                    IntStream.range(0, this.instances.size())
-                        .map(idx -> (idx + tokenOwnerIdx) % this.instances.size())
-                        .filter(idx -> this.instances.get(idx).nodeName().equals(replica))
-                        .findFirst()
-                        .ifPresent(idx -> tokenRangeMap.get(this.instances.get(idx)).add(range)));
-        });
-
-        replicas.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), Collections.emptyList());
-        tokenRangeMap.asMap().forEach((instance, ranges) -> ranges.forEach(range -> addReplica(instance, range, replicas)));
+        this.initWithRangeToReplicas();
     }
 
     public CassandraRing(Partitioner partitioner,
@@ -183,6 +164,32 @@ public class CassandraRing implements Serializable
                                   .sorted(Comparator.comparing(instance -> new BigInteger(instance.token())))
                                   .collect(Collectors.toCollection(ArrayList::new));
         this.init();
+    }
+
+    private void initWithRangeToReplicas()
+    {
+        // replicas is a mapping of token ranges to CassandraInstances
+        // which are replicas for that range
+        replicas = TreeRangeMap.create();
+
+        // tokenRangeMap is mapping of CassandraInstances to token ranges
+        // that they own or are a replica for
+        tokenRangeMap = ArrayListMultimap.create();
+
+        rangeToReplicas.forEach((range, rangeReplicas) -> {
+            int tokenOwnerIdx = getTokenOwnerIdx(this.instances, partitioner, range.upperEndpoint());
+
+            // Find following closest CassandraInstance for each replica and update tokenRangeMap
+            rangeReplicas.forEach(replica ->
+                    IntStream.range(0, this.instances.size())
+                            .map(idx -> (idx + tokenOwnerIdx) % this.instances.size())
+                            .filter(idx -> this.instances.get(idx).nodeName().equals(replica))
+                            .findFirst()
+                            .ifPresent(idx -> tokenRangeMap.get(this.instances.get(idx)).add(range)));
+        });
+
+        replicas.put(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), Collections.emptyList());
+        tokenRangeMap.asMap().forEach((instance, ranges) -> ranges.forEach(range -> addReplica(instance, range, replicas)));
     }
 
     private void init()
@@ -343,7 +350,25 @@ public class CassandraRing implements Serializable
         {
             this.instances.add(new CassandraInstance(in.readUTF(), in.readUTF(), in.readUTF()));
         }
-        this.init();
+
+        this.rangeToReplicas = new HashMap<>();
+        int numKeys = in.readShort();
+        for (int key = 0; key < numKeys; key++)
+        {
+            BigInteger rangeStart = new BigInteger(in.readUTF());
+            BigInteger rangeEnd = new BigInteger(in.readUTF());
+            List<String> replicas = new ArrayList<>();
+
+            int numReplicas = in.readShort();
+            for (int replica = 0; replica < numReplicas; replica++)
+            {
+                replicas.add(in.readUTF());
+            }
+
+            this.rangeToReplicas.put(Range.openClosed(rangeStart, rangeEnd), replicas);
+        }
+
+        this.initWithRangeToReplicas();
     }
 
     private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException
@@ -368,6 +393,19 @@ public class CassandraRing implements Serializable
             out.writeUTF(instance.nodeName());
             out.writeUTF(instance.dataCenter());
         }
+
+        out.writeShort(this.rangeToReplicas.size());
+        for (Map.Entry<Range<BigInteger>, List<String>> entry : rangeToReplicas.entrySet())
+        {
+            out.writeUTF(entry.getKey().lowerEndpoint().toString());
+            out.writeUTF(entry.getKey().upperEndpoint().toString());
+
+            out.writeShort(entry.getValue().size());
+            for (String replica : entry.getValue())
+            {
+                out.writeUTF(replica);
+            }
+        }
     }
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CassandraRing>
@@ -379,6 +417,7 @@ public class CassandraRing implements Serializable
             out.writeString(ring.keyspace);
             kryo.writeObject(out, ring.replicationFactor);
             kryo.writeObject(out, ring.instances);
+            kryo.writeObject(out, ring.rangeToReplicas);
         }
 
         @Override
@@ -389,7 +428,8 @@ public class CassandraRing implements Serializable
                                                         : Partitioner.Murmur3Partitioner,
                                      in.readString(),
                                      kryo.readObject(in, ReplicationFactor.class),
-                                     kryo.readObject(in, ArrayList.class));
+                                     kryo.readObject(in, ArrayList.class),
+                                     kryo.readObject(in, Map.class));
         }
     }
 }
