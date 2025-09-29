@@ -56,7 +56,7 @@ class CassandraAnalyticsSimpleTest extends SharedClusterSparkIntegrationTestBase
 
     @ParameterizedTest
     @MethodSource("options")
-    @Timeout(value = 90) // 30 seconds
+    @Timeout(value = 30) // 30 seconds
     void runSampleJob(Integer ttl, Long timestamp, QualifiedName tableName)
     {
         Map<String, String> writerOptions = new HashMap<>();
