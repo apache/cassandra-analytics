@@ -88,6 +88,7 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
 import org.apache.cassandra.spark.sparksql.LastModifiedTimestampDecorator;
 import org.apache.cassandra.spark.sparksql.RowBuilder;
+import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.ReaderTimeProvider;
 import org.apache.cassandra.spark.utils.ScalaFunctions;
@@ -144,6 +145,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected transient SidecarClient sidecar;
 
     private SslConfig sslConfig;
+    private TimeRangeFilter sstableTimeRangeFilter;
 
     @VisibleForTesting
     transient Map<String, SidecarInstance> sidecarInstanceMap;
@@ -167,6 +169,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         this.useIncrementalRepair = options.useIncrementalRepair();
         this.lastModifiedTimestampField = options.lastModifiedTimestampField();
         this.requestedFeatures = options.requestedFeatures();
+        this.sstableTimeRangeFilter = options.sstableTimeRangeFilter;
     }
 
     // For serialization
@@ -193,7 +196,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                  @Nullable String lastModifiedTimestampField,
                                  List<SchemaFeature> requestedFeatures,
                                  @NotNull Map<String, ReplicationFactor> rfMap,
-                                 TimeProvider timeProvider)
+                                 TimeProvider timeProvider,
+                                 TimeRangeFilter sstableTimeRangeFilter)
     {
         super(consistencyLevel, datacenter);
         this.snapshotName = snapshotName;
@@ -219,6 +223,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
         this.rfMap = rfMap;
         this.timeProvider = timeProvider;
+        this.sstableTimeRangeFilter = sstableTimeRangeFilter;
         this.maybeQuoteKeyspaceAndTable();
         this.initSidecarClient();
         this.initInstanceMap();
@@ -498,6 +503,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     }
 
     @Override
+    public List<TimeRangeFilter> sstableTimeRangeFilters()
+    {
+        return sstableTimeRangeFilter == null ? List.of() : List.of(sstableTimeRangeFilter);
+    }
+
+    @Override
     public CqlTable cqlTable()
     {
         if (cqlTable == null)
@@ -748,6 +759,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
         this.rfMap = (Map<String, ReplicationFactor>) in.readObject();
         this.timeProvider = new ReaderTimeProvider(in.readInt());
+        this.sstableTimeRangeFilter = (TimeRangeFilter) in.readObject();
         this.maybeQuoteKeyspaceAndTable();
         this.initSidecarClient();
         this.initInstanceMap();
@@ -793,6 +805,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
         out.writeObject(this.rfMap);
         out.writeInt(timeProvider.referenceEpochInSeconds());
+        out.writeObject(this.sstableTimeRangeFilter);
     }
 
     private static void writeNullable(ObjectOutputStream out, @Nullable String string) throws IOException
@@ -868,6 +881,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             kryo.writeObject(out, listWrapper);
             kryo.writeObject(out, dataLayer.rfMap);
             out.writeInt(dataLayer.timeProvider.referenceEpochInSeconds());
+            kryo.writeObject(out, dataLayer.sstableTimeRangeFilter);
         }
 
         @SuppressWarnings("unchecked")
@@ -909,7 +923,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             in.readString(),
             kryo.readObject(in, SchemaFeaturesListWrapper.class).toList(),
             kryo.readObject(in, HashMap.class),
-            new ReaderTimeProvider(in.readInt()));
+            new ReaderTimeProvider(in.readInt()),
+            kryo.readObject(in, TimeRangeFilter.class));
         }
 
         // Wrapper only used internally for Kryo serialization/deserialization

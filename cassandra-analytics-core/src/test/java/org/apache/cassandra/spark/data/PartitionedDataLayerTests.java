@@ -49,7 +49,6 @@ import org.apache.cassandra.spark.data.partitioner.MultipleReplicasTests;
 import org.apache.cassandra.spark.data.partitioner.NotEnoughReplicasException;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
-import org.apache.cassandra.spark.reader.EmptyStreamScanner;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.utils.test.TestSchema;
@@ -303,8 +302,8 @@ public class PartitionedDataLayerTests extends VersionRunner
 
         // Filter does not fall in spark token range
         StreamScanner scanner = dataLayer.openCompactionScanner(partitionId,
-                                                                Collections.singletonList(filterOutsideRange));
-        assertThat(scanner).isInstanceOf(EmptyStreamScanner.class);
+                                                                Collections.singletonList(filterOutsideRange),
+                                                                List.of());
     }
 
     @SuppressWarnings("UnstableApiUsage")

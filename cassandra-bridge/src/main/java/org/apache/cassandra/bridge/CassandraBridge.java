@@ -61,6 +61,7 @@ import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.util.CompressionUtil;
 import org.jetbrains.annotations.NotNull;
@@ -88,6 +89,7 @@ public abstract class CassandraBridge
                                                                 @NotNull SSTablesSupplier ssTables,
                                                                 @Nullable SparkRangeFilter sparkRangeFilter,
                                                                 @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
+                                                                @NotNull List<TimeRangeFilter> timeRangeFilters,
                                                                 @Nullable PruneColumnFilter columnFilter,
                                                                 @NotNull TimeProvider timeProvider,
                                                                 boolean readIndexOffset,
@@ -583,9 +585,10 @@ public abstract class CassandraBridge
                                         @NotNull String keyspace,
                                         @NotNull String createStmt,
                                         @NotNull Set<SSTable> ssTables,
+                                        @NotNull List<TimeRangeFilter> timeRangeFilters,
                                         @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
     {
-        readStringPartitionKeys(partitioner, keyspace, createStmt, ssTables, null, null, null, rowConsumer);
+        readStringPartitionKeys(partitioner, keyspace, createStmt, ssTables, null, null, null, timeRangeFilters, rowConsumer);
     }
 
     /**
@@ -608,6 +611,7 @@ public abstract class CassandraBridge
                                         @Nullable TokenRange tokenRange,
                                         @Nullable List<List<String>> partitionKeys,
                                         @Nullable String[] pruneColumnFilter,
+                                        @NotNull List<TimeRangeFilter> timeRangeFilters,
                                         @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
     {
         readPartitionKeys(partitioner,
@@ -617,6 +621,7 @@ public abstract class CassandraBridge
                           tokenRange,
                           partitionKeys == null ? null : encodePartitionKeys(partitioner, keyspace, createStmt, partitionKeys),
                           pruneColumnFilter,
+                          timeRangeFilters,
                           rowConsumer);
     }
 
@@ -624,9 +629,10 @@ public abstract class CassandraBridge
                                   @NotNull String keyspace,
                                   @NotNull String createStmt,
                                   @NotNull Set<SSTable> ssTables,
+                                  @NotNull List<TimeRangeFilter> timeRangeFilters,
                                   @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
     {
-        readPartitionKeys(partitioner, keyspace, createStmt, ssTables, null, null, null, rowConsumer);
+        readPartitionKeys(partitioner, keyspace, createStmt, ssTables, null, null, null, timeRangeFilters, rowConsumer);
     }
 
     public void readPartitionKeys(@NotNull Partitioner partitioner,
@@ -636,9 +642,11 @@ public abstract class CassandraBridge
                                   @Nullable TokenRange tokenRange,
                                   @Nullable List<ByteBuffer> partitionKeys,
                                   @Nullable String[] pruneColumnFilter,
+                                  @NotNull List<TimeRangeFilter> timeRangeFilters,
                                   @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException
     {
-        readPartitionKeys(partitioner, keyspace, createStmt, new BasicSupplier(ssTables), tokenRange, partitionKeys, pruneColumnFilter, rowConsumer);
+        readPartitionKeys(partitioner, keyspace, createStmt, new BasicSupplier(ssTables), tokenRange, partitionKeys,
+                          pruneColumnFilter, timeRangeFilters, rowConsumer);
     }
 
     public abstract void readPartitionKeys(@NotNull Partitioner partitioner,
@@ -648,6 +656,7 @@ public abstract class CassandraBridge
                                            @Nullable TokenRange tokenRange,
                                            @Nullable List<ByteBuffer> partitionKeys,
                                            @Nullable String[] pruneColumnFilter,
+                                           @NotNull List<TimeRangeFilter> timeRangeFilters,
                                            @NotNull Consumer<Map<String, Object>> rowConsumer) throws IOException;
 
     // Kryo/Java (De-)Serialization

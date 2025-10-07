@@ -19,13 +19,20 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.params.ParameterizedTest;
@@ -35,9 +42,11 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.SchemaTests;
+import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static com.google.common.collect.BoundType.CLOSED;
 
 public class LocalDataLayerTests extends VersionRunner
 {
@@ -87,5 +96,99 @@ public class LocalDataLayerTests extends VersionRunner
         assertThat(dataLayer1).isNotEqualTo(new ArrayList<>());
         assertThat(dataLayer2).isEqualTo(dataLayer1);
         assertThat(dataLayer2.hashCode()).isEqualTo(dataLayer1.hashCode());
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testTimeRangeFilterFromOptions(CassandraBridge bridge)
+    {
+        Map<String, String> options = new HashMap<>();
+        options.put("version", bridge.getVersion().name());
+        options.put("partitioner", Partitioner.Murmur3Partitioner.name());
+        options.put("keyspace", "test_keyspace");
+        options.put("createstmt", SchemaTests.SCHEMA);
+        options.put("dirs", "/tmp/data1,/tmp/data2");
+        options.put("sstable_start_timestamp_micros", "1000");
+        options.put("sstable_end_timestamp_micros", "2000");
+
+        LocalDataLayer dataLayer = LocalDataLayer.from(options);
+
+        List<TimeRangeFilter> filters = dataLayer.sstableTimeRangeFilters();
+        assertThat(filters).hasSize(1);
+        assertThat(filters.get(0).range().lowerEndpoint()).isEqualTo(1000L);
+        assertThat(filters.get(0).range().upperEndpoint()).isEqualTo(2000L);
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSerializationWithTimeRangeFilter(CassandraBridge bridge) throws Exception
+    {
+        CassandraVersion version = bridge.getVersion();
+        TimeRangeFilter filter = TimeRangeFilter.create(1000L, 2000L);
+        LocalDataLayer dataLayer = new LocalDataLayer(
+            version,
+            Partitioner.Murmur3Partitioner,
+            "test_keyspace",
+            SchemaTests.SCHEMA,
+            Collections.emptySet(),
+            Collections.emptyList(),
+            false,
+            null,
+            filter,
+            "/tmp/data1", "/tmp/data2"
+        );
+
+        ByteArrayOutputStream baos = serialize(dataLayer);
+        LocalDataLayer deserialized = deserialize(baos);
+
+        List<TimeRangeFilter> filters = deserialized.sstableTimeRangeFilters();
+        assertThat(filters).hasSize(1);
+        assertThat(filters.get(0)).isEqualTo(filter);
+        assertThat(filters.get(0).range().lowerEndpoint()).isEqualTo(1000L);
+        assertThat(filters.get(0).range().upperEndpoint()).isEqualTo(2000L);
+        assertThat(filters.get(0).range().lowerBoundType()).isEqualTo(CLOSED);
+        assertThat(filters.get(0).range().upperBoundType()).isEqualTo(CLOSED);
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSerializationWithNullTimeRangeFilter(CassandraBridge bridge) throws Exception
+    {
+        CassandraVersion version = bridge.getVersion();
+        LocalDataLayer dataLayer = new LocalDataLayer(
+            version,
+            Partitioner.Murmur3Partitioner,
+            "test_keyspace",
+            SchemaTests.SCHEMA,
+            Collections.emptySet(),
+            Collections.emptyList(),
+            false,
+            null,
+            null,
+            "/tmp/data"
+        );
+
+        ByteArrayOutputStream baos = serialize(dataLayer);
+        LocalDataLayer deserialized = deserialize(baos);
+
+        assertThat(deserialized.sstableTimeRangeFilters()).isEmpty();
+    }
+
+    private ByteArrayOutputStream serialize(LocalDataLayer dataLayer) throws Exception
+    {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(dataLayer);
+        oos.close();
+        return baos;
+    }
+
+    private LocalDataLayer deserialize(ByteArrayOutputStream baos) throws Exception
+    {
+        ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+        ObjectInputStream ois = new ObjectInputStream(bais);
+        LocalDataLayer deserialized = (LocalDataLayer) ois.readObject();
+        ois.close();
+        return deserialized;
     }
 }

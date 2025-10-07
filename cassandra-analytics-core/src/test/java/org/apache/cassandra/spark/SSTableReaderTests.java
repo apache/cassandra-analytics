@@ -23,6 +23,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,6 +41,7 @@ import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
@@ -105,6 +107,7 @@ public class SSTableReaderTests
                                                                               ssTableSupplier,
                                                                               null,
                                                                               Collections.emptyList(),
+                                                                              List.of(),
                                                                               null,
                                                                               navigatableTimeProvider,
                                                                               false,
@@ -142,5 +145,162 @@ public class SSTableReaderTests
         qt()
         .forAll(TestUtils.partitioners())
         .checkAssert(partitioner -> runTest(partitioner, bridgeForTest, test));
+    }
+
+    // TimeRangeFilter Tests
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testTimeRangeFilterSkipsSSTablesOutsideRange(CassandraBridge bridge)
+    {
+        TestRunnable test = (partitioner, dir, bridgeInTest) -> {
+            TestSchema schema = TestSchema.builder(bridgeInTest)
+                                          .withPartitionKey("a", bridgeInTest.aInt())
+                                          .withColumn("b", bridgeInTest.aInt())
+                                          .build();
+
+            // Write SSTable with data
+            schema.writeSSTable(dir, bridgeInTest, partitioner, writer -> {
+                for (int i = 0; i < 10; i++)
+                {
+                    writer.write(i, i * 100);
+                }
+            });
+
+            // Wait to ensure timestamp advances
+            Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+            long currentTimestampMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()); // Convert to microseconds
+
+            assertThat(countSSTables(dir)).isEqualTo(1);
+
+            CqlTable table = schema.buildTable();
+            TestDataLayer dataLayer = new TestDataLayer(bridgeInTest,
+                getFileType(dir, FileType.DATA).collect(Collectors.toList()), table);
+            BasicSupplier ssTableSupplier = new BasicSupplier(dataLayer.listSSTables().collect(Collectors.toSet()));
+
+            // Create time range filter that excludes the SSTable (far in the future)
+            TimeRangeFilter futureFilter = TimeRangeFilter.create(
+                currentTimestampMicros + TimeUnit.SECONDS.toMicros(1000), // 1000 seconds in the future
+                currentTimestampMicros + TimeUnit.SECONDS.toMicros(1000)
+            );
+
+            int rowCount = 0;
+            try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(
+                    table, partitioner, ssTableSupplier, null, Collections.emptyList(),
+                    List.of(futureFilter), null, TimeProvider.DEFAULT,
+                    false, false, Stats.DoNothingStats.INSTANCE))
+            {
+                while (scanner.next())
+                {
+                    rowCount++;
+                }
+            }
+
+            // Should read 0 rows because SSTable is outside time range
+            assertThat(rowCount).isEqualTo(0);
+        };
+
+        qt().forAll(TestUtils.partitioners())
+            .checkAssert(partitioner -> runTest(partitioner, bridge, test));
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testTimeRangeFilterIncludesSSTablesWithinRange(CassandraBridge bridge)
+    {
+        TestRunnable test = (partitioner, dir, bridgeInTest) -> {
+            TestSchema schema = TestSchema.builder(bridgeInTest)
+                                          .withPartitionKey("a", bridgeInTest.aInt())
+                                          .withColumn("b", bridgeInTest.aInt())
+                                          .build();
+
+            long beforeWriteMicros = System.currentTimeMillis() * 1000; // Microseconds
+
+            // Write SSTable with data
+            schema.writeSSTable(dir, bridgeInTest, partitioner, writer -> {
+                for (int i = 0; i < 10; i++)
+                {
+                    writer.write(i, i * 100);
+                }
+            });
+
+            Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
+            long afterWriteMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
+
+            assertThat(countSSTables(dir)).isEqualTo(1);
+
+            CqlTable table = schema.buildTable();
+            TestDataLayer dataLayer = new TestDataLayer(bridgeInTest,
+                getFileType(dir, FileType.DATA).collect(Collectors.toList()), table);
+            BasicSupplier ssTableSupplier = new BasicSupplier(dataLayer.listSSTables().collect(Collectors.toSet()));
+
+            // Create time range filter that includes the SSTable
+            TimeRangeFilter includingFilter = TimeRangeFilter.create(beforeWriteMicros, afterWriteMicros);
+
+            int rowCount = 0;
+            try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(
+                    table, partitioner, ssTableSupplier, null, Collections.emptyList(),
+                    List.of(includingFilter), null, TimeProvider.DEFAULT,
+                    false, false, Stats.DoNothingStats.INSTANCE))
+            {
+                while (scanner.next())
+                {
+                    rowCount++;
+                }
+            }
+
+            // Should read all 10 rows because SSTable is within time range
+            assertThat(rowCount).isEqualTo(10);
+        };
+
+        qt().forAll(TestUtils.partitioners())
+            .checkAssert(partitioner -> runTest(partitioner, bridge, test));
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testNoTimeRangeFilterReadsAllSSTables(CassandraBridge bridge)
+    {
+        TestRunnable test = (partitioner, dir, bridgeInTest) -> {
+            TestSchema schema = TestSchema.builder(bridgeInTest)
+                                          .withPartitionKey("a", bridgeInTest.aInt())
+                                          .withColumn("b", bridgeInTest.aInt())
+                                          .build();
+
+            // Write SSTable with data
+            schema.writeSSTable(dir, bridgeInTest, partitioner, writer -> {
+                for (int i = 0; i < 10; i++)
+                {
+                    writer.write(i, i * 100);
+                }
+            });
+
+            assertThat(countSSTables(dir)).isEqualTo(1);
+
+            CqlTable table = schema.buildTable();
+            TestDataLayer dataLayer = new TestDataLayer(bridgeInTest,
+                getFileType(dir, FileType.DATA).collect(Collectors.toList()), table);
+            BasicSupplier ssTableSupplier = new BasicSupplier(dataLayer.listSSTables().collect(Collectors.toSet()));
+
+            // No time range filter - should read all data
+            int rowCount = 0;
+            try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(
+                    table, partitioner, ssTableSupplier, null, Collections.emptyList(),
+                    List.of(), // Empty filter list
+                    null, TimeProvider.DEFAULT,
+                    false, false, Stats.DoNothingStats.INSTANCE))
+            {
+                while (scanner.next())
+                {
+                    rowCount++;
+                }
+            }
+
+            // Should read all 10 rows
+            assertThat(rowCount).isEqualTo(10);
+        };
+
+        qt().forAll(TestUtils.partitioners())
+            .checkAssert(partitioner -> runTest(partitioner, bridge, test));
     }
 }

@@ -102,6 +102,7 @@ import org.apache.cassandra.spark.sparksql.RowIterator;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
+import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
 import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.SparkClassLoaderOverride;
 import org.apache.cassandra.spark.utils.TimeProvider;
@@ -195,6 +196,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                                        @NotNull SSTablesSupplier ssTables,
                                                        @Nullable SparkRangeFilter sparkRangeFilter,
                                                        @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
+                                                       @NotNull List<TimeRangeFilter> timeRangeFilters,
                                                        @Nullable PruneColumnFilter columnFilter,
                                                        @NotNull TimeProvider timeProvider,
                                                        boolean readIndexOffset,
@@ -208,6 +210,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
             return org.apache.cassandra.spark.reader.SSTableReader.builder(metadata, ssTable)
                                                                   .withSparkRangeFilter(sparkRangeFilter)
                                                                   .withPartitionKeyFilters(partitionKeyFilters)
+                                                                  .withTimeRangeFilters(timeRangeFilters)
                                                                   .withColumnFilter(columnFilter)
                                                                   .withReadIndexOffset(readIndexOffset)
                                                                   .withStats(stats)
@@ -425,6 +428,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                   @Nullable TokenRange tokenRange,
                                   @Nullable List<ByteBuffer> partitionKeys,
                                   @Nullable String[] requiredColumns,
+                                  @NotNull List<TimeRangeFilter> timeRangeFilters,
                                   Consumer<Map<String, Object>> rowConsumer) throws IOException
     {
         IPartitioner iPartitioner = getPartitioner(partitioner);
@@ -444,8 +448,9 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                                 Stats.DoNothingStats.INSTANCE,
                                                 TypeConverter.IDENTITY,
                                                 partitionKeyFilters,
+                                                timeRangeFilters,
                                                 (t) -> PruneColumnFilter.of(requiredColumns),
-                                                (partitionId1, partitionKeyFilters1, columnFilter1) ->
+                                                (partitionId1, partitionKeyFilters1, timeRangeFilters1, columnFilter1) ->
                                                 new CompactionStreamScanner(
                                                 metadata,
                                                 partitioner,
@@ -453,6 +458,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                                 ssTables.openAll((ssTable, isRepairPrimary) ->
                                                                  org.apache.cassandra.spark.reader.SSTableReader.builder(metadata, ssTable)
                                                                                                                 .withPartitionKeyFilters(partitionKeyFilters1)
+                                                                                                                .withTimeRangeFilters(timeRangeFilters1)
                                                                                                                 .build())
                                                 ))
         {

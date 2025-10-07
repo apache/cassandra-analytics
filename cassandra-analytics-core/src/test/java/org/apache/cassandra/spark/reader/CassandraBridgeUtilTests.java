@@ -261,6 +261,7 @@ public class CassandraBridgeUtilTests
                                            null,
                                            expected.keySet().stream().map(Collections::singletonList).collect(Collectors.toList()),
                                            null,
+                                           List.of(),
                                            (row) -> actual.put(row.get("a").toString(), row)
             );
             assertThat(actual).hasSameSizeAs(expected);
