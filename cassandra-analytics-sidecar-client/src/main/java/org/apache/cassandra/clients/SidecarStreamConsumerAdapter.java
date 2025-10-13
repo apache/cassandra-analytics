@@ -22,14 +22,14 @@ package org.apache.cassandra.clients;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-import org.apache.cassandra.sidecar.client.StreamBuffer;
+import org.apache.cassandra.sidecar.analyticsclient.StreamBuffer;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
 
 /**
- * A delegate class that connects Sidecar's {@link org.apache.cassandra.sidecar.client.StreamConsumer} to the analytics
+ * A delegate class that connects Sidecar's {@link org.apache.cassandra.sidecar.analyticsclient.StreamConsumer} to the analytics
  * {@link StreamConsumer}
  */
-public class SidecarStreamConsumerAdapter implements org.apache.cassandra.sidecar.client.StreamConsumer
+public class SidecarStreamConsumerAdapter implements org.apache.cassandra.sidecar.analyticsclient.StreamConsumer
 {
     private final StreamConsumer delegate;
 
@@ -39,7 +39,7 @@ public class SidecarStreamConsumerAdapter implements org.apache.cassandra.sideca
     }
 
     @Override
-    public void onRead(org.apache.cassandra.sidecar.client.StreamBuffer streamBuffer)
+    public void onRead(org.apache.cassandra.sidecar.analyticsclient.StreamBuffer streamBuffer)
     {
         delegate.onRead(SidecarStreamBufferWrapper.wrap(streamBuffer));
     }
@@ -58,11 +58,11 @@ public class SidecarStreamConsumerAdapter implements org.apache.cassandra.sideca
 
     /**
      * A {@link org.apache.cassandra.spark.utils.streaming.StreamBuffer} implementations that internally wraps
-     * Sidecar's {@link org.apache.cassandra.sidecar.client.StreamBuffer}
+     * Sidecar's {@link org.apache.cassandra.sidecar.analyticsclient.StreamBuffer}
      */
     static final class SidecarStreamBufferWrapper implements org.apache.cassandra.spark.utils.streaming.StreamBuffer
     {
-        public final org.apache.cassandra.sidecar.client.StreamBuffer buffer;
+        public final org.apache.cassandra.sidecar.analyticsclient.StreamBuffer buffer;
 
         private SidecarStreamBufferWrapper(StreamBuffer buffer)
         {

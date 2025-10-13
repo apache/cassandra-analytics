@@ -43,8 +43,8 @@ import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload
 import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobSummaryResponsePayload;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
-import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarInstance;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarClient;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.BulkWriterContext;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.DataTransport;

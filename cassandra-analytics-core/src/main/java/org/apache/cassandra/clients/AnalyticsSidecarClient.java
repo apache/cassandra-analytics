@@ -21,11 +21,11 @@ package org.apache.cassandra.clients;
 
 import o.a.c.sidecar.client.shaded.io.vertx.core.Vertx;
 import o.a.c.sidecar.client.shaded.io.vertx.core.VertxOptions;
-import org.apache.cassandra.sidecar.client.HttpClientConfig;
-import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarClientConfig;
-import org.apache.cassandra.sidecar.client.SidecarClientConfigImpl;
-import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
+import org.apache.cassandra.sidecar.analyticsclient.HttpClientConfig;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarClient;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarClientConfig;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarClientConfigImpl;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarInstancesProvider;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.DataTransport;
 import org.apache.cassandra.spark.utils.BuildInfo;

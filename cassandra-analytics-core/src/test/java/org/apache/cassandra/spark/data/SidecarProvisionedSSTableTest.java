@@ -27,8 +27,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import o.a.c.sidecar.client.shaded.common.response.ListSnapshotFilesResponse;
 import org.apache.cassandra.clients.Sidecar;
-import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarClient;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarInstanceImpl;
 import org.apache.cassandra.analytics.stats.Stats;
 
 import static org.assertj.core.api.Assertions.assertThat;

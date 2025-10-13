@@ -23,7 +23,7 @@ import java.util.Collections;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.client.SidecarClient;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarClient;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;

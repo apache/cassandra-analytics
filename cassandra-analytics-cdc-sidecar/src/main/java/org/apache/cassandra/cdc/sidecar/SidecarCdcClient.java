@@ -29,9 +29,9 @@ import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
 import org.apache.cassandra.cdc.api.CommitLog;
 import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.clients.Sidecar;
-import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.apache.cassandra.sidecar.client.StreamBuffer;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarClient;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarInstance;
+import org.apache.cassandra.sidecar.analyticsclient.StreamBuffer;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.exceptions.TransportFailureException;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
@@ -80,7 +80,7 @@ public class SidecarCdcClient
 
     public void streamCdcCommitLogSegment(CassandraInstance instance, String segment, HttpRange httpRange, StreamConsumer streamConsumer)
     {
-        sidecarClient.streamCdcSegments(toSidecarInstance(instance), segment, httpRange, new org.apache.cassandra.sidecar.client.StreamConsumer()
+        sidecarClient.streamCdcSegments(toSidecarInstance(instance), segment, httpRange, new org.apache.cassandra.sidecar.analyticsclient.StreamConsumer()
         {
             @Override
             public void onRead(StreamBuffer streamBuffer)

@@ -79,17 +79,17 @@ import org.apache.cassandra.sidecar.common.server.utils.MillisecondBoundConfigur
 import org.apache.cassandra.sidecar.common.server.utils.SecondBoundConfiguration;
 import org.apache.cassandra.sidecar.common.server.utils.SidecarVersionProvider;
 import org.apache.cassandra.sidecar.common.server.utils.ThrowableUtils;
+import org.apache.cassandra.sidecar.config.ClusterLeaseClaimConfiguration;
 import org.apache.cassandra.sidecar.config.JmxConfiguration;
 import org.apache.cassandra.sidecar.config.KeyStoreConfiguration;
-import org.apache.cassandra.sidecar.config.PeriodicTaskConfiguration;
 import org.apache.cassandra.sidecar.config.S3ClientConfiguration;
 import org.apache.cassandra.sidecar.config.S3ProxyConfiguration;
 import org.apache.cassandra.sidecar.config.ServiceConfiguration;
 import org.apache.cassandra.sidecar.config.SidecarConfiguration;
 import org.apache.cassandra.sidecar.config.SslConfiguration;
+import org.apache.cassandra.sidecar.config.yaml.ClusterLeaseClaimConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.CoordinationConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.KeyStoreConfigurationImpl;
-import org.apache.cassandra.sidecar.config.yaml.PeriodicTaskConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SSTableUploadConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SchemaKeyspaceConfigurationImpl;
@@ -97,7 +97,7 @@ import org.apache.cassandra.sidecar.config.yaml.ServiceConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SslConfigurationImpl;
 import org.apache.cassandra.sidecar.metrics.instance.InstanceHealthMetrics;
-import org.apache.cassandra.sidecar.server.MainModule;
+import org.apache.cassandra.sidecar.modules.SidecarModules;
 import org.apache.cassandra.sidecar.server.Server;
 import org.apache.cassandra.sidecar.server.SidecarServerEvents;
 import org.apache.cassandra.sidecar.utils.CassandraVersionProvider;
@@ -361,7 +361,7 @@ public abstract class SharedClusterIntegrationTestBase
         VertxTestContext context = new VertxTestContext();
         AbstractModule testModule = new IntegrationTestModule(instances, classLoaderWrapper, mtlsTestHelper,
                                                               dnsResolver, configurationOverrides());
-        sidecarServerInjector = Guice.createInjector(Modules.override(new MainModule()).with(testModule));
+        sidecarServerInjector = Guice.createInjector(Modules.override(SidecarModules.all()).with(testModule));
         Server sidecarServer = sidecarServerInjector.getInstance(Server.class);
         sidecarServer.start()
                      .onSuccess(s -> context.completeNow())
@@ -584,9 +584,9 @@ public abstract class SharedClusterIntegrationTestBase
         public SidecarConfiguration sidecarConfiguration()
         {
             // claim lease fast for testing
-            PeriodicTaskConfiguration clusterClaimTaskConfig = new PeriodicTaskConfigurationImpl(true,
-                                                                                                 MillisecondBoundConfiguration.parse("1s"),
-                                                                                                 MillisecondBoundConfiguration.parse("1s"));
+            ClusterLeaseClaimConfiguration clusterLeaseClaimConfiguration = ClusterLeaseClaimConfigurationImpl.builder()
+                                                                                                              .initialDelayRandomDelta(MillisecondBoundConfiguration.parse("1s"))
+                                                                                                              .build();
             ServiceConfiguration conf = ServiceConfigurationImpl.builder()
                                                                 .host("0.0.0.0") // binds to all interfaces, potential security issue if left running for long
                                                                 .port(0) // let the test find an available port
@@ -596,7 +596,7 @@ public abstract class SharedClusterIntegrationTestBase
                                                                 .sstableUploadConfiguration(new SSTableUploadConfigurationImpl(DEFAULT_CONCURRENT_UPLOAD_LIMIT,
                                                                                                                                1,
                                                                                                                                DEFAULT_FILE_PERMISSIONS))
-                                                                .coordinationConfiguration(new CoordinationConfigurationImpl(clusterClaimTaskConfig))
+                                                                .coordinationConfiguration(new CoordinationConfigurationImpl(clusterLeaseClaimConfiguration))
                                                                 .build();
 
 

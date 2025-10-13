@@ -31,9 +31,9 @@ import org.slf4j.LoggerFactory;
 import o.a.c.sidecar.client.shaded.common.response.RingResponse;
 import o.a.c.sidecar.client.shaded.common.response.TableStatsResponse;
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
-import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarClient;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarInstance;
+import org.apache.cassandra.sidecar.analyticsclient.SidecarInstanceImpl;
 
 /**
  * Implementation of {@link TableSizeProvider} that uses Sidecar's client to calculate the table
