@@ -96,7 +96,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     {
     }
 
-    public static final String DEFAULT_CASSANDRA_VERSION = "cassandra-5.0.5";
+    public static final String DEFAULT_CASSANDRA_VERSION = "cassandra-5.0.7";
 
     private final UUID jobId;
     private boolean skipClean = false;

@@ -40,12 +40,12 @@ else
   #
   # NOTE: The following branches need to stay in sync with the values in build.gradle:
   #   ext.cassandraVersionEnumMap = ["4.0": "FOURZERO", "4.1": "FOURONE", "5.0": "FIVEZERO"]
-  #   ext.cassandraFullVersionMap = ["4.0": "4.0.17", "4.1": "4.1.4", "5.0": "5.0.5"]
+  #   ext.cassandraFullVersionMap = ["4.0": "4.0.17", "4.1": "4.1.4", "5.0": "5.0.7"]
   # NOTE: The following branches also need to remain in sync with CassandraVersion.java
   CANDIDATE_BRANCHES=(
     "cassandra-4.0:cassandra-4.0.17"
     "cassandra-4.1:99d9faeef57c9cf5240d11eac9db5b283e45a4f9"
-    "cassandra-5.0:cassandra-5.0.5"
+    "cassandra-5.0:cassandra-5.0.7"
   )
   BRANCHES=( ${BRANCHES:-cassandra-4.0 cassandra-4.1 cassandra-5.0} )
   echo ${BRANCHES[*]}

@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 
+import com.esotericsoftware.kryo.io.Input;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DataStorageSpec;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -32,6 +33,8 @@ import org.apache.cassandra.db.commitlog.CommitLogSegmentManagerStandard;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.locator.SimpleSnitch;
 import org.apache.cassandra.security.EncryptionContext;
+import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.complex.CqlVector;
 
 public class CassandraTypesImplementation extends AbstractCassandraTypes
 {
@@ -87,5 +90,21 @@ public class CassandraTypesImplementation extends AbstractCassandraTypes
         DatabaseDescriptor.setCommitLogSegmentSize(32);
         DatabaseDescriptor.getRawConfig().commitlog_total_space = new DataStorageSpec.IntMebibytesBound(1024);
         DatabaseDescriptor.setCommitLogSegmentMgrProvider(commitLog -> new CommitLogSegmentManagerStandard(commitLog, commitLogPath.toString()));
+    }
+
+    @Override
+    public CqlField.CqlType readType(CqlField.CqlType.InternalType type, Input input)
+    {
+        if (type == CqlField.CqlType.InternalType.Vector)
+        {
+            return CqlVector.read(input, this);
+        }
+        return super.readType(type, input);
+    }
+
+    @Override
+    public CqlField.CqlVector vector(CqlField.CqlType type, int dimensions)
+    {
+        return new CqlVector(type, dimensions);
     }
 }
