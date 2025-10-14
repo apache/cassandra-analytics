@@ -80,7 +80,7 @@ public class SidecarCdcClient
 
     public void streamCdcCommitLogSegment(CassandraInstance instance, String segment, HttpRange httpRange, StreamConsumer streamConsumer)
     {
-        sidecarClient.streamCdcSegments(toSidecarInstance(instance), segment, httpRange, new org.apache.cassandra.sidecar.analyticsclient.StreamConsumer()
+        sidecarClient.streamCdcSegments(toSidecarInstance(instance), segment, httpRange, new o.a.c.sidecar.client.shaded.client.StreamConsumer()
         {
             @Override
             public void onRead(StreamBuffer streamBuffer)

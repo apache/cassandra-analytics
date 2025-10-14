@@ -95,7 +95,7 @@ public class BulkWriteCorruptionTest extends SharedClusterSparkIntegrationTestBa
         .hasMessageContaining("Bulk Write to Cassandra has failed")
         .rootCause()
         .isExactlyInstanceOf(ConsistencyNotSatisfiedException.class)
-        .hasMessageContaining("Cause=org.apache.cassandra.sidecar.analyticsclient.exception.RetriesExhaustedException")
+        .hasMessageContaining("Cause=o.a.c.sidecar.client.shaded.client.exception.RetriesExhaustedException")
         .hasMessageContaining("after 5 attempts") // upload exhausted after 5 attempts
         .hasMessageContaining("HttpResponseImpl{statusCode=455, " +
                               "statusMessage='Client Error (455)', " +
