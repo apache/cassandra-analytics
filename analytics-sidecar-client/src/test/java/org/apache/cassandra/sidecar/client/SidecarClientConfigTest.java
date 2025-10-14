@@ -21,9 +21,6 @@ package org.apache.cassandra.sidecar.client;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.client.SidecarClientConfig;
-import org.apache.cassandra.sidecar.client.SidecarClientConfigImpl;
-
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**

@@ -585,7 +585,8 @@ public abstract class SharedClusterIntegrationTestBase
         {
             // claim lease fast for testing
             ClusterLeaseClaimConfiguration clusterLeaseClaimConfiguration = ClusterLeaseClaimConfigurationImpl.builder()
-                                                                                                              .initialDelayRandomDelta(MillisecondBoundConfiguration.parse("1s"))
+                                                                                                              .initialDelayRandomDelta(
+                                                                                                              MillisecondBoundConfiguration.parse("1s"))
                                                                                                               .build();
             ServiceConfiguration conf = ServiceConfigurationImpl.builder()
                                                                 .host("0.0.0.0") // binds to all interfaces, potential security issue if left running for long

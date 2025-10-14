@@ -23,10 +23,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
-import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
-import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;

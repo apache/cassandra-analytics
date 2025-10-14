@@ -40,8 +40,6 @@ import org.apache.cassandra.sidecar.client.HttpResponse;
 import org.apache.cassandra.sidecar.client.exception.ResourceNotFoundException;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
 import org.apache.cassandra.sidecar.client.exception.UnexpectedStatusCodeException;
-import org.apache.cassandra.sidecar.client.retry.BasicRetryPolicy;
-import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 import org.apache.cassandra.sidecar.common.request.Request;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.ACCEPTED;

@@ -32,7 +32,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import org.apache.cassandra.sidecar.client.HttpResponse;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
-import org.apache.cassandra.sidecar.client.retry.IgnoreConflictRetryPolicy;
 import org.apache.cassandra.sidecar.common.request.Request;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.CONFLICT;

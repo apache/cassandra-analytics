@@ -30,8 +30,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import org.apache.cassandra.sidecar.client.HttpResponse;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
-import org.apache.cassandra.sidecar.client.retry.ExponentialBackoffRetryPolicy;
-import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 import org.apache.cassandra.sidecar.common.request.Request;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
