@@ -18,7 +18,7 @@
 
 package org.apache.cassandra.sidecar.analyticsclient.request;
 
-import org.apache.cassandra.sidecar.analyticsclient.RequestContext;
+import org.apache.cassandra.sidecar.client.RequestContext;
 
 /**
  * An interface defining the request testing for the client

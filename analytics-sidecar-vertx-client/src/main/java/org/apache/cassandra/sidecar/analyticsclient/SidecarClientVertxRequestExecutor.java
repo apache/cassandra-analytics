@@ -19,6 +19,7 @@
 package org.apache.cassandra.sidecar.analyticsclient;
 
 import io.vertx.core.Vertx;
+import org.apache.cassandra.sidecar.client.RequestExecutor;
 
 import static java.util.Objects.requireNonNull;
 

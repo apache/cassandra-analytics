@@ -25,7 +25,7 @@ import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.analyticsclient.StreamBuffer;
+import org.apache.cassandra.sidecar.client.StreamBuffer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

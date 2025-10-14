@@ -22,8 +22,14 @@ package org.apache.cassandra.sidecar.analyticsclient;
 import java.util.List;
 
 import io.vertx.core.Vertx;
-import org.apache.cassandra.sidecar.analyticsclient.retry.ExponentialBackoffRetryPolicy;
-import org.apache.cassandra.sidecar.analyticsclient.retry.RetryPolicy;
+import org.apache.cassandra.sidecar.client.HttpClientConfig;
+import org.apache.cassandra.sidecar.client.SidecarClient;
+import org.apache.cassandra.sidecar.client.SidecarClientConfig;
+import org.apache.cassandra.sidecar.client.SidecarClientConfigImpl;
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
+import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
+import org.apache.cassandra.sidecar.client.retry.ExponentialBackoffRetryPolicy;
+import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 
 /**
  * Unit tests for the {@link SidecarClient} using vertx

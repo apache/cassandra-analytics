@@ -19,12 +19,12 @@
 package org.apache.cassandra.sidecar.analyticsclient.request;
 
 import io.vertx.core.Vertx;
-import org.apache.cassandra.sidecar.analyticsclient.HttpClientConfig;
-import org.apache.cassandra.sidecar.analyticsclient.RequestExecutor;
+import org.apache.cassandra.sidecar.client.HttpClientConfig;
+import org.apache.cassandra.sidecar.client.RequestExecutor;
 import org.apache.cassandra.sidecar.analyticsclient.VertxHttpClient;
 import org.apache.cassandra.sidecar.analyticsclient.VertxRequestExecutor;
-import org.apache.cassandra.sidecar.analyticsclient.retry.BasicRetryPolicy;
-import org.apache.cassandra.sidecar.analyticsclient.retry.RetryPolicy;
+import org.apache.cassandra.sidecar.client.retry.BasicRetryPolicy;
+import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 
 /**
  * Base test for running all tests inside the RequestExecutor test using the vertx client

@@ -36,12 +36,12 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import org.apache.cassandra.sidecar.analyticsclient.HttpResponse;
-import org.apache.cassandra.sidecar.analyticsclient.exception.ResourceNotFoundException;
-import org.apache.cassandra.sidecar.analyticsclient.exception.RetriesExhaustedException;
-import org.apache.cassandra.sidecar.analyticsclient.exception.UnexpectedStatusCodeException;
-import org.apache.cassandra.sidecar.analyticsclient.retry.BasicRetryPolicy;
-import org.apache.cassandra.sidecar.analyticsclient.retry.RetryPolicy;
+import org.apache.cassandra.sidecar.client.HttpResponse;
+import org.apache.cassandra.sidecar.client.exception.ResourceNotFoundException;
+import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
+import org.apache.cassandra.sidecar.client.exception.UnexpectedStatusCodeException;
+import org.apache.cassandra.sidecar.client.retry.BasicRetryPolicy;
+import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 import org.apache.cassandra.sidecar.common.request.Request;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.ACCEPTED;

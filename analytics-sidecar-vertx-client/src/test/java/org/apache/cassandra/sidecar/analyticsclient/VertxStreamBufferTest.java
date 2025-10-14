@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.buffer.impl.BufferImpl;
+import org.apache.cassandra.sidecar.client.StreamBuffer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

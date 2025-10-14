@@ -26,11 +26,11 @@ import java.util.NoSuchElementException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.analyticsclient.SidecarInstancesProvider;
-import org.apache.cassandra.sidecar.analyticsclient.SimpleSidecarInstancesProvider;
-import org.apache.cassandra.sidecar.analyticsclient.SidecarInstance;
-import org.apache.cassandra.sidecar.analyticsclient.selection.InstanceSelectionPolicy;
-import org.apache.cassandra.sidecar.analyticsclient.selection.RandomInstanceSelectionPolicy;
+import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
+import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
+import org.apache.cassandra.sidecar.client.SidecarInstance;
+import org.apache.cassandra.sidecar.client.selection.InstanceSelectionPolicy;
+import org.apache.cassandra.sidecar.client.selection.RandomInstanceSelectionPolicy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;

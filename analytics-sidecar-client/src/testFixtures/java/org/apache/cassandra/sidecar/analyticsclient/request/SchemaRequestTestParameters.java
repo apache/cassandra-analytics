@@ -18,7 +18,7 @@
 
 package org.apache.cassandra.sidecar.analyticsclient.request;
 
-import org.apache.cassandra.sidecar.analyticsclient.RequestContext;
+import org.apache.cassandra.sidecar.client.RequestContext;
 import org.apache.cassandra.sidecar.common.ApiEndpointsV1;
 import org.apache.cassandra.sidecar.common.response.SchemaResponse;
 

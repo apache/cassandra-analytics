@@ -23,9 +23,9 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.analyticsclient.SidecarInstanceImpl;
-import org.apache.cassandra.sidecar.analyticsclient.SidecarInstancesProvider;
-import org.apache.cassandra.sidecar.analyticsclient.SimpleSidecarInstancesProvider;
+import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
+import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
+import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;

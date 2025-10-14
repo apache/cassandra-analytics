@@ -30,9 +30,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import org.apache.cassandra.sidecar.analyticsclient.HttpResponse;
-import org.apache.cassandra.sidecar.analyticsclient.exception.RetriesExhaustedException;
-import org.apache.cassandra.sidecar.analyticsclient.retry.IgnoreConflictRetryPolicy;
+import org.apache.cassandra.sidecar.client.HttpResponse;
+import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
+import org.apache.cassandra.sidecar.client.retry.IgnoreConflictRetryPolicy;
 import org.apache.cassandra.sidecar.common.request.Request;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.CONFLICT;

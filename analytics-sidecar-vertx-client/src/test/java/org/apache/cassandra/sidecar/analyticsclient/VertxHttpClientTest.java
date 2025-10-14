@@ -25,6 +25,9 @@ import org.junit.jupiter.api.Test;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.web.client.HttpRequest;
+import org.apache.cassandra.sidecar.client.HttpClientConfig;
+import org.apache.cassandra.sidecar.client.RequestContext;
+import org.apache.cassandra.sidecar.client.SidecarInstance;
 
 import static org.apache.cassandra.sidecar.common.http.SidecarHttpHeaderNames.AUTH_ROLE;
 import static org.assertj.core.api.Assertions.assertThat;

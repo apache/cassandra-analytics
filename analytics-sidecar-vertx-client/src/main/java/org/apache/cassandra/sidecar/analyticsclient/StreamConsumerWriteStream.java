@@ -23,6 +23,7 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.streams.WriteStream;
+import org.apache.cassandra.sidecar.client.StreamConsumer;
 
 /**
  * A {@link WriteStream} that writes available data to the {@link StreamConsumer}

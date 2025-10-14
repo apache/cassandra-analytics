@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import io.vertx.core.Vertx;
+import org.apache.cassandra.sidecar.client.RequestExecutor;
 
 import static java.util.Objects.requireNonNull;
 

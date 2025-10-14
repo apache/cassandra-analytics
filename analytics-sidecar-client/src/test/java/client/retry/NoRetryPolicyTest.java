@@ -25,10 +25,10 @@ import java.util.concurrent.ExecutionException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.analyticsclient.HttpResponse;
-import org.apache.cassandra.sidecar.analyticsclient.exception.RetriesExhaustedException;
-import org.apache.cassandra.sidecar.analyticsclient.retry.NoRetryPolicy;
-import org.apache.cassandra.sidecar.analyticsclient.retry.RetryPolicy;
+import org.apache.cassandra.sidecar.client.HttpResponse;
+import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
+import org.apache.cassandra.sidecar.client.retry.NoRetryPolicy;
+import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 import org.apache.cassandra.sidecar.common.request.Request;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;

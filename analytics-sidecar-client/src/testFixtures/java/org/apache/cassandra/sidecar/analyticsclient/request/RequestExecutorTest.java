@@ -34,10 +34,10 @@ import org.junit.jupiter.params.provider.ArgumentsSource;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
-import org.apache.cassandra.sidecar.analyticsclient.HttpClientConfig;
-import org.apache.cassandra.sidecar.analyticsclient.RequestContext;
-import org.apache.cassandra.sidecar.analyticsclient.exception.RetriesExhaustedException;
-import org.apache.cassandra.sidecar.analyticsclient.selection.InstanceSelectionPolicy;
+import org.apache.cassandra.sidecar.client.HttpClientConfig;
+import org.apache.cassandra.sidecar.client.RequestContext;
+import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
+import org.apache.cassandra.sidecar.client.selection.InstanceSelectionPolicy;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
 import static io.netty.handler.codec.http.HttpResponseStatus.OK;

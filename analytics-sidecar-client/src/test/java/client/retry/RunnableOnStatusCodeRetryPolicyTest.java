@@ -28,10 +28,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.netty.handler.codec.http.HttpResponseStatus;
-import org.apache.cassandra.sidecar.analyticsclient.HttpResponse;
-import org.apache.cassandra.sidecar.analyticsclient.retry.BasicRetryPolicy;
-import org.apache.cassandra.sidecar.analyticsclient.retry.RetryPolicy;
-import org.apache.cassandra.sidecar.analyticsclient.retry.RunnableOnStatusCodeRetryPolicy;
+import org.apache.cassandra.sidecar.client.HttpResponse;
+import org.apache.cassandra.sidecar.client.retry.BasicRetryPolicy;
+import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
+import org.apache.cassandra.sidecar.client.retry.RunnableOnStatusCodeRetryPolicy;
 import org.apache.cassandra.sidecar.common.request.Request;
 
 import static org.assertj.core.api.Assertions.assertThat;

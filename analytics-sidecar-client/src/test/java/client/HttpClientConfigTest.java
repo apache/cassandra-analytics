@@ -22,7 +22,7 @@ import java.io.InputStream;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.analyticsclient.HttpClientConfig;
+import org.apache.cassandra.sidecar.client.HttpClientConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
