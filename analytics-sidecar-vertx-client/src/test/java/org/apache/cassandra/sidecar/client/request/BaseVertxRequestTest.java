@@ -23,7 +23,6 @@ import org.apache.cassandra.sidecar.client.HttpClientConfig;
 import org.apache.cassandra.sidecar.client.RequestExecutor;
 import org.apache.cassandra.sidecar.client.VertxHttpClient;
 import org.apache.cassandra.sidecar.client.VertxRequestExecutor;
-import org.apache.cassandra.sidecar.client.request.RequestExecutorTest;
 import org.apache.cassandra.sidecar.client.retry.BasicRetryPolicy;
 import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 

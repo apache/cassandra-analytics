@@ -75,7 +75,7 @@ shadowJar {
     relocate 'com.fasterxml.jackson', 'o.a.c.sidecar.client.shaded.com.fasterxml.jackson'
     relocate 'io.netty', 'o.a.c.sidecar.client.shaded.io.netty'
     relocate 'io.vertx', 'o.a.c.sidecar.client.shaded.io.vertx'
-    relocate 'org.apache.cassandra.sidecar.client', 'org.apache.cassandra.sidecar.analyticsclient'
+    relocate 'org.apache.cassandra.sidecar.client', 'o.a.c.sidecar.client.shaded.client'
     relocate 'META-INF/native/libnetty', 'META-INF/native/libo_a_c_sidecar_client_shaded_netty'
     relocate 'META-INF/versions/11/io/vertx', 'META-INF/versions/11/o/a/c/sidecar/client/shaded/io/vertx'
     transform(NettyResourceTransformer.class)

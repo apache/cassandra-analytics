@@ -28,9 +28,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.clients.AnalyticsSidecarClient;
-import org.apache.cassandra.sidecar.analyticsclient.SidecarClient;
-import org.apache.cassandra.sidecar.analyticsclient.SidecarInstance;
-import org.apache.cassandra.sidecar.analyticsclient.SimpleSidecarInstancesProvider;
+import o.a.c.sidecar.client.shaded.client.SidecarClient;
+import o.a.c.sidecar.client.shaded.client.SidecarInstance;
+import o.a.c.sidecar.client.shaded.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.spark.validation.CassandraValidation;
 import org.apache.cassandra.spark.validation.SidecarValidation;
 import org.apache.cassandra.spark.validation.StartupValidatable;

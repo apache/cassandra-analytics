@@ -21,7 +21,6 @@ package org.apache.cassandra.sidecar.client;
 import java.nio.ByteBuffer;
 
 import io.vertx.core.buffer.Buffer;
-import org.apache.cassandra.sidecar.client.StreamBuffer;
 
 /**
  * A {@link StreamBuffer} implementation that wraps a vertx {@link Buffer}

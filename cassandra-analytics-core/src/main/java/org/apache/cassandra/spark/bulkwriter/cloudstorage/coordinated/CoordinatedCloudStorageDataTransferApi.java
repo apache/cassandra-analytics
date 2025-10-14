@@ -40,10 +40,10 @@ import o.a.c.sidecar.client.shaded.common.request.data.RestoreJobProgressRequest
 import o.a.c.sidecar.client.shaded.common.request.data.UpdateRestoreJobRequestPayload;
 import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobProgressResponsePayload;
 import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobSummaryResponsePayload;
-import org.apache.cassandra.sidecar.analyticsclient.RequestContext;
-import org.apache.cassandra.sidecar.analyticsclient.SidecarClient;
-import org.apache.cassandra.sidecar.analyticsclient.SidecarInstance;
-import org.apache.cassandra.sidecar.analyticsclient.retry.RetryPolicy;
+import o.a.c.sidecar.client.shaded.client.RequestContext;
+import o.a.c.sidecar.client.shaded.client.SidecarClient;
+import o.a.c.sidecar.client.shaded.client.SidecarInstance;
+import o.a.c.sidecar.client.shaded.client.retry.RetryPolicy;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.Bundle;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.BundleStorageObject;

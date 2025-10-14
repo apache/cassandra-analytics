@@ -22,15 +22,6 @@ package org.apache.cassandra.sidecar.client;
 import java.util.List;
 
 import io.vertx.core.Vertx;
-import org.apache.cassandra.sidecar.client.HttpClientConfig;
-import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarClientConfig;
-import org.apache.cassandra.sidecar.client.SidecarClientConfigImpl;
-import org.apache.cassandra.sidecar.client.SidecarClientTest;
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
-import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
-import org.apache.cassandra.sidecar.client.VertxHttpClient;
-import org.apache.cassandra.sidecar.client.VertxRequestExecutor;
 import org.apache.cassandra.sidecar.client.retry.ExponentialBackoffRetryPolicy;
 import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 
