@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.sidecar.analyticsclient;
+package org.apache.cassandra.sidecar.client;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.buffer.impl.BufferImpl;
 import org.apache.cassandra.sidecar.client.StreamBuffer;
+import org.apache.cassandra.sidecar.client.VertxStreamBuffer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

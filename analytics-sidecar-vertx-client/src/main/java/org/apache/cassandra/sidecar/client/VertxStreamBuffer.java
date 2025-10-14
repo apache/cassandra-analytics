@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.sidecar.analyticsclient;
+package org.apache.cassandra.sidecar.client;
 
 import java.nio.ByteBuffer;
 

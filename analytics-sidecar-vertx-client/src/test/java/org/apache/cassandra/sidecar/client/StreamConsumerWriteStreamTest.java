@@ -16,13 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.sidecar.analyticsclient;
+package org.apache.cassandra.sidecar.client;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.vertx.core.buffer.impl.BufferImpl;
 import org.apache.cassandra.sidecar.client.StreamConsumer;
+import org.apache.cassandra.sidecar.client.StreamConsumerWriteStream;
+import org.apache.cassandra.sidecar.client.VertxStreamBuffer;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.sidecar.analyticsclient;
+package org.apache.cassandra.sidecar.client;
 
 
 import java.util.List;
@@ -29,6 +29,8 @@ import org.apache.cassandra.sidecar.client.SidecarClientConfigImpl;
 import org.apache.cassandra.sidecar.client.SidecarClientTest;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
+import org.apache.cassandra.sidecar.client.VertxHttpClient;
+import org.apache.cassandra.sidecar.client.VertxRequestExecutor;
 import org.apache.cassandra.sidecar.client.retry.ExponentialBackoffRetryPolicy;
 import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 

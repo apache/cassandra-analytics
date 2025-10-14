@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.sidecar.analyticsclient;
+package org.apache.cassandra.sidecar.client;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -54,13 +54,6 @@ import io.vertx.ext.web.client.WebClient;
 import io.vertx.ext.web.client.WebClientOptions;
 import io.vertx.ext.web.client.predicate.ResponsePredicateResult;
 import io.vertx.ext.web.codec.BodyCodec;
-import org.apache.cassandra.sidecar.client.HttpClient;
-import org.apache.cassandra.sidecar.client.HttpClientConfig;
-import org.apache.cassandra.sidecar.client.HttpResponse;
-import org.apache.cassandra.sidecar.client.HttpResponseImpl;
-import org.apache.cassandra.sidecar.client.RequestContext;
-import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.apache.cassandra.sidecar.client.StreamConsumer;
 import org.apache.cassandra.sidecar.common.request.Request;
 import org.apache.cassandra.sidecar.common.request.UploadableRequest;
 
