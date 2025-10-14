@@ -32,7 +32,7 @@ import org.jetbrains.annotations.VisibleForTesting;
 public class IgnoreConflictRetryPolicy extends ExponentialBackoffRetryPolicy
 {
     @VisibleForTesting
-    public IgnoreConflictRetryPolicy()
+    IgnoreConflictRetryPolicy()
     {
         super();
     }
