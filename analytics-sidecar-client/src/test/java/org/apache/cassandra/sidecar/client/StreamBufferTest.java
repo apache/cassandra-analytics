@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package client;
+package org.apache.cassandra.sidecar.client;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;

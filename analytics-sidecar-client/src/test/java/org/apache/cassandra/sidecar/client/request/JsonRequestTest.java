@@ -16,19 +16,32 @@
  * limitations under the License.
  */
 
-package client;
+package org.apache.cassandra.sidecar.client.request;
 
-import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 
-/**
- * Unit tests for the {@link SidecarInstanceImpl} class
- */
-class SidecarInstanceImplTest extends SidecarInstanceTest
+import org.junit.jupiter.api.Test;
+
+import io.netty.handler.codec.http.HttpMethod;
+import org.apache.cassandra.sidecar.common.request.JsonRequest;
+import org.apache.cassandra.sidecar.common.response.NodeSettings;
+
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+
+class JsonRequestTest
 {
-    @Override
-    protected SidecarInstance newInstance(String hostname, int port)
+    @Test
+    void testHeadersAreImmutable()
     {
-        return new SidecarInstanceImpl(hostname, port);
+        JsonRequest<NodeSettings> instance = new JsonRequest<NodeSettings>("https://cassandra-sidecar.com/api/test")
+        {
+            @Override
+            public HttpMethod method()
+            {
+                return HttpMethod.GET;
+            }
+        };
+
+        assertThatExceptionOfType(UnsupportedOperationException.class)
+        .isThrownBy(() -> instance.headers().put("not", "allowed"));
     }
 }

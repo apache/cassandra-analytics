@@ -16,57 +16,41 @@
  * limitations under the License.
  */
 
-package client.selection;
+package org.apache.cassandra.sidecar.client.selection;
 
-import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
-import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.selection.InstanceSelectionPolicy;
-import org.apache.cassandra.sidecar.client.selection.RandomInstanceSelectionPolicy;
+import org.apache.cassandra.sidecar.client.selection.SingleInstanceSelectionPolicy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
 
-/**
- * Unit tests for the {@link RandomInstanceSelectionPolicy}
- */
-class RandomInstanceSelectionPolicyTest
+class SingleInstanceSelectionPolicyTest
 {
-    List<SidecarInstance> mockInstanceList;
+    SidecarInstance mockSidecarInstance;
 
     @BeforeEach
     void setup()
     {
-        mockInstanceList = Arrays.asList(mock(SidecarInstance.class), mock(SidecarInstance.class),
-                                         mock(SidecarInstance.class), mock(SidecarInstance.class)
-        );
+        mockSidecarInstance = mock(SidecarInstance.class);
     }
 
     @Test
-    public void testIterator()
+    void testIterator()
     {
-        SidecarInstancesProvider provider = new SimpleSidecarInstancesProvider(mockInstanceList);
-        InstanceSelectionPolicy instanceSelectionPolicy = new RandomInstanceSelectionPolicy(provider);
+        InstanceSelectionPolicy instanceSelectionPolicy = new SingleInstanceSelectionPolicy(mockSidecarInstance);
         Iterator<SidecarInstance> iterator = instanceSelectionPolicy.iterator();
 
         assertThat(iterator.hasNext()).isTrue().as("Expected to be true");
         assertThat(iterator.hasNext()).isTrue().as("Test idempotency of hasNext by running it again");
-        assertThat(iterator.next()).isIn(mockInstanceList);
-        assertThat(iterator.hasNext()).isTrue();
-        assertThat(iterator.next()).isIn(mockInstanceList);
-        assertThat(iterator.hasNext()).isTrue();
-        assertThat(iterator.next()).isIn(mockInstanceList);
-        assertThat(iterator.hasNext()).isTrue();
-        assertThat(iterator.next()).isIn(mockInstanceList);
+        assertThat(iterator.next()).isSameAs(mockSidecarInstance);
         assertThat(iterator.hasNext()).isFalse().as("Expected to be false");
         assertThat(iterator.hasNext()).isFalse().as("Test idempotency of hasNext by running it again");
         assertThatExceptionOfType(NoSuchElementException.class).isThrownBy(iterator::next);

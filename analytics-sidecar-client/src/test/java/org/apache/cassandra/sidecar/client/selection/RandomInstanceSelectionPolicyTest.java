@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package client.selection;
+package org.apache.cassandra.sidecar.client.selection;
 
 import java.util.Arrays;
 import java.util.Iterator;
@@ -30,50 +30,43 @@ import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.SidecarInstance;
 import org.apache.cassandra.sidecar.client.selection.InstanceSelectionPolicy;
-import org.apache.cassandra.sidecar.client.selection.OrderedInstanceSelectionPolicy;
+import org.apache.cassandra.sidecar.client.selection.RandomInstanceSelectionPolicy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.Mockito.mock;
 
 /**
- * Unit tests for the {@link OrderedInstanceSelectionPolicy}
+ * Unit tests for the {@link RandomInstanceSelectionPolicy}
  */
-class OrderedInstanceSelectionPolicyTest
+class RandomInstanceSelectionPolicyTest
 {
     List<SidecarInstance> mockInstanceList;
-    SidecarInstance mockInstance1;
-    SidecarInstance mockInstance2;
-    SidecarInstance mockInstance3;
-    SidecarInstance mockInstance4;
 
     @BeforeEach
     void setup()
     {
-        mockInstance1 = mock(SidecarInstance.class);
-        mockInstance2 = mock(SidecarInstance.class);
-        mockInstance3 = mock(SidecarInstance.class);
-        mockInstance4 = mock(SidecarInstance.class);
-        mockInstanceList = Arrays.asList(mockInstance1, mockInstance2, mockInstance3, mockInstance4);
+        mockInstanceList = Arrays.asList(mock(SidecarInstance.class), mock(SidecarInstance.class),
+                                         mock(SidecarInstance.class), mock(SidecarInstance.class)
+        );
     }
 
     @Test
     public void testIterator()
     {
-
         SidecarInstancesProvider provider = new SimpleSidecarInstancesProvider(mockInstanceList);
-        InstanceSelectionPolicy instanceSelectionPolicy = new OrderedInstanceSelectionPolicy(provider);
+        InstanceSelectionPolicy instanceSelectionPolicy = new RandomInstanceSelectionPolicy(provider);
         Iterator<SidecarInstance> iterator = instanceSelectionPolicy.iterator();
 
         assertThat(iterator.hasNext()).isTrue().as("Expected to be true");
         assertThat(iterator.hasNext()).isTrue().as("Test idempotency of hasNext by running it again");
-        assertThat(iterator.next()).isSameAs(mockInstance1);
+        assertThat(iterator.next()).isIn(mockInstanceList);
         assertThat(iterator.hasNext()).isTrue();
-        assertThat(iterator.next()).isSameAs(mockInstance2);
+        assertThat(iterator.next()).isIn(mockInstanceList);
         assertThat(iterator.hasNext()).isTrue();
-        assertThat(iterator.next()).isSameAs(mockInstance3);
+        assertThat(iterator.next()).isIn(mockInstanceList);
         assertThat(iterator.hasNext()).isTrue();
-        assertThat(iterator.next()).isSameAs(mockInstance4);
+        assertThat(iterator.next()).isIn(mockInstanceList);
         assertThat(iterator.hasNext()).isFalse().as("Expected to be false");
         assertThat(iterator.hasNext()).isFalse().as("Test idempotency of hasNext by running it again");
         assertThatExceptionOfType(NoSuchElementException.class).isThrownBy(iterator::next);

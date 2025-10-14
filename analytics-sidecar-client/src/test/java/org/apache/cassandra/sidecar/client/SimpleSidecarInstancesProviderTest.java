@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package client;
+package org.apache.cassandra.sidecar.client;
 
 import java.util.Collections;
 import java.util.List;

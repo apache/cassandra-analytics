@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package client.request;
+package org.apache.cassandra.sidecar.client.request;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

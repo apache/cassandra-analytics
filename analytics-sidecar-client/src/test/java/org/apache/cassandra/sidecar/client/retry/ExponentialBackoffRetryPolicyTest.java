@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package client.retry;
+package org.apache.cassandra.sidecar.client.retry;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;

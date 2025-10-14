@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package client.retry;
+package org.apache.cassandra.sidecar.client.retry;
 
 import java.util.HashMap;
 import java.util.List;
