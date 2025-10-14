@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.sidecar.analyticsclient;
+package org.apache.cassandra.sidecar.client;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -57,15 +57,8 @@ import okhttp3.mockwebserver.RecordedRequest;
 import okhttp3.mockwebserver.SocketPolicy;
 import okio.Buffer;
 import okio.Okio;
-import org.apache.cassandra.sidecar.client.HttpResponse;
-import org.apache.cassandra.sidecar.client.RequestContext;
-import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarInstance;
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
-import org.apache.cassandra.sidecar.client.StreamBuffer;
-import org.apache.cassandra.sidecar.client.StreamConsumer;
 import org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException;
-import org.apache.cassandra.sidecar.analyticsclient.request.RequestExecutorTest;
+import org.apache.cassandra.sidecar.client.request.RequestExecutorTest;
 import org.apache.cassandra.sidecar.client.retry.RetryAction;
 import org.apache.cassandra.sidecar.client.retry.RetryPolicy;
 import org.apache.cassandra.sidecar.common.ApiEndpointsV1;

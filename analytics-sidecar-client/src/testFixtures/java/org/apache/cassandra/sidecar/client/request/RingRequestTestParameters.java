@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.sidecar.analyticsclient.request;
+package org.apache.cassandra.sidecar.client.request;
 
 import java.util.ArrayList;
 import java.util.List;

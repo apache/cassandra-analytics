@@ -26,6 +26,7 @@ import org.apache.cassandra.sidecar.client.HttpClientConfig;
 import org.apache.cassandra.sidecar.client.SidecarClient;
 import org.apache.cassandra.sidecar.client.SidecarClientConfig;
 import org.apache.cassandra.sidecar.client.SidecarClientConfigImpl;
+import org.apache.cassandra.sidecar.client.SidecarClientTest;
 import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
 import org.apache.cassandra.sidecar.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.sidecar.client.retry.ExponentialBackoffRetryPolicy;

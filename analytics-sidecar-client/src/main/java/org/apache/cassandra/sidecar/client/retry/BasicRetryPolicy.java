@@ -261,7 +261,7 @@ public class BasicRetryPolicy extends RetryPolicy
     /**
      * Retries the request after waiting for {@code sleepTimeMillis}. If the retries have exceeded the maximum number
      * of retries allowed, it completes exceptionally with a
-     * {@link RetriesExhaustedException}.
+     * {@link org.apache.cassandra.sidecar.client.exception.RetriesExhaustedException}.
      *
      * @param future          a future for the {@link HttpResponse}
      * @param request         the HTTP request

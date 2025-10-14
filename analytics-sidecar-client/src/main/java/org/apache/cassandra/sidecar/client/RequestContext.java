@@ -586,7 +586,7 @@ public class RequestContext
 
         /**
          * Sets the {@code retryPolicy} to be an
-         * {@link ExponentialBackoffRetryPolicy} configured with
+         * {@link org.apache.cassandra.sidecar.client.retry.ExponentialBackoffRetryPolicy} configured with
          * {@code 10} {@code maxRetries}, {@code 500} {@code retryDelayMillis}, and {@code 60,000}
          * {@code maxRetryDelayMillis}; and returns a reference to this Builder enabling method chaining.
          *
@@ -599,7 +599,7 @@ public class RequestContext
 
         /**
          * Sets the {@code retryPolicy} to be an
-         * {@link ExponentialBackoffRetryPolicy} configured with the provided
+         * {@link org.apache.cassandra.sidecar.client.retry.ExponentialBackoffRetryPolicy} configured with the provided
          * {@code maxRetries}, {@code retryDelayMillis}, and {@code maxRetryDelayMillis}; and returns a reference to
          * this Builder enabling method chaining.
          *
