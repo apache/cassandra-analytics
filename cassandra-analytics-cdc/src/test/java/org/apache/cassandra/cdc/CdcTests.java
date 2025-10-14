@@ -49,6 +49,7 @@ import java.util.stream.Stream;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.commons.lang3.StringUtils;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
@@ -84,6 +85,8 @@ import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.data.types.Duration;
+import org.apache.cassandra.spark.data.types.TimeUUID;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.IOUtils;
@@ -104,6 +107,7 @@ import static org.apache.cassandra.cdc.test.CdcTester.testWith;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
@@ -618,6 +622,50 @@ public class CdcTests extends CdcTestBase
                     assertThat(v).isInstanceOf(List.class);
                     List list = (List) v;
                     assertThat(list).isEqualTo(Arrays.asList(1, 2, 3, 4));
+                    assertThat(event.getTtl()).isNull();
+                }
+            })
+            .run());
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testVector(CassandraVersion version)
+    {
+        assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
+        qt().forAll(cql3Type(bridge))
+            // Cassandra VectorType does not support swapping custom subtype serializer,
+            // so we cannot use AnalyticsTimeUUIDSerializer or AnalyticsDurationSerializer.
+            .assuming(t -> !t.cqlName().equals(Duration.INSTANCE.name()) && !t.cqlName().equals(TimeUUID.INSTANCE.name()))
+            .checkAssert(
+            t ->
+            testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
+                                                                .withPartitionKey("pk", bridge.uuid())
+                                                                .withColumn("c1", bridge.bigint())
+                                                                .withColumn("c2", bridge.vector(t, 5)))
+            .withCdcEventChecker((testRows, events) -> {
+                for (CdcEvent event : events)
+                {
+                    assertThat(event.getPartitionKeys().size()).isEqualTo(1);
+                    assertThat(event.getPartitionKeys().get(0).columnName).isEqualTo("pk");
+                    assertThat(event.getClusteringKeys()).isNull();
+                    assertThat(event.getStaticColumns()).isNull();
+                    assertThat(event.getValueColumns().stream()
+                                    .map(v -> v.columnName)
+                                    .collect(Collectors.toList())).isEqualTo(Arrays.asList("c1", "c2"));
+                    Value vectorValue = event.getValueColumns().get(1);
+                    String vectorType = vectorValue.columnType;
+                    assertThat(vectorType.startsWith("vector<")).isTrue();
+                    assertThat(vectorType.endsWith(">")).isTrue();
+                    assertCqlTypeEquals(t.cqlName(),
+                                        vectorType.substring(vectorType.indexOf("<") + 1, vectorType.indexOf(","))); // extract the type in vector<?, ?>
+                    String dimensions = StringUtils.substringAfter(vectorType, ",");
+                    dimensions = dimensions.substring(0, dimensions.length() - 1).trim();
+                    assertThat(dimensions).isEqualTo("5");
+                    Object v = bridge.parseType(vectorType).deserializeToJavaType(vectorValue.getValue());
+                    assertThat(v).isInstanceOf(List.class);
+                    List list = (List) v;
+                    assertThat(list.size()).isGreaterThan(0);
                     assertThat(event.getTtl()).isNull();
                 }
             })

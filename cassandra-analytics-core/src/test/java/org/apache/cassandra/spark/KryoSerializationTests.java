@@ -55,6 +55,7 @@ import org.apache.cassandra.spark.transports.storage.extensions.StorageTransport
 import org.apache.cassandra.spark.utils.RandomUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 import static org.quicktheories.generators.SourceDSL.booleans;
@@ -161,6 +162,32 @@ public class KryoSerializationTests
                                               false,
                                               RandomUtils.randomAlphanumeric(5, 20),
                                               listType,
+                                              position);
+                Output out = serialize(bridge.getVersion(), field);
+                CqlField deserialized = deserialize(bridge.getVersion(), out, CqlField.class);
+                assertThat(deserialized).isEqualTo(field);
+                assertThat(deserialized.name()).isEqualTo(field.name());
+                assertThat(deserialized.type()).isEqualTo(field.type());
+                assertThat(deserialized.position()).isEqualTo(field.position());
+                assertThat(deserialized.isPartitionKey()).isEqualTo(field.isPartitionKey());
+                assertThat(deserialized.isClusteringColumn()).isEqualTo(field.isClusteringColumn());
+            });
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlFieldVector(CassandraBridge bridge)
+    {
+        assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
+        qt().withExamples(25)
+            .forAll(booleans().all(), booleans().all(), TestUtils.cql3Type(bridge), integers().all())
+            .checkAssert((isPartitionKey, isClusteringKey, cqlType, position) -> {
+                CqlField.CqlVector vectorType = bridge.vector(cqlType, 5);
+                CqlField field = new CqlField(isPartitionKey,
+                                              isClusteringKey && !isPartitionKey,
+                                              false,
+                                              RandomUtils.randomAlphanumeric(5, 20),
+                                              vectorType,
                                               position);
                 Output out = serialize(bridge.getVersion(), field);
                 CqlField deserialized = deserialize(bridge.getVersion(), out, CqlField.class);

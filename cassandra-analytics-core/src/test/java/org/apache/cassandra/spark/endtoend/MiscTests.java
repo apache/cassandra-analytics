@@ -158,7 +158,7 @@ public class MiscTests
     public void testQuotedKeyspaceName(CassandraBridge bridge)
     {
         Tester.builder(keyspace1 -> TestSchema.builder(bridge)
-                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", ""))
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
                                               .withColumn("c2", bridge.text())
@@ -184,7 +184,7 @@ public class MiscTests
     public void testQuotedTableName(CassandraBridge bridge)
     {
         Tester.builder(keyspace1 -> TestSchema.builder(bridge)
-                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", ""))
                                               .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
@@ -198,7 +198,7 @@ public class MiscTests
     public void testReservedWordTableName(CassandraBridge bridge)
     {
         Tester.builder(keyspace1 -> TestSchema.builder(bridge)
-                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", ""))
                                               .withTable("table")
                                               .withPartitionKey("pk", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
@@ -212,7 +212,7 @@ public class MiscTests
     public void testQuotedPartitionKey(CassandraBridge bridge)
     {
         Tester.builder(keyspace1 -> TestSchema.builder(bridge)
-                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", ""))
                                               .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("Partition_Key_0", bridge.uuid())
                                               .withColumn("c1", bridge.varint())
@@ -226,7 +226,7 @@ public class MiscTests
     public void testMultipleQuotedPartitionKeys(CassandraBridge bridge)
     {
         Tester.builder(keyspace1 -> TestSchema.builder(bridge)
-                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", ""))
                                               .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("Partition_Key_0", bridge.uuid())
                                               .withPartitionKey("Partition_Key_1", bridge.bigint())
@@ -243,7 +243,7 @@ public class MiscTests
     public void testQuotedPartitionClusteringKeys(CassandraBridge bridge)
     {
         Tester.builder(keyspace1 -> TestSchema.builder(bridge)
-                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", ""))
                                               .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("a", bridge.uuid())
                                               .withClusteringKey("Clustering_Key_0", bridge.bigint())
@@ -258,7 +258,7 @@ public class MiscTests
     public void testQuotedColumnNames(CassandraBridge bridge)
     {
         Tester.builder(keyspace1 -> TestSchema.builder(bridge)
-                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", ""))
                                               .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("Partition_Key_0", bridge.uuid())
                                               .withColumn("Column_1", bridge.varint())
@@ -272,7 +272,7 @@ public class MiscTests
     public void testQuotedColumnNamesWithColumnFilter(CassandraBridge bridge)
     {
         Tester.builder(keyspace1 -> TestSchema.builder(bridge)
-                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", "_"))
+                                              .withKeyspace("Quoted_Keyspace_" + UUID.randomUUID().toString().replaceAll("-", ""))
                                               .withTable("Quoted_Table_" + UUID.randomUUID().toString().replaceAll("-", "_"))
                                               .withPartitionKey("Partition_Key_0", bridge.uuid())
                                               .withColumn("Column_1", bridge.varint())

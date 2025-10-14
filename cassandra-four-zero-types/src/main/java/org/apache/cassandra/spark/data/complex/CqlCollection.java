@@ -39,7 +39,7 @@ import org.apache.cassandra.spark.data.CqlType;
 public abstract class CqlCollection extends CqlType implements CqlField.CqlCollection
 {
     public final List<CqlField.CqlType> types;
-    private final int hashCode;
+    protected int hashCode;
 
     CqlCollection(CqlField.CqlType type)
     {
@@ -175,19 +175,30 @@ public abstract class CqlCollection extends CqlType implements CqlField.CqlColle
 
     public static CqlCollection read(CqlField.CqlType.InternalType internalType, Input input, CassandraTypes cassandraTypes)
     {
+        CqlField.CqlType[] types = readTypes(input, cassandraTypes);
+        return CqlCollection.build(internalType, types);
+    }
+
+    protected static CqlField.CqlType[] readTypes(Input input, CassandraTypes cassandraTypes)
+    {
         int numTypes = input.readInt();
         CqlField.CqlType[] types = new CqlField.CqlType[numTypes];
         for (int type = 0; type < numTypes; type++)
         {
             types[type] = CqlField.CqlType.read(input, cassandraTypes);
         }
-        return CqlCollection.build(internalType, types);
+        return types;
     }
 
     @Override
     public void write(Output output)
     {
         CqlField.CqlType.write(this, output);
+        writeTypes(output);
+    }
+
+    protected void writeTypes(Output output)
+    {
         output.writeInt(this.types.size());
         for (CqlField.CqlType type : this.types)
         {
@@ -212,7 +223,7 @@ public abstract class CqlCollection extends CqlType implements CqlField.CqlColle
         {
             return true;
         }
-        if (this.getClass() != other.getClass())
+        if (!(other instanceof CqlCollection))
         {
             return false;
         }

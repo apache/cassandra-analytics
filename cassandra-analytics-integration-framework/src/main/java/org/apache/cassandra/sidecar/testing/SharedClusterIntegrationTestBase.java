@@ -504,6 +504,17 @@ public abstract class SharedClusterIntegrationTestBase
     }
 
     /**
+     * Convenience method to count rows from the provided {@code table} at consistency level ALL.
+     *
+     * @param table the qualified Cassandra table name
+     * @return all the data queried from the table
+     */
+    protected Long countDataWithDriver(QualifiedName table)
+    {
+        return countDataWithDriver(table, ConsistencyLevel.ALL);
+    }
+
+    /**
      * Convenience method to query all data from the provided {@code table} at the specified consistency level.
      *
      * @param table       the qualified Cassandra table name
@@ -512,11 +523,31 @@ public abstract class SharedClusterIntegrationTestBase
      */
     protected ResultSet queryAllDataWithDriver(QualifiedName table, ConsistencyLevel consistency)
     {
-        Cluster driverCluster = createDriverCluster(cluster.delegate());
-        Session session = driverCluster.connect();
-        SimpleStatement statement = new SimpleStatement(String.format("SELECT * FROM %s;", table));
-        statement.setConsistencyLevel(com.datastax.driver.core.ConsistencyLevel.valueOf(consistency.name()));
-        return session.execute(statement);
+        try (Cluster driverCluster = createDriverCluster(cluster.delegate());
+             Session session = driverCluster.connect())
+        {
+            SimpleStatement statement = new SimpleStatement(String.format("SELECT * FROM %s;", table));
+            statement.setConsistencyLevel(com.datastax.driver.core.ConsistencyLevel.valueOf(consistency.name()));
+            return session.execute(statement);
+        }
+    }
+
+    /**
+     * Convenience method to count rows from the provided {@code table} at the specified consistency level.
+     *
+     * @param table       the qualified Cassandra table name
+     * @param consistency the consistency level to use for querying the data
+     * @return record count
+     */
+    protected Long countDataWithDriver(QualifiedName table, ConsistencyLevel consistency)
+    {
+        try (Cluster driverCluster = createDriverCluster(cluster.delegate());
+             Session session = driverCluster.connect())
+        {
+            SimpleStatement statement = new SimpleStatement(String.format("SELECT COUNT(*) FROM %s;", table));
+            statement.setConsistencyLevel(com.datastax.driver.core.ConsistencyLevel.valueOf(consistency.name()));
+            return session.execute(statement).one().getLong(0);
+        }
     }
 
     // Utility methods

@@ -223,13 +223,13 @@ jobs:
       # into each match. To add a new version: add one entry to 'config' and one to
       # 'include'.
       matrix:
-        config: ['s2.13-c5.0.5', 's2.12-c4.1.4', 's2.12-c4.0.17', 's2.13-c5.0.5-spark4']
+        config: ['s2.13-c5.0.7', 's2.12-c4.1.4', 's2.12-c4.0.17', 's2.13-c5.0.7-spark4']
         job_index: [0, 1, 2, 3, 4]
         job_total: [5]
         include:
-          - config: 's2.13-c5.0.5'
+          - config: 's2.13-c5.0.7'
             scala: '2.13'
-            cassandra: '5.0.5'
+            cassandra: '5.0.7'
             jdk: '11'
             spark: '3'
           - config: 's2.12-c4.1.4'
@@ -242,9 +242,9 @@ jobs:
             cassandra: '4.0.17'
             jdk: '11'
             spark: '3'
-          - config: 's2.13-c5.0.5-spark4'
+          - config: 's2.13-c5.0.7-spark4'
             scala: '2.13'
-            cassandra: '5.0.5'
+            cassandra: '5.0.7'
             jdk: '17'
             spark: '4'
       fail-fast: false
