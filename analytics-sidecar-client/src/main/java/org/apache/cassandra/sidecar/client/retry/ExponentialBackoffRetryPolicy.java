@@ -47,7 +47,7 @@ public class ExponentialBackoffRetryPolicy extends BasicRetryPolicy
     /**
      * Constructs an exponential backoff retry policy unlimited number of retries and no delay between retries.
      */
-    ExponentialBackoffRetryPolicy()
+    public ExponentialBackoffRetryPolicy()
     {
         super();
         this.maxRetryDelayMillis = 0;
@@ -79,7 +79,7 @@ public class ExponentialBackoffRetryPolicy extends BasicRetryPolicy
      * @return the number of milliseconds to wait before attempting the next request
      */
     @Override
-    public long retryDelayMillis(int attempts)
+    protected long retryDelayMillis(int attempts)
     {
         long retryDelay;
         if (attempts >= maxAttemptsBeforeOverflow)
