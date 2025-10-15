@@ -31,8 +31,8 @@ import org.apache.cassandra.cdc.api.TokenRangeSupplier;
 import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.secrets.SecretsProvider;
-import org.apache.cassandra.sidecar.client.SidecarClient;
-import org.apache.cassandra.sidecar.client.SidecarInstancesProvider;
+import o.a.c.sidecar.client.shaded.client.SidecarClient;
+import o.a.c.sidecar.client.shaded.client.SidecarInstancesProvider;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.jetbrains.annotations.NotNull;
 
