@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraCoordinatedBulkWriterContext;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.apache.cassandra.bridge.CassandraBridge;
 
@@ -41,4 +42,26 @@ public interface BulkWriterContext extends Serializable
     void shutdown();
 
     TransportContext transportContext();
+
+    /**
+     * Factory method to create a BulkWriterContext from a BulkWriterConfig.
+     * This method is used to construct context instances on both the driver and executors
+     * from the broadcast configuration.
+     *
+     * @param config      the immutable configuration object
+     * @param isOnDriver  true if creating context on the driver, false if on executor
+     * @return a new BulkWriterContext instance
+     */
+    static BulkWriterContext from(BulkWriterConfig config, boolean isOnDriver)
+    {
+        BulkSparkConf conf = config.getConf();
+        if (conf.isCoordinatedWriteConfigured())
+        {
+            return new CassandraCoordinatedBulkWriterContext(config, isOnDriver);
+        }
+        else
+        {
+            return new CassandraBulkWriterContext(config, isOnDriver);
+        }
+    }
 }

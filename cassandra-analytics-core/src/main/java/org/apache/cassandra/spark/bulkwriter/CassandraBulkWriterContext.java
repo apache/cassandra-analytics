@@ -40,6 +40,17 @@ public class CassandraBulkWriterContext extends AbstractBulkWriterContext
         super(conf, structType, sparkDefaultParallelism);
     }
 
+    /**
+     * Constructor used by {@link BulkWriterContext#from(BulkWriterConfig, boolean)} factory method.
+     *
+     * @param config     immutable configuration for the bulk writer
+     * @param isOnDriver true if on driver, false if on executor
+     */
+    protected CassandraBulkWriterContext(@NotNull BulkWriterConfig config, boolean isOnDriver)
+    {
+        super(config, isOnDriver);
+    }
+
     @Override
     protected ClusterInfo buildClusterInfo()
     {

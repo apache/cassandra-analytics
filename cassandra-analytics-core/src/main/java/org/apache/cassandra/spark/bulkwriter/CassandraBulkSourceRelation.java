@@ -75,7 +75,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     private final BulkWriterContext writerContext;
     private final SQLContext sqlContext;
     private final JavaSparkContext sparkContext;
-    private final Broadcast<BulkWriterContext> broadcastContext;
+    private final Broadcast<BulkWriterConfig> broadcastConfig;
     private final BulkWriteValidator writeValidator;
     private final SimpleTaskScheduler simpleTaskScheduler;
     private ImportCoordinator importCoordinator = null; // value is only set when using S3_COMPAT
@@ -87,10 +87,29 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         this.writerContext = writerContext;
         this.sqlContext = sqlContext;
         this.sparkContext = JavaSparkContext.fromSparkContext(sqlContext.sparkContext());
-        this.broadcastContext = sparkContext.<BulkWriterContext>broadcast(writerContext);
+        // Extract immutable configuration from the context for broadcasting
+        BulkWriterConfig config = extractConfig(writerContext, sparkContext.defaultParallelism());
+        this.broadcastConfig = sparkContext.<BulkWriterConfig>broadcast(config);
         ReplicaAwareFailureHandler<RingInstance> failureHandler = new MultiClusterReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
         this.simpleTaskScheduler = new SimpleTaskScheduler();
+    }
+
+    /**
+     * Extracts immutable configuration from a BulkWriterContext for broadcasting.
+     */
+    private static BulkWriterConfig extractConfig(BulkWriterContext context, int sparkDefaultParallelism)
+    {
+        if (context instanceof AbstractBulkWriterContext)
+        {
+            AbstractBulkWriterContext abstractContext = (AbstractBulkWriterContext) context;
+            return new BulkWriterConfig(
+                abstractContext.bulkSparkConf(),
+                abstractContext.structType(),
+                sparkDefaultParallelism
+            );
+        }
+        throw new IllegalArgumentException("Cannot extract config from context type: " + context.getClass().getName());
     }
 
     @Override
@@ -135,7 +154,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                                                             .map(seq -> JavaConverters.seqAsJavaListConverter(seq).asJava().toArray())
                                                             .map(tableSchema::normalize)
                                                             .keyBy(tokenizer::getDecoratedKey)
-                                                            .repartitionAndSortWithinPartitions(broadcastContext.getValue().job().getTokenPartitioner());
+                                                            .repartitionAndSortWithinPartitions(writerContext.job().getTokenPartitioner());
         persist(sortedRDD, data.columns());
     }
 
@@ -180,14 +199,14 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
         try
         {
-            // Copy the broadcast context as a local variable (by passing as the input) to avoid serialization error
+            // Copy the broadcast config as a local variable (by passing as the input) to avoid serialization error
             // W/o this, SerializedLambda captures the CassandraBulkSourceRelation object, which is not serializable (required by Spark),
             // as a captured argument. It causes "Task not serializable" error.
             List<WriteResult> writeResults = sortedRDD
-                                             .mapPartitions(writeRowsInPartition(broadcastContext, columnNames))
+                                             .mapPartitions(writeRowsInPartition(broadcastConfig, columnNames))
                                              .collect();
 
-            // Unpersist broadcast context to free up executors while driver waits for the
+            // Unpersist broadcast config to free up executors while driver waits for the
             // import to complete
             unpersist();
 
@@ -330,15 +349,16 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     }
 
     /**
-     * Get a ref copy of BulkWriterContext broadcast variable and compose a function to transform a partition into StreamResult
+     * Get a ref copy of BulkWriterConfig broadcast variable and compose a function to transform a partition into StreamResult
      *
-     * @param ctx BulkWriterContext broadcast variable
+     * @param config      BulkWriterConfig broadcast variable
+     * @param columnNames column names array
      * @return FlatMapFunction
      */
     private static FlatMapFunction<Iterator<Tuple2<DecoratedKey, Object[]>>, WriteResult>
-    writeRowsInPartition(Broadcast<BulkWriterContext> ctx, String[] columnNames)
+    writeRowsInPartition(Broadcast<BulkWriterConfig> config, String[] columnNames)
     {
-        return iterator -> Collections.singleton(new RecordWriter(ctx.getValue(), columnNames).write(iterator)).iterator();
+        return iterator -> Collections.singleton(new RecordWriter(config.getValue(), columnNames).write(iterator)).iterator();
     }
 
     /**
@@ -348,8 +368,8 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     {
         try
         {
-            LOGGER.info("Unpersisting broadcast context");
-            broadcastContext.unpersist(false);
+            LOGGER.info("Unpersisting broadcast config");
+            broadcastConfig.unpersist(false);
         }
         catch (Throwable throwable)
         {

@@ -52,6 +52,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
 
     private final BulkSparkConf conf;
     private final int sparkDefaultParallelism;
+    private final StructType structType;  // Store for config extraction
     private final JobInfo jobInfo;
     private final ClusterInfo clusterInfo;
     private final SchemaInfo schemaInfo;
@@ -66,7 +67,36 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
                                         @NotNull StructType structType,
                                         @NotNull int sparkDefaultParallelism)
     {
+        this(conf, structType, sparkDefaultParallelism, true);
+    }
+
+    /**
+     * Constructor that accepts a BulkWriterConfig and whether this is on the driver.
+     * This is used by the factory method {@link BulkWriterContext#from(BulkWriterConfig, boolean)}.
+     *
+     * @param config     immutable configuration for the bulk writer
+     * @param isOnDriver true if on driver, false if on executor
+     */
+    protected AbstractBulkWriterContext(@NotNull BulkWriterConfig config, boolean isOnDriver)
+    {
+        this(config.getConf(), config.getStructType(), config.getSparkDefaultParallelism(), isOnDriver);
+    }
+
+    /**
+     * Internal constructor that initializes all fields.
+     *
+     * @param conf                    Bulk Spark configuration
+     * @param structType              DataFrame schema
+     * @param sparkDefaultParallelism Spark default parallelism
+     * @param isOnDriver              true if on driver, false if on executor
+     */
+    private AbstractBulkWriterContext(@NotNull BulkSparkConf conf,
+                                      @NotNull StructType structType,
+                                      int sparkDefaultParallelism,
+                                      boolean isOnDriver)
+    {
         this.conf = conf;
+        this.structType = structType;
         this.sparkDefaultParallelism = sparkDefaultParallelism;
         // Note: build sequence matters
         this.clusterInfo = buildClusterInfo();
@@ -76,12 +106,17 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         this.jobInfo = buildJobInfo();
         this.schemaInfo = buildSchemaInfo(structType);
         this.jobStatsPublisher = buildJobStatsPublisher();
-        this.transportContext = buildTransportContext(true);
+        this.transportContext = buildTransportContext(isOnDriver);
     }
 
-    protected final BulkSparkConf bulkSparkConf()
+    public final BulkSparkConf bulkSparkConf()
     {
         return conf;
+    }
+
+    public final StructType structType()
+    {
+        return structType;
     }
 
     protected final int sparkDefaultParallelism()

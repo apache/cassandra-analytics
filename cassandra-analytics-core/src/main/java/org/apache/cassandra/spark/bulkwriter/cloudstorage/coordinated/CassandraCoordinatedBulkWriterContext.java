@@ -26,6 +26,7 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.apache.cassandra.spark.bulkwriter.AbstractBulkWriterContext;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
+import org.apache.cassandra.spark.bulkwriter.BulkWriterConfig;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.DataTransport;
 import org.apache.spark.sql.types.StructType;
@@ -44,6 +45,23 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
                                                  int sparkDefaultParallelism)
     {
         super(conf, structType, sparkDefaultParallelism);
+        validateConfiguration(conf);
+    }
+
+    /**
+     * Constructor used by {@link org.apache.cassandra.spark.bulkwriter.BulkWriterContext#from(BulkWriterConfig, boolean)} factory method.
+     *
+     * @param config     immutable configuration for the bulk writer
+     * @param isOnDriver true if on driver, false if on executor
+     */
+    public CassandraCoordinatedBulkWriterContext(@NotNull BulkWriterConfig config, boolean isOnDriver)
+    {
+        super(config, isOnDriver);
+        validateConfiguration(config.getConf());
+    }
+
+    private void validateConfiguration(BulkSparkConf conf)
+    {
         Preconditions.checkArgument(conf.isCoordinatedWriteConfigured(),
                                     "Cannot create CassandraCoordinatedBulkWriterContext without CoordinatedWrite configuration");
         // Redundant check, since isCoordinatedWriteConfigured implies using S3_COMPAT mode already.
