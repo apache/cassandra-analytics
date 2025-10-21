@@ -25,7 +25,6 @@ import o.a.c.sidecar.client.shaded.common.response.data.CdcSegmentInfo;
 import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
 import org.apache.cassandra.cdc.api.CommitLog;
 import org.apache.cassandra.cdc.stats.ICdcStats;
-import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.utils.streaming.CassandraFileSource;
@@ -46,7 +45,7 @@ public class SidecarCdcCommitLogSegment implements CommitLog
     public SidecarCdcCommitLogSegment(SidecarCdcClient sidecar,
                                       CassandraInstance instance,
                                       CdcSegmentInfo segment,
-                                      Sidecar.ClientConfig clientConfig)
+                                      SidecarCdcClient.ClientConfig clientConfig)
     {
         this.instance = instance;
         this.segment = segment;
