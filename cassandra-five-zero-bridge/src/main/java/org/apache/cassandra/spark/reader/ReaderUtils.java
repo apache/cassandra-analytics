@@ -537,8 +537,7 @@ public final class ReaderUtils extends TokenUtils
      * Read primary Index.db file
      *
      * @param primaryIndex input stream for Index.db file
-     * @param tracker      tracker that consumes each key byffer and returns true if can exit early, otherwise continues to read primary index
-     * @return pair of first and last decorated keys
+     * @param tracker      tracker that consumes each key buffer and returns true if can exit early, otherwise continues to read primary index
      * @throws IOException
      */
     public static void readPrimaryIndex(@NotNull InputStream primaryIndex,

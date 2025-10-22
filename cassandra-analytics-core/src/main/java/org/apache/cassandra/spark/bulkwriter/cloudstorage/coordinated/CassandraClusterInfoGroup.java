@@ -62,8 +62,9 @@ import org.jetbrains.annotations.Nullable;
  * <p>
  * This class is NOT serialized and does NOT have a serialVersionUID.
  * When broadcasting to executors, the driver extracts information from this class
- * and creates a {@link SerializableClusterInfoGroup} instance, which is then included
- * in the {@link org.apache.cassandra.spark.bulkwriter.BulkWriterConfig} that gets broadcast.
+ * and creates a {@link org.apache.cassandra.spark.bulkwriter.SerializableClusterInfoGroup} instance,
+ * which is then included in the {@link org.apache.cassandra.spark.bulkwriter.BulkWriterConfig}
+ * that gets broadcast.
  * <p>
  * This class implements Serializable only because the {@link org.apache.cassandra.spark.bulkwriter.ClusterInfo}
  * interface requires it (for use as a field type in broadcast classes), but instances of this
