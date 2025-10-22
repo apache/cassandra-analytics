@@ -28,11 +28,15 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClust
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * BulkWriterContext implementation for single cluster write operations.
+ * <p>
+ * This class does NOT have a serialVersionUID because it is never directly serialized.
+ * See {@link AbstractBulkWriterContext} for details on the serialization architecture.
+ */
 // CHECKSTYLE IGNORE: This class cannot be declared as final, because consumers should be able to extend it
 public class CassandraBulkWriterContext extends AbstractBulkWriterContext
 {
-    private static final long serialVersionUID = 8241993502687688783L;
-
     protected CassandraBulkWriterContext(@NotNull BulkSparkConf conf,
                                          @NotNull StructType structType,
                                          int sparkDefaultParallelism)

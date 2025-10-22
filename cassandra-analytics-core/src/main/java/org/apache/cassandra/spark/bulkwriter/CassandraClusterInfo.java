@@ -62,9 +62,20 @@ import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
+/**
+ * Driver-only implementation of {@link ClusterInfo} for single cluster operations.
+ * <p>
+ * This class is NOT serialized and does NOT have a serialVersionUID.
+ * When broadcasting to executors, the driver extracts information from this class
+ * and creates a {@link SerializableClusterInfo} instance, which is then included
+ * in the {@link BulkWriterConfig} that gets broadcast.
+ * <p>
+ * This class implements Serializable only because the {@link ClusterInfo} interface
+ * requires it (for use as a field type in broadcast classes), but instances of this
+ * class are never directly serialized.
+ */
 public class CassandraClusterInfo implements ClusterInfo, Closeable
 {
-    private static final long serialVersionUID = -6944818863462956767L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraClusterInfo.class);
 
     protected final BulkSparkConf conf;

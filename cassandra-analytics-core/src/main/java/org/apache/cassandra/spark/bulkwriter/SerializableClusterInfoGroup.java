@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated;
+package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -29,25 +29,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
-import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
-import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
-import org.apache.cassandra.spark.bulkwriter.CassandraContext;
-import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
-import org.apache.cassandra.spark.bulkwriter.RingInstance;
-import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
-import org.apache.cassandra.spark.bulkwriter.WriterOptions;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterSupport;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -57,80 +46,50 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * A group of ClusterInfo. One per cluster.
- * The class does the aggregation over all clusters for applicable operations.
- * <p>
- * This class is NOT serialized and does NOT have a serialVersionUID.
- * When broadcasting to executors, the driver extracts information from this class
- * and creates a {@link SerializableClusterInfoGroup} instance, which is then included
- * in the {@link org.apache.cassandra.spark.bulkwriter.BulkWriterConfig} that gets broadcast.
- * <p>
- * This class implements Serializable only because the {@link org.apache.cassandra.spark.bulkwriter.ClusterInfo}
- * interface requires it (for use as a field type in broadcast classes), but instances of this
- * class are never directly serialized.
+ * Serializable implementation of ClusterInfo for coordinated writes with ZERO transient fields.
+ * This class wraps multiple SerializableClusterInfo instances and delegates to them.
+ * All caches are non-transient to avoid SizeEstimator overhead from inspecting transient fields.
+ * NO LOGGER - to avoid logger references in broadcast variable.
  */
-public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSupport<ClusterInfo>
+public final class SerializableClusterInfoGroup implements ClusterInfo, MultiClusterSupport<ClusterInfo>
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CassandraClusterInfoGroup.class);
+    private static final long serialVersionUID = 1L;
 
-    // immutable
+    // All fields are non-transient - no lazy loading with transient fields
     private final List<ClusterInfo> clusterInfos;
-    private transient volatile Map<String, ClusterInfo> clusterInfoById;
-    private transient volatile TokenRangeMapping<RingInstance> consolidatedTokenRangeMapping;
+    // Pre-compute and store instead of lazy loading
+    private final Map<String, ClusterInfo> clusterInfoById;
+    // Volatile for lazy initialization with double-checked locking
+    private volatile TokenRangeMapping<RingInstance> consolidatedTokenRangeMapping;
 
     /**
-     * Creates {@link CassandraClusterInfoGroup} with the list of {@link ClusterInfo} from {@link BulkSparkConf} and validation
-     * The validation ensures non-empty list of {@link ClusterInfo}, where all objects have non-empty and unique clusterId
-     * @param conf bulk write conf
-     * @return new {@link CassandraClusterInfoGroup} instance
+     * Creates a SerializableClusterInfoGroup from a source ClusterInfo group
+     *
+     * @param source the source ClusterInfo (typically CassandraClusterInfoGroup)
+     * @param conf   the BulkSparkConf needed to rebuild CassandraContext on executors
      */
-    public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf)
+    public static SerializableClusterInfoGroup from(@NotNull MultiClusterSupport<ClusterInfo> source,
+                                                    @NotNull BulkSparkConf conf)
     {
-        return fromBulkSparkConf(conf, clusterId -> new CassandraClusterInfo(conf, clusterId));
+        List<ClusterInfo> serializableInfos = new ArrayList<>();
+        source.forEach((clusterId, clusterInfo) -> {
+            serializableInfos.add(SerializableClusterInfo.from(clusterInfo, conf));
+        });
+        return new SerializableClusterInfoGroup(serializableInfos);
     }
 
-    /**
-     * Similar to {@link #fromBulkSparkConf(BulkSparkConf)} but takes additional function to create {@link ClusterInfo}
-     */
-    public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf, Function<String, ClusterInfo> clusterInfoFactory)
-    {
-        CoordinatedWriteConf coordinatedWriteConf = conf.coordinatedWriteConf();
-        Preconditions.checkArgument(coordinatedWriteConf != null,
-                                    "In order to create an instance of CassandraCoordinatedBulkWriterContext, " +
-                                    "you must provide the appropriate coordinated write configuration by " +
-                                    "setting the `" + WriterOptions.COORDINATED_WRITE_CONFIG + "` writer option.");
-        for (String clusterId : coordinatedWriteConf.clusters().keySet())
-        {
-            Preconditions.checkState(!StringUtils.isEmpty(clusterId),
-                                     "Found coordinatedWriteConf with empty or null clusterId. %s",
-                                     coordinatedWriteConf);
-        }
-        List<ClusterInfo> clusterInfos = coordinatedWriteConf
-                                         .clusters()
-                                         .keySet()
-                                         .stream()
-                                         .map(clusterInfoFactory)
-                                         .collect(Collectors.toList());
-        Preconditions.checkState(!clusterInfos.isEmpty(), "No cluster info is built from %s", coordinatedWriteConf);
-        return new CassandraClusterInfoGroup(clusterInfos);
-    }
-
-    @VisibleForTesting // ONLY FOR TESTING
-    public static CassandraClusterInfoGroup createFrom(List<ClusterInfo> clusterInfos)
-    {
-        return new CassandraClusterInfoGroup(clusterInfos);
-    }
-
-    private CassandraClusterInfoGroup(List<ClusterInfo> clusterInfos)
+    private SerializableClusterInfoGroup(List<ClusterInfo> clusterInfos)
     {
         this.clusterInfos = Collections.unmodifiableList(clusterInfos);
-        clusterInfoById();
+        // Pre-compute the map instead of lazy loading
+        this.clusterInfoById = clusterInfos.stream()
+                                          .collect(Collectors.toMap(ClusterInfo::clusterId, Function.identity()));
     }
 
     @Override
     public void refreshClusterInfo()
     {
-        runOnEach(ClusterInfo::refreshClusterInfo);
+        // No-op - this is an immutable snapshot
     }
 
     @Override
@@ -145,7 +104,6 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
         {
             synchronized (this)
             {
-                // return immediately if consolidatedTokenRangeMapping has been initialized and call-site asks for the cached value
                 if (cached && consolidatedTokenRangeMapping != null)
                 {
                     return consolidatedTokenRangeMapping;
@@ -158,9 +116,6 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
         return consolidatedTokenRangeMapping;
     }
 
-    /**
-     * @return the lowest cassandra version among all clusters
-     */
     @Override
     public String getLowestCassandraVersion()
     {
@@ -214,21 +169,19 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     @Override
     public void checkBulkWriterIsEnabledOrThrow()
     {
-        runOnEach(ClusterInfo::checkBulkWriterIsEnabledOrThrow);
+        // No-op - validation already done on driver
     }
 
     @Override
     public void validateTimeSkew(Range<BigInteger> range) throws SidecarApiCallException, TimeSkewTooLargeException
     {
-        clusterInfos.forEach(ci -> ci.validateTimeSkew(range));
+        // No-op - validation already done on driver
     }
 
     @Override
     public String getKeyspaceSchema(boolean cached)
     {
-        // All clusters that receive write should have the same keyspace schema. Therefore, return from the first cluster
-        // Note that the keyspace replication options can vary among the clusters. It is/should not be used when the correct ReplicationFactor is wanted.
-        // Instead, call the replicationFactor() method on the individual ClusterInfo
+        // All clusters should have the same keyspace schema
         return clusterInfos.get(0).getKeyspaceSchema(cached);
     }
 
@@ -236,26 +189,27 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     public ReplicationFactor replicationFactor()
     {
         // Call the replicationFactor() method on the individual ClusterInfo
-        throw new UnsupportedOperationException("Not implemented in CassandraClusterInfoGroup");
+        throw new UnsupportedOperationException("Not implemented in SerializableClusterInfoGroup");
     }
 
     @Override
     public CassandraContext getCassandraContext()
     {
         // Call the getCassandraContext() method on the individual ClusterInfo
-        throw new UnsupportedOperationException("Not implemented in CassandraClusterInfoGroup");
+        throw new UnsupportedOperationException("Not implemented in SerializableClusterInfoGroup");
     }
 
     @Override
     public void startupValidate()
     {
-        runOnEach(ClusterInfo::startupValidate);
+        // No-op - validation already done on driver
     }
 
     @Override
+    @Nullable
     public String clusterId()
     {
-        return "ClusterInfoGroup: [" + String.join(", ", applyOnEach(ClusterInfo::clusterId).values()) + ']';
+        return "SerializableClusterInfoGroup: [" + String.join(", ", applyOnEach(ClusterInfo::clusterId).values()) + ']';
     }
 
     @Override
@@ -267,56 +221,23 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     @Override
     public void forEach(BiConsumer<String, ClusterInfo> action)
     {
-        clusterInfoById().forEach(action);
+        clusterInfoById.forEach(action);
     }
 
     @Nullable
     @Override
     public ClusterInfo getValueOrNull(@NotNull String clusterId)
     {
-        return clusterInfoById().get(clusterId);
-    }
-
-    private Map<String, ClusterInfo> clusterInfoById()
-    {
-        if (clusterInfoById == null)
-        {
-            synchronized (this)
-            {
-                if (clusterInfoById == null)
-                {
-                    clusterInfoById = clusterInfos.stream().collect(Collectors.toMap(ClusterInfo::clusterId, Function.identity()));
-                }
-            }
-        }
-
-        return clusterInfoById;
-    }
-
-    private void runOnEach(Consumer<ClusterInfo> action)
-    {
-        for (ClusterInfo clusterInfo : clusterInfos)
-        {
-            try
-            {
-                action.accept(clusterInfo);
-            }
-            catch (Throwable cause)
-            {
-                throw toRuntimeException(clusterInfo, cause);
-            }
-        }
+        return clusterInfoById.get(clusterId);
     }
 
     private <T> Map<String, T> applyOnEach(Function<ClusterInfo, T> action)
     {
-        // Preserve order with LinkedHashMap
         Map<String, T> aggregated = new LinkedHashMap<>(clusterInfos.size());
         for (ClusterInfo clusterInfo : clusterInfos)
         {
             try
             {
-                // clusterId should not be null when there are multiple clusters
                 aggregated.put(clusterInfo.clusterId(), action.apply(clusterInfo));
             }
             catch (Throwable cause)
@@ -329,13 +250,17 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
 
     private RuntimeException toRuntimeException(ClusterInfo clusterInfo, Throwable cause)
     {
-        LOGGER.error("Failed to perform action on cluster. cluster={}", clusterInfo.clusterId(), cause);
+        // No logger in broadcast variable - error will be propagated via exception
         return new RuntimeException("Failed to perform action on cluster: " + clusterInfo.clusterId(), cause);
     }
 
-    @VisibleForTesting
-    Map<String, ClusterInfo> clusterInfoByIdUnsafe()
+    @Override
+    public void close()
     {
-        return clusterInfoById;
+        // Delegate to all contained cluster infos
+        for (ClusterInfo clusterInfo : clusterInfos)
+        {
+            clusterInfo.close();
+        }
     }
 }

@@ -19,13 +19,22 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.io.Serializable;
-
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraCoordinatedBulkWriterContext;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.apache.cassandra.bridge.CassandraBridge;
 
-public interface BulkWriterContext extends Serializable
+/**
+ * Context for bulk write operations, providing access to cluster, job, schema, and transport information.
+ * <p>
+ * Serialization Architecture:
+ * This interface does NOT extend Serializable. BulkWriterContext instances are never broadcast to executors.
+ * Instead, {@link BulkWriterConfig} is broadcast, and executors reconstruct BulkWriterContext instances
+ * from the config using the factory method {@link #from(BulkWriterConfig, boolean)}.
+ * <p>
+ * The implementations ({@link CassandraBulkWriterContext}, {@link CassandraCoordinatedBulkWriterContext})
+ * do NOT have serialVersionUID fields as they are never serialized.
+ */
+public interface BulkWriterContext
 {
     ClusterInfo cluster();
 

@@ -45,6 +45,7 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCoordinator;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCloudStorageDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedImportCoordinator;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterSupport;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
@@ -97,16 +98,45 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
     /**
      * Extracts immutable configuration from a BulkWriterContext for broadcasting.
+     * Creates SerializableClusterInfo (or SerializableClusterInfoGroup for coordinated writes)
+     * to ensure zero transient fields in the broadcast object.
      */
     private static BulkWriterConfig extractConfig(BulkWriterContext context, int sparkDefaultParallelism)
     {
         if (context instanceof AbstractBulkWriterContext)
         {
             AbstractBulkWriterContext abstractContext = (AbstractBulkWriterContext) context;
+            ClusterInfo originalClusterInfo = abstractContext.cluster();
+
+            // Create SerializableClusterInfo to avoid transient fields in broadcast
+            ClusterInfo serializableClusterInfo;
+            if (originalClusterInfo instanceof MultiClusterSupport)
+            {
+                // Coordinated write scenario
+                @SuppressWarnings("unchecked")
+                MultiClusterSupport<ClusterInfo> multiCluster = (MultiClusterSupport<ClusterInfo>) originalClusterInfo;
+                serializableClusterInfo = SerializableClusterInfoGroup.from(
+                    multiCluster,
+                    abstractContext.bulkSparkConf()
+                );
+            }
+            else
+            {
+                // Single cluster scenario
+                serializableClusterInfo = SerializableClusterInfo.from(
+                    originalClusterInfo,
+                    abstractContext.bulkSparkConf()
+                );
+            }
+
             return new BulkWriterConfig(
                 abstractContext.bulkSparkConf(),
                 abstractContext.structType(),
-                sparkDefaultParallelism
+                sparkDefaultParallelism,
+                abstractContext.job(),
+                serializableClusterInfo,
+                abstractContext.schema(),
+                abstractContext.lowestCassandraVersion()
             );
         }
         throw new IllegalArgumentException("Cannot extract config from context type: " + context.getClass().getName());

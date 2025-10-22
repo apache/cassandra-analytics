@@ -26,10 +26,18 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * Immutable configuration data class for BulkWriter jobs that is safe to broadcast to Spark executors.
- * This class contains only pure configuration data and no stateful objects or lifecycle methods.
+ * This class contains pre-computed, serializable values that were computed on the driver.
  * <p>
- * BulkWriterContext instances should be constructed from this config on both driver and executors
- * using {@link BulkWriterContext#from(BulkWriterConfig, boolean)}.
+ * Serialization Architecture:
+ * This class is the ONLY object that gets broadcast to Spark executors (via Spark's broadcast mechanism).
+ * It contains serializable implementations of cluster information ({@link SerializableClusterInfo} or
+ * {@link SerializableClusterInfoGroup}) that have zero transient fields for safe serialization.
+ * <p>
+ * On the driver, {@link BulkWriterContext} instances use driver-only implementations like
+ * {@link CassandraClusterInfo}. Before broadcasting, these are converted to serializable forms.
+ * On executors, {@link BulkWriterContext} instances are reconstructed from this config using
+ * {@link BulkWriterContext#from(BulkWriterConfig, boolean)}, which uses the serializable cluster
+ * information directly without converting back to driver-only types.
  */
 public final class BulkWriterConfig implements Serializable
 {
@@ -38,21 +46,37 @@ public final class BulkWriterConfig implements Serializable
     private final BulkSparkConf conf;
     private final StructType structType;
     private final int sparkDefaultParallelism;
+    private final JobInfo jobInfo;
+    private final ClusterInfo clusterInfo;
+    private final SchemaInfo schemaInfo;
+    private final String lowestCassandraVersion;
 
     /**
-     * Creates a new immutable BulkWriterConfig
+     * Creates a new immutable BulkWriterConfig with pre-computed values
      *
      * @param conf                    Bulk writer Spark configuration
      * @param structType              DataFrame schema structure
      * @param sparkDefaultParallelism Spark default parallelism setting
+     * @param jobInfo                 Pre-computed job information
+     * @param clusterInfo             Pre-computed cluster information
+     * @param schemaInfo              Pre-computed schema information
+     * @param lowestCassandraVersion  Lowest Cassandra version in the cluster
      */
     public BulkWriterConfig(@NotNull BulkSparkConf conf,
                             @NotNull StructType structType,
-                            int sparkDefaultParallelism)
+                            int sparkDefaultParallelism,
+                            @NotNull JobInfo jobInfo,
+                            @NotNull ClusterInfo clusterInfo,
+                            @NotNull SchemaInfo schemaInfo,
+                            @NotNull String lowestCassandraVersion)
     {
         this.conf = conf;
         this.structType = structType;
         this.sparkDefaultParallelism = sparkDefaultParallelism;
+        this.jobInfo = jobInfo;
+        this.clusterInfo = clusterInfo;
+        this.schemaInfo = schemaInfo;
+        this.lowestCassandraVersion = lowestCassandraVersion;
     }
 
     public BulkSparkConf getConf()
@@ -68,5 +92,25 @@ public final class BulkWriterConfig implements Serializable
     public int getSparkDefaultParallelism()
     {
         return sparkDefaultParallelism;
+    }
+
+    public JobInfo getJobInfo()
+    {
+        return jobInfo;
+    }
+
+    public ClusterInfo getClusterInfo()
+    {
+        return clusterInfo;
+    }
+
+    public SchemaInfo getSchemaInfo()
+    {
+        return schemaInfo;
+    }
+
+    public String getLowestCassandraVersion()
+    {
+        return lowestCassandraVersion;
     }
 }

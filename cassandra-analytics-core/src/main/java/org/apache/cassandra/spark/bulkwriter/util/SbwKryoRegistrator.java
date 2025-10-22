@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter.util;
 
-import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Set;
 
@@ -45,7 +44,10 @@ public class SbwKryoRegistrator implements KryoRegistrator
     protected static final String KRYO_KEY = "spark.kryo.registrator";
 
     // CHECKSTYLE IGNORE: Despite being static and final, this is a mutable field not to be confused with a constant
-    private static final Set<Class<? extends Serializable>> javaSerializableClasses =
+    // Note: The type is Class<?> instead of Class<? extends Serializable> because BulkWriterContext implementations
+    // do not extend Serializable (they are reconstructed from BulkWriterConfig on executors, not serialized directly).
+    // However, they still need to be registered with Kryo to trigger the fail-fast detection mechanism.
+    private static final Set<Class<?>> javaSerializableClasses =
     Sets.newHashSet(CassandraBulkWriterContext.class,
                     CassandraCoordinatedBulkWriterContext.class,
                     TokenPartitioner.class,
@@ -65,7 +67,7 @@ public class SbwKryoRegistrator implements KryoRegistrator
         kryo.register(StorageCredentials.class, new StorageCredentials.Serializer());
     }
 
-    public static void addJavaSerializableClass(@NotNull Class<? extends Serializable> javaSerializableClass)
+    public static void addJavaSerializableClass(@NotNull Class<?> javaSerializableClass)
     {
         javaSerializableClasses.add(javaSerializableClass);
     }

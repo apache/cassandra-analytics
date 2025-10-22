@@ -31,10 +31,10 @@ import com.google.common.collect.Range;
 
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf.ClusterConf;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterSupport;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -98,9 +98,10 @@ public class MultiClusterReplicaAwareFailureHandler<I extends CassandraInstance>
         CoordinatedWriteConf coordinatedWriteConf = job.coordinatedWriteConf();
         Preconditions.checkState(coordinatedWriteConf != null,
                                  "CoordinatedWriteConf is absent for multi-cluster write");
-        Preconditions.checkState(cluster instanceof CassandraClusterInfoGroup,
-                                 "Not a CassandraClusterInfoGroup for multi-cluster write");
-        CassandraClusterInfoGroup group = (CassandraClusterInfoGroup) cluster;
+        Preconditions.checkState(cluster instanceof MultiClusterSupport,
+                                 "Not a MultiClusterSupport for multi-cluster write");
+        @SuppressWarnings("unchecked")
+        MultiClusterSupport<ClusterInfo> group = (MultiClusterSupport<ClusterInfo>) cluster;
         failureHandlers.forEach((clusterId, handler) -> {
             ClusterConf clusterConf = coordinatedWriteConf.cluster(clusterId);
             ClusterInfo clusterInfo = group.getValueOrThrow(clusterId);

@@ -44,9 +44,23 @@ import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Abstract base class for BulkWriterContext implementations.
+ * <p>
+ * Serialization Architecture:
+ * This class does NOT have a serialVersionUID because it is never directly serialized via Java serialization.
+ * It implements KryoSerializable with a fail-fast approach to detect missing Kryo registration
+ * (see {@link org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator}).
+ * <p>
+ * When BulkWriterConfig is broadcast to executors, the config contains all necessary immutable data.
+ * On executors, BulkWriterContext instances are reconstructed from the config using
+ * {@link BulkWriterContext#from(BulkWriterConfig, boolean)}, not by deserializing BulkWriterContext directly.
+ * <p>
+ * Transient fields in this class are lazily rebuilt on executors when accessed, using the
+ * {@link #getOrRebuildAfterDeserialization} pattern for Kryo serialization safety.
+ */
 public abstract class AbstractBulkWriterContext implements BulkWriterContext, KryoSerializable
 {
-    private static final long serialVersionUID = -6526396615116954510L;
     // log as the concrete implementation; but use private to not expose the logger to implementations
     private final transient Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -67,19 +81,26 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
                                         @NotNull StructType structType,
                                         @NotNull int sparkDefaultParallelism)
     {
-        this(conf, structType, sparkDefaultParallelism, true);
+        this(conf, structType, sparkDefaultParallelism, null, null, null, null, true);
     }
 
     /**
      * Constructor that accepts a BulkWriterConfig and whether this is on the driver.
      * This is used by the factory method {@link BulkWriterContext#from(BulkWriterConfig, boolean)}.
      *
-     * @param config     immutable configuration for the bulk writer
+     * @param config     immutable configuration for the bulk writer with pre-computed values
      * @param isOnDriver true if on driver, false if on executor
      */
     protected AbstractBulkWriterContext(@NotNull BulkWriterConfig config, boolean isOnDriver)
     {
-        this(config.getConf(), config.getStructType(), config.getSparkDefaultParallelism(), isOnDriver);
+        this(config.getConf(),
+             config.getStructType(),
+             config.getSparkDefaultParallelism(),
+             config.getJobInfo(),
+             config.getClusterInfo(),
+             config.getSchemaInfo(),
+             config.getLowestCassandraVersion(),
+             isOnDriver);
     }
 
     /**
@@ -88,23 +109,35 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
      * @param conf                    Bulk Spark configuration
      * @param structType              DataFrame schema
      * @param sparkDefaultParallelism Spark default parallelism
+     * @param precomputedJobInfo      Pre-computed JobInfo (null to compute)
+     * @param precomputedClusterInfo  Pre-computed ClusterInfo (null to compute)
+     * @param precomputedSchemaInfo   Pre-computed SchemaInfo (null to compute)
+     * @param precomputedVersion      Pre-computed Cassandra version (null to compute)
      * @param isOnDriver              true if on driver, false if on executor
      */
     private AbstractBulkWriterContext(@NotNull BulkSparkConf conf,
                                       @NotNull StructType structType,
                                       int sparkDefaultParallelism,
+                                      JobInfo precomputedJobInfo,
+                                      ClusterInfo precomputedClusterInfo,
+                                      SchemaInfo precomputedSchemaInfo,
+                                      String precomputedVersion,
                                       boolean isOnDriver)
     {
         this.conf = conf;
         this.structType = structType;
         this.sparkDefaultParallelism = sparkDefaultParallelism;
         // Note: build sequence matters
-        this.clusterInfo = buildClusterInfo();
-        this.clusterInfo.startupValidate();
-        this.lowestCassandraVersion = findLowestCassandraVersion();
+        // Use pre-computed values if available (from broadcast), otherwise compute them
+        this.clusterInfo = precomputedClusterInfo != null ? precomputedClusterInfo : buildClusterInfo();
+        if (precomputedClusterInfo == null)
+        {
+            this.clusterInfo.startupValidate();
+        }
+        this.lowestCassandraVersion = precomputedVersion != null ? precomputedVersion : findLowestCassandraVersion();
         this.bridge = buildCassandraBridge();
-        this.jobInfo = buildJobInfo();
-        this.schemaInfo = buildSchemaInfo(structType);
+        this.jobInfo = precomputedJobInfo != null ? precomputedJobInfo : buildJobInfo();
+        this.schemaInfo = precomputedSchemaInfo != null ? precomputedSchemaInfo : buildSchemaInfo(structType);
         this.jobStatsPublisher = buildJobStatsPublisher();
         this.transportContext = buildTransportContext(isOnDriver);
     }

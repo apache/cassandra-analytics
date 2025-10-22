@@ -57,7 +57,7 @@ class BulkSparkConfTest
         defaultOptions.put(WriterOptions.TABLE.name(), "table");
         defaultOptions.put(WriterOptions.KEYSTORE_PASSWORD.name(), "dummy_password");
         defaultOptions.put(WriterOptions.KEYSTORE_PATH.name(), "dummy_path");
-        bulkSparkConf = new BulkSparkConf(sparkConf, defaultOptions);
+        bulkSparkConf = new BulkSparkConf(sparkConf, defaultOptions, null);
     }
 
     @Test
@@ -89,7 +89,7 @@ class BulkSparkConfTest
         sparkConf.set("qwerty.request.max_connections", "1234");
         sparkConf.set("asdfgh.request.max_connections", "000000");
         sparkConf.set("zxcvbn.request.response_timeout", "5678");
-        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, defaultOptions)
+        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, defaultOptions, null)
         {
             @Override
             @NotNull
@@ -140,7 +140,7 @@ class BulkSparkConfTest
         // mTLS is now required, and the BulkSparkConf constructor fails if the options aren't present
         Map<String, String> options = copyDefaultOptions();
         SparkConf sparkConf = new SparkConf();
-        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options));
+        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options, null));
     }
 
     @Test
@@ -149,7 +149,7 @@ class BulkSparkConfTest
         Map<String, String> options = copyDefaultOptions();
         options.remove(WriterOptions.KEYSTORE_PATH.name());
         SparkConf sparkConf = new SparkConf();
-        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options, null))
         .isExactlyInstanceOf(NullPointerException.class)
         .hasMessage("Keystore password was set. But both keystore path and base64 encoded string are not set. "
                     + "Please either set option " + WriterOptions.KEYSTORE_PATH
@@ -167,7 +167,7 @@ class BulkSparkConfTest
     @Test
     void testDefaultSidecarPort()
     {
-        bulkSparkConf = new BulkSparkConf(new SparkConf(), defaultOptions);
+        bulkSparkConf = new BulkSparkConf(new SparkConf(), defaultOptions, null);
         assertThat(bulkSparkConf.getUserProvidedSidecarPort()).isEqualTo(-1);
         assertThat(bulkSparkConf.getEffectiveSidecarPort()).isEqualTo(DEFAULT_SIDECAR_PORT);
     }
@@ -177,7 +177,7 @@ class BulkSparkConfTest
     {
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.SIDECAR_PORT.name(), "9999");
-        bulkSparkConf = new BulkSparkConf(new SparkConf(), options);
+        bulkSparkConf = new BulkSparkConf(new SparkConf(), options, null);
         assertThat(bulkSparkConf.getUserProvidedSidecarPort()).isEqualTo(9999);
         assertThat(bulkSparkConf.getEffectiveSidecarPort()).isEqualTo(9999);
     }
@@ -189,7 +189,7 @@ class BulkSparkConfTest
         // This makes the test not pollute global (System.properties) state but still tests the same basic path.
         SparkConf conf = new SparkConf()
                          .set(BulkSparkConf.SIDECAR_PORT, "9876");
-        bulkSparkConf = new BulkSparkConf(conf, defaultOptions);
+        bulkSparkConf = new BulkSparkConf(conf, defaultOptions, null);
         assertThat(bulkSparkConf.getUserProvidedSidecarPort()).isEqualTo(9876);
         assertThat(bulkSparkConf.getEffectiveSidecarPort()).isEqualTo(9876);
     }
@@ -200,7 +200,7 @@ class BulkSparkConfTest
         Map<String, String> options = copyDefaultOptions();
         options.remove(WriterOptions.KEYSTORE_PATH.name());
         options.put(WriterOptions.KEYSTORE_BASE64_ENCODED.name(), "dummy_base64_encoded_keystore");
-        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, defaultOptions));
+        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, defaultOptions, null));
     }
 
     @Test
@@ -208,7 +208,7 @@ class BulkSparkConfTest
     {
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.TRUSTSTORE_PATH.name(), "dummy");
-        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options, null))
         .isExactlyInstanceOf(NullPointerException.class)
         .hasMessage("Trust Store Path was provided, but password is missing. "
                     + "Please provide option " + WriterOptions.TRUSTSTORE_PASSWORD);
@@ -220,7 +220,7 @@ class BulkSparkConfTest
         assertThat(bulkSparkConf.quoteIdentifiers).isFalse();
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.QUOTE_IDENTIFIERS.name(), "true");
-        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
+        BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options, null);
         assertThat(bulkSparkConf).isNotNull();
         assertThat(bulkSparkConf.quoteIdentifiers).isTrue();
     }
@@ -230,7 +230,7 @@ class BulkSparkConfTest
     {
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.JOB_KEEP_ALIVE_MINUTES.name(), "-100");
-        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options, null))
         .isExactlyInstanceOf(IllegalArgumentException.class)
         .hasMessage("Invalid value for the 'JOB_KEEP_ALIVE_MINUTES' Bulk Writer option (-100). It cannot be less than the minimum 10");
     }
@@ -239,7 +239,7 @@ class BulkSparkConfTest
     void testDefaultJobKeepAliveMinutes()
     {
         Map<String, String> options = copyDefaultOptions();
-        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options, null);
         assertThat(conf.getJobKeepAliveMinutes()).isEqualTo(MINIMUM_JOB_KEEP_ALIVE_MINUTES);
     }
 
@@ -248,7 +248,7 @@ class BulkSparkConfTest
     {
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.JOB_KEEP_ALIVE_MINUTES.name(), "30");
-        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options, null);
         assertThat(conf.getJobKeepAliveMinutes()).isEqualTo(30);
     }
 
@@ -285,18 +285,18 @@ class BulkSparkConfTest
                                                    "{\"sidecarContactPoints\":[\"instance-1:9999\",\"instance-2:9999\",\"instance-3:9999\"]}}";
 
         options.put(WriterOptions.COORDINATED_WRITE_CONFIG.name(), coordinatedWriteConfJsonNoLocalDc);
-        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options, null))
         .isExactlyInstanceOf(IllegalArgumentException.class)
         .hasMessage("Coordinated write only supports S3_COMPAT");
 
         options.put(WriterOptions.DATA_TRANSPORT.name(), DataTransport.S3_COMPAT.name());
         options.put(WriterOptions.BULK_WRITER_CL.name(), "LOCAL_QUORUM");
-        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options, null))
         .isExactlyInstanceOf(IllegalStateException.class)
         .hasMessage("localDc is not configured for cluster: cluster1 for consistency level: LOCAL_QUORUM");
 
         options.put(WriterOptions.COORDINATED_WRITE_CONFIG.name(), "invalid json");
-        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options, null))
         .isExactlyInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("Unable to parse json string into CoordinatedWriteConf of SimpleClusterConf due to Unrecognized token 'invalid'");
     }
@@ -306,7 +306,7 @@ class BulkSparkConfTest
     {
         Map<String, String> options = copyDefaultOptions();
         options.remove(WriterOptions.COORDINATED_WRITE_CONFIG.name());
-        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options, null);
         assertThat(conf.isCoordinatedWriteConfigured())
         .describedAs("When COORDINATED_WRITE_CONF is absent, isCoordinatedWriteConfigured should return false")
         .isFalse();
@@ -320,7 +320,7 @@ class BulkSparkConfTest
         options.put(WriterOptions.DATA_TRANSPORT.name(), DataTransport.S3_COMPAT.name());
         options.put(WriterOptions.BULK_WRITER_CL.name(), "LOCAL_QUORUM");
         options.put(WriterOptions.COORDINATED_WRITE_CONFIG.name(), coordinatedWriteConfJson);
-        conf = new BulkSparkConf(sparkConf, options);
+        conf = new BulkSparkConf(sparkConf, options, null);
         assertThat(conf.isCoordinatedWriteConfigured())
         .describedAs("When COORDINATED_WRITE_CONF is present, it should return true")
         .isTrue();
@@ -346,11 +346,11 @@ class BulkSparkConfTest
     {
         Map<String, String> options = copyDefaultOptions();
         options.put(WriterOptions.DATA_TRANSPORT.name(), DataTransport.S3_COMPAT.name());
-        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options, null);
         assertThat(conf.digestAlgorithmSupplier).isSameAs(DigestAlgorithms.XXHASH32);
 
         options.put(WriterOptions.DIGEST.name(), DigestAlgorithms.MD5.name());
-        conf = new BulkSparkConf(sparkConf, options);
+        conf = new BulkSparkConf(sparkConf, options, null);
         assertThat(conf.digestAlgorithmSupplier)
         .describedAs("Even if DIGEST option is set, the digest algorithm is XXHash32 for S3_COMPAT mode")
         .isSameAs(DigestAlgorithms.XXHASH32);
@@ -360,11 +360,11 @@ class BulkSparkConfTest
     void testCassandraRoleRead()
     {
         Map<String, String> options = copyDefaultOptions();
-        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options, null);
         assertThat(conf.cassandraRole).isNull();
 
         options.put(WriterOptions.CASSANDRA_ROLE.name(), "custom_role");
-        conf = new BulkSparkConf(sparkConf, options);
+        conf = new BulkSparkConf(sparkConf, options, null);
         assertThat(conf.cassandraRole).isEqualTo("custom_role");
     }
 

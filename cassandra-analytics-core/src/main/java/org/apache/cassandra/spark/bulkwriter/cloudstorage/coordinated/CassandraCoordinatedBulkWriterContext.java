@@ -33,13 +33,14 @@ import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * BulkWriterContext for coordinated write
+ * BulkWriterContext for coordinated write to multiple clusters.
  * The context requires the coordinated-write configuration to be present.
+ * <p>
+ * This class does NOT have a serialVersionUID because it is never directly serialized.
+ * See {@link AbstractBulkWriterContext} for details on the serialization architecture.
  */
 public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterContext
 {
-    private static final long serialVersionUID = -2296507634642008675L;
-
     public CassandraCoordinatedBulkWriterContext(@NotNull BulkSparkConf conf,
                                                  @NotNull StructType structType,
                                                  int sparkDefaultParallelism)
