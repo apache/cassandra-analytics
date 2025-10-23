@@ -83,12 +83,12 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     protected String cassandraVersion;
     protected Partitioner partitioner;
 
-    protected transient volatile TokenRangeMapping<RingInstance> tokenRangeReplicas;
-    protected transient volatile String keyspaceSchema;
-    protected transient volatile ReplicationFactor replicationFactor;
-    protected transient volatile CassandraContext cassandraContext;
-    protected final transient AtomicReference<NodeSettings> nodeSettings;
-    protected final transient List<CompletableFuture<NodeSettings>> allNodeSettingFutures;
+    protected volatile TokenRangeMapping<RingInstance> tokenRangeReplicas;
+    protected volatile String keyspaceSchema;
+    protected volatile ReplicationFactor replicationFactor;
+    protected volatile CassandraContext cassandraContext;
+    protected final AtomicReference<NodeSettings> nodeSettings;
+    protected final List<CompletableFuture<NodeSettings>> allNodeSettingFutures;
 
     public CassandraClusterInfo(BulkSparkConf conf)
     {
