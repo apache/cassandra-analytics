@@ -40,10 +40,10 @@ import org.jetbrains.annotations.Nullable;
  * This interface extends Serializable because it is used as a field type in {@link BulkWriterConfig},
  * which is broadcast to Spark executors. However, the driver-only implementations
  * ({@link CassandraClusterInfo}, {@link org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup})
- * are never directly serialized. Instead, they are converted to serializable implementations
- * ({@link SerializableClusterInfo}, {@link SerializableClusterInfoGroup}) before broadcasting.
+ * are never directly serialized. Instead, they are converted to broadcastable implementations
+ * ({@link BroadcastableCluster}, {@link BroadcastableClusterInfoGroup}) before broadcasting.
  * <p>
- * On executors, these serializable implementations are used directly without reconstruction
+ * On executors, these broadcastable implementations are used directly without reconstruction
  * to the driver-only types.
  */
 public interface ClusterInfo extends StartupValidatable, Serializable

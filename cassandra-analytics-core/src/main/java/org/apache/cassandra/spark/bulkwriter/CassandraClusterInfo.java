@@ -67,7 +67,7 @@ import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIden
  * <p>
  * This class is NOT serialized and does NOT have a serialVersionUID.
  * When broadcasting to executors, the driver extracts information from this class
- * and creates a {@link SerializableClusterInfo} instance, which is then included
+ * and creates a {@link BroadcastableCluster} instance, which is then included
  * in the {@link BulkWriterConfig} that gets broadcast.
  * <p>
  * This class implements Serializable only because the {@link ClusterInfo} interface
@@ -102,6 +102,26 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         this.clusterId = clusterId;
         this.cassandraContext = buildCassandraContext();
         LOGGER.info("Getting Cassandra versions from all nodes");
+        this.nodeSettings = new AtomicReference<>(null);
+        this.allNodeSettingFutures = Sidecar.allNodeSettings(cassandraContext.getSidecarClient(),
+                                                             cassandraContext.getCluster());
+    }
+
+    /**
+     * Reconstruct from BroadcastableCluster on executor.
+     * Reuses cassandraVersion and partitioner from broadcast,
+     * fetches other data (tokenRangeMapping, replicationFactor, keyspaceSchema, writeAvailability) fresh from Sidecar.
+     *
+     * @param broadcastable the broadcastable cluster info from broadcast
+     */
+    public CassandraClusterInfo(BroadcastableCluster broadcastable)
+    {
+        this.conf = broadcastable.getConf();
+        this.clusterId = broadcastable.clusterId();
+        this.cassandraVersion = broadcastable.getLowestCassandraVersion();
+        this.partitioner = broadcastable.getPartitioner();
+        this.cassandraContext = buildCassandraContext();
+        LOGGER.info("Reconstructing CassandraClusterInfo on executor from BroadcastableCluster. clusterId={}", clusterId);
         this.nodeSettings = new AtomicReference<>(null);
         this.allNodeSettingFutures = Sidecar.allNodeSettings(cassandraContext.getSidecarClient(),
                                                              cassandraContext.getCluster());

@@ -157,6 +157,11 @@ public class BulkSparkConf implements Serializable
     protected final String coordinatedWriteConfJson;
     private transient CoordinatedWriteConf coordinatedWriteConf; // it is transient; deserialized from coordinatedWriteConfJson in executors
 
+    public BulkSparkConf(SparkConf conf, Map<String, String> options)
+    {
+        this(conf, options, null);
+    }
+
     public BulkSparkConf(SparkConf conf, Map<String, String> options, @Nullable Logger logger)
     {
         this.conf = conf;

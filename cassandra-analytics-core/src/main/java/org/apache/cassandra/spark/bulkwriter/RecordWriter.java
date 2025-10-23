@@ -93,7 +93,7 @@ public class RecordWriter
      */
     public RecordWriter(BulkWriterConfig config, String[] columnNames)
     {
-        this(BulkWriterContext.from(config, false), columnNames);
+        this(BulkWriterContext.from(config), columnNames);
     }
 
     public RecordWriter(BulkWriterContext writerContext, String[] columnNames)

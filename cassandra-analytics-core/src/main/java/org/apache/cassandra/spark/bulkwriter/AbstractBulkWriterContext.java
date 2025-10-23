@@ -32,6 +32,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
@@ -50,14 +51,23 @@ import org.jetbrains.annotations.NotNull;
  * Serialization Architecture:
  * This class does NOT have a serialVersionUID because it is never directly serialized via Java serialization.
  * It implements KryoSerializable with a fail-fast approach to detect missing Kryo registration
- * (see {@link org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator}).
+ * (see {@link org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator}). If Kryo attempts to serialize
+ * this class, it indicates improper setup - the broadcast variable should contain {@link BulkWriterConfig}
+ * with broadcastable wrappers ({@link BroadcastableCluster}, {@link BroadcastableJobInfo},
+ * {@link BroadcastableSchemaInfo}), not BulkWriterContext instances.
  * <p>
- * When BulkWriterConfig is broadcast to executors, the config contains all necessary immutable data.
- * On executors, BulkWriterContext instances are reconstructed from the config using
+ * On executors, BulkWriterContext instances are reconstructed from BulkWriterConfig using
  * {@link BulkWriterContext#from(BulkWriterConfig, boolean)}, not by deserializing BulkWriterContext directly.
+ * The reconstruction process detects broadcastable wrappers and rebuilds full implementations:
+ * <ul>
+ *   <li>{@link BroadcastableCluster} → {@link CassandraClusterInfo}</li>
+ *   <li>{@link BroadcastableClusterInfoGroup} → {@link org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup}</li>
+ *   <li>{@link BroadcastableJobInfo} → {@link CassandraJobInfo} (with {@link TokenPartitioner} from {@link BroadcastableTokenPartitioner})</li>
+ *   <li>{@link BroadcastableSchemaInfo} → {@link CassandraSchemaInfo} (with fresh {@link TableSchema} from Sidecar)</li>
+ * </ul>
  * <p>
  * Transient fields in this class are lazily rebuilt on executors when accessed, using the
- * {@link #getOrRebuildAfterDeserialization} pattern for Kryo serialization safety.
+ * {@link #getOrRebuildAfterDeserialization} pattern.
  */
 public abstract class AbstractBulkWriterContext implements BulkWriterContext, KryoSerializable
 {
@@ -77,69 +87,56 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     private transient volatile JobStatsPublisher jobStatsPublisher;
     private transient volatile TransportContext transportContext;
 
-    protected AbstractBulkWriterContext(@NotNull BulkSparkConf conf,
-                                        @NotNull StructType structType,
-                                        @NotNull int sparkDefaultParallelism)
-    {
-        this(conf, structType, sparkDefaultParallelism, null, null, null, null, true);
-    }
-
     /**
-     * Constructor that accepts a BulkWriterConfig and whether this is on the driver.
-     * This is used by the factory method {@link BulkWriterContext#from(BulkWriterConfig, boolean)}.
-     *
-     * @param config     immutable configuration for the bulk writer with pre-computed values
-     * @param isOnDriver true if on driver, false if on executor
-     */
-    protected AbstractBulkWriterContext(@NotNull BulkWriterConfig config, boolean isOnDriver)
-    {
-        this(config.getConf(),
-             config.getStructType(),
-             config.getSparkDefaultParallelism(),
-             config.getJobInfo(),
-             config.getClusterInfo(),
-             config.getSchemaInfo(),
-             config.getLowestCassandraVersion(),
-             isOnDriver);
-    }
-
-    /**
-     * Internal constructor that initializes all fields.
+     * Constructor for driver usage.
+     * Builds all components fresh on the driver.
      *
      * @param conf                    Bulk Spark configuration
      * @param structType              DataFrame schema
      * @param sparkDefaultParallelism Spark default parallelism
-     * @param precomputedJobInfo      Pre-computed JobInfo (null to compute)
-     * @param precomputedClusterInfo  Pre-computed ClusterInfo (null to compute)
-     * @param precomputedSchemaInfo   Pre-computed SchemaInfo (null to compute)
-     * @param precomputedVersion      Pre-computed Cassandra version (null to compute)
-     * @param isOnDriver              true if on driver, false if on executor
      */
-    private AbstractBulkWriterContext(@NotNull BulkSparkConf conf,
-                                      @NotNull StructType structType,
-                                      int sparkDefaultParallelism,
-                                      JobInfo precomputedJobInfo,
-                                      ClusterInfo precomputedClusterInfo,
-                                      SchemaInfo precomputedSchemaInfo,
-                                      String precomputedVersion,
-                                      boolean isOnDriver)
+    protected AbstractBulkWriterContext(@NotNull BulkSparkConf conf,
+                                        @NotNull StructType structType,
+                                        @NotNull int sparkDefaultParallelism)
     {
         this.conf = conf;
         this.structType = structType;
         this.sparkDefaultParallelism = sparkDefaultParallelism;
-        // Note: build sequence matters
-        // Use pre-computed values if available (from broadcast), otherwise compute them
-        this.clusterInfo = precomputedClusterInfo != null ? precomputedClusterInfo : buildClusterInfo();
-        if (precomputedClusterInfo == null)
-        {
-            this.clusterInfo.startupValidate();
-        }
-        this.lowestCassandraVersion = precomputedVersion != null ? precomputedVersion : findLowestCassandraVersion();
+
+        // Build everything fresh on driver
+        this.clusterInfo = buildClusterInfo();
+        this.clusterInfo.startupValidate();
+        this.lowestCassandraVersion = findLowestCassandraVersion();
         this.bridge = buildCassandraBridge();
-        this.jobInfo = precomputedJobInfo != null ? precomputedJobInfo : buildJobInfo();
-        this.schemaInfo = precomputedSchemaInfo != null ? precomputedSchemaInfo : buildSchemaInfo(structType);
+        this.jobInfo = buildJobInfo();
+        this.schemaInfo = buildSchemaInfo(structType);
         this.jobStatsPublisher = buildJobStatsPublisher();
-        this.transportContext = buildTransportContext(isOnDriver);
+        this.transportContext = buildTransportContext(true);  // isOnDriver = true
+    }
+
+    /**
+     * Constructor for executor usage.
+     * Reconstructs components from broadcast configuration on executors.
+     * This is used by the factory method {@link BulkWriterContext#from(BulkWriterConfig)}.
+     *
+     * @param config immutable configuration for the bulk writer with pre-computed values
+     */
+    protected AbstractBulkWriterContext(@NotNull BulkWriterConfig config)
+    {
+        this.conf = config.getConf();
+        this.structType = config.getStructType();
+        this.sparkDefaultParallelism = config.getSparkDefaultParallelism();
+
+        // Reconstruct from broadcast data on executor
+        this.clusterInfo = reconstructClusterInfoOnExecutor(config.getBroadcastableClusterInfo());
+        this.lowestCassandraVersion = config.getLowestCassandraVersion();
+        this.bridge = buildCassandraBridge();
+        this.jobInfo = reconstructJobInfoOnExecutor(config.getBroadcastableJobInfo(), this.clusterInfo);
+        this.schemaInfo = reconstructSchemaInfoOnExecutor(config.getBroadcastableSchemaInfo(),
+                                                          this.clusterInfo,
+                                                          this.lowestCassandraVersion);
+        this.jobStatsPublisher = buildJobStatsPublisher();
+        this.transportContext = buildTransportContext(false);  // isOnDriver = false
     }
 
     public final BulkSparkConf bulkSparkConf()
@@ -165,6 +162,83 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     /*---  Methods to build required fields   ---*/
 
     protected abstract ClusterInfo buildClusterInfo();
+
+    /**
+     * Reconstructs ClusterInfo on executors from broadcastable versions.
+     * This method is only called on executors when reconstructing BulkWriterContext from
+     * broadcast BulkWriterConfig. It detects the type of broadcastable and reconstructs
+     * the appropriate full implementation.
+     *
+     * @param clusterInfo the BroadcastableClusterInfo from broadcast
+     * @return reconstructed ClusterInfo (CassandraClusterInfo or CassandraClusterInfoGroup)
+     */
+    protected ClusterInfo reconstructClusterInfoOnExecutor(BroadcastableClusterInfo clusterInfo)
+    {
+        // BroadcastableCluster -> rebuild fresh CassandraClusterInfo
+        if (clusterInfo instanceof BroadcastableCluster)
+        {
+            return new CassandraClusterInfo((BroadcastableCluster) clusterInfo);
+        }
+
+        // BroadcastableClusterInfoGroup -> rebuild fresh CassandraClusterInfoGroup
+        if (clusterInfo instanceof BroadcastableClusterInfoGroup)
+        {
+            return CassandraClusterInfoGroup.from((BroadcastableClusterInfoGroup) clusterInfo);
+        }
+
+        throw new IllegalArgumentException("Unexpected BroadcastableClusterInfo type: " + clusterInfo.getClass().getName());
+    }
+
+    /**
+     * Reconstructs JobInfo on executors from BroadcastableJobInfo.
+     * This method is only called on executors when reconstructing BulkWriterContext from
+     * broadcast BulkWriterConfig. It rebuilds CassandraJobInfo with TokenPartitioner reconstructed
+     * from the broadcastable partition mappings.
+     *
+     * @param jobInfo     the BroadcastableJobInfo from broadcast
+     * @param clusterInfo the ClusterInfo (already reconstructed)
+     * @return reconstructed CassandraJobInfo
+     */
+    protected JobInfo reconstructJobInfoOnExecutor(BroadcastableJobInfo jobInfo, ClusterInfo clusterInfo)
+    {
+        return new CassandraJobInfo(jobInfo);
+    }
+
+    /**
+     * Reconstructs SchemaInfo on executors from BroadcastableSchemaInfo.
+     * This method is only called on executors when reconstructing BulkWriterContext from
+     * broadcast BulkWriterConfig. It rebuilds CassandraSchemaInfo with a fresh TableSchema
+     * built from keyspace schema fetched from Sidecar.
+     *
+     * @param schemaInfo              the BroadcastableSchemaInfo from broadcast
+     * @param clusterInfo             the ClusterInfo (already reconstructed)
+     * @param lowestCassandraVersion  the lowest Cassandra version string
+     * @return reconstructed CassandraSchemaInfo
+     */
+    protected SchemaInfo reconstructSchemaInfoOnExecutor(BroadcastableSchemaInfo schemaInfo,
+                                                         ClusterInfo clusterInfo,
+                                                         String lowestCassandraVersion)
+    {
+        BulkSparkConf conf = schemaInfo.getConf();
+        StructType structType = schemaInfo.getStructType();
+
+        // Build TableSchema from keyspace schema fetched from Sidecar
+        QualifiedTableName tableName = new QualifiedTableName(conf.keyspace, conf.table, conf.quoteIdentifiers);
+        String keyspace = tableName.keyspace();
+        String table = tableName.table();
+        String keyspaceSchema = clusterInfo.getKeyspaceSchema(true);
+        Partitioner partitioner = clusterInfo.getPartitioner();
+        String createTableSchema = CqlUtils.extractTableSchema(keyspaceSchema, keyspace, table);
+        Set<String> udts = CqlUtils.extractUdts(keyspaceSchema, keyspace);
+        ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(keyspaceSchema, keyspace);
+        int indexCount = CqlUtils.extractIndexCount(keyspaceSchema, keyspace, table);
+        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+        CqlTable cqlTable = bridge.buildSchema(createTableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
+
+        TableInfoProvider tableInfoProvider = new CqlTableInfoProvider(createTableSchema, cqlTable);
+        TableSchema tableSchema = initializeTableSchema(conf, structType, tableInfoProvider, lowestCassandraVersion);
+        return new CassandraSchemaInfo(schemaInfo, tableSchema);
+    }
 
     protected abstract void validateKeyspaceReplication();
 

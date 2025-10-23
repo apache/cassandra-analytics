@@ -29,7 +29,7 @@ import org.apache.cassandra.bridge.CassandraBridge;
  * Serialization Architecture:
  * This interface does NOT extend Serializable. BulkWriterContext instances are never broadcast to executors.
  * Instead, {@link BulkWriterConfig} is broadcast, and executors reconstruct BulkWriterContext instances
- * from the config using the factory method {@link #from(BulkWriterConfig, boolean)}.
+ * from the config using the factory method {@link #from(BulkWriterConfig)}.
  * <p>
  * The implementations ({@link CassandraBulkWriterContext}, {@link CassandraCoordinatedBulkWriterContext})
  * do NOT have serialVersionUID fields as they are never serialized.
@@ -53,24 +53,23 @@ public interface BulkWriterContext
     TransportContext transportContext();
 
     /**
-     * Factory method to create a BulkWriterContext from a BulkWriterConfig.
-     * This method is used to construct context instances on both the driver and executors
-     * from the broadcast configuration.
+     * Factory method to create a BulkWriterContext from a BulkWriterConfig on executors.
+     * This method reconstructs context instances on executors from the broadcast configuration.
+     * The driver creates contexts directly using constructors, not this method.
      *
-     * @param config      the immutable configuration object
-     * @param isOnDriver  true if creating context on the driver, false if on executor
+     * @param config the immutable configuration object broadcast from driver
      * @return a new BulkWriterContext instance
      */
-    static BulkWriterContext from(BulkWriterConfig config, boolean isOnDriver)
+    static BulkWriterContext from(BulkWriterConfig config)
     {
         BulkSparkConf conf = config.getConf();
         if (conf.isCoordinatedWriteConfigured())
         {
-            return new CassandraCoordinatedBulkWriterContext(config, isOnDriver);
+            return new CassandraCoordinatedBulkWriterContext(config);
         }
         else
         {
-            return new CassandraBulkWriterContext(config, isOnDriver);
+            return new CassandraBulkWriterContext(config);
         }
     }
 }

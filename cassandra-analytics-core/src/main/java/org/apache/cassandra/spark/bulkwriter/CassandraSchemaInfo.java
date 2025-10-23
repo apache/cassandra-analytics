@@ -33,6 +33,19 @@ public class CassandraSchemaInfo implements SchemaInfo
         this.userDefinedTypeStatements = userDefinedTypeStatements;
     }
 
+    /**
+     * Reconstruct from BroadcastableSchemaInfo on executor.
+     * Reuses userDefinedTypeStatements from broadcast,
+     * and takes pre-reconstructed tableSchema.
+     *
+     * @param broadcastable the broadcastable schema info from broadcast
+     * @param tableSchema  pre-reconstructed TableSchema (from keyspace schema)
+     */
+    public CassandraSchemaInfo(BroadcastableSchemaInfo broadcastable, TableSchema tableSchema)
+    {
+        this(tableSchema, broadcastable.getUserDefinedTypeStatements());
+    }
+
     @Override
     public TableSchema getTableSchema()
     {

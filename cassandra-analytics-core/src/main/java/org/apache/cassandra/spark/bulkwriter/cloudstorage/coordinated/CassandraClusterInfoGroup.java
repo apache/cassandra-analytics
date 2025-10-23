@@ -46,6 +46,8 @@ import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.CassandraContext;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
+import org.apache.cassandra.spark.bulkwriter.BroadcastableCluster;
+import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -62,7 +64,7 @@ import org.jetbrains.annotations.Nullable;
  * <p>
  * This class is NOT serialized and does NOT have a serialVersionUID.
  * When broadcasting to executors, the driver extracts information from this class
- * and creates a {@link org.apache.cassandra.spark.bulkwriter.SerializableClusterInfoGroup} instance,
+ * and creates a {@link org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup} instance,
  * which is then included in the {@link org.apache.cassandra.spark.bulkwriter.BulkWriterConfig}
  * that gets broadcast.
  * <p>
@@ -88,6 +90,22 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf)
     {
         return fromBulkSparkConf(conf, clusterId -> new CassandraClusterInfo(conf, clusterId));
+    }
+
+    /**
+     * Reconstruct from BroadcastableClusterInfoGroup on executor.
+     * Creates CassandraClusterInfo instances for each cluster that will fetch data from Sidecar.
+     *
+     * @param broadcastable the broadcastable cluster info group from broadcast
+     * @return new {@link CassandraClusterInfoGroup} instance
+     */
+    public static CassandraClusterInfoGroup from(BroadcastableClusterInfoGroup broadcastable)
+    {
+        List<ClusterInfo> clusterInfos = new ArrayList<>();
+        broadcastable.forEach((clusterId, broadcastableInfo) -> {
+            clusterInfos.add(new CassandraClusterInfo((BroadcastableCluster) broadcastableInfo));
+        });
+        return new CassandraClusterInfoGroup(clusterInfos);
     }
 
     /**

@@ -30,14 +30,21 @@ import org.jetbrains.annotations.NotNull;
  * <p>
  * Serialization Architecture:
  * This class is the ONLY object that gets broadcast to Spark executors (via Spark's broadcast mechanism).
- * It contains serializable implementations of cluster information ({@link SerializableClusterInfo} or
- * {@link SerializableClusterInfoGroup}) that have zero transient fields for safe serialization.
+ * It contains broadcastable wrapper implementations with ZERO transient fields and NO Logger references:
+ * <ul>
+ *   <li>{@link BroadcastableCluster} or {@link BroadcastableClusterInfoGroup} - cluster metadata</li>
+ *   <li>{@link BroadcastableJobInfo} - job configuration with {@link BroadcastableTokenPartitioner}</li>
+ *   <li>{@link BroadcastableSchemaInfo} - schema metadata</li>
+ * </ul>
  * <p>
- * On the driver, {@link BulkWriterContext} instances use driver-only implementations like
- * {@link CassandraClusterInfo}. Before broadcasting, these are converted to serializable forms.
+ * On the driver, {@link BulkWriterContext} instances use driver-only implementations:
+ * {@link CassandraClusterInfo}, {@link CassandraJobInfo}, {@link CassandraSchemaInfo}.
+ * Before broadcasting, these are converted to broadcastable wrappers to avoid Logger references
+ * and minimize Spark SizeEstimator overhead.
+ * <p>
  * On executors, {@link BulkWriterContext} instances are reconstructed from this config using
- * {@link BulkWriterContext#from(BulkWriterConfig, boolean)}, which uses the serializable cluster
- * information directly without converting back to driver-only types.
+ * {@link BulkWriterContext#from(BulkWriterConfig, boolean)}, which detects the broadcastable
+ * wrappers and reconstructs the full implementations with fresh data from Cassandra Sidecar.
  */
 public final class BulkWriterConfig implements Serializable
 {
@@ -46,9 +53,10 @@ public final class BulkWriterConfig implements Serializable
     private final BulkSparkConf conf;
     private final StructType structType;
     private final int sparkDefaultParallelism;
-    private final JobInfo jobInfo;
-    private final ClusterInfo clusterInfo;
-    private final SchemaInfo schemaInfo;
+    private final BroadcastableJobInfo jobInfo;
+    // BroadcastableClusterInfo can be either BroadcastableCluster or BroadcastableClusterInfoGroup
+    private final BroadcastableClusterInfo clusterInfo;
+    private final BroadcastableSchemaInfo schemaInfo;
     private final String lowestCassandraVersion;
 
     /**
@@ -57,17 +65,17 @@ public final class BulkWriterConfig implements Serializable
      * @param conf                    Bulk writer Spark configuration
      * @param structType              DataFrame schema structure
      * @param sparkDefaultParallelism Spark default parallelism setting
-     * @param jobInfo                 Pre-computed job information
-     * @param clusterInfo             Pre-computed cluster information
-     * @param schemaInfo              Pre-computed schema information
+     * @param jobInfo                 Broadcastable job information
+     * @param clusterInfo             Broadcastable cluster information (BroadcastableCluster or BroadcastableClusterInfoGroup)
+     * @param schemaInfo              Broadcastable schema information
      * @param lowestCassandraVersion  Lowest Cassandra version in the cluster
      */
     public BulkWriterConfig(@NotNull BulkSparkConf conf,
                             @NotNull StructType structType,
                             int sparkDefaultParallelism,
-                            @NotNull JobInfo jobInfo,
-                            @NotNull ClusterInfo clusterInfo,
-                            @NotNull SchemaInfo schemaInfo,
+                            @NotNull BroadcastableJobInfo jobInfo,
+                            @NotNull BroadcastableClusterInfo clusterInfo,
+                            @NotNull BroadcastableSchemaInfo schemaInfo,
                             @NotNull String lowestCassandraVersion)
     {
         this.conf = conf;
@@ -94,17 +102,17 @@ public final class BulkWriterConfig implements Serializable
         return sparkDefaultParallelism;
     }
 
-    public JobInfo getJobInfo()
+    public BroadcastableJobInfo getBroadcastableJobInfo()
     {
         return jobInfo;
     }
 
-    public ClusterInfo getClusterInfo()
+    public BroadcastableClusterInfo getBroadcastableClusterInfo()
     {
         return clusterInfo;
     }
 
-    public SchemaInfo getSchemaInfo()
+    public BroadcastableSchemaInfo getBroadcastableSchemaInfo()
     {
         return schemaInfo;
     }

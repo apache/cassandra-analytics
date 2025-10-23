@@ -45,14 +45,14 @@ public class CassandraBulkWriterContext extends AbstractBulkWriterContext
     }
 
     /**
-     * Constructor used by {@link BulkWriterContext#from(BulkWriterConfig, boolean)} factory method.
+     * Constructor used by {@link BulkWriterContext#from(BulkWriterConfig)} factory method.
+     * This constructor is only used on executors to reconstruct context from broadcast config.
      *
-     * @param config     immutable configuration for the bulk writer
-     * @param isOnDriver true if on driver, false if on executor
+     * @param config immutable configuration for the bulk writer
      */
-    protected CassandraBulkWriterContext(@NotNull BulkWriterConfig config, boolean isOnDriver)
+    protected CassandraBulkWriterContext(@NotNull BulkWriterConfig config)
     {
-        super(config, isOnDriver);
+        super(config);
     }
 
     @Override

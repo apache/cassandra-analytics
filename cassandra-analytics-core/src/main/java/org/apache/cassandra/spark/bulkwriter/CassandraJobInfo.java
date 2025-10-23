@@ -46,6 +46,21 @@ public class CassandraJobInfo implements JobInfo
         this.tokenPartitioner = tokenPartitioner;
     }
 
+    /**
+     * Reconstruct from BroadcastableJobInfo on executor.
+     * Reuses conf and restoreJobIds from broadcast,
+     * and reconstructs TokenPartitioner from broadcastable partition mappings.
+     *
+     * @param broadcastable the broadcastable job info from broadcast
+     */
+    public CassandraJobInfo(BroadcastableJobInfo broadcastable)
+    {
+        this.conf = broadcastable.getConf();
+        this.restoreJobIds = broadcastable.getRestoreJobIds();
+        // Reconstruct TokenPartitioner from broadcastable partition mappings
+        this.tokenPartitioner = new TokenPartitioner(broadcastable.getBroadcastableTokenPartitioner());
+    }
+
     @Override
     public ConsistencyLevel getConsistencyLevel()
     {
