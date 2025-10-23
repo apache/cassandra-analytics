@@ -29,12 +29,25 @@ import com.google.common.collect.Range;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Broadcastable data wrapper for broadcasting with ZERO transient fields.
+ * Broadcastable wrapper for TokenPartitioner with ZERO transient fields to optimize Spark broadcasting.
+ * <p>
  * Only contains the partition mappings; executors will use this to reconstruct TokenPartitioner.
- * NO LOGGER - to avoid logger references in broadcast variable.
+ * <p>
+ * <b>Why ZERO transient fields matters:</b><br>
+ * Spark's {@link org.apache.spark.util.SizeEstimator} uses reflection to estimate object sizes before broadcasting.
+ * Each transient field forces SizeEstimator to inspect the field's type hierarchy, which is expensive.
+ * Logger references are particularly costly due to their deep object graphs (appenders, layouts, contexts).
+ * By eliminating ALL transient fields and Logger references, we:
+ * <ul>
+ *   <li>Minimize SizeEstimator reflection overhead during broadcast preparation</li>
+ *   <li>Reduce broadcast variable serialization size</li>
+ *   <li>Avoid accidental serialization of non-serializable objects</li>
+ * </ul>
  */
 public final class BroadcastableTokenPartitioner implements Serializable
 {
+    private static final long serialVersionUID = -8787074052066841748L;
+
     // Essential fields broadcast to executors - the partition mappings
     private final Map<Range<BigInteger>, Integer> partitionEntries;
     private final Integer numberSplits;

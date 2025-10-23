@@ -47,27 +47,24 @@ import org.jetbrains.annotations.NotNull;
 
 /**
  * Abstract base class for BulkWriterContext implementations.
- * <p>
- * Serialization Architecture:
- * This class does NOT have a serialVersionUID because it is never directly serialized via Java serialization.
- * It implements KryoSerializable with a fail-fast approach to detect missing Kryo registration
- * (see {@link org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator}). If Kryo attempts to serialize
- * this class, it indicates improper setup - the broadcast variable should contain {@link BulkWriterConfig}
- * with broadcastable wrappers ({@link BroadcastableCluster}, {@link BroadcastableJobInfo},
- * {@link BroadcastableSchemaInfo}), not BulkWriterContext instances.
- * <p>
- * On executors, BulkWriterContext instances are reconstructed from BulkWriterConfig using
- * {@link BulkWriterContext#from(BulkWriterConfig)}, not by deserializing BulkWriterContext directly.
- * The reconstruction process detects broadcastable wrappers and rebuilds full implementations:
+ *
+ * <p>Serialization Architecture:</p>
+ * <p>This class is NOT serialized directly. Instead:
+ * <ol>
+ *   <li>Driver creates BulkWriterContext using constructor</li>
+ *   <li>Driver extracts BulkWriterConfig in {@link CassandraBulkSourceRelation} constructor</li>
+ *   <li>BulkWriterConfig gets broadcast to executors</li>
+ *   <li>Executors reconstruct BulkWriterContext via {@link BulkWriterContext#from(BulkWriterConfig)}</li>
+ * </ol>
+ *
+ * <p>Broadcastable wrappers used in BulkWriterConfig:
  * <ul>
- *   <li>{@link BroadcastableCluster} → {@link CassandraClusterInfo}</li>
- *   <li>{@link BroadcastableClusterInfoGroup} → {@link org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup}</li>
- *   <li>{@link BroadcastableJobInfo} → {@link CassandraJobInfo} (with {@link TokenPartitioner} from {@link BroadcastableTokenPartitioner})</li>
- *   <li>{@link BroadcastableSchemaInfo} → {@link CassandraSchemaInfo} (with fresh {@link TableSchema} from Sidecar)</li>
+ *   <li>{@link IBroadcastableClusterInfo} → reconstructs to {@link CassandraClusterInfo} or {@link CassandraClusterInfoGroup}</li>
+ *   <li>{@link BroadcastableJobInfo} → reconstructs to {@link CassandraJobInfo}</li>
+ *   <li>{@link BroadcastableSchemaInfo} → reconstructs to {@link CassandraSchemaInfo}</li>
  * </ul>
- * <p>
- * Transient fields in this class are lazily rebuilt on executors when accessed, using the
- * {@link #getOrRebuildAfterDeserialization} pattern.
+ *
+ * <p>Implements KryoSerializable with fail-fast approach to detect missing Kryo registration.
  */
 public abstract class AbstractBulkWriterContext implements BulkWriterContext, KryoSerializable
 {
@@ -76,7 +73,6 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
 
     private final BulkSparkConf conf;
     private final int sparkDefaultParallelism;
-    private final StructType structType;  // Store for config extraction
     private final JobInfo jobInfo;
     private final ClusterInfo clusterInfo;
     private final SchemaInfo schemaInfo;
@@ -100,7 +96,6 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
                                         @NotNull int sparkDefaultParallelism)
     {
         this.conf = conf;
-        this.structType = structType;
         this.sparkDefaultParallelism = sparkDefaultParallelism;
 
         // Build everything fresh on driver
@@ -124,17 +119,14 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     protected AbstractBulkWriterContext(@NotNull BulkWriterConfig config)
     {
         this.conf = config.getConf();
-        this.structType = config.getStructType();
         this.sparkDefaultParallelism = config.getSparkDefaultParallelism();
 
         // Reconstruct from broadcast data on executor
         this.clusterInfo = reconstructClusterInfoOnExecutor(config.getBroadcastableClusterInfo());
         this.lowestCassandraVersion = config.getLowestCassandraVersion();
         this.bridge = buildCassandraBridge();
-        this.jobInfo = reconstructJobInfoOnExecutor(config.getBroadcastableJobInfo(), this.clusterInfo);
-        this.schemaInfo = reconstructSchemaInfoOnExecutor(config.getBroadcastableSchemaInfo(),
-                                                          this.clusterInfo,
-                                                          this.lowestCassandraVersion);
+        this.jobInfo = reconstructJobInfoOnExecutor(config.getBroadcastableJobInfo());
+        this.schemaInfo = reconstructSchemaInfoOnExecutor(config.getBroadcastableSchemaInfo());
         this.jobStatsPublisher = buildJobStatsPublisher();
         this.transportContext = buildTransportContext(false);  // isOnDriver = false
     }
@@ -142,11 +134,6 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     public final BulkSparkConf bulkSparkConf()
     {
         return conf;
-    }
-
-    public final StructType structType()
-    {
-        return structType;
     }
 
     protected final int sparkDefaultParallelism()
@@ -166,27 +153,15 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     /**
      * Reconstructs ClusterInfo on executors from broadcastable versions.
      * This method is only called on executors when reconstructing BulkWriterContext from
-     * broadcast BulkWriterConfig. It detects the type of broadcastable and reconstructs
-     * the appropriate full implementation.
+     * broadcast BulkWriterConfig. Each broadcastable type knows how to reconstruct itself
+     * into the appropriate full ClusterInfo implementation.
      *
      * @param clusterInfo the BroadcastableClusterInfo from broadcast
      * @return reconstructed ClusterInfo (CassandraClusterInfo or CassandraClusterInfoGroup)
      */
-    protected ClusterInfo reconstructClusterInfoOnExecutor(BroadcastableClusterInfo clusterInfo)
+    protected ClusterInfo reconstructClusterInfoOnExecutor(IBroadcastableClusterInfo clusterInfo)
     {
-        // BroadcastableCluster -> rebuild fresh CassandraClusterInfo
-        if (clusterInfo instanceof BroadcastableCluster)
-        {
-            return new CassandraClusterInfo((BroadcastableCluster) clusterInfo);
-        }
-
-        // BroadcastableClusterInfoGroup -> rebuild fresh CassandraClusterInfoGroup
-        if (clusterInfo instanceof BroadcastableClusterInfoGroup)
-        {
-            return CassandraClusterInfoGroup.from((BroadcastableClusterInfoGroup) clusterInfo);
-        }
-
-        throw new IllegalArgumentException("Unexpected BroadcastableClusterInfo type: " + clusterInfo.getClass().getName());
+        return clusterInfo.reconstruct();
     }
 
     /**
@@ -195,11 +170,10 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
      * broadcast BulkWriterConfig. It rebuilds CassandraJobInfo with TokenPartitioner reconstructed
      * from the broadcastable partition mappings.
      *
-     * @param jobInfo     the BroadcastableJobInfo from broadcast
-     * @param clusterInfo the ClusterInfo (already reconstructed)
+     * @param jobInfo the BroadcastableJobInfo from broadcast
      * @return reconstructed CassandraJobInfo
      */
-    protected JobInfo reconstructJobInfoOnExecutor(BroadcastableJobInfo jobInfo, ClusterInfo clusterInfo)
+    protected JobInfo reconstructJobInfoOnExecutor(BroadcastableJobInfo jobInfo)
     {
         return new CassandraJobInfo(jobInfo);
     }
@@ -207,37 +181,15 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     /**
      * Reconstructs SchemaInfo on executors from BroadcastableSchemaInfo.
      * This method is only called on executors when reconstructing BulkWriterContext from
-     * broadcast BulkWriterConfig. It rebuilds CassandraSchemaInfo with a fresh TableSchema
-     * built from keyspace schema fetched from Sidecar.
+     * broadcast BulkWriterConfig. It reconstructs CassandraSchemaInfo and TableSchema from
+     * the broadcast data (no Sidecar calls needed).
      *
-     * @param schemaInfo              the BroadcastableSchemaInfo from broadcast
-     * @param clusterInfo             the ClusterInfo (already reconstructed)
-     * @param lowestCassandraVersion  the lowest Cassandra version string
+     * @param schemaInfo the BroadcastableSchemaInfo from broadcast
      * @return reconstructed CassandraSchemaInfo
      */
-    protected SchemaInfo reconstructSchemaInfoOnExecutor(BroadcastableSchemaInfo schemaInfo,
-                                                         ClusterInfo clusterInfo,
-                                                         String lowestCassandraVersion)
+    protected SchemaInfo reconstructSchemaInfoOnExecutor(BroadcastableSchemaInfo schemaInfo)
     {
-        BulkSparkConf conf = schemaInfo.getConf();
-        StructType structType = schemaInfo.getStructType();
-
-        // Build TableSchema from keyspace schema fetched from Sidecar
-        QualifiedTableName tableName = new QualifiedTableName(conf.keyspace, conf.table, conf.quoteIdentifiers);
-        String keyspace = tableName.keyspace();
-        String table = tableName.table();
-        String keyspaceSchema = clusterInfo.getKeyspaceSchema(true);
-        Partitioner partitioner = clusterInfo.getPartitioner();
-        String createTableSchema = CqlUtils.extractTableSchema(keyspaceSchema, keyspace, table);
-        Set<String> udts = CqlUtils.extractUdts(keyspaceSchema, keyspace);
-        ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(keyspaceSchema, keyspace);
-        int indexCount = CqlUtils.extractIndexCount(keyspaceSchema, keyspace, table);
-        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
-        CqlTable cqlTable = bridge.buildSchema(createTableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
-
-        TableInfoProvider tableInfoProvider = new CqlTableInfoProvider(createTableSchema, cqlTable);
-        TableSchema tableSchema = initializeTableSchema(conf, structType, tableInfoProvider, lowestCassandraVersion);
-        return new CassandraSchemaInfo(schemaInfo, tableSchema);
+        return new CassandraSchemaInfo(schemaInfo);
     }
 
     protected abstract void validateKeyspaceReplication();

@@ -19,54 +19,86 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.io.Serializable;
-
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 /**
- * Minimal interface for cluster information that can be safely broadcast to Spark executors.
- * This interface contains only the essential methods that broadcastable cluster info implementations
- * ({@link BroadcastableCluster}, {@link BroadcastableClusterInfoGroup}) need to provide.
+ * Broadcastable wrapper for single cluster with ZERO transient fields to optimize Spark broadcasting.
  * <p>
- * Unlike {@link ClusterInfo}, this interface doesn't include methods that require fresh data
- * from Cassandra Sidecar or runtime operations. These implementations are designed to be broadcast
- * and then reconstructed to full {@link ClusterInfo} instances on executors.
+ * Only essential fields are broadcast; executors reconstruct CassandraClusterInfo to fetch other data from Sidecar.
  * <p>
- * Methods in this interface:
+ * <b>Why ZERO transient fields matters:</b><br>
+ * Spark's {@link org.apache.spark.util.SizeEstimator} uses reflection to estimate object sizes before broadcasting.
+ * Each transient field forces SizeEstimator to inspect the field's type hierarchy, which is expensive.
+ * Logger references are particularly costly due to their deep object graphs (appenders, layouts, contexts).
+ * By eliminating ALL transient fields and Logger references, we:
  * <ul>
- *   <li>{@link #getPartitioner()} - static cluster partitioner configuration</li>
- *   <li>{@link #getLowestCassandraVersion()} - pre-computed version string</li>
- *   <li>{@link #clusterId()} - cluster identifier (optional)</li>
- *   <li>{@link #getConf()} - BulkSparkConf needed for reconstruction on executors</li>
+ *   <li>Minimize SizeEstimator reflection overhead during broadcast preparation</li>
+ *   <li>Reduce broadcast variable serialization size</li>
+ *   <li>Avoid accidental serialization of non-serializable objects</li>
  * </ul>
  */
-public interface BroadcastableClusterInfo extends Serializable
+public final class BroadcastableClusterInfo implements IBroadcastableClusterInfo
 {
-    /**
-     * @return the partitioner used by the cluster
-     */
-    Partitioner getPartitioner();
+    private static final long serialVersionUID = 4506917240637924802L;
+
+    // Essential fields broadcast to executors
+    private final Partitioner partitioner;
+    private final String cassandraVersion;
+    private final String clusterId;
+    private final BulkSparkConf conf;
 
     /**
-     * @return the lowest Cassandra version in the cluster
-     */
-    String getLowestCassandraVersion();
-
-    /**
-     * ID string that can uniquely identify a cluster.
-     * When writing to a single cluster, this may be null.
-     * When in coordinated write mode (writing to multiple clusters), this must return a unique string.
+     * Creates a BroadcastableCluster from a CassandraClusterInfo by extracting essential fields.
+     * Executors will reconstruct CassandraClusterInfo to fetch other data from Sidecar.
      *
-     * @return cluster id string, null if absent
+     * @param source the source ClusterInfo (typically CassandraClusterInfo)
+     * @param conf   the BulkSparkConf needed to connect to Sidecar on executors
      */
-    @Nullable
-    String clusterId();
+    public static BroadcastableClusterInfo from(@NotNull ClusterInfo source, @NotNull BulkSparkConf conf)
+    {
+        return new BroadcastableClusterInfo(source.getPartitioner(), source.getLowestCassandraVersion(), source.clusterId(), conf);
+    }
 
-    /**
-     * @return the BulkSparkConf configuration needed to reconstruct ClusterInfo on executors
-     */
-    @NotNull
-    BulkSparkConf getConf();
+    private BroadcastableClusterInfo(@NotNull Partitioner partitioner,
+                                     @NotNull String cassandraVersion,
+                                     @Nullable String clusterId,
+                                     @NotNull BulkSparkConf conf)
+    {
+        this.partitioner = partitioner;
+        this.cassandraVersion = cassandraVersion;
+        this.clusterId = clusterId;
+        this.conf = conf;
+    }
+
+    public BulkSparkConf getConf()
+    {
+        return conf;
+    }
+
+    @Override
+    public String getLowestCassandraVersion()
+    {
+        return cassandraVersion;
+    }
+
+    @Override
+    public Partitioner getPartitioner()
+    {
+        return partitioner;
+    }
+
+    @Override
+    @Nullable
+    public String clusterId()
+    {
+        return clusterId;
+    }
+
+    @Override
+    public ClusterInfo reconstruct()
+    {
+        return new CassandraClusterInfo(this);
+    }
 }

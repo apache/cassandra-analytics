@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.Map;
 
@@ -37,16 +36,16 @@ import org.jetbrains.annotations.Nullable;
  * Interface for cluster information used in bulk write operations.
  * <p>
  * Serialization Architecture:
- * This interface extends Serializable because it is used as a field type in {@link BulkWriterConfig},
- * which is broadcast to Spark executors. However, the driver-only implementations
- * ({@link CassandraClusterInfo}, {@link org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup})
- * are never directly serialized. Instead, they are converted to broadcastable implementations
- * ({@link BroadcastableCluster}, {@link BroadcastableClusterInfoGroup}) before broadcasting.
+ * This interface does NOT extend Serializable. ClusterInfo instances are never directly serialized.
+ * Driver-only implementations ({@link CassandraClusterInfo},
+ * {@link org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup})
+ * are converted to broadcastable wrappers ({@link BroadcastableClusterInfo}, {@link BroadcastableClusterInfoGroup})
+ * for broadcasting to executors via {@link BulkWriterConfig}.
  * <p>
- * On executors, these broadcastable implementations are used directly without reconstruction
- * to the driver-only types.
+ * On executors, ClusterInfo instances are reconstructed from the broadcastable wrappers using
+ * {@link AbstractBulkWriterContext#reconstructClusterInfoOnExecutor(IBroadcastableClusterInfo)}.
  */
-public interface ClusterInfo extends StartupValidatable, Serializable
+public interface ClusterInfo extends StartupValidatable
 {
     void refreshClusterInfo();
 

@@ -42,10 +42,10 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageDataTransf
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageStreamResult;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionCoordinator;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCoordinator;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCloudStorageDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedImportCoordinator;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterSupport;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
@@ -109,12 +109,12 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
             ClusterInfo originalClusterInfo = abstractContext.cluster();
 
             // Create BroadcastableCluster to avoid transient fields in broadcast
-            BroadcastableClusterInfo broadcastableClusterInfo;
-            if (originalClusterInfo instanceof MultiClusterSupport)
+            IBroadcastableClusterInfo broadcastableClusterInfo;
+            if (originalClusterInfo instanceof CassandraClusterInfoGroup)
             {
                 // Coordinated write scenario
                 @SuppressWarnings("unchecked")
-                MultiClusterSupport<ClusterInfo> multiCluster = (MultiClusterSupport<ClusterInfo>) originalClusterInfo;
+                CassandraClusterInfoGroup multiCluster = (CassandraClusterInfoGroup) originalClusterInfo;
                 broadcastableClusterInfo = BroadcastableClusterInfoGroup.from(
                     multiCluster,
                     abstractContext.bulkSparkConf()
@@ -123,7 +123,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
             else
             {
                 // Single cluster scenario
-                broadcastableClusterInfo = BroadcastableCluster.from(
+                broadcastableClusterInfo = BroadcastableClusterInfo.from(
                     originalClusterInfo,
                     abstractContext.bulkSparkConf()
                 );
@@ -137,14 +137,11 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
             // Create BroadcastableSchemaInfo to avoid Logger in TableSchema
             BroadcastableSchemaInfo broadcastableSchemaInfo = BroadcastableSchemaInfo.from(
-                abstractContext.schema(),
-                abstractContext.bulkSparkConf(),
-                abstractContext.structType()
+                abstractContext.schema()
             );
 
             return new BulkWriterConfig(
                 abstractContext.bulkSparkConf(),
-                abstractContext.structType(),
                 sparkDefaultParallelism,
                 broadcastableJobInfo,
                 broadcastableClusterInfo,

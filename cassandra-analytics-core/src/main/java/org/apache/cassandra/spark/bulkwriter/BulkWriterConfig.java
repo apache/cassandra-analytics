@@ -21,7 +21,6 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 
-import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -32,7 +31,7 @@ import org.jetbrains.annotations.NotNull;
  * This class is the ONLY object that gets broadcast to Spark executors (via Spark's broadcast mechanism).
  * It contains broadcastable wrapper implementations with ZERO transient fields and NO Logger references:
  * <ul>
- *   <li>{@link BroadcastableCluster} or {@link BroadcastableClusterInfoGroup} - cluster metadata</li>
+ *   <li>{@link BroadcastableClusterInfo} or {@link BroadcastableClusterInfoGroup} - cluster metadata</li>
  *   <li>{@link BroadcastableJobInfo} - job configuration with {@link BroadcastableTokenPartitioner}</li>
  *   <li>{@link BroadcastableSchemaInfo} - schema metadata</li>
  * </ul>
@@ -51,11 +50,10 @@ public final class BulkWriterConfig implements Serializable
     private static final long serialVersionUID = 1L;
 
     private final BulkSparkConf conf;
-    private final StructType structType;
     private final int sparkDefaultParallelism;
     private final BroadcastableJobInfo jobInfo;
     // BroadcastableClusterInfo can be either BroadcastableCluster or BroadcastableClusterInfoGroup
-    private final BroadcastableClusterInfo clusterInfo;
+    private final IBroadcastableClusterInfo clusterInfo;
     private final BroadcastableSchemaInfo schemaInfo;
     private final String lowestCassandraVersion;
 
@@ -63,7 +61,6 @@ public final class BulkWriterConfig implements Serializable
      * Creates a new immutable BulkWriterConfig with pre-computed values
      *
      * @param conf                    Bulk writer Spark configuration
-     * @param structType              DataFrame schema structure
      * @param sparkDefaultParallelism Spark default parallelism setting
      * @param jobInfo                 Broadcastable job information
      * @param clusterInfo             Broadcastable cluster information (BroadcastableCluster or BroadcastableClusterInfoGroup)
@@ -71,15 +68,13 @@ public final class BulkWriterConfig implements Serializable
      * @param lowestCassandraVersion  Lowest Cassandra version in the cluster
      */
     public BulkWriterConfig(@NotNull BulkSparkConf conf,
-                            @NotNull StructType structType,
                             int sparkDefaultParallelism,
                             @NotNull BroadcastableJobInfo jobInfo,
-                            @NotNull BroadcastableClusterInfo clusterInfo,
+                            @NotNull IBroadcastableClusterInfo clusterInfo,
                             @NotNull BroadcastableSchemaInfo schemaInfo,
                             @NotNull String lowestCassandraVersion)
     {
         this.conf = conf;
-        this.structType = structType;
         this.sparkDefaultParallelism = sparkDefaultParallelism;
         this.jobInfo = jobInfo;
         this.clusterInfo = clusterInfo;
@@ -92,11 +87,6 @@ public final class BulkWriterConfig implements Serializable
         return conf;
     }
 
-    public StructType getStructType()
-    {
-        return structType;
-    }
-
     public int getSparkDefaultParallelism()
     {
         return sparkDefaultParallelism;
@@ -107,7 +97,7 @@ public final class BulkWriterConfig implements Serializable
         return jobInfo;
     }
 
-    public BroadcastableClusterInfo getBroadcastableClusterInfo()
+    public IBroadcastableClusterInfo getBroadcastableClusterInfo()
     {
         return clusterInfo;
     }

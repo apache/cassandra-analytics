@@ -46,7 +46,7 @@ import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.CassandraContext;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
-import org.apache.cassandra.spark.bulkwriter.BroadcastableCluster;
+import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
@@ -78,8 +78,12 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
 
     // immutable
     private final List<ClusterInfo> clusterInfos;
+    private final String clusterId;
     private transient volatile Map<String, ClusterInfo> clusterInfoById;
     private transient volatile TokenRangeMapping<RingInstance> consolidatedTokenRangeMapping;
+    // Pre-computed values from BroadcastableClusterInfoGroup (only set when reconstructed on executors)
+    private transient volatile Partitioner cachedPartitioner;
+    private transient volatile String cachedLowestCassandraVersion;
 
     /**
      * Creates {@link CassandraClusterInfoGroup} with the list of {@link ClusterInfo} from {@link BulkSparkConf} and validation
@@ -95,17 +99,15 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     /**
      * Reconstruct from BroadcastableClusterInfoGroup on executor.
      * Creates CassandraClusterInfo instances for each cluster that will fetch data from Sidecar.
+     * Leverages pre-computed values (partitioner, lowestCassandraVersion) from the broadcastable
+     * to avoid re-validation and re-computation on executors.
      *
      * @param broadcastable the broadcastable cluster info group from broadcast
      * @return new {@link CassandraClusterInfoGroup} instance
      */
     public static CassandraClusterInfoGroup from(BroadcastableClusterInfoGroup broadcastable)
     {
-        List<ClusterInfo> clusterInfos = new ArrayList<>();
-        broadcastable.forEach((clusterId, broadcastableInfo) -> {
-            clusterInfos.add(new CassandraClusterInfo((BroadcastableCluster) broadcastableInfo));
-        });
-        return new CassandraClusterInfoGroup(clusterInfos);
+        return new CassandraClusterInfoGroup(broadcastable);
     }
 
     /**
@@ -143,6 +145,30 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     private CassandraClusterInfoGroup(List<ClusterInfo> clusterInfos)
     {
         this.clusterInfos = Collections.unmodifiableList(clusterInfos);
+        clusterInfoById();
+        this.clusterId = "ClusterInfoGroup: [" + String.join(", ", applyOnEach(ClusterInfo::clusterId).values()) + ']';
+    }
+
+    /**
+     * Private constructor for executor-only reconstruction from broadcast data.
+     * Accepts BroadcastableClusterInfoGroup and extracts pre-computed values to avoid
+     * re-validation and re-computation on executors.
+     *
+     * @param broadcastable the broadcastable cluster info group from broadcast
+     */
+    private CassandraClusterInfoGroup(BroadcastableClusterInfoGroup broadcastable)
+    {
+        // Build list of ClusterInfo from broadcastable data
+        List<ClusterInfo> clusterInfosList = new ArrayList<>();
+        broadcastable.forEach((clusterId, broadcastableInfo) -> {
+            clusterInfosList.add(new CassandraClusterInfo((BroadcastableClusterInfo) broadcastableInfo));
+        });
+        this.clusterInfos = Collections.unmodifiableList(clusterInfosList);
+
+        // Extract pre-computed values from driver to avoid re-validation on executors
+        this.cachedPartitioner = broadcastable.getPartitioner();
+        this.cachedLowestCassandraVersion = broadcastable.getLowestCassandraVersion();
+        this.clusterId = broadcastable.clusterId();
         clusterInfoById();
     }
 
@@ -183,6 +209,12 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     @Override
     public String getLowestCassandraVersion()
     {
+        // Return cached value if available (executor-side reconstruction)
+        if (cachedLowestCassandraVersion != null)
+        {
+            return cachedLowestCassandraVersion;
+        }
+
         if (clusterInfos.size() == 1)
         {
             return clusterInfos.get(0).getLowestCassandraVersion();
@@ -220,6 +252,12 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     @Override
     public Partitioner getPartitioner()
     {
+        // Return cached value if available (executor-side reconstruction)
+        if (cachedPartitioner != null)
+        {
+            return cachedPartitioner;
+        }
+
         Map<String, Partitioner> aggregated = applyOnEach(ClusterInfo::getPartitioner);
         Set<Partitioner> partitioners = EnumSet.copyOf(aggregated.values());
         if (partitioners.size() != 1)
@@ -274,7 +312,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     @Override
     public String clusterId()
     {
-        return "ClusterInfoGroup: [" + String.join(", ", applyOnEach(ClusterInfo::clusterId).values()) + ']';
+        return clusterId;
     }
 
     @Override

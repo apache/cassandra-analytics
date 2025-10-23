@@ -22,57 +22,57 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.io.Serializable;
 import java.util.Set;
 
-import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Broadcastable data wrapper for broadcasting with ZERO transient fields.
- * Only essential fields are broadcast; executors reconstruct CassandraSchemaInfo to rebuild TableSchema.
- * NO LOGGER - to avoid logger references in broadcast variable.
+ * Broadcastable wrapper for schema information with ZERO transient fields to optimize Spark broadcasting.
+ * <p>
+ * Contains BroadcastableTableSchema (pre-computed schema data) and UDT statements.
+ * Executors reconstruct CassandraSchemaInfo and TableSchema from these fields.
+ * <p>
+ * <b>Why ZERO transient fields matters:</b><br>
+ * Spark's {@link org.apache.spark.util.SizeEstimator} uses reflection to estimate object sizes before broadcasting.
+ * Each transient field forces SizeEstimator to inspect the field's type hierarchy, which is expensive.
+ * Logger references are particularly costly due to their deep object graphs (appenders, layouts, contexts).
+ * By eliminating ALL transient fields and Logger references, we:
+ * <ul>
+ *   <li>Minimize SizeEstimator reflection overhead during broadcast preparation</li>
+ *   <li>Reduce broadcast variable serialization size</li>
+ *   <li>Avoid accidental serialization of non-serializable objects</li>
+ * </ul>
  */
 public final class BroadcastableSchemaInfo implements Serializable
 {
+    private static final long serialVersionUID = -8727074052066841748L;
+
     // Essential fields broadcast to executors
-    private final BulkSparkConf conf;
-    private final StructType structType;
+    private final BroadcastableTableSchema broadcastableTableSchema;
     private final Set<String> userDefinedTypeStatements;
 
     /**
      * Creates a BroadcastableSchemaInfo from a source SchemaInfo.
-     * Executors will reconstruct CassandraSchemaInfo to rebuild TableSchema without Logger.
+     * Extracts BroadcastableTableSchema to avoid serializing Logger.
      *
-     * @param source     the source SchemaInfo (typically CassandraSchemaInfo)
-     * @param conf       the BulkSparkConf needed to reconstruct on executors
-     * @param structType the DataFrame schema structure needed to reconstruct TableSchema
+     * @param source the source SchemaInfo (typically CassandraSchemaInfo)
      */
-    public static BroadcastableSchemaInfo from(@NotNull SchemaInfo source,
-                                              @NotNull BulkSparkConf conf,
-                                              @NotNull StructType structType)
+    public static BroadcastableSchemaInfo from(@NotNull SchemaInfo source)
     {
         return new BroadcastableSchemaInfo(
-            conf,
-            structType,
+            BroadcastableTableSchema.from(source.getTableSchema()),
             source.getUserDefinedTypeStatements()
         );
     }
 
-    private BroadcastableSchemaInfo(BulkSparkConf conf,
-                                   StructType structType,
+    private BroadcastableSchemaInfo(BroadcastableTableSchema broadcastableTableSchema,
                                    Set<String> userDefinedTypeStatements)
     {
-        this.conf = conf;
-        this.structType = structType;
+        this.broadcastableTableSchema = broadcastableTableSchema;
         this.userDefinedTypeStatements = userDefinedTypeStatements;
     }
 
-    public BulkSparkConf getConf()
+    public BroadcastableTableSchema getBroadcastableTableSchema()
     {
-        return conf;
-    }
-
-    public StructType getStructType()
-    {
-        return structType;
+        return broadcastableTableSchema;
     }
 
     @NotNull

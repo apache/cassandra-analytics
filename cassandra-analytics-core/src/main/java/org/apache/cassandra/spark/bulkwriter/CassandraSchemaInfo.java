@@ -23,7 +23,6 @@ import java.util.Set;
 
 public class CassandraSchemaInfo implements SchemaInfo
 {
-    private static final long serialVersionUID = -2327383232935001862L;
     private final TableSchema tableSchema;
     private final Set<String> userDefinedTypeStatements;
 
@@ -35,15 +34,14 @@ public class CassandraSchemaInfo implements SchemaInfo
 
     /**
      * Reconstruct from BroadcastableSchemaInfo on executor.
-     * Reuses userDefinedTypeStatements from broadcast,
-     * and takes pre-reconstructed tableSchema.
+     * Reconstructs TableSchema from BroadcastableTableSchema (no Sidecar calls needed).
      *
      * @param broadcastable the broadcastable schema info from broadcast
-     * @param tableSchema  pre-reconstructed TableSchema (from keyspace schema)
      */
-    public CassandraSchemaInfo(BroadcastableSchemaInfo broadcastable, TableSchema tableSchema)
+    public CassandraSchemaInfo(BroadcastableSchemaInfo broadcastable)
     {
-        this(tableSchema, broadcastable.getUserDefinedTypeStatements());
+        this(new TableSchema(broadcastable.getBroadcastableTableSchema()),
+             broadcastable.getUserDefinedTypeStatements());
     }
 
     @Override

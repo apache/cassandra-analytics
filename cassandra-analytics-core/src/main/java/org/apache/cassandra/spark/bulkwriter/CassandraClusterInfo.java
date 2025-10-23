@@ -67,7 +67,7 @@ import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIden
  * <p>
  * This class is NOT serialized and does NOT have a serialVersionUID.
  * When broadcasting to executors, the driver extracts information from this class
- * and creates a {@link BroadcastableCluster} instance, which is then included
+ * and creates a {@link BroadcastableClusterInfo} instance, which is then included
  * in the {@link BulkWriterConfig} that gets broadcast.
  * <p>
  * This class implements Serializable only because the {@link ClusterInfo} interface
@@ -114,7 +114,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
      *
      * @param broadcastable the broadcastable cluster info from broadcast
      */
-    public CassandraClusterInfo(BroadcastableCluster broadcastable)
+    public CassandraClusterInfo(BroadcastableClusterInfo broadcastable)
     {
         this.conf = broadcastable.getConf();
         this.clusterId = broadcastable.clusterId();

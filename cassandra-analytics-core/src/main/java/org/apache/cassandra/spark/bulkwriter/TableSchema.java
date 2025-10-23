@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -43,7 +42,14 @@ import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
-public class TableSchema implements Serializable
+/**
+ * Schema information for bulk write operations.
+ * <p>
+ * This class does NOT implement Serializable (Logger is not serializable).
+ * For broadcast to executors, {@link BroadcastableTableSchema} is used instead,
+ * and executors reconstruct TableSchema from the broadcastable data.
+ */
+public class TableSchema
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(TableSchema.class);
 
@@ -52,12 +58,12 @@ public class TableSchema implements Serializable
     final List<String> partitionKeyColumns;
     final List<ColumnType<?>> partitionKeyColumnTypes;
     final List<SqlToCqlTypeConverter.Converter<?>> converters;
-    private final List<Integer> keyFieldPositions;
-    private final WriteMode writeMode;
-    private final TTLOption ttlOption;
-    private final TimestampOption timestampOption;
-    private final String lowestCassandraVersion;
-    private final boolean quoteIdentifiers;
+    final List<Integer> keyFieldPositions;
+    final WriteMode writeMode;
+    final TTLOption ttlOption;
+    final TimestampOption timestampOption;
+    final String lowestCassandraVersion;
+    final boolean quoteIdentifiers;
 
     public TableSchema(StructType dfSchema,
                        TableInfoProvider tableInfo,
@@ -83,6 +89,27 @@ public class TableSchema implements Serializable
         this.converters = getConverters(dfSchema, tableInfo, ttlOption, timestampOption);
         LOGGER.info("Converters: {}", converters);
         this.keyFieldPositions = getKeyFieldPositions(dfSchema, tableInfo.getColumnNames(), getRequiredKeyColumns(tableInfo));
+    }
+
+    /**
+     * Reconstruct TableSchema from BroadcastableTableSchema on executor.
+     * This constructor is used only on executors when reconstructing from broadcast data.
+     *
+     * @param broadcastable the broadcastable table schema from broadcast
+     */
+    public TableSchema(BroadcastableTableSchema broadcastable)
+    {
+        this.createStatement = broadcastable.getCreateStatement();
+        this.modificationStatement = broadcastable.getModificationStatement();
+        this.partitionKeyColumns = broadcastable.getPartitionKeyColumns();
+        this.partitionKeyColumnTypes = broadcastable.getPartitionKeyColumnTypes();
+        this.converters = broadcastable.getConverters();
+        this.keyFieldPositions = broadcastable.getKeyFieldPositions();
+        this.writeMode = broadcastable.getWriteMode();
+        this.ttlOption = broadcastable.getTtlOption();
+        this.timestampOption = broadcastable.getTimestampOption();
+        this.lowestCassandraVersion = broadcastable.getLowestCassandraVersion();
+        this.quoteIdentifiers = broadcastable.isQuoteIdentifiers();
     }
 
     private List<String> getRequiredKeyColumns(TableInfoProvider tableInfo)
