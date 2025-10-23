@@ -94,10 +94,12 @@ public class CdcRandomAccessReaderTest
             long position = call.start;
 
             // Deliver data in chunks until request is fulfilled
-            while (position < actualEnd) {
+            while (position < actualEnd)
+            {
                 int chunkSize = (int) Math.min(actualEnd - position, bufferSize);
                 Buffer data = Buffer.buffer();
-                for (int i = 0; i < chunkSize; i++) {
+                for (int i = 0; i < chunkSize; i++)
+                {
                     data.appendByte((byte) (position + i));
                 }
 
@@ -107,7 +109,8 @@ public class CdcRandomAccessReaderTest
             }
 
             // Signal end of stream when reaching EOF
-            if (actualEnd >= testCommitLog.maxOffset()) {
+            if (actualEnd >= testCommitLog.maxOffset())
+            {
                 call.consumer.onEnd();
             }
         });
@@ -125,7 +128,8 @@ public class CdcRandomAccessReaderTest
 
         // Flip to read mode and verify actual byte values
         buffer.flip();
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 50; i++)
+        {
             assertThat(buffer.get()).isEqualTo((byte) i);
         }
 
@@ -141,7 +145,8 @@ public class CdcRandomAccessReaderTest
 
         // Flip to read mode and verify actual byte values
         buffer.flip();
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 50; i++)
+        {
             assertThat(buffer.get()).isEqualTo((byte) (50 + i));
         }
     }
@@ -163,10 +168,12 @@ public class CdcRandomAccessReaderTest
             long bytesToDeliver = Math.min(requestedBytes, bufferSize);
 
             // Deliver capped amount
-            while (position < call.start + bytesToDeliver) {
+            while (position < call.start + bytesToDeliver)
+            {
                 int chunkSize = (int) Math.min(call.start + bytesToDeliver - position, bufferSize);
                 Buffer data = Buffer.buffer();
-                for (int i = 0; i < chunkSize; i++) {
+                for (int i = 0; i < chunkSize; i++)
+                {
                     data.appendByte((byte) (position + i));
                 }
 
@@ -197,7 +204,8 @@ public class CdcRandomAccessReaderTest
 
         // TEST flips to verify byte values are correct
         buffer.flip();
-        for (int i = 0; i < 50; i++) {
+        for (int i = 0; i < 50; i++)
+        {
             assertThat(buffer.get()).isEqualTo((byte) i);
         }
     }
@@ -211,7 +219,7 @@ public class CdcRandomAccessReaderTest
 
         // Configure source to provide sequential data
         testSource.setRequestHandler(call -> {
-            int dataSize = (int)(call.end - call.start);
+            int dataSize = (int) (call.end - call.start);
             Buffer data = Buffer.buffer(dataSize);
             for (int i = 0; i < dataSize; i++)
             {
