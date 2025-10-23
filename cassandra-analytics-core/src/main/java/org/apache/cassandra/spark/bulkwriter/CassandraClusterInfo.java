@@ -123,8 +123,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         this.cassandraContext = buildCassandraContext();
         LOGGER.info("Reconstructing CassandraClusterInfo on executor from BroadcastableCluster. clusterId={}", clusterId);
         this.nodeSettings = new AtomicReference<>(null);
-        this.allNodeSettingFutures = Sidecar.allNodeSettings(cassandraContext.getSidecarClient(),
-                                                             cassandraContext.getCluster());
+        // Executors do not need to query all node settings since cassandraVersion is already set from broadcast
+        this.allNodeSettingFutures = null;
     }
 
     @Override
@@ -446,6 +446,12 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     protected List<NodeSettings> getAllNodeSettings()
     {
+        if (allNodeSettingFutures == null)
+        {
+            throw new IllegalStateException("getAllNodeSettings should not be called on executor. "
+                                            + "Cassandra version is pre-computed on driver and broadcast to executors.");
+        }
+
         // Worst-case, the http client is configured for 1 worker pool.
         // In that case, each future can take the full retry delay * number of retries,
         // and each instance will be processed serially.
