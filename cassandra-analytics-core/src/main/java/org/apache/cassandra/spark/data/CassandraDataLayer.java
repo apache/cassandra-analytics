@@ -51,6 +51,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Range;
+import com.google.common.collect.RangeMap;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +63,7 @@ import o.a.c.sidecar.client.shaded.common.response.ListSnapshotFilesResponse;
 import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.common.response.RingResponse;
 import o.a.c.sidecar.client.shaded.common.response.SchemaResponse;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.BigNumberConfigImpl;
@@ -93,6 +95,7 @@ import org.apache.cassandra.spark.utils.ReaderTimeProvider;
 import org.apache.cassandra.spark.utils.ScalaFunctions;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
+import org.apache.cassandra.spark.utils.TokenRangeUtils;
 import org.apache.cassandra.spark.validation.CassandraValidation;
 import org.apache.cassandra.spark.validation.SidecarValidation;
 import org.apache.cassandra.spark.validation.StartupValidatable;
@@ -300,7 +303,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         udts.forEach(udt -> LOGGER.info("Adding schema UDT: '{}'", udt));
 
         cqlTable = bridge().buildSchema(createStmt, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
-        CassandraRing ring = createCassandraRingFromRing(partitioner, replicationFactor, ringFuture.get());
+
+        TokenRangeReplicasResponse tokenRangeReplicas = sidecar.tokenRangeReplicas(
+        new ArrayList<>(clusterConfig), maybeQuotedKeyspace).get();
+        TokenRangeUtils.validateTokenRangeReplicasResponse(tokenRangeReplicas);
+
+        CassandraRing ring = createCassandraRingFromRing(partitioner, replicationFactor, ringFuture.get(), tokenRangeReplicas);
 
         int effectiveNumberOfCores = sizingFuture.get();
         tokenPartitioner = new TokenPartitioner(ring, options.defaultParallelism(), effectiveNumberOfCores);
@@ -657,14 +665,17 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     @VisibleForTesting
     public CassandraRing createCassandraRingFromRing(Partitioner partitioner,
                                                      ReplicationFactor replicationFactor,
-                                                     RingResponse ring)
+                                                     RingResponse ring,
+                                                     TokenRangeReplicasResponse tokenRangeReplicas)
     {
         Collection<CassandraInstance> instances = ring
                                                   .stream()
                                                   .filter(status -> datacenter == null || datacenter.equalsIgnoreCase(status.datacenter()))
                                                   .map(status -> new CassandraInstance(status.token(), status.fqdn(), status.datacenter()))
                                                   .collect(Collectors.toList());
-        return new CassandraRing(partitioner, keyspace, replicationFactor, instances);
+        RangeMap<BigInteger, List<CassandraInstance>> replicasForRanges =
+        TokenRangeUtils.convertTokenRangeReplicasToRangeMap(tokenRangeReplicas, instances, datacenter);
+        return new CassandraRing(partitioner, keyspace, replicationFactor, instances, replicasForRanges);
     }
 
     // Startup Validation

@@ -19,6 +19,9 @@
 
 package org.apache.cassandra.spark.data.partitioner;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -34,9 +37,9 @@ public class CassandraInstance implements TokenOwner, Serializable
     public static final CassandraInstance.Serializer SERIALIZER = new CassandraInstance.Serializer();
 
     private static final long serialVersionUID = 6767636627576239773L;
-    private final String token;
-    private final String node;
-    private final String dataCenter;
+    private String token;
+    private String node;
+    private String dataCenter;
 
     public CassandraInstance(String token, String node, String dataCenter)
     {
@@ -98,6 +101,20 @@ public class CassandraInstance implements TokenOwner, Serializable
     public String toString()
     {
         return String.format("{\"token\"=\"%s\", \"node\"=\"%s\", \"dc\"=\"%s\"}", token, node, dataCenter);
+    }
+
+    private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
+    {
+        this.token = in.readUTF();
+        this.node = in.readUTF();
+        this.dataCenter = in.readUTF();
+    }
+
+    private void writeObject(ObjectOutputStream out) throws IOException
+    {
+        out.writeUTF(token());
+        out.writeUTF(nodeName());
+        out.writeUTF(dataCenter());
     }
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CassandraInstance>

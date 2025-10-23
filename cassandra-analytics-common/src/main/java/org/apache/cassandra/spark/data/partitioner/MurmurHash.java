@@ -187,7 +187,7 @@ public final class MurmurHash
         return k;
     }
 
-    public static long[] inv_hash3_x64_128(long[] result)
+    public static long[] invHash3X64128(long[] result)
     {
         long c1 = 0xa98409e882ce4d7dL;
         long c2 = 0xa81e14edd9de2c7fL;

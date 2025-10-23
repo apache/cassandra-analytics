@@ -135,7 +135,8 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
             if (configuration.dcAndRackSupplier != null)
             {
                 clusterBuilder.withNodeIdTopology(networkTopology(finalNodeCount, configuration.dcAndRackSupplier));
-            } else
+            }
+            else
             {
                 clusterBuilder.withNodeIdTopology(networkTopology(finalNodeCount,
                                                                   (nodeId) -> nodeId % 2 != 0 ?

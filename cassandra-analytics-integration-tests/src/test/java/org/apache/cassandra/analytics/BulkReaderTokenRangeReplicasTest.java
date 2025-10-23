@@ -1,3 +1,22 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.apache.cassandra.analytics;
 
 import java.nio.ByteBuffer;
@@ -52,7 +71,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  * </ul>
  *
  * <p>Cassandra will try to place replicas in different racks.</p>
- * <p>T1 will be replicated in the next 2 nodes in the same DC1 and different racks (Node3, Node4) and the first 3 nodes in different racks in DC2(Node5, Node7, Node8).</p>
+ * <p>T1 will be replicated in the next 2 nodes in the same DC1 and different racks (Node3, Node4) and the first 3 nodes
+ * in different racks in DC2(Node5, Node7, Node8).</p>
  * <p>For each token range the replicas are:</p>
  * <pre>
  * T1:[Node1, Node3, Node4, Node5, Node7, Node8]
@@ -94,8 +114,9 @@ public class BulkReaderTokenRangeReplicasTest extends SharedClusterSparkIntegrat
                                 return dcAndRack("datacenter2", "rack2");
                             case 8:
                                 return dcAndRack("datacenter2", "rack3");
+                            default:
+                                return dcAndRack("", "");
                         }
-                        return dcAndRack("", "");
                     });
     }
 
@@ -128,6 +149,8 @@ public class BulkReaderTokenRangeReplicasTest extends SharedClusterSparkIntegrat
         // node 2, node 6 shouldn't have the key
         // all other nodes should have VALUE1
         expectedValuesInNodes.put(4, VALUE2);
+        //updateInternal(1, key, VALUE2);
+        //expectedValuesInNodes.put(1, VALUE2);
         validateValuesInNodes(expectedValuesInNodes, key);
 
         List<Row> rowList = bulkRead(ConsistencyLevel.ALL.name());
@@ -218,7 +241,7 @@ public class BulkReaderTokenRangeReplicasTest extends SharedClusterSparkIntegrat
     public static ByteBuffer keyForToken(long token)
     {
         ByteBuffer result = ByteBuffer.allocate(16);
-        long[] inv = MurmurHash.inv_hash3_x64_128(new long[]{ token, 0L });
+        long[] inv = MurmurHash.invHash3X64128(new long[]{token, 0L});
         result.putLong(inv[0]).putLong(inv[1]).position(0);
         return result;
     }
