@@ -43,7 +43,7 @@ import org.jetbrains.annotations.NotNull;
  * and minimize Spark SizeEstimator overhead.
  * <p>
  * On executors, {@link BulkWriterContext} instances are reconstructed from this config using
- * {@link BulkWriterContext#from(BulkWriterConfig, boolean)}, which detects the broadcastable
+ * {@link BulkWriterContext#from(BulkWriterConfig)}, which detects the broadcastable
  * wrappers and reconstructs the full implementations with fresh data from Cassandra Sidecar.
  */
 public final class BulkWriterConfig implements Serializable

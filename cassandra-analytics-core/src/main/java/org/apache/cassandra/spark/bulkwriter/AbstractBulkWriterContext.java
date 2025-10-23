@@ -57,7 +57,7 @@ import org.jetbrains.annotations.NotNull;
  * {@link BroadcastableSchemaInfo}), not BulkWriterContext instances.
  * <p>
  * On executors, BulkWriterContext instances are reconstructed from BulkWriterConfig using
- * {@link BulkWriterContext#from(BulkWriterConfig, boolean)}, not by deserializing BulkWriterContext directly.
+ * {@link BulkWriterContext#from(BulkWriterConfig)}, not by deserializing BulkWriterContext directly.
  * The reconstruction process detects broadcastable wrappers and rebuilds full implementations:
  * <ul>
  *   <li>{@link BroadcastableCluster} → {@link CassandraClusterInfo}</li>
