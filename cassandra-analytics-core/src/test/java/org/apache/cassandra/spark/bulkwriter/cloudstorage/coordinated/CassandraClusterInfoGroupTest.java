@@ -34,6 +34,7 @@ import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
+import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfoTest;
@@ -272,20 +273,49 @@ class CassandraClusterInfoGroupTest
     @Test
     void testSerDeser()
     {
-        CassandraClusterInfoGroup origin = mockClusterGroup(2, index -> mockClusterInfo("cluster" + index));
-        assertThat(origin.clusterInfoByIdUnsafe()).isNotNull();
-        assertThat(origin.getValueOrNull("cluster0")).isNotNull();
-        assertThat(origin.getValueOrNull("cluster1")).isNotNull();
-        byte[] serialized = SerializationUtils.serialize(origin);
-        CassandraClusterInfoGroup target = SerializationUtils.deserialize(serialized, CassandraClusterInfoGroup.class);
-        assertThat(target.clusterInfoByIdUnsafe())
-        .describedAs("clusterInfoById should be null in the deserialized object")
-        .isNull();
-        assertThat(target.getValueOrNull("cluster0")).isNotNull();
-        assertThat(target.getValueOrNull("cluster1")).isNotNull();
-        assertThat(target.clusterInfoByIdUnsafe())
-        .describedAs("clusterInfoById should now be lazily initialized")
-        .isNotNull();
+        // Create a CassandraClusterInfoGroup with some test data
+        CassandraClusterInfoGroup originalGroup = mockClusterGroup(2, index -> {
+            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+            when(clusterInfo.getPartitioner()).thenReturn(Partitioner.Murmur3Partitioner);
+            when(clusterInfo.getLowestCassandraVersion()).thenReturn("4.0.0");
+            return clusterInfo;
+        });
+
+        // Mock the BulkSparkConf needed for serialization
+        BulkSparkConf conf = mock(BulkSparkConf.class, withSettings().serializable());
+
+        // Convert to BroadcastableClusterInfoGroup (what actually gets serialized/broadcast in Spark)
+        BroadcastableClusterInfoGroup broadcastable = BroadcastableClusterInfoGroup.from(originalGroup, conf);
+
+        // Serialize and deserialize using SerializationUtils
+        byte[] serializedBytes = SerializationUtils.serialize(broadcastable);
+        BroadcastableClusterInfoGroup deserializedBroadcastable = SerializationUtils.deserialize(serializedBytes, BroadcastableClusterInfoGroup.class);
+
+        // Verify the deserialized broadcastable has the correct pre-computed values
+        assertThat(deserializedBroadcastable.clusterId())
+        .describedAs("ClusterId should be preserved after serialization")
+        .isEqualTo(originalGroup.clusterId());
+
+        assertThat(deserializedBroadcastable.getPartitioner())
+        .describedAs("Partitioner should be preserved after serialization")
+        .isEqualTo(Partitioner.Murmur3Partitioner);
+
+        assertThat(deserializedBroadcastable.getLowestCassandraVersion())
+        .describedAs("Lowest Cassandra version should be preserved after serialization")
+        .isEqualTo("4.0.0");
+
+        assertThat(deserializedBroadcastable.size())
+        .describedAs("Number of clusters should be preserved after serialization")
+        .isEqualTo(2);
+
+        // Verify we can iterate over the deserialized clusters
+        int[] clusterCount = {0};
+        deserializedBroadcastable.forEach((clusterId, clusterInfo) -> {
+            assertThat(clusterId).isIn("cluster0", "cluster1");
+            assertThat(clusterInfo).isNotNull();
+            clusterCount[0]++;
+        });
+        assertThat(clusterCount[0]).isEqualTo(2);
     }
 
     private CassandraClusterInfoGroup mockClusterGroup(int size,
@@ -297,8 +327,7 @@ class CassandraClusterInfoGroupTest
 
     private CassandraClusterInfo mockClusterInfo(String clusterId)
     {
-        CassandraClusterInfo clusterInfo = mock(CassandraClusterInfo.class,
-                                                withSettings().serializable()); // serializable required by testSerDeser
+        CassandraClusterInfo clusterInfo = mock(CassandraClusterInfo.class);
         when(clusterInfo.clusterId()).thenReturn(clusterId);
         return clusterInfo;
     }

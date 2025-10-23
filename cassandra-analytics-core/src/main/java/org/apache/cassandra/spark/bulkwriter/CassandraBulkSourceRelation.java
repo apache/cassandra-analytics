@@ -49,6 +49,7 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.Coordinate
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.MultiClusterReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
@@ -187,12 +188,13 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         this.startTimeNanos = System.nanoTime();
         maybeScheduleTimeout();
         maybeEnableTransportExtension();
-        Tokenizer tokenizer = new Tokenizer(writerContext);
-        TableSchema tableSchema = writerContext.schema().getTableSchema();
+        BroadcastableTableSchema broadcastableTableSchema = broadcastConfig.value().getBroadcastableSchemaInfo().getBroadcastableTableSchema();
+        boolean isMurmur3Partitioner = writerContext.cluster().getPartitioner() == Partitioner.Murmur3Partitioner;
+        Tokenizer tokenizer = new Tokenizer(broadcastableTableSchema, isMurmur3Partitioner);
         JavaPairRDD<DecoratedKey, Object[]> sortedRDD = data.toJavaRDD()
                                                             .map(Row::toSeq)
                                                             .map(seq -> JavaConverters.seqAsJavaListConverter(seq).asJava().toArray())
-                                                            .map(tableSchema::normalize)
+                                                            .map(broadcastableTableSchema::normalize)
                                                             .keyBy(tokenizer::getDecoratedKey)
                                                             .repartitionAndSortWithinPartitions(writerContext.job().getTokenPartitioner());
         persist(sortedRDD, data.columns());

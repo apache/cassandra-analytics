@@ -27,7 +27,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,7 +37,6 @@ import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
 import org.apache.spark.sql.types.StructType;
-import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
@@ -125,34 +123,6 @@ public class TableSchema
             default:
                 throw new UnsupportedOperationException("Unknown WriteMode provided");
         }
-    }
-
-    public Object[] normalize(Object[] row)
-    {
-        for (int index = 0; index < row.length; index++)
-        {
-            row[index] = converters.get(index).convert(row[index]);
-        }
-        return row;
-    }
-
-    public Object[] getKeyColumns(Object[] allColumns)
-    {
-        return getKeyColumns(allColumns, keyFieldPositions);
-    }
-
-    @VisibleForTesting
-    @NotNull
-    public static Object[] getKeyColumns(Object[] allColumns, List<Integer> keyFieldPositions)
-    {
-        Object[] result = new Object[keyFieldPositions.size()];
-        for (int keyFieldPosition = 0; keyFieldPosition < keyFieldPositions.size(); keyFieldPosition++)
-        {
-            Object colVal = allColumns[keyFieldPositions.get(keyFieldPosition)];
-            Preconditions.checkNotNull(colVal, "Found a null primary or composite key column in source data. All key columns must be non-null.");
-            result[keyFieldPosition] = colVal;
-        }
-        return result;
     }
 
     private static List<SqlToCqlTypeConverter.Converter<?>> getConverters(StructType dfSchema,

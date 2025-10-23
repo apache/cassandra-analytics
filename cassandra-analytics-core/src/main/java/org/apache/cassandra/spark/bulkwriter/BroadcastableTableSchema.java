@@ -22,6 +22,8 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.io.Serializable;
 import java.util.List;
 
+import com.google.common.base.Preconditions;
+
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.jetbrains.annotations.NotNull;
 
@@ -161,5 +163,46 @@ public final class BroadcastableTableSchema implements Serializable
     public boolean isQuoteIdentifiers()
     {
         return quoteIdentifiers;
+    }
+
+    /**
+     * Normalizes a row by applying type converters to each field.
+     * This mirrors the normalize method in TableSchema but uses the broadcast-safe converters list.
+     *
+     * @param row the row data to normalize
+     * @return the normalized row (same array instance, mutated in place)
+     */
+    public Object[] normalize(Object[] row)
+    {
+        for (int index = 0; index < row.length; index++)
+        {
+            row[index] = converters.get(index).convert(row[index]);
+        }
+        return row;
+    }
+
+    /**
+     * Extracts key columns from all columns based on key field positions.
+     * This mirrors the getKeyColumns method in TableSchema but uses the broadcast-safe keyFieldPositions list.
+     *
+     * @param allColumns all columns in the row
+     * @return array containing only the key columns
+     */
+    public Object[] getKeyColumns(Object[] allColumns)
+    {
+        return getKeyColumns(allColumns, keyFieldPositions);
+    }
+
+    @NotNull
+    public static Object[] getKeyColumns(Object[] allColumns, List<Integer> keyFieldPositions)
+    {
+        Object[] result = new Object[keyFieldPositions.size()];
+        for (int keyFieldPosition = 0; keyFieldPosition < keyFieldPositions.size(); keyFieldPosition++)
+        {
+            Object colVal = allColumns[keyFieldPositions.get(keyFieldPosition)];
+            Preconditions.checkNotNull(colVal, "Found a null primary or composite key column in source data. All key columns must be non-null.");
+            result[keyFieldPosition] = colVal;
+        }
+        return result;
     }
 }
