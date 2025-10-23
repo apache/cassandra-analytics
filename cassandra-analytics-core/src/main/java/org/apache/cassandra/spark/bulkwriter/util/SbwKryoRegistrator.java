@@ -27,9 +27,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.esotericsoftware.kryo.Kryo;
-import org.apache.cassandra.spark.bulkwriter.CassandraBulkWriterContext;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraCoordinatedBulkWriterContext;
+import org.apache.cassandra.spark.bulkwriter.TokenPartitioner;
 import org.apache.cassandra.spark.transports.storage.StorageAccessConfiguration;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
@@ -43,16 +42,21 @@ public class SbwKryoRegistrator implements KryoRegistrator
     protected static final String KRYO_KEY = "spark.kryo.registrator";
 
     // CHECKSTYLE IGNORE: Despite being static and final, this is a mutable field not to be confused with a constant
+    // Classes that implement Serializable and are registered with Kryo using SbwJavaSerializer.
+    // When Spark uses Kryo serialization (spark.serializer=KryoSerializer), these classes will be serialized
+    // via Java's ObjectOutputStream instead of Kryo's default serialization. This applies to all Kryo usage:
+    // shuffle operations, broadcast variables, RDD caching, and task closures.
+    //
+    // RingInstance: Serialized during shuffle and broadcast operations.
+    // TokenPartitioner: Serialized during shuffle operations (e.g., repartitionAndSortWithinPartitions).
+    //                   Has custom writeObject/readObject methods that must be invoked.
+    //                   For broadcast, it uses BroadcastableTokenPartitioner wrapper instead.
+    //
     // Note: BulkWriterContext implementations (CassandraBulkWriterContext, CassandraCoordinatedBulkWriterContext)
-    // are NOT actually serialized - they are reconstructed from BulkWriterConfig on executors.
-    // They implement KryoSerializable with fail-fast write/read methods that throw exceptions.
-    // Registering them with Kryo ensures these fail-fast methods are called if someone accidentally tries to
-    // serialize a BulkWriterContext instead of using the proper BulkWriterConfig broadcast mechanism.
-    // TokenPartitioner is no longer in this list - it's now handled via BroadcastableTokenPartitioner in broadcast.
+    // are NOT in this list because they no longer implement Serializable. They implement KryoSerializable with
+    // fail-fast methods and are never actually serialized - they are reconstructed from BulkWriterConfig on executors.
     private static final Set<Class<?>> javaSerializableClasses =
-    Sets.newHashSet(CassandraBulkWriterContext.class,
-                    CassandraCoordinatedBulkWriterContext.class,
-                    RingInstance.class);
+    Sets.newHashSet(RingInstance.class, TokenPartitioner.class);
 
     @Override
     public void registerClasses(@NotNull Kryo kryo)

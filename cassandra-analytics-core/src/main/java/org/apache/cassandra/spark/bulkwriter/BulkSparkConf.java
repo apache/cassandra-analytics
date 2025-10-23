@@ -162,6 +162,7 @@ public class BulkSparkConf implements Serializable
         this(conf, options, null);
     }
 
+    // NO LOGGER as member field - to avoid logger references in broadcast variable.
     public BulkSparkConf(SparkConf conf, Map<String, String> options, @Nullable Logger logger)
     {
         this.conf = conf;
