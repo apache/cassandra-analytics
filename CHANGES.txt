@@ -1,5 +1,6 @@
 0.2.0
 -----
+ * Fix SSTable descriptor mismatch preventing newly produced SSTables from being uploaded (CASSANALYTICS-98)
  * Expose SidecarCdc builders and interfaces (CASSANALYTICS-94)
  * Fix bulk reader node availability comparator ordering (CASSANALYTICS-99)
  * Remove not needed buffer flips (CASSANALYTICS-95)

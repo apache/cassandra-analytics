@@ -773,7 +773,6 @@ public class CassandraBridgeImplementation extends CassandraBridge
     public static String baseFilename(Descriptor descriptor)
     {
         // note that descriptor.baseFilename() contains the directory portion in the string. We do not include the directory portion
-        String baseFileNameWithDirectory = descriptor.baseFile().name();
-        return baseFileNameWithDirectory.substring(baseFileNameWithDirectory.lastIndexOf(java.io.File.separatorChar) + 1);
+        return descriptor.baseFile().name();
     }
 }

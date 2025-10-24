@@ -85,12 +85,17 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                 // 3. send the sstables to all replicas
                 // 4. remove the sstables once sent
                 Map<Path, Digest> fileDigests = sstableWriter.prepareSStablesToSend(writerContext, sstables);
-                recordStreamedFiles(fileDigests.keySet());
-                fileDigests.keySet()
-                           .stream()
-                           .filter(p -> p.getFileName().toString().endsWith(FileType.DATA.getFileSuffix()))
-                           .forEach(this::sendSStableToReplicas);
-                LOGGER.info("[{}]: Sent SSTables. sstables={}", sessionID, sstableWriter.sstableCount());
+                // retain only the SSTable data components
+                Set<Path> newSSTables = fileDigests.keySet()
+                                                   .stream()
+                                                   .filter(p -> p.getFileName().toString().endsWith(FileType.DATA.getFileSuffix()))
+                                                   .collect(Collectors.toSet());
+                for (Path sstable : newSSTables)
+                {
+                    sendSStableToReplicas(sstable);
+                }
+
+                LOGGER.info("[{}]: Sent newly produced SSTables. sstables={}", sessionID, newSSTables.size());
                 LOGGER.info("[{}]: Removing temporary files after streaming. files={}", sessionID, fileDigests);
                 fileDigests.keySet().forEach(path -> {
                     try
@@ -244,9 +249,10 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                                       Digest digest) throws IOException
     {
         Preconditions.checkNotNull(digest, "All files must have a digest. SSTableWriter should have calculated these.");
-        LOGGER.info("[{}]: Uploading {} to {}: Size is {}",
-                    sessionID, componentFile, instance.nodeName(), Files.size(componentFile));
+        LOGGER.info("[{}]: Uploading {} to {}: size={} digest={}",
+                    sessionID, componentFile, instance.nodeName(), Files.size(componentFile), digest);
         directDataTransferApi.uploadSSTableComponent(componentFile, ssTableIdx, instance, this.sessionID, digest);
+        recordStreamedFile(componentFile);
     }
 
     private List<CommitResult> commit(DirectStreamResult streamResult) throws ExecutionException, InterruptedException
