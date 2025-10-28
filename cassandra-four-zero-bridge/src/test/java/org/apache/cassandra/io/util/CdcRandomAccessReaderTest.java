@@ -45,7 +45,6 @@ public class CdcRandomAccessReaderTest
 {
     private TestCommitLog testCommitLog;
     private TestCassandraFileSource testSource;
-    private TestCdcStats testStats;
 
     private CdcRandomAccessReader reader;
 
@@ -53,8 +52,7 @@ public class CdcRandomAccessReaderTest
     public void setUp()
     {
         testSource = new TestCassandraFileSource();
-        testStats = new TestCdcStats();
-        testCommitLog = new TestCommitLog("/test/path/commitlog", testSource, testStats, 1024L);
+        testCommitLog = new TestCommitLog("/test/path/commitlog", testSource, ICdcStats.STUB, 1024L);
         testSource.setCommitLog(testCommitLog);
     }
 
@@ -405,11 +403,6 @@ public class CdcRandomAccessReaderTest
                 this.consumer = consumer;
             }
         }
-    }
-
-    private static class TestCdcStats implements ICdcStats
-    {
-        // Empty implementation - just a stub for testing
     }
 
     private static class TestStreamBuffer implements StreamBuffer
