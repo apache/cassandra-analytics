@@ -367,9 +367,10 @@ public class TableSchemaNormalizeTest
         String[] fieldNames = {field};
         ColumnType<?>[] cqlTypes = {columnType};
         TableSchema schema = buildSchema(cassandraVersion, fieldNames, sparkTypes, new CqlField.CqlType[]{cqlType}, fieldNames, cqlTypes, fieldNames);
+        BroadcastableTableSchema broadcastable = BroadcastableTableSchema.from(schema);
         Object[] source = new Object[]{sourceVal};
         Object[] expected = new Object[]{expectedVal};
-        Object[] normalized = schema.normalize(source);
+        Object[] normalized = broadcastable.normalize(source);
         assertThat(normalized, is(equalTo(expected)));
     }
 }

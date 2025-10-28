@@ -140,7 +140,7 @@ class BulkSparkConfTest
         // mTLS is now required, and the BulkSparkConf constructor fails if the options aren't present
         Map<String, String> options = copyDefaultOptions();
         SparkConf sparkConf = new SparkConf();
-        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options));
+        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options, null));
     }
 
     @Test

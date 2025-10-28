@@ -62,9 +62,20 @@ import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
+/**
+ * Driver-only implementation of {@link ClusterInfo} for single cluster operations.
+ * <p>
+ * This class is NOT serialized and does NOT have a serialVersionUID.
+ * When broadcasting to executors, the driver extracts information from this class
+ * and creates a {@link BroadcastableClusterInfo} instance, which is then included
+ * in the {@link BulkWriterConfig} that gets broadcast.
+ * <p>
+ * This class implements Serializable only because the {@link ClusterInfo} interface
+ * requires it (for use as a field type in broadcast classes), but instances of this
+ * class are never directly serialized.
+ */
 public class CassandraClusterInfo implements ClusterInfo, Closeable
 {
-    private static final long serialVersionUID = -6944818863462956767L;
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraClusterInfo.class);
 
     protected final BulkSparkConf conf;
@@ -72,12 +83,12 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     protected String cassandraVersion;
     protected Partitioner partitioner;
 
-    protected transient volatile TokenRangeMapping<RingInstance> tokenRangeReplicas;
-    protected transient volatile String keyspaceSchema;
-    protected transient volatile ReplicationFactor replicationFactor;
-    protected transient volatile CassandraContext cassandraContext;
-    protected final transient AtomicReference<NodeSettings> nodeSettings;
-    protected final transient List<CompletableFuture<NodeSettings>> allNodeSettingFutures;
+    protected volatile TokenRangeMapping<RingInstance> tokenRangeReplicas;
+    protected volatile String keyspaceSchema;
+    protected volatile ReplicationFactor replicationFactor;
+    protected volatile CassandraContext cassandraContext;
+    protected final AtomicReference<NodeSettings> nodeSettings;
+    protected final List<CompletableFuture<NodeSettings>> allNodeSettingFutures;
 
     public CassandraClusterInfo(BulkSparkConf conf)
     {
@@ -94,6 +105,26 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         this.nodeSettings = new AtomicReference<>(null);
         this.allNodeSettingFutures = Sidecar.allNodeSettings(cassandraContext.getSidecarClient(),
                                                              cassandraContext.getCluster());
+    }
+
+    /**
+     * Reconstruct from BroadcastableCluster on executor.
+     * Reuses cassandraVersion and partitioner from broadcast,
+     * fetches other data (tokenRangeMapping, replicationFactor, keyspaceSchema, writeAvailability) fresh from Sidecar.
+     *
+     * @param broadcastable the broadcastable cluster info from broadcast
+     */
+    public CassandraClusterInfo(BroadcastableClusterInfo broadcastable)
+    {
+        this.conf = broadcastable.getConf();
+        this.clusterId = broadcastable.clusterId();
+        this.cassandraVersion = broadcastable.getLowestCassandraVersion();
+        this.partitioner = broadcastable.getPartitioner();
+        this.cassandraContext = buildCassandraContext();
+        LOGGER.info("Reconstructing CassandraClusterInfo on executor from BroadcastableCluster. clusterId={}", clusterId);
+        this.nodeSettings = new AtomicReference<>(null);
+        // Executors do not need to query all node settings since cassandraVersion is already set from broadcast
+        this.allNodeSettingFutures = null;
     }
 
     @Override
@@ -415,6 +446,12 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     protected List<NodeSettings> getAllNodeSettings()
     {
+        if (allNodeSettingFutures == null)
+        {
+            throw new IllegalStateException("getAllNodeSettings should not be called on executor. "
+                                            + "Cassandra version is pre-computed on driver and broadcast to executors.");
+        }
+
         // Worst-case, the http client is configured for 1 worker pool.
         // In that case, each future can take the full retry delay * number of retries,
         // and each instance will be processed serially.

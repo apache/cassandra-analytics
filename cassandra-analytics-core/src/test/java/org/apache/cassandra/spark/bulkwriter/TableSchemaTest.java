@@ -183,11 +183,11 @@ public class TableSchemaTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void normalizeConvertsValidTable(String cassandraVersion)
     {
-        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
-                .build();
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion).build();
+        BroadcastableTableSchema broadcastable = BroadcastableTableSchema.from(schema);
 
-        assertThat(schema.normalize(new Object[]{1, 1L, "foo", 2}))
-                .isEqualTo(new Object[]{1, -2147483648, "foo", 2});
+        assertThat(broadcastable.normalize(new Object[]{1, 1L, "foo", 2}))
+        .isEqualTo(new Object[]{1, -2147483648, "foo", 2});
     }
 
     @ParameterizedTest
@@ -213,16 +213,17 @@ public class TableSchemaTest
     public void testGetKeyColumnsFindsCorrectValues(String cassandraVersion)
     {
         StructType outOfOrderDataFrameSchema = new StructType()
-                .add("date", DataTypes.TimestampType)
-                .add("id", DataTypes.IntegerType)
-                .add("course", DataTypes.StringType)
-                .add("marks", DataTypes.IntegerType);
+                                               .add("date", DataTypes.TimestampType)
+                                               .add("id", DataTypes.IntegerType)
+                                               .add("course", DataTypes.StringType)
+                                               .add("marks", DataTypes.IntegerType);
 
         TableSchema schema = getValidSchemaBuilder(cassandraVersion)
-                .withDataFrameSchema(outOfOrderDataFrameSchema)
-                .build();
-        assertThat(schema.getKeyColumns(new Object[]{"date_val", "id_val", "course_val", "marks_val"}))
-                .isEqualTo(new Object[]{"id_val", "date_val"});
+                             .withDataFrameSchema(outOfOrderDataFrameSchema)
+                             .build();
+        BroadcastableTableSchema broadcastable = BroadcastableTableSchema.from(schema);
+        assertThat(broadcastable.getKeyColumns(new Object[]{"date_val", "id_val", "course_val", "marks_val"}))
+        .isEqualTo(new Object[]{"id_val", "date_val"});
     }
 
     @ParameterizedTest
@@ -230,10 +231,11 @@ public class TableSchemaTest
     public void testGetKeyColumnsFailsWhenNullKeyValues(String cassandraVersion)
     {
         TableSchema schema = getValidSchemaBuilder(cassandraVersion)
-                .build();
-        assertThatThrownBy(() -> schema.getKeyColumns(new Object[]{"foo", null, "baz", "boo"}))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessage("Found a null primary or composite key column in source data. All key columns must be non-null.");
+                             .build();
+        BroadcastableTableSchema broadcastable = BroadcastableTableSchema.from(schema);
+        assertThatThrownBy(() -> broadcastable.getKeyColumns(new Object[]{"foo", null, "baz", "boo"}))
+        .isInstanceOf(NullPointerException.class)
+        .hasMessage("Found a null primary or composite key column in source data. All key columns must be non-null.");
     }
 
     @ParameterizedTest

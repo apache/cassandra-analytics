@@ -1,5 +1,6 @@
 0.2.0
 -----
+ * Refactor BulkWriterContext broadcasting to use immutable config class (CASSANALYTICS-89)
  * Bump sidecar dependency to 0.2.0 (CASSANALYTICS-93)
  * Support for Trie-Indexed SSTables (BTI format) (CASSANALYTICS-27)
  * Add extractCdcTables method to CqlUtils (CASSANALYTICS-91)
