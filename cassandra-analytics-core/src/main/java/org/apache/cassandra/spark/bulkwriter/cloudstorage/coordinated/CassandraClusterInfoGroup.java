@@ -82,8 +82,8 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     private volatile Map<String, ClusterInfo> clusterInfoById;
     private volatile TokenRangeMapping<RingInstance> consolidatedTokenRangeMapping;
     // Pre-computed values from BroadcastableClusterInfoGroup (only set when reconstructed on executors)
-    private volatile Partitioner cachedPartitioner;
-    private volatile String cachedLowestCassandraVersion;
+    private Partitioner cachedPartitioner;
+    private String cachedLowestCassandraVersion;
 
     /**
      * Creates {@link CassandraClusterInfoGroup} with the list of {@link ClusterInfo} from {@link BulkSparkConf} and validation

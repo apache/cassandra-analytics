@@ -93,12 +93,7 @@ public class RecordWriter
      */
     public RecordWriter(BulkWriterConfig config, String[] columnNames)
     {
-        this(BulkWriterContext.from(config), columnNames);
-    }
-
-    public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
-    {
-        this(writerContext, columnNames, TaskContext::get, SortedSSTableWriter::new);
+        this(BulkWriterContext.from(config), columnNames, TaskContext::get, SortedSSTableWriter::new);
     }
 
     @VisibleForTesting
