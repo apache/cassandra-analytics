@@ -154,14 +154,14 @@ public class PartitionedDataLayerTests extends VersionRunner
     @Test
     public void testAvailabilityHintComparator()
     {
-        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UP, MOVING)).isEqualTo(1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UP, MOVING)).isEqualTo(-1);
         assertThat(AVAILABILITY_HINT_COMPARATOR.compare(LEAVING, MOVING)).isEqualTo(0);
-        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UNKNOWN, MOVING)).isEqualTo(-1);
-        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(LEAVING, UNKNOWN)).isEqualTo(1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UNKNOWN, MOVING)).isEqualTo(1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(LEAVING, UNKNOWN)).isEqualTo(-1);
         assertThat(AVAILABILITY_HINT_COMPARATOR.compare(DOWN, UNKNOWN)).isEqualTo(0);
         assertThat(AVAILABILITY_HINT_COMPARATOR.compare(JOINING, DOWN)).isEqualTo(0);
-        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UP, DOWN)).isEqualTo(1);
-        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(JOINING, UP)).isEqualTo(-1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UP, DOWN)).isEqualTo(-1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(JOINING, UP)).isEqualTo(1);
     }
 
     @Test
@@ -391,5 +391,46 @@ public class PartitionedDataLayerTests extends VersionRunner
             assertThat(Collections.disjoint(replicaSet.primary(), replicaSet.backup())).isTrue();
             assertThat(replicaSet.primary().size() + replicaSet.backup().size()).isEqualTo(replicas.size());
         }
+    }
+
+
+    /**
+     * Tests that the AvailabilityHint comparator correctly orders Cassandra nodes by availability priority:
+     * UP nodes first, then MOVING/LEAVING nodes, and finally DOWN/UNKNOWN/JOINING nodes last.
+     */
+    @Test
+    public void testSortingByAvailabilityHintComparator()
+    {
+        List<PartitionedDataLayer.AvailabilityHint> hints = Arrays.asList(UP, MOVING, LEAVING, UNKNOWN, JOINING, DOWN);
+
+        for (int i = 0; i < 5; i++)
+        {
+            validateHintsSequence(hints, 1, 3);
+        }
+
+        hints = Arrays.asList(UP, UP, UP, MOVING, MOVING, LEAVING, UNKNOWN, UNKNOWN, UNKNOWN, JOINING, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN);
+
+        for (int i = 0; i < 5; i++)
+        {
+            validateHintsSequence(hints, 3, 6);
+        }
+    }
+
+    private static void validateHintsSequence(List<PartitionedDataLayer.AvailabilityHint> hints, int index1, int index2)
+    {
+        List<PartitionedDataLayer.AvailabilityHint> shuffledHints = new ArrayList<>(hints);
+        Collections.shuffle(shuffledHints);
+        // Test expected ordering: UP > MOVING/LEAVING > UNKNOWN/JOINING/DOWN
+        List<PartitionedDataLayer.AvailabilityHint> sorted = new ArrayList<>(shuffledHints);
+        sorted.sort(AVAILABILITY_HINT_COMPARATOR);
+
+        // Verify UP comes first (highest priority)
+        assertThat(sorted.subList(0, index1)).contains(UP).doesNotContain(MOVING, LEAVING, UNKNOWN, JOINING, DOWN);
+
+        // Verify MOVING, LEAVING are in the middle
+        assertThat(sorted.subList(index1, index2)).contains(MOVING, LEAVING).doesNotContain(UP, DOWN, UNKNOWN, JOINING);
+
+        // Verify DOWN, UNKNOWN, JOINING come last (lowest priority)
+        assertThat(sorted.subList(index2, sorted.size())).contains(DOWN, UNKNOWN, JOINING).doesNotContain(UP, MOVING, LEAVING);
     }
 }
