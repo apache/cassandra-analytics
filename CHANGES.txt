@@ -1,6 +1,7 @@
 0.2.0
 -----
  * Fix bulk reader node availability comparator ordering (CASSANALYTICS-99)
+ * Remove not needed buffer flips (CASSANALYTICS-95)
  * Refactor BulkWriterContext broadcasting to use immutable config class (CASSANALYTICS-89)
  * Bump sidecar dependency to 0.2.0 (CASSANALYTICS-93)
  * Support for Trie-Indexed SSTables (BTI format) (CASSANALYTICS-27)
