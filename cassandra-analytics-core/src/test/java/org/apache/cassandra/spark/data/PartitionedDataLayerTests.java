@@ -416,7 +416,7 @@ public class PartitionedDataLayerTests extends VersionRunner
         }
     }
 
-    private static void validateHintsSequence(List<PartitionedDataLayer.AvailabilityHint> hints, int upEndIndex, int moveLeaveEndIndex)
+    private static void validateHintsSequence(List<PartitionedDataLayer.AvailabilityHint> hints, int upCount, int movingOrLeavingCount)
     {
         List<PartitionedDataLayer.AvailabilityHint> shuffledHints = new ArrayList<>(hints);
         Collections.shuffle(shuffledHints);
@@ -425,12 +425,12 @@ public class PartitionedDataLayerTests extends VersionRunner
         sorted.sort(AVAILABILITY_HINT_COMPARATOR);
 
         // Verify UP comes first (highest priority)
-        assertThat(sorted.subList(0, upEndIndex)).contains(UP).doesNotContain(MOVING, LEAVING, UNKNOWN, JOINING, DOWN);
+        assertThat(sorted.subList(0, upCount)).contains(UP).doesNotContain(MOVING, LEAVING, UNKNOWN, JOINING, DOWN);
 
         // Verify MOVING, LEAVING are in the middle
-        assertThat(sorted.subList(upEndIndex, moveLeaveEndIndex)).contains(MOVING, LEAVING).doesNotContain(UP, DOWN, UNKNOWN, JOINING);
+        assertThat(sorted.subList(upCount, movingOrLeavingCount)).contains(MOVING, LEAVING).doesNotContain(UP, DOWN, UNKNOWN, JOINING);
 
         // Verify DOWN, UNKNOWN, JOINING come last (lowest priority)
-        assertThat(sorted.subList(moveLeaveEndIndex, sorted.size())).contains(DOWN, UNKNOWN, JOINING).doesNotContain(UP, MOVING, LEAVING);
+        assertThat(sorted.subList(movingOrLeavingCount, sorted.size())).contains(DOWN, UNKNOWN, JOINING).doesNotContain(UP, MOVING, LEAVING);
     }
 }
