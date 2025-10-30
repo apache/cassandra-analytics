@@ -68,7 +68,7 @@ public class BulkWriterContextFactory
     @NotNull
     protected BulkSparkConf createBulkSparkConf(@NotNull SparkContext sparkContext, @NotNull Map<String, String> options)
     {
-        return new BulkSparkConf(sparkContext.getConf(), options);
+        return new BulkSparkConf(sparkContext.getConf(), options, LOGGER);
     }
 
     @NotNull

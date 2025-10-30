@@ -32,7 +32,6 @@ import org.jetbrains.annotations.Nullable;
 
 public class CassandraJobInfo implements JobInfo
 {
-    private static final long serialVersionUID = 6140098484732683759L;
     protected final BulkSparkConf conf;
     // restoreJobId per cluster; it is guaranteed to be non-empty
     protected final MultiClusterContainer<UUID> restoreJobIds;
@@ -44,6 +43,21 @@ public class CassandraJobInfo implements JobInfo
         this.restoreJobIds = restoreJobIds;
         this.conf = conf;
         this.tokenPartitioner = tokenPartitioner;
+    }
+
+    /**
+     * Reconstruct from BroadcastableJobInfo on executor.
+     * Reuses conf and restoreJobIds from broadcast,
+     * and reconstructs TokenPartitioner from broadcastable partition mappings.
+     *
+     * @param broadcastable the broadcastable job info from broadcast
+     */
+    public CassandraJobInfo(BroadcastableJobInfo broadcastable)
+    {
+        this.conf = broadcastable.getConf();
+        this.restoreJobIds = broadcastable.getRestoreJobIds();
+        // Reconstruct TokenPartitioner from broadcastable partition mappings
+        this.tokenPartitioner = new TokenPartitioner(broadcastable.getBroadcastableTokenPartitioner());
     }
 
     @Override

@@ -31,6 +31,7 @@ import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.cassandra.bridge.BridgeInitializationParameters;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraSchema;
 import org.apache.cassandra.bridge.CassandraTypesImplementation;
@@ -82,7 +83,7 @@ public class CqlToAvroSchemaConverterImplementation implements CqlToAvroSchemaCo
 
     static
     {
-        CassandraTypesImplementation.setup();
+        CassandraTypesImplementation.setup(BridgeInitializationParameters.fromEnvironment());
     }
 
     public CqlToAvroSchemaConverterImplementation()

@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter.util;
 
-import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Set;
 
@@ -28,10 +27,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.esotericsoftware.kryo.Kryo;
-import org.apache.cassandra.spark.bulkwriter.CassandraBulkWriterContext;
+import org.apache.cassandra.spark.bulkwriter.BulkWriterConfig;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
 import org.apache.cassandra.spark.bulkwriter.TokenPartitioner;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraCoordinatedBulkWriterContext;
 import org.apache.cassandra.spark.transports.storage.StorageAccessConfiguration;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
@@ -45,11 +43,23 @@ public class SbwKryoRegistrator implements KryoRegistrator
     protected static final String KRYO_KEY = "spark.kryo.registrator";
 
     // CHECKSTYLE IGNORE: Despite being static and final, this is a mutable field not to be confused with a constant
-    private static final Set<Class<? extends Serializable>> javaSerializableClasses =
-    Sets.newHashSet(CassandraBulkWriterContext.class,
-                    CassandraCoordinatedBulkWriterContext.class,
+    // Classes registered with Kryo using SbwJavaSerializer for Java serialization.
+    // When Spark uses Kryo (spark.serializer=KryoSerializer), these classes are serialized via
+    // Java's ObjectOutputStream instead of Kryo's default, applying to shuffle, broadcast, RDD caching,
+    // and task closures.
+    //
+    // Only TOP-LEVEL classes need registration; nested Serializable fields are handled recursively
+    // by Java's ObjectOutputStream:
+    //
+    // - BulkWriterConfig: The ONLY object broadcast to executors. Contains all broadcastable wrappers
+    //                     and configuration classes, which are automatically serialized recursively.
+    // - RingInstance: Serialized during shuffle and broadcast operations.
+    // - TokenPartitioner: Serialized during shuffle (e.g., repartitionAndSortWithinPartitions).
+    //                     Has custom writeObject/readObject that must be invoked.
+    private static final Set<Class<?>> javaSerializableClasses =
+    Sets.newHashSet(RingInstance.class,
                     TokenPartitioner.class,
-                    RingInstance.class);
+                    BulkWriterConfig.class);
 
     @Override
     public void registerClasses(@NotNull Kryo kryo)
@@ -65,7 +75,7 @@ public class SbwKryoRegistrator implements KryoRegistrator
         kryo.register(StorageCredentials.class, new StorageCredentials.Serializer());
     }
 
-    public static void addJavaSerializableClass(@NotNull Class<? extends Serializable> javaSerializableClass)
+    public static void addJavaSerializableClass(@NotNull Class<?> javaSerializableClass)
     {
         javaSerializableClasses.add(javaSerializableClass);
     }

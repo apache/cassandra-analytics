@@ -20,30 +20,37 @@
 package org.apache.cassandra.bridge;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 
 /*
  * An enum that describes all possible Cassandra versions that can potentially be supported, even if the bridge is not yet implemented.
  * Customers of this library looking to implement additional bridges or replace existing ones with proprietary implementations
- * should inject/replace bridge implementation JArs embedded into this library's resources and replace this class with an identical one,
+ * should inject/replace bridge implementation JARs embedded into this library's resources and replace this class with an identical one,
  * but with implementedVersions() and supportedVersions() modified accordingly.
  */
 public enum CassandraVersion
 {
-    THREEZERO(30, "3.0", "three-zero"),
-    FOURZERO(40, "4.0", "four-zero"),
-    FOURONE(41, "4.1", "four-zero"),
-    FIVEZERO(50, "5.0", "five-zero");
+    THREEZERO(30, "3.0", "three-zero", "big"),
+    FOURZERO(40, "4.0", "four-zero", "big"),
+    FOURONE(41, "4.1", "four-zero", "big"),
+    FIVEZERO(50, "5.0", "five-zero", "big", "bti");
+
     private final int number;
     private final String name;
     private final String jarBaseName;  // Must match shadowJar.archiveFileName from Gradle configuration (without extension)
+    private final Set<String> sstableFormats;
 
-    CassandraVersion(int number, String name, String jarBaseName)
+    CassandraVersion(int number, String name, String jarBaseName, String... sstableFormats)
     {
         this.number = number;
         this.name = name;
         this.jarBaseName = jarBaseName;
+        this.sstableFormats = new HashSet<>(Arrays.asList(sstableFormats));
     }
 
     public int versionNumber()
@@ -61,21 +68,44 @@ public enum CassandraVersion
         return jarBaseName;
     }
 
+    private static final String sstableFormat;
     private static final CassandraVersion[] implementedVersions;
     private static final String[] supportedVersions;
 
     static
     {
+        sstableFormat = System.getProperty("cassandra.analytics.bridges.sstable_format", "big");
+
         String providedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.implemented_versions",
                                                               String.join(",", FOURZERO.name(), FIVEZERO.name()));
         implementedVersions = Arrays.stream(providedVersionsOrDefault.split(","))
                                     .map(CassandraVersion::valueOf)
+                                    .filter(v -> v.sstableFormats.contains(sstableFormat))
                                     .toArray(CassandraVersion[]::new);
 
         String providedSupportedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.supported_versions",
                                                                        "cassandra-4.0.17,cassandra-5.0.5");
         supportedVersions = Arrays.stream(providedSupportedVersionsOrDefault.split(","))
+                                  .filter(version -> CassandraVersion.fromVersion(version)
+                                                                     .filter(v -> v.sstableFormats.contains(sstableFormat))
+                                                                     .isPresent())
                                   .toArray(String[]::new);
+
+        Preconditions.checkArgument(implementedVersions.length > 0 && supportedVersions.length > 0,
+                                    "No versions available");
+    }
+
+    public static String sstableFormat()
+    {
+        return sstableFormat;
+    }
+
+    public static Optional<CassandraVersion> fromVersion(String cassandraVersion)
+    {
+        CassandraVersionFeatures features = CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(cassandraVersion);
+        return Arrays.stream(CassandraVersion.values())
+                     .filter(value -> value.versionNumber() == features.getMajorVersion())
+                     .findAny();
     }
 
     public static CassandraVersion[] implementedVersions()

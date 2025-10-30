@@ -254,9 +254,12 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         try
         {
             now = System.nanoTime();
-            summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
-            stats.readSummaryDb(ssTable, System.nanoTime() - now);
-            keys = Pair.of(summary.first(), summary.last());
+            if (ssTable.isBigFormat())
+            {
+                summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
+                stats.readSummaryDb(ssTable, System.nanoTime() - now);
+                keys = Pair.of(summary.first(), summary.last());
+            }
         }
         catch (IOException exception)
         {
@@ -265,8 +268,11 @@ public class SSTableReader implements SparkSSTableReader, Scannable
 
         if (keys == null)
         {
-            LOGGER.warn("Could not load first and last key from Summary.db file, so attempting Index.db fileName={}",
-                        ssTable.getDataFileName());
+            if (ssTable.isBigFormat())
+            {
+                LOGGER.warn("Could not load first and last key from Summary.db file, so attempting Index.db fileName={}",
+                            ssTable.getDataFileName());
+            }
             now = System.nanoTime();
             keys = SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable);
             stats.readIndexDb(ssTable, System.nanoTime() - now);
@@ -308,7 +314,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             this.partitionKeyFilters = ImmutableList.copyOf(matchInBloomFilter);
 
             // Check if required keys are actually present
-            if (matchInBloomFilter.isEmpty() || !ReaderUtils.anyFilterKeyInIndex(ssTable, matchInBloomFilter))
+            if (matchInBloomFilter.isEmpty() || !ReaderUtils.anyFilterKeyInIndex(ssTable, metadata, descriptor, matchInBloomFilter))
             {
                 if (matchInBloomFilter.isEmpty())
                 {

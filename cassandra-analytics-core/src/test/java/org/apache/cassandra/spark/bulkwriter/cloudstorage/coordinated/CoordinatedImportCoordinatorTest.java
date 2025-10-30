@@ -143,13 +143,15 @@ class CoordinatedImportCoordinatorTest
         coordinator.onStageReady(jobId);
         assertThat(coordinator.isStageReady()).isTrue();
 
-        loopAssert(() -> stagedClusters.getAllValues().size() == 2, "waiting for all cluster to stage successfully");
+        loopAssert(() -> stagedClusters.getAllValues().size() == 2,
+                   "waiting for all cluster to stage successfully. actual: " + stagedClusters.getAllValues());
         assertThat(stagedClusters.getAllValues()).containsExactlyInAnyOrder(clusterId1, clusterId2);
 
         // signal apply read
         coordinator.onImportReady(jobId);
 
-        loopAssert(() -> appliedClusters.getAllValues().size() == 2, "waiting for all cluster to import successfully");
+        loopAssert(() -> appliedClusters.getAllValues().size() == 2,
+                   "waiting for all cluster to import successfully. actual: " + appliedClusters.getAllValues());
         assertThat(appliedClusters.getAllValues()).containsExactlyInAnyOrder(clusterId1, clusterId2);
 
         fut.get();
@@ -292,10 +294,10 @@ class CoordinatedImportCoordinatorTest
                                                 .build();
     }
 
-    // loop at most 10 times until the condition is evaluated to true
+    // loop at most 50 times until the condition is evaluated to true
     private void loopAssert(Supplier<Boolean> condition, String desc)
     {
-        int attempts = 10;
+        int attempts = 50;
         while (!condition.get() && attempts-- > 1)
         {
             Uninterruptibles.sleepUninterruptibly(10, TimeUnit.MILLISECONDS);

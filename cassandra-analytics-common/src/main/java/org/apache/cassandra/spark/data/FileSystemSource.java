@@ -48,12 +48,19 @@ public class FileSystemSource<T extends CassandraFile> implements CassandraFileS
     private final RandomAccessFile file;
     private final FileType fileType;
     private final long length;
+    private final boolean autoClose;
 
-    public FileSystemSource(T cassandraFile, FileType fileType, Path path) throws IOException
+    /**
+     * @param autoClose If {@code true}, file represented by {@code path} parameter will be automatically closed when
+     *                  EOF is reached, or exception occurs. Passing {@code true} makes sense for sequential read files,
+     *                  whereas leaving it {@code false} is desired for random file access.
+     */
+    public FileSystemSource(T cassandraFile, FileType fileType, Path path, boolean autoClose) throws IOException
     {
         this.cassandraFile = cassandraFile;
         this.fileType = fileType;
         this.length = Files.size(path);
+        this.autoClose = autoClose;
         this.file = new RandomAccessFile(path.toFile(), "r");
     }
 
@@ -107,7 +114,7 @@ public class FileSystemSource<T extends CassandraFile> implements CassandraFileS
             }
             finally
             {
-                if (close)
+                if (autoClose && close)
                 {
                     closeSafe();
                 }

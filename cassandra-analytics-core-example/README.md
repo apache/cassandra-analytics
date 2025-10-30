@@ -68,53 +68,67 @@ Verify that your Cassandra cluster is configured and running successfully.
 In this step, we will clone and configure the Cassandra Sidecar project. Finally, we will run Sidecar which will be
 connecting to our local Cassandra 3-node cluster.
 
-Note that when building the main project, you should have run the `./scripts/build-dependencies.sh` script,
-which would have cloned and built the sidecar into `./dependencies/sidecar-build`. Use that build to run the sidecar.
-
 ```shell
-cd ./dependencies/sidecar-build/trunk
+git clone git@github.com:apache/cassandra-sidecar.git
+cd cassandra-sidecar
+CASSANDRA_USE_JDK11=true ./scripts/build-dtest-jars.sh
 ```
 
-Configure the `src/main/dist/sidecar.yaml` file for your local environment. You will most likely only need to configure
-the `cassandra_instances` section in your file pointing to your local Cassandra data directories. Here is what my
-`cassandra_instances` configuration section looks like for this tutorial:
+Configure the `examples/conf/sidecar-ccm.yaml` file for your local environment. You will most likely only need to
+configure the `cassandra_instances` section in your file pointing to your local Cassandra data directories.
+Here is what my `cassandra_instances` configuration section looks like for this tutorial:
 
 ```yaml
 cassandra_instances:
   - id: 1
     host: localhost
     port: 9042
-    data_dirs: <your_ccm_parent_path>/.ccm/test/node1/data0
+    data_dirs:
+      - <your_ccm_parent_path>/.ccm/test/node1/data0
     staging_dir: <your_ccm_parent_path>/.ccm/test/node1/sstable-staging
+    cdc_dir: <your_ccm_parent_path>/.ccm/test/node1/cdc_raw
+    commitlog_dir: /<your_ccm_parent_path>/.ccm/test/node1/commitlog
+    hints_dir: <your_ccm_parent_path>/.ccm/test/node1/hints
+    saved_caches_dir: <your_ccm_parent_path>/.ccm/test/node1/saved_caches
     jmx_host: 127.0.0.1
     jmx_port: 7100
     jmx_ssl_enabled: false
   - id: 2
     host: localhost2
     port: 9042
-    data_dirs: <your_ccm_parent_path>/.ccm/test/node2/data0
+    data_dirs:
+      - <your_ccm_parent_path>/.ccm/test/node2/data0
     staging_dir: <your_ccm_parent_path>/.ccm/test/node2/sstable-staging
+    cdc_dir: <your_ccm_parent_path>/.ccm/test/node2/cdc_raw
+    commitlog_dir: /<your_ccm_parent_path>/.ccm/test/node2/commitlog
+    hints_dir: <your_ccm_parent_path>/.ccm/test/node2/hints
+    saved_caches_dir: <your_ccm_parent_path>/.ccm/test/node2/saved_caches
     jmx_host: 127.0.0.1
     jmx_port: 7200
     jmx_ssl_enabled: false
   - id: 3
     host: localhost3
     port: 9042
-    data_dirs: <your_ccm_parent_path>/.ccm/test/node3/data0
+    data_dirs:
+      - <your_ccm_parent_path>/.ccm/test/node3/data0
     staging_dir: <your_ccm_parent_path>/.ccm/test/node3/sstable-staging
+    cdc_dir: <your_ccm_parent_path>/.ccm/test/node3/cdc_raw
+    commitlog_dir: /<your_ccm_parent_path>/.ccm/test/node3/commitlog
+    hints_dir: <your_ccm_parent_path>/.ccm/test/node3/hints
+    saved_caches_dir: <your_ccm_parent_path>/.ccm/test/node3/saved_caches
     jmx_host: 127.0.0.1
     jmx_port: 7300
     jmx_ssl_enabled: false
 ```
 
 I have a 3 node setup, so I configure Sidecar for those 3 nodes. CCM creates the Cassandra cluster under
-`${HOME}/.ccm/test`, so I update my `data_dirs` and `staging_dir` configuration to use my local path.
+`${HOME}/.ccm/test`, so I update my directory configuration to use my local path.
 
 Finally, run Cassandra Sidecar. We skip running integration tests because the integration tests take quite some time.
 You can, of course, choose to run them (and should when working on the sidecar the project itself).
 
 ```shell
-user:~$ ./gradlew run -x test -x integrationTest -x containerTest
+user:~$ ./gradlew run -Dsidecar.config=file:///$PWD/examples/conf/sidecar-ccm.yaml
 ...
 
 > Task :run

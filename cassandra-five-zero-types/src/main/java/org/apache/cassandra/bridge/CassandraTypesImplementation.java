@@ -37,7 +37,7 @@ public class CassandraTypesImplementation extends AbstractCassandraTypes
 {
     public static final CassandraTypesImplementation INSTANCE = new CassandraTypesImplementation();
 
-    public static synchronized void setup()
+    public static synchronized void setup(BridgeInitializationParameters params)
     {
         if (!CassandraTypesImplementation.setup)
         {
@@ -54,7 +54,7 @@ public class CassandraTypesImplementation extends AbstractCassandraTypes
             config.diagnostic_events_enabled = false;
             config.max_mutation_size = new DataStorageSpec.IntKibibytesBound(config.commitlog_segment_size.toKibibytes() / 2);
             config.concurrent_compactors = 4;
-            config.sstable.selected_format = "big";
+            config.sstable.selected_format = params.getSstableFormat();
             Path tempDirectory;
             try
             {

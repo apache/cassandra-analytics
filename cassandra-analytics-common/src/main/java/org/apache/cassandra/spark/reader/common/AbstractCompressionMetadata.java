@@ -24,8 +24,8 @@ import java.io.IOException;
 
 public abstract class AbstractCompressionMetadata
 {
-    private final long dataLength;
-    private final BigLongArray chunkOffsets;
+    protected final long dataLength;
+    protected final BigLongArray chunkOffsets;
 
     protected AbstractCompressionMetadata(long dataLength, BigLongArray chunkOffsets)
     {

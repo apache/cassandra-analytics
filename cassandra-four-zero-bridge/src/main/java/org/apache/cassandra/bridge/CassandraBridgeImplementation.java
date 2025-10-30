@@ -91,7 +91,7 @@ import org.apache.cassandra.spark.data.complex.CqlUdt;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.CompactionStreamScanner;
 import org.apache.cassandra.spark.reader.IndexEntry;
-import org.apache.cassandra.spark.reader.IndexReader;
+import org.apache.cassandra.spark.reader.BigIndexReader;
 import org.apache.cassandra.spark.reader.ReaderUtils;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.SchemaBuilder;
@@ -108,6 +108,7 @@ import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.tools.JsonTransformer;
 import org.apache.cassandra.tools.Util;
 import org.apache.cassandra.util.CompressionUtil;
+import org.apache.cassandra.util.IntWrapper;
 import org.apache.cassandra.utils.BloomFilter;
 import org.apache.cassandra.utils.CompressionUtilImplementation;
 import org.apache.cassandra.utils.TokenUtils;
@@ -129,7 +130,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
 
     public static synchronized void setup()
     {
-        CassandraTypesImplementation.setup();
+        CassandraTypesImplementation.setup(BridgeInitializationParameters.fromEnvironment());
     }
 
     public CassandraBridgeImplementation()
@@ -228,7 +229,8 @@ public class CassandraBridgeImplementation extends CassandraBridge
         //NOTE: need to use SchemaBuilder to init keyspace if not already set in C* Schema instance
         SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
         TableMetadata metadata = schemaBuilder.tableMetaData();
-        return new IndexIterator<>(ssTables, stats, ((ssTable, isRepairPrimary, consumer) -> new IndexReader(ssTable, metadata, rangeFilter, stats, consumer)));
+        return new IndexIterator<>(ssTables, stats, ((ssTable, isRepairPrimary, consumer) ->
+                                                     new BigIndexReader(ssTable, metadata, rangeFilter, stats, consumer)));
     }
 
     @Override
@@ -375,24 +377,24 @@ public class CassandraBridgeImplementation extends CassandraBridge
                 throw new IOException("Could not read Index.db file");
             }
 
-            final int[] position = new int[]{0};
+            IntWrapper position = new IntWrapper();
             ReaderUtils.readPrimaryIndex(primaryIndex, (buffer) -> {
                 DecoratedKey key = iPartitioner.decorateKey(buffer);
                 BigInteger token = TokenUtils.tokenToBigInteger(key.getToken());
 
-                Pair<BigInteger, Integer> current = sortedByTokens.get(position[0]);
+                Pair<BigInteger, Integer> current = sortedByTokens.get(position.value);
                 int compare = token.compareTo(current.getLeft());
                 while (compare > 0)
                 {
                     // we passed without finding the key
                     result.set(current.getRight(), false);
-                    position[0]++;
-                    if (position[0] >= decoratedKeys.size())
+                    position.value++;
+                    if (position.value >= decoratedKeys.size())
                     {
                         // if we've found all the keys we can exit early
                         return true;
                     }
-                    current = sortedByTokens.get(position[0]);
+                    current = sortedByTokens.get(position.value);
                     compare = token.compareTo(current.getLeft());
                 }
 
@@ -400,15 +402,15 @@ public class CassandraBridgeImplementation extends CassandraBridge
                 if (compare == 0 && buffer.equals(currentKey))  // token and key matches
                 {
                     result.set(current.getRight(), true);
-                    position[0]++;
+                    position.value++;
                 }
 
                 // if we've found all the keys we can exit early
-                return position[0] >= decoratedKeys.size();
+                return position.value >= decoratedKeys.size();
             });
 
             // mark as false any keys we didn't reach
-            IntStream.range(position[0], sortedByTokens.size())
+            IntStream.range(position.value, sortedByTokens.size())
                      .forEach(i -> result.set(sortedByTokens.get(i).getRight(), false));
         }
 

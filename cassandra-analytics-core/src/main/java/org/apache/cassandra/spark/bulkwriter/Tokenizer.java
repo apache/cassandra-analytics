@@ -28,7 +28,6 @@ import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.cassandra.spark.bulkwriter.token.TokenUtils;
 import org.apache.cassandra.spark.common.schema.ColumnType;
-import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
 public class Tokenizer implements Serializable
 {
@@ -39,13 +38,12 @@ public class Tokenizer implements Serializable
     private final TokenUtils tokenUtils;
     private final SerializableFunction<Object[], Object[]> keyColumnProvider;
 
-    public Tokenizer(BulkWriterContext writerContext)
+    public Tokenizer(BroadcastableTableSchema broadcastableTableSchema, boolean isMurmur3Partitioner)
     {
-        TableSchema tableSchema = writerContext.schema().getTableSchema();
-        this.tokenUtils = new TokenUtils(tableSchema.partitionKeyColumns,
-                                         tableSchema.partitionKeyColumnTypes,
-                                         writerContext.cluster().getPartitioner() == Partitioner.Murmur3Partitioner);
-        this.keyColumnProvider = tableSchema::getKeyColumns;
+        this.tokenUtils = new TokenUtils(broadcastableTableSchema.getPartitionKeyColumns(),
+                                         broadcastableTableSchema.getPartitionKeyColumnTypes(),
+                                         isMurmur3Partitioner);
+        this.keyColumnProvider = broadcastableTableSchema::getKeyColumns;
     }
 
     @VisibleForTesting
@@ -54,7 +52,7 @@ public class Tokenizer implements Serializable
                      List<ColumnType<?>> partitionKeyColumnTypes,
                      boolean isMurmur3Partitioner)
     {
-        this.keyColumnProvider = (columns) -> TableSchema.getKeyColumns(columns, keyColumnIndexes);
+        this.keyColumnProvider = (columns) -> BroadcastableTableSchema.getKeyColumns(columns, keyColumnIndexes);
         this.tokenUtils = new TokenUtils(partitionKeyColumns,
                                          partitionKeyColumnTypes,
                                          isMurmur3Partitioner);
