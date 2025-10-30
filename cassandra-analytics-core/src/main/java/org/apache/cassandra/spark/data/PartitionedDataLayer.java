@@ -86,7 +86,7 @@ public abstract class PartitionedDataLayer extends DataLayer
         }
 
         public static final Comparator<AvailabilityHint> AVAILABILITY_HINT_COMPARATOR =
-                Comparator.comparingInt((AvailabilityHint other) -> other.priority).reversed();
+                Comparator.comparingInt((AvailabilityHint other) -> other.priority);
 
         public static AvailabilityHint fromState(String status, String state)
         {
