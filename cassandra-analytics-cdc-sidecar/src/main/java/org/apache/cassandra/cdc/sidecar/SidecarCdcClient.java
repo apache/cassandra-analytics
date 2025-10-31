@@ -305,9 +305,6 @@ public class SidecarCdcClient
             Map<FileType, Long> chunkOverride = new HashMap<>();
             chunkOverride.put(FileType.COMMITLOG, 4 * 1024 * 1024L);  // 4MB chunks
 
-            Map<FileType, Long> maxBufferOverride = new HashMap<>();
-            maxBufferOverride.put(FileType.COMMITLOG, 8 * 1024 * 1024L);
-
             return ClientConfig.create(userProvidedPort,
                                        maxRetries,
                                        millisToSleep,
