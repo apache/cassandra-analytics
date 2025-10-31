@@ -372,19 +372,58 @@ public class CassandraRing implements Serializable
             out.writeString(ring.keyspace);
             kryo.writeObject(out, ring.replicationFactor);
             kryo.writeObject(out, ring.instances);
-            kryo.writeObject(out, ring.replicasForRanges);
+
+            // Manually serialize replicasForRanges
+            out.writeShort(ring.replicasForRanges == null ? 0 : ring.replicasForRanges.asMapOfRanges().size());
+            if (ring.replicasForRanges != null)
+            {
+                for (Map.Entry<Range<BigInteger>, List<CassandraInstance>> entry : ring.replicasForRanges.asMapOfRanges().entrySet())
+                {
+                    out.writeString(entry.getKey().lowerEndpoint().toString());
+                    out.writeString(entry.getKey().upperEndpoint().toString());
+                    out.writeShort(entry.getValue().size());
+                    for (CassandraInstance instance : entry.getValue())
+                    {
+                        kryo.writeObject(out, instance);
+                    }
+                }
+            }
         }
 
         @Override
         @SuppressWarnings("unchecked")
         public CassandraRing read(Kryo kryo, Input in, Class<CassandraRing> type)
         {
-            return new CassandraRing(in.readByte() == 1 ? Partitioner.RandomPartitioner
-                                                        : Partitioner.Murmur3Partitioner,
-                                     in.readString(),
-                                     kryo.readObject(in, ReplicationFactor.class),
-                                     kryo.readObject(in, ArrayList.class),
-                                     kryo.readObject(in, RangeMap.class));
+            // Read all data first
+            Partitioner partitioner = in.readByte() == 1 ? Partitioner.RandomPartitioner : Partitioner.Murmur3Partitioner;
+            String keyspace = in.readString();
+            ReplicationFactor replicationFactor = kryo.readObject(in, ReplicationFactor.class);
+            List<CassandraInstance> instances = kryo.readObject(in, ArrayList.class);
+
+            // Read replicasForRanges data
+            RangeMap<BigInteger, List<CassandraInstance>> replicasForRanges = null;
+            int numRanges = in.readShort();
+            if (numRanges > 0)
+            {
+                replicasForRanges = TreeRangeMap.create();
+                for (int rangeIndex = 0; rangeIndex < numRanges; rangeIndex++)
+                {
+                    BigInteger lowerEndpoint = new BigInteger(in.readString());
+                    BigInteger upperEndpoint = new BigInteger(in.readString());
+                    Range<BigInteger> range = Range.openClosed(lowerEndpoint, upperEndpoint);
+
+                    int numReplicas = in.readShort();
+                    List<CassandraInstance> replicas = new ArrayList<>(numReplicas);
+                    for (int replicaIndex = 0; replicaIndex < numReplicas; replicaIndex++)
+                    {
+                        replicas.add(kryo.readObject(in, CassandraInstance.class));
+                    }
+                    replicasForRanges.put(range, replicas);
+                }
+            }
+
+            // Create the object with all data
+            return new CassandraRing(partitioner, keyspace, replicationFactor, instances, replicasForRanges);
         }
     }
 }
