@@ -321,23 +321,6 @@ public class SidecarCdcClient
                                        chunkOverride);
         }
 
-        public static ClientConfig create(Map<String, String> options)
-        {
-            Optional<Integer> userProvidedPort = MapUtils.getOptionalInt(options, SIDECAR_PORT, SIDECAR_PORT);
-            return create(userProvidedPort.orElse(-1),
-                          MapUtils.getInt(options, MAX_RETRIES_KEY, DEFAULT_MAX_RETRIES),
-                          MapUtils.getLong(options, DEFAULT_MILLIS_TO_SLEEP_KEY, DEFAULT_MILLIS_TO_SLEEP),
-                          MapUtils.getLong(options, MAX_MILLIS_TO_SLEEP_KEY, DEFAULT_MAX_MILLIS_TO_SLEEP),
-                          MapUtils.getLong(options, MAX_BUFFER_SIZE_BYTES_KEY, DEFAULT_MAX_BUFFER_SIZE),
-                          MapUtils.getLong(options, CHUNK_BUFFER_SIZE_BYTES_KEY, DEFAULT_CHUNK_BUFFER_SIZE),
-                          MapUtils.getInt(options, MAX_POOL_SIZE_KEY, DEFAULT_MAX_POOL_SIZE),
-                          MapUtils.getInt(options, TIMEOUT_SECONDS_KEY, DEFAULT_TIMEOUT_SECONDS),
-                          MapUtils.getOrDefault(options, CASSANDRA_ROLE_KEY, DEFAULT_CASSANDRA_ROLE),
-                          buildMaxBufferOverride(options, DEFAULT_MAX_BUFFER_OVERRIDE),
-                          buildChunkBufferOverride(options, DEFAULT_CHUNK_BUFFER_OVERRIDE)
-            );
-        }
-
         public static Map<FileType, Long> buildMaxBufferOverride(Map<String, String> options,
                                                                  Map<FileType, Long> defaultValue)
         {
