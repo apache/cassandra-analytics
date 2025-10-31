@@ -43,8 +43,6 @@ import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
 import org.jetbrains.annotations.Nullable;
 
-import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_OVERRIDE;
-import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_SIZE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_BUFFER_SIZE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_MILLIS_TO_SLEEP;
@@ -170,15 +168,8 @@ public class SidecarCdcClient
 
     public static final class ClientConfig
     {
-        public static final String SIDECAR_PORT = "sidecar_port";
-        public static final String MAX_RETRIES_KEY = "maxRetries";
-        public static final String DEFAULT_MILLIS_TO_SLEEP_KEY = "defaultMillisToSleep";
-        public static final String MAX_MILLIS_TO_SLEEP_KEY = "maxMillisToSleep";
         public static final String MAX_BUFFER_SIZE_BYTES_KEY = "maxBufferSizeBytes";
         public static final String CHUNK_BUFFER_SIZE_BYTES_KEY = "chunkBufferSizeBytes";
-        public static final String MAX_POOL_SIZE_KEY = "maxPoolSize";
-        public static final String TIMEOUT_SECONDS_KEY = "timeoutSeconds";
-        public static final String CASSANDRA_ROLE_KEY = "cassandra_role";
         public static final String DEFAULT_CASSANDRA_ROLE = null;
 
         private final int userProvidedPort;
