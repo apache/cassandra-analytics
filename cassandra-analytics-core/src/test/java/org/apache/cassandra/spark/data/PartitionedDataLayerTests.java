@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.io.InputStream;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -28,8 +29,13 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Range;
@@ -52,8 +58,10 @@ import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
 import org.apache.cassandra.spark.reader.EmptyStreamScanner;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
+import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.TaskContext;
+import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.spark.data.PartitionedDataLayer.AvailabilityHint.AVAILABILITY_HINT_COMPARATOR;
 import static org.apache.cassandra.spark.data.PartitionedDataLayer.AvailabilityHint.DOWN;
@@ -233,6 +241,16 @@ public class PartitionedDataLayerTests extends VersionRunner
             .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    public void testReplicationFactorEachQuorum()
+    {
+        assertThatThrownBy(() -> PartitionedDataLayer
+                                 .validateReplicationFactor(EACH_QUORUM,
+                                                            TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 3)),
+                                                            "MR"))
+        .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
     public void testSSTableSupplier(CassandraBridge bridge)
@@ -393,7 +411,6 @@ public class PartitionedDataLayerTests extends VersionRunner
         }
     }
 
-
     /**
      * Tests that the AvailabilityHint comparator correctly orders Cassandra nodes by availability priority:
      * UP nodes first, then MOVING/LEAVING nodes, and finally DOWN/UNKNOWN/JOINING nodes last.
@@ -432,5 +449,298 @@ public class PartitionedDataLayerTests extends VersionRunner
 
         // Verify DOWN, UNKNOWN, JOINING come last (lowest priority)
         assertThat(sorted.subList(index2, sorted.size())).contains(DOWN, UNKNOWN, JOINING).doesNotContain(UP, MOVING, LEAVING);
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSSTablesSupplierEachQuorumConsistency(CassandraBridge bridge)
+    {
+        SSTablesSupplier supplier = getSsTablesSupplier(bridge, ConsistencyLevel.EACH_QUORUM);
+
+        // Verify that the supplier is created and is of the expected type for multi-DC
+        assertThat(supplier).isNotNull();
+        // For EACH_QUORUM, we expect a MultiDCReplicas supplier
+        assertThat(supplier).isInstanceOf(org.apache.cassandra.spark.data.partitioner.MultiDCReplicas.class);
+
+        // Verify we can open the SSTables without errors and validate instance-specific content
+        Set<MultipleReplicasTests.TestSSTableReader> ssTableReaders =
+        supplier.openAll((ssTable, isRepairPrimary) -> new MultipleReplicasTests.TestSSTableReader(ssTable));
+        assertThat(ssTableReaders).isNotNull();
+
+        // For EACH_QUORUM with 2 DCs (DC1, DC2), each with 3 replicas, we should get exactly 4 readers
+        // EACH_QUORUM requires 2 replicas from each DC (quorum of 3 is 2), so 2+2=4 total
+        assertThat(ssTableReaders).hasSize(4);
+
+        // Count instances from each data center
+        long dc1Count = ssTableReaders.stream()
+                                      .filter(reader -> reader.toString().contains("DC1-"))
+                                      .count();
+        long dc2Count = ssTableReaders.stream()
+                                      .filter(reader -> reader.toString().contains("DC2-"))
+                                      .count();
+
+        // Validate exactly 2 instances from each DC (quorum requirement for EACH_QUORUM)
+        assertThat(dc1Count).as("Should have exactly 2 instances from DC1").isEqualTo(2);
+        assertThat(dc2Count).as("Should have exactly 2 instances from DC2").isEqualTo(2);
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSSTablesSupplierQuorumConsistency(CassandraBridge bridge)
+    {
+        // Create the same multi-DC ring as EACH_QUORUM test for direct comparison
+        SSTablesSupplier supplier = getSsTablesSupplier(bridge, ConsistencyLevel.QUORUM);
+
+        // Verify that the supplier is created and is MultipleReplicas (QUORUM treats all DCs as one)
+        assertThat(supplier).isNotNull();
+        // For QUORUM in multi-DC, we expect a MultipleReplicas supplier
+        // QUORUM considers all replicas regardless of DC, unlike EACH_QUORUM
+        assertThat(supplier).isInstanceOf(org.apache.cassandra.spark.data.partitioner.MultipleReplicas.class);
+
+        // Verify we can open the SSTables without errors and validate content
+        Set<MultipleReplicasTests.TestSSTableReader> ssTableReaders =
+        supplier.openAll((ssTable, isRepairPrimary) -> new MultipleReplicasTests.TestSSTableReader(ssTable));
+        assertThat(ssTableReaders).isNotNull();
+
+        // Count instances from each data center
+        long dc1Count = ssTableReaders.stream()
+                                      .filter(reader -> reader.toString().contains("DC1-"))
+                                      .count();
+        long dc2Count = ssTableReaders.stream()
+                                      .filter(reader -> reader.toString().contains("DC2-"))
+                                      .count();
+
+        // For QUORUM with total RF=6 (DC1:3 + DC2:3), we need 4 replicas (quorum of 6 is (6/2)+1 = 4)
+        // For QUORUM, we should have 4 total replicas, but they can be distributed across DCs
+        // Unlike EACH_QUORUM which requires exactly 2 from each DC
+        assertThat(dc1Count + dc2Count).as("Should have exactly 4 total instances").isEqualTo(4);
+
+        // Verify both DCs are represented (QUORUM can pick from any DC)
+        assertThat(dc1Count).as("DC1 should have at least 1 instance").isGreaterThanOrEqualTo(1);
+        assertThat(dc2Count).as("DC2 should have at least 1 instance").isGreaterThanOrEqualTo(1);
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSSTablesSupplierAllConsistency(CassandraBridge bridge)
+    {
+        // Create the same multi-DC ring as other tests for direct comparison
+        SSTablesSupplier supplier = getSsTablesSupplier(bridge, ConsistencyLevel.ALL);
+
+        // Verify that the supplier is created and is MultipleReplicas (ALL treats all DCs as one)
+        assertThat(supplier).isNotNull();
+        // For ALL in multi-DC, we expect a MultipleReplicas supplier
+        // ALL considers all replicas regardless of DC
+        assertThat(supplier).isInstanceOf(org.apache.cassandra.spark.data.partitioner.MultipleReplicas.class);
+
+        // Verify we can open the SSTables without errors and validate content
+        Set<MultipleReplicasTests.TestSSTableReader> ssTableReaders =
+        supplier.openAll((ssTable, isRepairPrimary) -> new MultipleReplicasTests.TestSSTableReader(ssTable));
+        assertThat(ssTableReaders).isNotNull();
+
+        // Count instances from each data center
+        long dc1Count = ssTableReaders.stream()
+                                      .filter(reader -> reader.toString().contains("DC1-"))
+                                      .count();
+        long dc2Count = ssTableReaders.stream()
+                                      .filter(reader -> reader.toString().contains("DC2-"))
+                                      .count();
+
+        // For ALL with total RF=6 (DC1:3 + DC2:3), we need all 6 replicas
+        // ALL requires responses from every replica
+        assertThat(dc1Count + dc2Count).as("Should have exactly 6 total instances (all replicas)").isEqualTo(6);
+
+        // Verify both DCs are fully represented (ALL needs all replicas)
+        assertThat(dc1Count).as("DC1 should have exactly 3 instances").isEqualTo(3);
+        assertThat(dc2Count).as("DC2 should have exactly 3 instances").isEqualTo(3);
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testSSTablesSupplierAnyConsistency(CassandraBridge bridge)
+    {
+        // Create the same multi-DC ring as other tests for direct comparison
+        SSTablesSupplier supplier = getSsTablesSupplier(bridge, ConsistencyLevel.ANY);
+
+        // Verify that the supplier is created and is MultipleReplicas (ANY treats all DCs as one)
+        assertThat(supplier).isNotNull();
+        // For ANY in multi-DC, we expect a MultipleReplicas supplier
+        // ANY only requires one replica to acknowledge, but we still need to read from multiple for consistency
+        assertThat(supplier).isInstanceOf(org.apache.cassandra.spark.data.partitioner.MultipleReplicas.class);
+
+        // Verify we can open the SSTables without errors and validate content
+        Set<MultipleReplicasTests.TestSSTableReader> ssTableReaders =
+        supplier.openAll((ssTable, isRepairPrimary) -> new MultipleReplicasTests.TestSSTableReader(ssTable));
+        assertThat(ssTableReaders).isNotNull();
+
+        // For ANY with total RF=6 (DC1:3 + DC2:3), ANY requires only 1 replica but for reads
+        // we need to ensure data consistency, so we expect exact 1 replica
+        assertThat(ssTableReaders.size()).as("Should have exactly 1 total instance").isEqualTo(1);
+    }
+
+    private SSTablesSupplier getSsTablesSupplier(CassandraBridge bridge, ConsistencyLevel consistencyLevel)
+    {
+        // Create a multi-DC ring
+        Map<String, Integer> datacenters = Map.of("DC1", 3, "DC2", 3);
+        CassandraRing ring = TestUtils.createRing(Partitioner.Murmur3Partitioner, datacenters);
+        CqlTable table = TestSchema.basic(bridge).buildTable();
+
+        // Create a PartitionedDataLayer
+        TestPartitionedDataLayerWithConsistencyLevel dataLayer = new TestPartitionedDataLayerWithConsistencyLevel(
+        bridge, 4, 32, null, ring, table, consistencyLevel);
+
+        return dataLayer.sstables(partitionId, null, new ArrayList<>());
+    }
+
+    /**
+     * Test implementation of PartitionedDataLayer that accepts any consistency levelorg.apache.cassandra.distributed.impl
+     */
+    private static class TestPartitionedDataLayerWithConsistencyLevel extends PartitionedDataLayer
+    {
+        private final CassandraBridge bridge;
+        private final CassandraRing ring;
+        private final CqlTable cqlTable;
+        private final TokenPartitioner tokenPartitioner;
+        private final String jobId;
+
+        TestPartitionedDataLayerWithConsistencyLevel(CassandraBridge bridge,
+                                                     int defaultParallelism,
+                                                     int numCores,
+                                                     String dc,
+                                                     CassandraRing ring,
+                                                     CqlTable cqlTable,
+                                                     ConsistencyLevel consistencyLevel)
+        {
+            super(consistencyLevel, dc);
+            this.bridge = bridge;
+            this.ring = ring;
+            this.cqlTable = cqlTable;
+            this.tokenPartitioner = new TokenPartitioner(ring, defaultParallelism, numCores);
+            this.jobId = UUID.randomUUID().toString();
+        }
+
+        public CompletableFuture<Stream<SSTable>> listInstance(int partitionId,
+                                                               @NotNull Range<BigInteger> range,
+                                                               @NotNull CassandraInstance instance)
+        {
+            // Return one instance-specific SSTable
+            String dc = instance.dataCenter();
+            String instanceName = instance.nodeName();
+            List<SSTable> testSSTables = List.of(
+            new TestSSTable(dc + "-" + instanceName + "-Data.db", dc)
+            );
+            return CompletableFuture.completedFuture(testSSTables.stream());
+        }
+
+        @Override
+        public CassandraBridge bridge()
+        {
+            return bridge;
+        }
+
+        @Override
+        public CassandraRing ring()
+        {
+            return ring;
+        }
+
+        @Override
+        public String jobId()
+        {
+            return jobId;
+        }
+
+        @Override
+        public TokenPartitioner tokenPartitioner()
+        {
+            return tokenPartitioner;
+        }
+
+        public ReplicationFactor replicationFactor(String keyspace)
+        {
+            return new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, Map.of("DC1", 3, "DC2", 3));
+        }
+
+        @Override
+        public CqlTable cqlTable()
+        {
+            return cqlTable;
+        }
+
+        public TimeProvider timeProvider()
+        {
+            return null;
+        }
+
+        protected ExecutorService executorService()
+        {
+            return java.util.concurrent.Executors.newSingleThreadExecutor();
+        }
+    }
+
+    /**
+     * Simple test implementation of SSTable for testing purposes
+     */
+    private static class TestSSTable extends SSTable
+    {
+        private final String filename;
+        private final String dataCenter;
+
+        TestSSTable(String filename, String dataCenter)
+        {
+            this.filename = filename;
+            this.dataCenter = dataCenter;
+        }
+
+        @Override
+        protected InputStream openInputStream(FileType fileType)
+        {
+            return null;
+        }
+
+        @Override
+        public long length(FileType fileType)
+        {
+            return 1024; // Mock file size
+        }
+
+        @Override
+        public boolean isMissing(FileType fileType)
+        {
+            return false;
+        }
+
+        @Override
+        public String getDataFileName()
+        {
+            return filename;
+        }
+
+        @Override
+        public boolean equals(Object o)
+        {
+            if (this == o)
+            {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass())
+            {
+                return false;
+            }
+            TestSSTable that = (TestSSTable) o;
+            return Objects.equals(filename, that.filename) && Objects.equals(dataCenter, that.dataCenter);
+        }
+
+        @Override
+        public int hashCode()
+        {
+            return Objects.hash(filename, dataCenter);
+        }
+
+        @Override
+        public String toString()
+        {
+            return "TestSSTable{filename='" + filename + "', dataCenter='" + dataCenter + "'}";
+        }
     }
 }

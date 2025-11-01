@@ -22,10 +22,12 @@ package org.apache.cassandra.testing;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.function.BiConsumer;
+import java.util.function.IntFunction;
 
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.distributed.api.Feature;
+import org.apache.cassandra.distributed.shared.NetworkTopology;
 
 /**
  * Defines the configuration to build the {@link IClusterExtension} cluster
@@ -42,6 +44,7 @@ public class ClusterBuilderConfiguration
     public String partitioner;
     public Map<String, Object> additionalInstanceConfig = null;
     public int tokenCount = 1;
+    public IntFunction<NetworkTopology.DcAndRack> dcAndRackSupplier;
 
     /**
      * Adds a features to the list of default features.
@@ -174,6 +177,19 @@ public class ClusterBuilderConfiguration
     public ClusterBuilderConfiguration tokenCount(int tokenCount)
     {
         this.tokenCount = tokenCount;
+        return this;
+    }
+
+    /**
+     * Sets a supplier function that provides datacenter and rack information for each node in the cluster.
+     *
+     * @param dcAndRackSupplier a function that takes a node index and returns the corresponding
+     *                          datacenter and rack configuration for that node
+     * @return this configuration instance for method chaining
+     */
+    public ClusterBuilderConfiguration dcAndRackSupplier(IntFunction<NetworkTopology.DcAndRack> dcAndRackSupplier)
+    {
+        this.dcAndRackSupplier = dcAndRackSupplier;
         return this;
     }
 }

@@ -19,6 +19,9 @@
 
 package org.apache.cassandra.spark.data.partitioner;
 
+import java.util.Map;
+import java.util.stream.Collectors;
+
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -61,6 +64,35 @@ public enum ConsistencyLevel
         return replicationFactor.getReplicationStrategy() == ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy
                ? getNetworkTopologyRf(replicationFactor, dataCenter)
                : quorumFor(replicationFactor);
+    }
+
+    /**
+     * Calculates the number of replicas that must acknowledge the operation in each data center
+     * for EACH_QUORUM consistency level.
+     *
+     * @param replicationFactor the replication factor configuration containing data center information
+     * @return a map where keys are data center names and values are the number of replicas
+     * required to achieve local quorum in each data center
+     * @throws IllegalArgumentException if the consistency level is not EACH_QUORUM or if the
+     *                                  replication strategy is not NetworkTopologyStrategy
+     */
+    public Map<String, Integer> eachQuorumBlockFor(@NotNull ReplicationFactor replicationFactor)
+    {
+        if (this != EACH_QUORUM)
+        {
+            throw new IllegalArgumentException(String.format("Consistency level needed is EACH_QUORUM, provided is:%s",
+                                                             this.name()));
+        }
+        if (replicationFactor.getReplicationStrategy() != ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy)
+        {
+            throw new IllegalArgumentException(String.format("Invalid Replication Strategy: %s for EACH_QUORUM consistency read.",
+                                                             replicationFactor.getReplicationStrategy().name()));
+        }
+        return replicationFactor.getOptions().keySet().stream()
+                                .collect(Collectors.toMap(
+                                dataCenter -> dataCenter,
+                                dataCenter -> localQuorumFor(replicationFactor, dataCenter)
+                                ));
     }
 
     private int getNetworkTopologyRf(@NotNull ReplicationFactor replicationFactor, @Nullable String dataCenter)

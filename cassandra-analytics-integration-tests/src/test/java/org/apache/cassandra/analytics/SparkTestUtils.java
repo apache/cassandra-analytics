@@ -266,6 +266,7 @@ public class SparkTestUtils
     public static Stream<String> sidecarInstancesOptionStream(ICluster<? extends IInstance> cluster, DnsResolver dnsResolver)
     {
         return IntStream.rangeClosed(1, cluster.size())
+                        .filter(i -> !cluster.get(i).isShutdown())
                         .mapToObj(i -> {
                             String ipAddress = JMXUtil.getJmxHost(cluster.get(i).config());
                             try
