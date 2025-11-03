@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import com.google.common.collect.ImmutableList;
@@ -273,7 +274,7 @@ public class KryoSerializationTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testCassandraInstance(CassandraBridge bridge)
     {
-        CassandraInstance instance = new CassandraInstance("-9223372036854775807", "local1-i1", "DC1");
+        CassandraInstance instance = new CassandraInstance(Set.of("-9223372036854775807"), "local1-i1", "DC1");
         Output out = serialize(bridge.getVersion(), instance);
         CassandraInstance deserialized = deserialize(bridge.getVersion(), out, CassandraInstance.class);
         assertThat(deserialized).isNotNull();

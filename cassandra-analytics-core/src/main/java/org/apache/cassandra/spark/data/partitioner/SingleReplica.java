@@ -143,8 +143,8 @@ public class SingleReplica extends SSTablesSupplier
         }
         catch (Throwable throwable)
         {
-            LOGGER.warn("Unexpected error attempting to open SSTable readers for replica node={} token={} dataCenter={}",
-                        instance().nodeName(), instance().token(), instance().dataCenter(), throwable);
+            LOGGER.warn("Unexpected error attempting to open SSTable readers for replica node={} tokens={} dataCenter={}",
+                        instance().nodeName(), instance().tokens(), instance().dataCenter(), throwable);
             CompletableFuture<Set<T>> exceptionally = new CompletableFuture<>();
             exceptionally.completeExceptionally(throwable);
             return exceptionally;

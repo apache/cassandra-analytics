@@ -452,8 +452,8 @@ public abstract class PartitionedDataLayer extends DataLayer
         {
             if (primary.size() < minReplicas)
             {
-                LOGGER.info("Selecting instance as primary replica nodeName={} token={} dc={} partitionId={}",
-                            instance.nodeName(), instance.token(), instance.dataCenter(), partitionId);
+                LOGGER.info("Selecting instance as primary replica nodeName={} tokens={} dc={} partitionId={}",
+                            instance.nodeName(), instance.tokens(), instance.dataCenter(), partitionId);
                 return addPrimary(instance);
             }
             return addBackup(instance);
@@ -487,8 +487,8 @@ public abstract class PartitionedDataLayer extends DataLayer
 
         public ReplicaSet addBackup(CassandraInstance instance)
         {
-            LOGGER.info("Selecting instance as backup replica nodeName={} token={} dc={} partitionId={}",
-                        instance.nodeName(), instance.token(), instance.dataCenter(), partitionId);
+            LOGGER.info("Selecting instance as backup replica nodeName={} tokens={} dc={} partitionId={}",
+                        instance.nodeName(), instance.tokens(), instance.dataCenter(), partitionId);
             backup.add(instance);
             return this;
         }

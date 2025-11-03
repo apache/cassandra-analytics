@@ -118,14 +118,14 @@ public class MultipleReplicas extends SSTablesSupplier
                .whenComplete((readers, throwable) -> {
                    if (throwable != null)
                    {
-                       LOGGER.warn("Failed to open SSTableReaders for replica node={} token={} dataCenter={}",
-                                   replica.instance().nodeName(), replica.instance().token(), replica.instance().dataCenter(), throwable);
+                       LOGGER.warn("Failed to open SSTableReaders for replica node={} tokens={} dataCenter={}",
+                                   replica.instance().nodeName(), replica.instance().tokens(), replica.instance().dataCenter(), throwable);
                        stats.failedToOpenReplica(replica, throwable);
                        SingleReplica anotherReplica = otherReplicas.poll();
                        if (anotherReplica != null)
                        {
-                           LOGGER.warn("Retrying on another replica node={} token={} dataCenter={}",
-                                       anotherReplica.instance().nodeName(), anotherReplica.instance().token(), anotherReplica.instance().dataCenter());
+                           LOGGER.warn("Retrying on another replica node={} tokens={} dataCenter={}",
+                                       anotherReplica.instance().nodeName(), anotherReplica.instance().tokens(), anotherReplica.instance().dataCenter());
                            // If the failed replica was the repair primary we need the backup replacement replica to be the new repair primary
                            anotherReplica.setIsRepairPrimary(replica.isRepairPrimary());
                            openReplicaOrRetry(anotherReplica, readerOpener, result, count, latch, otherReplicas);

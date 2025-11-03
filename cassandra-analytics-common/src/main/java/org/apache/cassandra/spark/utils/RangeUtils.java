@@ -23,6 +23,7 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
@@ -156,8 +157,11 @@ public final class RangeUtils
         {
             Instance instance = instances.get(index);
             int disjointReplica = ((instances.size() + index) - replicationFactor) % instances.size();
-            BigInteger rangeStart = new BigInteger(instances.get(disjointReplica).token());
-            BigInteger rangeEnd = new BigInteger(instance.token());
+            Set<String> tokensStart = instances.get(disjointReplica).tokens();
+            Set<String> tokensEnd = instance.tokens();
+
+            BigInteger rangeStart = tokensStart.stream().map(BigInteger::new).min(BigInteger::compareTo).get();
+            BigInteger rangeEnd = tokensEnd.stream().map(BigInteger::new).max(BigInteger::compareTo).get();
 
             // If start token is greater than or equal to end token we are looking at a wrap around range, split it
             if (rangeStart.compareTo(rangeEnd) >= 0)

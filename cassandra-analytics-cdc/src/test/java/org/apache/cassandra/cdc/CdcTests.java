@@ -295,7 +295,7 @@ public class CdcTests
             long numSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - startTime);
             assertThat(endState.epoch >= Math.max(0, numSeconds - 4)).isTrue(); // epochs should be around ~ 1 per second
             assertThat(endState.replicaCount.isEmpty()).isTrue();
-            Marker endMarker = endState.markers.startMarker(new CassandraInstance("0", "local-instance", "DC1"));
+            Marker endMarker = endState.markers.startMarker(new CassandraInstance(Set.of("0"), "local-instance", "DC1"));
             assertThat(logProvider(directory).logs().map(CommitLog::segmentId).collect(Collectors.toSet()).contains(endMarker.segmentId)).isTrue();
         }
         finally

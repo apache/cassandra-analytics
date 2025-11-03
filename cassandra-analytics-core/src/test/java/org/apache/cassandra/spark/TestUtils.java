@@ -346,7 +346,7 @@ public final class TestUtils extends CommonTestUtils
         BigInteger token = partitioner.minToken();
         for (int instance = 0; instance < numInstances; instance++)
         {
-            instances.add(new CassandraInstance(token.toString(), "local-i" + instance, dataCenter));
+            instances.add(new CassandraInstance(Set.of(token.toString()), "local-i" + instance, dataCenter));
             token = token.add(split);
             assertThat(token.compareTo(partitioner.maxToken())).isLessThanOrEqualTo(0);
         }

@@ -23,6 +23,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Multimap;
@@ -70,9 +71,9 @@ public class CassandraRingTests
     @Test
     public void testSimpleStrategyRF3()
     {
-        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance("0", "local0-i1", "DEV"),
-                                                          new CassandraInstance("100", "local0-i2", "DEV"),
-                                                          new CassandraInstance("200", "local0-i3", "DEV"));
+        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance(Set.of("0"), "local0-i1", "DEV"),
+                                                          new CassandraInstance(Set.of("100"), "local0-i2", "DEV"),
+                                                          new CassandraInstance(Set.of("200"), "local0-i3", "DEV"));
         CassandraRing ring = new CassandraRing(Partitioner.Murmur3Partitioner,
                                                "test",
                                                new ReplicationFactor(ImmutableMap.of(
@@ -96,9 +97,9 @@ public class CassandraRingTests
     @Test
     public void testSimpleStrategyRF1()
     {
-        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance("0", "local0-i1", "DEV"),
-                                                          new CassandraInstance("100", "local0-i2", "DEV"),
-                                                          new CassandraInstance("200", "local0-i3", "DEV"));
+        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance(Set.of("0"), "local0-i1", "DEV"),
+                                                          new CassandraInstance(Set.of("100"), "local0-i2", "DEV"),
+                                                          new CassandraInstance(Set.of("200"), "local0-i3", "DEV"));
         CassandraRing ring = new CassandraRing(Partitioner.Murmur3Partitioner,
                                                "test",
                                                new ReplicationFactor(ImmutableMap.of(
@@ -148,9 +149,9 @@ public class CassandraRingTests
     @Test
     public void testSimpleStrategyRF2()
     {
-        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance("0", "local0-i1", "DEV"),
-                                                          new CassandraInstance("100", "local0-i2", "DEV"),
-                                                          new CassandraInstance("200", "local0-i3", "DEV"));
+        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance(Set.of("0"), "local0-i1", "DEV"),
+                                                          new CassandraInstance(Set.of("100"), "local0-i2", "DEV"),
+                                                          new CassandraInstance(Set.of("200"), "local0-i3", "DEV"));
         CassandraRing ring = new CassandraRing(Partitioner.Murmur3Partitioner,
                                                "test",
                                                new ReplicationFactor(ImmutableMap.of(
@@ -198,12 +199,12 @@ public class CassandraRingTests
     @Test
     public void testNetworkStrategyRF33()
     {
-        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
-                                                          new CassandraInstance("100", "local0-i2", "DC1"),
-                                                          new CassandraInstance("200", "local0-i3", "DC1"),
-                                                          new CassandraInstance("1", "local1-i1", "DC2"),
-                                                          new CassandraInstance("101", "local1-i2", "DC2"),
-                                                          new CassandraInstance("201", "local1-i3", "DC2"));
+        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance(Set.of("0"), "local0-i1", "DC1"),
+                                                          new CassandraInstance(Set.of("100"), "local0-i2", "DC1"),
+                                                          new CassandraInstance(Set.of("200"), "local0-i3", "DC1"),
+                                                          new CassandraInstance(Set.of("1"), "local1-i1", "DC2"),
+                                                          new CassandraInstance(Set.of("101"), "local1-i2", "DC2"),
+                                                          new CassandraInstance(Set.of("201"), "local1-i3", "DC2"));
 
         CassandraRing ring = new CassandraRing(
         Partitioner.Murmur3Partitioner,
@@ -211,12 +212,12 @@ public class CassandraRingTests
         new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
                                               "DC1", "3",
                                               "DC2", "3")),
-        Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
-                      new CassandraInstance("100", "local0-i2", "DC1"),
-                      new CassandraInstance("200", "local0-i3", "DC1"),
-                      new CassandraInstance("1", "local1-i1", "DC2"),
-                      new CassandraInstance("101", "local1-i2", "DC2"),
-                      new CassandraInstance("201", "local1-i3", "DC2")));
+        Arrays.asList(new CassandraInstance(Set.of("0"), "local0-i1", "DC1"),
+                      new CassandraInstance(Set.of("100"), "local0-i2", "DC1"),
+                      new CassandraInstance(Set.of("200"), "local0-i3", "DC1"),
+                      new CassandraInstance(Set.of("1"), "local1-i1", "DC2"),
+                      new CassandraInstance(Set.of("101"), "local1-i2", "DC2"),
+                      new CassandraInstance(Set.of("201"), "local1-i3", "DC2")));
 
         assertThat(ring.tokens().toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
                                                                     BigInteger.valueOf(1L),
@@ -245,12 +246,12 @@ public class CassandraRingTests
     @Test
     public void testNetworkStrategyRF11()
     {
-        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
-                                                          new CassandraInstance("100", "local0-i2", "DC1"),
-                                                          new CassandraInstance("200", "local0-i3", "DC1"),
-                                                          new CassandraInstance("1", "local1-i1", "DC2"),
-                                                          new CassandraInstance("101", "local1-i2", "DC2"),
-                                                          new CassandraInstance("201", "local1-i3", "DC2"));
+        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance(Set.of("0"), "local0-i1", "DC1"),
+                                                          new CassandraInstance(Set.of("100"), "local0-i2", "DC1"),
+                                                          new CassandraInstance(Set.of("200"), "local0-i3", "DC1"),
+                                                          new CassandraInstance(Set.of("1"), "local1-i1", "DC2"),
+                                                          new CassandraInstance(Set.of("101"), "local1-i2", "DC2"),
+                                                          new CassandraInstance(Set.of("201"), "local1-i3", "DC2"));
 
         CassandraRing ring = new CassandraRing(
         Partitioner.Murmur3Partitioner,
@@ -258,12 +259,12 @@ public class CassandraRingTests
         new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
                                               "DC1", "1",
                                               "DC2", "1")),
-        Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
-                      new CassandraInstance("100", "local0-i2", "DC1"),
-                      new CassandraInstance("200", "local0-i3", "DC1"),
-                      new CassandraInstance("1", "local1-i1", "DC2"),
-                      new CassandraInstance("101", "local1-i2", "DC2"),
-                      new CassandraInstance("201", "local1-i3", "DC2")));
+        Arrays.asList(new CassandraInstance(Set.of("0"), "local0-i1", "DC1"),
+                      new CassandraInstance(Set.of("100"), "local0-i2", "DC1"),
+                      new CassandraInstance(Set.of("200"), "local0-i3", "DC1"),
+                      new CassandraInstance(Set.of("1"), "local1-i1", "DC2"),
+                      new CassandraInstance(Set.of("101"), "local1-i2", "DC2"),
+                      new CassandraInstance(Set.of("201"), "local1-i3", "DC2")));
 
         assertThat(ring.tokens().toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
                                                                     BigInteger.valueOf(1L),
@@ -350,12 +351,12 @@ public class CassandraRingTests
     @Test
     public void testNetworkStrategyRF22()
     {
-        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
-                                                          new CassandraInstance("100", "local0-i2", "DC1"),
-                                                          new CassandraInstance("200", "local0-i3", "DC1"),
-                                                          new CassandraInstance("1", "local1-i1", "DC2"),
-                                                          new CassandraInstance("101", "local1-i2", "DC2"),
-                                                          new CassandraInstance("201", "local1-i3", "DC2"));
+        List<CassandraInstance> instances = Arrays.asList(new CassandraInstance(Set.of("0"), "local0-i1", "DC1"),
+                                                          new CassandraInstance(Set.of("100"), "local0-i2", "DC1"),
+                                                          new CassandraInstance(Set.of("200"), "local0-i3", "DC1"),
+                                                          new CassandraInstance(Set.of("1"), "local1-i1", "DC2"),
+                                                          new CassandraInstance(Set.of("101"), "local1-i2", "DC2"),
+                                                          new CassandraInstance(Set.of("201"), "local1-i3", "DC2"));
 
         CassandraRing ring = new CassandraRing(
         Partitioner.Murmur3Partitioner,
@@ -363,12 +364,12 @@ public class CassandraRingTests
         new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
                                               "DC1", "2",
                                               "DC2", "2")),
-        Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
-                      new CassandraInstance("100", "local0-i2", "DC1"),
-                      new CassandraInstance("200", "local0-i3", "DC1"),
-                      new CassandraInstance("1", "local1-i1", "DC2"),
-                      new CassandraInstance("101", "local1-i2", "DC2"),
-                      new CassandraInstance("201", "local1-i3", "DC2")));
+        Arrays.asList(new CassandraInstance(Set.of("0"), "local0-i1", "DC1"),
+                      new CassandraInstance(Set.of("100"), "local0-i2", "DC1"),
+                      new CassandraInstance(Set.of("200"), "local0-i3", "DC1"),
+                      new CassandraInstance(Set.of("1"), "local1-i1", "DC2"),
+                      new CassandraInstance(Set.of("101"), "local1-i2", "DC2"),
+                      new CassandraInstance(Set.of("201"), "local1-i3", "DC2")));
 
         assertThat(ring.tokens().toArray()).isEqualTo(Arrays.asList(BigInteger.valueOf(0L),
                                                                     BigInteger.valueOf(1L),

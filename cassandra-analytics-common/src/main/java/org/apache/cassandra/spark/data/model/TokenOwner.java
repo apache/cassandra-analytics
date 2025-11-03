@@ -19,13 +19,15 @@
 
 package org.apache.cassandra.spark.data.model;
 
+import java.util.Set;
+
 /**
- * Token owner owns a token
+ * Token owner owns a set of tokens
  */
 public interface TokenOwner
 {
     /**
-     * @return the token it owns
+     * @return the tokens it owns
      */
-    String token();
+    Set<String> tokens();
 }

@@ -181,7 +181,7 @@ public class SingleReplicaTests
             FileType... missingFileTypes) throws InterruptedException, IOException, ExecutionException
     {
         PartitionedDataLayer dataLayer = mock(PartitionedDataLayer.class);
-        CassandraInstance instance = new CassandraInstance("-9223372036854775808", "local1-i1", "DC1");
+        CassandraInstance instance = new CassandraInstance(Set.of("-9223372036854775808"), "local1-i1", "DC1");
 
         SSTable ssTable1 = mockSSTable();
         SSTable ssTable2 = mockSSTable();

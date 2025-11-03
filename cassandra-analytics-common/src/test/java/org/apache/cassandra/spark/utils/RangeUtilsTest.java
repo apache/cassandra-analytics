@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -283,7 +284,7 @@ class RangeUtilsTest
         List<CassandraInstance> instances = new ArrayList<>();
         for (int token = 0; token < tokens.length; token++)
         {
-            instances.add(new CassandraInstance(tokens[token].toString(), "node-" + token, "dc"));
+            instances.add(new CassandraInstance(Set.of(tokens[token].toString()), "node-" + token, "dc"));
         }
         return instances;
     }

@@ -20,6 +20,7 @@
 package org.apache.cassandra.cdc.model;
 
 import java.math.BigInteger;
+import java.util.Set;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
@@ -39,9 +40,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class CdcKryoSerializationTests
 {
-    public static final CassandraInstance INST_1 = new CassandraInstance("0", "local1-i1", "DC1");
-    public static final CassandraInstance INST_2 = new CassandraInstance("1", "local2-i1", "DC1");
-    public static final CassandraInstance INST_3 = new CassandraInstance("2", "local3-i1", "DC1");
+    public static final CassandraInstance INST_1 = new CassandraInstance(Set.of("0"), "local1-i1", "DC1");
+    public static final CassandraInstance INST_2 = new CassandraInstance(Set.of("1"), "local2-i1", "DC1");
+    public static final CassandraInstance INST_3 = new CassandraInstance(Set.of("2"), "local3-i1", "DC1");
 
     public static final PartitionUpdateWrapper.Digest DIGEST_1 = new PartitionUpdateWrapper.Digest("ks1",
                                                                                                    "tb1",

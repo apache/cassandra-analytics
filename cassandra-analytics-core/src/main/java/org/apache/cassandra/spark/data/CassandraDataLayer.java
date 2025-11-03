@@ -662,7 +662,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         Collection<CassandraInstance> instances = ring
                                                   .stream()
                                                   .filter(status -> datacenter == null || datacenter.equalsIgnoreCase(status.datacenter()))
-                                                  .map(status -> new CassandraInstance(status.token(), status.fqdn(), status.datacenter()))
+                                                  .map(status -> new CassandraInstance(Set.of(status.token()), status.fqdn(), status.datacenter()))
                                                   .collect(Collectors.toList());
         return new CassandraRing(partitioner, keyspace, replicationFactor, instances);
     }

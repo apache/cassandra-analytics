@@ -21,6 +21,7 @@ package org.apache.cassandra.cdc;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Set;
 
 import org.apache.cassandra.cdc.api.CommitLog;
 import org.apache.cassandra.spark.data.FileSystemSource;
@@ -41,7 +42,7 @@ public class LocalCommitLog implements CommitLog
         this.name = path.getFileName().toString();
         this.path = path;
         this.length = IOUtils.size(path);
-        this.instance = new CassandraInstance("0", "local-instance", "DC1");
+        this.instance = new CassandraInstance(Set.of("0"), "local-instance", "DC1");
     }
 
     public String name()

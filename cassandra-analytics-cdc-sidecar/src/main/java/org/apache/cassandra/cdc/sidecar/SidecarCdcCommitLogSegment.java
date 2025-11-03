@@ -147,7 +147,7 @@ public class SidecarCdcCommitLogSegment implements CommitLog
         return '{' +
                "\"node\": \"" + instance.nodeName() + "\"," +
                "\"dc\": \"" + instance.dataCenter() + "\"," +
-               "\"token\": \"" + instance.token() + "\"," +
+               "\"tokens\": \"" + instance.tokens() + "\"," +
                "\"log\": \"" + segment.name + "\"," +
                "\"idx\": \"" + segment.idx + "\"," +
                "\"size\": \"" + segment.size + '"' +

@@ -29,8 +29,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import java.util.Objects;
@@ -115,7 +117,9 @@ public class CassandraRing implements Serializable
         this.keyspace = keyspace;
         this.replicationFactor = replicationFactor;
         this.instances = instances.stream()
-                                  .sorted(Comparator.comparing(instance -> new BigInteger(instance.token())))
+                                  .sorted(Comparator.comparing(i -> i.tokens().stream()
+                                                                     .map(BigInteger::new).collect(Collectors.toList())
+                                                                     .stream().min(BigInteger::compareTo).get()))
                                   .collect(Collectors.toCollection(ArrayList::new));
         this.init();
     }
@@ -209,8 +213,8 @@ public class CassandraRing implements Serializable
     public Collection<BigInteger> tokens()
     {
         return instances.stream()
-                        .map(CassandraInstance::token)
-                        .map(BigInteger::new)
+                        .map(i -> i.tokens().stream().map(BigInteger::new).collect(Collectors.toList()))
+                        .flatMap(List::stream)
                         .sorted()
                         .collect(Collectors.toList());
     }
@@ -221,8 +225,8 @@ public class CassandraRing implements Serializable
                                     "Datacenter tokens doesn't make sense for SimpleStrategy");
         return instances.stream()
                         .filter(instance -> instance.dataCenter().matches(dataCenter))
-                        .map(CassandraInstance::token)
-                        .map(BigInteger::new)
+                        .map(i -> i.tokens().stream().map(BigInteger::new).collect(Collectors.toList()))
+                        .flatMap(List::stream)
                         .collect(Collectors.toList());
     }
 
@@ -276,7 +280,13 @@ public class CassandraRing implements Serializable
         this.instances = new ArrayList<>(numInstances);
         for (int instance = 0; instance < numInstances; instance++)
         {
-            this.instances.add(new CassandraInstance(in.readUTF(), in.readUTF(), in.readUTF()));
+            Set<String> tokens = new HashSet<>();
+            int numTokens = in.readShort();
+            for (int i = 0; i < numTokens; i++)
+            {
+                tokens.add(in.readUTF());
+            }
+            this.instances.add(new CassandraInstance(tokens, in.readUTF(), in.readUTF()));
         }
         this.init();
     }
@@ -299,7 +309,11 @@ public class CassandraRing implements Serializable
         out.writeShort(this.instances.size());
         for (CassandraInstance instance : this.instances)
         {
-            out.writeUTF(instance.token());
+            out.writeShort(instance.tokens().size());
+            for (String token : instance.tokens())
+            {
+                out.writeUTF(token);
+            }
             out.writeUTF(instance.nodeName());
             out.writeUTF(instance.dataCenter());
         }
