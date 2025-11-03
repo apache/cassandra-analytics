@@ -20,9 +20,12 @@
 package org.apache.cassandra.cdc.sidecar;
 
 import java.io.IOException;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
 
+import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
+import o.a.c.sidecar.client.shaded.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.cdc.CdcBuilder;
 import org.apache.cassandra.cdc.api.CdcOptions;
 import org.apache.cassandra.cdc.api.EventConsumer;
@@ -32,7 +35,6 @@ import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.secrets.SecretsProvider;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
-import o.a.c.sidecar.client.shaded.client.SidecarInstancesProvider;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.jetbrains.annotations.NotNull;
 
@@ -54,8 +56,8 @@ public class SidecarCdcBuilder extends CdcBuilder
                       EventConsumer eventConsumer,
                       SchemaSupplier schemaSupplier,
                       TokenRangeSupplier tokenRangeSupplier,
-                      SidecarInstancesProvider sidecarInstancesProvider,
-                      Sidecar.ClientConfig clientConfig,
+                      CdcSidecarInstancesProvider sidecarInstancesProvider,
+                      SidecarCdcClient.ClientConfig clientConfig,
                       SecretsProvider secretsProvider,
                       ICdcStats cdcStats) throws IOException
     {
@@ -68,7 +70,10 @@ public class SidecarCdcBuilder extends CdcBuilder
         schemaSupplier,
         tokenRangeSupplier,
         clientConfig,
-        Sidecar.from(sidecarInstancesProvider, clientConfig, secretsProvider),
+        Sidecar.from(new SimpleSidecarInstancesProvider(sidecarInstancesProvider.instances().stream()
+                                                                                .map(i -> new SidecarInstanceImpl(i.hostname(), i.port()))
+                                                                                .collect(Collectors.toList())),
+                     clientConfig.toGenericSidecarConfig(), secretsProvider),
         cdcStats
         );
     }
@@ -80,7 +85,7 @@ public class SidecarCdcBuilder extends CdcBuilder
                       EventConsumer eventConsumer,
                       SchemaSupplier schemaSupplier,
                       TokenRangeSupplier tokenRangeSupplier,
-                      Sidecar.ClientConfig clientConfig,
+                      SidecarCdcClient.ClientConfig clientConfig,
                       SidecarClient sidecarClient,
                       ICdcStats cdcStats)
     {
@@ -103,7 +108,7 @@ public class SidecarCdcBuilder extends CdcBuilder
         return this;
     }
 
-    public SidecarCdcBuilder withSidecarClient(Sidecar.ClientConfig clientConfig,
+    public SidecarCdcBuilder withSidecarClient(SidecarCdcClient.ClientConfig clientConfig,
                                                SidecarClient sidecarClient,
                                                ICdcStats cdcStats)
     {
