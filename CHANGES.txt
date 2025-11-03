@@ -1,5 +1,6 @@
 0.2.0
 -----
+ * CassandraInstance support for multiple tokens (CASSANALYTICS-100)
  * Expose SidecarCdc builders and interfaces (CASSANALYTICS-94)
  * Fix bulk reader node availability comparator ordering (CASSANALYTICS-99)
  * Remove not needed buffer flips (CASSANALYTICS-95)
