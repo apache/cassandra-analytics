@@ -20,7 +20,9 @@
 package org.apache.cassandra.spark.data.partitioner;
 
 import java.io.Serializable;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -34,20 +36,20 @@ public class CassandraInstance implements TokenOwner, Serializable
     public static final CassandraInstance.Serializer SERIALIZER = new CassandraInstance.Serializer();
 
     private static final long serialVersionUID = 6767636627576239773L;
-    private final String token;
+    private final Set<String> tokens;
     private final String node;
     private final String dataCenter;
 
-    public CassandraInstance(String token, String node, String dataCenter)
+    public CassandraInstance(Set<String> tokens, String node, String dataCenter)
     {
-        this.token = token;
+        this.tokens = tokens;
         this.node = node;
         this.dataCenter = dataCenter;
     }
 
-    public String token()
+    public Set<String> tokens()
     {
-        return token;
+        return tokens;
     }
 
     public String nodeName()
@@ -83,7 +85,7 @@ public class CassandraInstance implements TokenOwner, Serializable
         }
 
         CassandraInstance that = (CassandraInstance) other;
-        return Objects.equals(this.token, that.token)
+        return Objects.equals(this.tokens, that.tokens)
                && Objects.equals(this.node, that.node)
                && Objects.equals(this.dataCenter, that.dataCenter);
     }
@@ -91,13 +93,13 @@ public class CassandraInstance implements TokenOwner, Serializable
     @Override
     public int hashCode()
     {
-        return Objects.hash(token, node, dataCenter);
+        return Objects.hash(tokens, node, dataCenter);
     }
 
     @Override
     public String toString()
     {
-        return String.format("{\"token\"=\"%s\", \"node\"=\"%s\", \"dc\"=\"%s\"}", token, node, dataCenter);
+        return String.format("{\"tokens\"=\"%s\", \"node\"=\"%s\", \"dc\"=\"%s\"}", tokens, node, dataCenter);
     }
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CassandraInstance>
@@ -105,13 +107,23 @@ public class CassandraInstance implements TokenOwner, Serializable
         @Override
         public CassandraInstance read(Kryo kryo, Input in, Class type)
         {
-            return new CassandraInstance(in.readString(), in.readString(), in.readString());
+            Set<String> tokens = new HashSet<>();
+            int numTokens = in.readInt();
+            for (int i = 0; i < numTokens; i++)
+            {
+                tokens.add(in.readString());
+            }
+            return new CassandraInstance(tokens, in.readString(), in.readString());
         }
 
         @Override
         public void write(Kryo kryo, Output out, CassandraInstance instance)
         {
-            out.writeString(instance.token());
+            out.writeInt(instance.tokens().size());
+            for (String token : instance.tokens())
+            {
+                out.writeString(token);
+            }
             out.writeString(instance.nodeName());
             out.writeString(instance.dataCenter());
         }

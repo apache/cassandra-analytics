@@ -24,6 +24,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.Objects;
+import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -74,9 +75,9 @@ public class RingInstance implements CassandraInstance, Serializable
 
     // Used only in tests
     @Override
-    public String token()
+    public Set<String> tokens()
     {
-        return ringEntry.token();
+        return Set.of(ringEntry.token());
     }
 
     @Override

@@ -50,18 +50,18 @@ import static org.mockito.Mockito.when;
 public class SidecarCommitLogProviderTests
 {
     private static final List<CassandraInstance> INSTANCES = Arrays.asList(
-    new CassandraInstance("0", "local1", "DC1"),
-    new CassandraInstance("100", "local2", "DC1"),
-    new CassandraInstance("200", "local3", "DC1"),
-    new CassandraInstance("300", "local4", "DC1"),
-    new CassandraInstance("400", "local5", "DC1"),
-    new CassandraInstance("500", "local6", "DC1"),
-    new CassandraInstance("1", "local7", "DC2"),
-    new CassandraInstance("101", "local8", "DC2"),
-    new CassandraInstance("201", "local9", "DC2"),
-    new CassandraInstance("301", "local10", "DC2"),
-    new CassandraInstance("401", "local11", "DC2"),
-    new CassandraInstance("501", "local12", "DC2")
+    new CassandraInstance(Set.of("0"), "local1", "DC1"),
+    new CassandraInstance(Set.of("100"), "local2", "DC1"),
+    new CassandraInstance(Set.of("200"), "local3", "DC1"),
+    new CassandraInstance(Set.of("300"), "local4", "DC1"),
+    new CassandraInstance(Set.of("400"), "local5", "DC1"),
+    new CassandraInstance(Set.of("500"), "local6", "DC1"),
+    new CassandraInstance(Set.of("1"), "local7", "DC2"),
+    new CassandraInstance(Set.of("101"), "local8", "DC2"),
+    new CassandraInstance(Set.of("201"), "local9", "DC2"),
+    new CassandraInstance(Set.of("301"), "local10", "DC2"),
+    new CassandraInstance(Set.of("401"), "local11", "DC2"),
+    new CassandraInstance(Set.of("501"), "local12", "DC2")
     );
 
     @Test

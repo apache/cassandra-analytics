@@ -26,6 +26,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.util.Set;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
@@ -42,7 +43,7 @@ public class CommitLogMarkerTests
     @Test
     public void testEmpty()
     {
-        CassandraInstance inst = new CassandraInstance("0", "local1-i1", "DC1");
+        CassandraInstance inst = new CassandraInstance(Set.of("0"), "local1-i1", "DC1");
         Marker marker = CommitLogMarkers.EMPTY.startMarker(inst);
         assertThat(marker.segmentId).isEqualTo(0);
         assertThat(marker.position).isEqualTo(0);
@@ -54,9 +55,9 @@ public class CommitLogMarkerTests
     @Test
     public void testPerInstance()
     {
-        CassandraInstance inst1 = new CassandraInstance("0", "local1-i1", "DC1");
-        CassandraInstance inst2 = new CassandraInstance("1", "local2-i1", "DC1");
-        CassandraInstance inst3 = new CassandraInstance("2", "local3-i1", "DC1");
+        CassandraInstance inst1 = new CassandraInstance(Set.of("0"), "local1-i1", "DC1");
+        CassandraInstance inst2 = new CassandraInstance(Set.of("1"), "local2-i1", "DC1");
+        CassandraInstance inst3 = new CassandraInstance(Set.of("2"), "local3-i1", "DC1");
 
         CommitLogMarkers markers = CommitLogMarkers.of(
         ImmutableMap.of(
@@ -77,9 +78,9 @@ public class CommitLogMarkerTests
     @Test
     public void testPerRange()
     {
-        CassandraInstance inst1 = new CassandraInstance("0", "local1-i1", "DC1");
-        CassandraInstance inst2 = new CassandraInstance("1", "local2-i1", "DC1");
-        CassandraInstance inst3 = new CassandraInstance("2", "local3-i1", "DC1");
+        CassandraInstance inst1 = new CassandraInstance(Set.of("0"), "local1-i1", "DC1");
+        CassandraInstance inst2 = new CassandraInstance(Set.of("1"), "local2-i1", "DC1");
+        CassandraInstance inst3 = new CassandraInstance(Set.of("2"), "local3-i1", "DC1");
 
         // build per range commit log markers
         PerRangeCommitLogMarkers.PerRangeBuilder builder = CommitLogMarkers.perRangeBuilder();
@@ -126,7 +127,7 @@ public class CommitLogMarkerTests
     @Test
     public void testIsBefore()
     {
-        CassandraInstance inst1 = new CassandraInstance("0", "local1-i1", "DC1");
+        CassandraInstance inst1 = new CassandraInstance(Set.of("0"), "local1-i1", "DC1");
 
         assertThat(inst1.zeroMarker().isBefore(inst1.zeroMarker())).isFalse();
 
@@ -146,8 +147,8 @@ public class CommitLogMarkerTests
     public void testIsBeforeException()
     {
         assertThatThrownBy(() -> {
-            CassandraInstance inst1 = new CassandraInstance("0", "local1-i1", "DC1");
-            CassandraInstance inst2 = new CassandraInstance("1", "local2-i1", "DC1");
+            CassandraInstance inst1 = new CassandraInstance(Set.of("0"), "local1-i1", "DC1");
+            CassandraInstance inst2 = new CassandraInstance(Set.of("1"), "local2-i1", "DC1");
             inst1.zeroMarker().isBefore(inst2.zeroMarker());
         }).isInstanceOf(IllegalArgumentException.class);
     }
@@ -155,9 +156,9 @@ public class CommitLogMarkerTests
     @Test
     public void testPerInstanceJdkSerialization()
     {
-        CassandraInstance inst1 = new CassandraInstance("0", "local1-i1", "DC1");
-        CassandraInstance inst2 = new CassandraInstance("1", "local2-i1", "DC1");
-        CassandraInstance inst3 = new CassandraInstance("2", "local3-i1", "DC1");
+        CassandraInstance inst1 = new CassandraInstance(Set.of("0"), "local1-i1", "DC1");
+        CassandraInstance inst2 = new CassandraInstance(Set.of("1"), "local2-i1", "DC1");
+        CassandraInstance inst3 = new CassandraInstance(Set.of("2"), "local3-i1", "DC1");
 
         CommitLogMarkers markers = CommitLogMarkers.of(
         ImmutableMap.of(
@@ -179,9 +180,9 @@ public class CommitLogMarkerTests
     @Test
     public void testPerRangeJdkSerialization()
     {
-        CassandraInstance inst1 = new CassandraInstance("0", "local1-i1", "DC1");
-        CassandraInstance inst2 = new CassandraInstance("1", "local2-i1", "DC1");
-        CassandraInstance inst3 = new CassandraInstance("2", "local3-i1", "DC1");
+        CassandraInstance inst1 = new CassandraInstance(Set.of("0"), "local1-i1", "DC1");
+        CassandraInstance inst2 = new CassandraInstance(Set.of("1"), "local2-i1", "DC1");
+        CassandraInstance inst3 = new CassandraInstance(Set.of("2"), "local3-i1", "DC1");
 
         PerRangeCommitLogMarkers.PerRangeBuilder builder = CommitLogMarkers.perRangeBuilder();
         builder.add(TokenRange.closed(BigInteger.ZERO, BigInteger.valueOf(5000)), inst1.markerAt(500, 10000));
