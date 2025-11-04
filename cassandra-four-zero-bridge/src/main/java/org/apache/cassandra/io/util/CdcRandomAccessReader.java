@@ -116,7 +116,6 @@ public class CdcRandomAccessReader extends RandomAccessReader
                     BlockingStreamConsumer streamConsumer = new BlockingStreamConsumer();
                     source.request(offset, end, streamConsumer);
                     streamConsumer.getBytes(buffer);
-                    buffer.flip();
                     return this;
                 }
 
@@ -128,7 +127,6 @@ public class CdcRandomAccessReader extends RandomAccessReader
 
                 inputStream.read(buffer);
                 assert buffer.remaining() == 0;
-                buffer.flip();
             }
             catch (IOException e)
             {

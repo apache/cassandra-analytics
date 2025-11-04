@@ -63,8 +63,9 @@ public class FileSystemSSTable extends SSTable
         }
         try
         {
-            return useBufferingInputStream
-                   ? new BufferingInputStream<>(new FileSystemSource<>(this, fileType, filePath), stats.get())
+            boolean isBitFormat = isBtiFormat();
+            return useBufferingInputStream || isBitFormat
+                   ? new BufferingInputStream<>(new FileSystemSource<>(this, fileType, filePath, !isBitFormat), stats.get())
                    : new BufferedInputStream(new FileInputStream(filePath.toFile()));
         }
         catch (FileNotFoundException exception)

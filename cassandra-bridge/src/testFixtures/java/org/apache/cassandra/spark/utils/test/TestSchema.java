@@ -266,6 +266,13 @@ public final class TestSchema
         return basicBuilder(bridge).build();
     }
 
+    public static TestSchema basic(CassandraBridge bridge, Consumer<Builder> configurer)
+    {
+        Builder builder = basicBuilder(bridge);
+        configurer.accept(builder);
+        return builder.build();
+    }
+
     // CHECKSTYLE IGNORE: Constructor with many parameters
     private TestSchema(Builder builder,
                        @NotNull String keyspace,

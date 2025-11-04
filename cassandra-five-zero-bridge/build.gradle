@@ -89,6 +89,7 @@ jar {
 }
 
 test {
+    systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
     useJUnitPlatform()
     reports {
         def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "five-zero-bridge").toFile()
@@ -101,4 +102,48 @@ test {
             destination = destDir
         }
     }
+}
+
+// automatically run BIG and BTI tests for Cassandra 5.x bridge
+tasks.register('testBti', Test) {
+    doFirst {
+        if (JavaVersion.current().isJava11Compatible()) {
+            def JDK11_OPTIONS = ['-Djdk.attach.allowAttachSelf=true',
+                                 '--add-exports', 'java.base/jdk.internal.misc=ALL-UNNAMED',
+                                 '--add-exports', 'java.base/jdk.internal.ref=ALL-UNNAMED',
+                                 '--add-exports', 'java.base/sun.nio.ch=ALL-UNNAMED',
+                                 '--add-exports', 'java.management.rmi/com.sun.jmx.remote.internal.rmi=ALL-UNNAMED',
+                                 '--add-exports', 'java.rmi/sun.rmi.registry=ALL-UNNAMED',
+                                 '--add-exports', 'java.rmi/sun.rmi.server=ALL-UNNAMED',
+                                 '--add-exports', 'java.sql/java.sql=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/java.lang.module=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.loader=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.ref=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.reflect=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.math=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.module=ALL-UNNAMED',
+                                 '--add-opens', 'java.base/jdk.internal.util.jar=ALL-UNNAMED',
+                                 '--add-opens', 'jdk.management/com.sun.management.internal=ALL-UNNAMED']
+            jvmArgs(JDK11_OPTIONS)
+            println("JVM arguments for $project.name are $allJvmArgs")
+        }
+    }
+
+    systemProperty "cassandra.analytics.bridges.sstable_format", "bti"
+    useJUnitPlatform()
+    reports {
+        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "five-zero-bridge").toFile()
+        junitXml {
+            enabled true
+            destination = destDir
+        }
+        html {
+            enabled true
+            destination = destDir
+        }
+    }
+}
+
+check {
+    dependsOn(tasks.testBti)
 }

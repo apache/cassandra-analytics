@@ -22,7 +22,7 @@ package org.apache.cassandra.spark.validation;
 import java.util.concurrent.TimeUnit;
 
 import o.a.c.sidecar.client.shaded.common.response.HealthResponse;
-import org.apache.cassandra.sidecar.client.SidecarClient;
+import o.a.c.sidecar.client.shaded.client.SidecarClient;
 
 /**
  * A startup validation that checks the connectivity and health of Sidecar

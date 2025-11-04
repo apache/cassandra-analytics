@@ -1,5 +1,11 @@
 0.2.0
 -----
+ * Expose SidecarCdc builders and interfaces (CASSANALYTICS-94)
+ * Fix bulk reader node availability comparator ordering (CASSANALYTICS-99)
+ * Remove not needed buffer flips (CASSANALYTICS-95)
+ * Refactor BulkWriterContext broadcasting to use immutable config class (CASSANALYTICS-89)
+ * Bump sidecar dependency to 0.2.0 (CASSANALYTICS-93)
+ * Support for Trie-Indexed SSTables (BTI format) (CASSANALYTICS-27)
  * Add extractCdcTables method to CqlUtils (CASSANALYTICS-91)
  * Create bridge modules for Cassandra 5.0 (CASSANALYTICS-84)
  * Analytics job fails when source table has secondary indexes (CASSANALYTICS-86)

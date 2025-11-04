@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.io.Serializable;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 
@@ -29,7 +28,14 @@ import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public interface JobInfo extends Serializable
+/**
+ * Provides job-specific configuration and information for bulk write operations.
+ * <p>
+ * This interface does NOT extend Serializable. JobInfo instances are never serialized.
+ * For broadcast to executors, {@link BroadcastableJobInfo} is used instead, and executors
+ * reconstruct JobInfo instances from the broadcast data.
+ */
+public interface JobInfo
 {
     // ******************
     // Job Information API - should this really just move back to Config? Here to try to reduce the violations of the Law of Demeter more than anything else

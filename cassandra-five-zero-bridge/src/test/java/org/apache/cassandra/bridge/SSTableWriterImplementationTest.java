@@ -33,6 +33,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
@@ -57,7 +58,7 @@ class SSTableWriterImplementationTest
 
     static
     {
-        CassandraTypesImplementation.setup();
+        CassandraTypesImplementation.setup(BridgeInitializationParameters.fromEnvironment());
     }
 
     @Test
@@ -95,7 +96,12 @@ class SSTableWriterImplementationTest
         }
 
         assertThat(produced).hasSize(2);
-        assertThat(produced.stream().map(e -> e.baseFilename)).containsExactlyInAnyOrder("oa-2-big", "oa-3-big");
+        String sstableFormat = DatabaseDescriptor.getRawConfig().sstable.selected_format;
+        assertThat(sstableFormat).containsAnyOf("big", "bti");
+        String sstableVersion = "bti".equals(sstableFormat) ? "da" : "oa";
+        assertThat(produced.stream().map(e -> e.baseFilename)).containsExactlyInAnyOrder(
+            toSStableFileName(sstableFormat, sstableVersion, 2),
+            toSStableFileName(sstableFormat, sstableVersion, 3));
         produced.clear();
 
         for (int i = 300_000; i < 400_000; i++)
@@ -103,13 +109,15 @@ class SSTableWriterImplementationTest
             writer.addRow(ImmutableMap.of("a", i, "b", "val_" + i));
         }
         assertThat(produced.size()).isEqualTo(1);
-        assertThat(produced).isEqualTo(Collections.singleton(new SSTableDescriptor("oa-4-big")));
+        assertThat(produced.stream().map(e -> e.baseFilename))
+            .containsExactly(toSStableFileName(sstableFormat, sstableVersion, 4));
 
         // when closing the writer, a new sstable is produced (by flushing the remaining data in the buffer)
         produced.clear();
         writer.close();
         assertThat(produced.size()).isEqualTo(1);
-        assertThat(produced).isEqualTo(Collections.singleton(new SSTableDescriptor("oa-5-big")));
+        assertThat(produced.stream().map(e -> e.baseFilename))
+            .containsExactly(toSStableFileName(sstableFormat, sstableVersion, 5));
     }
 
     @Test
@@ -168,5 +176,10 @@ class SSTableWriterImplementationTest
         {
             Uninterruptibles.sleepUninterruptibly(200, TimeUnit.MILLISECONDS);
         }
+    }
+
+    private String toSStableFileName(String format, String version, int number)
+    {
+        return String.format("%s-%d-%s", version, number, format);
     }
 }

@@ -76,22 +76,22 @@ public class IndexReaderTests
     @Test
     public void testPartialCompressedSizeWithinChunk()
     {
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(0, 1024, 64, true)).isEqualTo(64);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(512, 1024, 64, true)).isEqualTo(32);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(768, 1024, 64, true)).isEqualTo(16);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(992, 1024, 64, true)).isEqualTo(2);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(995, 1024, 64, true)).isEqualTo(2);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(1008, 1024, 64, true)).isEqualTo(1);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(1023, 1024, 64, true)).isEqualTo(0);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(1024, 1024, 64, true)).isEqualTo(64);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(2048, 1024, 64, true)).isEqualTo(64);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(2560, 1024, 64, true)).isEqualTo(32);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(0, 1024, 64, true)).isEqualTo(64);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(512, 1024, 64, true)).isEqualTo(32);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(768, 1024, 64, true)).isEqualTo(16);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(992, 1024, 64, true)).isEqualTo(2);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(995, 1024, 64, true)).isEqualTo(2);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(1008, 1024, 64, true)).isEqualTo(1);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(1023, 1024, 64, true)).isEqualTo(0);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(1024, 1024, 64, true)).isEqualTo(64);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(2048, 1024, 64, true)).isEqualTo(64);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(2560, 1024, 64, true)).isEqualTo(32);
 
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(0, 1024, 64, false)).isEqualTo(0);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(16, 1024, 64, false)).isEqualTo(1);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(512, 1024, 64, false)).isEqualTo(32);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(1023, 1024, 64, false)).isEqualTo(64);
-        assertThat(IndexReader.partialCompressedSizeWithinChunk(2560, 1024, 64, false)).isEqualTo(32);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(0, 1024, 64, false)).isEqualTo(0);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(16, 1024, 64, false)).isEqualTo(1);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(512, 1024, 64, false)).isEqualTo(32);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(1023, 1024, 64, false)).isEqualTo(64);
+        assertThat(BigIndexReader.partialCompressedSizeWithinChunk(2560, 1024, 64, false)).isEqualTo(32);
     }
 
     @Test
@@ -113,13 +113,13 @@ public class IndexReaderTests
 
     private static long calculateCompressedSize(long start, long end, int startIdx, int startCompressedChunkSize)
     {
-        return IndexReader.calculateCompressedSize(mockMetaData(start, startIdx, startCompressedChunkSize, end), 160000000, start, end);
+        return BigIndexReader.calculateCompressedSize(mockMetaData(start, startIdx, startCompressedChunkSize, end), 160000000, start, end);
     }
 
     private static long calculateCompressedSize(long start, int startIdx, int startCompressedChunkSize,
                                                 long end, int endIdx, int endCompressedChunkSize)
     {
-        return IndexReader.calculateCompressedSize(
+        return BigIndexReader.calculateCompressedSize(
         mockMetaData(start, startIdx, startCompressedChunkSize, end, endIdx, endCompressedChunkSize), 160000000, start, end
         );
     }
@@ -251,7 +251,7 @@ public class IndexReaderTests
 
                     ssTables
                     .forEach(ssTable -> CompletableFuture.runAsync(
-                             () -> new IndexReader(ssTable, metaData, rangeFilter, Stats.DoNothingStats.INSTANCE, consumer), EXECUTOR)
+                             () -> new BigIndexReader(ssTable, metaData, rangeFilter, Stats.DoNothingStats.INSTANCE, consumer), EXECUTOR)
                     );
 
                     try

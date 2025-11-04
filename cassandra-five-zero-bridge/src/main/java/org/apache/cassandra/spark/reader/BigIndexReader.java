@@ -48,17 +48,17 @@ import org.apache.cassandra.utils.vint.VIntCoding;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class IndexReader implements IIndexReader
+public class BigIndexReader implements IIndexReader
 {
-    private static final Logger LOGGER = LoggerFactory.getLogger(IndexReader.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(BigIndexReader.class);
 
     private TokenRange ssTableRange = null;
 
-    public IndexReader(@NotNull SSTable ssTable,
-                       @NotNull TableMetadata metadata,
-                       @Nullable SparkRangeFilter rangeFilter,
-                       @NotNull Stats stats,
-                       @NotNull IndexConsumer consumer)
+    public BigIndexReader(@NotNull SSTable ssTable,
+                          @NotNull TableMetadata metadata,
+                          @Nullable SparkRangeFilter rangeFilter,
+                          @NotNull Stats stats,
+                          @NotNull IndexConsumer consumer)
     {
         long now = System.nanoTime();
         long startTimeNanos = now;
@@ -74,25 +74,22 @@ public class IndexReader implements IIndexReader
             if (rangeFilter != null)
             {
                 SummaryDbUtils.Summary summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
-                if (summary != null)
+                this.ssTableRange = TokenRange.closed(ReaderUtils.tokenToBigInteger(summary.first().getToken()),
+                                                      ReaderUtils.tokenToBigInteger(summary.last().getToken()));
+                if (!rangeFilter.overlaps(this.ssTableRange))
                 {
-                    this.ssTableRange = TokenRange.closed(ReaderUtils.tokenToBigInteger(summary.first().getToken()),
-                                                          ReaderUtils.tokenToBigInteger(summary.last().getToken()));
-                    if (!rangeFilter.overlaps(this.ssTableRange))
-                    {
-                        LOGGER.info("Skipping non-overlapping Index.db file rangeFilter='[{},{}]' sstableRange='[{},{}]'",
-                                    rangeFilter.tokenRange().firstEnclosedValue(), rangeFilter.tokenRange().upperEndpoint(),
-                                    this.ssTableRange.firstEnclosedValue(), this.ssTableRange.upperEndpoint());
-                        stats.indexFileSkipped();
-                        return;
-                    }
-
-                    skipAhead = summary.summary().getPosition(
-                    SummaryDbUtils.binarySearchSummary(summary.summary(), metadata.partitioner, rangeFilter.tokenRange().firstEnclosedValue())
-                    );
-                    stats.indexSummaryFileRead(System.nanoTime() - now);
-                    now = System.nanoTime();
+                    LOGGER.info("Skipping non-overlapping Index.db file rangeFilter='[{},{}]' sstableRange='[{},{}]'",
+                                rangeFilter.tokenRange().firstEnclosedValue(), rangeFilter.tokenRange().upperEndpoint(),
+                                this.ssTableRange.firstEnclosedValue(), this.ssTableRange.upperEndpoint());
+                    stats.indexFileSkipped();
+                    return;
                 }
+
+                skipAhead = summary.summary().getPosition(
+                SummaryDbUtils.binarySearchSummary(summary.summary(), metadata.partitioner, rangeFilter.tokenRange().firstEnclosedValue())
+                );
+                stats.indexSummaryFileRead(System.nanoTime() - now);
+                now = System.nanoTime();
             }
 
             // read CompressionMetadata if it exists

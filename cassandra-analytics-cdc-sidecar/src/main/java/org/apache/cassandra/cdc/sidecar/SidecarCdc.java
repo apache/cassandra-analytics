@@ -19,11 +19,18 @@
 
 package org.apache.cassandra.cdc.sidecar;
 
+import java.io.IOException;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
 
 import org.apache.cassandra.cdc.Cdc;
+import org.apache.cassandra.cdc.api.CdcOptions;
+import org.apache.cassandra.cdc.api.EventConsumer;
+import org.apache.cassandra.cdc.api.SchemaSupplier;
+import org.apache.cassandra.cdc.api.TokenRangeSupplier;
+import org.apache.cassandra.cdc.stats.ICdcStats;
+import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.FutureUtils;
@@ -41,6 +48,31 @@ public class SidecarCdc extends Cdc
         super(builder);
         this.clusterConfigProvider = builder.clusterConfigProvider;
         initSchema();
+    }
+
+    public static SidecarCdcBuilder builder(@NotNull String jobId,
+                                            int partitionId,
+                                            CdcOptions cdcOptions,
+                                            ClusterConfigProvider clusterConfigProvider,
+                                            EventConsumer eventConsumer,
+                                            SchemaSupplier schemaSupplier,
+                                            TokenRangeSupplier tokenRangeSupplier,
+                                            CdcSidecarInstancesProvider sidecarInstancesProvider,
+                                            SidecarCdcClient.ClientConfig clientConfig,
+                                            SecretsProvider secretsProvider,
+                                            ICdcStats cdcStats) throws IOException
+    {
+        return new SidecarCdcBuilder(jobId,
+                                     partitionId,
+                                     cdcOptions,
+                                     clusterConfigProvider,
+                                     eventConsumer,
+                                     schemaSupplier,
+                                     tokenRangeSupplier,
+                                     sidecarInstancesProvider,
+                                     clientConfig,
+                                     secretsProvider,
+                                     cdcStats);
     }
 
     public void initSchema()

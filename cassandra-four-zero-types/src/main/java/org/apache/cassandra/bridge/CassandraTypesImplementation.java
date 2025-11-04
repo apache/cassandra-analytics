@@ -36,7 +36,7 @@ public class CassandraTypesImplementation extends AbstractCassandraTypes
 {
     public static final CassandraTypesImplementation INSTANCE = new CassandraTypesImplementation();
 
-    public static synchronized void setup()
+    public static synchronized void setup(BridgeInitializationParameters params)
     {
         if (!CassandraTypesImplementation.setup)
         {

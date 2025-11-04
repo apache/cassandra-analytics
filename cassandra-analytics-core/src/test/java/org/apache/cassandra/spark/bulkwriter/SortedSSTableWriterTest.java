@@ -85,7 +85,6 @@ public class SortedSSTableWriterTest
     @TempDir
     private Path tmpDir;
 
-
     @ParameterizedTest
     @MethodSource("data")
     public void canCreateWriterForVersion(String version) throws IOException
@@ -106,7 +105,7 @@ public class SortedSSTableWriterTest
                 assertThat(baseFileName).isEqualTo("nb-1-big");
                 break;
             case 50:
-                assertThat(baseFileName).isEqualTo("oa-2-big");
+                assertThat(baseFileName).isEqualTo("big".equals(CassandraVersion.sstableFormat()) ? "oa-2-big" : "da-2-bti");
                 break;
             default:
                 throw new UnsupportedOperationException("Unsupported version: " + version);
