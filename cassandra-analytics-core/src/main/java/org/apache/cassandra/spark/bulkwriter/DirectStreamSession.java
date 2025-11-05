@@ -46,6 +46,7 @@ import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.data.FileType;
+import org.apache.cassandra.util.IntWrapper;
 
 public class DirectStreamSession extends StreamSession<TransportContext.DirectDataBulkWriterContext>
 {
@@ -86,16 +87,16 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                 // 4. remove the sstables once sent
                 Map<Path, Digest> fileDigests = sstableWriter.prepareSStablesToSend(writerContext, sstables);
                 // retain only the SSTable data components
-                Set<Path> newSSTables = fileDigests.keySet()
-                                                   .stream()
-                                                   .filter(p -> p.getFileName().toString().endsWith(FileType.DATA.getFileSuffix()))
-                                                   .collect(Collectors.toSet());
-                for (Path sstable : newSSTables)
-                {
-                    sendSStableToReplicas(sstable);
-                }
+                IntWrapper sstableCounter = new IntWrapper();
+                fileDigests.keySet()
+                           .stream()
+                           .filter(p -> p.getFileName().toString().endsWith(FileType.DATA.getFileSuffix()))
+                           .forEach(sstable -> {
+                               sstableCounter.value++;
+                               sendSStableToReplicas(sstable);
+                           });
 
-                LOGGER.info("[{}]: Sent newly produced SSTables. sstables={}", sessionID, newSSTables.size());
+                LOGGER.info("[{}]: Sent newly produced SSTables. sstables={}", sessionID, sstableCounter.value);
                 LOGGER.info("[{}]: Removing temporary files after streaming. files={}", sessionID, fileDigests);
                 fileDigests.keySet().forEach(path -> {
                     try

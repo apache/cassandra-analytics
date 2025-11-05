@@ -165,6 +165,7 @@ public class SSTablesTest
 
         // These must be equal for the filter in SortedSSTableWriter.prepareSStablesToSend to work
         assertThat(descriptorFromPath).isEqualTo(descriptorFromProduction);
-        assertThat(descriptorFromPath.baseFilename).isEqualTo(descriptorFromProduction.baseFilename);
+        assertThat(descriptorFromPath.baseFilename).isEqualTo(descriptorFromProduction.baseFilename)
+                                                   .doesNotEndWith("-");
     }
 }
