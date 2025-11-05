@@ -43,7 +43,7 @@ public final class SSTables
     public static String getSSTableBaseName(Path dataFile)
     {
         String fileName = dataFile.getFileName().toString();
-        return fileName.substring(0, fileName.lastIndexOf("-") + 1);
+        return fileName.substring(0, fileName.lastIndexOf("-"));
     }
 
     /**

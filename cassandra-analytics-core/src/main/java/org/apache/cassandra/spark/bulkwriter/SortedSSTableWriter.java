@@ -213,7 +213,16 @@ public class SortedSSTableWriter
             // NOTE: We calculate file hashes before re-reading so that we know what we hashed
             //       is what we validated. Then we send these along with the files and the
             //       receiving end re-hashes the files to make sure they still match.
-            overallFileDigests.putAll(calculateFileDigestMap(dataFile));
+
+            // Skip hash calculation for SSTables that were already hashed during production
+            // (via prepareSStablesToSend). Only hash new SSTables produced during final flush.
+            boolean alreadyHashed = overallFileDigests.keySet()
+                                                      .stream()
+                                                      .anyMatch(path -> SSTables.getSSTableBaseName(path).equals(SSTables.getSSTableBaseName(dataFile)));
+            if (!alreadyHashed)
+            {
+                overallFileDigests.putAll(calculateFileDigestMap(dataFile));
+            }
             sstableCount += 1;
         }
         bytesWritten += calculatedTotalSize(overallFileDigests.keySet());
