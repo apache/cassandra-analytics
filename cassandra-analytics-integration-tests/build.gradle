@@ -77,7 +77,7 @@ dependencies {
     }
 
     testImplementation('com.adobe.testing:s3mock-testcontainers:2.17.0') // 3.x version do not support java 11
-    testImplementation('com.google.inject:guice:4.2.2')
+    testImplementation('com.google.inject:guice:7.0.0')
 
     testRuntimeOnly 'com.fasterxml.jackson.core:jackson-annotations:2.14.2'
 }
