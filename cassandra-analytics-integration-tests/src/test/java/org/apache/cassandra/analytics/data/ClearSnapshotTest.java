@@ -31,16 +31,19 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
+import com.vdurmont.semver4j.Semver;
 import org.apache.cassandra.analytics.SharedClusterSparkIntegrationTestBase;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.shared.Uninterruptibles;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
+import org.apache.cassandra.testing.TestUtils;
 import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.Row;
 
 import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
 {
@@ -117,6 +120,9 @@ class ClearSnapshotTest extends SharedClusterSparkIntegrationTestBase
     @Override
     protected void beforeClusterProvisioning()
     {
+        assumeThat(TestUtils.getDTestClusterVersion().isGreaterThanOrEqualTo(new Semver("4.1", Semver.SemverType.LOOSE)))
+        .describedAs("TTL support for snapshot was added to Cassandra 4.1 as part of CASSANDRA-16789")
+        .isTrue();
         System.setProperty("cassandra.snapshot.ttl_cleanup_initial_delay_seconds", "0");
         System.setProperty("cassandra.snapshot.ttl_cleanup_period_seconds", "1");
         System.setProperty("cassandra.snapshot.min_allowed_ttl_seconds", "5");

@@ -19,7 +19,11 @@
 
 package org.apache.cassandra.analytics;
 
+import com.vdurmont.semver4j.Semver;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
+import org.apache.cassandra.testing.TestUtils;
+
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * Runs test from {@link CassandraAnalyticsSimpleTest} with the {@code RandomPartitioner}.
@@ -36,5 +40,13 @@ class RandomPartitionerTest extends CassandraAnalyticsSimpleTest
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
         return super.testClusterConfiguration().partitioner("org.apache.cassandra.dht.RandomPartitioner");
+    }
+
+    @Override
+    protected void beforeClusterProvisioning()
+    {
+        // Cassandra 4.0 DTest uses TokenSupplier#token(int) method, which fails for big integer token.
+        assumeThat(TestUtils.getDTestClusterVersion()
+                            .isGreaterThanOrEqualTo(new Semver("4.1", Semver.SemverType.LOOSE))).isTrue();
     }
 }

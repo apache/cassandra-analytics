@@ -1,0 +1,211 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+name: Test
+
+on:
+  push:
+    branches: [ "trunk" ]
+  pull_request:
+    branches: [ "trunk" ]
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Compile and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 11
+      - run: |
+          sudo apt-get update
+          
+          if [ -f /etc/ssl/certs/java/cacerts/cacerts ]; then
+              sudo mv /etc/ssl/certs/java/cacerts/ /etc/ssl/certs/java/cacerts-old
+              sudo mv /etc/ssl/certs/java/cacerts-old/cacerts /etc/ssl/certs/java/
+              sudo rmdir /etc/ssl/certs/java/cacerts-old
+          fi
+          
+          apt-get download ant ant-optional
+          sudo dpkg --force-all -i ant*.deb
+          rm ant*.deb
+          
+          sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
+          
+          for i in {2..20}
+          do
+            sudo ip addr add "127.0.0.${i}" dev lo
+            sudo route add -host "127.0.0.${i}" dev lo;
+          done
+          
+          CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
+          
+          ./gradlew codeCheckTasks
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: maven-repo-${{ github.sha }}
+      - name: Cache workspace
+        id: cache-build-save
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}
+          key: build-${{ github.sha }}
+
+  unit-test:
+    name: Unit test
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        scala: [ '2.12', '2.13' ]
+      fail-fast: false
+    steps:
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 11
+      - run: |
+          sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
+          for i in {2..20}
+          do
+            sudo ip addr add "127.0.0.${i}" dev lo
+            sudo route add -host "127.0.0.${i}" dev lo;
+          done
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: maven-repo-${{ github.sha }}
+      - name: Cache workspace
+        id: cache-build-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}
+          key: build-${{ github.sha }}
+      - run: |
+          export SPARK_VERSION="3"
+          export SCALA_VERSION="${{ matrix.scala }}"
+          export JDK_VERSION="11"
+          export INTEGRATION_MAX_PARALLEL_FORKS=1
+          export INTEGRATION_MAX_HEAP_SIZE="1500M"
+          export CASSANDRA_USE_JDK11=true
+          
+          ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test
+
+  integration-test:
+    name: Integration test
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        scala: [ '2.12', '2.13' ]
+        cassandra: [ '4.0.17', '4.1.4', '5.0.5' ]
+        job_index: [ 0, 1, 2, 3, 4 ]
+        job_total: [ 5 ]
+        exclude:
+          - scala: "2.12"
+            cassandra: "5.0.5"
+          - scala: "2.12"
+            cassandra: "4.1.4"
+          - scala: "2.13"
+            cassandra: "4.0.17"
+      fail-fast: false
+    steps:
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 11
+      - run: |
+          sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
+          for i in {2..20}
+          do
+            sudo ip addr add "127.0.0.${i}" dev lo
+            sudo route add -host "127.0.0.${i}" dev lo;
+          done
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: maven-repo-${{ github.sha }}
+      - name: Cache workspace
+        id: cache-build-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}
+          key: build-${{ github.sha }}
+      - run: |
+          export SPARK_VERSION="3"
+          export SCALA_VERSION="${{ matrix.scala }}"
+          export JDK_VERSION="11"
+          export INTEGRATION_MAX_PARALLEL_FORKS=1
+          export INTEGRATION_MAX_HEAP_SIZE="4096M"
+          export CASSANDRA_USE_JDK11=true
+          
+          export DTEST_JAR="dtest-${{ matrix.cassandra }}.jar"
+          export CASSANDRA_VERSION=$(echo ${{ matrix.cassandra }} | cut -d'.' -f 1,2)
+          
+          ./gradlew --stacktrace clean assemble
+          
+          cd cassandra-analytics-integration-tests/src/test/java
+          CLASSNAMES=$(find . -name '*Test.java' | sort | cut -c 3- | sed 's@/@.@g' | sed 's/.\{5\}$//' | awk 'NR % ${{ matrix.job_total }} == ${{ matrix.job_index }}')
+          cd ../../../..
+          
+          EXIT_STATUS=0
+          # Execution of "gradle test --test $TEST_NAME" returns non-zero exit code when commend did not run any test
+          # (e.g. when all tests are ignored). Currently there is no option to change Gradle behaviour.
+          # Workaround the issue by explicitly skipping test classes that cannot be executed on Cassandra 4.0.
+          C40_EXCLUSIONS=("org.apache.cassandra.analytics.BulkWriteDownInstanceMultipleTokensTest" "org.apache.cassandra.analytics.BulkWriteDownSidecarMultipleTokensTest" "org.apache.cassandra.analytics.CassandraAnalyticsSimpleMultipleTokensTest" "org.apache.cassandra.analytics.RandomPartitionerTest" "org.apache.cassandra.analytics.testcontainer.BulkWriteS3CompatModeSimpleMultipleTokensTest" "org.apache.cassandra.analytics.data.ClearSnapshotTest")
+          for TEST_NAME in $CLASSNAMES; do
+            SKIP="false"
+            for C40_EXCLUSION in "${C40_EXCLUSIONS[@]}";
+            do
+              if [[ "$CASSANDRA_VERSION" == "4.0" && "$TEST_NAME" == ${C40_EXCLUSION} ]]; then
+                SKIP="true"
+                break
+              fi
+            done
+
+            test_id=$(date +%H%M%S)
+            mkdir -p test-reports/$test_id
+
+            if [ $SKIP == "false" ]; then
+              echo Executing test $TEST_NAME
+              ./gradlew --stacktrace cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
+              mv build/test-reports/* test-reports/$test_id
+            else
+              echo "Skipping test $TEST_NAME"
+            fi
+          done;
+          
+          tar czf integration-tests.tar.gz test-reports/*
+          
+          exit $EXIT_STATUS
+      - name: Publish test results
+        uses: actions/upload-artifact@v4
+        if: (!cancelled())
+        with:
+          name: integration-tests-${{ matrix.scala }}-${{ matrix.cassandra }}-${{ matrix.job_index }}
+          path: integration-tests.tar.gz
