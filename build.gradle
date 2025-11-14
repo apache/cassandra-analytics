@@ -269,7 +269,7 @@ distributions {
         from subprojects.collect { it.tasks.withType(Jar) }
       }
 
-      setDuplicatesStrategy(DuplicatesStrategy.EXCLUDE)
+      setDuplicatesStrategy(DuplicatesStrategy.INCLUDE)
     }
   }
 
