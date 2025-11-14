@@ -1,5 +1,6 @@
 0.2.0
 -----
+ * Generated distribution artifacts fix (CASSANALYTICS-105)
  * Fix SSTable descriptor mismatch preventing newly produced SSTables from being uploaded (CASSANALYTICS-98)
  * Expose SidecarCdc builders and interfaces (CASSANALYTICS-94)
  * Fix bulk reader node availability comparator ordering (CASSANALYTICS-99)
