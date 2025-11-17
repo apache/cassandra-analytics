@@ -66,7 +66,8 @@ gradle wrapper
 Navigate to the top-level directory for this project:
 
 ```shell
-./gradlew clean assemble
+./gradlew clean assemble -PartifactType=common
+./gradlew assemble -PartifactType=spark
 ```
 
 ### Spark 3 and Scala 2.12
