@@ -285,6 +285,7 @@ distributions {
       include 'build.gradle'
       exclude '**/.gradle/**'
       exclude 'gradle/wrapper/gradle-wrapper.jar'
+      exclude 'scripts/.mvn/wrapper/maven-wrapper.jar'
       exclude '**.idea/**'
       exclude 'bin/**'
       exclude 'dependencies/**'
