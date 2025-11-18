@@ -186,9 +186,6 @@ class BulkReaderFilteringIntegrationTest extends SharedClusterSparkIntegrationTe
         // Flush to create first SSTable
         instance.nodetool("flush", TEST_KEYSPACE, twcsTable.table());
 
-        // wait for nodetool flush
-        Uninterruptibles.sleepUninterruptibly(30, TimeUnit.SECONDS);
-
         // Insert middle data with middle timestamps
         for (int i = 0; i < DATA_SIZE; i++)
         {
@@ -201,9 +198,6 @@ class BulkReaderFilteringIntegrationTest extends SharedClusterSparkIntegrationTe
 
         // Flush to create second SSTable
         instance.nodetool("flush", TEST_KEYSPACE, twcsTable.table());
-
-        // wait for nodetool flush
-        Uninterruptibles.sleepUninterruptibly(30, TimeUnit.SECONDS);
 
         // Insert late data with late timestamps
         for (int i = 0; i < DATA_SIZE; i++)

@@ -363,7 +363,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         this.statsMetadata = (StatsMetadata) componentMap.get(MetadataType.STATS);
         if (!overlapsTimeRange(this.statsMetadata, SSTableTimeRangeFilters))
         {
-            this.ss = List.of();
+            this.sstableTimeRangeFilters = List.of();
             LOGGER.info("Ignoring SSTableReader with minTimestamp={} maxTimestamp={}, does not overlap with any filter {}",
                         this.statsMetadata.minTimestamp, this.statsMetadata.maxTimestamp, SSTableTimeRangeFilters);
             header = null;

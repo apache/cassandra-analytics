@@ -167,8 +167,6 @@ public class SSTableReaderTests
                 }
             });
 
-            // Wait to ensure timestamp advances
-            Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
             long currentTimestampMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()); // Convert to microseconds
 
             assertThat(countSSTables(dir)).isEqualTo(1);
@@ -181,7 +179,7 @@ public class SSTableReaderTests
             // Create time range filter that excludes the SSTable (far in the future)
             SSTableTimeRangeFilter futureFilter = SSTableTimeRangeFilter.create(
                 currentTimestampMicros + TimeUnit.SECONDS.toMicros(1000), // 1000 seconds in the future
-                currentTimestampMicros + TimeUnit.SECONDS.toMicros(1000)
+                currentTimestampMicros + TimeUnit.SECONDS.toMicros(5000)
             );
 
             int rowCount = 0;
@@ -224,7 +222,6 @@ public class SSTableReaderTests
                 }
             });
 
-            Uninterruptibles.sleepUninterruptibly(100, TimeUnit.MILLISECONDS);
             long afterWriteMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
 
             assertThat(countSSTables(dir)).isEqualTo(1);
