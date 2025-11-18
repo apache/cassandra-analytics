@@ -88,7 +88,7 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
 import org.apache.cassandra.spark.sparksql.LastModifiedTimestampDecorator;
 import org.apache.cassandra.spark.sparksql.RowBuilder;
-import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.ReaderTimeProvider;
 import org.apache.cassandra.spark.utils.ScalaFunctions;
@@ -104,6 +104,7 @@ import org.apache.spark.util.ShutdownHookManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.cdc.api.CommitLogMarkers.EMPTY;
 import static org.apache.cassandra.spark.utils.Properties.NODE_STATUS_NOT_CONSIDERED;
 
 public class CassandraDataLayer extends PartitionedDataLayer implements StartupValidatable, Serializable
@@ -145,7 +146,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected transient SidecarClient sidecar;
 
     private SslConfig sslConfig;
-    private TimeRangeFilter sstableTimeRangeFilter;
+    private SSTableTimeRangeFilter sstableTimeRangeFilter;
 
     @VisibleForTesting
     transient Map<String, SidecarInstance> sidecarInstanceMap;
@@ -197,7 +198,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                  List<SchemaFeature> requestedFeatures,
                                  @NotNull Map<String, ReplicationFactor> rfMap,
                                  TimeProvider timeProvider,
-                                 TimeRangeFilter sstableTimeRangeFilter)
+                                 SSTableTimeRangeFilter sstableTimeRangeFilter)
     {
         super(consistencyLevel, datacenter);
         this.snapshotName = snapshotName;
@@ -503,9 +504,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     }
 
     @Override
-    public List<TimeRangeFilter> sstableTimeRangeFilters()
+    public List<SSTableTimeRangeFilter> sstableTimeRangeFilters()
     {
-        return sstableTimeRangeFilter == null ? List.of() : List.of(sstableTimeRangeFilter);
+        return List.of(sstableTimeRangeFilter);
     }
 
     @Override
@@ -759,7 +760,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
         this.rfMap = (Map<String, ReplicationFactor>) in.readObject();
         this.timeProvider = new ReaderTimeProvider(in.readInt());
-        this.sstableTimeRangeFilter = (TimeRangeFilter) in.readObject();
+        this.sstableTimeRangeFilter = (SSTableTimeRangeFilter) in.readObject();
         this.maybeQuoteKeyspaceAndTable();
         this.initSidecarClient();
         this.initInstanceMap();
@@ -924,7 +925,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             kryo.readObject(in, SchemaFeaturesListWrapper.class).toList(),
             kryo.readObject(in, HashMap.class),
             new ReaderTimeProvider(in.readInt()),
-            kryo.readObject(in, TimeRangeFilter.class));
+            kryo.readObject(in, SSTableTimeRangeFilter.class));
         }
 
         // Wrapper only used internally for Kryo serialization/deserialization

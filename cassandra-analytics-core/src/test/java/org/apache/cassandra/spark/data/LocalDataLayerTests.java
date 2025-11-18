@@ -42,7 +42,7 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.SchemaTests;
-import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -113,7 +113,7 @@ public class LocalDataLayerTests extends VersionRunner
 
         LocalDataLayer dataLayer = LocalDataLayer.from(options);
 
-        List<TimeRangeFilter> filters = dataLayer.sstableTimeRangeFilters();
+        List<SSTableTimeRangeFilter> filters = dataLayer.sstableTimeRangeFilters();
         assertThat(filters).hasSize(1);
         assertThat(filters.get(0).range().lowerEndpoint()).isEqualTo(1000L);
         assertThat(filters.get(0).range().upperEndpoint()).isEqualTo(2000L);
@@ -124,7 +124,7 @@ public class LocalDataLayerTests extends VersionRunner
     public void testSerializationWithTimeRangeFilter(CassandraBridge bridge) throws Exception
     {
         CassandraVersion version = bridge.getVersion();
-        TimeRangeFilter filter = TimeRangeFilter.create(1000L, 2000L);
+        SSTableTimeRangeFilter filter = SSTableTimeRangeFilter.create(1000L, 2000L);
         LocalDataLayer dataLayer = new LocalDataLayer(
             version,
             Partitioner.Murmur3Partitioner,
@@ -141,37 +141,13 @@ public class LocalDataLayerTests extends VersionRunner
         ByteArrayOutputStream baos = serialize(dataLayer);
         LocalDataLayer deserialized = deserialize(baos);
 
-        List<TimeRangeFilter> filters = deserialized.sstableTimeRangeFilters();
+        List<SSTableTimeRangeFilter> filters = deserialized.sstableTimeRangeFilters();
         assertThat(filters).hasSize(1);
         assertThat(filters.get(0)).isEqualTo(filter);
         assertThat(filters.get(0).range().lowerEndpoint()).isEqualTo(1000L);
         assertThat(filters.get(0).range().upperEndpoint()).isEqualTo(2000L);
         assertThat(filters.get(0).range().lowerBoundType()).isEqualTo(CLOSED);
         assertThat(filters.get(0).range().upperBoundType()).isEqualTo(CLOSED);
-    }
-
-    @ParameterizedTest
-    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
-    public void testSerializationWithNullTimeRangeFilter(CassandraBridge bridge) throws Exception
-    {
-        CassandraVersion version = bridge.getVersion();
-        LocalDataLayer dataLayer = new LocalDataLayer(
-            version,
-            Partitioner.Murmur3Partitioner,
-            "test_keyspace",
-            SchemaTests.SCHEMA,
-            Collections.emptySet(),
-            Collections.emptyList(),
-            false,
-            null,
-            null,
-            "/tmp/data"
-        );
-
-        ByteArrayOutputStream baos = serialize(dataLayer);
-        LocalDataLayer deserialized = deserialize(baos);
-
-        assertThat(deserialized.sstableTimeRangeFilters()).isEmpty();
     }
 
     private ByteArrayOutputStream serialize(LocalDataLayer dataLayer) throws Exception

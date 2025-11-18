@@ -41,7 +41,7 @@ import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.analytics.stats.Stats;
-import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
@@ -179,7 +179,7 @@ public class SSTableReaderTests
             BasicSupplier ssTableSupplier = new BasicSupplier(dataLayer.listSSTables().collect(Collectors.toSet()));
 
             // Create time range filter that excludes the SSTable (far in the future)
-            TimeRangeFilter futureFilter = TimeRangeFilter.create(
+            SSTableTimeRangeFilter futureFilter = SSTableTimeRangeFilter.create(
                 currentTimestampMicros + TimeUnit.SECONDS.toMicros(1000), // 1000 seconds in the future
                 currentTimestampMicros + TimeUnit.SECONDS.toMicros(1000)
             );
@@ -235,7 +235,7 @@ public class SSTableReaderTests
             BasicSupplier ssTableSupplier = new BasicSupplier(dataLayer.listSSTables().collect(Collectors.toSet()));
 
             // Create time range filter that includes the SSTable
-            TimeRangeFilter includingFilter = TimeRangeFilter.create(beforeWriteMicros, afterWriteMicros);
+            SSTableTimeRangeFilter includingFilter = SSTableTimeRangeFilter.create(beforeWriteMicros, afterWriteMicros);
 
             int rowCount = 0;
             try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(

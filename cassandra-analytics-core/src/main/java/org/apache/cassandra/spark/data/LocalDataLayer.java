@@ -59,7 +59,7 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
-import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.Throwing;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.parquet.Strings;
@@ -86,7 +86,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     private boolean useBufferingInputStream;
     private String[] paths;
     private int minimumReplicasPerMutation = 1;
-    private TimeRangeFilter sstableTimeRangeFilter;
+    private SSTableTimeRangeFilter sstableTimeRangeFilter;
     private Set<Path> dataFilePaths = null;
 
     @Nullable
@@ -199,7 +199,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
              Collections.emptyList(),
              false,
              null,
-             null,
+             SSTableTimeRangeFilter.EMPTY,
              paths);
     }
 
@@ -217,7 +217,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
              Collections.emptyList(),
              false,
              null,
-             null,
+             SSTableTimeRangeFilter.EMPTY,
              paths);
     }
 
@@ -230,7 +230,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                           @NotNull List<SchemaFeature> requestedFeatures,
                           boolean useBufferingInputStream,
                           @Nullable String statsClass,
-                          @Nullable TimeRangeFilter sstableTimeRangeFilter,
+                          @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                           String... paths)
     {
         this.bridge = CassandraBridgeFactory.get(version);
@@ -258,7 +258,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                            @NotNull List<SchemaFeature> requestedFeatures,
                            boolean useBufferingInputStream,
                            @Nullable String statsClass,
-                           @Nullable TimeRangeFilter sstableTimeRangeFilter,
+                           @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                            String... paths)
     {
         this.bridge = CassandraBridgeFactory.get(version);
@@ -303,9 +303,9 @@ public class LocalDataLayer extends DataLayer implements Serializable
     }
 
     @Override
-    public List<TimeRangeFilter> sstableTimeRangeFilters()
+    public List<SSTableTimeRangeFilter> sstableTimeRangeFilters()
     {
-        return sstableTimeRangeFilter == null ? List.of() : List.of(sstableTimeRangeFilter);
+        return List.of(sstableTimeRangeFilter);
     }
 
     @Override
@@ -463,7 +463,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                                        .collect(Collectors.toList());
         this.useBufferingInputStream = in.readBoolean();
         this.statsClass = in.readBoolean() ? in.readUTF() : null;
-        this.sstableTimeRangeFilter = (TimeRangeFilter) in.readObject();
+        this.sstableTimeRangeFilter = (SSTableTimeRangeFilter) in.readObject();
         this.paths = (String[]) in.readObject();
         this.minimumReplicasPerMutation = in.readInt();
     }
@@ -502,7 +502,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                           .collect(Collectors.toList()),
                     in.readBoolean(),
                     in.readString(),
-                    kryo.readObject(in, TimeRangeFilter.class),
+                    kryo.readObject(in, SSTableTimeRangeFilter.class),
                     kryo.readObject(in, String[].class)
             ).withMinimumReplicasPerMutation(in.readInt());
         }

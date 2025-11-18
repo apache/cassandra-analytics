@@ -31,7 +31,7 @@ import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
 
-import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.spark.sql.sources.EqualTo;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.sources.In;
@@ -117,27 +117,17 @@ public final class FilterUtils
     }
 
     /**
-     * Parses {@link TimeRangeFilter} from spark options.
+     * Parses {@link SSTableTimeRangeFilter} from spark options.
      */
-    public static TimeRangeFilter parseSSTableTimeRangeFilter(Map<String, String> options)
+    public static SSTableTimeRangeFilter parseSSTableTimeRangeFilter(Map<String, String> options)
     {
         if (!options.containsKey(SSTABLE_START_TIMESTAMP_MICROS) && !options.containsKey(SSTABLE_END_TIMESTAMP_MICROS))
         {
-            return null;
+            return SSTableTimeRangeFilter.EMPTY;
         }
 
-        long startTimestamp = MapUtils.getLong(options, SSTABLE_START_TIMESTAMP_MICROS, Long.MIN_VALUE);
-        if (!options.containsKey(SSTABLE_END_TIMESTAMP_MICROS))
-        {
-            return TimeRangeFilter.startingAt(startTimestamp);
-        }
-
+        long startTimestamp = MapUtils.getLong(options, SSTABLE_START_TIMESTAMP_MICROS, 0L);
         long endTimestamp = MapUtils.getLong(options, SSTABLE_END_TIMESTAMP_MICROS, Long.MAX_VALUE);
-        if (!options.containsKey(SSTABLE_START_TIMESTAMP_MICROS))
-        {
-            return TimeRangeFilter.endingAt(endTimestamp);
-        }
-
-        return TimeRangeFilter.create(startTimestamp, endTimestamp);
+        return SSTableTimeRangeFilter.create(startTimestamp, endTimestamp);
     }
 }

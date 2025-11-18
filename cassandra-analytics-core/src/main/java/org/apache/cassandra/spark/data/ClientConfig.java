@@ -33,7 +33,7 @@ import org.apache.cassandra.bridge.BigNumberConfigImpl;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
-import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -84,9 +84,9 @@ public class ClientConfig
     public static final String SIDECAR_PORT = "sidecar_port";
     public static final String QUOTE_IDENTIFIERS = "quote_identifiers";
     /**
-     * {@code sstable_start_timestamp} and {@code sstable_end_timestamp} are by default inclusive. Both start and end
-     * timestamps are represented in microseconds. To have exclusive bounds, add +1 offset for exclusive start bound
-     * and add -1 for exclusive end bound.
+     * {@code sstable_start_timestamp_micros} and {@code sstable_end_timestamp_micros} define a time range filter
+     * for SSTable selection. Both timestamps are represented in microseconds and both bounds are always inclusive
+     * (closed range).
      */
     public static final String SSTABLE_START_TIMESTAMP_MICROS = "sstable_start_timestamp_micros";
     public static final String SSTABLE_END_TIMESTAMP_MICROS = "sstable_end_timestamp_micros";
@@ -117,7 +117,7 @@ public class ClientConfig
     protected Boolean enableExpansionShrinkCheck;
     protected int sidecarPort;
     protected boolean quoteIdentifiers;
-    protected TimeRangeFilter sstableTimeRangeFilter;
+    protected SSTableTimeRangeFilter sstableTimeRangeFilter;
 
     protected ClientConfig(Map<String, String> options)
     {
@@ -289,7 +289,7 @@ public class ClientConfig
         return quoteIdentifiers;
     }
 
-    public TimeRangeFilter sstableTimeRangeFilter()
+    public SSTableTimeRangeFilter sstableTimeRangeFilter()
     {
         return sstableTimeRangeFilter;
     }

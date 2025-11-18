@@ -28,7 +28,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 
 import static com.google.common.collect.BoundType.CLOSED;
 import static org.apache.cassandra.spark.data.ClientConfig.SNAPSHOT_TTL_PATTERN;
@@ -138,22 +138,22 @@ class ClientConfigTests
     }
 
     @Test
-    void testNoTimeRangeFilterWhenNoTimestampsProvided()
+    void testEmptyTimeRangeFilterWhenNoTimestampsProvided()
     {
         Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         ClientConfig clientConfig = ClientConfig.create(options);
-        TimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
-        assertThat(filter).isNull();
+        SSTableTimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
+        assertThat(filter).isEqualTo(SSTableTimeRangeFilter.EMPTY);
     }
 
     @Test
-    void testBoundedTimeRangeFilterWithBothTimestamps()
+    void testTimeRangeFilterWithBothTimestamps()
     {
         Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         options.put("sstable_start_timestamp_micros", "1000");
         options.put("sstable_end_timestamp_micros", "2000");
         ClientConfig clientConfig = ClientConfig.create(options);
-        TimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
+        SSTableTimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
 
         assertThat(filter).isNotNull();
         assertThat(filter.range().hasLowerBound()).isTrue();
@@ -173,12 +173,13 @@ class ClientConfigTests
         Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         options.put("sstable_start_timestamp_micros", "5000");
         ClientConfig clientConfig = ClientConfig.create(options);
-        TimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
+        SSTableTimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
 
         assertThat(filter).isNotNull();
         assertThat(filter.range().hasLowerBound()).isTrue();
         assertThat(filter.range().lowerEndpoint()).isEqualTo(5000L);
-        assertThat(filter.range().hasUpperBound()).isFalse();
+        assertThat(filter.range().hasUpperBound()).isTrue();
+        assertThat(filter.range().upperEndpoint()).isEqualTo(Long.MAX_VALUE);
     }
 
     @Test
@@ -187,11 +188,12 @@ class ClientConfigTests
         Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         options.put("sstable_end_timestamp_micros", "3000");
         ClientConfig clientConfig = ClientConfig.create(options);
-        TimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
+        SSTableTimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
 
         assertThat(filter).isNotNull();
-        assertThat(filter.range().hasLowerBound()).isFalse();
+        assertThat(filter.range().hasLowerBound()).isTrue();
         assertThat(filter.range().hasUpperBound()).isTrue();
+        assertThat(filter.range().lowerEndpoint()).isEqualTo(0L);
         assertThat(filter.range().upperEndpoint()).isEqualTo(3000L);
     }
 

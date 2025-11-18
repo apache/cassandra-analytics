@@ -48,6 +48,7 @@ import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -264,7 +265,7 @@ public class SortedSSTableWriter
                                                       Collections.emptyList() /* requestedFeatures */,
                                                       false /* useSSTableInputStream */,
                                                       null /* statsClass */,
-                                                      null,
+                                                      SSTableTimeRangeFilter.EMPTY,
                                                       outputDirectory.toString());
             if (dataFilePaths != null)
             {

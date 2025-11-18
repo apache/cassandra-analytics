@@ -39,7 +39,7 @@ import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
-import org.apache.cassandra.spark.sparksql.filters.TimeRangeFilter;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -84,7 +84,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
          */
         StreamScanner<RowData> get(int partitionId,
                                    @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                                   @NotNull List<TimeRangeFilter> timeRangeFilters,
+                                   @NotNull List<SSTableTimeRangeFilter> SSTableTimeRangeFilters,
                                    @Nullable PruneColumnFilter columnFilter);
     }
 
@@ -93,7 +93,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
                         Stats stats,
                         TypeConverter typeConverter,
                         @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                        @NotNull List<TimeRangeFilter> timeRangeFilters,
+                        @NotNull List<SSTableTimeRangeFilter> sstableTimeRangeFilters,
                         Function<CqlTable, PruneColumnFilter> columnFilterSupplier,
                         ScannerSupplier scannerSupplier)
     {
@@ -119,7 +119,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
         // Open compaction scanner
         startTimeNanos = System.nanoTime();
         previousTimeNanos = startTimeNanos;
-        scanner = scannerSupplier.get(partitionId, partitionKeyFilters, timeRangeFilters, columnFilter);
+        scanner = scannerSupplier.get(partitionId, partitionKeyFilters, sstableTimeRangeFilters, columnFilter);
         long openTimeNanos = System.nanoTime() - startTimeNanos;
         LOGGER.info("Opened CompactionScanner runtimeNanos={}", openTimeNanos);
         stats.openedCompactionScanner(openTimeNanos);
