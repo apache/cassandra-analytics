@@ -36,7 +36,7 @@ and dependencies will build there instead of local to the project.
 In order to build the necessary dependencies, please run the following:
 
 ```shell
-./scripts/build-dependencies.sh
+CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
 ```
 
 This will build both the necessary dtest jars and the sidecar libraries/package necessary for build and test.
@@ -66,18 +66,8 @@ gradle wrapper
 Navigate to the top-level directory for this project:
 
 ```shell
-./gradlew clean assemble -PartifactType=common
-./gradlew assemble -PartifactType=spark
-```
-
-### Spark 3 and Scala 2.12
-
-To build for Spark 3 and Scala 2.12, export both `SCALA_VERSION=2.12` and `SPARK_VERSION=3`:
-
-```shell
-export SCALA_VERSION=2.12
-export SPARK_VERSION=3
-./gradlew clean assemble
+SCALA_VERSION=2.13 SPARK_VERSION=3 ./gradlew clean assemble -PartifactType=common
+SCALA_VERSION=2.13 SPARK_VERSION=3 ./gradlew assemble -PartifactType=spark
 ```
 
 ### Git hooks (optional)
