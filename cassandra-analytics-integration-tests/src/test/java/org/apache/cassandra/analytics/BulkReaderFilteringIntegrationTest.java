@@ -33,7 +33,6 @@ import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
-import org.testcontainers.shaded.com.google.common.util.concurrent.Uninterruptibles;
 
 import static org.apache.cassandra.spark.data.ClientConfig.SSTABLE_END_TIMESTAMP_MICROS;
 import static org.apache.cassandra.spark.data.ClientConfig.SSTABLE_START_TIMESTAMP_MICROS;
@@ -41,6 +40,7 @@ import static org.apache.cassandra.testing.TestUtils.DC1_RF1;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.apache.cassandra.testing.TestUtils.uniqueTestTableFullName;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Integration test for various filters used during bulk reading.
@@ -50,6 +50,7 @@ class BulkReaderFilteringIntegrationTest extends SharedClusterSparkIntegrationTe
     static final int DATA_SIZE = 1000;
 
     QualifiedName twcsTable = uniqueTestTableFullName(TEST_KEYSPACE);
+    QualifiedName lcsTable = uniqueTestTableFullName(TEST_KEYSPACE);
 
     // Use base timestamp that's 10 minutes in the past
     static final long BASE_TIMESTAMP_MILLIS = System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(10);
@@ -135,6 +136,24 @@ class BulkReaderFilteringIntegrationTest extends SharedClusterSparkIntegrationTe
         assertThat(rows.size()).isEqualTo(0); // no data read
     }
 
+    @Test
+    void testTimeRangeFilterWithoutTWCS()
+    {
+        // Attempt to use time range filter with non-TWCS table should throw exception
+        Map<String, String> timeRangeOptions = Map.of(
+            SSTABLE_START_TIMESTAMP_MICROS, Long.valueOf(EARLY_TIMESTAMP_MICROS).toString(),
+            SSTABLE_END_TIMESTAMP_MICROS, Long.valueOf(LATE_TIMESTAMP_MICROS).toString()
+        );
+
+        assertThatThrownBy(() -> {
+            Dataset<Row> data = bulkReaderDataFrame(lcsTable, timeRangeOptions).load();
+            data.collectAsList();
+        })
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessage("SSTableTimeRangeFilter is only supported with TimeWindowCompactionStrategy. " +
+                    "Current compaction strategy is: org.apache.cassandra.db.compaction.LeveledCompactionStrategy");
+    }
+
     private void runTimeRangeFilterTest(Map<String, String> timeRangeOptions,
                                         int expectedDataSize,
                                         Set<Long> expectedTimestamps)
@@ -156,6 +175,8 @@ class BulkReaderFilteringIntegrationTest extends SharedClusterSparkIntegrationTe
     protected void initializeSchemaForTest()
     {
         createTestKeyspace(TEST_KEYSPACE, DC1_RF1);
+        IInstance instance = cluster.getFirstRunningInstance();
+        ICoordinator coordinator = instance.coordinator();
 
         // Initialize schema for SSTable time range filtering
 
@@ -170,10 +191,20 @@ class BulkReaderFilteringIntegrationTest extends SharedClusterSparkIntegrationTe
                                    "    'compaction_window_unit': 'MINUTES'" +
                                    "};");
 
-        // create 3 SSTables in 3 time windows, each SSTable created 2 mins apart
-        IInstance instance = cluster.getFirstRunningInstance();
-        ICoordinator coordinator = instance.coordinator();
+        createTestTable(lcsTable, "CREATE TABLE IF NOT EXISTS %s (" +
+                                  "    id text PRIMARY KEY," +
+                                  "    data text" +
+                                  ") WITH compaction = {" +
+                                  "    'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'" +
+                                  "};");
+        for (int i = 0; i < 10; i++)
+        {
+            String query = String.format("INSERT INTO %s (id, data) VALUES ('%s', 'data_%s')", lcsTable, i, "data" + i);
+            coordinator.execute(query, ConsistencyLevel.ALL);
+        }
+        instance.nodetool("flush", TEST_KEYSPACE, lcsTable.table());
 
+        // create 3 SSTables in 3 time windows, each SSTable created 2 mins apart
         // Insert early data with early timestamps
         for (int i = 0; i < DATA_SIZE; i++)
         {

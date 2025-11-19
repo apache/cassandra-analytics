@@ -207,7 +207,7 @@ public abstract class DataLayer implements Serializable
     @NotNull
     public SSTableTimeRangeFilter sstableTimeRangeFilter()
     {
-        return SSTableTimeRangeFilter.EMPTY;
+        return SSTableTimeRangeFilter.ALL;
     }
 
     /**

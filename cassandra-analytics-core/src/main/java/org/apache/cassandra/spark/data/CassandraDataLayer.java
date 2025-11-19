@@ -299,9 +299,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         Set<String> udts = CqlUtils.extractUdts(fullSchema, keyspace);
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(fullSchema, keyspace);
 
-        String compactionStrategy = CqlUtils.extractCompactionStrategy(createStmt);
+        String tableSchemaWithProps = CqlUtils.extractTableSchema(fullSchema, keyspace, table, true);
+        String compactionStrategy = CqlUtils.extractCompactionStrategy(tableSchemaWithProps);
         if (sstableTimeRangeFilter != null
-            && sstableTimeRangeFilter != SSTableTimeRangeFilter.EMPTY
+            && sstableTimeRangeFilter != SSTableTimeRangeFilter.ALL
             && !isTimeRangeFilterSupported(compactionStrategy))
         {
             throw new UnsupportedOperationException("SSTableTimeRangeFilter is only supported with TimeWindowCompactionStrategy. " +

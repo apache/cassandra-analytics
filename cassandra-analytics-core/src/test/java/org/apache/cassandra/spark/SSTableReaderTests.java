@@ -106,7 +106,7 @@ public class SSTableReaderTests
                                                                               ssTableSupplier,
                                                                               null,
                                                                               Collections.emptyList(),
-                                                                              SSTableTimeRangeFilter.EMPTY,
+                                                                              SSTableTimeRangeFilter.ALL,
                                                                               null,
                                                                               navigatableTimeProvider,
                                                                               false,
@@ -281,10 +281,10 @@ public class SSTableReaderTests
             // No time range filter - should read all data
             int rowCount = 0;
             try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(
-                    table, partitioner, ssTableSupplier, null, Collections.emptyList(),
-                    SSTableTimeRangeFilter.EMPTY, // Empty filter
-                    null, TimeProvider.DEFAULT,
-                    false, false, Stats.DoNothingStats.INSTANCE))
+            table, partitioner, ssTableSupplier, null, Collections.emptyList(),
+            SSTableTimeRangeFilter.ALL, // Empty filter
+            null, TimeProvider.DEFAULT,
+            false, false, Stats.DoNothingStats.INSTANCE))
             {
                 while (scanner.next())
                 {

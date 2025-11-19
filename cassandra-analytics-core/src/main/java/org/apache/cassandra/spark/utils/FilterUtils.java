@@ -123,7 +123,7 @@ public final class FilterUtils
     {
         if (!options.containsKey(SSTABLE_START_TIMESTAMP_MICROS) && !options.containsKey(SSTABLE_END_TIMESTAMP_MICROS))
         {
-            return SSTableTimeRangeFilter.EMPTY;
+            return SSTableTimeRangeFilter.ALL;
         }
 
         long startTimestamp = MapUtils.getLong(options, SSTABLE_START_TIMESTAMP_MICROS, 0L);

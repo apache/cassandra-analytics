@@ -305,7 +305,7 @@ public class PartitionedDataLayerTests extends VersionRunner
         // Filter does not fall in spark token range
         StreamScanner scanner = dataLayer.openCompactionScanner(partitionId,
                                                                 Collections.singletonList(filterOutsideRange),
-                                                                SSTableTimeRangeFilter.EMPTY);
+                                                                SSTableTimeRangeFilter.ALL);
         assertThat(scanner).isInstanceOf(EmptyStreamScanner.class);
     }
 

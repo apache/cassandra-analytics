@@ -32,14 +32,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public class SSTableTimeRangeFilter implements Serializable
 {
-    public static final SSTableTimeRangeFilter EMPTY = new SSTableTimeRangeFilter(Range.closed(0L, 0L))
-    {
-        @Override
-        public boolean overlaps(long startMicros, long endMicros)
-        {
-            return true; // accepts all SSTables
-        }
-    };
+    public static final SSTableTimeRangeFilter ALL = new SSTableTimeRangeFilter(Range.all());
 
     /**
      * {@code timeRange} is range of timestamp values represented in microseconds. Supports only closed range.

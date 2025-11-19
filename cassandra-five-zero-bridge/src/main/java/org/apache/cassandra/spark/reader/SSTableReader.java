@@ -147,7 +147,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         @NotNull
         final List<PartitionKeyFilter> partitionKeyFilters = new ArrayList<>();
         @NotNull
-        SSTableTimeRangeFilter sstableTimeRangeFilter = SSTableTimeRangeFilter.EMPTY;
+        SSTableTimeRangeFilter sstableTimeRangeFilter = SSTableTimeRangeFilter.ALL;
 
         Builder(@NotNull TableMetadata metadata, @NotNull SSTable ssTable)
         {
@@ -320,7 +320,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             header = null;
             helper = null;
             this.metadata = null;
-            this.sstableTimeRangeFilter = SSTableTimeRangeFilter.EMPTY;
+            this.sstableTimeRangeFilter = SSTableTimeRangeFilter.ALL;
             return;
         }
 
@@ -347,7 +347,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
                 header = null;
                 helper = null;
                 this.metadata = null;
-                this.sstableTimeRangeFilter = SSTableTimeRangeFilter.EMPTY;
+                this.sstableTimeRangeFilter = SSTableTimeRangeFilter.ALL;
                 return;
             }
         }
@@ -373,7 +373,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             header = null;
             helper = null;
             this.metadata = null;
-            this.sstableTimeRangeFilter = SSTableTimeRangeFilter.EMPTY;
+            this.sstableTimeRangeFilter = SSTableTimeRangeFilter.ALL;
             return;
         }
         else

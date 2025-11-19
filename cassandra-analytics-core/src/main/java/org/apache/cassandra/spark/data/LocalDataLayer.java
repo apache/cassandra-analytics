@@ -201,7 +201,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
              Collections.emptyList(),
              false,
              null,
-             SSTableTimeRangeFilter.EMPTY,
+             SSTableTimeRangeFilter.ALL,
              paths);
     }
 
@@ -219,7 +219,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
              Collections.emptyList(),
              false,
              null,
-             SSTableTimeRangeFilter.EMPTY,
+             SSTableTimeRangeFilter.ALL,
              paths);
     }
 
@@ -249,7 +249,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
         this.statsClass = statsClass;
         this.sstableTimeRangeFilter = sstableTimeRangeFilter;
         String compactionStrategy = CqlUtils.extractCompactionStrategy(cqlTable.createStatement());
-        if (sstableTimeRangeFilter != SSTableTimeRangeFilter.EMPTY
+        if (sstableTimeRangeFilter != SSTableTimeRangeFilter.ALL
             && !isTimeRangeFilterSupported(compactionStrategy))
         {
             throw new UnsupportedOperationException("SSTableTimeRangeFilter is only supported with TimeWindowCompactionStrategy. " +

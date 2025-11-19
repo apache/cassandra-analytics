@@ -143,7 +143,7 @@ class ClientConfigTests
         Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
         ClientConfig clientConfig = ClientConfig.create(options);
         SSTableTimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
-        assertThat(filter).isEqualTo(SSTableTimeRangeFilter.EMPTY);
+        assertThat(filter).isEqualTo(SSTableTimeRangeFilter.ALL);
     }
 
     @Test

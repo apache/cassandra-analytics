@@ -150,7 +150,7 @@ public final class CqlUtils
         {
             String keyspace = matcher.group(1);
             String table = matcher.group(2);
-            createStmts.put(TableIdentifier.of(keyspace, table), extractCleanedTableSchema(cleaned, keyspace, table));
+            createStmts.put(TableIdentifier.of(keyspace, table), extractTableSchema(cleaned, keyspace, table));
         }
         return createStmts;
     }
@@ -182,19 +182,20 @@ public final class CqlUtils
 
     public static String extractTableSchema(@NotNull String schemaStr, @NotNull String keyspace, @NotNull String table)
     {
-        return extractCleanedTableSchema(cleanCql(schemaStr), keyspace, table);
+        return extractTableSchema(schemaStr, keyspace, table, false);
     }
 
-    public static String extractCleanedTableSchema(@NotNull String createStatementToClean,
-                                                   @NotNull String keyspace,
-                                                   @NotNull String table)
+    public static String extractTableSchema(@NotNull String createStatementToClean,
+                                            @NotNull String keyspace,
+                                            @NotNull String table,
+                                            boolean withTableProps)
     {
         Pattern pattern = Pattern.compile(String.format("CREATE TABLE (IF NOT EXISTS)? ?\"?%s?\"?\\.{1}\"?%s\"?[^;]*;", keyspace, table));
         Matcher matcher = pattern.matcher(createStatementToClean);
         if (matcher.find())
         {
             String fullSchema = createStatementToClean.substring(matcher.start(0), matcher.end(0));
-            String redactedSchema = removeTableProps(fullSchema);
+            String redactedSchema = withTableProps ? fullSchema : removeTableProps(fullSchema);
             String clustering = extractClustering(fullSchema);
             String separator = " WITH ";
             if (clustering != null)
@@ -275,12 +276,12 @@ public final class CqlUtils
     /**
      * Extracts the compaction strategy used from table schema.
      *
-     * @param schema table schema
+     * @param tableSchema table schema
      * @return the compaction strategy, or null if not found
      */
-    public static String extractCompactionStrategy(@NotNull String schema)
+    public static String extractCompactionStrategy(@NotNull String tableSchema)
     {
-        Matcher matcher = COMPACTION_STRATEGY_PATTERN.matcher(schema);
+        Matcher matcher = COMPACTION_STRATEGY_PATTERN.matcher(tableSchema);
         if (matcher.find())
         {
             return matcher.group(1);
@@ -295,6 +296,6 @@ public final class CqlUtils
      */
     public static boolean isTimeRangeFilterSupported(String compactionStrategy)
     {
-        return !isNullOrEmpty(compactionStrategy) && compactionStrategy.endsWith("TimeWindowCompactionStrategy");
+        return compactionStrategy == null || compactionStrategy.endsWith("TimeWindowCompactionStrategy");
     }
 }

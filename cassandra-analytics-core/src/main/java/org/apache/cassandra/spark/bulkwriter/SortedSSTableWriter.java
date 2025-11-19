@@ -265,7 +265,7 @@ public class SortedSSTableWriter
                                                       Collections.emptyList() /* requestedFeatures */,
                                                       false /* useSSTableInputStream */,
                                                       null /* statsClass */,
-                                                      SSTableTimeRangeFilter.EMPTY,
+                                                      SSTableTimeRangeFilter.ALL,
                                                       outputDirectory.toString());
             if (dataFilePaths != null)
             {
