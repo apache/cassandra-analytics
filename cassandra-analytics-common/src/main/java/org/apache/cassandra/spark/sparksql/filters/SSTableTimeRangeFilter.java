@@ -24,6 +24,9 @@ import java.util.Objects;
 
 import com.google.common.collect.Range;
 
+import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.io.Input;
+import com.esotericsoftware.kryo.io.Output;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -32,7 +35,8 @@ import org.jetbrains.annotations.NotNull;
  */
 public class SSTableTimeRangeFilter implements Serializable
 {
-    public static final SSTableTimeRangeFilter ALL = new SSTableTimeRangeFilter(Range.all());
+    public static final SSTableTimeRangeFilter ALL
+    = new SSTableTimeRangeFilter(Range.closed(0L, Long.MAX_VALUE));
 
     /**
      * {@code timeRange} is range of timestamp values represented in microseconds. Supports only closed range.
@@ -46,8 +50,14 @@ public class SSTableTimeRangeFilter implements Serializable
      */
     private SSTableTimeRangeFilter(Range<Long> timeRange)
     {
+        this(timeRange, Objects.hash(timeRange));
+    }
+
+    // for serialization
+    private SSTableTimeRangeFilter(Range<Long> timeRange, int hashcode)
+    {
         this.timeRange = timeRange;
-        this.hashcode = Objects.hash(timeRange);
+        this.hashcode = hashcode;
     }
 
     /**
@@ -116,5 +126,22 @@ public class SSTableTimeRangeFilter implements Serializable
     public static SSTableTimeRangeFilter create(long startMicros, long endMicros)
     {
         return new SSTableTimeRangeFilter(Range.closed(startMicros, endMicros));
+    }
+
+    // Kryo
+
+    public static class Serializer extends com.esotericsoftware.kryo.Serializer<SSTableTimeRangeFilter>
+    {
+        public SSTableTimeRangeFilter read(Kryo kryo, Input in, Class<SSTableTimeRangeFilter> type)
+        {
+            return new SSTableTimeRangeFilter(Range.closed(in.readLong(), in.readLong()), in.readInt());
+        }
+
+        public void write(Kryo kryo, Output out, SSTableTimeRangeFilter object)
+        {
+            out.writeLong(object.timeRange.lowerEndpoint());
+            out.writeLong(object.timeRange.upperEndpoint());
+            out.writeInt(object.hashcode);
+        }
     }
 }

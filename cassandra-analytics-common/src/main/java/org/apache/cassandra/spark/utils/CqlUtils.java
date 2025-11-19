@@ -148,7 +148,7 @@ public final class CqlUtils
         {
             String keyspace = matcher.group(1);
             String table = matcher.group(2);
-            createStmts.put(TableIdentifier.of(keyspace, table), extractTableSchema(cleaned, keyspace, table));
+            createStmts.put(TableIdentifier.of(keyspace, table), extractCleanedTableSchema(cleaned, keyspace, table, false));
         }
         return createStmts;
     }
@@ -180,13 +180,13 @@ public final class CqlUtils
 
     public static String extractTableSchema(@NotNull String schemaStr, @NotNull String keyspace, @NotNull String table)
     {
-        return extractTableSchema(schemaStr, keyspace, table, false);
+        return extractCleanedTableSchema(cleanCql(schemaStr), keyspace, table, false);
     }
 
-    public static String extractTableSchema(@NotNull String createStatementToClean,
-                                            @NotNull String keyspace,
-                                            @NotNull String table,
-                                            boolean withTableProps)
+    public static String extractCleanedTableSchema(@NotNull String createStatementToClean,
+                                                   @NotNull String keyspace,
+                                                   @NotNull String table,
+                                                   boolean withTableProps)
     {
         Pattern pattern = Pattern.compile(String.format("CREATE TABLE (IF NOT EXISTS)? ?\"?%s?\"?\\.{1}\"?%s\"?[^;]*;", keyspace, table));
         Matcher matcher = pattern.matcher(createStatementToClean);

@@ -299,7 +299,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         Set<String> udts = CqlUtils.extractUdts(fullSchema, keyspace);
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(fullSchema, keyspace);
 
-        String tableSchemaWithProps = CqlUtils.extractTableSchema(fullSchema, keyspace, table, true);
+        String tableSchemaWithProps = CqlUtils.extractCleanedTableSchema(fullSchema, keyspace, table, true);
         String compactionStrategy = CqlUtils.extractCompactionStrategy(tableSchemaWithProps);
         if (sstableTimeRangeFilter != null
             && sstableTimeRangeFilter != SSTableTimeRangeFilter.ALL
