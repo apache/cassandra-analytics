@@ -39,8 +39,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.jetbrains.annotations.NotNull;
 
-import static com.google.common.base.Strings.isNullOrEmpty;
-
 /**
  * CQL-related utility methods
  */
