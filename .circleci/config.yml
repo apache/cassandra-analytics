@@ -68,7 +68,6 @@ commands:
           command: |
             # Run compile/unit tests, skipping integration tests
             ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=<<parameters.sstable_format>>
-          no_output_timeout: 20m
 
   run_integration:
     parameters:
