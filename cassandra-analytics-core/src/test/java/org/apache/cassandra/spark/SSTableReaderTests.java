@@ -282,7 +282,7 @@ public class SSTableReaderTests
             int rowCount = 0;
             try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(
                     table, partitioner, ssTableSupplier, null, Collections.emptyList(),
-                    SSTableTimeRangeFilter.EMPTY, // Empty filter list
+                    SSTableTimeRangeFilter.EMPTY, // Empty filter
                     null, TimeProvider.DEFAULT,
                     false, false, Stats.DoNothingStats.INSTANCE))
             {

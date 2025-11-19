@@ -302,6 +302,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
         return true;
     }
 
+    @NotNull
     @Override
     public SSTableTimeRangeFilter sstableTimeRangeFilter()
     {

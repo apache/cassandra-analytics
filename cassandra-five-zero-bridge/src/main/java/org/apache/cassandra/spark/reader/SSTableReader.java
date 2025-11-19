@@ -366,9 +366,9 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         }
 
         this.statsMetadata = (StatsMetadata) componentMap.get(MetadataType.STATS);
-        if (!overlapsTimeRange(this.statsMetadata, sstableTimeRangeFilter))
+        if (!sstableTimeRangeFilter.overlaps(statsMetadata.minTimestamp, statsMetadata.maxTimestamp))
         {
-            LOGGER.info("Ignoring SSTableReader with minTimestamp={} maxTimestamp={}, does not overlap with any filter {}",
+            LOGGER.info("Ignoring SSTableReader with minTimestamp={} maxTimestamp={}, does not overlap with filter {}",
                         this.statsMetadata.minTimestamp, this.statsMetadata.maxTimestamp, sstableTimeRangeFilter);
             header = null;
             helper = null;
@@ -445,20 +445,6 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         reader.set(new SSTableStreamReader());
         stats.openedSSTable(ssTable, System.nanoTime() - startTimeNanos);
         this.openedNanos = System.nanoTime();
-    }
-
-    private boolean overlapsTimeRange(StatsMetadata statsMetadata, SSTableTimeRangeFilter sstableTimeRangeFilter)
-    {
-        long ssTableMinTimestamp = statsMetadata.minTimestamp;
-        long ssTableMaxTimestamp = statsMetadata.maxTimestamp;
-
-        if (sstableTimeRangeFilter.overlaps(ssTableMinTimestamp, ssTableMaxTimestamp))
-        {
-            LOGGER.debug("SSTable with minTimestamp={} maxTimestamp={}, overlapped with filter {}",
-                         ssTableMinTimestamp, ssTableMaxTimestamp, sstableTimeRangeFilter);
-            return true;
-        }
-        return false;
     }
 
     private static Map<ByteBuffer, DroppedColumn> buildDroppedColumns(String keyspace,

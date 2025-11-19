@@ -199,7 +199,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                                        @NotNull SSTablesSupplier ssTables,
                                                        @Nullable SparkRangeFilter sparkRangeFilter,
                                                        @NotNull Collection<PartitionKeyFilter> partitionKeyFilters,
-                                                       @NotNull SSTableTimeRangeFilter ssableTimeRangeFilter,
+                                                       @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                                                        @Nullable PruneColumnFilter columnFilter,
                                                        @NotNull TimeProvider timeProvider,
                                                        boolean readIndexOffset,
@@ -213,7 +213,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
             return org.apache.cassandra.spark.reader.SSTableReader.builder(metadata, ssTable)
                                                                   .withSparkRangeFilter(sparkRangeFilter)
                                                                   .withPartitionKeyFilters(partitionKeyFilters)
-                                                                  .withTimeRangeFilter(ssableTimeRangeFilter)
+                                                                  .withTimeRangeFilter(sstableTimeRangeFilter)
                                                                   .withColumnFilter(columnFilter)
                                                                   .withReadIndexOffset(readIndexOffset)
                                                                   .withStats(stats)
