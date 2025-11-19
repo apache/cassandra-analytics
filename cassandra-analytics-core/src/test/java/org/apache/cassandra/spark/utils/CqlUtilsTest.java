@@ -818,17 +818,17 @@ public class CqlUtilsTest extends VersionRunner
                                "WITH compaction = { 'class' : 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'};";
         String lcsCompaction = extractCompactionStrategy(schemaWithLCS);
         assertThat(lcsCompaction).isEqualTo("org.apache.cassandra.db.compaction.LeveledCompactionStrategy");
-        assertThat(isTimeRangeFilterSupported(lcsCompaction)).isTrue();
+        assertThat(isTimeRangeFilterSupported(lcsCompaction)).isFalse();
 
         String schemaWithSTCS = "CREATE TABLE k.t (a int PRIMARY KEY, b int) " +
                                 "WITH compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'};";
         String stcsCompaction = extractCompactionStrategy(schemaWithSTCS);
-        assertThat(isTimeRangeFilterSupported(stcsCompaction)).isTrue();
+        assertThat(isTimeRangeFilterSupported(stcsCompaction)).isFalse();
 
         String schemaNoCompaction = "CREATE TABLE k.t (a int PRIMARY KEY, b int);";
         String nullCompaction = extractCompactionStrategy(schemaNoCompaction);
         assertThat(nullCompaction).isNull();
-        assertThat(isTimeRangeFilterSupported(nullCompaction)).isFalse();
+        assertThat(isTimeRangeFilterSupported(nullCompaction)).isTrue();
 
         assertThat(isTimeRangeFilterSupported("")).isFalse();
     }
