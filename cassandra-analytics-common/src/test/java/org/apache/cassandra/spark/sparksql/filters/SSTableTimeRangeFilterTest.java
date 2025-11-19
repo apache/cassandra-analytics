@@ -75,7 +75,7 @@ class SSTableTimeRangeFilterTest
         SSTableTimeRangeFilter maxBoundRange = SSTableTimeRangeFilter.create(0, Long.MAX_VALUE);
         assertThat(maxBoundRange.toString()).isEqualTo("TimeRangeFilter[0‥9223372036854775807]");
 
-        assertThat(SSTableTimeRangeFilter.ALL.toString()).isEqualTo("TimeRangeFilter[0‥0]");
+        assertThat(SSTableTimeRangeFilter.ALL.toString()).isEqualTo("TimeRangeFilter(-∞‥+∞)");
     }
 
     @Test
