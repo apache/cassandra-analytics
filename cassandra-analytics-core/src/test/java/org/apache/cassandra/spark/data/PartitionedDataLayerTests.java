@@ -51,6 +51,7 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.TaskContext;
 
@@ -303,7 +304,7 @@ public class PartitionedDataLayerTests extends VersionRunner
         // Filter does not fall in spark token range
         StreamScanner scanner = dataLayer.openCompactionScanner(partitionId,
                                                                 Collections.singletonList(filterOutsideRange),
-                                                                List.of());
+                                                                SSTableTimeRangeFilter.EMPTY);
     }
 
     @SuppressWarnings("UnstableApiUsage")

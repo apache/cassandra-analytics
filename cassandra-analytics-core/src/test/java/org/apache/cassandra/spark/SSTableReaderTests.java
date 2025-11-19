@@ -23,7 +23,6 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -107,7 +106,7 @@ public class SSTableReaderTests
                                                                               ssTableSupplier,
                                                                               null,
                                                                               Collections.emptyList(),
-                                                                              List.of(),
+                                                                              SSTableTimeRangeFilter.EMPTY,
                                                                               null,
                                                                               navigatableTimeProvider,
                                                                               false,
@@ -185,7 +184,7 @@ public class SSTableReaderTests
             int rowCount = 0;
             try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(
                     table, partitioner, ssTableSupplier, null, Collections.emptyList(),
-                    List.of(futureFilter), null, TimeProvider.DEFAULT,
+                    futureFilter, null, TimeProvider.DEFAULT,
                     false, false, Stats.DoNothingStats.INSTANCE))
             {
                 while (scanner.next())
@@ -237,7 +236,7 @@ public class SSTableReaderTests
             int rowCount = 0;
             try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(
                     table, partitioner, ssTableSupplier, null, Collections.emptyList(),
-                    List.of(includingFilter), null, TimeProvider.DEFAULT,
+                    includingFilter, null, TimeProvider.DEFAULT,
                     false, false, Stats.DoNothingStats.INSTANCE))
             {
                 while (scanner.next())
@@ -283,7 +282,7 @@ public class SSTableReaderTests
             int rowCount = 0;
             try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(
                     table, partitioner, ssTableSupplier, null, Collections.emptyList(),
-                    List.of(), // Empty filter list
+                    SSTableTimeRangeFilter.EMPTY, // Empty filter list
                     null, TimeProvider.DEFAULT,
                     false, false, Stats.DoNothingStats.INSTANCE))
             {

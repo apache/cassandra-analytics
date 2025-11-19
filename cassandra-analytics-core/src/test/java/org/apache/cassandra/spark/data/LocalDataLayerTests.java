@@ -31,7 +31,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
@@ -113,10 +112,9 @@ public class LocalDataLayerTests extends VersionRunner
 
         LocalDataLayer dataLayer = LocalDataLayer.from(options);
 
-        List<SSTableTimeRangeFilter> filters = dataLayer.sstableTimeRangeFilters();
-        assertThat(filters).hasSize(1);
-        assertThat(filters.get(0).range().lowerEndpoint()).isEqualTo(1000L);
-        assertThat(filters.get(0).range().upperEndpoint()).isEqualTo(2000L);
+        SSTableTimeRangeFilter filter = dataLayer.sstableTimeRangeFilter();
+        assertThat(filter.range().lowerEndpoint()).isEqualTo(1000L);
+        assertThat(filter.range().upperEndpoint()).isEqualTo(2000L);
     }
 
     @ParameterizedTest
@@ -141,13 +139,12 @@ public class LocalDataLayerTests extends VersionRunner
         ByteArrayOutputStream baos = serialize(dataLayer);
         LocalDataLayer deserialized = deserialize(baos);
 
-        List<SSTableTimeRangeFilter> filters = deserialized.sstableTimeRangeFilters();
-        assertThat(filters).hasSize(1);
-        assertThat(filters.get(0)).isEqualTo(filter);
-        assertThat(filters.get(0).range().lowerEndpoint()).isEqualTo(1000L);
-        assertThat(filters.get(0).range().upperEndpoint()).isEqualTo(2000L);
-        assertThat(filters.get(0).range().lowerBoundType()).isEqualTo(CLOSED);
-        assertThat(filters.get(0).range().upperBoundType()).isEqualTo(CLOSED);
+        SSTableTimeRangeFilter deserializedFilter = deserialized.sstableTimeRangeFilter();
+        assertThat(deserializedFilter).isEqualTo(filter);
+        assertThat(deserializedFilter.range().lowerEndpoint()).isEqualTo(1000L);
+        assertThat(deserializedFilter.range().upperEndpoint()).isEqualTo(2000L);
+        assertThat(deserializedFilter.range().lowerBoundType()).isEqualTo(CLOSED);
+        assertThat(deserializedFilter.range().upperBoundType()).isEqualTo(CLOSED);
     }
 
     private ByteArrayOutputStream serialize(LocalDataLayer dataLayer) throws Exception

@@ -119,7 +119,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
     @NotNull
     private final List<PartitionKeyFilter> partitionKeyFilters;
     @NotNull
-    private final List<SSTableTimeRangeFilter> sstableTimeRangeFilters;
+    private final SSTableTimeRangeFilter sstableTimeRangeFilter;
     @NotNull
     private final Stats stats;
     @Nullable
@@ -147,7 +147,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         @NotNull
         final List<PartitionKeyFilter> partitionKeyFilters = new ArrayList<>();
         @NotNull
-        List<SSTableTimeRangeFilter> sstableTimeRangeFilters = new ArrayList<>();
+        SSTableTimeRangeFilter sstableTimeRangeFilter = SSTableTimeRangeFilter.EMPTY;
 
         Builder(@NotNull TableMetadata metadata, @NotNull SSTable ssTable)
         {
@@ -176,11 +176,11 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             return this;
         }
 
-        public Builder withTimeRangeFilters(@Nullable Collection<SSTableTimeRangeFilter> sstableTimeRangeFilters)
+        public Builder withTimeRangeFilter(@Nullable SSTableTimeRangeFilter sstableTimeRangeFilter)
         {
-            if (sstableTimeRangeFilters != null)
+            if (sstableTimeRangeFilter != null)
             {
-                this.sstableTimeRangeFilters.addAll(sstableTimeRangeFilters);
+                this.sstableTimeRangeFilter = sstableTimeRangeFilter;
             }
             return this;
         }
@@ -227,7 +227,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
                                      ssTable,
                                      sparkRangeFilter,
                                      partitionKeyFilters,
-                                     sstableTimeRangeFilters,
+                                     sstableTimeRangeFilter,
                                      columnFilter,
                                      readIndexOffset,
                                      stats,
@@ -247,7 +247,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
                          @NotNull SSTable ssTable,
                          @Nullable SparkRangeFilter sparkRangeFilter,
                          @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                         @NotNull List<SSTableTimeRangeFilter> SSTableTimeRangeFilters,
+                         @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                          @Nullable PruneColumnFilter columnFilter,
                          boolean readIndexOffset,
                          @NotNull Stats stats,
@@ -320,7 +320,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             header = null;
             helper = null;
             this.metadata = null;
-            this.sstableTimeRangeFilters = List.of();
+            this.sstableTimeRangeFilter = SSTableTimeRangeFilter.EMPTY;
             return;
         }
 
@@ -347,7 +347,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
                 header = null;
                 helper = null;
                 this.metadata = null;
-                this.sstableTimeRangeFilters = List.of();
+                this.sstableTimeRangeFilter = SSTableTimeRangeFilter.EMPTY;
                 return;
             }
         }
@@ -366,19 +366,19 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         }
 
         this.statsMetadata = (StatsMetadata) componentMap.get(MetadataType.STATS);
-        if (!overlapsTimeRange(this.statsMetadata, SSTableTimeRangeFilters))
+        if (!overlapsTimeRange(this.statsMetadata, sstableTimeRangeFilter))
         {
-            this.sstableTimeRangeFilters = List.of();
             LOGGER.info("Ignoring SSTableReader with minTimestamp={} maxTimestamp={}, does not overlap with any filter {}",
-                        this.statsMetadata.minTimestamp, this.statsMetadata.maxTimestamp, SSTableTimeRangeFilters);
+                        this.statsMetadata.minTimestamp, this.statsMetadata.maxTimestamp, sstableTimeRangeFilter);
             header = null;
             helper = null;
             this.metadata = null;
+            this.sstableTimeRangeFilter = SSTableTimeRangeFilter.EMPTY;
             return;
         }
         else
         {
-            this.sstableTimeRangeFilters = List.copyOf(SSTableTimeRangeFilters);
+            this.sstableTimeRangeFilter = sstableTimeRangeFilter;
         }
 
         SerializationHeader.Component headerComp = (SerializationHeader.Component) componentMap.get(MetadataType.HEADER);
@@ -447,23 +447,16 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         this.openedNanos = System.nanoTime();
     }
 
-    private boolean overlapsTimeRange(StatsMetadata statsMetadata, List<SSTableTimeRangeFilter> SSTableTimeRangeFilters)
+    private boolean overlapsTimeRange(StatsMetadata statsMetadata, SSTableTimeRangeFilter sstableTimeRangeFilter)
     {
-        if (SSTableTimeRangeFilters.isEmpty())
-        {
-            return true;
-        }
-
         long ssTableMinTimestamp = statsMetadata.minTimestamp;
         long ssTableMaxTimestamp = statsMetadata.maxTimestamp;
-        for (SSTableTimeRangeFilter sstableTimeRangeFilter : SSTableTimeRangeFilters)
+
+        if (sstableTimeRangeFilter.overlaps(ssTableMinTimestamp, ssTableMaxTimestamp))
         {
-            if (sstableTimeRangeFilter.overlaps(ssTableMinTimestamp, ssTableMaxTimestamp))
-            {
-                LOGGER.debug("SSTable with minTimestamp={} maxTimestamp={}, overlapped with filter {}",
-                             ssTableMinTimestamp, ssTableMaxTimestamp, sstableTimeRangeFilter);
-                return true;
-            }
+            LOGGER.debug("SSTable with minTimestamp={} maxTimestamp={}, overlapped with filter {}",
+                         ssTableMinTimestamp, ssTableMaxTimestamp, sstableTimeRangeFilter);
+            return true;
         }
         return false;
     }

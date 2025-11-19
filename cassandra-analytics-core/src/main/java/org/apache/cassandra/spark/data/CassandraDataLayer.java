@@ -504,9 +504,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     }
 
     @Override
-    public List<SSTableTimeRangeFilter> sstableTimeRangeFilters()
+    public SSTableTimeRangeFilter sstableTimeRangeFilter()
     {
-        return List.of(sstableTimeRangeFilter);
+        return sstableTimeRangeFilter;
     }
 
     @Override

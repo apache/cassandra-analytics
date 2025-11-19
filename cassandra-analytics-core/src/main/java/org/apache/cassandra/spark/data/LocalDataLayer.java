@@ -303,9 +303,9 @@ public class LocalDataLayer extends DataLayer implements Serializable
     }
 
     @Override
-    public List<SSTableTimeRangeFilter> sstableTimeRangeFilters()
+    public SSTableTimeRangeFilter sstableTimeRangeFilter()
     {
-        return List.of(sstableTimeRangeFilter);
+        return sstableTimeRangeFilter;
     }
 
     @Override

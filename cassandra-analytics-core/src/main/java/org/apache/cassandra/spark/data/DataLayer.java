@@ -200,14 +200,13 @@ public abstract class DataLayer implements Serializable
     }
 
     /**
-     * Returns a list of {@link SSTableTimeRangeFilter} to filter out SSTables based on min and max timestamp.
+     * Returns {@link SSTableTimeRangeFilter} to filter out SSTables based on min and max timestamp.
      *
-     * @return list of {@link SSTableTimeRangeFilter} for filtering SSTables based on max and min timestamps. When
-     * the list is empty, all SSTables are included for bulk reading.
+     * @return {@link SSTableTimeRangeFilter}
      */
-    public List<SSTableTimeRangeFilter> sstableTimeRangeFilters()
+    public SSTableTimeRangeFilter sstableTimeRangeFilter()
     {
-        return List.of();
+        return SSTableTimeRangeFilter.EMPTY;
     }
 
     /**
@@ -236,9 +235,9 @@ public abstract class DataLayer implements Serializable
      */
     public abstract String jobId();
 
-    public StreamScanner openCompactionScanner(int partitionId, List<PartitionKeyFilter> partitionKeyFilters, List<SSTableTimeRangeFilter> sstableTimeRangeFilters)
+    public StreamScanner openCompactionScanner(int partitionId, List<PartitionKeyFilter> partitionKeyFilters, SSTableTimeRangeFilter sstableTimeRangeFilter)
     {
-        return openCompactionScanner(partitionId, partitionKeyFilters, sstableTimeRangeFilters, null);
+        return openCompactionScanner(partitionId, partitionKeyFilters, sstableTimeRangeFilter, null);
     }
 
     /**
@@ -274,7 +273,7 @@ public abstract class DataLayer implements Serializable
      */
     public StreamScanner<RowData> openCompactionScanner(int partitionId,
                                                         List<PartitionKeyFilter> partitionKeyFilters,
-                                                        List<SSTableTimeRangeFilter> sstableTimeRangeFilters,
+                                                        SSTableTimeRangeFilter sstableTimeRangeFilter,
                                                         @Nullable PruneColumnFilter columnFilter)
     {
         List<PartitionKeyFilter> filtersInRange;
@@ -292,7 +291,7 @@ public abstract class DataLayer implements Serializable
                                              sstables(partitionId, sparkRangeFilter, filtersInRange),
                                              sparkRangeFilter,
                                              filtersInRange,
-                                             sstableTimeRangeFilters,
+                                             sstableTimeRangeFilter,
                                              columnFilter,
                                              timeProvider(),
                                              readIndexOffset(),

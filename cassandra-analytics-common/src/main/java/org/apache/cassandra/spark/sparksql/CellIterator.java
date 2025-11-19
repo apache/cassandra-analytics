@@ -77,14 +77,15 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
     public interface ScannerSupplier
     {
         /**
-         * @param partitionId         arbitrary id uniquely identifying this partiton of the bulk read
-         * @param partitionKeyFilters list of partition key filters to push-down,
-         * @param columnFilter        optional column filter to only read certain columns
+         * @param partitionId               arbitrary id uniquely identifying this partiton of the bulk read
+         * @param partitionKeyFilters       list of partition key filters to push-down,
+         * @param sstableTimeRangeFilter    sstable time range filter to filter based on min and max timestamp
+         * @param columnFilter              optional column filter to only read certain columns
          * @return a StreamScanner to iterate over each cell of the data.g
          */
         StreamScanner<RowData> get(int partitionId,
                                    @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                                   @NotNull List<SSTableTimeRangeFilter> SSTableTimeRangeFilters,
+                                   @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                                    @Nullable PruneColumnFilter columnFilter);
     }
 
@@ -93,7 +94,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
                         Stats stats,
                         TypeConverter typeConverter,
                         @NotNull List<PartitionKeyFilter> partitionKeyFilters,
-                        @NotNull List<SSTableTimeRangeFilter> sstableTimeRangeFilters,
+                        @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                         Function<CqlTable, PruneColumnFilter> columnFilterSupplier,
                         ScannerSupplier scannerSupplier)
     {
@@ -119,7 +120,7 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
         // Open compaction scanner
         startTimeNanos = System.nanoTime();
         previousTimeNanos = startTimeNanos;
-        scanner = scannerSupplier.get(partitionId, partitionKeyFilters, sstableTimeRangeFilters, columnFilter);
+        scanner = scannerSupplier.get(partitionId, partitionKeyFilters, sstableTimeRangeFilter, columnFilter);
         long openTimeNanos = System.nanoTime() - startTimeNanos;
         LOGGER.info("Opened CompactionScanner runtimeNanos={}", openTimeNanos);
         stats.openedCompactionScanner(openTimeNanos);
