@@ -104,6 +104,7 @@ import org.apache.spark.util.ShutdownHookManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.spark.utils.CqlUtils.isTimeRangeFilterSupported;
 import static org.apache.cassandra.spark.utils.Properties.NODE_STATUS_NOT_CONSIDERED;
 
 public class CassandraDataLayer extends PartitionedDataLayer implements StartupValidatable, Serializable
@@ -297,6 +298,16 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         int indexCount = CqlUtils.extractIndexCount(fullSchema, keyspace, table);
         Set<String> udts = CqlUtils.extractUdts(fullSchema, keyspace);
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(fullSchema, keyspace);
+
+        String compactionStrategy = CqlUtils.extractCompactionStrategy(createStmt);
+        if (sstableTimeRangeFilter != null
+            && sstableTimeRangeFilter != SSTableTimeRangeFilter.EMPTY
+            && !isTimeRangeFilterSupported(compactionStrategy))
+        {
+            throw new UnsupportedOperationException("SSTableTimeRangeFilter is only supported with TimeWindowCompactionStrategy. " +
+                                                    "Current compaction strategy is: " + compactionStrategy);
+        }
+
         rfMap = Map.of(keyspace, replicationFactor);
         CompletableFuture<Integer> sizingFuture = CompletableFuture.supplyAsync(
         () -> getSizing(ringFuture, replicationFactor, options).getEffectiveNumberOfCores(),

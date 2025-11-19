@@ -45,6 +45,7 @@ import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static com.google.common.collect.BoundType.CLOSED;
 
 public class LocalDataLayerTests extends VersionRunner
@@ -101,11 +102,13 @@ public class LocalDataLayerTests extends VersionRunner
     @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
     public void testTimeRangeFilterFromOptions(CassandraBridge bridge)
     {
+        String schemaWithTWCS = schemaWithTWCS();
+
         Map<String, String> options = new HashMap<>();
         options.put("version", bridge.getVersion().name());
         options.put("partitioner", Partitioner.Murmur3Partitioner.name());
         options.put("keyspace", "test_keyspace");
-        options.put("createstmt", SchemaTests.SCHEMA);
+        options.put("createstmt", schemaWithTWCS);
         options.put("dirs", "/tmp/data1,/tmp/data2");
         options.put("sstable_start_timestamp_micros", "1000");
         options.put("sstable_end_timestamp_micros", "2000");
@@ -119,15 +122,48 @@ public class LocalDataLayerTests extends VersionRunner
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
+    public void testTimeRangeFilterNotSupportedWithLCS(CassandraBridge bridge)
+    {
+        String schemaWithLeveledCompaction = "CREATE TABLE test_keyspace.test_table (\n"
+                                           + "    id uuid,\n"
+                                           + "    value text,\n"
+                                           + "    PRIMARY KEY(id)\n"
+                                           + ") WITH compaction = {'class': 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'}";
+
+        CassandraVersion version = bridge.getVersion();
+        SSTableTimeRangeFilter filter = SSTableTimeRangeFilter.create(1000L, 2000L);
+
+        assertThatThrownBy(() -> new LocalDataLayer(
+            version,
+            Partitioner.Murmur3Partitioner,
+            "test_keyspace",
+            schemaWithLeveledCompaction,
+            Collections.emptySet(),
+            Collections.emptyList(),
+            false,
+            null,
+            filter,
+            "/tmp/data1", "/tmp/data2"
+        ))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining("SSTableTimeRangeFilter is only supported with TimeWindowCompactionStrategy. " +
+                              "Current compaction strategy is: org.apache.cassandra.db.compaction.LeveledCompactionStrategy");
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
     public void testSerializationWithTimeRangeFilter(CassandraBridge bridge) throws Exception
     {
+        // Use TimeWindowCompactionStrategy since time range filters are only supported with TWCS
+        String schemaWithTWCS = schemaWithTWCS();
+
         CassandraVersion version = bridge.getVersion();
         SSTableTimeRangeFilter filter = SSTableTimeRangeFilter.create(1000L, 2000L);
         LocalDataLayer dataLayer = new LocalDataLayer(
             version,
             Partitioner.Murmur3Partitioner,
             "test_keyspace",
-            SchemaTests.SCHEMA,
+            schemaWithTWCS,
             Collections.emptySet(),
             Collections.emptyList(),
             false,
@@ -163,5 +199,14 @@ public class LocalDataLayerTests extends VersionRunner
         LocalDataLayer deserialized = (LocalDataLayer) ois.readObject();
         ois.close();
         return deserialized;
+    }
+
+    private String schemaWithTWCS()
+    {
+        return "CREATE TABLE test_keyspace.test_table2 (\n"
+               + "    id uuid,\n"
+               + "    value text,\n"
+               + "    PRIMARY KEY(id)\n"
+               + ") WITH compaction = {'class': 'org.apache.cassandra.db.compaction.TimeWindowCompactionStrategy'}";
     }
 }

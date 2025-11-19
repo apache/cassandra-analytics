@@ -60,12 +60,14 @@ import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
+import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.Throwing;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.parquet.Strings;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.spark.utils.CqlUtils.isTimeRangeFilterSupported;
 import static org.apache.cassandra.spark.utils.FilterUtils.parseSSTableTimeRangeFilter;
 
 /**
@@ -246,6 +248,13 @@ public class LocalDataLayer extends DataLayer implements Serializable
         this.useBufferingInputStream = useBufferingInputStream;
         this.statsClass = statsClass;
         this.sstableTimeRangeFilter = sstableTimeRangeFilter;
+        String compactionStrategy = CqlUtils.extractCompactionStrategy(cqlTable.createStatement());
+        if (sstableTimeRangeFilter != SSTableTimeRangeFilter.EMPTY
+            && !isTimeRangeFilterSupported(compactionStrategy))
+        {
+            throw new UnsupportedOperationException("SSTableTimeRangeFilter is only supported with TimeWindowCompactionStrategy. " +
+                                                    "Current compaction strategy is: " + compactionStrategy);
+        }
         this.paths = paths;
         this.dataFilePaths = new HashSet<>();
     }

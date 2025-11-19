@@ -39,6 +39,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.jetbrains.annotations.NotNull;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 /**
  * CQL-related utility methods
  */
@@ -57,6 +59,7 @@ public final class CqlUtils
     private static final Pattern ESCAPED_WHITESPACE_PATTERN = Pattern.compile("(\\\\r|\\\\n|\\\\r\\n)+");
     private static final Pattern NEWLINE_PATTERN = Pattern.compile("\n");
     private static final Pattern ESCAPED_DOUBLE_BACKSLASH = Pattern.compile("\\\\");
+    private static final Pattern COMPACTION_STRATEGY_PATTERN = Pattern.compile("compaction\\s*=\\s*\\{\\s*'class'\\s*:\\s*'([^']+)'");
 
     private CqlUtils()
     {
@@ -267,5 +270,31 @@ public final class CqlUtils
             indexCount++;
         }
         return indexCount;
+    }
+
+    /**
+     * Extracts the compaction strategy used from table schema.
+     *
+     * @param schema table schema
+     * @return the compaction strategy, or null if not found
+     */
+    public static String extractCompactionStrategy(@NotNull String schema)
+    {
+        Matcher matcher = COMPACTION_STRATEGY_PATTERN.matcher(schema);
+        if (matcher.find())
+        {
+            return matcher.group(1);
+        }
+        return null;
+    }
+
+    /**
+     * Time range filter is only supported for TimeWindowCompactionStrategy.
+     *
+     * @return true if the strategy is TimeWindowCompactionStrategy, false otherwise
+     */
+    public static boolean isTimeRangeFilterSupported(String compactionStrategy)
+    {
+        return !isNullOrEmpty(compactionStrategy) && compactionStrategy.endsWith("TimeWindowCompactionStrategy");
     }
 }
