@@ -601,7 +601,8 @@ public abstract class CassandraBridge
      * @param ssTables                  set of SSTables to read
      * @param tokenRange                optional token range to limit the bulk read to a restricted token range.
      * @param partitionKeys             list of partition keys, if more than one partition keys they must be correctly ordered in the inner list.
-     * @param pruneColumnFilter         optional filter to select a subset of columns, this can offer performance improvement if skipping over large blobs or columns.
+     * @param pruneColumnFilter         optional filter to select a subset of columns, this can offer performance
+     *                                  improvement if skipping over large blobs or columns.
      * @param sstableTimeRangeFilter    SSTable time range filter, filters out SSTables not overlapping given time ranges
      * @param rowConsumer               Consumer interface to consume rows as they are read to avoid buffering all rows in memory for consumption.
      * @throws IOException
