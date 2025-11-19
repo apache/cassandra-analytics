@@ -153,6 +153,7 @@ jobs:
           scala: "2.12"
           jdk: "11"
           use_jdk11: "true"
+          no_output_timeout: 20m
 
       - store_artifacts:
           path: build/test-reports
@@ -212,6 +213,7 @@ jobs:
           scala: "2.13"
           jdk: "11"
           use_jdk11: "true"
+          no_output_timeout: 20m
 
       - store_artifacts:
           path: build/test-reports
@@ -239,6 +241,7 @@ jobs:
           jdk: "11"
           use_jdk11: "true"
           sstable_format: "bti"
+          no_output_timeout: 20m
 
       - store_artifacts:
           path: build/test-reports
