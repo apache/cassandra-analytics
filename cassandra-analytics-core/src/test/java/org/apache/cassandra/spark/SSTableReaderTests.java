@@ -211,7 +211,7 @@ public class SSTableReaderTests
                                           .withColumn("b", bridgeInTest.aInt())
                                           .build();
 
-            long beforeWriteMicros = System.currentTimeMillis() * 1000; // Microseconds
+            long beforeWriteMicros =  TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis() - 5000);
 
             // Write SSTable with data
             schema.writeSSTable(dir, bridgeInTest, partitioner, writer -> {
@@ -221,7 +221,7 @@ public class SSTableReaderTests
                 }
             });
 
-            long afterWriteMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
+            long afterWriteMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis() + 5000);
 
             assertThat(countSSTables(dir)).isEqualTo(1);
 
