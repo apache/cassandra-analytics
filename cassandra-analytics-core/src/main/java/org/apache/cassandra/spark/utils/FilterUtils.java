@@ -31,9 +31,13 @@ import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
 
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.spark.sql.sources.EqualTo;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.sources.In;
+
+import static org.apache.cassandra.spark.data.ClientConfig.SSTABLE_END_TIMESTAMP_MICROS;
+import static org.apache.cassandra.spark.data.ClientConfig.SSTABLE_START_TIMESTAMP_MICROS;
 
 public final class FilterUtils
 {
@@ -110,5 +114,20 @@ public final class FilterUtils
                 indices[index] = 0;
             }
         }
+    }
+
+    /**
+     * Parses {@link SSTableTimeRangeFilter} from spark options.
+     */
+    public static SSTableTimeRangeFilter parseSSTableTimeRangeFilter(Map<String, String> options)
+    {
+        if (!options.containsKey(SSTABLE_START_TIMESTAMP_MICROS) && !options.containsKey(SSTABLE_END_TIMESTAMP_MICROS))
+        {
+            return SSTableTimeRangeFilter.ALL;
+        }
+
+        long startTimestamp = MapUtils.getLong(options, SSTABLE_START_TIMESTAMP_MICROS, 0L);
+        long endTimestamp = MapUtils.getLong(options, SSTABLE_END_TIMESTAMP_MICROS, Long.MAX_VALUE);
+        return SSTableTimeRangeFilter.create(startTimestamp, endTimestamp);
     }
 }
