@@ -1,6 +1,10 @@
+0.3.0
+-----
+ * File descriptor leak after file streamed in Sidecar Client (CASSANALYTICS-103)
+ * Add TimeRangeFilter to filter out SSTables outside given time window (CASSANALYTICS-102)
+
 0.2.0
 -----
- * Add TimeRangeFilter to filter out SSTables outside given time window (CASSANALYTICS-102)
  * Generated distribution artifacts fix (CASSANALYTICS-105)
  * Fix SSTable descriptor mismatch preventing newly produced SSTables from being uploaded (CASSANALYTICS-98)
  * Expose SidecarCdc builders and interfaces (CASSANALYTICS-94)
