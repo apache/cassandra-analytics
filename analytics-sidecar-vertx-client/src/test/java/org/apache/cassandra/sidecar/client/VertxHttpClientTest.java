@@ -27,9 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -163,7 +161,7 @@ public class VertxHttpClientTest
         {
             assertThatThrownBy(file::end)
             .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("File handle is closed" );
+            .hasMessageContaining("File handle is closed");
         }
     }
 
@@ -176,7 +174,7 @@ public class VertxHttpClientTest
         Path fileToUpload = prepareFile(tempDirectory);
         HttpRequest<Buffer> vertxRequest = httpClient.webClient.put(mockServer.getPort(),
                                                                     mockServer.getHostName(),
-                                                                    "/upload/test" );
+                                                                    "/upload/test");
 
         httpClient.executeUploadFileInternal(sidecarInstance, vertxRequest, fileToUpload.toString())
                   .get(30, TimeUnit.SECONDS);
@@ -190,7 +188,7 @@ public class VertxHttpClientTest
         assertThat(httpClient.capturedFiles).hasSize(1);
         assertThatThrownBy(() -> httpClient.capturedFiles.get(0).end())
         .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("File handle is closed" );
+        .hasMessageContaining("File handle is closed");
     }
 
     /**
@@ -218,8 +216,8 @@ public class VertxHttpClientTest
 
     private Path prepareFile(Path tempDirectory) throws IOException
     {
-        Path fileToUpload = tempDirectory.resolve("nb-1-big-TOC.txt" );
-        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("sstables/nb-1-big-TOC.txt" ))
+        Path fileToUpload = tempDirectory.resolve("nb-1-big-TOC.txt");
+        try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("sstables/nb-1-big-TOC.txt"))
         {
             assertThat(inputStream).isNotNull();
             copy(inputStream, fileToUpload, StandardCopyOption.REPLACE_EXISTING);
