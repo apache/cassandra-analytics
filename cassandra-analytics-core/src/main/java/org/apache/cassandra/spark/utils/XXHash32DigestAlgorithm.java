@@ -51,16 +51,16 @@ public class XXHash32DigestAlgorithm implements DigestAlgorithm
     public Digest calculateFileDigest(Path path) throws IOException
     {
         // might have shared hashers with ThreadLocal
-        XXHash32 xxHash32 = new XXHash32(SEED);
+        XXHash32 hasher = new XXHash32(SEED);
         try (InputStream inputStream = Files.newInputStream(path))
         {
             int len;
             byte[] buffer = new byte[KIB_512];
             while ((len = inputStream.read(buffer)) != -1)
             {
-                xxHash32.update(buffer, 0, len);
+                hasher.update(buffer, 0, len);
             }
-            return new XXHash32Digest(Long.toHexString(xxHash32.getValue()), SEED);
+            return new XXHash32Digest(Long.toHexString(hasher.getValue()), SEED);
         }
     }
 }
