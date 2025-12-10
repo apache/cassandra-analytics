@@ -76,7 +76,9 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
             return;
         }
 
-        // send sstables asynchronously
+        // Send sstables asynchronously.
+        // SAFETY: sstableWriter.prepareSStablesToSend() is synchronized and can be called
+        // concurrently with close() from the RecordWriter thread.
         executorService.submit(() -> {
             try
             {

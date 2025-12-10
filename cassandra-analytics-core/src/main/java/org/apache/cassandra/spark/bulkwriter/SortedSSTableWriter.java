@@ -63,6 +63,21 @@ import org.jetbrains.annotations.Nullable;
  * entire partition, i.e. repartitionAndSortWithinPartitions. By doing so, it eliminates the nice property of the
  * output sstable being globally sorted and non-overlapping.
  * Unless you can think of a better use case, we should stick with this SortedSSTableWriter
+ * <br>
+ * <p>Threading Model:</p>
+ * This class has limited thread-safety guarantees:
+ * <ul>
+ *   <li>{@link #addRow(BigInteger, Map)} and {@link #close(BulkWriterContext)} MUST be called from the same thread
+ *       (typically the RecordWriter thread). These methods are NOT synchronized and must not be called concurrently.</li>
+ *   <li>{@link #prepareSStablesToSend(BulkWriterContext, Set)} MAY be called concurrently from background threads
+ *       (via {@link StreamSession}'s executor service) and is synchronized to protect shared state.</li>
+ *   <li>{@link #close(BulkWriterContext)} is synchronized to prevent races with concurrent
+ *       {@link #prepareSStablesToSend(BulkWriterContext, Set)} calls.</li>
+ *   <li>Getter methods ({@link #rowCount()}, {@link #bytesWritten()}, {@link #sstableCount()}) may return stale
+ *       values if called concurrently with {@link #prepareSStablesToSend(BulkWriterContext, Set)} or
+ *       {@link #close(BulkWriterContext)}. They are only guaranteed accurate after {@link #close(BulkWriterContext)}
+ *       completes.</li>
+ * </ul>
  */
 @SuppressWarnings("WeakerAccess")
 public class SortedSSTableWriter
@@ -74,15 +89,17 @@ public class SortedSSTableWriter
     private final Path outDir;
     private final org.apache.cassandra.bridge.SSTableWriter cqlSSTableWriter;
     private final int partitionId;
-    private BigInteger minToken = null;
-    private BigInteger maxToken = null;
-    private final Map<Path, Digest> overallFileDigests = new HashMap<>();
     private final DigestAlgorithm digestAlgorithm;
 
-    private volatile boolean isClosed = false;
-
-    private int sstableCount = 0;
+    // Fields accessed only from the RecordWriter thread (addRow/close caller)
+    private BigInteger minToken = null;
+    private BigInteger maxToken = null;
     private long rowCount = 0;
+
+    // Fields protected by synchronization - accessed from both RecordWriter thread and executor threads
+    private final Map<Path, Digest> overallFileDigests = new HashMap<>();
+    private boolean isClosed = false;
+    private int sstableCount = 0;
     private long bytesWritten = 0;
 
     public SortedSSTableWriter(org.apache.cassandra.bridge.SSTableWriter tableWriter, Path outDir,
@@ -125,6 +142,11 @@ public class SortedSSTableWriter
 
     /**
      * Add a row to be written.
+     * <p>
+     * <b>Threading:</b> This method MUST be called from the same thread that calls {@link #close(BulkWriterContext)}
+     * (typically the RecordWriter thread). It is NOT thread-safe and must not be called concurrently with any other
+     * method on this instance.
+     *
      * @param token the hashed token of the row's partition key.
      *              The value must be monotonically increasing in the subsequent calls.
      * @param boundValues bound values of the columns in the row
@@ -171,11 +193,39 @@ public class SortedSSTableWriter
         return sstableCount;
     }
 
-    public Map<Path, Digest> prepareSStablesToSend(@NotNull BulkWriterContext writerContext, Set<SSTableDescriptor> sstables) throws IOException
+    /**
+     * Prepares a set of SSTables to be sent to replicas by calculating digests and validating them.
+     * <p>
+     * This method is called when SSTables are produced during the write process (before final close).
+     * It processes newly-produced SSTables, calculates their file digests, validates them, and updates
+     * the internal counters.
+     * <p>
+     * <b>Threading:</b> This method is thread-safe and may be called concurrently from background threads
+     * (e.g., from {@link DirectStreamSession#onSSTablesProduced(Set)} via the executor service).
+     * It is synchronized to protect shared state ({@code overallFileDigests}, {@code sstableCount},
+     * {@code bytesWritten}) from concurrent access with {@link #close(BulkWriterContext)}.
+     *
+     * @param writerContext the bulk writer context
+     * @param sstables the set of SSTable descriptors to prepare
+     * @return a map of file paths to their digests, or an empty map if the writer is already closed
+     * @throws IOException if an I/O error occurs
+     */
+    public synchronized Map<Path, Digest> prepareSStablesToSend(@NotNull BulkWriterContext writerContext, Set<SSTableDescriptor> sstables) throws IOException
     {
+        // If the writer is already closed, return empty map
+        // The remaining SSTables will be handled by sendRemainingSSTables()
+        if (isClosed)
+        {
+            LOGGER.debug("Writer is already closed, returning empty digest map. Remaining SSTables will be handled by sendRemainingSSTables()");
+            return Collections.emptyMap();
+        }
+
+        Set<Path> hashedFiles = new HashSet<>(overallFileDigests.keySet());
+
+        // Filter for SSTables that match the requested descriptors AND haven't been hashed yet
         DirectoryStream.Filter<Path> sstableFilter = path -> {
             SSTableDescriptor baseName = SSTables.getSSTableDescriptor(path);
-            return sstables.contains(baseName);
+            return sstables.contains(baseName) && !hashedFiles.contains(path);
         };
         Set<Path> dataFilePaths = new HashSet<>();
         Map<Path, Digest> fileDigests = new HashMap<>();
@@ -200,7 +250,23 @@ public class SortedSSTableWriter
         return fileDigests;
     }
 
-    public void close(BulkWriterContext writerContext) throws IOException
+    /**
+     * Closes this writer, flushes any remaining data, calculates digests, and validates all SSTables.
+     * <p>
+     * This method performs the final flush of the SSTable writer, processes any SSTables that were not
+     * already handled by {@link #prepareSStablesToSend(BulkWriterContext, Set)}, calculates their digests,
+     * and validates all written SSTables.
+     * <p>
+     * <b>Threading:</b> This method MUST be called from the same thread that calls {@link #addRow(BigInteger, Map)}
+     * (typically the RecordWriter thread). It is synchronized to prevent races with concurrent
+     * {@link #prepareSStablesToSend(BulkWriterContext, Set)} calls from background threads.
+     * <p>
+     * This method is idempotent - calling it multiple times will return early after the first call completes.
+     *
+     * @param writerContext the bulk writer context
+     * @throws IOException if an I/O error occurs during closing
+     */
+    public synchronized void close(BulkWriterContext writerContext) throws IOException
     {
         if (isClosed)
         {
@@ -209,24 +275,27 @@ public class SortedSSTableWriter
         }
         isClosed = true;
         cqlSSTableWriter.close();
-        for (Path dataFile : getDataFileStream())
+
+        Set<Path> hashedFiles = new HashSet<>(overallFileDigests.keySet());
+        Set<Path> newlyHashedFiles = new HashSet<>();
+
+        // Filter out SSTables that were already hashed during production (via prepareSStablesToSend)
+        // Only process new SSTables produced during final flush
+        DirectoryStream.Filter<Path> unhashedFilter = path -> !hashedFiles.contains(path);
+
+        for (Path dataFile : getDataFileStream(unhashedFilter))
         {
             // NOTE: We calculate file hashes before re-reading so that we know what we hashed
             //       is what we validated. Then we send these along with the files and the
             //       receiving end re-hashes the files to make sure they still match.
-
-            // Skip hash calculation for SSTables that were already hashed during production
-            // (via prepareSStablesToSend). Only hash new SSTables produced during final flush.
-            boolean alreadyHashed = overallFileDigests.keySet()
-                                                      .stream()
-                                                      .anyMatch(path -> SSTables.getSSTableBaseName(path).equals(SSTables.getSSTableBaseName(dataFile)));
-            if (!alreadyHashed)
-            {
-                overallFileDigests.putAll(calculateFileDigestMap(dataFile));
-            }
+            Map<Path, Digest> newFileDigests = calculateFileDigestMap(dataFile);
+            overallFileDigests.putAll(newFileDigests);
+            newlyHashedFiles.addAll(newFileDigests.keySet());
             sstableCount += 1;
         }
-        bytesWritten += calculatedTotalSize(overallFileDigests.keySet());
+        // Only calculate size for newly hashed files, not all files in overallFileDigests
+        // (previously hashed files may have been deleted by prepareSStablesToSend)
+        bytesWritten += calculatedTotalSize(newlyHashedFiles);
         validateSSTables(writerContext);
     }
 
@@ -287,9 +356,14 @@ public class SortedSSTableWriter
         }
     }
 
-    private DirectoryStream<Path> getDataFileStream() throws IOException
+    private DirectoryStream<Path> getDataFileStream(DirectoryStream.Filter<Path> filter) throws IOException
     {
-        return Files.newDirectoryStream(getOutDir(), "*Data.db");
+        // Combine the data file filter with the provided filter
+        DirectoryStream.Filter<Path> combinedFilter = path -> {
+            String fileName = path.getFileName().toString();
+            return fileName.endsWith("Data.db") && filter.accept(path);
+        };
+        return Files.newDirectoryStream(getOutDir(), combinedFilter);
     }
 
     private Map<Path, Digest> calculateFileDigestMap(Path dataFile) throws IOException
