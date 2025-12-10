@@ -201,16 +201,16 @@ public class VertxHttpClient implements HttpClient
                            .sendStream(pair.getValue()
                                            .setReadBufferSize(config.sendReadBufferSize()))
                            .onComplete(ar -> {
-                               try
-                               {
-                                   asyncFile.close().onFailure(err ->
-                                                               LOGGER.warn("Failed to close file after upload: filename='{}'", filename, err)
-                                   );
-                               }
-                               catch (IllegalStateException ex)
-                               {
-                                   LOGGER.warn("File already closed, ignoring close attempt: filename='{}'", filename, ex);
-                               }
+//                               try
+//                               {
+//                                   asyncFile.close().onFailure(err ->
+//                                                               LOGGER.warn("Failed to close file after upload: filename='{}'", filename, err)
+//                                   );
+//                               }
+//                               catch (IllegalStateException ex)
+//                               {
+//                                   LOGGER.warn("File already closed, ignoring close attempt: filename='{}'", filename, ex);
+//                               }
                            });
     }
 
