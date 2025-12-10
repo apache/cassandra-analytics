@@ -102,7 +102,7 @@ test {
     }
 
     testLogging {
-        events "passed", "skipped", "failed"
+        events "started", "passed", "skipped", "failed"
 
         showExceptions true
         exceptionFormat "full"

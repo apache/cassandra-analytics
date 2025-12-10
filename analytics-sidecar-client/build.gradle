@@ -39,7 +39,7 @@ sourceCompatibility = 1.8
 test {
     useJUnitPlatform()
     testLogging {
-        events "passed", "skipped", "failed"
+        events "started", "passed", "skipped", "failed"
     }
     maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
     reports {
