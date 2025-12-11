@@ -90,6 +90,7 @@ test {
     systemProperty "SKIP_STARTUP_VALIDATIONS", "true"
     systemProperty "logback.configurationFile", "src/test/resources/logback-test.xml"
     systemProperty "cassandra.integration.sidecar.test.enable_mtls", integrationEnableMtls
+    systemProperty "vertx.logger-delegate-factory-class-name", "io.vertx.core.logging.SLF4JLogDelegateFactory"
     minHeapSize = '1g'
     maxHeapSize = integrationMaxHeapSize
     maxParallelForks = integrationMaxParallelForks
