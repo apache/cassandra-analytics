@@ -201,7 +201,7 @@ public class VertxHttpClient implements HttpClient
                            .sendStream(pair.getValue()
                                            .setReadBufferSize(config.sendReadBufferSize()))
                            .onComplete(ar -> {
-                               vertx.setTimer(1000, timerId -> {
+                              // vertx.setTimer(1000, timerId -> {
                                    // Defer file closing for 1 second
                                    try
                                    {
@@ -213,7 +213,7 @@ public class VertxHttpClient implements HttpClient
                                    {
                                        LOGGER.warn("File already closed, ignoring close attempt: filename='{}'", filename, ex);
                                    }
-                               });
+                               //});
                            });
     }
 
