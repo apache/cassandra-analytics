@@ -201,12 +201,15 @@ public class VertxHttpClient implements HttpClient
                            .sendStream(pair.getValue()
                                            .setReadBufferSize(config.sendReadBufferSize()))
                            .eventually(() -> {
-                              // vertx.setTimer(1000, timerId -> {
-                                   // Defer file closing for 1 second
-                               try{
+                               // vertx.setTimer(1000, timerId -> {
+                               // Defer file closing for 1 second
+                               try
+                               {
                                    return asyncFile.close().onFailure(err ->
                                                                       LOGGER.warn("Failed to close file after upload: filename='{}'", filename, err));
-                               }catch (Exception ex){
+                               }
+                               catch (Exception ex)
+                               {
                                    LOGGER.warn("Failed due to exception for filename='{}'", filename, ex);
                                    return Future.failedFuture(ex);
                                }
