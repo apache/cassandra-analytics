@@ -220,12 +220,10 @@ public class SortedSSTableWriter
             return Collections.emptyMap();
         }
 
-        Set<Path> hashedFiles = new HashSet<>(overallFileDigests.keySet());
-
         // Filter for SSTables that match the requested descriptors AND haven't been hashed yet
         DirectoryStream.Filter<Path> sstableFilter = path -> {
             SSTableDescriptor baseName = SSTables.getSSTableDescriptor(path);
-            return sstables.contains(baseName) && !hashedFiles.contains(path);
+            return sstables.contains(baseName) && !overallFileDigests.containsKey(path);
         };
         Set<Path> dataFilePaths = new HashSet<>();
         Map<Path, Digest> fileDigests = new HashMap<>();

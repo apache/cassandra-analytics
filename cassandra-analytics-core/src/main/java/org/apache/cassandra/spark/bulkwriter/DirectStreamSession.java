@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.DirectoryStream;
@@ -37,7 +36,6 @@ import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
-import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -180,16 +178,7 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
         finally
         {
             // Clean up SSTable files once the task is complete
-            File tempDir = sstableWriter.getOutDir().toFile();
-            LOGGER.info("[{}]: Removing temporary files after stream session from {}", sessionID, tempDir);
-            try
-            {
-                FileUtils.deleteDirectory(tempDir);
-            }
-            catch (IOException exception)
-            {
-                LOGGER.warn("[{}]: Failed to delete temporary directory {}", sessionID, tempDir, exception);
-            }
+            cleanupSSTables(LOGGER);
         }
     }
 
