@@ -203,9 +203,13 @@ public class VertxHttpClient implements HttpClient
                            .eventually(() -> {
                               // vertx.setTimer(1000, timerId -> {
                                    // Defer file closing for 1 second
-                               return asyncFile.close().onFailure(err ->
-                                                           LOGGER.warn("Failed to close file after upload: filename='{}'", filename, err)
-                               );
+                               try{
+                                   return asyncFile.close().onFailure(err ->
+                                                                      LOGGER.warn("Failed to close file after upload: filename='{}'", filename, err));
+                               }catch (Exception ex){
+                                   LOGGER.warn("Failed due to exception for filename='{}'", filename, ex);
+                                   return Future.failedFuture(ex);
+                               }
 
                                //});
                            });
