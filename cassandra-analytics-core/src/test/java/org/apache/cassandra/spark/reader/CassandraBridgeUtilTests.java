@@ -50,6 +50,7 @@ import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.test.TestSSTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
@@ -261,6 +262,7 @@ public class CassandraBridgeUtilTests
                                            null,
                                            expected.keySet().stream().map(Collections::singletonList).collect(Collectors.toList()),
                                            null,
+                                           SSTableTimeRangeFilter.ALL,
                                            (row) -> actual.put(row.get("a").toString(), row)
             );
             assertThat(actual).hasSameSizeAs(expected);

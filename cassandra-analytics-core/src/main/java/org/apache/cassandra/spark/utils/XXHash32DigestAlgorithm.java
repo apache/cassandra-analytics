@@ -24,8 +24,8 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import net.jpountz.xxhash.StreamingXXHash32;
-import net.jpountz.xxhash.XXHashFactory;
+import org.apache.commons.codec.digest.XXHash32;
+
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.XXHash32Digest;
 
@@ -51,9 +51,8 @@ public class XXHash32DigestAlgorithm implements DigestAlgorithm
     public Digest calculateFileDigest(Path path) throws IOException
     {
         // might have shared hashers with ThreadLocal
-        XXHashFactory factory = XXHashFactory.safeInstance();
-        try (InputStream inputStream = Files.newInputStream(path);
-             StreamingXXHash32 hasher = factory.newStreamingHash32(SEED))
+        XXHash32 hasher = new XXHash32(SEED);
+        try (InputStream inputStream = Files.newInputStream(path))
         {
             int len;
             byte[] buffer = new byte[KIB_512];
@@ -61,7 +60,7 @@ public class XXHash32DigestAlgorithm implements DigestAlgorithm
             {
                 hasher.update(buffer, 0, len);
             }
-            return new XXHash32Digest(Integer.toHexString(hasher.getValue()), SEED);
+            return new XXHash32Digest(Long.toHexString(hasher.getValue()), SEED);
         }
     }
 }

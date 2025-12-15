@@ -153,9 +153,9 @@ public abstract class StreamSession<T extends TransportContext>
         return lastStreamFailure.compareAndSet(null, streamFailure);
     }
 
-    protected void recordStreamedFiles(Set<Path> files)
+    protected void recordStreamedFile(Path file)
     {
-        streamedFiles.addAll(files);
+        streamedFiles.add(file);
     }
 
     protected boolean isFileStreamed(Path file)

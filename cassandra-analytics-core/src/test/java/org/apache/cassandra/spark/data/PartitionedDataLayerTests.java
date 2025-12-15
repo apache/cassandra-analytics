@@ -59,6 +59,7 @@ import org.apache.cassandra.spark.reader.EmptyStreamScanner;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.utils.TimeProvider;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.TaskContext;
 import org.jetbrains.annotations.NotNull;
@@ -321,7 +322,8 @@ public class PartitionedDataLayerTests extends VersionRunner
 
         // Filter does not fall in spark token range
         StreamScanner scanner = dataLayer.openCompactionScanner(partitionId,
-                                                                Collections.singletonList(filterOutsideRange));
+                                                                Collections.singletonList(filterOutsideRange),
+                                                                SSTableTimeRangeFilter.ALL);
         assertThat(scanner).isInstanceOf(EmptyStreamScanner.class);
     }
 

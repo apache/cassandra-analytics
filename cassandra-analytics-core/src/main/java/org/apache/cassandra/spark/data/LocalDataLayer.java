@@ -59,11 +59,16 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
+import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.Throwing;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.parquet.Strings;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import static org.apache.cassandra.spark.utils.CqlUtils.isTimeRangeFilterSupported;
+import static org.apache.cassandra.spark.utils.FilterUtils.parseSSTableTimeRangeFilter;
 
 /**
  * Basic DataLayer implementation to read SSTables from local file system. Mostly used for testing.
@@ -83,6 +88,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     private boolean useBufferingInputStream;
     private String[] paths;
     private int minimumReplicasPerMutation = 1;
+    private SSTableTimeRangeFilter sstableTimeRangeFilter;
     private Set<Path> dataFilePaths = null;
 
     @Nullable
@@ -178,6 +184,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                 SchemaFeatureSet.initializeFromOptions(options),
                 getBoolean(options, lowerCaseKey("useBufferingInputStream"), getBoolean(options, lowerCaseKey("useSSTableInputStream"), false)),
                 options.get(lowerCaseKey("statsClass")),
+                parseSSTableTimeRangeFilter(options),
                 getOrThrow(options, lowerCaseKey("dirs")).split(","));
     }
 
@@ -194,6 +201,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
              Collections.emptyList(),
              false,
              null,
+             SSTableTimeRangeFilter.ALL,
              paths);
     }
 
@@ -211,6 +219,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
              Collections.emptyList(),
              false,
              null,
+             SSTableTimeRangeFilter.ALL,
              paths);
     }
 
@@ -223,6 +232,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                           @NotNull List<SchemaFeature> requestedFeatures,
                           boolean useBufferingInputStream,
                           @Nullable String statsClass,
+                          @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                           String... paths)
     {
         this.bridge = CassandraBridgeFactory.get(version);
@@ -237,6 +247,14 @@ public class LocalDataLayer extends DataLayer implements Serializable
         this.requestedFeatures = requestedFeatures;
         this.useBufferingInputStream = useBufferingInputStream;
         this.statsClass = statsClass;
+        this.sstableTimeRangeFilter = sstableTimeRangeFilter;
+        String compactionStrategy = CqlUtils.extractCompactionStrategy(cqlTable.createStatement());
+        if (sstableTimeRangeFilter != SSTableTimeRangeFilter.ALL
+            && !isTimeRangeFilterSupported(compactionStrategy))
+        {
+            throw new UnsupportedOperationException("SSTableTimeRangeFilter is only supported with TimeWindowCompactionStrategy. " +
+                                                    "Current compaction strategy is: " + compactionStrategy);
+        }
         this.paths = paths;
         this.dataFilePaths = new HashSet<>();
     }
@@ -249,6 +267,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                            @NotNull List<SchemaFeature> requestedFeatures,
                            boolean useBufferingInputStream,
                            @Nullable String statsClass,
+                           @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                            String... paths)
     {
         this.bridge = CassandraBridgeFactory.get(version);
@@ -258,6 +277,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
         this.requestedFeatures = requestedFeatures;
         this.useBufferingInputStream = useBufferingInputStream;
         this.statsClass = statsClass;
+        this.sstableTimeRangeFilter = sstableTimeRangeFilter;
         this.paths = paths;
     }
 
@@ -289,6 +309,13 @@ public class LocalDataLayer extends DataLayer implements Serializable
     public boolean isInPartition(int partitionId, BigInteger token, ByteBuffer key)
     {
         return true;
+    }
+
+    @NotNull
+    @Override
+    public SSTableTimeRangeFilter sstableTimeRangeFilter()
+    {
+        return sstableTimeRangeFilter;
     }
 
     @Override
@@ -429,6 +456,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
         {
             out.writeUTF(this.statsClass);
         }
+        out.writeObject(this.sstableTimeRangeFilter);
         out.writeObject(this.paths);
         out.writeInt(this.minimumReplicasPerMutation);
     }
@@ -445,6 +473,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                                        .collect(Collectors.toList());
         this.useBufferingInputStream = in.readBoolean();
         this.statsClass = in.readBoolean() ? in.readUTF() : null;
+        this.sstableTimeRangeFilter = (SSTableTimeRangeFilter) in.readObject();
         this.paths = (String[]) in.readObject();
         this.minimumReplicasPerMutation = in.readInt();
     }
@@ -465,6 +494,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                                                           .toArray(String[]::new));
             out.writeBoolean(object.useBufferingInputStream);
             out.writeString(object.statsClass);
+            kryo.writeObject(out, object.sstableTimeRangeFilter);
             kryo.writeObject(out, object.paths);
             out.writeInt(object.minimumReplicasPerMutation);
         }
@@ -482,6 +512,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                           .collect(Collectors.toList()),
                     in.readBoolean(),
                     in.readString(),
+                    kryo.readObject(in, SSTableTimeRangeFilter.class),
                     kryo.readObject(in, String[].class)
             ).withMinimumReplicasPerMutation(in.readInt());
         }

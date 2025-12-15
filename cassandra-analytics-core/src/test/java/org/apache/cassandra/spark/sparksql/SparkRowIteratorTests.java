@@ -41,6 +41,7 @@ import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
@@ -189,6 +190,7 @@ public class SparkRowIteratorTests
         when(dataLayer.stats()).thenReturn(Stats.DoNothingStats.INSTANCE);
         when(dataLayer.requestedFeatures()).thenCallRealMethod();
         when(dataLayer.typeConverter()).thenReturn(typeConverter);
+        when(dataLayer.sstableTimeRangeFilter()).thenReturn(SSTableTimeRangeFilter.ALL);
 
         // Mock scanner
         StreamScanner scanner = mock(StreamScanner.class);
@@ -251,7 +253,7 @@ public class SparkRowIteratorTests
             return true;
         }).when(scanner).next();
 
-        when(dataLayer.openCompactionScanner(anyInt(), anyListOf(PartitionKeyFilter.class), any())).thenReturn(scanner);
+        when(dataLayer.openCompactionScanner(anyInt(), anyListOf(PartitionKeyFilter.class), any(), any())).thenReturn(scanner);
 
         // Use SparkRowIterator and verify values match expected
         SparkRowIterator it = new SparkRowIterator(0, dataLayer);

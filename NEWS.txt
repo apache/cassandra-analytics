@@ -1,0 +1,15 @@
+0.2
+===
+
+Upgrading
+---------
+    - In CASSANALYTICS-69, we set KeyStore to be optional.
+
+
+New features
+------------
+    - Expose SidecarCdc builders and interfaces.
+    - Refactor BulkWriterContext broadcasting to use immutable config class.
+    - Support for Trie-Indexed SSTables (BTI format).
+    - New bridge modules for Cassandra 5.0.
+    - Support writing to local datacenter only for coordinated write.

@@ -33,11 +33,13 @@ import org.apache.cassandra.bridge.BigNumberConfigImpl;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.data.CassandraDataLayer.aliasLastModifiedTimestamp;
+import static org.apache.cassandra.spark.utils.FilterUtils.parseSSTableTimeRangeFilter;
 
 public class ClientConfig
 {
@@ -81,6 +83,14 @@ public class ClientConfig
     public static final String ENABLE_EXPANSION_SHRINK_CHECK_KEY = "enableExpansionShrinkCheck";
     public static final String SIDECAR_PORT = "sidecar_port";
     public static final String QUOTE_IDENTIFIERS = "quote_identifiers";
+    /**
+     * {@code sstable_start_timestamp_micros} and {@code sstable_end_timestamp_micros} define a time range filter
+     * for SSTable selection. Both timestamps are represented in microseconds and both bounds are always inclusive
+     * (closed range).
+     */
+    public static final String SSTABLE_START_TIMESTAMP_MICROS = "sstable_start_timestamp_micros";
+    public static final String SSTABLE_END_TIMESTAMP_MICROS = "sstable_end_timestamp_micros";
+
     public static final int DEFAULT_SIDECAR_PORT = 9043;
 
     protected String sidecarContactPoints;
@@ -107,6 +117,7 @@ public class ClientConfig
     protected Boolean enableExpansionShrinkCheck;
     protected int sidecarPort;
     protected boolean quoteIdentifiers;
+    protected SSTableTimeRangeFilter sstableTimeRangeFilter;
 
     protected ClientConfig(Map<String, String> options)
     {
@@ -138,6 +149,7 @@ public class ClientConfig
         this.requestedFeatures = initRequestedFeatures(options);
         this.sidecarPort = MapUtils.getInt(options, SIDECAR_PORT, DEFAULT_SIDECAR_PORT);
         this.quoteIdentifiers = MapUtils.getBoolean(options, QUOTE_IDENTIFIERS, false);
+        this.sstableTimeRangeFilter = parseSSTableTimeRangeFilter(options);
     }
 
     protected String parseSidecarContactPoints(Map<String, String> options)
@@ -275,6 +287,11 @@ public class ClientConfig
     public boolean quoteIdentifiers()
     {
         return quoteIdentifiers;
+    }
+
+    public SSTableTimeRangeFilter sstableTimeRangeFilter()
+    {
+        return sstableTimeRangeFilter;
     }
 
     public static ClientConfig create(Map<String, String> options)

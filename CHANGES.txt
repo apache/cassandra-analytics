@@ -1,5 +1,12 @@
+0.3.0
+-----
+ * Address LZ4 vulnerability (CVE-2025-12183) (CASSANALYTICS-109)
+ * Add TimeRangeFilter to filter out SSTables outside given time window (CASSANALYTICS-102)
+
 0.2.0
 -----
+ * Generated distribution artifacts fix (CASSANALYTICS-105)
+ * Fix SSTable descriptor mismatch preventing newly produced SSTables from being uploaded (CASSANALYTICS-98)
  * Expose SidecarCdc builders and interfaces (CASSANALYTICS-94)
  * Fix bulk reader node availability comparator ordering (CASSANALYTICS-99)
  * Remove not needed buffer flips (CASSANALYTICS-95)

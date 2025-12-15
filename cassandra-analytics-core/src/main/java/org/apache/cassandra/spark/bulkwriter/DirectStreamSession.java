@@ -46,6 +46,7 @@ import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.data.FileType;
+import org.apache.cassandra.util.IntWrapper;
 
 public class DirectStreamSession extends StreamSession<TransportContext.DirectDataBulkWriterContext>
 {
@@ -85,12 +86,17 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                 // 3. send the sstables to all replicas
                 // 4. remove the sstables once sent
                 Map<Path, Digest> fileDigests = sstableWriter.prepareSStablesToSend(writerContext, sstables);
-                recordStreamedFiles(fileDigests.keySet());
+                // retain only the SSTable data components
+                IntWrapper sstableCounter = new IntWrapper();
                 fileDigests.keySet()
                            .stream()
                            .filter(p -> p.getFileName().toString().endsWith(FileType.DATA.getFileSuffix()))
-                           .forEach(this::sendSStableToReplicas);
-                LOGGER.info("[{}]: Sent SSTables. sstables={}", sessionID, sstableWriter.sstableCount());
+                           .forEach(sstable -> {
+                               sstableCounter.value++;
+                               sendSStableToReplicas(sstable);
+                           });
+
+                LOGGER.info("[{}]: Sent newly produced SSTables. sstables={}", sessionID, sstableCounter.value);
                 LOGGER.info("[{}]: Removing temporary files after streaming. files={}", sessionID, fileDigests);
                 fileDigests.keySet().forEach(path -> {
                     try
@@ -244,9 +250,10 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                                       Digest digest) throws IOException
     {
         Preconditions.checkNotNull(digest, "All files must have a digest. SSTableWriter should have calculated these.");
-        LOGGER.info("[{}]: Uploading {} to {}: Size is {}",
-                    sessionID, componentFile, instance.nodeName(), Files.size(componentFile));
+        LOGGER.info("[{}]: Uploading {} to {}: size={} digest={}",
+                    sessionID, componentFile, instance.nodeName(), Files.size(componentFile), digest);
         directDataTransferApi.uploadSSTableComponent(componentFile, ssTableIdx, instance, this.sessionID, digest);
+        recordStreamedFile(componentFile);
     }
 
     private List<CommitResult> commit(DirectStreamResult streamResult) throws ExecutionException, InterruptedException
