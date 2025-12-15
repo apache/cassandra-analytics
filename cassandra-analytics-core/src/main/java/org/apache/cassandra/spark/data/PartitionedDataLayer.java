@@ -301,7 +301,7 @@ public abstract class PartitionedDataLayer extends DataLayer
                                                                        Collectors.toSet()
                                                                        ));
 
-            Map<String, SSTablesSupplier> perDCSSTablesSupplier = new HashMap<>();
+            Map<String, SSTablesSupplier> perDCSSTablesSupplier = new HashMap<>(minReplicasPerDC.size());
             for (Map.Entry<String, Integer> entry : minReplicasPerDC.entrySet())
             {
                 Set<CassandraInstance> replicasInDC = replicasByDC.getOrDefault(entry.getKey(), Collections.emptySet());
