@@ -80,7 +80,7 @@ public enum ConsistencyLevel
     {
         if (this != EACH_QUORUM)
         {
-            throw new IllegalArgumentException(String.format("Consistency level needed is EACH_QUORUM, provided is:%s",
+            throw new IllegalArgumentException(String.format("Consistency level needed is EACH_QUORUM, provided is: %s",
                                                              this.name()));
         }
         if (replicationFactor.getReplicationStrategy() != ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy)
