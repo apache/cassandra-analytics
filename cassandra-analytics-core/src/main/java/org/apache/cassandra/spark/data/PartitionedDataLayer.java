@@ -294,7 +294,8 @@ public abstract class PartitionedDataLayer extends DataLayer
         if (consistencyLevel == ConsistencyLevel.EACH_QUORUM)
         {
             Map<String, Integer> minReplicasPerDC = consistencyLevel.eachQuorumBlockFor(replicationFactor);
-            LOGGER.debug("partitionId={}, minReplicasPerDC={}", partitionId, minReplicasPerDC);
+            LOGGER.debug("Reading with EACH_QUORUM consistency level for partitionId={}, minReplicasPerDC={}",
+                         partitionId, minReplicasPerDC);
             Map<String, Set<CassandraInstance>> replicasByDC = replicas.stream()
                                                                        .collect(Collectors.groupingBy(
                                                                        CassandraInstance::dataCenter,
