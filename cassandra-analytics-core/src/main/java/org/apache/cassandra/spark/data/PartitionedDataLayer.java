@@ -163,7 +163,7 @@ public abstract class PartitionedDataLayer extends DataLayer
             return;
         }
 
-        Preconditions.checkArgument(!ConsistencyLevel.EACH_QUORUM.equals(consistencyLevel),
+        Preconditions.checkArgument(ConsistencyLevel.EACH_QUORUM != consistencyLevel,
                                     "A DC should not be specified for EACH_QUORUM consistency level. Provided DC: " + dc);
 
         Preconditions.checkArgument(replicationFactor.getOptions().containsKey(dc),
