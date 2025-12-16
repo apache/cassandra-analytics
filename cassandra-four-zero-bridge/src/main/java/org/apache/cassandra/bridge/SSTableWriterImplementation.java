@@ -27,6 +27,8 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.cassandra.config.Config;
@@ -38,6 +40,7 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.jetbrains.annotations.NotNull;
 
+@NotThreadSafe // The underlying CQLSSTableWriter is not thread-safe
 public class SSTableWriterImplementation implements SSTableWriter
 {
     static

@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Path;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,7 +141,16 @@ public abstract class StreamSession<T extends TransportContext>
                                  "SSTable range %s should be enclosed in the partition range %s",
                                  sstableWriter.getTokenRange(), tokenRange);
         // close the writer before finalizing stream
-        sstableWriter.close(writerContext);
+        try
+        {
+            sstableWriter.close(writerContext);
+        }
+        catch (IOException ioe)
+        {
+            // clean up the sstables and rethrow on I/O errors when closing
+            cleanupSSTables(LOGGER);
+            throw ioe;
+        }
         return executorService.submit(this::doFinalizeStream);
     }
 
@@ -185,5 +196,19 @@ public abstract class StreamSession<T extends TransportContext>
         // In order to better utilize replicas, shuffle the replicaList so each session starts writing to a different replica first.
         Collections.shuffle(replicasForTokenRange);
         return replicasForTokenRange;
+    }
+
+    protected void cleanupSSTables(Logger logger)
+    {
+        File tempDir = sstableWriter.getOutDir().toFile();
+        logger.info("[{}]: Removing temporary files after stream session from {}", sessionID, tempDir);
+        try
+        {
+            FileUtils.deleteDirectory(tempDir);
+        }
+        catch (IOException exception)
+        {
+            logger.warn("[{}]: Failed to delete temporary directory {}", sessionID, tempDir, exception);
+        }
     }
 }
