@@ -234,6 +234,16 @@ public class PartitionedDataLayerTests extends VersionRunner
             .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    public void testReplicationFactorEachQuorum()
+    {
+        assertThatThrownBy(() -> PartitionedDataLayer
+                                 .validateReplicationFactor(EACH_QUORUM,
+                                                            TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 3)),
+                                                            "MR"))
+        .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
     public void testSSTableSupplier(CassandraBridge bridge)
