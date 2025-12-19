@@ -53,6 +53,7 @@ public class SparkCellIterator extends CellIterator
               dataLayer.stats(),
               dataLayer.typeConverter(),
               partitionKeyFilters,
+              dataLayer.sstableTimeRangeFilter(),
               (cqlTable) -> buildColumnFilter(requiredSchema, cqlTable),
               dataLayer::openCompactionScanner);
         this.dataLayer = dataLayer;

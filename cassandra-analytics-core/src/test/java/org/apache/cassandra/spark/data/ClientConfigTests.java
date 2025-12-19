@@ -23,10 +23,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
+
+import static com.google.common.collect.BoundType.CLOSED;
 import static org.apache.cassandra.spark.data.ClientConfig.SNAPSHOT_TTL_PATTERN;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -131,5 +135,77 @@ class ClientConfigTests
         return clientConfig.parseClearSnapshotStrategy(hasDeprecatedSnapshotOption,
                                                        clearSnapshot,
                                                        clearSnapshotStrategyOption);
+    }
+
+    @Test
+    void testEmptyTimeRangeFilterWhenNoTimestampsProvided()
+    {
+        Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
+        ClientConfig clientConfig = ClientConfig.create(options);
+        SSTableTimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
+        assertThat(filter).isEqualTo(SSTableTimeRangeFilter.ALL);
+    }
+
+    @Test
+    void testTimeRangeFilterWithBothTimestamps()
+    {
+        Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
+        options.put("sstable_start_timestamp_micros", "1000");
+        options.put("sstable_end_timestamp_micros", "2000");
+        ClientConfig clientConfig = ClientConfig.create(options);
+        SSTableTimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
+
+        assertThat(filter).isNotNull();
+        assertThat(filter.range().hasLowerBound()).isTrue();
+        assertThat(filter.range().hasUpperBound()).isTrue();
+        assertThat(filter.range().lowerEndpoint()).isEqualTo(1000L);
+        assertThat(filter.range().upperEndpoint()).isEqualTo(2000L);
+        assertThat(filter.range().lowerBoundType()).isEqualTo(CLOSED);
+        assertThat(filter.range().upperBoundType()).isEqualTo(CLOSED);
+        assertThat(clientConfig.sstableTimeRangeFilter()).isNotNull();
+        assertThat(clientConfig.sstableTimeRangeFilter().range().lowerEndpoint()).isEqualTo(1000L);
+        assertThat(clientConfig.sstableTimeRangeFilter().range().upperEndpoint()).isEqualTo(2000L);
+    }
+
+    @Test
+    void testTimeRangeFilterWithOnlyStartTimestamp()
+    {
+        Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
+        options.put("sstable_start_timestamp_micros", "5000");
+        ClientConfig clientConfig = ClientConfig.create(options);
+        SSTableTimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
+
+        assertThat(filter).isNotNull();
+        assertThat(filter.range().hasLowerBound()).isTrue();
+        assertThat(filter.range().lowerEndpoint()).isEqualTo(5000L);
+        assertThat(filter.range().hasUpperBound()).isTrue();
+        assertThat(filter.range().upperEndpoint()).isEqualTo(Long.MAX_VALUE);
+    }
+
+    @Test
+    void testTimeRangeFilterWithOnlyEndTimestamp()
+    {
+        Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
+        options.put("sstable_end_timestamp_micros", "3000");
+        ClientConfig clientConfig = ClientConfig.create(options);
+        SSTableTimeRangeFilter filter = clientConfig.sstableTimeRangeFilter();
+
+        assertThat(filter).isNotNull();
+        assertThat(filter.range().hasLowerBound()).isTrue();
+        assertThat(filter.range().hasUpperBound()).isTrue();
+        assertThat(filter.range().lowerEndpoint()).isEqualTo(0L);
+        assertThat(filter.range().upperEndpoint()).isEqualTo(3000L);
+    }
+
+    @Test
+    void testTimeRangeFilterValidatesRangeOrdering()
+    {
+        Map<String, String> options = new HashMap<>(REQUIRED_CLIENT_CONFIG_OPTIONS);
+        options.put("sstable_start_timestamp_micros", "2000");
+        options.put("sstable_end_timestamp_micros", "1000");
+
+        assertThatThrownBy(() -> ClientConfig.create(options))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Invalid range: [2000‥1000]");
     }
 }

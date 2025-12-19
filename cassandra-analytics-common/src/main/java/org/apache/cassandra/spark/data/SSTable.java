@@ -69,7 +69,13 @@ public abstract class SSTable implements Serializable, CassandraFile
     @Nullable
     public InputStream openPrimaryIndexStream()
     {
-        return openInputStream(FileType.INDEX);
+        return openInputStream(isBigFormat() ? FileType.INDEX : FileType.PARTITIONS_INDEX);
+    }
+
+    @Nullable
+    public InputStream openRowIndexStream()
+    {
+        return openInputStream(FileType.ROWS_INDEX);
     }
 
     @Nullable

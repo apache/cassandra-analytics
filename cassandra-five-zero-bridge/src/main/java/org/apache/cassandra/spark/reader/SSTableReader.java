@@ -83,6 +83,7 @@ import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
@@ -118,6 +119,8 @@ public class SSTableReader implements SparkSSTableReader, Scannable
     @NotNull
     private final List<PartitionKeyFilter> partitionKeyFilters;
     @NotNull
+    private final SSTableTimeRangeFilter sstableTimeRangeFilter;
+    @NotNull
     private final Stats stats;
     @Nullable
     private Long startOffset = null;
@@ -143,6 +146,8 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         SparkRangeFilter sparkRangeFilter = null;
         @NotNull
         final List<PartitionKeyFilter> partitionKeyFilters = new ArrayList<>();
+        @NotNull
+        SSTableTimeRangeFilter sstableTimeRangeFilter = SSTableTimeRangeFilter.ALL;
 
         Builder(@NotNull TableMetadata metadata, @NotNull SSTable ssTable)
         {
@@ -168,6 +173,15 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         public Builder withPartitionKeyFilter(@NotNull PartitionKeyFilter partitionKeyFilter)
         {
             partitionKeyFilters.add(partitionKeyFilter);
+            return this;
+        }
+
+        public Builder withTimeRangeFilter(@Nullable SSTableTimeRangeFilter sstableTimeRangeFilter)
+        {
+            if (sstableTimeRangeFilter != null)
+            {
+                this.sstableTimeRangeFilter = sstableTimeRangeFilter;
+            }
             return this;
         }
 
@@ -213,6 +227,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
                                      ssTable,
                                      sparkRangeFilter,
                                      partitionKeyFilters,
+                                     sstableTimeRangeFilter,
                                      columnFilter,
                                      readIndexOffset,
                                      stats,
@@ -232,6 +247,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
                          @NotNull SSTable ssTable,
                          @Nullable SparkRangeFilter sparkRangeFilter,
                          @NotNull List<PartitionKeyFilter> partitionKeyFilters,
+                         @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                          @Nullable PruneColumnFilter columnFilter,
                          boolean readIndexOffset,
                          @NotNull Stats stats,
@@ -254,9 +270,12 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         try
         {
             now = System.nanoTime();
-            summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
-            stats.readSummaryDb(ssTable, System.nanoTime() - now);
-            keys = Pair.of(summary.first(), summary.last());
+            if (ssTable.isBigFormat())
+            {
+                summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
+                stats.readSummaryDb(ssTable, System.nanoTime() - now);
+                keys = Pair.of(summary.first(), summary.last());
+            }
         }
         catch (IOException exception)
         {
@@ -265,8 +284,11 @@ public class SSTableReader implements SparkSSTableReader, Scannable
 
         if (keys == null)
         {
-            LOGGER.warn("Could not load first and last key from Summary.db file, so attempting Index.db fileName={}",
-                        ssTable.getDataFileName());
+            if (ssTable.isBigFormat())
+            {
+                LOGGER.warn("Could not load first and last key from Summary.db file, so attempting Index.db fileName={}",
+                            ssTable.getDataFileName());
+            }
             now = System.nanoTime();
             keys = SSTableCache.INSTANCE.keysFromIndex(metadata, ssTable);
             stats.readIndexDb(ssTable, System.nanoTime() - now);
@@ -298,6 +320,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             header = null;
             helper = null;
             this.metadata = null;
+            this.sstableTimeRangeFilter = SSTableTimeRangeFilter.ALL;
             return;
         }
 
@@ -308,7 +331,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             this.partitionKeyFilters = ImmutableList.copyOf(matchInBloomFilter);
 
             // Check if required keys are actually present
-            if (matchInBloomFilter.isEmpty() || !ReaderUtils.anyFilterKeyInIndex(ssTable, matchInBloomFilter))
+            if (matchInBloomFilter.isEmpty() || !ReaderUtils.anyFilterKeyInIndex(ssTable, metadata, descriptor, matchInBloomFilter))
             {
                 if (matchInBloomFilter.isEmpty())
                 {
@@ -324,6 +347,7 @@ public class SSTableReader implements SparkSSTableReader, Scannable
                 header = null;
                 helper = null;
                 this.metadata = null;
+                this.sstableTimeRangeFilter = SSTableTimeRangeFilter.ALL;
                 return;
             }
         }
@@ -342,6 +366,21 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         }
 
         this.statsMetadata = (StatsMetadata) componentMap.get(MetadataType.STATS);
+        if (!sstableTimeRangeFilter.overlaps(statsMetadata.minTimestamp, statsMetadata.maxTimestamp))
+        {
+            LOGGER.info("Ignoring SSTableReader with minTimestamp={} maxTimestamp={}, does not overlap with filter {}",
+                        this.statsMetadata.minTimestamp, this.statsMetadata.maxTimestamp, sstableTimeRangeFilter);
+            header = null;
+            helper = null;
+            this.metadata = null;
+            this.sstableTimeRangeFilter = SSTableTimeRangeFilter.ALL;
+            return;
+        }
+        else
+        {
+            this.sstableTimeRangeFilter = sstableTimeRangeFilter;
+        }
+
         SerializationHeader.Component headerComp = (SerializationHeader.Component) componentMap.get(MetadataType.HEADER);
         if (headerComp == null)
         {

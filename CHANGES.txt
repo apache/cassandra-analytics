@@ -1,5 +1,19 @@
+0.3.0
+-----
+ * Fix race condition in DirectStreamSession#onSSTablesProduced and SortedSStableWriter#close (CASSANALYTICS-107)
+ * Address LZ4 vulnerability (CVE-2025-12183) (CASSANALYTICS-109)
+ * Add TimeRangeFilter to filter out SSTables outside given time window (CASSANALYTICS-102)
+
 0.2.0
 -----
+ * Generated distribution artifacts fix (CASSANALYTICS-105)
+ * Fix SSTable descriptor mismatch preventing newly produced SSTables from being uploaded (CASSANALYTICS-98)
+ * Expose SidecarCdc builders and interfaces (CASSANALYTICS-94)
+ * Fix bulk reader node availability comparator ordering (CASSANALYTICS-99)
+ * Remove not needed buffer flips (CASSANALYTICS-95)
+ * Refactor BulkWriterContext broadcasting to use immutable config class (CASSANALYTICS-89)
+ * Bump sidecar dependency to 0.2.0 (CASSANALYTICS-93)
+ * Support for Trie-Indexed SSTables (BTI format) (CASSANALYTICS-27)
  * Add extractCdcTables method to CqlUtils (CASSANALYTICS-91)
  * Create bridge modules for Cassandra 5.0 (CASSANALYTICS-84)
  * Analytics job fails when source table has secondary indexes (CASSANALYTICS-86)

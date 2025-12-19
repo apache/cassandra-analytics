@@ -43,6 +43,8 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.VersionRunner;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
+import static org.apache.cassandra.spark.utils.CqlUtils.extractCompactionStrategy;
+import static org.apache.cassandra.spark.utils.CqlUtils.isTimeRangeFilterSupported;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -796,6 +798,40 @@ public class CqlUtilsTest extends VersionRunner
         assertThat(createStmts.containsKey(TableIdentifier.of("ks2", "tb4"))).isTrue();
     }
 
+
+    @Test
+    public void testTimeRangeFilterSupported()
+    {
+        String schemaWithTWCS = "CREATE TABLE k.t (a int PRIMARY KEY, b int) " +
+                                "WITH compaction = { 'class' : 'org.apache.cassandra.db.compaction.TimeWindowCompactionStrategy'};";
+        String twcsCompaction = extractCompactionStrategy(schemaWithTWCS);
+        assertThat(twcsCompaction).isEqualTo("org.apache.cassandra.db.compaction.TimeWindowCompactionStrategy");
+        assertThat(isTimeRangeFilterSupported(twcsCompaction)).isTrue();
+
+        String schemaWithTWCSNoSpace = "CREATE TABLE k.t (a int PRIMARY KEY, b int) " +
+                                "WITH compaction = {'class':'org.apache.cassandra.db.compaction.TimeWindowCompactionStrategy'};";
+        String twcsCompactionNoSpace = extractCompactionStrategy(schemaWithTWCSNoSpace);
+        assertThat(twcsCompactionNoSpace).isEqualTo("org.apache.cassandra.db.compaction.TimeWindowCompactionStrategy");
+        assertThat(isTimeRangeFilterSupported(twcsCompactionNoSpace)).isTrue();
+
+        String schemaWithLCS = "CREATE TABLE k.t (a int PRIMARY KEY, b int) " +
+                               "WITH compaction = { 'class' : 'org.apache.cassandra.db.compaction.LeveledCompactionStrategy'};";
+        String lcsCompaction = extractCompactionStrategy(schemaWithLCS);
+        assertThat(lcsCompaction).isEqualTo("org.apache.cassandra.db.compaction.LeveledCompactionStrategy");
+        assertThat(isTimeRangeFilterSupported(lcsCompaction)).isFalse();
+
+        String schemaWithSTCS = "CREATE TABLE k.t (a int PRIMARY KEY, b int) " +
+                                "WITH compaction = {'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy'};";
+        String stcsCompaction = extractCompactionStrategy(schemaWithSTCS);
+        assertThat(isTimeRangeFilterSupported(stcsCompaction)).isFalse();
+
+        String schemaNoCompaction = "CREATE TABLE k.t (a int PRIMARY KEY, b int);";
+        String nullCompaction = extractCompactionStrategy(schemaNoCompaction);
+        assertThat(nullCompaction).isNull();
+        assertThat(isTimeRangeFilterSupported(nullCompaction)).isTrue();
+
+        assertThat(isTimeRangeFilterSupported("")).isFalse();
+    }
 
     private static String loadFullSchemaSample() throws IOException
     {

@@ -55,7 +55,7 @@ class SSTableWriterImplementationTest
 
     static
     {
-        CassandraTypesImplementation.setup();
+        CassandraTypesImplementation.setup(BridgeInitializationParameters.fromEnvironment());
     }
 
     @Test
@@ -94,6 +94,8 @@ class SSTableWriterImplementationTest
 
         assertThat(produced).hasSize(2);
         assertThat(produced.stream().map(e -> e.baseFilename)).containsExactlyInAnyOrder("nb-1-big", "nb-2-big");
+        // Ensure produced descriptors don't have trailing dashes
+        produced.forEach(desc -> assertThat(desc.baseFilename).doesNotEndWith("-"));
         produced.clear();
 
         for (int i = 300_000; i < 400_000; i++)
@@ -113,8 +115,34 @@ class SSTableWriterImplementationTest
     @Test
     void testBaseFileNameExtraction()
     {
+        // Test basic case
         Descriptor descriptor = new Descriptor("nb", writeDirectory, "ks", "tbl", 1, SSTableFormat.Type.BIG);
-        assertThat(CassandraBridgeImplementation.baseFilename(descriptor)).isEqualTo("nb-1-big");
+        String baseFilename = CassandraBridgeImplementation.baseFilename(descriptor);
+        assertThat(baseFilename).isEqualTo("nb-1-big");
+
+        // Test with different generations
+        Descriptor descriptor10 = new Descriptor("oa", writeDirectory, "ks", "tbl", 10, SSTableFormat.Type.BIG);
+        assertThat(CassandraBridgeImplementation.baseFilename(descriptor10)).isEqualTo("oa-10-big");
+
+        Descriptor descriptor12345 = new Descriptor("oa", writeDirectory, "ks", "tbl", 12345, SSTableFormat.Type.BIG);
+        assertThat(CassandraBridgeImplementation.baseFilename(descriptor12345)).isEqualTo("oa-12345-big");
+    }
+
+    @Test
+    void testSSTableDescriptorConsistencyWithFilePathParsing()
+    {
+        // This test ensures that SSTableDescriptors created by SSTableWriterImplementation.onSSTablesProduced()
+        // match those created by SSTables.getSSTableDescriptor() from file paths
+        Descriptor descriptor = new Descriptor("oa", writeDirectory, "ks", "tbl", 1, SSTableFormat.Type.BIG);
+        String baseFilenameFromBridge = CassandraBridgeImplementation.baseFilename(descriptor);
+
+        // Simulate what SSTables.getSSTableDescriptor would do with a data file path
+        // For a data file like "oa-1-big-Data.db", getSSTableDescriptor should extract "oa-1-big"
+        SSTableDescriptor descriptorFromBridge = new SSTableDescriptor(baseFilenameFromBridge);
+        SSTableDescriptor descriptorFromPath = new SSTableDescriptor("oa-1-big");
+
+        assertThat(descriptorFromBridge).isEqualTo(descriptorFromPath);
+        assertThat(descriptorFromBridge.baseFilename).isEqualTo("oa-1-big");
     }
 
     static boolean peekSorted(CQLSSTableWriter.Builder builder) throws NoSuchFieldException, IllegalAccessException

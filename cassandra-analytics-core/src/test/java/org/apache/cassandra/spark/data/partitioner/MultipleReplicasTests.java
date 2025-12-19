@@ -189,8 +189,11 @@ public class MultipleReplicasTests
 
     public static class TestSSTableReader implements SparkSSTableReader
     {
+        private final SSTable ssTable;
+
         public TestSSTableReader(SSTable ssTable)
         {
+            this.ssTable = ssTable;
         }
 
         public BigInteger firstToken()
@@ -206,6 +209,12 @@ public class MultipleReplicasTests
         public boolean ignore()
         {
             return false;
+        }
+
+        @Override
+        public String toString()
+        {
+            return ssTable.getDataFileName();
         }
     }
 }

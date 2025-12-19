@@ -24,8 +24,8 @@ import java.util.Map;
 
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.JobInfo;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCloudStorageDataTransferApi;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterSupport;
 import org.jetbrains.annotations.Nullable;
 
 public class CloudStorageDataTransferApiFactory
@@ -34,16 +34,18 @@ public class CloudStorageDataTransferApiFactory
 
     /**
      * Create CloudStorageDataTransferApi based on the actual runtime type of ClusterInfo
-     * @return CoordinatedCloudStorageDataTransferApi if using coordinated write, i.e. with CassandraClusterInfoGroup;
+     * @return CoordinatedCloudStorageDataTransferApi if using coordinated write, i.e. with MultiClusterSupport;
      *         otherwise, CloudStorageDataTransferApiImpl
      */
     public CloudStorageDataTransferApi createDataTransferApi(StorageClient storageClient,
                                                              JobInfo jobInfo,
                                                              ClusterInfo clusterInfo)
     {
-        if (clusterInfo instanceof CassandraClusterInfoGroup)
+        if (clusterInfo instanceof MultiClusterSupport)
         {
-            return createForCoordinated(storageClient, jobInfo, (CassandraClusterInfoGroup) clusterInfo);
+            @SuppressWarnings("unchecked")
+            MultiClusterSupport<ClusterInfo> multiCluster = (MultiClusterSupport<ClusterInfo>) clusterInfo;
+            return createForCoordinated(storageClient, jobInfo, multiCluster);
         }
         else
         {
@@ -64,7 +66,7 @@ public class CloudStorageDataTransferApiFactory
 
     private CoordinatedCloudStorageDataTransferApi createForCoordinated(StorageClient storageClient,
                                                                         JobInfo jobInfo,
-                                                                        CassandraClusterInfoGroup clusterInfoGroup)
+                                                                        MultiClusterSupport<ClusterInfo> clusterInfoGroup)
     {
         Map<String, CloudStorageDataTransferApiImpl> apiByClusterId = new HashMap<>(clusterInfoGroup.size());
         clusterInfoGroup.forEach((clusterId, clusterInfo) -> {

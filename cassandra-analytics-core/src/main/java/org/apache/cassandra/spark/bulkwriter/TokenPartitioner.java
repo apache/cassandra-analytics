@@ -19,9 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.util.Collections;
 import java.util.Comparator;
@@ -45,6 +42,32 @@ import org.apache.cassandra.spark.utils.RangeUtils;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.spark.Partitioner;
 
+/**
+ * Spark Partitioner for distributing data across Cassandra token ranges.
+ * <p>
+ * Serialization Architecture:
+ * This class supports TWO distinct serialization mechanisms, each serving a different purpose:
+ * <p>
+ * 1. <b>Direct Java Serialization (via writeObject/readObject)</b>:
+ *    Used when Spark serializes this Partitioner for shuffle operations like
+ *    {@code repartitionAndSortWithinPartitions()}. During shuffle, Spark sends the Partitioner
+ *    to executors to determine which partition each record belongs to. The custom serialization
+ *    methods at the end of this class handle saving/restoring the partition mappings.
+ * <p>
+ * 2. <b>Broadcast Variable Pattern (via BroadcastableTokenPartitioner)</b>:
+ *    Used when broadcasting job configuration to executors. The driver extracts partition mappings
+ *    into {@link BroadcastableTokenPartitioner} (a pure data wrapper with no transient fields),
+ *    which is broadcast via {@link BulkWriterConfig}. Executors reconstruct TokenPartitioner from
+ *    the broadcast data using the constructor {@link #TokenPartitioner(BroadcastableTokenPartitioner)}.
+ * <p>
+ * Both mechanisms are necessary because:
+ * - Shuffle operations (repartitionAndSortWithinPartitions) serialize the Partitioner directly
+ * - Broadcast variables use the broadcastable wrapper pattern to avoid Logger serialization issues
+ * <p>
+ * The transient fields (partitionMap, reversePartitionMap, nrPartitions) are marked transient to
+ * avoid serializing large/complex objects when not needed, but are properly handled by custom
+ * serialization when direct serialization is required.
+ */
 public class TokenPartitioner extends Partitioner
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(TokenPartitioner.class);
@@ -75,10 +98,51 @@ public class TokenPartitioner extends Partitioner
         this.tokenRangeMapping = tokenRangeMapping;
         this.numberSplits = calculateSplits(tokenRangeMapping, userSpecifiedNumberSplits, defaultParallelism, cores);
         setupTokenRangeMap(randomize);
-        validate();  // Intentionally not keeping this in readObject(), it is enough to validate in constructor alone
-        LOGGER.info("Partition map " + partitionMap);
-        LOGGER.info("Reverse partition map " + reversePartitionMap);
-        LOGGER.info("Number of partitions {}", nrPartitions);
+        validate(); // Intentionally keeping validation in the driver alone; there is no need to re-validate when constructing in executors
+        logPartitionInfo();
+    }
+
+    private void logPartitionInfo()
+    {
+        LOGGER.info("Number of partitions: {}", nrPartitions);
+        LOGGER.info("Partition map: {}", partitionMap);
+        LOGGER.info("Reverse partition map: {}", reversePartitionMap);
+    }
+
+    /**
+     * Reconstruct TokenPartitioner from BroadcastableTokenPartitioner on executor.
+     * <p>
+     * This constructor is part of the <b>broadcast variable</b> serialization mechanism.
+     * When BulkWriterConfig is broadcast to executors, it contains BroadcastableTokenPartitioner
+     * (a pure data wrapper). Executors use this constructor to rebuild the TokenPartitioner
+     * with all necessary partition mappings.
+     * <p>
+     * This reconstruction path is separate from the direct Java serialization (writeObject/readObject)
+     * used for Spark shuffle operations. The broadcast pattern is preferred for configuration data
+     * because it avoids Logger serialization issues and minimizes broadcast size.
+     *
+     * @param broadcastable the broadcastable token partitioner from broadcast variable
+     * @see BroadcastableTokenPartitioner
+     * @see BulkWriterConfig
+     */
+    public TokenPartitioner(BroadcastableTokenPartitioner broadcastable)
+    {
+        this.tokenRangeMapping = null;  // Not needed on executors
+        this.numberSplits = broadcastable.numSplits();
+        this.partitionMap = com.google.common.collect.TreeRangeMap.create();
+        this.reversePartitionMap = new HashMap<>();
+        this.nrPartitions = 0;
+
+        // Restore partition mappings from serialized form
+        broadcastable.getPartitionEntries().forEach((range, partitionId) -> {
+            this.partitionMap.put(range, partitionId);
+            this.reversePartitionMap.put(partitionId, range);
+            if (partitionId >= this.nrPartitions)
+            {
+                this.nrPartitions = partitionId + 1;
+            }
+        });
+        logPartitionInfo();
     }
 
     @Override
@@ -137,6 +201,7 @@ public class TokenPartitioner extends Partitioner
         this.nrPartitions = nextPartitionId.get();
     }
 
+    // only invoked in driver
     private void validate()
     {
         validateMapSizes();
@@ -198,31 +263,6 @@ public class TokenPartitioner extends Partitioner
                                                reversePartitionMap.keySet().size()));
     }
 
-    private void writeObject(ObjectOutputStream out) throws IOException
-    {
-        out.defaultWriteObject();
-        HashMap<Range<BigInteger>, Integer> partitionEntires = new HashMap<>();
-        partitionMap.asMapOfRanges().forEach(partitionEntires::put);
-        out.writeObject(partitionEntires);
-    }
-
-    @SuppressWarnings("unchecked")
-    private void readObject(ObjectInputStream in) throws ClassNotFoundException, IOException
-    {
-        in.defaultReadObject();
-        HashMap<Range<BigInteger>, Integer> partitionEntires = (HashMap<Range<BigInteger>, Integer>) in.readObject();
-        partitionMap = TreeRangeMap.create();
-        reversePartitionMap = new HashMap<>();
-        partitionEntires.forEach((r, i) -> {
-            partitionMap.put(r, i);
-            reversePartitionMap.put(i, r);
-            nrPartitions++;
-        });
-        LOGGER.info("Partition map " + partitionMap);
-        LOGGER.info("Reverse partition map " + reversePartitionMap);
-        LOGGER.info("Number of partitions {}", nrPartitions);
-    }
-
     // In order to best utilize the number of Spark cores while minimizing the number of commit calls,
     // we calculate the number of splits that will just match or exceed the total number of available Spark cores.
     // Note that the actual number of partitions that result from this should always be at least the number of token ranges * the number of splits,
@@ -249,5 +289,73 @@ public class TokenPartitioner extends Partitioner
     int divCeil(int a, int b)
     {
         return (a + b - 1) / b;
+    }
+
+    /**
+     * Custom serialization for Spark shuffle operations (e.g., repartitionAndSortWithinPartitions).
+     * <p>
+     * This method is invoked when Spark serializes the Partitioner to send it to executors during
+     * shuffle operations. It saves the essential partition mappings so they can be reconstructed
+     * on executors. This is separate from the broadcast variable serialization mechanism.
+     * <p>
+     * Note: This serialization path is used when the TokenPartitioner is passed directly to Spark
+     * operations (e.g., {@code .repartitionAndSortWithinPartitions(tokenPartitioner)}), not when
+     * it's broadcast as part of BulkWriterConfig.
+     *
+     * @param out the ObjectOutputStream to write to
+     * @throws java.io.IOException if an I/O error occurs during serialization
+     * @see #readObject(java.io.ObjectInputStream)
+     */
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException
+    {
+        out.defaultWriteObject();
+        // Serialize the partition mappings
+        Map<Range<BigInteger>, Integer> partitionEntries = partitionMap.asMapOfRanges();
+        out.writeInt(partitionEntries.size());
+        for (Map.Entry<Range<BigInteger>, Integer> entry : partitionEntries.entrySet())
+        {
+            out.writeObject(entry.getKey());
+            out.writeInt(entry.getValue());
+        }
+    }
+
+    /**
+     * Custom deserialization for Spark shuffle operations.
+     * <p>
+     * This method is invoked when Spark deserializes the Partitioner on executors during shuffle
+     * operations. It reconstructs the transient fields (partitionMap, reversePartitionMap, nrPartitions)
+     * from the serialized data. This ensures the Partitioner can correctly map tokens to partitions
+     * after deserialization.
+     * <p>
+     * Note: This deserialization path is used when the TokenPartitioner was serialized by Spark
+     * for shuffle operations, not when it's reconstructed from a broadcast BroadcastableTokenPartitioner.
+     *
+     * @param in the ObjectInputStream to read from
+     * @throws java.io.IOException if an I/O error occurs during deserialization
+     * @throws ClassNotFoundException if the class of a serialized object cannot be found
+     * @see #writeObject(java.io.ObjectOutputStream)
+     */
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException
+    {
+        in.defaultReadObject();
+        // Reconstruct partition maps
+        this.partitionMap = TreeRangeMap.create();
+        this.reversePartitionMap = new HashMap<>();
+        this.nrPartitions = 0;
+
+        int size = in.readInt();
+        for (int i = 0; i < size; i++)
+        {
+            @SuppressWarnings("unchecked")
+            Range<BigInteger> range = (Range<BigInteger>) in.readObject();
+            int partitionId = in.readInt();
+
+            this.partitionMap.put(range, partitionId);
+            this.reversePartitionMap.put(partitionId, range);
+            if (partitionId >= this.nrPartitions)
+            {
+                this.nrPartitions = partitionId + 1;
+            }
+        }
     }
 }

@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.data;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -42,11 +43,12 @@ import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.bridge.TokenRange;
-import org.apache.cassandra.spark.utils.RangeUtils;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
+import org.apache.cassandra.spark.data.partitioner.MultiDCReplicas;
 import org.apache.cassandra.spark.data.partitioner.MultipleReplicas;
 import org.apache.cassandra.spark.data.partitioner.NotEnoughReplicasException;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -55,7 +57,7 @@ import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
 import org.apache.cassandra.spark.sparksql.NoMatchFoundException;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
-import org.apache.cassandra.analytics.stats.Stats;
+import org.apache.cassandra.spark.utils.RangeUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -86,7 +88,7 @@ public abstract class PartitionedDataLayer extends DataLayer
         }
 
         public static final Comparator<AvailabilityHint> AVAILABILITY_HINT_COMPARATOR =
-                Comparator.comparingInt((AvailabilityHint other) -> other.priority).reversed();
+                Comparator.comparingInt((AvailabilityHint other) -> other.priority);
 
         public static AvailabilityHint fromState(String status, String state)
         {
@@ -134,10 +136,6 @@ public abstract class PartitionedDataLayer extends DataLayer
         {
             throw new IllegalArgumentException("SERIAL or LOCAL_SERIAL are invalid consistency levels for the Bulk Reader");
         }
-        if (consistencyLevel == ConsistencyLevel.EACH_QUORUM)
-        {
-            throw new UnsupportedOperationException("EACH_QUORUM has not been implemented yet");
-        }
     }
 
     protected void validateReplicationFactor(@NotNull ReplicationFactor replicationFactor)
@@ -165,6 +163,10 @@ public abstract class PartitionedDataLayer extends DataLayer
         {
             return;
         }
+
+        Preconditions.checkArgument(ConsistencyLevel.EACH_QUORUM != consistencyLevel,
+                                    "A DC should not be specified for EACH_QUORUM consistency level. Provided DC: " + dc);
+
         Preconditions.checkArgument(replicationFactor.getOptions().containsKey(dc),
                                     "DC %s not found in replication factor %s",
                                     dc, replicationFactor.getOptions().keySet());
@@ -279,12 +281,53 @@ public abstract class PartitionedDataLayer extends DataLayer
         LOGGER.info("Creating partitioned SSTablesSupplier for Spark partition partitionId={} rangeLower={} rangeUpper={} numReplicas={}",
                     partitionId, range.lowerEndpoint(), range.upperEndpoint(), replicas.size());
 
+        return constructSSTablesSupplier(partitionId, replicationFactor, instRanges, replicas, range);
+    }
+
+    @NotNull
+    private SSTablesSupplier constructSSTablesSupplier(
+    int partitionId,
+    ReplicationFactor replicationFactor,
+    Map<Range<BigInteger>, List<CassandraInstance>> instRanges,
+    Set<CassandraInstance> replicas,
+    Range<BigInteger> range)
+    {
+        if (consistencyLevel == ConsistencyLevel.EACH_QUORUM)
+        {
+            Map<String, Integer> minReplicasPerDC = consistencyLevel.eachQuorumBlockFor(replicationFactor);
+            LOGGER.debug("Reading with EACH_QUORUM consistency level for partitionId={}, minReplicasPerDC={}",
+                         partitionId, minReplicasPerDC);
+            Map<String, Set<CassandraInstance>> replicasByDC = replicas.stream()
+                                                                       .collect(Collectors.groupingBy(
+                                                                       CassandraInstance::dataCenter,
+                                                                       Collectors.toSet()
+                                                                       ));
+
+            Map<String, SSTablesSupplier> perDCSSTablesSupplier = new HashMap<>(minReplicasPerDC.size());
+            for (Map.Entry<String, Integer> entry : minReplicasPerDC.entrySet())
+            {
+                Set<CassandraInstance> replicasInDC = replicasByDC.getOrDefault(entry.getKey(), Collections.emptySet());
+                MultipleReplicas multipleReplicas = constructSSTablesSupplierSingleDC(partitionId, instRanges, replicasInDC, range, entry.getValue());
+                perDCSSTablesSupplier.put(entry.getKey(), multipleReplicas);
+            }
+            return new MultiDCReplicas(perDCSSTablesSupplier);
+        }
+        int minReplicas = consistencyLevel.blockFor(replicationFactor, datacenter);
+        return constructSSTablesSupplierSingleDC(partitionId, instRanges, replicas, range, minReplicas);
+    }
+
+    @NotNull
+    private MultipleReplicas constructSSTablesSupplierSingleDC(
+    int partitionId,
+    Map<Range<BigInteger>, List<CassandraInstance>> instRanges,
+    Set<CassandraInstance> replicas,
+    Range<BigInteger> range, int minReplicas)
+    {
         // Use consistency level and replication factor to calculate min number of replicas required
         // to satisfy consistency level; split replicas into 'primary' and 'backup' replicas,
         // attempt on primary replicas and use backups to retry in the event of a failure
-        int minReplicas = consistencyLevel.blockFor(replicationFactor, datacenter);
         ReplicaSet replicaSet = PartitionedDataLayer.splitReplicas(
-                consistencyLevel, datacenter, instRanges, replicas, this::getAvailability, minReplicas, partitionId);
+        consistencyLevel, datacenter, instRanges, replicas, this::getAvailability, minReplicas, partitionId);
         if (replicaSet.primary().size() < minReplicas)
         {
             // Could not find enough primary replicas to meet consistency level
@@ -295,11 +338,16 @@ public abstract class PartitionedDataLayer extends DataLayer
         ExecutorService executor = executorService();
         Stats stats = stats();
         Set<SingleReplica> primaryReplicas = replicaSet.primary().stream()
-                .map(instance -> new SingleReplica(instance, this, range, partitionId, executor, stats, replicaSet.isRepairPrimary(instance)))
-                .collect(Collectors.toSet());
+                                                       .map(instance ->
+                                                            new SingleReplica(instance, this, range,
+                                                                              partitionId, executor, stats,
+                                                                              replicaSet.isRepairPrimary(instance)))
+                                                       .collect(Collectors.toSet());
         Set<SingleReplica> backupReplicas = replicaSet.backup().stream()
-                .map(instance -> new SingleReplica(instance, this, range, partitionId, executor, stats, true))
-                .collect(Collectors.toSet());
+                                                      .map(instance ->
+                                                           new SingleReplica(instance, this, range,
+                                                                             partitionId, executor, stats, true))
+                                                      .collect(Collectors.toSet());
 
         return new MultipleReplicas(primaryReplicas, backupReplicas, stats);
     }

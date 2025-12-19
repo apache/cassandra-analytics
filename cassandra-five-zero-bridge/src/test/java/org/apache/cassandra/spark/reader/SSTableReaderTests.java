@@ -1028,11 +1028,7 @@ public class SSTableReaderTests
                         });
                     }
 
-                    TableMetadata metadata = new SchemaBuilder(schema.createStatement,
-                                                               schema.keyspace,
-                                                               new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
-                                                                                     ImmutableMap.of("replication_factor", 1)),
-                                                               partitioner).tableMetaData();
+                    TableMetadata metadata = tableMetadata(schema, partitioner);
                     List<SSTable> ssTables = TestSSTable.allIn(directory.path());
                     assertThat(ssTables.size()).isEqualTo(numSSTables);
 

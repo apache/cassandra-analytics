@@ -180,7 +180,6 @@ public class ClusterBuilderConfiguration
         return this;
     }
 
-
     /**
      * Sets a supplier function that provides datacenter and rack information for each node in the cluster.
      *

@@ -19,12 +19,18 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.io.Serializable;
 import java.util.Set;
 
 import org.jetbrains.annotations.NotNull;
 
-public interface SchemaInfo extends Serializable
+/**
+ * Provides schema information for bulk write operations.
+ * <p>
+ * This interface does NOT extend Serializable. SchemaInfo instances are never serialized.
+ * For broadcast to executors, {@link BroadcastableSchemaInfo} is used instead, and executors
+ * reconstruct SchemaInfo instances (specifically {@link CassandraSchemaInfo}) from the broadcast data.
+ */
+public interface SchemaInfo
 {
     TableSchema getTableSchema();
 

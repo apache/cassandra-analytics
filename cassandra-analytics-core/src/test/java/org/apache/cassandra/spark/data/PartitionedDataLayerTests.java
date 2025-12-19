@@ -52,6 +52,7 @@ import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
 import org.apache.cassandra.spark.reader.EmptyStreamScanner;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.TaskContext;
 
@@ -154,14 +155,14 @@ public class PartitionedDataLayerTests extends VersionRunner
     @Test
     public void testAvailabilityHintComparator()
     {
-        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UP, MOVING)).isEqualTo(1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UP, MOVING)).isEqualTo(-1);
         assertThat(AVAILABILITY_HINT_COMPARATOR.compare(LEAVING, MOVING)).isEqualTo(0);
-        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UNKNOWN, MOVING)).isEqualTo(-1);
-        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(LEAVING, UNKNOWN)).isEqualTo(1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UNKNOWN, MOVING)).isEqualTo(1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(LEAVING, UNKNOWN)).isEqualTo(-1);
         assertThat(AVAILABILITY_HINT_COMPARATOR.compare(DOWN, UNKNOWN)).isEqualTo(0);
         assertThat(AVAILABILITY_HINT_COMPARATOR.compare(JOINING, DOWN)).isEqualTo(0);
-        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UP, DOWN)).isEqualTo(1);
-        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(JOINING, UP)).isEqualTo(-1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(UP, DOWN)).isEqualTo(-1);
+        assertThat(AVAILABILITY_HINT_COMPARATOR.compare(JOINING, UP)).isEqualTo(1);
     }
 
     @Test
@@ -231,6 +232,16 @@ public class PartitionedDataLayerTests extends VersionRunner
                                                       TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 0)),
                                                       "MR"))
             .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    public void testReplicationFactorEachQuorum()
+    {
+        assertThatThrownBy(() -> PartitionedDataLayer
+                                 .validateReplicationFactor(EACH_QUORUM,
+                                                            TestUtils.networkTopologyStrategy(ImmutableMap.of("PV", 3, "MR", 3)),
+                                                            "MR"))
+        .isInstanceOf(IllegalArgumentException.class);
     }
 
     @ParameterizedTest
@@ -303,7 +314,8 @@ public class PartitionedDataLayerTests extends VersionRunner
 
         // Filter does not fall in spark token range
         StreamScanner scanner = dataLayer.openCompactionScanner(partitionId,
-                                                                Collections.singletonList(filterOutsideRange));
+                                                                Collections.singletonList(filterOutsideRange),
+                                                                SSTableTimeRangeFilter.ALL);
         assertThat(scanner).isInstanceOf(EmptyStreamScanner.class);
     }
 
@@ -391,5 +403,46 @@ public class PartitionedDataLayerTests extends VersionRunner
             assertThat(Collections.disjoint(replicaSet.primary(), replicaSet.backup())).isTrue();
             assertThat(replicaSet.primary().size() + replicaSet.backup().size()).isEqualTo(replicas.size());
         }
+    }
+
+
+    /**
+     * Tests that the AvailabilityHint comparator correctly orders Cassandra nodes by availability priority:
+     * UP nodes first, then MOVING/LEAVING nodes, and finally DOWN/UNKNOWN/JOINING nodes last.
+     */
+    @Test
+    public void testSortingByAvailabilityHintComparator()
+    {
+        List<PartitionedDataLayer.AvailabilityHint> hints = Arrays.asList(UP, MOVING, LEAVING, UNKNOWN, JOINING, DOWN);
+
+        for (int i = 0; i < 5; i++)
+        {
+            validateHintsSequence(hints, 1, 3);
+        }
+
+        hints = Arrays.asList(UP, UP, UP, MOVING, MOVING, LEAVING, UNKNOWN, UNKNOWN, UNKNOWN, JOINING, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN);
+
+        for (int i = 0; i < 5; i++)
+        {
+            validateHintsSequence(hints, 3, 6);
+        }
+    }
+
+    private static void validateHintsSequence(List<PartitionedDataLayer.AvailabilityHint> hints, int upCount, int movingOrLeavingCount)
+    {
+        List<PartitionedDataLayer.AvailabilityHint> shuffledHints = new ArrayList<>(hints);
+        Collections.shuffle(shuffledHints);
+        // Test expected ordering: UP > MOVING/LEAVING > UNKNOWN/JOINING/DOWN
+        List<PartitionedDataLayer.AvailabilityHint> sorted = new ArrayList<>(shuffledHints);
+        sorted.sort(AVAILABILITY_HINT_COMPARATOR);
+
+        // Verify UP comes first (highest priority)
+        assertThat(sorted.subList(0, upCount)).contains(UP).doesNotContain(MOVING, LEAVING, UNKNOWN, JOINING, DOWN);
+
+        // Verify MOVING, LEAVING are in the middle
+        assertThat(sorted.subList(upCount, movingOrLeavingCount)).contains(MOVING, LEAVING).doesNotContain(UP, DOWN, UNKNOWN, JOINING);
+
+        // Verify DOWN, UNKNOWN, JOINING come last (lowest priority)
+        assertThat(sorted.subList(movingOrLeavingCount, sorted.size())).contains(DOWN, UNKNOWN, JOINING).doesNotContain(UP, MOVING, LEAVING);
     }
 }

@@ -84,9 +84,16 @@ public class RecordWriter
     private final CqlTable cqlTable;
     private StreamSession<?> streamSession = null;
 
-    public RecordWriter(BulkWriterContext writerContext, String[] columnNames)
+    /**
+     * Constructor that accepts a BulkWriterConfig and constructs the context on the executor.
+     * This is used when the config is broadcast to executors.
+     *
+     * @param config      immutable configuration broadcast from driver
+     * @param columnNames column names array
+     */
+    public RecordWriter(BulkWriterConfig config, String[] columnNames)
     {
-        this(writerContext, columnNames, TaskContext::get, SortedSSTableWriter::new);
+        this(BulkWriterContext.from(config), columnNames, TaskContext::get, SortedSSTableWriter::new);
     }
 
     @VisibleForTesting

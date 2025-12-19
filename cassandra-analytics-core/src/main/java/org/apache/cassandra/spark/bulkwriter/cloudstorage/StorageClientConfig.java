@@ -23,13 +23,9 @@ import java.io.Serializable;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class StorageClientConfig implements Serializable
 {
     private static final long serialVersionUID = -1572678388713210328L;
-    private static final Logger LOGGER = LoggerFactory.getLogger(StorageClientConfig.class);
 
     public final String threadNamePrefix;
     // Controls the max concurrency/parallelism of the thread pool used by s3 client
@@ -74,8 +70,7 @@ public class StorageClientConfig implements Serializable
         }
         catch (URISyntaxException e)
         {
-            LOGGER.error("{} is specified, but the value is invalid. input={}", hint, uriString);
-            throw new RuntimeException("Unable to resolve " + uriString, e);
+            throw new RuntimeException(hint + " is specified, but the value is invalid. input=" + uriString, e);
         }
     }
 }

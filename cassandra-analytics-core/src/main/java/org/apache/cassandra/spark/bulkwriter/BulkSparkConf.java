@@ -37,10 +37,10 @@ import java.util.stream.Collectors;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.sidecar.client.SidecarInstance;
+import org.slf4j.Logger;
+
+import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.StorageClientConfig;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf.SimpleClusterConf;
@@ -57,7 +57,6 @@ import org.jetbrains.annotations.Nullable;
 public class BulkSparkConf implements Serializable
 {
     private static final long serialVersionUID = -5060973521517656241L;
-    private static final Logger LOGGER = LoggerFactory.getLogger(BulkSparkConf.class);
 
     public static final String JDK11_OPTIONS = " -Djdk.attach.allowAttachSelf=true"
                                              + " --add-exports java.base/jdk.internal.misc=ALL-UNNAMED"
@@ -160,6 +159,12 @@ public class BulkSparkConf implements Serializable
 
     public BulkSparkConf(SparkConf conf, Map<String, String> options)
     {
+        this(conf, options, null);
+    }
+
+    // NO LOGGER as member field - to avoid logger references in broadcast variable.
+    public BulkSparkConf(SparkConf conf, Map<String, String> options, @Nullable Logger logger)
+    {
         this.conf = conf;
         Optional<Integer> sidecarPortFromOptions = MapUtils.getOptionalInt(options, WriterOptions.SIDECAR_PORT.name(), "sidecar port");
         this.userProvidedSidecarPort = sidecarPortFromOptions.isPresent() ? sidecarPortFromOptions.get() : getOptionalInt(SIDECAR_PORT).orElse(-1);
@@ -173,7 +178,10 @@ public class BulkSparkConf implements Serializable
         String dc = MapUtils.getOrDefault(options, WriterOptions.LOCAL_DC.name(), null);
         if (!consistencyLevel.isLocal() && dc != null)
         {
-            LOGGER.warn("localDc is present for non-local consistency level {} specified in writer options. Correcting localDc to null", consistencyLevel);
+            if (logger != null)
+            {
+                logger.warn("localDc is present for non-local consistency level {} specified in writer options. Correcting localDc to null", consistencyLevel);
+            }
             dc = null;
         }
         this.localDC = dc;
@@ -231,7 +239,7 @@ public class BulkSparkConf implements Serializable
         this.jobTimeoutSeconds = MapUtils.getLong(options, WriterOptions.JOB_TIMEOUT_SECONDS.name(), -1L);
         this.configuredJobId = MapUtils.getOrDefault(options, WriterOptions.JOB_ID.name(), null);
         this.coordinatedWriteConfJson = MapUtils.getOrDefault(options, WriterOptions.COORDINATED_WRITE_CONFIG.name(), null);
-        this.coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport());
+        this.coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport(), logger);
         this.digestAlgorithmSupplier = digestAlgorithmSupplierFromOptions(dataTransport, options);
         validateEnvironment();
     }
@@ -304,14 +312,14 @@ public class BulkSparkConf implements Serializable
     {
         if (coordinatedWriteConf == null)
         {
-            coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport());
+            coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport(), null);
         }
 
         return coordinatedWriteConf;
     }
 
     @Nullable
-    protected CoordinatedWriteConf buildCoordinatedWriteConf(DataTransport dataTransport)
+    protected CoordinatedWriteConf buildCoordinatedWriteConf(DataTransport dataTransport, @Nullable Logger logger)
     {
         if (coordinatedWriteConfJson == null)
         {
@@ -323,17 +331,26 @@ public class BulkSparkConf implements Serializable
 
         if (sidecarContactPointsValue != null)
         {
-            LOGGER.warn("SIDECAR_CONTACT_POINTS or SIDECAR_INSTANCES are ignored on the presence of COORDINATED_WRITE_CONF");
+            if (logger != null)
+            {
+                logger.warn("SIDECAR_CONTACT_POINTS or SIDECAR_INSTANCES are ignored on the presence of COORDINATED_WRITE_CONF");
+            }
         }
 
         if (userProvidedSidecarPort != -1)
         {
-            LOGGER.warn("SIDECAR_PORT is ignored on the presence of COORDINATED_WRITE_CONF");
+            if (logger != null)
+            {
+                logger.warn("SIDECAR_PORT is ignored on the presence of COORDINATED_WRITE_CONF");
+            }
         }
 
         if (localDC != null)
         {
-            LOGGER.warn("LOCAL_DC is ignored on the presence of COORDINATED_WRITE_CONF");
+            if (logger != null)
+            {
+                logger.warn("LOCAL_DC is ignored on the presence of COORDINATED_WRITE_CONF");
+            }
         }
 
         return CoordinatedWriteConf.create(coordinatedWriteConfJson, consistencyLevel, SimpleClusterConf.class);
@@ -620,8 +637,6 @@ public class BulkSparkConf implements Serializable
                 String deprecatedSetting = settingPrefix + settingSuffix;
                 if (conf.contains(deprecatedSetting))
                 {
-                    LOGGER.warn("Found deprecated setting '{}'. Please use {} in the future.",
-                                deprecatedSetting, settingName);
                     return deprecatedSetting;
                 }
             }

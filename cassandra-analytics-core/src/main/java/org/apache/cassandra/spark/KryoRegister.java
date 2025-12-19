@@ -42,6 +42,7 @@ import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
+import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.spark.SparkConf;
 import org.apache.spark.serializer.KryoRegistrator;
 import org.jetbrains.annotations.NotNull;
@@ -73,6 +74,7 @@ public class KryoRegister implements KryoRegistrator
         KRYO_SERIALIZERS.put(CassandraDataLayer.class, new CassandraDataLayer.Serializer());
         KRYO_SERIALIZERS.put(BigNumberConfigImpl.class, new BigNumberConfigImpl.Serializer());
         KRYO_SERIALIZERS.put(SslConfig.class, new SslConfig.Serializer());
+        KRYO_SERIALIZERS.put(SSTableTimeRangeFilter.class, new SSTableTimeRangeFilter.Serializer());
     }
 
     public static <T> void addSerializer(@NotNull Class<T> type, @NotNull Serializer<T> serializer)

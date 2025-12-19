@@ -28,7 +28,7 @@ import com.google.common.collect.Maps;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.sidecar.client.SidecarInstanceImpl;
+import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.utils.BuildInfo;
@@ -140,7 +140,7 @@ class BulkSparkConfTest
         // mTLS is now required, and the BulkSparkConf constructor fails if the options aren't present
         Map<String, String> options = copyDefaultOptions();
         SparkConf sparkConf = new SparkConf();
-        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options));
+        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options, null));
     }
 
     @Test

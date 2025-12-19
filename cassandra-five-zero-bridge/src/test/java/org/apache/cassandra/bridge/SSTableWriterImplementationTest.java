@@ -33,6 +33,7 @@ import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.dht.ByteOrderedPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
@@ -57,7 +58,7 @@ class SSTableWriterImplementationTest
 
     static
     {
-        CassandraTypesImplementation.setup();
+        CassandraTypesImplementation.setup(BridgeInitializationParameters.fromEnvironment());
     }
 
     @Test
@@ -95,7 +96,14 @@ class SSTableWriterImplementationTest
         }
 
         assertThat(produced).hasSize(2);
-        assertThat(produced.stream().map(e -> e.baseFilename)).containsExactlyInAnyOrder("oa-2-big", "oa-3-big");
+        String sstableFormat = DatabaseDescriptor.getRawConfig().sstable.selected_format;
+        assertThat(sstableFormat).containsAnyOf("big", "bti");
+        String sstableVersion = "bti".equals(sstableFormat) ? "da" : "oa";
+        assertThat(produced.stream().map(e -> e.baseFilename)).containsExactlyInAnyOrder(
+            toSStableFileName(sstableFormat, sstableVersion, 2),
+            toSStableFileName(sstableFormat, sstableVersion, 3));
+        // Ensure produced descriptors don't have trailing dashes
+        produced.forEach(desc -> assertThat(desc.baseFilename).doesNotEndWith("-"));
         produced.clear();
 
         for (int i = 300_000; i < 400_000; i++)
@@ -103,22 +111,65 @@ class SSTableWriterImplementationTest
             writer.addRow(ImmutableMap.of("a", i, "b", "val_" + i));
         }
         assertThat(produced.size()).isEqualTo(1);
-        assertThat(produced).isEqualTo(Collections.singleton(new SSTableDescriptor("oa-4-big")));
+        assertThat(produced.stream().map(e -> e.baseFilename))
+            .containsExactly(toSStableFileName(sstableFormat, sstableVersion, 4));
 
         // when closing the writer, a new sstable is produced (by flushing the remaining data in the buffer)
         produced.clear();
         writer.close();
         assertThat(produced.size()).isEqualTo(1);
-        assertThat(produced).isEqualTo(Collections.singleton(new SSTableDescriptor("oa-5-big")));
+        assertThat(produced.stream().map(e -> e.baseFilename))
+            .containsExactly(toSStableFileName(sstableFormat, sstableVersion, 5));
     }
 
     @Test
     void testBaseFileNameExtraction()
     {
+        // Test basic case with big format
         org.apache.cassandra.io.util.File cf = new org.apache.cassandra.io.util.File(writeDirectory);
         SSTableId ssTableId = new SequenceBasedSSTableId(1);
         Descriptor descriptor = new Descriptor("nb", cf, "ks", "tbl", ssTableId, TestUtils.BIG_FORMAT);
-        assertThat(CassandraBridgeImplementation.baseFilename(descriptor)).isEqualTo("nb-1-big");
+        String baseFilename = CassandraBridgeImplementation.baseFilename(descriptor);
+        assertThat(baseFilename).isEqualTo("nb-1-big");
+
+        // Test with bti format (Cassandra 5.0)
+        Descriptor descriptorBti = new Descriptor("da", cf, "ks", "tbl", ssTableId, TestUtils.BTI_FORMAT);
+        String baseFilenameBti = CassandraBridgeImplementation.baseFilename(descriptorBti);
+        assertThat(baseFilenameBti).isEqualTo("da-1-bti");
+
+        // Test with different generations
+        SSTableId ssTableId10 = new SequenceBasedSSTableId(10);
+        Descriptor descriptor10 = new Descriptor("oa", cf, "ks", "tbl", ssTableId10, TestUtils.BIG_FORMAT);
+        assertThat(CassandraBridgeImplementation.baseFilename(descriptor10)).isEqualTo("oa-10-big");
+
+        SSTableId ssTableId12345 = new SequenceBasedSSTableId(12345);
+        Descriptor descriptor12345 = new Descriptor("oa", cf, "ks", "tbl", ssTableId12345, TestUtils.BIG_FORMAT);
+        assertThat(CassandraBridgeImplementation.baseFilename(descriptor12345)).isEqualTo("oa-12345-big");
+    }
+
+    @Test
+    void testSSTableDescriptorConsistencyWithFilePathParsing()
+    {
+        // This test ensures that SSTableDescriptors created by SSTableWriterImplementation.onSSTablesProduced()
+        // match those created by SSTables.getSSTableDescriptor() from file paths
+        org.apache.cassandra.io.util.File cf = new org.apache.cassandra.io.util.File(writeDirectory);
+        SSTableId ssTableId = new SequenceBasedSSTableId(1);
+
+        // Test with big format
+        Descriptor descriptorBig = new Descriptor("oa", cf, "ks", "tbl", ssTableId, TestUtils.BIG_FORMAT);
+        String baseFilenameFromBridge = CassandraBridgeImplementation.baseFilename(descriptorBig);
+        SSTableDescriptor descriptorFromBridge = new SSTableDescriptor(baseFilenameFromBridge);
+        SSTableDescriptor descriptorFromPath = new SSTableDescriptor("oa-1-big");
+        assertThat(descriptorFromBridge).isEqualTo(descriptorFromPath);
+        assertThat(descriptorFromBridge.baseFilename).isEqualTo("oa-1-big");
+
+        // Test with bti format (Cassandra 5.0)
+        Descriptor descriptorBti = new Descriptor("da", cf, "ks", "tbl", ssTableId, TestUtils.BTI_FORMAT);
+        String baseFilenameFromBridgeBti = CassandraBridgeImplementation.baseFilename(descriptorBti);
+        SSTableDescriptor descriptorFromBridgeBti = new SSTableDescriptor(baseFilenameFromBridgeBti);
+        SSTableDescriptor descriptorFromPathBti = new SSTableDescriptor("da-1-bti");
+        assertThat(descriptorFromBridgeBti).isEqualTo(descriptorFromPathBti);
+        assertThat(descriptorFromBridgeBti.baseFilename).isEqualTo("da-1-bti");
     }
 
     static boolean peekSorted(CQLSSTableWriter.Builder builder) throws NoSuchFieldException, IllegalAccessException
@@ -168,5 +219,10 @@ class SSTableWriterImplementationTest
         {
             Uninterruptibles.sleepUninterruptibly(200, TimeUnit.MILLISECONDS);
         }
+    }
+
+    private String toSStableFileName(String format, String version, int number)
+    {
+        return String.format("%s-%d-%s", version, number, format);
     }
 }
