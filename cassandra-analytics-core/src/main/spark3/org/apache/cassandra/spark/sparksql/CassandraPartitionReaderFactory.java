@@ -19,11 +19,6 @@
 
 package org.apache.cassandra.spark.sparksql;
 
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.spark.TaskContext;
@@ -32,18 +27,29 @@ import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.apache.spark.sql.vectorized.ColumnarBatch;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 class CassandraPartitionReaderFactory implements PartitionReaderFactory
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraPartitionReaderFactory.class);
+    private static final String CASSANDRA_COLUMNAR_READS_PARAM_NAME = "cassandra.columnar.reads";
+
+    private final CaseInsensitiveStringMap options;
     final DataLayer dataLayer;
     final StructType requiredSchema;
     final List<PartitionKeyFilter> partitionKeyFilters;
 
-    CassandraPartitionReaderFactory(DataLayer dataLayer,
+    CassandraPartitionReaderFactory(CaseInsensitiveStringMap options,
+                                    DataLayer dataLayer,
                                     StructType requiredSchema,
                                     List<PartitionKeyFilter> partitionKeyFilters)
     {
+        this.options = options;
         this.dataLayer = dataLayer;
         this.requiredSchema = requiredSchema;
         this.partitionKeyFilters = partitionKeyFilters;
@@ -51,6 +57,25 @@ class CassandraPartitionReaderFactory implements PartitionReaderFactory
 
     @Override
     public PartitionReader<InternalRow> createReader(InputPartition partition)
+    {
+        int partitionId = getPartitionId(partition);
+        return new SparkRowIterator(partitionId, dataLayer, requiredSchema, partitionKeyFilters);
+    }
+
+    @Override
+    public boolean supportColumnarReads(InputPartition partition)
+    {
+        return options.getBoolean(CASSANDRA_COLUMNAR_READS_PARAM_NAME, false);
+    }
+
+    @Override
+    public PartitionReader<ColumnarBatch> createColumnarReader(InputPartition partition)
+    {
+        int partitionId = getPartitionId(partition);
+        return new SparkColumnIterator(options, partitionId, dataLayer, requiredSchema, partitionKeyFilters);
+    }
+
+    private int getPartitionId(InputPartition partition)
     {
         int partitionId;
         if (partition instanceof CassandraInputPartition)
@@ -61,9 +86,11 @@ class CassandraPartitionReaderFactory implements PartitionReaderFactory
         {
             partitionId = TaskContext.getPartitionId();
             LOGGER.warn("InputPartition is not of CassandraInputPartition type. "
-                      + "Using TaskContext to determine the partitionId type={}, partitionId={}",
+                                + "Using TaskContext to determine the partitionId type={}, partitionId={}",
                         partition.getClass().getName(), partitionId);
         }
-        return new SparkRowIterator(partitionId, dataLayer, requiredSchema, partitionKeyFilters);
+
+        return partitionId;
     }
+
 }
