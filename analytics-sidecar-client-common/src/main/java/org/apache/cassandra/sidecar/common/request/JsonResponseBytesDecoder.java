@@ -25,13 +25,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * Decoder for json response body bytes
+ *
  * @param <T> expected java type
  */
 public class JsonResponseBytesDecoder<T> implements ResponseBytesDecoder<T>
 {
     private static final ObjectMapper MAPPER = new ObjectMapper()
-                                       // ignore all the properties that are not declared
-                                       .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+                                               // ignore all the properties that are not declared
+                                               .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     private final Class<T> type;
 
     public JsonResponseBytesDecoder(Class<T> type)
@@ -42,7 +43,7 @@ public class JsonResponseBytesDecoder<T> implements ResponseBytesDecoder<T>
     @Override
     public T decode(byte[] bytes) throws IOException
     {
-        if (bytes == null)
+        if (bytes == null || bytes.length == 0)
         {
             return null;
         }

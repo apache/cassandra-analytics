@@ -29,12 +29,9 @@ plugins {
     id('maven-publish')
 }
 
-if (propertyWithDefault("artifactType", null) == "common")
-{
+if (propertyWithDefault("artifactType", null) == "common") {
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
-
-sourceCompatibility = 1.8
 
 test {
     useJUnitPlatform()

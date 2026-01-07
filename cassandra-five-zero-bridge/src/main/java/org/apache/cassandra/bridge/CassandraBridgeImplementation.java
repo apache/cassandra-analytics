@@ -211,15 +211,15 @@ public class CassandraBridgeImplementation extends CassandraBridge
         TableMetadata metadata = schemaBuilder.tableMetaData();
         return new CompactionStreamScanner(metadata, partitioner, timeProvider, ssTables.openAll((ssTable, isRepairPrimary) -> {
             return org.apache.cassandra.spark.reader.SSTableReader.builder(metadata, ssTable)
-                                                                  .withSparkRangeFilter(sparkRangeFilter)
-                                                                  .withPartitionKeyFilters(partitionKeyFilters)
-                                                                  .withTimeRangeFilter(sstableTimeRangeFilter)
-                                                                  .withColumnFilter(columnFilter)
-                                                                  .withReadIndexOffset(readIndexOffset)
-                                                                  .withStats(stats)
-                                                                  .useIncrementalRepair(useIncrementalRepair)
-                                                                  .isRepairPrimary(isRepairPrimary)
-                                                                  .build();
+                                .withSparkRangeFilter(sparkRangeFilter)
+                                .withPartitionKeyFilters(partitionKeyFilters)
+                                .withTimeRangeFilter(sstableTimeRangeFilter)
+                                .withColumnFilter(columnFilter)
+                                .withReadIndexOffset(readIndexOffset)
+                                .withStats(stats)
+                                .useIncrementalRepair(useIncrementalRepair)
+                                .isRepairPrimary(isRepairPrimary)
+                                .build();
         }));
     }
 
@@ -475,9 +475,9 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                                 TimeProvider.DEFAULT,
                                                 ssTables.openAll((ssTable, isRepairPrimary) ->
                                                                  org.apache.cassandra.spark.reader.SSTableReader.builder(metadata, ssTable)
-                                                                                                                .withPartitionKeyFilters(partitionKeyFilters1)
-                                                                                                                .withTimeRangeFilter(timeRangeFilter1)
-                                                                                                                .build())
+                                                                              .withPartitionKeyFilters(partitionKeyFilters1)
+                                                                              .withTimeRangeFilter(timeRangeFilter1)
+                                                                              .build())
                                                 ))
         {
             @Override

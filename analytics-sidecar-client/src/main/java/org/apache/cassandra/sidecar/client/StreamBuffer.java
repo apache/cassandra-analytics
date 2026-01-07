@@ -83,6 +83,17 @@ public interface StreamBuffer
     }
 
     /**
+     * Wraps a {@link ByteBuffer} into a {@link ByteBufferWrapper}
+     *
+     * @param buffer the underlying ByteBuffer
+     * @return the object wrapping ByteBuffer
+     */
+    static ByteBufferWrapper wrap(ByteBuffer buffer)
+    {
+        return new ByteBufferWrapper(buffer);
+    }
+
+    /**
      * A {@link StreamBuffer} implementation that wraps a byte array
      */
     class ByteArrayWrapper implements StreamBuffer
@@ -116,6 +127,72 @@ public interface StreamBuffer
         public int readableBytes()
         {
             return bytes.length;
+        }
+
+        @Override
+        public void release()
+        {
+        }
+    }
+
+    /**
+     * A {@link StreamBuffer} implementation that wraps a {@link ByteBuffer}.
+     * This implementation assumes single-threaded access and may modify the
+     * buffer's position and limit during operations.
+     */
+    class ByteBufferWrapper implements StreamBuffer
+    {
+        private final ByteBuffer buffer;
+
+        private ByteBufferWrapper(ByteBuffer buffer)
+        {
+            this.buffer = buffer;
+        }
+
+        @Override
+        public void copyBytes(int sourceOffset, ByteBuffer destination, int length)
+        {
+            int originalPosition = buffer.position();
+            int originalLimit = buffer.limit();
+            try
+            {
+                buffer.position(sourceOffset);
+                buffer.limit(sourceOffset + length);
+                destination.put(buffer);
+                destination.flip();
+            }
+            finally
+            {
+                buffer.position(originalPosition);
+                buffer.limit(originalLimit);
+            }
+        }
+
+        @Override
+        public void copyBytes(int sourceOffset, byte[] destination, int destinationIndex, int length)
+        {
+            int originalPosition = buffer.position();
+            try
+            {
+                buffer.position(sourceOffset);
+                buffer.get(destination, destinationIndex, length);
+            }
+            finally
+            {
+                buffer.position(originalPosition);
+            }
+        }
+
+        @Override
+        public byte getByte(int index)
+        {
+            return buffer.get(index);
+        }
+
+        @Override
+        public int readableBytes()
+        {
+            return buffer.remaining();
         }
 
         @Override

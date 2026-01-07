@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -38,8 +39,6 @@ import java.util.stream.Stream;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +87,7 @@ public abstract class PartitionedDataLayer extends DataLayer
         }
 
         public static final Comparator<AvailabilityHint> AVAILABILITY_HINT_COMPARATOR =
-                Comparator.comparingInt((AvailabilityHint other) -> other.priority);
+        Comparator.comparingInt((AvailabilityHint other) -> other.priority);
 
         public static AvailabilityHint fromState(String status, String state)
         {
@@ -209,16 +208,16 @@ public abstract class PartitionedDataLayer extends DataLayer
             LOGGER.error("Unable to find the sparkTokenRange for partitionId={} in reversePartitionMap={}",
                          partitionId, reversePartitionMap);
             throw new IllegalStateException(
-                    String.format("Unable to find sparkTokenRange for partitionId=%d in the reverse partition map",
-                                  partitionId));
+            String.format("Unable to find sparkTokenRange for partitionId=%d in the reverse partition map",
+                          partitionId));
         }
         return SparkRangeFilter.create(RangeUtils.toTokenRange(sparkTokenRange));
     }
 
     @Override
     public List<PartitionKeyFilter> partitionKeyFiltersInRange(
-            int partitionId,
-            List<PartitionKeyFilter> filters) throws NoMatchFoundException
+    int partitionId,
+    List<PartitionKeyFilter> filters) throws NoMatchFoundException
     {
         // We only need to worry about Partition key filters that overlap with this Spark workers token range
         SparkRangeFilter rangeFilter = sparkRangeFilter(partitionId);
@@ -380,9 +379,9 @@ public abstract class PartitionedDataLayer extends DataLayer
                                                    @NotNull Map<Range<BigInteger>, List<CassandraInstance>> ranges)
     {
         return ranges.values().stream()
-                .flatMap(Collection::stream)
-                .filter(instance -> !consistencyLevel.isDCLocal || dataCenter == null || instance.dataCenter().equals(dataCenter))
-                .collect(Collectors.toSet());
+                     .flatMap(Collection::stream)
+                     .filter(instance -> !consistencyLevel.isDCLocal || dataCenter == null || instance.dataCenter().equals(dataCenter))
+                     .collect(Collectors.toSet());
     }
 
     /**
@@ -442,7 +441,7 @@ public abstract class PartitionedDataLayer extends DataLayer
 
     /**
      * Return a set of primary and backup CassandraInstances to satisfy the consistency level.
-     *
+     * <p>
      * NOTE: This method current assumes that each Spark token worker owns a single replica set.
      *
      * @param instances    replicas that overlap with the Spark worker's token range
@@ -472,7 +471,7 @@ public abstract class PartitionedDataLayer extends DataLayer
             // multiple replica sets but for current implementation of the TokenPartitioner
             // it returns a single replica set per Spark worker/partition
             LOGGER.warn("Cannot use incremental repair awareness when Spark partition owns more than one replica set, "
-                      + "performance will be degraded numRanges={}", ranges.size());
+                        + "performance will be degraded numRanges={}", ranges.size());
             replicaSet.incrementalRepairPrimary = null;
         }
 
@@ -547,30 +546,17 @@ public abstract class PartitionedDataLayer extends DataLayer
     @Override
     public int hashCode()
     {
-        return new HashCodeBuilder()
-               .append(datacenter)
-               .toHashCode();
+        return Objects.hashCode(datacenter);
     }
 
     @Override
-    public boolean equals(Object other)
+    public boolean equals(Object o)
     {
-        if (other == null)
+        if (o == null || getClass() != o.getClass())
         {
             return false;
         }
-        if (this == other)
-        {
-            return true;
-        }
-        if (this.getClass() != other.getClass())
-        {
-            return false;
-        }
-
-        PartitionedDataLayer that = (PartitionedDataLayer) other;
-        return new EqualsBuilder()
-               .append(this.datacenter, that.datacenter)
-               .isEquals();
+        PartitionedDataLayer that = (PartitionedDataLayer) o;
+        return Objects.equals(datacenter, that.datacenter);
     }
 }

@@ -119,7 +119,6 @@ public class CdcBuilder
         return withExecutor(AsyncExecutor.wrap(executor));
     }
 
-
     public CdcBuilder withExecutor(@NotNull AsyncExecutor asyncExecutor)
     {
         this.asyncExecutor = asyncExecutor;

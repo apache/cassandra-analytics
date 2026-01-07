@@ -1303,13 +1303,12 @@ abstract class SidecarClientTest
             assertThat(request3.getHeader("User-Agent")).isEqualTo("cassandra-sidecar-test/0.0.1");
             assertThat(request3.getHeader("range")).isEqualTo("bytes=10-20");
 
-            byte[] bytes = receivedBytes.stream()
-                                        .collect(ByteArrayOutputStream::new,
-                                                 (outputStream, src) -> outputStream.write(src, 0, src.length),
-                                                 (outputStream, src) -> {
-                                                 })
-                                        .toByteArray();
-            assertThat(new String(bytes, StandardCharsets.UTF_8)).isEqualTo("TOC.txt\nSt");
+            String actual = receivedBytes.stream()
+                                         .collect(ByteArrayOutputStream::new,
+                                                  (outputStream, src) -> outputStream.write(src, 0, src.length),
+                                                  (outputStream, src) -> {
+                                                  }).toString(StandardCharsets.UTF_8);
+            assertThat(actual).isEqualTo("TOC.txt\nSt");
         }
     }
 

@@ -17,25 +17,12 @@
  * under the License.
  */
 
-plugins {
-    id('java-library')
-    id('maven-publish')
-}
-
-configurations {
-    all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
-    all*.exclude(group: 'log4j', module: 'log4j')
-}
-
-if (propertyWithDefault("artifactType", null) == "common") {
-    apply from: "$rootDir/gradle/common/publishing.gradle"
-}
-
-dependencies {
-    compileOnly("com.google.guava:guava:${guavaVersion}")
-    implementation project(":cassandra-analytics-common")
-
-    implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"
-
-    api(project(path: ':analytics-sidecar-vertx-client-shaded', configuration: 'shadow'))
+ext {
+    jacksonVersion="2.18.2"
+    jacksonScalaModuleVersion="2.18.2"
+    scalaMajorVersion="2.13"
+    scalaVersion="2.13.16"
+    sparkGroupId="org.apache.spark"
+    sparkMajorVersion="4"
+    sparkVersion="4.0.1"
 }

@@ -17,25 +17,23 @@
  * under the License.
  */
 
-plugins {
-    id('java-library')
-    id('maven-publish')
-}
+package org.apache.cassandra.spark.sparksql;
 
-configurations {
-    all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
-    all*.exclude(group: 'log4j', module: 'log4j')
-}
+import org.apache.cassandra.spark.data.DataLayer;
+import org.apache.spark.sql.connector.read.partitioning.Partitioning;
 
-if (propertyWithDefault("artifactType", null) == "common") {
-    apply from: "$rootDir/gradle/common/publishing.gradle"
-}
+class CassandraPartitioning implements Partitioning
+{
+    final DataLayer dataLayer;
 
-dependencies {
-    compileOnly("com.google.guava:guava:${guavaVersion}")
-    implementation project(":cassandra-analytics-common")
+    CassandraPartitioning(DataLayer dataLayer)
+    {
+        this.dataLayer = dataLayer;
+    }
 
-    implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"
-
-    api(project(path: ':analytics-sidecar-vertx-client-shaded', configuration: 'shadow'))
+    @Override
+    public int numPartitions()
+    {
+        return dataLayer.partitionCount();
+    }
 }

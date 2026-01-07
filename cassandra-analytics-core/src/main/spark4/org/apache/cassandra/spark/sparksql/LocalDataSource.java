@@ -17,25 +17,27 @@
  * under the License.
  */
 
-plugins {
-    id('java-library')
-    id('maven-publish')
-}
+package org.apache.cassandra.spark.sparksql;
 
-configurations {
-    all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
-    all*.exclude(group: 'log4j', module: 'log4j')
-}
+import org.apache.cassandra.spark.data.DataLayer;
+import org.apache.cassandra.spark.data.LocalDataLayer;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.jetbrains.annotations.NotNull;
 
-if (propertyWithDefault("artifactType", null) == "common") {
-    apply from: "$rootDir/gradle/common/publishing.gradle"
-}
+@SuppressWarnings("unused")
+public class LocalDataSource extends CassandraTableProvider
+{
+    @Override
+    @NotNull
+    public String shortName()
+    {
+        return "localsstabledatasource";
+    }
 
-dependencies {
-    compileOnly("com.google.guava:guava:${guavaVersion}")
-    implementation project(":cassandra-analytics-common")
-
-    implementation "org.slf4j:slf4j-api:${slf4jApiVersion}"
-
-    api(project(path: ':analytics-sidecar-vertx-client-shaded', configuration: 'shadow'))
+    @Override
+    @NotNull
+    public DataLayer getDataLayer(@NotNull CaseInsensitiveStringMap options)
+    {
+        return LocalDataLayer.from(options);
+    }
 }

@@ -79,6 +79,6 @@ interface StringFeatures extends SparkType
         {
             return STRING_COMPARATOR.compare(first.toString(), second.toString());
         }
-        return ((UTF8String) first).compare((UTF8String) second);
+        return ((UTF8String) first).compareTo((UTF8String) second);
     }
 }
