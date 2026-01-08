@@ -19,10 +19,9 @@
 
 package org.apache.cassandra.spark.sparksql;
 
-import java.util.HashSet;
 import java.util.Set;
 
-import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Sets;
 
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.spark.sql.connector.catalog.SupportsRead;
@@ -58,7 +57,7 @@ class CassandraTable implements Table, SupportsRead
     @Override
     public Set<TableCapability> capabilities()
     {
-        return new HashSet<>(ImmutableList.of(TableCapability.BATCH_READ, TableCapability.MICRO_BATCH_READ));
+        return Sets.newHashSet(TableCapability.BATCH_READ, TableCapability.MICRO_BATCH_READ);
     }
 
     @Override
