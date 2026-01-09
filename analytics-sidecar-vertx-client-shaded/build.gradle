@@ -36,12 +36,6 @@ plugins {
     id('com.gradleup.shadow') version '8.3.9'
 }
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(11)
-    }
-}
-
 version project.version
 
 configurations {
