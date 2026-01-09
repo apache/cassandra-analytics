@@ -394,10 +394,10 @@ class RecordWriterTest
                               (wc, path, dp, pid) -> new SortedSSTableWriter(tw, folder, digestAlgorithm, pid));
         Iterator<Tuple2<DecoratedKey, Object[]>> data = generateData(5, Range.all(), false, false, false);
         String expectedErr = "java.lang.IllegalStateException: Received Token " +
-                             "5765203080415074583 outside the expected ranges [(-9223372036854775808‥100000]]";
+                             "5765203080415074583 outside the expected ranges \\[\\(-9223372036854775808(‥|..)100000]]";
         assertThatThrownBy(() -> rw.write(data))
                 .isInstanceOf(RuntimeException.class)
-                .hasMessage(expectedErr);
+                .hasMessageMatching(expectedErr);
     }
 
     @Test

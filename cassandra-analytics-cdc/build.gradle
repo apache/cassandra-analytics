@@ -165,6 +165,11 @@ def configureCdcTestTask = { Test task, String majorMinor = null ->
     task.maxParallelForks = cdcMaxParallelForks
     task.forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+        jvmArgs(['--add-opens', 'java.base/java.io=ALL-UNNAMED',
+                 '--add-opens', 'java.base/java.nio=ALL-UNNAMED',
+                 '--add-opens', 'java.base/sun.nio.ch=ALL-UNNAMED'])
+    }
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in
     task.dependsOn(tasks.jar)
     task.classpath += files(jar.archiveFile)
