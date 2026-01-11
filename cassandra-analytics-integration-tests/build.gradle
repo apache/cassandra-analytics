@@ -125,26 +125,42 @@ def configureIntegrationTestTask = { Test task, String majorMinor = null ->
         showStandardStreams = false
     }
 
-    if (JavaVersion.current().isJava11Compatible()) {
-        def JDK11_OPTIONS = ['-Djdk.attach.allowAttachSelf=true',
-                             '--add-exports', 'java.base/jdk.internal.misc=ALL-UNNAMED',
-                             '--add-exports', 'java.base/jdk.internal.ref=ALL-UNNAMED',
-                             '--add-exports', 'java.base/sun.nio.ch=ALL-UNNAMED',
-                             '--add-exports', 'java.management.rmi/com.sun.jmx.remote.internal.rmi=ALL-UNNAMED',
-                             '--add-exports', 'java.rmi/sun.rmi.registry=ALL-UNNAMED',
-                             '--add-exports', 'java.rmi/sun.rmi.server=ALL-UNNAMED',
-                             '--add-exports', 'java.sql/java.sql=ALL-UNNAMED',
-                             '--add-opens', 'java.base/java.lang.module=ALL-UNNAMED',
-                             '--add-opens', 'java.base/jdk.internal.loader=ALL-UNNAMED',
-                             '--add-opens', 'java.base/jdk.internal.ref=ALL-UNNAMED',
-                             '--add-opens', 'java.base/jdk.internal.reflect=ALL-UNNAMED',
-                             '--add-opens', 'java.base/jdk.internal.math=ALL-UNNAMED',
-                             '--add-opens', 'java.base/jdk.internal.module=ALL-UNNAMED',
-                             '--add-opens', 'java.base/jdk.internal.util.jar=ALL-UNNAMED',
-                             '--add-opens', 'jdk.management/com.sun.management.internal=ALL-UNNAMED']
-        task.jvmArgs(JDK11_OPTIONS)
-        println("JVM arguments for $project.name are ${task.allJvmArgs}")
+    def JDK_OPTIONS = ['-Djdk.attach.allowAttachSelf=true',
+                       '--add-exports', 'java.base/jdk.internal.misc=ALL-UNNAMED',
+                       '--add-exports', 'java.base/jdk.internal.ref=ALL-UNNAMED',
+                       '--add-exports', 'java.base/sun.nio.ch=ALL-UNNAMED',
+                       '--add-exports', 'java.management.rmi/com.sun.jmx.remote.internal.rmi=ALL-UNNAMED',
+                       '--add-exports', 'java.rmi/sun.rmi.registry=ALL-UNNAMED',
+                       '--add-exports', 'java.rmi/sun.rmi.server=ALL-UNNAMED',
+                       '--add-exports', 'java.sql/java.sql=ALL-UNNAMED',
+                       '--add-opens', 'java.base/java.lang.module=ALL-UNNAMED',
+                       '--add-opens', 'java.base/jdk.internal.loader=ALL-UNNAMED',
+                       '--add-opens', 'java.base/jdk.internal.ref=ALL-UNNAMED',
+                       '--add-opens', 'java.base/jdk.internal.reflect=ALL-UNNAMED',
+                       '--add-opens', 'java.base/jdk.internal.math=ALL-UNNAMED',
+                       '--add-opens', 'java.base/jdk.internal.module=ALL-UNNAMED',
+                       '--add-opens', 'java.base/jdk.internal.util.jar=ALL-UNNAMED',
+                       '--add-opens', 'jdk.management/com.sun.management.internal=ALL-UNNAMED']
+
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
+        JDK_OPTIONS += ['--add-exports', 'java.rmi/sun.rmi.transport=ALL-UNNAMED',
+                        '--add-exports', 'java.rmi/sun.rmi.transport.tcp=ALL-UNNAMED',
+                        '--add-opens', 'java.base/java.io=ALL-UNNAMED',
+                        '--add-opens', 'java.base/java.lang=ALL-UNNAMED',
+                        '--add-opens', 'java.base/java.lang.invoke=ALL-UNNAMED',
+                        '--add-opens', 'java.base/java.lang.reflect=ALL-UNNAMED',
+                        '--add-opens', 'java.base/java.math=ALL-UNNAMED',
+                        '--add-opens', 'java.base/java.nio=ALL-UNNAMED',
+                        '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+                        '--add-opens', 'java.base/java.util.concurrent=ALL-UNNAMED',
+                        '--add-opens', 'java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+                        '--add-opens', 'java.base/sun.nio.ch=ALL-UNNAMED',
+                        '--add-opens', 'java.base/sun.util.calendar=ALL-UNNAMED',
+                        '--add-opens', 'java.rmi/sun.rmi.transport.tcp=ALL-UNNAMED',
+        ]
     }
+    task.jvmArgs(JDK_OPTIONS)
+    println("JVM arguments for $project.name are ${task.allJvmArgs}")
 
     // Some test classes are skipped entirely via assumeThat (e.g. MultipleTokens tests on C* 4.0).
     // When CI runs individual classes with --tests, a skipped @BeforeAll leaves zero discovered tests,
