@@ -68,10 +68,11 @@ sourceSets {
     }
 }
 
+apply from: "${project.rootDir}/gradle/common/java17Options.gradle"
+
 test {
     if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
-        jvmArgs(['--add-opens', 'java.base/java.io=ALL-UNNAMED',
-                 '--add-opens', 'java.base/sun.nio.ch=ALL-UNNAMED'])
+        jvmArgs(project.ext.JDK17_OPTIONS)
     }
 
     useJUnitPlatform()

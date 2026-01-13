@@ -75,6 +75,21 @@ public class BulkSparkConf implements Serializable
                                              + " --add-opens java.base/jdk.internal.util.jar=ALL-UNNAMED"
                                              + " --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED";
 
+    public static final String JDK17_OPTIONS = " --add-exports java.rmi/sun.rmi.transport=ALL-UNNAMED"
+                                             + " --add-exports java.rmi/sun.rmi.transport.tcp=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.io=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.lang=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.lang.invoke=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.lang.reflect=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.math=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.nio=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.util=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.util.concurrent=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED"
+                                             + " --add-opens java.base/sun.nio.ch=ALL-UNNAMED"
+                                             + " --add-opens java.base/sun.util.calendar=ALL-UNNAMED"
+                                             + " --add-opens java.rmi/sun.rmi.transport.tcp=ALL-UNNAMED";
+
     public static final int DEFAULT_NUM_SPLITS = -1;
     public static final int DEFAULT_HTTP_CONNECTION_TIMEOUT = 100_000;
     public static final int DEFAULT_HTTP_RESPONSE_TIMEOUT = 100_000;
@@ -666,7 +681,12 @@ public class BulkSparkConf implements Serializable
     public static void setupSparkConf(SparkConf conf, boolean addKryoRegistrator)
     {
         String previousOptions = conf.get("spark.executor.extraJavaOptions", "");
-        if (BuildInfo.isAtLeastJava11(BuildInfo.javaSpecificationVersion()))
+
+        if (BuildInfo.isAtLeastJava17(BuildInfo.javaSpecificationVersion()))
+        {
+            conf.set("spark.executor.extraJavaOptions", previousOptions + JDK11_OPTIONS + JDK17_OPTIONS);
+        }
+        else if (BuildInfo.isAtLeastJava11(BuildInfo.javaSpecificationVersion()))
         {
             conf.set("spark.executor.extraJavaOptions", previousOptions + JDK11_OPTIONS);
         }

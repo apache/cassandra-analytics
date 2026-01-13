@@ -141,6 +141,8 @@ jar {
     }
 }
 
+apply from: "${project.rootDir}/gradle/common/javaOptions.gradle"
+
 // Assuming container w/8g ram, 2x3G == 6G + overhead; override via CDC_MAX_PARALLEL_FORKS for local dev
 def cdcMaxHeap = '3072m'
 def cdcMaxParallelForks = (System.getenv("CDC_MAX_PARALLEL_FORKS") ?: "2") as int
@@ -166,9 +168,7 @@ def configureCdcTestTask = { Test task, String majorMinor = null ->
     task.forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
-        jvmArgs(['--add-opens', 'java.base/java.io=ALL-UNNAMED',
-                 '--add-opens', 'java.base/java.nio=ALL-UNNAMED',
-                 '--add-opens', 'java.base/sun.nio.ch=ALL-UNNAMED'])
+        jvmArgs(project.ext.JDK17_OPTIONS)
     }
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in
     task.dependsOn(tasks.jar)

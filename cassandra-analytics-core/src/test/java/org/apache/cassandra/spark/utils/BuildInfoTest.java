@@ -20,6 +20,8 @@
 package org.apache.cassandra.spark.utils;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -49,30 +51,38 @@ public class BuildInfoTest
     }
 
     @Test
-    public void isAtLeastJava11()
+    public void testIsAtLeastJavaVersionWithNullInput()
     {
         assertThat(BuildInfo.isAtLeastJava11(null)).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("0.9")).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("1.1")).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("1.2")).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("1.3")).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("1.4")).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("1.5")).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("1.6")).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("1.7")).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("1.8")).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("9")).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("10")).isFalse();
-        assertThat(BuildInfo.isAtLeastJava11("11")).isTrue();
-        assertThat(BuildInfo.isAtLeastJava11("12")).isTrue();
-        assertThat(BuildInfo.isAtLeastJava11("13")).isTrue();
-        assertThat(BuildInfo.isAtLeastJava11("14")).isTrue();
-        assertThat(BuildInfo.isAtLeastJava11("15")).isTrue();
-        assertThat(BuildInfo.isAtLeastJava11("16")).isTrue();
-        assertThat(BuildInfo.isAtLeastJava11("17")).isTrue();
-        assertThat(BuildInfo.isAtLeastJava11("18")).isTrue();
-        assertThat(BuildInfo.isAtLeastJava11("19")).isTrue();
-        assertThat(BuildInfo.isAtLeastJava11("20")).isTrue();
-        assertThat(BuildInfo.isAtLeastJava11("21")).isTrue();
+        assertThat(BuildInfo.isAtLeastJava17(null)).isFalse();
+    }
+
+    @ParameterizedTest(name = "{index} => Java version {0}")
+    @ValueSource(strings = { "0.9", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "9", "10" })
+    public void isNotAtLeastJava11(String version)
+    {
+        assertThat(BuildInfo.isAtLeastJava11(version)).isFalse();
+    }
+
+    @ParameterizedTest(name = "{index} => Java version {0}")
+    @ValueSource(strings = { "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25" })
+    public void isAtLeastJava11(String version)
+    {
+        assertThat(BuildInfo.isAtLeastJava11(version)).isTrue();
+    }
+
+    @ParameterizedTest(name = "{index} => Java version {0}")
+    @ValueSource(strings = { "0.9", "1.1", "1.2", "1.3", "1.4", "1.5", "1.6", "1.7", "1.8", "9", "10",
+                             "11", "12", "13", "14", "15", "16" })
+    public void isNotAtLeastJava17(String version)
+    {
+        assertThat(BuildInfo.isAtLeastJava17(version)).isFalse();
+    }
+
+    @ParameterizedTest(name = "{index} => Java version {0}")
+    @ValueSource(strings = { "17", "18", "19", "20", "21", "22", "23", "24", "25" })
+    public void isAtLeastJava17(String version)
+    {
+        assertThat(BuildInfo.isAtLeastJava17(version)).isTrue();
     }
 }

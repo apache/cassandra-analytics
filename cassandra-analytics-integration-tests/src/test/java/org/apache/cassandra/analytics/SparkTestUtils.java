@@ -32,7 +32,9 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.SystemUtils;
 
 import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
@@ -200,7 +202,10 @@ public class SparkTestUtils
                               .set("spark.cassandra_analytics.cassandra.version", "5.0.0")
                               .set("spark.cassandra_analytics.sidecar.request.retries", "5")
                               .set("spark.cassandra_analytics.sidecar.request.retries.delay.milliseconds", "500")
-                              .set("spark.cassandra_analytics.sidecar.request.retries.max.delay.milliseconds", "500");
+                              .set("spark.cassandra_analytics.sidecar.request.retries.max.delay.milliseconds", "500")
+                              .set("spark.driver.extraJavaOptions", "--add-exports=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED")
+                              .set("spark.executor.extraJavaOptions", "--add-exports=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED");
+
         BulkSparkConf.setupSparkConf(sparkConf, true);
         KryoRegister.setup(sparkConf);
         return sparkConf;

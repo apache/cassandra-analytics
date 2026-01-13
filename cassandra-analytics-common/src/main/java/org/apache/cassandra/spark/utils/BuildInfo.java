@@ -67,17 +67,40 @@ public final class BuildInfo
      */
     public static boolean isAtLeastJava11(String version)
     {
+        return isAtLeastJavaVersion(version, 11);
+    }
+
+    /**
+     * Determine whether the provided version is at least java 17
+     *
+     * @param version the java specification version
+     * @return {@code true} if the java version is at least java 17, {@code false} otherwise
+     */
+    public static boolean isAtLeastJava17(String version)
+    {
+        return isAtLeastJavaVersion(version, 17);
+    }
+
+    /**
+     * Determine whether the provided version is at least the minimum java version
+     *
+     * @param version        the java specification version
+     * @param minimumVersion the minimum version required
+     * @return {@code true} if the java version is at least the minimum java version, {@code false} otherwise
+     */
+    public static boolean isAtLeastJavaVersion(String version, int minimumVersion)
+    {
         if (version == null)
         {
             return false;
         }
         else if (version.contains("."))
         {
-            return version.compareTo("11") >= 0;
+            return version.compareTo(minimumVersion + "") >= 0;
         }
         else
         {
-            return Integer.parseInt(version) >= 11;
+            return Integer.parseInt(version) >= minimumVersion;
         }
     }
 
