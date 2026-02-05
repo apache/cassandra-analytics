@@ -119,13 +119,12 @@ public class CdcRandomAccessReaderTest
         assertThat(holder).isNotNull();
         assertThat(rebuffer.offset()).isEqualTo(0L);
 
-        // Verify buffer was fully written (position at end, remaining = 0)
+        // Verify buffer is in read mode (flipped by rebuffer)
         ByteBuffer buffer = holder.buffer();
-        assertThat(buffer.remaining()).isEqualTo(0);
-        assertThat(buffer.position()).isEqualTo(50);
+        assertThat(buffer.position()).isEqualTo(0);
+        assertThat(buffer.remaining()).isEqualTo(50);
 
-        // Flip to read mode and verify actual byte values
-        buffer.flip();
+        // Verify actual byte values (buffer already flipped, ready to read)
         for (int i = 0; i < 50; i++)
         {
             assertThat(buffer.get()).isEqualTo((byte) i);
@@ -136,13 +135,12 @@ public class CdcRandomAccessReaderTest
         assertThat(holder).isNotNull();
         assertThat(rebuffer.offset()).isEqualTo(50L);
 
-        // Verify buffer was fully written (position at end, remaining = 0)
+        // Verify buffer is in read mode (flipped by rebuffer)
         buffer = holder.buffer();
-        assertThat(buffer.remaining()).isEqualTo(0);
-        assertThat(buffer.position()).isEqualTo(50);
+        assertThat(buffer.position()).isEqualTo(0);
+        assertThat(buffer.remaining()).isEqualTo(50);
 
-        // Flip to read mode and verify actual byte values
-        buffer.flip();
+        // Verify actual byte values (buffer already flipped, ready to read)
         for (int i = 0; i < 50; i++)
         {
             assertThat(buffer.get()).isEqualTo((byte) (50 + i));
@@ -195,13 +193,12 @@ public class CdcRandomAccessReaderTest
         assertThat(holder).isNotNull();
         assertThat(rebuffer.offset()).isEqualTo(0L);
 
-        // Verify buffer is in write mode
+        // Verify buffer is in read mode (flipped by rebuffer)
         ByteBuffer buffer = holder.buffer();
-        assertThat(buffer.remaining()).isEqualTo(0);
-        assertThat(buffer.position()).isEqualTo(50);
+        assertThat(buffer.position()).isEqualTo(0);
+        assertThat(buffer.remaining()).isEqualTo(50);
 
-        // TEST flips to verify byte values are correct
-        buffer.flip();
+        // Verify byte values are correct (buffer already flipped, ready to read)
         for (int i = 0; i < 50; i++)
         {
             assertThat(buffer.get()).isEqualTo((byte) i);

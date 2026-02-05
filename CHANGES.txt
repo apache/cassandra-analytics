@@ -1,5 +1,6 @@
 0.3.0
 -----
+ * Fix ByteBuffer flip() in StreamBuffer.copyBytes() causing data corruption (CASSANALYTICS-116)
  * Fix race condition in DirectStreamSession#onSSTablesProduced and SortedSStableWriter#close (CASSANALYTICS-107)
  * Address LZ4 vulnerability (CVE-2025-12183) (CASSANALYTICS-109)
  * Add TimeRangeFilter to filter out SSTables outside given time window (CASSANALYTICS-102)
