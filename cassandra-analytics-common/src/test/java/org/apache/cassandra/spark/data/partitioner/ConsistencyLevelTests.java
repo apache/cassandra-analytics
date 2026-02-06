@@ -196,14 +196,14 @@ public class ConsistencyLevelTests
         // Test a few other consistency levels to ensure they all throw exceptions
         assertThatThrownBy(() -> ConsistencyLevel.ONE.eachQuorumBlockFor(replicationFactor))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Consistency level needed is EACH_QUORUM, provided is:ONE");
+        .hasMessageContaining("Consistency level needed is EACH_QUORUM, provided is: ONE");
 
         assertThatThrownBy(() -> ConsistencyLevel.LOCAL_QUORUM.eachQuorumBlockFor(replicationFactor))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Consistency level needed is EACH_QUORUM, provided is:LOCAL_QUORUM");
+        .hasMessageContaining("Consistency level needed is EACH_QUORUM, provided is: LOCAL_QUORUM");
 
         assertThatThrownBy(() -> ConsistencyLevel.ALL.eachQuorumBlockFor(replicationFactor))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Consistency level needed is EACH_QUORUM, provided is:ALL");
+        .hasMessageContaining("Consistency level needed is EACH_QUORUM, provided is: ALL");
     }
 }
