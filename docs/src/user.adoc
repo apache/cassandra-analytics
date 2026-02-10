@@ -1,0 +1,457 @@
+= Overview
+
+This document describes the configuration options available for the bulk reader and bulk writer components.
+
+== Cassandra Sidecar Configuration
+
+Cassandra Analytics library uses https://github.com/apache/cassandra-sidecar[Apache Cassandra Sidecar] to interact
+with target cluster. Bulk reader and writer components share common Sidecar configuration properties.
+
+[cols="2,1,1,3"]
+|===
+|Property name|Required|Default|Description
+
+|_sidecar_contact_points_
+|yes
+|
+|Comma-separated list of Cassandra Sidecar contact points. IP addresses and FQDN domain names are supported,
+with an optional port number (e.g. `localhost1,localhost2`, `127.0.0.1,127.0.0.2`, `127.0.0.1:9043,127.0.0.2:9043`)
+
+|_sidecar_port_
+|no
+|`9043`
+|Default port on which Cassandra Sidecar listens
+
+|_keystore_path_
+|no
+|
+|Path to keystore used to establish TLS connection with Cassandra Sidecar
+
+|_keystore_base64_encoded_
+|no
+|
+|Base64-encoded keystore used to establish TLS connection with Cassandra Sidecar
+
+|_keystore_password_
+|no
+|
+|Keystore password
+
+|_keystore_type_
+|no
+|`PKCS12`
+|Keystore type, `PKCS12` or `JKS`
+
+|_truststore_path_
+|no
+|
+|Path to truststore used to establish TLS connection with Cassandra Sidecar
+
+|_truststore_base64_encoded_
+|no
+|
+|Base64-encoded truststore used to establish TLS connection with Cassandra Sidecar
+
+|_truststore_password_
+|no
+|
+|Truststore password
+
+|_truststore_type_
+|no
+|`PKCS12`
+|Truststore type, `PKCS12` or `JKS`
+
+|_cassandra_role_
+|no
+|
+|Specific role that Sidecar shall use to authorize the request. For further details consult Sidecar documentation
+for `cassandra-auth-role` HTTP header
+
+|===
+
+== Bulk Reader
+
+This section describes configuration properties specific to the bulk reader.
+
+=== Cassandra Sidecar Configuration
+
+[cols="2,1,1,3"]
+|===
+|Property name|Required|Default|Description
+
+|_defaultMillisToSleep_
+|no
+|`500`
+|Number of milliseconds to wait between retry attempts
+
+|_maxMillisToSleep_
+|no
+|`60000`
+|Maximum number of milliseconds to sleep between retries
+
+|_maxPoolSize_
+|no
+|`64`
+|Size of the Vert.x worker thread pool
+
+|_timeoutSeconds_
+|no
+|`600`
+|Request timeout, expressed in seconds
+
+|===
+
+=== Spark Reader Configuration
+
+[cols="2,1,1,3"]
+|===
+|Property name|Required|Default|Description
+
+|_keyspace_
+|yes
+|
+|Keyspace of a table to read
+
+|_table_
+|yes
+|
+|Table to be read
+
+|_dc_
+|no
+|
+|Data center used when `LOCAL_*` consistency level is specified
+
+|_consistencyLevel_
+|no
+|`LOCAL_QUORUM`
+|Read consistency level
+
+|_snapshotName_
+|no
+|`sbr_\{uuid\}`
+|Name of a snapshot to use (for data consistency). By default, unique name is always generated
+
+|_createSnapshot_
+|no
+|`true`
+|Indicates whether a new snapshot should be created prior to performing the read operation
+
+|_clearSnapshotStrategy_
+|no
+|`OnCompletionOrTTL 2d`
+a|Strategy of removing snapshot once read operation completes. This option is enabled always when _createSnapshot_
+flag is set to `true`. Value of _clearSnapshotStrategy_ must follow the format: `[strategy] [snapshotTTL]`.
+
+Supported strategies: `NoOp`, `OnCompletion`, `OnCompletionOrTTL`, `TTL`.
+
+TTL value has to match pattern: `\d+(d\|h\|m\|s)`
+
+Example configurations: `OnCompletionOrTTL 2d`, `TTL 2d`, `NoOp`, `OnCompletion`.
+
+|_bigNumberConfig_
+|no
+|
+a|Defines the output scale and precision of `decimal` and `varint` columns. Parameter value is a JSON string
+with the following structure:
+
+[source,json]
+----
+{
+  "column_name_1" : {"bigDecimalPrecision": 10, "bigDecimalScale": 5},
+  "column_name_2" : {"bigIntegerPrecision": 10, "bigIntegerScale": 5}
+}
+----
+
+|_lastModifiedColumnName_
+|no
+|
+|Name of the field to be appended to Spark RDD that represents last modification timestamp of each row
+
+|===
+
+=== Other Properties
+
+[cols="2,1,1,3"]
+|===
+|Property name|Required|Default|Description
+
+|_defaultParallelism_
+|recommended
+|`1`
+|Value of Spark property `spark.default.parallelism`
+
+|_numCores_
+|recommended
+|`1`
+|Total number of cores used by all Spark executors
+
+|_maxBufferSizeBytes_
+|no
+|`6291456`
+a|Maximum amount of bytes per sstable file that may be downloaded and buffered in-memory. This parameter is
+global default and can be overridden per sstable file type. Effective defaults are:
+
+- `Data.db`: 6291456
+- `Index.db`: 131072
+- `Summary.db`: 262144
+- `Statistics.db`: 131072
+- `CompressionInfo.db`: 131072
+- `.log` (commit log): 65536
+- `Partitions.db`: 131072
+- `Rows.db`: 131072
+
+To override size for `Data.db`, use property `_maxBufferSizeBytes_Data.db_`.
+
+|_chunkBufferSizeBytes_
+|no
+|`4194304`
+a|Default chunk size (in bytes) that will be requested when fetching next portion of sstable file. This parameter is
+global default and can be overridden per sstable file type. Effective defaults are:
+
+- `Data.db`: 4194304
+- `Index.db`: 32768
+- `Summary.db`: 131072
+- `Statistics.db`: 65536
+- `CompressionInfo.db`: 65536
+- `.log` (commit log): 65536
+- `Partitions.db`: 4096
+- `Rows.db`: 4096
+
+To override size for `Data.db`, use property `_chunkBufferSizeBytes_Data.db_`.
+
+|_sizing_
+|no
+|`default`
+a|Determines how the number of CPU cores is selected during the read operation. Supported options:
+
+* `default`: static number of cores defined by _numCores_ parameter
+* `dynamic`: calculates number of cores dynamically based on table size. Improves cost efficiency for processing small
+tables (few GBs). Consult JavaDoc of `org.apache.cassandra.spark.data.DynamicSizing` for implementation details.
+Relevant configuration properties:
+    ** _maxPartitionSize_: maximum Spark partition size (in GiB)
+
+|_quote_identifiers_
+|no
+|`false`
+|When `true`, keyspace, table and column names are quoted
+
+|_sstable_start_timestamp_micros_ and _sstable_end_timestamp_micros_
+|no
+|all sstables are selected
+|Define an inclusive time-range filter for sstable selection. Both timestamps are expressed in microseconds
+
+|===
+
+== Bulk Writer
+
+This section describes configuration properties specific to the bulk writer.
+
+=== Spark Writer Configuration
+
+[cols="2,1,1,3"]
+|===
+|Property name|Required|Default|Description
+
+|_keyspace_
+|yes
+|
+|Keyspace of a table to write
+
+|_table_
+|yes
+|
+|Table to which rows are written or from which rows are removed depending on _write_mode_
+
+|_local_dc_
+|no
+|
+|Data center used when `LOCAL_*` consistency level is specified
+
+|_bulk_writer_cl_
+|no
+|`EACH_QUORUM`
+|Write consistency level
+
+|_write_mode_
+|no
+|`INSERT`
+a|Determines write mode:
+
+* `INSERT`: Writes new rows to the table. Generated sstables contain the data to be inserted
+* `DELETE_PARTITION`: Removes entire partitions from the table. Only partition key columns are required in the input data
+
+
+|_ttl_
+|no
+|
+|Time-to-live value (in seconds) applied to created records. When specified, all inserted rows will expire after
+given duration. Only applicable in `INSERT` mode. Example: `86400` for 1 day TTL
+
+|_timestamp_
+|no
+|`NOW`
+a|Mutation timestamp assigned to generated rows, expressed in microseconds. Options:
+
+* `NOW`: Uses current system time at write execution
+* Custom value: Specify exact timestamp in microseconds (e.g., `1609459200000000` for 2021-01-01 00:00:00 UTC)
+
+Custom timestamps affect conflict resolution in Cassandra (last-write-wins)
+
+|_skip_extended_verify_
+|no
+|`false`
+|Every imported sstable is verified for corruption during import process. This property allows to enable extended
+checking of all values in the new sstables
+
+|_quote_identifiers_
+|no
+|`false`
+|Option that specifies whether the identifiers (i.e. keyspace, table name, column names) should be quoted to
+support mixed case and reserved keyword names for these fields
+
+|_data_transport_
+|no
+|`DIRECT`
+a|Specifies data transport mode. Supported implementations:
+
+* `DIRECT`: Uploads generated sstables directly to Cassandra cluster via Sidecar
+* `S3_COMPAT`: Uploads generated sstables to single (or multiple) remote Cassandra clusters with intermediate S3 storage
+(see <<Cloud-Storage Transport Properties>>)
+
+|===
+
+=== Cloud-Storage Transport Properties
+
+Cassandra Analytics can import generated sstables to target Cassandra cluster with intermediate S3 storage. This
+feature is explicitly useful when importing the same data set to multiple clusters running in remote locations.
+Write to multiple clusters involves data replication by S3 and 2-phase coordination protocol:
+
+1. SSTables are staged on all clusters and data consistency checked.
+2. Proceed with the import and validate consistency in each cluster.
+
+In case of import to a single cluster, there is no need for coordination and data gets persisted in Cassandra,
+as soon as it can be downloaded from S3 storage.
+
+[cols="2,1,1,3"]
+|===
+|Property name|Required|Default|Description
+
+|_coordinated_write_config_
+|no
+|
+a|
+Configuration of coordinated write operation in JSON format. Lists all remote Cassandra clusters to write,
+together with list of local Sidecar instances. This property is required only when importing data to multiple
+Cassandra clusters.
+
+Example:
+
+[source,json]
+----
+{
+  "cluster1": {
+    "sidecarContactPoints": [
+      "instance-1:9999",
+      "instance-2:9999",
+      "instance-3:9999"
+    ],
+    "localDc": "dc1",
+    "writeToLocalDcOnly": false
+  },
+  "cluster2": {
+    "sidecarContactPoints": [
+      "instance-4:8888"
+    ],
+    "localDc": "dc2",
+    "writeToLocalDcOnly": false
+  }
+}
+----
+
+|_data_transport_extension_class_
+|yes
+|
+|Fully qualified class name that implements `StorageTransportExtension` interface. Consult JavaDoc for
+implementation details
+
+|_storage_client_endpoint_override_
+|no
+|
+|Property overrides S3 endpoint
+
+|_storage_client_https_proxy_
+|no
+|
+|HTTPS proxy for S3 client
+
+|_max_size_per_sstable_bundle_in_bytes_s3_transport_
+|no
+|`5368709120`
+|Limits the maximum size of uploaded S3 object
+
+|_storage_client_max_chunk_size_in_bytes_
+|no
+|`104857600`
+|Specifies maximum chunk size for multipart S3 upload
+
+|_storage_client_concurrency_
+|no
+|`CPU cores * 2`
+|Controls the max parallelism of the thread pool used by S3 client
+
+|_storage_client_thread_keep_alive_seconds_
+|no
+|60
+|Idle storage thread timeout in seconds
+
+|_storage_client_nio_http_client_connection_acquisition_timeout_seconds_
+|no
+|`300`
+|Option to tune the connection acquisition timeout for NIO HTTP component employed in S3 client
+
+|_storage_client_nio_http_client_max_concurrency_
+|no
+|`50`
+|Specifies concurrency of the NIO HTTP component employed in S3 client
+
+|===
+
+=== Other Properties
+
+[cols="2,1,1,3"]
+|===
+|Property name|Required|Default|Description
+
+|_number_splits_
+|no
+|`-1`
+|User defined number of token range splits. By default, library will dynamically calculate number of splits based
+on Spark properties `spark.default.parallelism`, `spark.executor.cores` and `spark.executor.instances`
+
+|_sstable_data_size_in_mib_
+|no
+|`160`
+|Maximum sstable size (in MiB)
+
+|_digest_
+|no
+|`XXHash32`
+|Digest algorithm used to compute when uploading sstables for checksum validation. Supported values: `XXHash32`, `MD5`
+
+|_job_timeout_seconds_
+|no
+|`-1`
+a|Specifies a timeout in seconds for bulk write jobs. Disabled by default. When configured, job exceeding
+the timeout is:
+
+* successful when the desired consistency level is achieved
+* failed otherwise
+
+|_job_id_
+|no
+|
+|User-defined identifier for the bulk write job
+
+|===
