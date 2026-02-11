@@ -16,7 +16,39 @@
 # under the License.
 
 version: 2.1
+
+executors:
+  jdk11:
+    docker:
+      - image: cimg/openjdk:11.0
+    resource_class: large
+
 commands:
+  store_test_artifacts:
+    description: Store test reports and results
+    steps:
+      - store_artifacts:
+          path: build/test-reports
+          destination: test-reports
+      - store_artifacts:
+          path: build/reports
+          destination: reports
+      - store_test_results:
+          path: build/test-reports
+
+  collect_jacoco:
+    description: Collect JaCoCo results and persist to workspace for delta coverage
+    steps:
+      - run:
+          name: Move Jacoco results to unique folder
+          command: |
+            UNIQUE_ID="${CIRCLE_WORKFLOW_ID}-${CIRCLE_JOB}-${CIRCLE_NODE_INDEX}"
+            ./scripts/get-jacoco-results.sh "jacoco-results/${UNIQUE_ID}"
+      - persist_to_workspace:
+          root: ./jacoco-results
+          paths:
+            - "**/*"
+
   install_common:
     steps:
       - run: sudo apt-get update
@@ -122,9 +154,7 @@ commands:
 
 jobs:
   build-deps-jdk11:
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
+    executor: jdk11
     steps:
       - install_common
       - checkout
@@ -140,9 +170,7 @@ jobs:
             - "org/**/*"
 
   spark3-2_12-jdk11-big:
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
+    executor: jdk11
     steps:
       - install_common
       - checkout
@@ -153,34 +181,12 @@ jobs:
           scala: "2.12"
           jdk: "11"
           use_jdk11: "true"
-      - run:
-          name: Move Jacoco results to unique folder
-          command: |
-            UNIQUE_ID="${CIRCLE_WORKFLOW_ID}-${CIRCLE_JOB}-${CIRCLE_NODE_INDEX}"
-            echo "Unique ID: $UNIQUE_ID"
-            ./scripts/get-jacoco-results.sh "jacoco-results/${UNIQUE_ID}"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-      - persist_to_workspace:
-          root: ./jacoco-results
-          paths:
-            - "**/*"
+      - store_test_artifacts
+      - collect_jacoco
 
   int-c4-spark3-2_12-jdk11:
     parallelism: 8
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
+    executor: jdk11
     steps:
       - setup_remote_docker
       - install_common
@@ -193,26 +199,13 @@ jobs:
           jdk: "11"
           use_jdk11: "true"
           cassandra: "4.1.4"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
+      - store_test_artifacts
       - store_artifacts:
           path: cassandra-analytics-integration-tests
           destination: int-tests-misc
 
-      - store_test_results:
-          path: build/test-reports
-
   spark3-2_13-jdk11-big:
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
+    executor: jdk11
     steps:
       - install_common
       - checkout
@@ -223,33 +216,11 @@ jobs:
           scala: "2.13"
           jdk: "11"
           use_jdk11: "true"
-      - run:
-          name: Move Jacoco results to unique folder
-          command: |
-            UNIQUE_ID="${CIRCLE_WORKFLOW_ID}-${CIRCLE_JOB}-${CIRCLE_NODE_INDEX}"
-            echo "Unique ID: $UNIQUE_ID"
-            ./scripts/get-jacoco-results.sh "jacoco-results/${UNIQUE_ID}"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-      - persist_to_workspace:
-          root: ./jacoco-results
-          paths:
-            - "**/*"
+      - store_test_artifacts
+      - collect_jacoco
 
   spark3-2_13-jdk11-bti:
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
+    executor: jdk11
     steps:
       - install_common
       - checkout
@@ -261,23 +232,11 @@ jobs:
           jdk: "11"
           use_jdk11: "true"
           sstable_format: "bti"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
+      - store_test_artifacts
 
   int-c4-spark3-2_13-jdk11:
     parallelism: 8
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
+    executor: jdk11
     steps:
       - setup_remote_docker
       - install_common
@@ -290,34 +249,12 @@ jobs:
           jdk: "11"
           use_jdk11: "true"
           cassandra: "4.1.4"
-      - run:
-          name: Move Jacoco results to unique folder
-          command: |
-            UNIQUE_ID="${CIRCLE_WORKFLOW_ID}-${CIRCLE_JOB}-${CIRCLE_NODE_INDEX}"
-            echo "Unique ID: $UNIQUE_ID"
-            ./scripts/get-jacoco-results.sh "jacoco-results/${UNIQUE_ID}"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-      - persist_to_workspace:
-          root: ./jacoco-results
-          paths:
-            - "**/*"
+      - store_test_artifacts
+      - collect_jacoco
 
   int-c5-spark3-2_13-jdk11:
     parallelism: 8
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
+    executor: jdk11
     steps:
       - setup_remote_docker
       - install_common
@@ -330,33 +267,12 @@ jobs:
           jdk: "11"
           use_jdk11: "true"
           cassandra: "5.0.5"
-      - run:
-          name: Move Jacoco results to unique folder
-          command: |
-            UNIQUE_ID="${CIRCLE_WORKFLOW_ID}-${CIRCLE_JOB}-${CIRCLE_NODE_INDEX}"
-            echo "Unique ID: $UNIQUE_ID"
-            ./scripts/get-jacoco-results.sh "jacoco-results/${UNIQUE_ID}"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-      - persist_to_workspace:
-          root: ./jacoco-results
-          paths:
-            - "**/*"
+      - store_test_artifacts
+      - collect_jacoco
 
   # Delta coverage plugin requires java 11 so we only validate in java 11 builds
   validate_delta_coverage:
-    docker:
-      - image: cimg/openjdk:11.0
+    executor: jdk11
     steps:
       - install_common
       - checkout
@@ -389,7 +305,7 @@ workflows:
             - build-deps-jdk11
       - validate_delta_coverage:
           requires:
-            - spark3-2_12-jdk11
-            - spark3-2_13-jdk11
-            - int-spark3-2_12-jdk11
-            - int-spark3-2_13-jdk11
+            - spark3-2_12-jdk11-big
+            - spark3-2_13-jdk11-big
+            - int-c4-spark3-2_12-jdk11
+            - int-c4-spark3-2_13-jdk11
