@@ -110,7 +110,7 @@ public final class CommitCoordinator extends AbstractFuture<List<CommitResult>> 
                                                                               .collect(Collectors.toList());
         // Create an aggregate ListenableFuture around the list of futures containing the results of the commit calls.
         // We'll fail fast if any of those errMsg (note that an errMsg here means an unexpected exception,
-        // not a failure response from CassandraManager).
+        // not a failure response from Sidecar).
         // The callback on the aggregate listener sets the return value for this AbstractFuture
         // so callers can make blocking calls to CommitCoordinator::get.
         allCommits = Futures.allAsList(commitFutures);
