@@ -59,6 +59,7 @@ configurations {
 dependencies {
     testImplementation(project(':cassandra-analytics-core'))
     testImplementation(group: 'net.java.dev.jna', name: 'jna', version: '5.9.0')
+    testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
 
     testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${sparkVersion}")
     testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${sparkVersion}")

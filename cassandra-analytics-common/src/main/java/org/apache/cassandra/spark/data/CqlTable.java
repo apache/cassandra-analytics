@@ -275,62 +275,6 @@ public class CqlTable implements Serializable
         return columnsWithUdts.contains(fieldName);
     }
 
-    /**
-     * If a field is of type Tuple, or Tuple inside a frozen type or collection, this function finds CqlTuple associated with that field
-     * @param fieldName name of the field
-     * @return CqlTuple associated with the requested field, returns null otherwise
-     */
-    public CqlField.CqlTuple findTuple(String fieldName)
-    {
-        CqlField field = fieldsMap.get(fieldName);
-        if (field == null)
-        {
-            return null;
-        }
-
-        return findTupleRecursive(field.type());
-    }
-
-    /**
-     * Recursively searches for tuple types in nested structures (frozen types, collections)
-     * @param type the CQL type to search in
-     * @return CqlTuple if found, null otherwise
-     */
-    private CqlField.CqlTuple findTupleRecursive(CqlField.CqlType type)
-    {
-        if (type instanceof CqlField.CqlTuple)
-        {
-            return (CqlField.CqlTuple) type;
-        }
-
-        if (type instanceof CqlField.CqlFrozen)
-        {
-            CqlField.CqlFrozen frozen = (CqlField.CqlFrozen) type;
-            return findTupleRecursive(frozen.inner());
-        }
-
-        if (type instanceof CqlField.CqlCollection)
-        {
-            CqlField.CqlCollection collection = (CqlField.CqlCollection) type;
-
-            // For maps, check both key and value types
-            if (type instanceof CqlField.CqlMap)
-            {
-                CqlField.CqlTuple keyTuple = findTupleRecursive(collection.type(0));
-                if (keyTuple != null)
-                {
-                    return keyTuple;
-                }
-                return findTupleRecursive(collection.type(1));
-            }
-
-            // For lists and sets, check the element type
-            return findTupleRecursive(collection.type(0));
-        }
-
-        return null;
-    }
-
     @Override
     public int hashCode()
     {

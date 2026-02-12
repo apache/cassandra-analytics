@@ -904,11 +904,13 @@ public final class SqlToCqlTypeConverter implements Serializable
         @Override
         public Object[] convertInternal(Object object)
         {
-            if (object instanceof GenericRowWithSchema)
+            if (object instanceof org.apache.spark.sql.Row)
             {
-                return makeTuple((GenericRowWithSchema) object);
+                // Handle generic Row type (may come from nested structures)
+                return makeTupleFromRow((org.apache.spark.sql.Row) object);
             }
-            throw new RuntimeException("Unsupported conversion for UDT from " + object.getClass().getTypeName());
+
+            throw new RuntimeException("Unsupported conversion for Tuple from " + object.getClass().getTypeName());
         }
 
         @Override
@@ -917,16 +919,16 @@ public final class SqlToCqlTypeConverter implements Serializable
             return "Tuple";
         }
 
-        private Object[] makeTuple(GenericRowWithSchema row)
+        private Object[] makeTupleFromRow(org.apache.spark.sql.Row row)
         {
             Object[] result = new Object[row.size()];
-            for (int i = 0; i < row.schema().fieldNames().length; i++)
+            for (int i = 0; i < row.size(); i++)
             {
                 Converter<?> converter = converters.get(i);
-                Object val = row.get(i);
-                result[i] = converter.convert(val);
+                Object val = row.isNullAt(i) ? null : row.get(i);
+                // Recursively convert inner values (handles nested UDTs, Tuples, Collections)
+                result[i] = val == null ? null : converter.convert(val);
             }
-            // Object array with converted values
             return result;
         }
     }

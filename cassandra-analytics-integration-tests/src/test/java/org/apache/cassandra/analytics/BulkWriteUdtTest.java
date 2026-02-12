@@ -113,6 +113,48 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
             + "            id BIGINT PRIMARY KEY,\n"
             + "            outerudt frozen<%s>)";
 
+    // Table with UDT that has collections in it (standalone)
+    public static final QualifiedName UDT_WITH_COLLECTIONS_SOURCE_TABLE = new QualifiedName(TEST_KEYSPACE, "udt_with_collections_src");
+    public static final QualifiedName UDT_WITH_COLLECTIONS_DEST_TABLE = new QualifiedName(TEST_KEYSPACE, "udt_with_collections_dest");
+    public static final String UDT_WITH_COLLECTIONS_TABLE_CREATE = "CREATE TABLE %s.%s (\n"
+            + "            id BIGINT PRIMARY KEY,\n"
+            + "            udtfield frozen<" + UDT_WITH_COLLECTIONS_TYPE_NAME + ">)";
+
+    // Table with multiple UDT columns
+    public static final QualifiedName MULTI_UDT_SOURCE_TABLE = new QualifiedName(TEST_KEYSPACE, "multi_udt_src");
+    public static final QualifiedName MULTI_UDT_DEST_TABLE = new QualifiedName(TEST_KEYSPACE, "multi_udt_dest");
+    public static final String MULTI_UDT_TABLE_CREATE = "CREATE TABLE %s.%s (\n"
+            + "            id BIGINT PRIMARY KEY,\n"
+            + "            udt1 frozen<" + TWO_FIELD_UDT_NAME + ">,\n"
+            + "            udt2 frozen<" + NESTED_FIELD_UDT_NAME + ">,\n"
+            + "            udt3 frozen<" + UDT_WITH_COLLECTIONS_TYPE_NAME + ">)";
+
+    // Deeply nested UDT (3 levels)
+    public static final String DEEPLY_NESTED_UDT_L1_NAME = "deeply_nested_l1";
+    public static final String DEEPLY_NESTED_UDT_L2_NAME = "deeply_nested_l2";
+    public static final String DEEPLY_NESTED_UDT_L3_NAME = "deeply_nested_l3";
+    public static final String DEEPLY_NESTED_UDT_L1_CREATE = "CREATE TYPE " + TEST_KEYSPACE + "." + DEEPLY_NESTED_UDT_L1_NAME +
+            " (field1 text, field2 int);";
+    public static final String DEEPLY_NESTED_UDT_L2_CREATE = "CREATE TYPE " + TEST_KEYSPACE + "." + DEEPLY_NESTED_UDT_L2_NAME +
+            " (nested1 frozen<" + DEEPLY_NESTED_UDT_L1_NAME + ">, field2 text);";
+    public static final String DEEPLY_NESTED_UDT_L3_CREATE = "CREATE TYPE " + TEST_KEYSPACE + "." + DEEPLY_NESTED_UDT_L3_NAME +
+            " (nested2 frozen<" + DEEPLY_NESTED_UDT_L2_NAME + ">, field3 bigint);";
+    public static final QualifiedName DEEPLY_NESTED_UDT_SOURCE_TABLE = new QualifiedName(TEST_KEYSPACE, "deeply_nested_udt_src");
+    public static final QualifiedName DEEPLY_NESTED_UDT_DEST_TABLE = new QualifiedName(TEST_KEYSPACE, "deeply_nested_udt_dest");
+    public static final String DEEPLY_NESTED_UDT_TABLE_CREATE = "CREATE TABLE %s.%s (\n"
+            + "            id BIGINT PRIMARY KEY,\n"
+            + "            deepudt frozen<" + DEEPLY_NESTED_UDT_L3_NAME + ">)";
+
+    // UDT with nested collections (list of tuples, map with UDT values)
+    public static final String UDT_WITH_NESTED_COLLECTIONS_TYPE_NAME = "udt_with_nested_collections";
+    public static final String UDT_WITH_NESTED_COLLECTIONS_TYPE_CREATE = "CREATE TYPE " + TEST_KEYSPACE + "." + UDT_WITH_NESTED_COLLECTIONS_TYPE_NAME +
+            " (tupleList list<frozen<tuple<int, text>>>, nestedMap map<text, frozen<" + TWO_FIELD_UDT_NAME + ">>);";
+    public static final QualifiedName UDT_WITH_NESTED_COLLECTIONS_SOURCE_TABLE = new QualifiedName(TEST_KEYSPACE, "udt_nested_coll_src");
+    public static final QualifiedName UDT_WITH_NESTED_COLLECTIONS_DEST_TABLE = new QualifiedName(TEST_KEYSPACE, "udt_nested_coll_dest");
+    public static final String UDT_WITH_NESTED_COLLECTIONS_TABLE_CREATE = "CREATE TABLE %s.%s (\n"
+            + "            id BIGINT PRIMARY KEY,\n"
+            + "            udtfield frozen<" + UDT_WITH_NESTED_COLLECTIONS_TYPE_NAME + ">)";
+
     private ICoordinator coordinator;
 
 
@@ -392,79 +434,422 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         return i;
     }
 
+    @Test
+    void testUdtWithCollections()
+    {
+        int numRowsInserted = populateUdtWithCollections();
+
+        Dataset<Row> sourceData = bulkReaderDataFrame(UDT_WITH_COLLECTIONS_SOURCE_TABLE).load();
+        assertThat(sourceData.count()).isEqualTo(numRowsInserted);
+
+        bulkWriterDataFrameWriter(sourceData, UDT_WITH_COLLECTIONS_DEST_TABLE).save();
+        validateWritesWithDriverResultSet(sourceData.collectAsList(),
+                queryAllDataWithDriver(UDT_WITH_COLLECTIONS_DEST_TABLE),
+                BulkWriteUdtTest::udtRowFormatter);
+    }
+
+    private int populateUdtWithCollections()
+    {
+        // table(id, udt(list<text>, set<text>, map<int, text>, tuple<int, text>))
+        String insertQuery = "INSERT INTO %s (id, udtfield) VALUES (%d, " +
+                "{f1:['item1_%d', 'item2_%d'], f2:{'setval_%d'}, f3:{%d: 'mapval_%d'}, f4:(%d, 'tuple_%d')})";
+
+        int i = 0;
+        for (; i < ROW_COUNT; i++)
+        {
+            coordinator.execute(String.format(insertQuery, UDT_WITH_COLLECTIONS_SOURCE_TABLE, i, i, i, i, i, i, i, i),
+                    ConsistencyLevel.ALL);
+        }
+
+        // test null cases
+        coordinator.execute(String.format("insert into %s (id) values (%d)",
+                UDT_WITH_COLLECTIONS_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, udtfield) values (%d, null)",
+                UDT_WITH_COLLECTIONS_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, udtfield) values (%d, {f1:null, f2:null, f3:null, f4:null})",
+                UDT_WITH_COLLECTIONS_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+
+        return i;
+    }
+
+    @Test
+    void testMultipleUdtColumns()
+    {
+        int numRowsInserted = populateMultipleUdtColumns();
+
+        Dataset<Row> sourceData = bulkReaderDataFrame(MULTI_UDT_SOURCE_TABLE).load();
+        assertThat(sourceData.count()).isEqualTo(numRowsInserted);
+
+        bulkWriterDataFrameWriter(sourceData, MULTI_UDT_DEST_TABLE).save();
+        validateWritesWithDriverResultSet(sourceData.collectAsList(),
+                queryAllDataWithDriver(MULTI_UDT_DEST_TABLE),
+                BulkWriteUdtTest::multiUdtRowFormatter);
+    }
+
+    private int populateMultipleUdtColumns()
+    {
+        // table(id, two_field_udt, nested_udt, udt_with_collections)
+        String insertQuery = "INSERT INTO %s (id, udt1, udt2, udt3) VALUES (%d, " +
+                "{f1:'text_%d', f2:%d}, " +
+                "{n1:%d, n2:{f1:'nested_%d', f2:%d}}, " +
+                "{f1:['list_%d'], f2:{'set_%d'}, f3:{%d:'map_%d'}, f4:(%d, 'tuple_%d')})";
+
+        int i = 0;
+        for (; i < ROW_COUNT; i++)
+        {
+            coordinator.execute(String.format(insertQuery, MULTI_UDT_SOURCE_TABLE, i, i, i, i, i, i, i, i, i, i, i, i),
+                    ConsistencyLevel.ALL);
+        }
+
+        // test null cases
+        coordinator.execute(String.format("insert into %s (id) values (%d)",
+                MULTI_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, udt1, udt2, udt3) values (%d, null, null, null)",
+                MULTI_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+
+        return i;
+    }
+
+    @Test
+    void testDeeplyNestedUdt()
+    {
+        int numRowsInserted = populateDeeplyNestedUdt();
+
+        Dataset<Row> sourceData = bulkReaderDataFrame(DEEPLY_NESTED_UDT_SOURCE_TABLE).load();
+        assertThat(sourceData.count()).isEqualTo(numRowsInserted);
+
+        bulkWriterDataFrameWriter(sourceData, DEEPLY_NESTED_UDT_DEST_TABLE).save();
+        validateWritesWithDriverResultSet(sourceData.collectAsList(),
+                queryAllDataWithDriver(DEEPLY_NESTED_UDT_DEST_TABLE),
+                BulkWriteUdtTest::udtRowFormatter);
+    }
+
+    private int populateDeeplyNestedUdt()
+    {
+        // table(id, udt_l3(udt_l2(udt_l1(text, int), text), bigint))
+        String insertQuery = "INSERT INTO %s (id, deepudt) VALUES (%d, " +
+                "{nested2:{nested1:{field1:'level1_%d', field2:%d}, field2:'level2_%d'}, field3:%d})";
+
+        int i = 0;
+        for (; i < ROW_COUNT; i++)
+        {
+            coordinator.execute(String.format(insertQuery, DEEPLY_NESTED_UDT_SOURCE_TABLE, i, i, i, i, i),
+                    ConsistencyLevel.ALL);
+        }
+
+        // test null cases
+        coordinator.execute(String.format("insert into %s (id) values (%d)",
+                DEEPLY_NESTED_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, deepudt) values (%d, null)",
+                DEEPLY_NESTED_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, deepudt) values (%d, {nested2:null, field3:null})",
+                DEEPLY_NESTED_UDT_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+
+        return i;
+    }
+
+    @Test
+    void testUdtWithNestedCollections()
+    {
+        int numRowsInserted = populateUdtWithNestedCollections();
+
+        Dataset<Row> sourceData = bulkReaderDataFrame(UDT_WITH_NESTED_COLLECTIONS_SOURCE_TABLE).load();
+        assertThat(sourceData.count()).isEqualTo(numRowsInserted);
+
+        bulkWriterDataFrameWriter(sourceData, UDT_WITH_NESTED_COLLECTIONS_DEST_TABLE).save();
+        validateWritesWithDriverResultSet(sourceData.collectAsList(),
+                queryAllDataWithDriver(UDT_WITH_NESTED_COLLECTIONS_DEST_TABLE),
+                BulkWriteUdtTest::udtRowFormatter);
+    }
+
+    private int populateUdtWithNestedCollections()
+    {
+        // table(id, udt(list<tuple<int, text>>, map<text, udt(text, int)>))
+        String insertQuery = "INSERT INTO %s (id, udtfield) VALUES (%d, " +
+                "{tupleList:[(%d, 'tuple_%d'), (%d, 'tuple_%d')], nestedMap:{'key_%d':{f1:'mapudt_%d', f2:%d}}})";
+
+        int i = 0;
+        for (; i < ROW_COUNT; i++)
+        {
+            coordinator.execute(String.format(insertQuery, UDT_WITH_NESTED_COLLECTIONS_SOURCE_TABLE,
+                    i, i, i, i + 1, i + 1, i, i, i),
+                    ConsistencyLevel.ALL);
+        }
+
+        // test null cases
+        coordinator.execute(String.format("insert into %s (id) values (%d)",
+                UDT_WITH_NESTED_COLLECTIONS_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, udtfield) values (%d, null)",
+                UDT_WITH_NESTED_COLLECTIONS_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+        coordinator.execute(String.format("insert into %s (id, udtfield) values (%d, {tupleList:null, nestedMap:null})",
+                UDT_WITH_NESTED_COLLECTIONS_SOURCE_TABLE, i++), ConsistencyLevel.ALL);
+
+        return i;
+    }
+
+    @NotNull
+    public static String multiUdtRowFormatter(com.datastax.driver.core.Row row)
+    {
+        // Format: id:udt1:udt2:udt3
+        StringBuilder result = new StringBuilder();
+        result.append(row.getLong(0));
+
+        for (int i = 1; i <= 3; i++)
+        {
+            result.append(":");
+            UDTValue udt = row.getUDTValue(i);
+            if (udt == null)
+            {
+                result.append("null");
+            }
+            else
+            {
+                result.append(formatUdtValue(udt));
+            }
+        }
+
+        return result.toString();
+    }
+
     @NotNull
     public static String udtRowFormatter(com.datastax.driver.core.Row row)
     {
         UDTValue udt = row.getUDTValue(1);
-        return row.getLong(0) +
-               ":" +
-               Objects.requireNonNullElse(udt, "null").toString()
-                      // driver writes lists as [] and sets as {},
-                      // whereas spark entries have the same type Seq for both lists and sets
-                      .replace('[', '{')
-                      .replace(']', '}');
+        if (udt == null)
+        {
+            return row.getLong(0) + ":null";
+        }
+        return row.getLong(0) + ":" + formatUdtValue(udt);
+    }
+
+    private static String formatUdtValue(UDTValue udt)
+    {
+        if (udt == null)
+        {
+            return "null";
+        }
+
+        StringBuilder result = new StringBuilder();
+        result.append("{");
+
+        com.datastax.driver.core.UserType userType = udt.getType();
+        java.util.List<String> fieldNames = new java.util.ArrayList<>(userType.getFieldNames());
+
+        for (int i = 0; i < fieldNames.size(); i++)
+        {
+            if (i > 0)
+            {
+                result.append(",");
+            }
+
+            String fieldName = fieldNames.get(i);
+            result.append(fieldName).append(":");
+
+            Object value = udt.getObject(i);
+            formatUdtFieldValue(result, value);
+        }
+
+        result.append("}");
+        return result.toString();
+    }
+
+    private static void formatUdtFieldValue(StringBuilder sb, Object value)
+    {
+        if (value == null)
+        {
+            sb.append("null");
+        }
+        else if (value instanceof com.datastax.driver.core.TupleValue)
+        {
+            // Format tuple with _1, _2, _3 field names (Spark style)
+            com.datastax.driver.core.TupleValue tupleValue = (com.datastax.driver.core.TupleValue) value;
+            sb.append("{");
+            for (int i = 0; i < tupleValue.getType().getComponentTypes().size(); i++)
+            {
+                if (i > 0)
+                {
+                    sb.append(",");
+                }
+                sb.append("_").append(i + 1).append(":");
+                formatUdtFieldValue(sb, tupleValue.getObject(i));
+            }
+            sb.append("}");
+        }
+        else if (value instanceof UDTValue)
+        {
+            // Nested UDT
+            sb.append(formatUdtValue((UDTValue) value));
+        }
+        else if (value instanceof java.util.List)
+        {
+            java.util.List<?> list = (java.util.List<?>) value;
+            if (list.isEmpty())
+            {
+                sb.append("null");
+            }
+            else
+            {
+                sb.append("{");
+                for (int i = 0; i < list.size(); i++)
+                {
+                    if (i > 0)
+                    {
+                        sb.append(",");
+                    }
+                    formatUdtFieldValue(sb, list.get(i));
+                }
+                sb.append("}");
+            }
+        }
+        else if (value instanceof java.util.Set)
+        {
+            java.util.Set<?> set = (java.util.Set<?>) value;
+            if (set.isEmpty())
+            {
+                sb.append("null");
+            }
+            else
+            {
+                sb.append("{");
+                // Sort set elements for consistent comparison
+                java.util.List<?> sortedList = set.stream()
+                        .sorted((o1, o2) -> o1.toString().compareTo(o2.toString()))
+                        .collect(java.util.stream.Collectors.toList());
+                for (int i = 0; i < sortedList.size(); i++)
+                {
+                    if (i > 0)
+                    {
+                        sb.append(",");
+                    }
+                    formatUdtFieldValue(sb, sortedList.get(i));
+                }
+                sb.append("}");
+            }
+        }
+        else if (value instanceof java.util.Map)
+        {
+            java.util.Map<?, ?> map = (java.util.Map<?, ?>) value;
+            if (map.isEmpty())
+            {
+                sb.append("null");
+            }
+            else
+            {
+                sb.append("{");
+                // Sort map entries for consistent comparison
+                java.util.List<? extends java.util.Map.Entry<?, ?>> sortedEntries = map.entrySet().stream()
+                        .sorted((e1, e2) -> e1.getKey().toString().compareTo(e2.getKey().toString()))
+                        .collect(java.util.stream.Collectors.toList());
+                for (int i = 0; i < sortedEntries.size(); i++)
+                {
+                    if (i > 0)
+                    {
+                        sb.append(",");
+                    }
+                    java.util.Map.Entry<?, ?> entry = sortedEntries.get(i);
+                    formatUdtFieldValue(sb, entry.getKey());
+                    sb.append(":");
+                    formatUdtFieldValue(sb, entry.getValue());
+                }
+                sb.append("}");
+            }
+        }
+        else if (value instanceof String)
+        {
+            sb.append("'").append(value).append("'");
+        }
+        else
+        {
+            sb.append(value);
+        }
     }
 
     @NotNull
     public static String listOfUdtRowFormatter(com.datastax.driver.core.Row row)
     {
-        return row.getLong(0) +
-               ":" +
-               row.getList(1, UDTValue.class).toString()
-                  // empty collections have different formatting between driver and spark
-                  .replace("{}", "null")
-                  .replace("[]", "null")
-                  // driver writes lists as [] and sets as {},
-                  // whereas spark entries have the same type Seq for both lists and sets
-                  .replace('[', '{')
-                  .replace(']', '}')
-                  // Driver writes tuples inside (), whereas
-                  // Spark considers tuples as type GenericSchemaRow and uses {}
-                  .replace('(', '{')
-                  .replace(')', '}');
+        java.util.List<UDTValue> list = row.getList(1, UDTValue.class);
+        if (list == null)
+        {
+            return row.getLong(0) + ":null";
+        }
+
+        StringBuilder result = new StringBuilder();
+        result.append(row.getLong(0)).append(":{");
+
+        for (int i = 0; i < list.size(); i++)
+        {
+            if (i > 0)
+            {
+                result.append(",");
+            }
+            result.append(formatUdtValue(list.get(i)));
+        }
+
+        result.append("}");
+        return result.toString();
     }
 
     @NotNull
     public static String setOfUdtRowFormatter(com.datastax.driver.core.Row row)
     {
-        // Formats as field:value with no whitespaces, and strings quoted
-        // Driver Codec writes "NULL" for null value. Spark DF writes "null".
-        return row.getLong(0) +
-               ":" +
-               row.getSet(1, UDTValue.class).toString()
-                  // empty collections have different formatting between driver and spark
-                  .replace("{}", "null")
-                  .replace("[]", "null")
-                  // driver writes lists as [] and sets as {},
-                  // whereas spark entries have the same type Seq for both lists and sets
-                  .replace('[', '{')
-                  .replace(']', '}')
-                  // Driver writes tuples inside (), whereas
-                  // Spark considers tuples as type GenericSchemaRow and uses {}
-                  .replace('(', '{')
-                  .replace(')', '}');
+        java.util.Set<UDTValue> set = row.getSet(1, UDTValue.class);
+        if (set == null)
+        {
+            return row.getLong(0) + ":null";
+        }
+
+        // Sort set elements for consistent comparison
+        java.util.List<UDTValue> sortedList = set.stream()
+                .sorted((o1, o2) -> o1.toString().compareTo(o2.toString()))
+                .collect(java.util.stream.Collectors.toList());
+
+        StringBuilder result = new StringBuilder();
+        result.append(row.getLong(0)).append(":{");
+
+        for (int i = 0; i < sortedList.size(); i++)
+        {
+            if (i > 0)
+            {
+                result.append(",");
+            }
+            result.append(formatUdtValue(sortedList.get(i)));
+        }
+
+        result.append("}");
+        return result.toString();
     }
 
     @NotNull
     public static String mapOfUdtRowFormatter(com.datastax.driver.core.Row row)
     {
-        // Formats as field:value with no whitespaces, and strings quoted
-        // Driver Codec writes "NULL" for null value. Spark DF writes "null".
-        return row.getLong(0) +
-               ":" +
-               row.getMap(1, UDTValue.class, UDTValue.class).toString()
-                  // empty collections have different formatting between driver and spark
-                  .replace("{}", "null")
-                  .replace("[]", "null")
-                  .replace("=", ":")
-                  // driver writes lists as [] and sets as {},
-                  // whereas spark entries have the same type Seq for both lists and sets
-                  .replace('[', '{')
-                  .replace(']', '}')
-                  // Driver writes tuples inside (), whereas
-                  // Spark considers tuples as type GenericSchemaRow and uses {}
-                  .replace('(', '{')
-                  .replace(')', '}');
+        java.util.Map<UDTValue, UDTValue> map = row.getMap(1, UDTValue.class, UDTValue.class);
+        if (map == null)
+        {
+            return row.getLong(0) + ":null";
+        }
+
+        // Sort map entries for consistent comparison
+        java.util.List<java.util.Map.Entry<UDTValue, UDTValue>> sortedEntries = map.entrySet().stream()
+                .sorted((e1, e2) -> e1.getKey().toString().compareTo(e2.getKey().toString()))
+                .collect(java.util.stream.Collectors.toList());
+
+        StringBuilder result = new StringBuilder();
+        result.append(row.getLong(0)).append(":{");
+
+        for (int i = 0; i < sortedEntries.size(); i++)
+        {
+            if (i > 0)
+            {
+                result.append(",");
+            }
+            java.util.Map.Entry<UDTValue, UDTValue> entry = sortedEntries.get(i);
+            result.append(formatUdtValue(entry.getKey()));
+            result.append(":");
+            result.append(formatUdtValue(entry.getValue()));
+        }
+
+        result.append("}");
+        return result.toString();
     }
 
     @Override
@@ -489,6 +874,10 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         cluster.schemaChangeIgnoringStoppedInstances(UDT_WITH_LIST_OF_UDT_TYPE_CREATE);
         cluster.schemaChangeIgnoringStoppedInstances(UDT_WITH_SET_OF_UDT_TYPE_CREATE);
         cluster.schemaChangeIgnoringStoppedInstances(UDT_WITH_MAP_OF_UDT_TYPE_CREATE);
+        cluster.schemaChangeIgnoringStoppedInstances(DEEPLY_NESTED_UDT_L1_CREATE);
+        cluster.schemaChangeIgnoringStoppedInstances(DEEPLY_NESTED_UDT_L2_CREATE);
+        cluster.schemaChangeIgnoringStoppedInstances(DEEPLY_NESTED_UDT_L3_CREATE);
+        cluster.schemaChangeIgnoringStoppedInstances(UDT_WITH_NESTED_COLLECTIONS_TYPE_CREATE);
 
         cluster.schemaChangeIgnoringStoppedInstances(String.format(LIST_OF_UDT_TABLE_CREATE,
                 LIST_OF_UDT_SOURCE_TABLE.keyspace(),
@@ -537,5 +926,34 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
                 UDT_WITH_MAP_OF_UDT_DEST_TABLE.keyspace(),
                 UDT_WITH_MAP_OF_UDT_DEST_TABLE.table(),
                 UDT_WITH_MAP_OF_UDT_TYPE_NAME));
+
+        // New tables for additional test scenarios
+        cluster.schemaChangeIgnoringStoppedInstances(String.format(UDT_WITH_COLLECTIONS_TABLE_CREATE,
+                UDT_WITH_COLLECTIONS_SOURCE_TABLE.keyspace(),
+                UDT_WITH_COLLECTIONS_SOURCE_TABLE.table()));
+        cluster.schemaChangeIgnoringStoppedInstances(String.format(UDT_WITH_COLLECTIONS_TABLE_CREATE,
+                UDT_WITH_COLLECTIONS_DEST_TABLE.keyspace(),
+                UDT_WITH_COLLECTIONS_DEST_TABLE.table()));
+
+        cluster.schemaChangeIgnoringStoppedInstances(String.format(MULTI_UDT_TABLE_CREATE,
+                MULTI_UDT_SOURCE_TABLE.keyspace(),
+                MULTI_UDT_SOURCE_TABLE.table()));
+        cluster.schemaChangeIgnoringStoppedInstances(String.format(MULTI_UDT_TABLE_CREATE,
+                MULTI_UDT_DEST_TABLE.keyspace(),
+                MULTI_UDT_DEST_TABLE.table()));
+
+        cluster.schemaChangeIgnoringStoppedInstances(String.format(DEEPLY_NESTED_UDT_TABLE_CREATE,
+                DEEPLY_NESTED_UDT_SOURCE_TABLE.keyspace(),
+                DEEPLY_NESTED_UDT_SOURCE_TABLE.table()));
+        cluster.schemaChangeIgnoringStoppedInstances(String.format(DEEPLY_NESTED_UDT_TABLE_CREATE,
+                DEEPLY_NESTED_UDT_DEST_TABLE.keyspace(),
+                DEEPLY_NESTED_UDT_DEST_TABLE.table()));
+
+        cluster.schemaChangeIgnoringStoppedInstances(String.format(UDT_WITH_NESTED_COLLECTIONS_TABLE_CREATE,
+                UDT_WITH_NESTED_COLLECTIONS_SOURCE_TABLE.keyspace(),
+                UDT_WITH_NESTED_COLLECTIONS_SOURCE_TABLE.table()));
+        cluster.schemaChangeIgnoringStoppedInstances(String.format(UDT_WITH_NESTED_COLLECTIONS_TABLE_CREATE,
+                UDT_WITH_NESTED_COLLECTIONS_DEST_TABLE.keyspace(),
+                UDT_WITH_NESTED_COLLECTIONS_DEST_TABLE.table()));
     }
 }
