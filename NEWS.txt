@@ -1,3 +1,24 @@
+0.3
+===
+
+Upgrading
+---------
+    - Updated Guice dependency to 7.0.0 (CASSANALYTICS-103).
+    - Addressed LZ4 vulnerability (CVE-2025-12183) in CASSANALYTICS-109.
+
+
+New features
+------------
+    - Add TimeRangeFilter to filter out SSTables outside given time window (CASSANALYTICS-102).
+    - Add EACH_QUORUM consistency level support in bulk reader (CASSANALYTICS-101).
+
+
+Bug fixes
+---------
+    - Fix ByteBuffer flip() in StreamBuffer.copyBytes() causing data corruption (CASSANALYTICS-116).
+    - Fix race condition in DirectStreamSession#onSSTablesProduced and SortedSStableWriter#close (CASSANALYTICS-107).
+
+
 0.2
 ===
 
