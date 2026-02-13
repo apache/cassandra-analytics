@@ -1,5 +1,6 @@
 0.3.0
 -----
+ * Integrate delta-coverage-plugin plugin (CASSANALYTICS-1)
  * Fix ByteBuffer flip() in StreamBuffer.copyBytes() causing data corruption (CASSANALYTICS-116)
  * Fix race condition in DirectStreamSession#onSSTablesProduced and SortedSStableWriter#close (CASSANALYTICS-107)
  * Address LZ4 vulnerability (CVE-2025-12183) (CASSANALYTICS-109)
