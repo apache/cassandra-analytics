@@ -95,6 +95,7 @@ class BulkWriteTtlTest extends SharedClusterSparkIntegrationTestBase
         Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, 1, "updatedTTL", null, ROW_COUNT);
 
         bulkWriterDataFrameWriter(df, MIXED_CASE_TTL_NAME).option(WriterOptions.TTL.name(), TTLOption.perRow("updatedTTL"))
+                                                          .option(WriterOptions.QUOTE_IDENTIFIERS.name(), true)
                                                           .save();
         // Wait to make sure TTLs have expired
         Uninterruptibles.sleepUninterruptibly(1100, TimeUnit.MILLISECONDS);
