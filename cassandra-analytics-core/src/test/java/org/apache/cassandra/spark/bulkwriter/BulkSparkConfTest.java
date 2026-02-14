@@ -22,11 +22,15 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
@@ -223,6 +227,38 @@ class BulkSparkConfTest
         BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
         assertThat(bulkSparkConf).isNotNull();
         assertThat(bulkSparkConf.quoteIdentifiers).isTrue();
+    }
+
+    @ParameterizedTest
+    @MethodSource("uppercaseColumnNames")
+    void testQuoteIdentifiersSetWithUppercaseColumns(String ttlColumn, String timestampColumn)
+    {
+        Map<String, String> options = copyDefaultOptions();
+        if (ttlColumn != null) options.put(WriterOptions.TTL.name(), ttlColumn);
+        if (timestampColumn != null) options.put(WriterOptions.TIMESTAMP.name(), timestampColumn);
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.quoteIdentifiers).isTrue();
+    }
+
+    private static Stream<Arguments> uppercaseColumnNames()
+    {
+        return Stream.of(Arguments.of("TtlColumn", null),
+                         Arguments.of(null, "TimestampColumn"),
+                         Arguments.of(null, "timestampColumn"),
+                         Arguments.of("TtlCol", "TsCol"),
+                         Arguments.of("MyTTL", null),
+                         Arguments.of("Ttl", null),
+                         Arguments.of("updatedTTL", null));
+    }
+
+    @Test
+    void testQuoteIdentifiersOptionOverrides()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.QUOTE_IDENTIFIERS.name(), "true");
+        options.put(WriterOptions.TTL.name(), "lowercasettl");
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.quoteIdentifiers).isTrue();
     }
 
     @Test

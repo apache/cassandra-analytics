@@ -53,6 +53,8 @@ import org.apache.spark.SparkConf;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static java.lang.Character.isUpperCase;
+
 @SuppressWarnings("WeakerAccess")
 public class BulkSparkConf implements Serializable
 {
@@ -207,6 +209,7 @@ public class BulkSparkConf implements Serializable
         this.ttl = MapUtils.getOrDefault(options, WriterOptions.TTL.name(), null);
         this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
         this.quoteIdentifiers = MapUtils.getBoolean(options, WriterOptions.QUOTE_IDENTIFIERS.name(), false, "quote identifiers");
+        setQuoteIdentifiersIfRequired(this.ttl, this.timestamp);
         int storageClientConcurrency = MapUtils.getInt(options, WriterOptions.STORAGE_CLIENT_CONCURRENCY.name(),
                                                        DEFAULT_STORAGE_CLIENT_CONCURRENCY, "storage client concurrency");
         long storageClientKeepAliveSeconds = MapUtils.getLong(options, WriterOptions.STORAGE_CLIENT_THREAD_KEEP_ALIVE_SECONDS.name(),
@@ -362,6 +365,42 @@ public class BulkSparkConf implements Serializable
         Preconditions.checkNotNull(table);
         Preconditions.checkArgument(getHttpResponseTimeoutMs() > 0, HTTP_RESPONSE_TIMEOUT + " must be > 0");
         validateSslConfiguration();
+    }
+
+    protected void setQuoteIdentifiersIfRequired(String ttlColName, String timestampColName)
+    {
+        if (this.quoteIdentifiers)
+        {
+            return;
+        }
+
+        if (isQuoteIdentifiersRequired(ttlColName))
+        {
+            this.quoteIdentifiers = true;
+            return;
+        }
+
+        if (isQuoteIdentifiersRequired(timestampColName))
+        {
+            this.quoteIdentifiers = true;
+        }
+    }
+
+    private boolean isQuoteIdentifiersRequired(String name)
+    {
+        if (name == null || name.isEmpty())
+        {
+            return false;
+        }
+
+        for (char c : name.toCharArray())
+        {
+            if (isUpperCase(c))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

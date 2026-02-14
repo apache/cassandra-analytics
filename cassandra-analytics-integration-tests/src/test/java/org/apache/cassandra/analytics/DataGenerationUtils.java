@@ -154,6 +154,11 @@ public final class DataGenerationUtils
 
     public static Dataset<Row> generateCourseData(SparkSession spark, Integer ttl, Long timestamp, int rowCount)
     {
+        return generateCourseData(spark, ttl, "ttl", timestamp, rowCount);
+    }
+
+    public static Dataset<Row> generateCourseData(SparkSession spark, Integer ttl, String ttlColumnName, Long timestamp, int rowCount)
+    {
         SQLContext sql = spark.sqlContext();
         // Note: only primary key columns are required to be not nullable; All columns are nullable only for test convenience
         StructType schema = new StructType()
@@ -163,7 +168,7 @@ public final class DataGenerationUtils
 
         if (ttl != null)
         {
-            schema = schema.add("ttl", IntegerType, false);
+            schema = schema.add(ttlColumnName, IntegerType, false);
         }
         if (timestamp != null)
         {

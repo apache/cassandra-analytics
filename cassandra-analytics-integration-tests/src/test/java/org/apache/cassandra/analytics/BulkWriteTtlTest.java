@@ -44,6 +44,7 @@ class BulkWriteTtlTest extends SharedClusterSparkIntegrationTestBase
     static final QualifiedName DEFAULT_TTL_NAME = new QualifiedName(TEST_KEYSPACE, "test_default_ttl");
     static final QualifiedName CONSTANT_TTL_NAME = new QualifiedName(TEST_KEYSPACE, "test_ttl_constant");
     static final QualifiedName PER_ROW_TTL_NAME = new QualifiedName(TEST_KEYSPACE, "test_ttl_per_row");
+    static final QualifiedName MIXED_CASE_TTL_NAME = new QualifiedName(TEST_KEYSPACE, "test_ttl_mixed_case");
 
     @Test
     void testTableDefaultTtl()
@@ -87,6 +88,20 @@ class BulkWriteTtlTest extends SharedClusterSparkIntegrationTestBase
         assertThat(result.hasNext()).isFalse();
     }
 
+    @Test
+    void testTtlOptionPerRowWithMixedCaseColumnName()
+    {
+        SparkSession spark = getOrCreateSparkSession();
+        Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, 1, "updatedTTL", null, ROW_COUNT);
+
+        bulkWriterDataFrameWriter(df, MIXED_CASE_TTL_NAME).option(WriterOptions.TTL.name(), TTLOption.perRow("updatedTTL"))
+                                                          .save();
+        // Wait to make sure TTLs have expired
+        Uninterruptibles.sleepUninterruptibly(1100, TimeUnit.MILLISECONDS);
+        SimpleQueryResult result = cluster.coordinator(1).executeWithResult("SELECT * FROM " + MIXED_CASE_TTL_NAME, ConsistencyLevel.ALL);
+        assertThat(result.hasNext()).isFalse();
+    }
+
     @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
@@ -112,6 +127,12 @@ class BulkWriteTtlTest extends SharedClusterSparkIntegrationTestBase
                                                      + "     );"
         );
         cluster.schemaChangeIgnoringStoppedInstances("CREATE TABLE " + PER_ROW_TTL_NAME + " (\n"
+                                                     + "          id BIGINT PRIMARY KEY,\n"
+                                                     + "          course TEXT,\n"
+                                                     + "          marks BIGINT\n"
+                                                     + "     );"
+        );
+        cluster.schemaChangeIgnoringStoppedInstances("CREATE TABLE " + MIXED_CASE_TTL_NAME + " (\n"
                                                      + "          id BIGINT PRIMARY KEY,\n"
                                                      + "          course TEXT,\n"
                                                      + "          marks BIGINT\n"
