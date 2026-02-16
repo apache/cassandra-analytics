@@ -21,6 +21,7 @@ package org.apache.cassandra.utils;
 
 import java.math.BigInteger;
 
+import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.dht.Murmur3Partitioner;
 import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.dht.Token;
@@ -44,6 +45,20 @@ public class TokenUtils
         }
 
         throw new UnsupportedOperationException("Unexpected token type: " + token.getClass().getName());
+    }
+
+    public static Token bigIntegerToToken(IPartitioner partitioner, BigInteger token)
+    {
+        if (partitioner instanceof Murmur3Partitioner)
+        {
+            return new Murmur3Partitioner.LongToken(token.longValue());
+        }
+        if (partitioner instanceof RandomPartitioner)
+        {
+            return new RandomPartitioner.BigIntegerToken(token);
+        }
+
+        throw new UnsupportedOperationException("Unexpected partitioner type: " + partitioner.getClass().getName());
     }
 
     public static long tokenToLong(final Token token)

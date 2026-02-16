@@ -1,5 +1,6 @@
 0.3.0
 -----
+ * Assign data file start offset based on BTI index (CASSANALYTICS-121)
  * Quote identifiers option must be set to true if ttl has mixed case column name (CASSANALYTICS-120)
  * Fix ByteBuffer flip() in StreamBuffer.copyBytes() causing data corruption (CASSANALYTICS-116)
  * Fix race condition in DirectStreamSession#onSSTablesProduced and SortedSStableWriter#close (CASSANALYTICS-107)
