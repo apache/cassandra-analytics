@@ -65,6 +65,7 @@ import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.SSTableSimpleIterator;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
 import org.apache.cassandra.io.sstable.format.Version;
+import org.apache.cassandra.io.sstable.format.bti.BtiReaderUtils;
 import org.apache.cassandra.io.sstable.indexsummary.IndexSummary;
 import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
 import org.apache.cassandra.io.sstable.metadata.MetadataType;
@@ -429,11 +430,26 @@ public class SSTableReader implements SparkSSTableReader, Scannable
                                                 buildColumnFilter(metadata, columnFilter));
         this.metadata = metadata;
 
-        if (readIndexOffset && summary != null)
+        if (readIndexOffset)
         {
-            SummaryDbUtils.Summary finalSummary = summary;
-            extractRange(sparkRangeFilter, partitionKeyFilters)
-                    .ifPresent(range -> readOffsets(finalSummary.summary(), range));
+            if (summary != null)
+            {
+                // BIG format
+                SummaryDbUtils.Summary finalSummary = summary;
+                extractRange(sparkRangeFilter, partitionKeyFilters)
+                        .ifPresent(range -> readOffsets(finalSummary.summary(), range));
+            }
+            else
+            {
+                // BTI format
+                extractRange(sparkRangeFilter, partitionKeyFilters)
+                        .ifPresent(range -> {
+                            startOffset = BtiReaderUtils.startOffsetInDataFile(ssTable,
+                                                                               this.metadata,
+                                                                               descriptor,
+                                                                               range);
+                        });
+            }
         }
         else
         {
