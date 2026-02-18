@@ -270,6 +270,16 @@ public final class TableSchemaTestCommon
             return this;
         }
 
+        private ImmutableMap<String, CqlField.CqlType> addColumnToCqlColumns(ImmutableMap<String, CqlField.CqlType> currentColumns,
+                                                                             String columnName,
+                                                                             String cqlType)
+        {
+            ImmutableMap.Builder<String, CqlField.CqlType> builder = ImmutableMap.builder();
+            builder.putAll(currentColumns);
+            builder.put(columnName, mockCqlType(cqlType));
+            return builder.build();
+        }
+
         public TableSchema build()
         {
             Objects.requireNonNull(cqlColumns,
@@ -286,21 +296,26 @@ public final class TableSchemaTestCommon
                                    "writeMode cannot be null. Please provide the write mode by calling #withWriteMode");
             Objects.requireNonNull(dataFrameSchema,
                                    "dataFrameSchema cannot be null. Please provide the write mode by calling #withDataFrameSchema");
+
+            ImmutableMap<String, CqlField.CqlType> updatedCqlColumns = cqlColumns;
+            if (ttlOption.withTTl() && ttlOption.columnName() != null)
+            {
+                dataFrameSchema = dataFrameSchema.add(ttlOption.columnName(), DataTypes.IntegerType);
+                updatedCqlColumns = addColumnToCqlColumns(updatedCqlColumns, ttlOption.columnName(), SqlToCqlTypeConverter.INT);
+            }
+            if (timestampOption.withTimestamp() && timestampOption.columnName() != null)
+            {
+                dataFrameSchema = dataFrameSchema.add(timestampOption.columnName(), DataTypes.LongType);
+                updatedCqlColumns = addColumnToCqlColumns(updatedCqlColumns, timestampOption.columnName(), SqlToCqlTypeConverter.BIGINT);
+            }
+
             MockTableInfoProvider tableInfoProvider = new MockTableInfoProvider(bridge,
-                                                                                cqlColumns,
+                                                                                updatedCqlColumns,
                                                                                 partitionKeyColumns,
                                                                                 partitionKeyColumnTypes,
                                                                                 primaryKeyColumnNames,
                                                                                 cassandraVersion,
                                                                                 quoteIdentifiers);
-            if (ttlOption.withTTl() && ttlOption.columnName() != null)
-            {
-                dataFrameSchema = dataFrameSchema.add("ttl", DataTypes.IntegerType);
-            }
-            if (timestampOption.withTimestamp() && timestampOption.columnName() != null)
-            {
-                dataFrameSchema = dataFrameSchema.add("timestamp", DataTypes.IntegerType);
-            }
             return new TableSchema(dataFrameSchema, tableInfoProvider, writeMode, ttlOption, timestampOption, cassandraVersion, quoteIdentifiers);
         }
     }

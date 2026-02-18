@@ -22,15 +22,11 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 
 import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;
@@ -227,38 +223,6 @@ class BulkSparkConfTest
         BulkSparkConf bulkSparkConf = new BulkSparkConf(sparkConf, options);
         assertThat(bulkSparkConf).isNotNull();
         assertThat(bulkSparkConf.quoteIdentifiers).isTrue();
-    }
-
-    @ParameterizedTest
-    @MethodSource("quoteIdentifiersWithUpperCaseColumnNames")
-    void testQuoteIdentifiersWitUpperCaseColumnNames(String ttlColumn,
-                                                     String timestampColumn,
-                                                     String optionName)
-    {
-        Map<String, String> options = copyDefaultOptions();
-        if (ttlColumn != null)
-        {
-            options.put(WriterOptions.TTL.name(), ttlColumn);
-        }
-        if (timestampColumn != null)
-        {
-            options.put(WriterOptions.TIMESTAMP.name(), timestampColumn);
-        }
-        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage(String.format("Prefer setting lowercase chars for %s option. If uppercase is required, set %s to " +
-                                  "true. Note %s option will be applied for all column names", optionName,
-                                  WriterOptions.QUOTE_IDENTIFIERS.name(), WriterOptions.QUOTE_IDENTIFIERS.name()));
-    }
-
-    private static Stream<Arguments> quoteIdentifiersWithUpperCaseColumnNames()
-    {
-        return Stream.of(Arguments.of("TtlColumn", null, WriterOptions.TTL.name()),
-                         Arguments.of(null, "TimestampColumn", WriterOptions.TIMESTAMP.name()),
-                         Arguments.of("TtlCol", "TsCol", WriterOptions.TTL.name()),
-                         Arguments.of("updatedTTL", null, WriterOptions.TTL.name()),
-                         Arguments.of(null, "timestampColumn", WriterOptions.TIMESTAMP.name()),
-                         Arguments.of("ttl", "timestampColumn", WriterOptions.TIMESTAMP.name()));
     }
 
     @Test

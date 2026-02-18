@@ -270,6 +270,54 @@ public class TableSchemaTest
                 .hasMessage("Bulkwriter doesn't support secondary indexes");
     }
 
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testMixedCaseTTLColumnNameWithoutQuoteIdentifiersFails(String cassandraVersion)
+    {
+        assertThatThrownBy(() -> getValidSchemaBuilder(cassandraVersion)
+                .withTTLSetting(TTLOption.from("updatedTTL"))
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("The TTL column name updatedTTL requires spark option QUOTE_IDENTIFIERS set to true for correct conversion");
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testMixedCaseTimestampColumnNameWithoutQuoteIdentifiersFails(String cassandraVersion)
+    {
+        assertThatThrownBy(() -> getValidSchemaBuilder(cassandraVersion)
+                .withTimeStampSetting(TimestampOption.from("updatedTimestamp"))
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("The Timestamp column name updatedTimestamp requires spark option QUOTE_IDENTIFIERS set to true for correct conversion");
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testMixedCaseTTLColumnNameWithQuoteIdentifiersSucceeds(String cassandraVersion)
+    {
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
+                .withTTLSetting(TTLOption.from("updatedTTL"))
+                .withQuotedIdentifiers()
+                .build();
+        assertThat(schema).isNotNull();
+        assertThat(trimUniqueTableName(schema.modificationStatement))
+                .contains("USING TTL :\"updatedTTL\"");
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testMixedCaseTimestampColumnNameWithQuoteIdentifiersSucceeds(String cassandraVersion)
+    {
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
+                .withTimeStampSetting(TimestampOption.from("updatedTimestamp"))
+                .withQuotedIdentifiers()
+                .build();
+        assertThat(schema).isNotNull();
+        assertThat(trimUniqueTableName(schema.modificationStatement))
+                .contains("USING TIMESTAMP :\"updatedTimestamp\"");
+    }
+
     private TableSchemaTestCommon.MockTableSchemaBuilder getValidSchemaBuilder(String cassandraVersion)
     {
         return new TableSchemaTestCommon.MockTableSchemaBuilder(CassandraBridgeFactory.get(cassandraVersion))

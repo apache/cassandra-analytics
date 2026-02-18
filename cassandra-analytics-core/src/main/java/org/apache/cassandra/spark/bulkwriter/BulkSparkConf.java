@@ -53,8 +53,6 @@ import org.apache.spark.SparkConf;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static java.lang.Character.isUpperCase;
-
 @SuppressWarnings("WeakerAccess")
 public class BulkSparkConf implements Serializable
 {
@@ -209,7 +207,6 @@ public class BulkSparkConf implements Serializable
         this.ttl = MapUtils.getOrDefault(options, WriterOptions.TTL.name(), null);
         this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
         this.quoteIdentifiers = MapUtils.getBoolean(options, WriterOptions.QUOTE_IDENTIFIERS.name(), false, "quote identifiers");
-        validateUserAddedColumns(this.ttl, this.timestamp);
         int storageClientConcurrency = MapUtils.getInt(options, WriterOptions.STORAGE_CLIENT_CONCURRENCY.name(),
                                                        DEFAULT_STORAGE_CLIENT_CONCURRENCY, "storage client concurrency");
         long storageClientKeepAliveSeconds = MapUtils.getLong(options, WriterOptions.STORAGE_CLIENT_THREAD_KEEP_ALIVE_SECONDS.name(),
@@ -365,43 +362,6 @@ public class BulkSparkConf implements Serializable
         Preconditions.checkNotNull(table);
         Preconditions.checkArgument(getHttpResponseTimeoutMs() > 0, HTTP_RESPONSE_TIMEOUT + " must be > 0");
         validateSslConfiguration();
-    }
-
-    protected void validateUserAddedColumns(String ttlColName, String timestampColName)
-    {
-        if (this.quoteIdentifiers)
-        {
-            return;
-        }
-
-        Preconditions.checkArgument(doesNotHaveUpperCaseChars(ttlColName),
-                                    columnValidationErrMsg(WriterOptions.TTL.name()));
-        Preconditions.checkArgument(doesNotHaveUpperCaseChars(timestampColName),
-                                    columnValidationErrMsg(WriterOptions.TIMESTAMP.name()));
-    }
-
-    private String columnValidationErrMsg(String option)
-    {
-        return String.format("Prefer setting lowercase chars for %s option. If uppercase is required, set %s to " +
-                             "true. Note %s option will be applied for all column names", option,
-                             WriterOptions.QUOTE_IDENTIFIERS.name(), WriterOptions.QUOTE_IDENTIFIERS.name());
-    }
-
-    private boolean doesNotHaveUpperCaseChars(String name)
-    {
-        if (name == null || name.isEmpty())
-        {
-            return true;
-        }
-
-        for (char c : name.toCharArray())
-        {
-            if (isUpperCase(c))
-            {
-                return false;
-            }
-        }
-        return true;
     }
 
     /**

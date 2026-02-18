@@ -182,6 +182,13 @@ public class TableSchema
                                       TimestampOption timestampOption)
     {
         CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+
+        if (!quoteIdentifiers)
+        {
+            validateColumnName(bridge, ttlOption.columnName(), WriterOptions.TTL.name());
+            validateColumnName(bridge, timestampOption.columnName(), WriterOptions.TIMESTAMP.name());
+        }
+
         List<String> columnNames = Arrays.stream(dfSchema.fieldNames())
                                          .filter(fieldName -> !fieldName.equals(ttlOption.columnName()))
                                          .filter(fieldName -> !fieldName.equals(timestampOption.columnName()))
@@ -306,5 +313,34 @@ public class TableSchema
                           .filter(keyFieldNames::contains)
                           .map(dfFieldNames::indexOf)
                           .collect(Collectors.toList());
+    }
+
+    /**
+     * Validates that the provided column name matches what would be produced by maybeQuoteIdentifier. If they don't
+     * match, it means the user provided a column name that needs quoting but didn't enable QUOTE_IDENTIFIERS option.
+     * We throw early to avoid scenarios such as, mismatches in column names leads to bulk write overwriting existing
+     * TTL values to null.
+     *
+     * @param bridge the Cassandra bridge
+     * @param columnName the column name to validate
+     * @param optionName the option name for error messages
+     * @throws IllegalArgumentException if the column name requires quoting but QUOTE_IDENTIFIERS is not enabled
+     */
+    private static void validateColumnName(CassandraBridge bridge, String columnName, String optionName)
+    {
+        if (columnName == null || columnName.isEmpty())
+        {
+            return;
+        }
+
+        String quotedName = bridge.maybeQuoteIdentifier(columnName);
+        if (!columnName.equals(quotedName))
+        {
+            throw new IllegalArgumentException(
+            String.format("The %s column name %s requires spark option %s set to true for correct conversion. Bulk " +
+                          "write should provide a column name that matches CQL requirements, or set %s to true to " +
+                          "enable quoting for all identifiers.", optionName, columnName,
+                          WriterOptions.QUOTE_IDENTIFIERS.name(), WriterOptions.QUOTE_IDENTIFIERS.name()));
+        }
     }
 }
