@@ -289,7 +289,7 @@ public class TableSchemaTest
                 .withTimeStampSetting(TimestampOption.from("updatedTimestamp"))
                 .build())
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("The Timestamp column name updatedTimestamp requires spark option QUOTE_IDENTIFIERS set to true for correct conversion");
+                .hasMessageContaining("The TIMESTAMP column name updatedTimestamp requires spark option QUOTE_IDENTIFIERS set to true for correct conversion");
     }
 
     @ParameterizedTest

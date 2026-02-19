@@ -316,7 +316,7 @@ public final class TableSchemaTestCommon
                                                                                 primaryKeyColumnNames,
                                                                                 cassandraVersion,
                                                                                 quoteIdentifiers);
-            return new TableSchema(dataFrameSchema, tableInfoProvider, writeMode, ttlOption, timestampOption, cassandraVersion, quoteIdentifiers);
+            return new TableSchema(bridge, dataFrameSchema, tableInfoProvider, writeMode, ttlOption, timestampOption, cassandraVersion, quoteIdentifiers);
         }
     }
 

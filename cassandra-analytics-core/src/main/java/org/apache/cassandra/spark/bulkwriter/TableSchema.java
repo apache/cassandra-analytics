@@ -63,7 +63,8 @@ public class TableSchema
     final String lowestCassandraVersion;
     final boolean quoteIdentifiers;
 
-    public TableSchema(StructType dfSchema,
+    public TableSchema(CassandraBridge bridge,
+                       StructType dfSchema,
                        TableInfoProvider tableInfo,
                        WriteMode writeMode,
                        TTLOption ttlOption,
@@ -73,12 +74,14 @@ public class TableSchema
     {
         this.writeMode = writeMode;
         this.ttlOption = ttlOption;
+
         this.timestampOption = timestampOption;
         this.lowestCassandraVersion = lowestCassandraVersion;
         this.quoteIdentifiers = quoteIdentifiers;
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
         validateNoSecondaryIndexes(tableInfo);
+        validateUserAddedColumns(bridge, quoteIdentifiers, ttlOption, timestampOption);
 
         this.createStatement = getCreateStatement(tableInfo);
         this.modificationStatement = getModificationStatement(dfSchema, tableInfo);
@@ -182,12 +185,6 @@ public class TableSchema
                                       TimestampOption timestampOption)
     {
         CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
-
-        if (!quoteIdentifiers)
-        {
-            validateColumnName(bridge, ttlOption.columnName(), WriterOptions.TTL.name());
-            validateColumnName(bridge, timestampOption.columnName(), WriterOptions.TIMESTAMP.name());
-        }
 
         List<String> columnNames = Arrays.stream(dfSchema.fieldNames())
                                          .filter(fieldName -> !fieldName.equals(ttlOption.columnName()))
@@ -313,6 +310,16 @@ public class TableSchema
                           .filter(keyFieldNames::contains)
                           .map(dfFieldNames::indexOf)
                           .collect(Collectors.toList());
+    }
+
+    private static void validateUserAddedColumns(CassandraBridge bridge, boolean quoteIdentifiers,
+                                                 TTLOption ttlOption, TimestampOption timestampOption)
+    {
+        if (!quoteIdentifiers)
+        {
+            validateColumnName(bridge, ttlOption.columnName(), WriterOptions.TTL.name());
+            validateColumnName(bridge, timestampOption.columnName(), WriterOptions.TIMESTAMP.name());
+        }
     }
 
     /**
