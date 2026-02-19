@@ -401,16 +401,15 @@ public class RecordWriter
                 CqlField.CqlType fieldType = field.type();
 
                 // Check if this is a direct tuple
-                if (isTupleType(fieldType))
+                if (CqlTable.isTupleType(fieldType))
                 {
-                    CqlField.CqlTuple cqlTuple = (CqlField.CqlTuple) unwrapFrozen(fieldType);
+                    CqlField.CqlTuple cqlTuple = (CqlField.CqlTuple) CqlTable.unwrapFrozen(fieldType);
                     columnValue = cqlTuple.convertForCqlWriter(columnValue, writerContext.bridge().getVersion(), false);
                 }
-
                 // Check if this is a collection that contains tuples
-                else if (containsTuples(fieldType))
+                else if (CqlTable.containsTuples(fieldType))
                 {
-                    CqlField.CqlType collectionType = unwrapFrozen(fieldType);
+                    CqlField.CqlType collectionType = CqlTable.unwrapFrozen(fieldType);
                     if (collectionType instanceof CqlField.CqlCollection)
                     {
                         columnValue = ((CqlField.CqlCollection) collectionType).convertForCqlWriter(columnValue, writerContext.bridge().getVersion(), false);
@@ -492,57 +491,6 @@ public class RecordWriter
         }
 
         return value;
-    }
-
-    /**
-     * Checks if a type is a tuple type (possibly wrapped in frozen)
-     */
-    private boolean isTupleType(CqlField.CqlType type)
-    {
-        if (type instanceof CqlField.CqlTuple)
-        {
-            return true;
-        }
-        if (type instanceof CqlField.CqlFrozen)
-        {
-            return isTupleType(((CqlField.CqlFrozen) type).inner());
-        }
-        return false;
-    }
-
-    /**
-     * Checks if a type contains tuples (collections with tuple elements, maps with tuple keys/values)
-     */
-    private boolean containsTuples(CqlField.CqlType type)
-    {
-        CqlField.CqlType unwrapped = unwrapFrozen(type);
-
-        if (unwrapped instanceof CqlField.CqlList || unwrapped instanceof CqlField.CqlSet)
-        {
-            CqlField.CqlCollection collection = (CqlField.CqlCollection) unwrapped;
-            return isTupleType(collection.type()) || containsTuples(collection.type());
-        }
-
-        if (unwrapped instanceof CqlField.CqlMap)
-        {
-            CqlField.CqlMap map = (CqlField.CqlMap) unwrapped;
-            return isTupleType(map.keyType()) || containsTuples(map.keyType()) ||
-                   isTupleType(map.valueType()) || containsTuples(map.valueType());
-        }
-
-        return false;
-    }
-
-    /**
-     * Unwraps frozen wrapper if present
-     */
-    private CqlField.CqlType unwrapFrozen(CqlField.CqlType type)
-    {
-        if (type instanceof CqlField.CqlFrozen)
-        {
-            return ((CqlField.CqlFrozen) type).inner();
-        }
-        return type;
     }
 
     private synchronized CqlField.CqlType getUdt(String udtName)

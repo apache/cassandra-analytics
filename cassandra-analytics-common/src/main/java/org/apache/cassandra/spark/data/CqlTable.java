@@ -275,6 +275,55 @@ public class CqlTable implements Serializable
         return columnsWithUdts.contains(fieldName);
     }
 
+    /**
+     * Checks if a type is a tuple type (possibly wrapped in frozen)
+     * @param type the CQL type to check
+     * @return true if the type is a tuple or tuple inside a frozen
+     */
+    public static boolean isTupleType(CqlField.CqlType type)
+    {
+        return unwrapFrozen(type) instanceof CqlField.CqlTuple;
+    }
+
+    /**
+     * Checks if a collection type contains tuples
+     * @param type the CQL type to check
+     * @return true if the type is a collection containing tuples
+     */
+    public static boolean containsTuples(CqlField.CqlType type)
+    {
+        CqlField.CqlType unwrapped = unwrapFrozen(type);
+
+        if (unwrapped instanceof CqlField.CqlList || unwrapped instanceof CqlField.CqlSet)
+        {
+            CqlField.CqlCollection collection = (CqlField.CqlCollection) unwrapped;
+            return isTupleType(collection.type()) || containsTuples(collection.type());
+        }
+
+        if (unwrapped instanceof CqlField.CqlMap)
+        {
+            CqlField.CqlMap map = (CqlField.CqlMap) unwrapped;
+            return isTupleType(map.keyType()) || containsTuples(map.keyType())
+                   || isTupleType(map.valueType()) || containsTuples(map.valueType());
+        }
+
+        return false;
+    }
+
+    /**
+     * Unwraps frozen wrapper if present
+     * @param type the type to unwrap
+     * @return the inner type if frozen, otherwise the original type
+     */
+    public static CqlField.CqlType unwrapFrozen(CqlField.CqlType type)
+    {
+        if (type instanceof CqlField.CqlFrozen)
+        {
+            return ((CqlField.CqlFrozen) type).inner();
+        }
+        return type;
+    }
+
     @Override
     public int hashCode()
     {
