@@ -272,10 +272,11 @@ public class TableSchema
         // Make sure all primary key columns are provided
         List<String> requiredKeyColumns = getRequiredKeyColumns(tableInfo);
         Preconditions.checkArgument(dfFields.containsAll(requiredKeyColumns),
-                                    "Missing some required key components in DataFrame => " + requiredKeyColumns
-                                                                                              .stream()
-                                                                                              .filter(column -> !dfFields.contains(column))
-                                                                                              .collect(Collectors.joining(",")));
+                                    "Missing some required key components in DataFrame => "
+                                    + requiredKeyColumns
+                                      .stream()
+                                      .filter(column -> !dfFields.contains(column))
+                                      .collect(Collectors.joining(",")));
     }
 
     private static void validateDataframeFieldsInTable(TableInfoProvider tableInfo, Set<String> dfFields,
