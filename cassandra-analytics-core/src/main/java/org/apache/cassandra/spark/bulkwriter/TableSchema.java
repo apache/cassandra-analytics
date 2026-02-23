@@ -63,8 +63,7 @@ public class TableSchema
     final String lowestCassandraVersion;
     final boolean quoteIdentifiers;
 
-    public TableSchema(CassandraBridge bridge,
-                       StructType dfSchema,
+    public TableSchema(StructType dfSchema,
                        TableInfoProvider tableInfo,
                        WriteMode writeMode,
                        TTLOption ttlOption,
@@ -81,7 +80,7 @@ public class TableSchema
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
         validateNoSecondaryIndexes(tableInfo);
-        validateUserAddedColumns(bridge, quoteIdentifiers, ttlOption, timestampOption);
+        validateUserAddedColumns(lowestCassandraVersion, quoteIdentifiers, ttlOption, timestampOption);
 
         this.createStatement = getCreateStatement(tableInfo);
         this.modificationStatement = getModificationStatement(dfSchema, tableInfo);
@@ -264,7 +263,7 @@ public class TableSchema
         Set<String> requiredKeyColumns = new LinkedHashSet<>(getRequiredKeyColumns(tableInfo));
         Preconditions.checkArgument(requiredKeyColumns.equals(dfFields),
                                     String.format("Only partition key columns (%s) are supported in the input Dataframe"
-                                                + " when WRITE_MODE=DELETE_PARTITION but (%s) columns were provided",
+                                                  + " when WRITE_MODE=DELETE_PARTITION but (%s) columns were provided",
                                                   String.join(",", requiredKeyColumns), String.join(",", dfFields)));
     }
 
@@ -274,9 +273,9 @@ public class TableSchema
         List<String> requiredKeyColumns = getRequiredKeyColumns(tableInfo);
         Preconditions.checkArgument(dfFields.containsAll(requiredKeyColumns),
                                     "Missing some required key components in DataFrame => " + requiredKeyColumns
-                                            .stream()
-                                            .filter(column -> !dfFields.contains(column))
-                                            .collect(Collectors.joining(",")));
+                                                                                              .stream()
+                                                                                              .filter(column -> !dfFields.contains(column))
+                                                                                              .collect(Collectors.joining(",")));
     }
 
     private static void validateDataframeFieldsInTable(TableInfoProvider tableInfo, Set<String> dfFields,
@@ -312,9 +311,10 @@ public class TableSchema
                           .collect(Collectors.toList());
     }
 
-    private static void validateUserAddedColumns(CassandraBridge bridge, boolean quoteIdentifiers,
+    private static void validateUserAddedColumns(String lowestCassandraVersion, boolean quoteIdentifiers,
                                                  TTLOption ttlOption, TimestampOption timestampOption)
     {
+        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
         if (!quoteIdentifiers)
         {
             validateColumnName(bridge, ttlOption.columnName(), WriterOptions.TTL.name());
@@ -328,7 +328,7 @@ public class TableSchema
      * We throw early to avoid scenarios such as, mismatches in column names leads to bulk write overwriting existing
      * TTL values to null.
      *
-     * @param bridge the Cassandra bridge
+     * @param bridge     the Cassandra bridge
      * @param columnName the column name to validate
      * @param optionName the option name for error messages
      * @throws IllegalArgumentException if the column name requires quoting but QUOTE_IDENTIFIERS is not enabled

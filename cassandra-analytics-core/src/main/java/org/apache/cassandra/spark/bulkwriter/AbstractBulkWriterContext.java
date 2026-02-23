@@ -104,7 +104,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         this.lowestCassandraVersion = findLowestCassandraVersion();
         this.bridge = buildCassandraBridge();
         this.jobInfo = buildJobInfo();
-        this.schemaInfo = buildSchemaInfo(structType, this.bridge);
+        this.schemaInfo = buildSchemaInfo(structType);
         this.jobStatsPublisher = buildJobStatsPublisher();
         this.transportContext = buildTransportContext(true);  // isOnDriver = true
     }
@@ -234,7 +234,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         return cluster().getLowestCassandraVersion();
     }
 
-    protected SchemaInfo buildSchemaInfo(StructType structType, CassandraBridge bridge)
+    protected SchemaInfo buildSchemaInfo(StructType structType)
     {
         QualifiedTableName tableName = job().qualifiedTableName();
         String keyspace = tableName.keyspace();
@@ -248,7 +248,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         CqlTable cqlTable = bridge().buildSchema(createTableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
 
         TableInfoProvider tableInfoProvider = new CqlTableInfoProvider(createTableSchema, cqlTable);
-        TableSchema tableSchema = initializeTableSchema(bridge, bulkSparkConf(), structType, tableInfoProvider, lowestCassandraVersion());
+        TableSchema tableSchema = initializeTableSchema(bulkSparkConf(), structType, tableInfoProvider, lowestCassandraVersion());
         return new CassandraSchemaInfo(tableSchema, udts);
     }
 
@@ -310,14 +310,12 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     }
 
     @NotNull
-    protected TableSchema initializeTableSchema(@NotNull CassandraBridge bridge,
-                                                @NotNull BulkSparkConf conf,
+    protected TableSchema initializeTableSchema(@NotNull BulkSparkConf conf,
                                                 @NotNull StructType dfSchema,
                                                 TableInfoProvider tableInfoProvider,
                                                 String lowestCassandraVersion)
     {
-        return new TableSchema(bridge,
-                               dfSchema,
+        return new TableSchema(dfSchema,
                                tableInfoProvider,
                                conf.writeMode,
                                conf.getTTLOptions(),
