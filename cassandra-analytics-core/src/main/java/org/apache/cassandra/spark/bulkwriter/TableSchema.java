@@ -315,9 +315,9 @@ public class TableSchema
     private static void validateUserAddedColumns(String lowestCassandraVersion, boolean quoteIdentifiers,
                                                  TTLOption ttlOption, TimestampOption timestampOption)
     {
-        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
         if (!quoteIdentifiers)
         {
+            CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
             validateColumnName(bridge, ttlOption.columnName(), WriterOptions.TTL.name());
             validateColumnName(bridge, timestampOption.columnName(), WriterOptions.TIMESTAMP.name());
         }
