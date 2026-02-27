@@ -33,9 +33,9 @@ public class CdcBridgeImplementation extends AbstractCdcBridgeImplementation
 {
     public static volatile boolean setup = false;
 
-    public static void setup(Path path, int commitLogSegmentSize, boolean enableCompression)
+    public static void setup(Path path, int commitLogSegmentSize, boolean enableCompression, BridgeInitializationParameters bridgeParams)
     {
-        CassandraTypesImplementation.setup(BridgeInitializationParameters.fromEnvironment());
+        CassandraTypesImplementation.setup(bridgeParams);
         setCDC(path, commitLogSegmentSize, enableCompression);
     }
 
