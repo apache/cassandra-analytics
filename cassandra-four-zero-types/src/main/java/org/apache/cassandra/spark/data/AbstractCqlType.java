@@ -155,7 +155,7 @@ public abstract class AbstractCqlType implements CqlField.CqlType
     {
         if (ttl != NO_TTL)
         {
-            rowBuilder.addCell(BufferCell.expiring(cd, timestamp, ttl, now, serialize(value), cellPath));
+            rowBuilder.addCell(CqlType.expiring(cd, timestamp, ttl, now, serialize(value), cellPath));
         }
         else
         {
@@ -187,7 +187,7 @@ public abstract class AbstractCqlType implements CqlField.CqlType
                              CellPath cellPath)
     {
         Preconditions.checkArgument(!(cd.type instanceof ListType), "The method does not support tombstone elements from a List type");
-        rowBuilder.addCell(BufferCell.tombstone(cd, timestamp, (int) TimeUnit.MICROSECONDS.toSeconds(timestamp), cellPath));
+        rowBuilder.addCell(CqlType.tombstone(cd, timestamp, TimeUnit.MICROSECONDS.toSeconds(timestamp), cellPath));
     }
 
     /**

@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.bridge;
 
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.Random;
 import java.util.Set;
@@ -58,6 +59,16 @@ public abstract class CdcBridge
     {
         log(TimeProvider.DEFAULT, cqlTable, log, row, timestamp);
     }
+
+    /**
+     * Factory method to create new {@code CommitLogInstance}.
+     */
+    public abstract CommitLogInstance createCommitLogInstance(Path path);
+
+    /**
+     * @return {@code TableIdLookup} that retrieves table ID from C* internal state.
+     */
+    public abstract TableIdLookup internalTableIdLookup();
 
     public abstract void updateCdcSchema(@NotNull Set<CqlTable> cdcTables,
                                          @NotNull Partitioner partitioner,

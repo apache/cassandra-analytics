@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -26,6 +27,8 @@ import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.db.DeletionTime;
+import org.apache.cassandra.db.rows.BufferCell;
+import org.apache.cassandra.db.rows.CellPath;
 import org.apache.cassandra.schema.ColumnMetadata;
 
 public abstract class CqlType extends AbstractCqlType
@@ -46,5 +49,15 @@ public abstract class CqlType extends AbstractCqlType
     {
         Preconditions.checkArgument(cd.isComplex(), "The method only works with complex columns");
         rowBuilder.addComplexDeletion(cd, DeletionTime.build(deletionTime, (int) TimeUnit.MICROSECONDS.toSeconds(deletionTime)));
+    }
+
+    public static BufferCell tombstone(ColumnMetadata column, long timestamp, long nowInSec, CellPath path)
+    {
+        return BufferCell.tombstone(column, timestamp, nowInSec, path);
+    }
+
+    public static BufferCell expiring(ColumnMetadata column, long timestamp, int ttl, long nowInSec, ByteBuffer value, CellPath path)
+    {
+        return BufferCell.expiring(column, timestamp, ttl, nowInSec, value, path);
     }
 }

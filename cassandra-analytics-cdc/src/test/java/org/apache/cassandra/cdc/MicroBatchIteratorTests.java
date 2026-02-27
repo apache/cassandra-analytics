@@ -20,6 +20,7 @@
 package org.apache.cassandra.cdc;
 
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,10 +32,12 @@ import java.util.stream.IntStream;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.bridge.CollectionElement;
+import org.apache.cassandra.bridge.CdcBridge;
 import org.apache.cassandra.cdc.api.CassandraSource;
 import org.apache.cassandra.cdc.api.RangeTombstoneData;
 import org.apache.cassandra.cdc.msg.CdcEvent;
@@ -43,50 +46,49 @@ import org.apache.cassandra.cdc.msg.jdk.CdcMessage;
 import org.apache.cassandra.cdc.msg.jdk.Column;
 import org.apache.cassandra.cdc.msg.jdk.RangeTombstoneMsg;
 import org.apache.cassandra.cdc.state.CdcState;
-import org.apache.cassandra.db.rows.CellPath;
+import org.apache.cassandra.cdc.test.CdcTestBase;
+import org.apache.cassandra.cdc.test.CdcTester;
+import org.apache.cassandra.cdc.test.TestUtils;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
+import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
-import org.apache.cassandra.spark.reader.SchemaBuilder;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.quicktheories.api.Pair;
 
-import static org.apache.cassandra.cdc.CdcTester.DEFAULT_NUM_ROWS;
-import static org.apache.cassandra.cdc.CdcTester.testCommitLog;
-import static org.apache.cassandra.cdc.CdcTester.testWith;
+import static org.apache.cassandra.cdc.test.CdcTester.DEFAULT_NUM_ROWS;
+import static org.apache.cassandra.cdc.test.CdcTester.testWith;
 import static org.apache.cassandra.cdc.CdcTests.ASYNC_EXECUTOR;
-import static org.apache.cassandra.cdc.CdcTests.BRIDGE;
-import static org.apache.cassandra.cdc.CdcTests.CDC_BRIDGE;
-import static org.apache.cassandra.cdc.CdcTests.MESSAGE_CONVERTER;
-import static org.apache.cassandra.cdc.CdcTests.directory;
 import static org.apache.cassandra.cdc.CdcTests.logProvider;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 
-public class MicroBatchIteratorTests
+public class MicroBatchIteratorTests extends CdcTestBase
 {
-    @Test
-    public void testSetDeletion()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testSetDeletion(CassandraVersion version)
     {
         Map<String, String> deletedValues = new HashMap<>(DEFAULT_NUM_ROWS);
         runTest(
-        TestSchema.builder(BRIDGE)
-                  .withPartitionKey("a", BRIDGE.uuid())
-                  .withColumn("b", BRIDGE.set(BRIDGE.text())),
+        bridge, cdcBridge,
+        TestSchema.builder(bridge)
+                  .withPartitionKey("a", bridge.uuid())
+                  .withColumn("b", bridge.set(bridge.text())),
         (schema, i, rows) -> {
             TestSchema.TestRow testRow = CdcTester.newUniqueRow(schema, rows);
-            String deletedValue = (String) BRIDGE.text().randomValue(4);
-            ByteBuffer key = BRIDGE.text().serialize(deletedValue);
-            testRow = testRow.copy("b", CollectionElement.deleted(CellPath.create(key)));
+            String deletedValue = (String) bridge.text().randomValue(4);
+            ByteBuffer key = bridge.text().serialize(deletedValue);
+            testRow = testRow.copy("b", TestUtils.collectionDeleteMutation(version, key));
             deletedValues.put(testRow.get(0).toString(), deletedValue);
             return testRow;
         },
         (event, rows, nowMicros) -> {
-            CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+            CdcMessage msg = messageConverter.toCdcMessage(event);
             assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.COMPLEX_ELEMENT_DELETE);
             String expected = deletedValues.get(Objects.requireNonNull(msg.partitionKeys().get(0).value()).toString());
             assertThat(msg.getComplexCellDeletion()).isNotNull();
@@ -95,23 +97,25 @@ public class MicroBatchIteratorTests
         );
     }
 
-    @Test
-    public void testMapDeletion()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testMapDeletion(CassandraVersion version)
     {
         Map<String, String> deletedValues = new HashMap<>(DEFAULT_NUM_ROWS);
-        runTest(TestSchema.builder(BRIDGE)
-                          .withPartitionKey("a", BRIDGE.uuid())
-                          .withColumn("b", BRIDGE.map(BRIDGE.text(), BRIDGE.aInt())),
+        runTest(bridge, cdcBridge,
+                TestSchema.builder(bridge)
+                          .withPartitionKey("a", bridge.uuid())
+                          .withColumn("b", bridge.map(bridge.text(), bridge.aInt())),
                 (schema, i, rows) -> {
                     TestSchema.TestRow testRow = CdcTester.newUniqueRow(schema, rows);
-                    String deletedValue = (String) BRIDGE.text().randomValue(4);
-                    ByteBuffer key = BRIDGE.text().serialize(deletedValue);
-                    testRow = testRow.copy("b", CollectionElement.deleted(CellPath.create(key)));
+                    String deletedValue = (String) bridge.text().randomValue(4);
+                    ByteBuffer key = bridge.text().serialize(deletedValue);
+                    testRow = testRow.copy("b", TestUtils.collectionDeleteMutation(version, key));
                     deletedValues.put(testRow.get(0).toString(), deletedValue);
                     return testRow;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    CdcMessage msg = messageConverter.toCdcMessage(event);
                     assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.COMPLEX_ELEMENT_DELETE);
                     String expected = deletedValues.get(Objects.requireNonNull(msg.partitionKeys().get(0).value()).toString());
                     assertThat(msg.getComplexCellDeletion()).isNotNull();
@@ -120,14 +124,16 @@ public class MicroBatchIteratorTests
         );
     }
 
-    @Test
-    public void testRangeTombstone()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testRangeTombstone(CassandraVersion version)
     {
-        runTest(TestSchema.builder(BRIDGE)
-                          .withPartitionKey("a", BRIDGE.uuid())
-                          .withClusteringKey("b", BRIDGE.aInt())
-                          .withClusteringKey("c", BRIDGE.aInt())
-                          .withColumn("d", BRIDGE.text()),
+        runTest(bridge, cdcBridge,
+                TestSchema.builder(bridge)
+                          .withPartitionKey("a", bridge.uuid())
+                          .withClusteringKey("b", bridge.aInt())
+                          .withClusteringKey("c", bridge.aInt())
+                          .withColumn("d", bridge.text()),
                 (schema, i, rows) -> {
                     TestSchema.TestRow testRow = CdcTester.newUniqueRow(schema, rows);
                     int start = RandomUtils.randomPositiveInt(1024);
@@ -141,7 +147,7 @@ public class MicroBatchIteratorTests
                     return testRow;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    CdcMessage msg = messageConverter.toCdcMessage(event);
                     assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.RANGE_DELETE);
                     List<RangeTombstoneMsg> tombstones = msg.rangeTombstones();
                     TestSchema.TestRow row = rows.get(msg.column("a").value().toString());
@@ -166,14 +172,16 @@ public class MicroBatchIteratorTests
         );
     }
 
-    @Test
-    public void testRowDelete()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testRowDelete(CassandraVersion version)
     {
-        runTest(TestSchema.builder(BRIDGE)
-                          .withPartitionKey("a", BRIDGE.timeuuid())
-                          .withPartitionKey("b", BRIDGE.aInt())
-                          .withClusteringKey("c", BRIDGE.bigint())
-                          .withColumn("d", BRIDGE.text()),
+        runTest(bridge, cdcBridge,
+                TestSchema.builder(bridge)
+                          .withPartitionKey("a", bridge.timeuuid())
+                          .withPartitionKey("b", bridge.aInt())
+                          .withClusteringKey("c", bridge.bigint())
+                          .withColumn("d", bridge.text()),
                 (schema, i, rows) -> {
                     TestSchema.TestRow row = schema.randomRow();
                     row.delete();
@@ -181,7 +189,7 @@ public class MicroBatchIteratorTests
                     return row;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    CdcMessage msg = messageConverter.toCdcMessage(event);
                     assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.ROW_DELETE);
                     assertThat(msg.lastModifiedTimeMicros()).isEqualTo(nowMicros);
                     String key = event.getHexKey();
@@ -194,21 +202,23 @@ public class MicroBatchIteratorTests
     }
 
     @SuppressWarnings("unchecked")
-    @Test
-    public void testInserts()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testInserts(CassandraVersion version)
     {
-        runTest(TestSchema.builder(BRIDGE)
-                          .withPartitionKey("a", BRIDGE.timeuuid())
-                          .withPartitionKey("b", BRIDGE.text())
-                          .withClusteringKey("c", BRIDGE.timestamp())
-                          .withColumn("d", BRIDGE.map(BRIDGE.text(), BRIDGE.aInt())),
+        runTest(bridge, cdcBridge,
+                TestSchema.builder(bridge)
+                          .withPartitionKey("a", bridge.timeuuid())
+                          .withPartitionKey("b", bridge.text())
+                          .withClusteringKey("c", bridge.timestamp())
+                          .withColumn("d", bridge.map(bridge.text(), bridge.aInt())),
                 (schema, i, rows) -> {
                     TestSchema.TestRow row = schema.randomRow();
                     rows.put(row.getPrimaryHexKey(), row);
                     return row;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    CdcMessage msg = messageConverter.toCdcMessage(event);
                     assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.INSERT);
                     assertThat(msg.lastModifiedTimeMicros()).isEqualTo(nowMicros);
                     String key = event.getHexKey();
@@ -223,21 +233,23 @@ public class MicroBatchIteratorTests
                 });
     }
 
-    @Test
-    public void testPartitionDelete()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testPartitionDelete(CassandraVersion version)
     {
-        runTest(TestSchema.builder(BRIDGE)
-                          .withPartitionKey("a", BRIDGE.timeuuid())
-                          .withPartitionKey("b", BRIDGE.aInt())
-                          .withClusteringKey("c", BRIDGE.bigint())
-                          .withColumn("d", BRIDGE.text()),
+        runTest(bridge, cdcBridge,
+                TestSchema.builder(bridge)
+                          .withPartitionKey("a", bridge.timeuuid())
+                          .withPartitionKey("b", bridge.aInt())
+                          .withClusteringKey("c", bridge.bigint())
+                          .withColumn("d", bridge.text()),
                 (schema, i, rows) -> {
                     TestSchema.TestRow row = schema.randomPartitionDelete();
                     rows.put(row.getPartitionHexKey(), row); // partition delete so just the partition keys
                     return row;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    CdcMessage msg = messageConverter.toCdcMessage(event);
                     assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.PARTITION_DELETE);
                     assertThat(msg.lastModifiedTimeMicros()).isEqualTo(nowMicros);
                     String key = event.getHexKey();
@@ -249,18 +261,19 @@ public class MicroBatchIteratorTests
                 });
     }
 
-    @Test
-    public void testUpdateStaticColumnAndValueColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testUpdateStaticColumnAndValueColumns(CassandraVersion version)
     {
-        qt().forAll(cql3Type(BRIDGE).zip(arbitrary().enumValues(OperationType.class), Pair::of))
+        qt().forAll(cql3Type(bridge).zip(arbitrary().enumValues(OperationType.class), Pair::of))
             .checkAssert(cql3TypeAndInsertFlag -> {
                 CqlField.NativeType cqlType = cql3TypeAndInsertFlag._1;
                 OperationType insertOrUpdate = cql3TypeAndInsertFlag._2;
-                testWith(BRIDGE, directory, TestSchema.builder(BRIDGE)
-                                                      .withPartitionKey("pk", BRIDGE.uuid())
-                                                      .withClusteringKey("ck", BRIDGE.uuid())
-                                                      .withStaticColumn("sc", cqlType)
-                                                      .withColumn("c1", cqlType))
+                testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
+                                                                    .withPartitionKey("pk", bridge.uuid())
+                                                                    .withClusteringKey("ck", bridge.uuid())
+                                                                    .withStaticColumn("sc", cqlType)
+                                                                    .withColumn("c1", cqlType))
                 .clearWriters()
                 .withWriter(((tester, rows, writer) -> {
                     long timestampMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
@@ -298,14 +311,16 @@ public class MicroBatchIteratorTests
             });
     }
 
-    @Test
-    public void testUpdate()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testUpdate(CassandraVersion version)
     {
-        runTest(TestSchema.builder(BRIDGE)
-                          .withPartitionKey("a", BRIDGE.timeuuid())
-                          .withPartitionKey("b", BRIDGE.aInt())
-                          .withClusteringKey("c", BRIDGE.bigint())
-                          .withColumn("d", BRIDGE.text()),
+        runTest(bridge, cdcBridge,
+                TestSchema.builder(bridge)
+                          .withPartitionKey("a", bridge.timeuuid())
+                          .withPartitionKey("b", bridge.aInt())
+                          .withClusteringKey("c", bridge.bigint())
+                          .withColumn("d", bridge.text()),
                 (schema, i, rows) -> {
                     TestSchema.TestRow row = schema.randomRow();
                     row.fromUpdate();
@@ -313,7 +328,7 @@ public class MicroBatchIteratorTests
                     return row;
                 },
                 (event, rows, nowMicros) -> {
-                    CdcMessage msg = MESSAGE_CONVERTER.toCdcMessage(event);
+                    CdcMessage msg = messageConverter.toCdcMessage(event);
                     assertThat(msg.operationType()).isEqualTo(CdcEvent.Kind.UPDATE);
                     assertThat(msg.lastModifiedTimeMicros()).isEqualTo(nowMicros);
                     String key = event.getHexKey();
@@ -357,9 +372,11 @@ public class MicroBatchIteratorTests
         void verify(CdcEvent event, Map<String, TestSchema.TestRow> rows, long nowMicros);
     }
 
-    private static void runTest(TestSchema.Builder schemaBuilder,
-                                RowGenerator rowGenerator,
-                                TestVerifier verify)
+    private void runTest(CassandraBridge bridge,
+                         CdcBridge cdcBridge,
+                         TestSchema.Builder schemaBuilder,
+                         RowGenerator rowGenerator,
+                         TestVerifier verify)
     {
         String jobId = UUID.randomUUID().toString();
         long nowMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
@@ -368,8 +385,13 @@ public class MicroBatchIteratorTests
                             .withCdc(true)
                             .build();
         CqlTable cqlTable = schema.buildTable();
-        new SchemaBuilder(cqlTable, Partitioner.Murmur3Partitioner, schema.withCdc);
-        schema.setCassandraVersion(CassandraVersion.FOURZERO);
+        bridge.buildSchema(cqlTable.createStatement(),
+                           cqlTable.keyspace(),
+                           ReplicationFactor.simpleStrategy(1),
+                           Partitioner.Murmur3Partitioner,
+                           Collections.emptySet(),
+                           null, 0, schema.withCdc);
+        schema.setCassandraVersion(bridge.getVersion());
 
         try
         {
@@ -377,20 +399,20 @@ public class MicroBatchIteratorTests
             for (int i = 0; i < numRows; i++)
             {
                 TestSchema.TestRow row = rowGenerator.newRow(schema, i, rows);
-                CDC_BRIDGE.log(TimeProvider.DEFAULT, cqlTable, testCommitLog, row, nowMicros);
+                cdcBridge.log(TimeProvider.DEFAULT, cqlTable, commitLog, row, nowMicros);
             }
-            testCommitLog.sync();
+            commitLog.sync();
 
             int count = 0;
             long start = System.currentTimeMillis();
             CdcState state = CdcState.BLANK;
-            try (MicroBatchIterator it = new MicroBatchIterator(CDC_BRIDGE,
+            try (MicroBatchIterator it = new MicroBatchIterator(cdcBridge,
                                                                 state,
                                                                 CassandraSource.DEFAULT,
                                                                 () -> ImmutableSet.of(schema.keyspace),
-                                                                CdcTests.TEST_OPTIONS,
+                                                                cdcOptions,
                                                                 ASYNC_EXECUTOR,
-                                                                logProvider(directory)))
+                                                                logProvider(commitLogDir)))
             {
                 while (count < numRows && it.hasNext())
                 {
@@ -411,13 +433,7 @@ public class MicroBatchIteratorTests
         }
         finally
         {
-            resetTest();
+            CdcTester.closeQuietly(commitLog);
         }
-    }
-
-    private static void resetTest()
-    {
-        CdcTester.tearDown();
-        testCommitLog.start();
     }
 }

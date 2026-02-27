@@ -19,6 +19,23 @@
 
 package org.apache.cassandra.spark.data;
 
+import java.nio.ByteBuffer;
+
+import com.google.common.primitives.Ints;
+
+import org.apache.cassandra.db.rows.BufferCell;
+import org.apache.cassandra.db.rows.CellPath;
+import org.apache.cassandra.schema.ColumnMetadata;
+
 public abstract class CqlType extends AbstractCqlType
 {
+    public static BufferCell tombstone(ColumnMetadata column, long timestamp, long nowInSec, CellPath path)
+    {
+        return BufferCell.tombstone(column, timestamp, Ints.checkedCast(nowInSec), path);
+    }
+
+    public static BufferCell expiring(ColumnMetadata column, long timestamp, int ttl, long nowInSec, ByteBuffer value, CellPath path)
+    {
+        return BufferCell.expiring(column, timestamp, ttl, Ints.checkedCast(nowInSec), value, path);
+    }
 }

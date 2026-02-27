@@ -20,6 +20,7 @@
 package org.apache.cassandra.cdc;
 
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -30,60 +31,69 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableList;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import org.apache.cassandra.bridge.CollectionElement;
+import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.CdcBridge;
 import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.msg.Value;
-import org.apache.cassandra.db.rows.CellPath;
+import org.apache.cassandra.cdc.test.CdcTestBase;
+import org.apache.cassandra.cdc.test.CdcTester;
+import org.apache.cassandra.cdc.test.TestUtils;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 
-import static org.apache.cassandra.cdc.CdcTester.testWith;
-import static org.apache.cassandra.cdc.CdcTests.BRIDGE;
-import static org.apache.cassandra.cdc.CdcTests.directory;
+import static org.apache.cassandra.cdc.test.CdcTester.testWith;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
-public class CollectionDeletionTests
+public class CollectionDeletionTests extends CdcTestBase
 {
-    @Test
-    public void testElementDeletionInMap()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testElementDeletionInMap(CassandraVersion version)
     {
         final String name = "m";
-        testElementDeletionInCollection(1, 2, /* numOfColumns */
+        testElementDeletionInCollection(bridge, cdcBridge, commitLogDir, 1, 2, /* numOfColumns */
                                         ImmutableList.of(name),
-                                        type -> TestSchema.builder(BRIDGE)
-                                                          .withPartitionKey("pk", BRIDGE.uuid())
-                                                          .withColumn(name, BRIDGE.map(type, type)));
+                                        type -> TestSchema.builder(bridge)
+                                                          .withPartitionKey("pk", bridge.uuid())
+                                                          .withColumn(name, bridge.map(type, type)));
     }
 
-    @Test
-    public void testElementDeletionInSet()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testElementDeletionInSet(CassandraVersion version)
     {
         final String name = "s";
-        testElementDeletionInCollection(1, 2, /* numOfColumns */
+        testElementDeletionInCollection(bridge, cdcBridge, commitLogDir, 1, 2, /* numOfColumns */
                                         Arrays.asList(name),
-                                        type -> TestSchema.builder(BRIDGE)
-                                                          .withPartitionKey("pk", BRIDGE.uuid())
-                                                          .withColumn(name, BRIDGE.set(type)));
+                                        type -> TestSchema.builder(bridge)
+                                                          .withPartitionKey("pk", bridge.uuid())
+                                                          .withColumn(name, bridge.set(type)));
     }
 
-    @Test
-    public void testElementDeletionsInMultipleColumns()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testElementDeletionsInMultipleColumns(CassandraVersion version)
     {
-        testElementDeletionInCollection(1, 4, /* numOfColumns */
+        testElementDeletionInCollection(bridge, cdcBridge, commitLogDir, 1, 4, /* numOfColumns */
                                         Arrays.asList("c1", "c2", "c3"),
-                                        type -> TestSchema.builder(BRIDGE)
-                                                          .withPartitionKey("pk", BRIDGE.uuid())
-                                                          .withColumn("c1", BRIDGE.set(type))
-                                                          .withColumn("c2", BRIDGE.set(type))
-                                                          .withColumn("c3", BRIDGE.set(type)));
+                                        type -> TestSchema.builder(bridge)
+                                                          .withPartitionKey("pk", bridge.uuid())
+                                                          .withColumn("c1", bridge.set(type))
+                                                          .withColumn("c2", bridge.set(type))
+                                                          .withColumn("c3", bridge.set(type)));
     }
 
     // validate that cell deletions in a complex data can be correctly encoded.
-    private void testElementDeletionInCollection(int numOfPKs,
+    private void testElementDeletionInCollection(CassandraBridge bridge,
+                                                 CdcBridge cdcBridge,
+                                                 Path directory,
+                                                 int numOfPKs,
                                                  int numOfColumns,
                                                  List<String> collectionColumnNames,
                                                  Function<CqlField.NativeType, TestSchema.Builder> schemaBuilder)
@@ -93,10 +103,10 @@ public class CollectionDeletionTests
         final Random rnd = new Random(1);
         final long minTimestamp = System.currentTimeMillis();
         final int numRows = 1000;
-        qt().forAll(cql3Type(BRIDGE))
+        qt().forAll(cql3Type(bridge))
             .assuming(CqlField.CqlType::supportedAsMapKey)
             .checkAssert(
-            type -> testWith(BRIDGE, directory, schemaBuilder.apply(type))
+            type -> testWith(bridge, cdcBridge, directory, schemaBuilder.apply(type))
                     .withAddLastModificationTime(true)
                     .clearWriters()
                     .withNumRows(numRows)
@@ -115,7 +125,8 @@ public class CollectionDeletionTests
                                 testRow = CdcTester.newUniqueRow(tester.schema, rows);
                                 for (String name : collectionColumnNames)
                                 {
-                                    testRow = testRow.copy(name, CollectionElement.deleted(CellPath.create(key)));
+                                    Object value = TestUtils.collectionDeleteMutation(bridge.getVersion(), key);
+                                    testRow = testRow.copy(name, value);
                                 }
                                 elementDeletionIndices.put(i, key.array());
                             }

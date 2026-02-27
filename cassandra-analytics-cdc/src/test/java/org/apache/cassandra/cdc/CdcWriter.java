@@ -22,6 +22,7 @@ package org.apache.cassandra.cdc;
 import java.util.Map;
 import java.util.function.BiConsumer;
 
+import org.apache.cassandra.cdc.test.CdcTester;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 

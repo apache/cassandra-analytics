@@ -97,10 +97,10 @@ dependencies {
     testImplementation project(":cassandra-four-zero-types")
     testImplementation project(":cassandra-four-zero-bridge")
     testImplementation project(path: ':cassandra-four-zero', configuration: 'shadow')
-    // unit tests are performed only with Cassandra 4
-    // testImplementation project(":cassandra-five-zero-bridge")
-    // testImplementation project(":cassandra-five-zero-types")
-    // testImplementation project(path: ':cassandra-five-zero', configuration: 'shadow')
+
+    testImplementation project(":cassandra-five-zero-bridge")
+    testImplementation project(":cassandra-five-zero-types")
+    testImplementation project(path: ':cassandra-five-zero', configuration: 'shadow')
 
     testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
     testImplementation(group: 'com.google.guava', name: 'guava', version: '31.1-jre')
@@ -139,6 +139,8 @@ jar {
 }
 
 test {
+    systemProperty "cassandra.sidecar.versions_to_test", (System.getenv("CASSANDRA_VERSION") ?: "4.0.17,5.0.5")
+
     minHeapSize = '1024m'
     maxHeapSize = '3072m'
     maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
