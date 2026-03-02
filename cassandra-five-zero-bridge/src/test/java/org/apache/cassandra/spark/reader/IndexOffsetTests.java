@@ -27,6 +27,7 @@ import java.util.Collection;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
 import org.apache.commons.lang.mutable.MutableInt;
+import org.apache.commons.lang.mutable.MutableLong;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -110,7 +111,8 @@ public class IndexOffsetTests
                     LOGGER.info("Testing index offsets numKeys={} sparkPartitions={} partitioner={} enableCompression={}",
                                 numKeys, ranges.size(), partitioner.name(), enableCompression);
 
-                    MutableInt skipped = new MutableInt(0);
+                    MutableInt skippedPartitions = new MutableInt(0);
+                    MutableLong skippedDataOffsets = new MutableLong(0);
                     int[] counts = new int[numKeys];
                     for (TokenRange range : ranges)
                     {
@@ -120,7 +122,12 @@ public class IndexOffsetTests
                                                             {
                                                                 public void skippedPartition(ByteBuffer key, BigInteger token)
                                                                 {
-                                                                    skipped.add(1);
+                                                                    skippedPartitions.add(1);
+                                                                }
+
+                                                                public void skippedDataDbStartOffset(long length)
+                                                                {
+                                                                    skippedDataOffsets.add(length);
                                                                 }
                                                             })
                                                             .build();
@@ -180,8 +187,10 @@ public class IndexOffsetTests
                         index++;
                     }
 
+                    assertThat(skippedDataOffsets.longValue()).isGreaterThan(0);
+
                     LOGGER.info("Success skippedKeys={} partitioner={}",
-                                skipped.intValue(), partitioner.name());
+                                skippedPartitions.intValue(), partitioner.name());
                 }
                 catch (IOException exception)
                 {

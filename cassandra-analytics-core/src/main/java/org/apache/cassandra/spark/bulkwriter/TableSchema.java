@@ -73,12 +73,14 @@ public class TableSchema
     {
         this.writeMode = writeMode;
         this.ttlOption = ttlOption;
+
         this.timestampOption = timestampOption;
         this.lowestCassandraVersion = lowestCassandraVersion;
         this.quoteIdentifiers = quoteIdentifiers;
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
         validateNoSecondaryIndexes(tableInfo);
+        validateUserAddedColumns(lowestCassandraVersion, quoteIdentifiers, ttlOption, timestampOption);
 
         this.createStatement = getCreateStatement(tableInfo);
         this.modificationStatement = getModificationStatement(dfSchema, tableInfo);
@@ -182,6 +184,7 @@ public class TableSchema
                                       TimestampOption timestampOption)
     {
         CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+
         List<String> columnNames = Arrays.stream(dfSchema.fieldNames())
                                          .filter(fieldName -> !fieldName.equals(ttlOption.columnName()))
                                          .filter(fieldName -> !fieldName.equals(timestampOption.columnName()))
@@ -260,7 +263,7 @@ public class TableSchema
         Set<String> requiredKeyColumns = new LinkedHashSet<>(getRequiredKeyColumns(tableInfo));
         Preconditions.checkArgument(requiredKeyColumns.equals(dfFields),
                                     String.format("Only partition key columns (%s) are supported in the input Dataframe"
-                                                + " when WRITE_MODE=DELETE_PARTITION but (%s) columns were provided",
+                                                  + " when WRITE_MODE=DELETE_PARTITION but (%s) columns were provided",
                                                   String.join(",", requiredKeyColumns), String.join(",", dfFields)));
     }
 
@@ -269,10 +272,11 @@ public class TableSchema
         // Make sure all primary key columns are provided
         List<String> requiredKeyColumns = getRequiredKeyColumns(tableInfo);
         Preconditions.checkArgument(dfFields.containsAll(requiredKeyColumns),
-                                    "Missing some required key components in DataFrame => " + requiredKeyColumns
-                                            .stream()
-                                            .filter(column -> !dfFields.contains(column))
-                                            .collect(Collectors.joining(",")));
+                                    "Missing some required key components in DataFrame => "
+                                    + requiredKeyColumns
+                                      .stream()
+                                      .filter(column -> !dfFields.contains(column))
+                                      .collect(Collectors.joining(",")));
     }
 
     private static void validateDataframeFieldsInTable(TableInfoProvider tableInfo, Set<String> dfFields,
@@ -306,5 +310,45 @@ public class TableSchema
                           .filter(keyFieldNames::contains)
                           .map(dfFieldNames::indexOf)
                           .collect(Collectors.toList());
+    }
+
+    private static void validateUserAddedColumns(String lowestCassandraVersion, boolean quoteIdentifiers,
+                                                 TTLOption ttlOption, TimestampOption timestampOption)
+    {
+        if (!quoteIdentifiers)
+        {
+            CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+            validateColumnName(bridge, ttlOption.columnName(), WriterOptions.TTL.name());
+            validateColumnName(bridge, timestampOption.columnName(), WriterOptions.TIMESTAMP.name());
+        }
+    }
+
+    /**
+     * Validates that the provided column name matches what would be produced by maybeQuoteIdentifier. If they don't
+     * match, it means the user provided a column name that needs quoting but didn't enable QUOTE_IDENTIFIERS option.
+     * We throw early to avoid scenarios such as, mismatches in column names leads to bulk write overwriting existing
+     * TTL values to null.
+     *
+     * @param bridge     the Cassandra bridge
+     * @param columnName the column name to validate
+     * @param optionName the option name for error messages
+     * @throws IllegalArgumentException if the column name requires quoting but QUOTE_IDENTIFIERS is not enabled
+     */
+    private static void validateColumnName(CassandraBridge bridge, String columnName, String optionName)
+    {
+        if (columnName == null || columnName.isEmpty())
+        {
+            return;
+        }
+
+        String quotedName = bridge.maybeQuoteIdentifier(columnName);
+        if (!columnName.equals(quotedName))
+        {
+            throw new IllegalArgumentException(
+            String.format("The %s column name %s requires spark option %s set to true for correct conversion. Bulk " +
+                          "write should provide a column name that matches CQL requirements, or set %s to true to " +
+                          "enable quoting for all identifiers.", optionName, columnName,
+                          WriterOptions.QUOTE_IDENTIFIERS.name(), WriterOptions.QUOTE_IDENTIFIERS.name()));
+        }
     }
 }
