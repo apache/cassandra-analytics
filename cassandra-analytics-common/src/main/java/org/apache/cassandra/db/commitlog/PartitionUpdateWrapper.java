@@ -279,7 +279,7 @@ public class PartitionUpdateWrapper implements Comparable<PartitionUpdateWrapper
         @Override
         public int hashCode()
         {
-            return Objects.hash(keyspace, table);
+            return Objects.hash(keyspace, table, Arrays.hashCode(array()));
         }
 
         @Override
