@@ -91,7 +91,10 @@ public class BufferingCommitLogReaderTests
                                                                               .path()))
         {
             @Override
-            public boolean completed() { return true; }
+            public boolean completed()
+            {
+                return true;
+            }
         };
 
         // read entire commit log and verify correct
