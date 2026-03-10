@@ -321,7 +321,8 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
                                conf.getTTLOptions(),
                                conf.getTimestampOptions(),
                                lowestCassandraVersion,
-                               job().qualifiedTableName().quoteIdentifiers());
+                               job().qualifiedTableName().quoteIdentifiers(),
+                               conf.skipSecondaryIndexCheck);
     }
 
     @NotNull

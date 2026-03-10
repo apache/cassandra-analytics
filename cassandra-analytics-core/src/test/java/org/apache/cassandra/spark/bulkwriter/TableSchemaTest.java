@@ -272,6 +272,17 @@ public class TableSchemaTest
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
+    public void testSecondaryIndexAllowedWithSkipCheck(String cassandraVersion)
+    {
+        TableSchema schema = getValidSchemaBuilder(cassandraVersion)
+                .withHasSecondaryIndex()
+                .withSkipSecondaryIndexCheck()
+                .build();
+        assertThat(schema).isNotNull();
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#supportedVersions")
     public void testMixedCaseTTLColumnNameWithoutQuoteIdentifiersFails(String cassandraVersion)
     {
         assertThatThrownBy(() -> getValidSchemaBuilder(cassandraVersion)
