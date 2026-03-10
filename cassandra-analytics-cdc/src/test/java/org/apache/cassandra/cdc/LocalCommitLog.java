@@ -20,7 +20,9 @@
 package org.apache.cassandra.cdc;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 import org.apache.cassandra.cdc.api.CommitLog;
 import org.apache.cassandra.spark.data.FileSystemSource;
@@ -56,7 +58,8 @@ public class LocalCommitLog implements CommitLog
 
     public long maxOffset()
     {
-        return length;
+        List<String> lines = readIdxFile();
+        return lines.isEmpty() ? length : Long.parseLong(lines.get(0).trim());
     }
 
     public long length()
@@ -67,7 +70,21 @@ public class LocalCommitLog implements CommitLog
     public boolean completed()
     {
         // for CDC Cassandra writes COMPLETED in the final line of the CommitLog-7-*_cdc.idx index file.
-        return maxOffset() >= 67108818;
+        List<String> lines = readIdxFile();
+        return lines.size() >= 2 && lines.get(1).trim().equalsIgnoreCase("COMPLETED");
+    }
+
+    private List<String> readIdxFile()
+    {
+        Path idxPath = path.resolveSibling(name.replace(".log", "_cdc.idx"));
+        try
+        {
+            return Files.exists(idxPath) ? Files.readAllLines(idxPath) : List.of();
+        }
+        catch (IOException e)
+        {
+            return List.of();
+        }
     }
 
     public FileSystemSource<CommitLog> source()
