@@ -1,3 +1,7 @@
+0.4.0
+-----
+ * Fixing CdcTests.testMockedCdc broken due to incorrect position update in BufferingCommitLogReader (CASSANALYTICS-127)
+
 0.3.0
 -----
  * Assign data file start offset based on BTI index (CASSANALYTICS-121)
