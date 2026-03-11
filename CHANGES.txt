@@ -1,11 +1,13 @@
 0.4.0
 -----
  * Fixing CdcTests.testMockedCdc broken due to incorrect position update in BufferingCommitLogReader (CASSANALYTICS-127)
+ * Commitlog reading not progressing in CDC due to incorrect CommitLogReader.isFullyRead (CASSANALYTICS-124)
+ * Incorrect hash code calculation in PartitionUpdateWrapper.Digest (CASSANALYTICS-125)
+ * Assign data file start offset based on BTI index (CASSANALYTICS-121)
+ * Quote identifiers option must be set to true if ttl has mixed case column name (CASSANALYTICS-120)
 
 0.3.0
 -----
- * Assign data file start offset based on BTI index (CASSANALYTICS-121)
- * Quote identifiers option must be set to true if ttl has mixed case column name (CASSANALYTICS-120)
  * Fix ByteBuffer flip() in StreamBuffer.copyBytes() causing data corruption (CASSANALYTICS-116)
  * Fix race condition in DirectStreamSession#onSSTablesProduced and SortedSStableWriter#close (CASSANALYTICS-107)
  * Address LZ4 vulnerability (CVE-2025-12183) (CASSANALYTICS-109)
