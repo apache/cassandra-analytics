@@ -316,14 +316,6 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
                     break;
                 }
             }
-
-            // If the loop finished naturally (iterator exhausted) without hitting an error or limit,
-            // ensure the position reflects the end of the file. If we aborted early due to an error
-            // or mutation limit, 'this.position' remains at the last valid read offset.
-            if (statusTracker.shouldContinue())
-            {
-                this.position = (int) log.maxOffset();
-            }
         }
         // Unfortunately CommitLogSegmentReader.SegmentIterator (for-loop) cannot throw a checked exception,
         // so we check to see if a RuntimeException is wrapping an IOException.
