@@ -74,6 +74,7 @@ public class LocalCommitLog implements CommitLog
         return lines.size() >= 2 && lines.get(1).trim().equalsIgnoreCase("COMPLETED");
     }
 
+    // Each commit log .log file has a corresponding _cdc.idx file that tracks the CDC offset and completion status.
     private List<String> readIdxFile()
     {
         Path idxPath = path.resolveSibling(name.replace(".log", "_cdc.idx"));
