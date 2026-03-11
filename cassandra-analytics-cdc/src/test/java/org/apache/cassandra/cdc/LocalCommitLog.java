@@ -83,7 +83,7 @@ public class LocalCommitLog implements CommitLog
         }
         catch (IOException e)
         {
-            return List.of();
+            throw new RuntimeException(e);
         }
     }
 
