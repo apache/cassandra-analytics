@@ -284,6 +284,9 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
             {
                 stats.commitLogBytesSkippedOnRead(startMarker.position() - reader.getFilePointer());
                 segmentReader.seek(startMarker.position());
+                // When starting from an offset, position must be initialized to startMarker.position()
+                // rather than 0; an incorrect value causes isFullyRead to fail.
+                this.position = startMarker.position();
             }
 
             for (CommitLogSegmentReader.SyncSegment syncSegment : segmentReader)
@@ -295,9 +298,13 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
 
                 readSection(syncSegment.input, syncSegment.endPosition);
 
-                // track the position at end of previous section after successfully reading mutations
-                // so we can update highwater mark after reading
-                this.position = (int) reader.getFilePointer();
+                // Only advance position if the section completed normally.
+                // An early termination (e.g. LEGACY_END_OF_SEGMENT_MARKER) sets this.position
+                // to the correct value inside readSection and must not be overridden here.
+                if (statusTracker.shouldContinue())
+                {
+                    this.position = (int) reader.getFilePointer();
+                }
 
                 if (listener != null)
                 {
@@ -427,6 +434,9 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
                 if (serializedSize == LEGACY_END_OF_SEGMENT_MARKER)
                 {
                     logger.trace("Encountered end of segment marker at", "position", reader.getFilePointer());
+                    // Mark the log as fully consumed so isFullyRead() returns true.
+                    // The guard above ensures this is not overridden after readSection returns.
+                    this.position = (int) log.maxOffset();
                     statusTracker.requestTermination();
                     return;
                 }

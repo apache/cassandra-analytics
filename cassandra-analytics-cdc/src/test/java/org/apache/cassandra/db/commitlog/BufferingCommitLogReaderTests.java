@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.db.commitlog;
 
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -32,6 +33,7 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.cdc.CdcTester;
 import org.apache.cassandra.cdc.CdcTests;
+import org.apache.cassandra.cdc.LocalCommitLog;
 import org.apache.cassandra.cdc.api.CommitLog;
 import org.apache.cassandra.cdc.api.Marker;
 import org.apache.cassandra.cdc.stats.CdcStats;
@@ -82,10 +84,18 @@ public class BufferingCommitLogReaderTests
         CdcTester.testCommitLog.sync();
 
         List<Marker> markers = Collections.synchronizedList(new ArrayList<>());
-        CommitLog firstLog = CdcTests.logProvider(directory)
-                                     .logs()
-                                     .min(CommitLog::compareTo)
-                                     .orElseThrow(() -> new RuntimeException("Commit log file not found"));
+        CommitLog firstLog = new LocalCommitLog(Paths.get(CdcTests.logProvider(directory)
+                                                                              .logs()
+                                                                              .min(CommitLog::compareTo)
+                                                                              .orElseThrow(() -> new RuntimeException("Commit log file not found"))
+                                                                              .path()))
+        {
+            @Override
+            public boolean completed()
+            {
+                return true;
+            }
+        };
 
         // read entire commit log and verify correct
         Consumer<Marker> listener = markers::add;
@@ -144,6 +154,11 @@ public class BufferingCommitLogReaderTests
                 keysRead.add(key);
                 assertThat(keys).contains(key);
             }
+
+            // Verify the position fix: after reading (from any start offset), position must
+            // reach maxOffset and isFullyRead() must return true.
+            assertThat(reader.position()).isEqualTo((int) logFile.maxOffset());
+            assertThat(result.isFullyRead()).isTrue();
 
             return keysRead;
         }
