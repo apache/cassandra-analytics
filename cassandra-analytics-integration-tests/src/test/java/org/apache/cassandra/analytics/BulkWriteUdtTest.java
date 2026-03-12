@@ -59,13 +59,9 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
 
     // Table names
     private static final QualifiedName SIMPLE_UDT_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_simple_udt");
-    private static final QualifiedName NESTED_UDT_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_nested_udt");
     private static final QualifiedName LIST_UDT_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_list_udt");
     private static final QualifiedName SET_UDT_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_set_udt");
     private static final QualifiedName MAP_UDT_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_map_udt");
-    private static final QualifiedName UDT_WITH_LIST_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_udt_with_list");
-    private static final QualifiedName UDT_WITH_SET_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_udt_with_set");
-    private static final QualifiedName UDT_WITH_MAP_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_udt_with_map");
     private static final QualifiedName UDT_WITH_COLLECTIONS_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_udt_collections");
     private static final QualifiedName DEEPLY_NESTED_UDT_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_deep_udt");
     private static final QualifiedName UDT_LIST_UDT_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_udt_list_udt");
@@ -1422,16 +1418,10 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, data frozen<person>)",
         TEST_KEYSPACE, SIMPLE_UDT_TABLE.table()));
 
-        // Nested UDT: address(street text, number int), person_with_address(name text, address frozen<address>)
+        // Nested UDT: address(street text, number int)
         cluster.schemaChangeIgnoringStoppedInstances(String.format(
         "CREATE TYPE %s.address (street text, number int)",
         TEST_KEYSPACE));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-        "CREATE TYPE %s.person_with_address (name text, addr frozen<address>)",
-        TEST_KEYSPACE));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-        "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, data frozen<person_with_address>)",
-        TEST_KEYSPACE, NESTED_UDT_TABLE.table()));
 
         // List of UDTs: list<frozen<person>>
         cluster.schemaChangeIgnoringStoppedInstances(String.format(
@@ -1447,30 +1437,6 @@ class BulkWriteUdtTest extends SharedClusterSparkIntegrationTestBase
         cluster.schemaChangeIgnoringStoppedInstances(String.format(
         "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, data map<text, frozen<person>>)",
         TEST_KEYSPACE, MAP_UDT_TABLE.table()));
-
-        // UDT with list: udt_with_list(items list<text>)
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-        "CREATE TYPE %s.udt_with_list (items list<text>)",
-        TEST_KEYSPACE));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-        "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, data frozen<udt_with_list>)",
-        TEST_KEYSPACE, UDT_WITH_LIST_TABLE.table()));
-
-        // UDT with set: udt_with_set(items set<int>)
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-        "CREATE TYPE %s.udt_with_set (items set<int>)",
-        TEST_KEYSPACE));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-        "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, data frozen<udt_with_set>)",
-        TEST_KEYSPACE, UDT_WITH_SET_TABLE.table()));
-
-        // UDT with map: udt_with_map(items map<text, int>)
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-        "CREATE TYPE %s.udt_with_map (items map<text, int>)",
-        TEST_KEYSPACE));
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-        "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, data frozen<udt_with_map>)",
-        TEST_KEYSPACE, UDT_WITH_MAP_TABLE.table()));
 
         // UDT with all collections
         cluster.schemaChangeIgnoringStoppedInstances(String.format(

@@ -282,7 +282,7 @@ public class CqlTable implements Serializable
      */
     public static boolean isTupleType(CqlField.CqlType type)
     {
-        return unwrapFrozen(type) instanceof CqlField.CqlTuple;
+        return unwrapIfFrozen(type) instanceof CqlField.CqlTuple;
     }
 
     /**
@@ -292,7 +292,7 @@ public class CqlTable implements Serializable
      */
     public static boolean containsTuples(CqlField.CqlType type)
     {
-        CqlField.CqlType unwrapped = unwrapFrozen(type);
+        CqlField.CqlType unwrapped = unwrapIfFrozen(type);
 
         if (unwrapped instanceof CqlField.CqlList || unwrapped instanceof CqlField.CqlSet)
         {
@@ -315,7 +315,7 @@ public class CqlTable implements Serializable
      * @param type the type to unwrap
      * @return the inner type if frozen, otherwise the original type
      */
-    public static CqlField.CqlType unwrapFrozen(CqlField.CqlType type)
+    public static CqlField.CqlType unwrapIfFrozen(CqlField.CqlType type)
     {
         if (type instanceof CqlField.CqlFrozen)
         {

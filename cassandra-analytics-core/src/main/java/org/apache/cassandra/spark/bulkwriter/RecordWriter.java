@@ -403,13 +403,13 @@ public class RecordWriter
                 // Check if this is a direct tuple
                 if (CqlTable.isTupleType(fieldType))
                 {
-                    CqlField.CqlTuple cqlTuple = (CqlField.CqlTuple) CqlTable.unwrapFrozen(fieldType);
+                    CqlField.CqlTuple cqlTuple = (CqlField.CqlTuple) CqlTable.unwrapIfFrozen(fieldType);
                     columnValue = cqlTuple.convertForCqlWriter(columnValue, writerContext.bridge().getVersion(), false);
                 }
                 // Check if this is a collection that contains tuples
                 else if (CqlTable.containsTuples(fieldType))
                 {
-                    CqlField.CqlType collectionType = CqlTable.unwrapFrozen(fieldType);
+                    CqlField.CqlType collectionType = CqlTable.unwrapIfFrozen(fieldType);
                     if (collectionType instanceof CqlField.CqlCollection)
                     {
                         columnValue = ((CqlField.CqlCollection) collectionType).convertForCqlWriter(columnValue, writerContext.bridge().getVersion(), false);

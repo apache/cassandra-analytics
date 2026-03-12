@@ -29,9 +29,7 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
-import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -63,18 +61,13 @@ class BulkWriteTupleTest extends SharedClusterSparkIntegrationTestBase
     private static final QualifiedName TUPLE_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_tuples");
     private static final QualifiedName LIST_OF_TUPLES_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_list_tuples");
     private static final QualifiedName SET_OF_TUPLES_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_set_tuples");
-    private static final QualifiedName MAP_WITH_TUPLES_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_map_tuples");
-    private static final QualifiedName MAP_WITH_TUPLE_KEY_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_map_tuple_key");
     private static final QualifiedName NESTED_TUPLE_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_nested_tuples");
     private static final QualifiedName TUPLE_WITH_LIST_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_tuple_list");
     private static final QualifiedName TUPLE_WITH_SET_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_tuple_set");
     private static final QualifiedName TUPLE_WITH_MAP_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_tuple_map");
     private static final QualifiedName TUPLE_WITH_UDT_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_tuple_udt");
-    private static final QualifiedName MULTI_TUPLE_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_multi_tuple");
-    private static final QualifiedName TUPLE_ALL_COLLECTIONS_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_tuple_all_coll");
     private static final QualifiedName MAP_TUPLE_KEY_VALUE_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_map_tuple_kv");
     private static final QualifiedName TUPLE_SET_OF_TUPLES_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_tuple_set_tuples");
-    private static final QualifiedName TUPLE_NESTED_COLLECTIONS_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_tuple_nested_coll");
     private static final QualifiedName TUPLE_LIST_OF_TUPLES_TABLE = new QualifiedName(TEST_KEYSPACE, "qt_tuple_list_tuples");
 
     /**
@@ -928,14 +921,6 @@ class BulkWriteTupleTest extends SharedClusterSparkIntegrationTestBase
         return sb.toString();
     }
 
-    private String sanitizeTypeName(String typeName)
-    {
-        // Convert type name to valid table name (remove <, >, spaces, etc.)
-        return typeName.replaceAll("[<>,\\s]", "_")
-                      .replaceAll("__+", "_")
-                      .toLowerCase();
-    }
-
     // ==================== Generate DataFrame Methods ====================
 
     /**
@@ -1546,8 +1531,6 @@ class BulkWriteTupleTest extends SharedClusterSparkIntegrationTestBase
     {
         createTestKeyspace(TEST_KEYSPACE, DC1_RF3);
 
-        CassandraBridge bridge = getOrCreateBridge();
-
         // Create UDTs
         cluster.schemaChangeIgnoringStoppedInstances(String.format(
             "CREATE TYPE %s.udt_with_collections (f1 list<text>, f2 set<text>, f3 map<int, text>, f4 tuple<int, text>)",
@@ -1555,7 +1538,6 @@ class BulkWriteTupleTest extends SharedClusterSparkIntegrationTestBase
         ));
 
         createFixedTupleTables();
-        createDynamicTypeTables(bridge);
     }
 
     private void createFixedTupleTables()
@@ -1579,20 +1561,6 @@ class BulkWriteTupleTest extends SharedClusterSparkIntegrationTestBase
             "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, data set<frozen<tuple<int, text>>>)",
             SET_OF_TUPLES_TABLE.keyspace(),
             SET_OF_TUPLES_TABLE.table()
-        ));
-
-        // Map with tuple values
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-            "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, data map<text, frozen<tuple<int, text>>>)",
-            MAP_WITH_TUPLES_TABLE.keyspace(),
-            MAP_WITH_TUPLES_TABLE.table()
-        ));
-
-        // Map with tuple keys
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-            "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, data map<frozen<tuple<int, text>>, text>)",
-            MAP_WITH_TUPLE_KEY_TABLE.keyspace(),
-            MAP_WITH_TUPLE_KEY_TABLE.table()
         ));
 
         // Nested tuple
@@ -1630,24 +1598,6 @@ class BulkWriteTupleTest extends SharedClusterSparkIntegrationTestBase
             TUPLE_WITH_UDT_TABLE.table()
         ));
 
-        // Multiple tuple columns
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-            "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, " +
-            "tuple1 frozen<tuple<int, text>>, " +
-            "tuple2 frozen<tuple<text, int, bigint>>, " +
-            "tuple3 frozen<tuple<list<text>, set<int>>>)",
-            MULTI_TUPLE_TABLE.keyspace(),
-            MULTI_TUPLE_TABLE.table()
-        ));
-
-        // Tuple with all collection types
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-            "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, " +
-            "data frozen<tuple<list<text>, set<int>, map<text, int>>>)",
-            TUPLE_ALL_COLLECTIONS_TABLE.keyspace(),
-            TUPLE_ALL_COLLECTIONS_TABLE.table()
-        ));
-
         // Map with tuple key and value
         cluster.schemaChangeIgnoringStoppedInstances(String.format(
             "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, " +
@@ -1663,13 +1613,6 @@ class BulkWriteTupleTest extends SharedClusterSparkIntegrationTestBase
             TUPLE_SET_OF_TUPLES_TABLE.keyspace(),
             TUPLE_SET_OF_TUPLES_TABLE.table()
         ));
-        // Tuple with nested collections
-        cluster.schemaChangeIgnoringStoppedInstances(String.format(
-            "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, " +
-            "data frozen<tuple<int, list<int>, frozen<tuple<text, set<int>>>, map<text, text>>>)",
-            TUPLE_NESTED_COLLECTIONS_TABLE.keyspace(),
-            TUPLE_NESTED_COLLECTIONS_TABLE.table()
-        ));
         // Tuple with list of tuples
         cluster.schemaChangeIgnoringStoppedInstances(String.format(
             "CREATE TABLE %s.%s (id BIGINT PRIMARY KEY, " +
@@ -1677,97 +1620,6 @@ class BulkWriteTupleTest extends SharedClusterSparkIntegrationTestBase
             TUPLE_LIST_OF_TUPLES_TABLE.keyspace(),
             TUPLE_LIST_OF_TUPLES_TABLE.table()
         ));
-    }
-
-    private void createDynamicTypeTables(CassandraBridge bridge)
-    {
-        // Create tables for all supported types - parameterized tests
-        // These are created dynamically for each supported type from the bridge
-        for (CqlField.CqlType type : bridge.supportedTypes())
-        {
-            String sanitizedName = sanitizeTypeName(type.cqlName());
-
-            try
-            {
-                // tuple<int, type, bigint>
-                cluster.schemaChangeIgnoringStoppedInstances(String.format(
-                    "CREATE TABLE %s.qt_all_types_%s (id BIGINT PRIMARY KEY, data frozen<tuple<int, %s, bigint>>)",
-                    TEST_KEYSPACE, sanitizedName, type.cqlName()
-                ));
-            }
-            catch (Exception e)
-            {
-                // Skip if table already exists or type not supported in this context
-            }
-
-            try
-            {
-                // list<frozen<tuple<int, type>>>
-                cluster.schemaChangeIgnoringStoppedInstances(String.format(
-                    "CREATE TABLE %s.qt_list_tuple_%s (id BIGINT PRIMARY KEY, data list<frozen<tuple<int, %s>>>)",
-                    TEST_KEYSPACE, sanitizedName, type.cqlName()
-                ));
-            }
-            catch (Exception e)
-            {
-                // Skip if not supported
-            }
-
-            if (type.supportedAsSetElement())
-            {
-                try
-                {
-                    // set<frozen<tuple<type, int>>>
-                    cluster.schemaChangeIgnoringStoppedInstances(String.format(
-                        "CREATE TABLE %s.qt_set_tuple_%s (id BIGINT PRIMARY KEY, data set<frozen<tuple<%s, int>>>)",
-                        TEST_KEYSPACE, sanitizedName, type.cqlName()
-                    ));
-                }
-                catch (Exception e)
-                {
-                    // Skip if not supported
-                }
-
-                try
-                {
-                    // tuple<int, set<type>>
-                    cluster.schemaChangeIgnoringStoppedInstances(String.format(
-                        "CREATE TABLE %s.qt_tuple_set_all_%s (id BIGINT PRIMARY KEY, data frozen<tuple<int, set<%s>>>)",
-                        TEST_KEYSPACE, sanitizedName, type.cqlName()
-                    ));
-                }
-                catch (Exception e)
-                {
-                    // Skip if not supported
-                }
-            }
-
-            try
-            {
-                // tuple<int, list<type>>
-                cluster.schemaChangeIgnoringStoppedInstances(String.format(
-                    "CREATE TABLE %s.qt_tuple_list_all_%s (id BIGINT PRIMARY KEY, data frozen<tuple<int, list<%s>>>)",
-                    TEST_KEYSPACE, sanitizedName, type.cqlName()
-                ));
-            }
-            catch (Exception e)
-            {
-                // Skip if not supported
-            }
-
-            try
-            {
-                // tuple<int, frozen<tuple<type, bigint>>>
-                cluster.schemaChangeIgnoringStoppedInstances(String.format(
-                    "CREATE TABLE %s.qt_nested_all_%s (id BIGINT PRIMARY KEY, data frozen<tuple<int, frozen<tuple<%s, bigint>>>>)",
-                    TEST_KEYSPACE, sanitizedName, type.cqlName()
-                ));
-            }
-            catch (Exception e)
-            {
-                // Skip if not supported
-            }
-        }
     }
 
     // ==================== Assertion Context Formatting Methods ====================
