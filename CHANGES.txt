@@ -1,6 +1,7 @@
 0.4.0
 -----
  * Add support for tuples and tuples with collections or UDTs in the Bulk writer (CASSANALYTICS-51)
+ * Adding CDC support for Cassandra 5.0 Commit Logs (CASSANALYTICS-60)
  * Fixing CdcTests.testMockedCdc broken due to incorrect position update in BufferingCommitLogReader (CASSANALYTICS-127)
  * Commitlog reading not progressing in CDC due to incorrect CommitLogReader.isFullyRead (CASSANALYTICS-124)
  * Incorrect hash code calculation in PartitionUpdateWrapper.Digest (CASSANALYTICS-125)
