@@ -20,11 +20,14 @@
 package org.apache.cassandra.bridge;
 
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -33,6 +36,7 @@ import java.util.stream.Collectors;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 
+import org.apache.cassandra.cdc.FourZeroCommitLog;
 import org.apache.cassandra.cdc.FourZeroMutation;
 import org.apache.cassandra.cdc.api.CassandraSource;
 import org.apache.cassandra.cdc.api.CommitLog;
@@ -49,9 +53,8 @@ import org.apache.cassandra.cdc.state.CdcState;
 import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.cql3.ColumnIdentifier;
 import org.apache.cassandra.db.Clustering;
+import org.apache.cassandra.db.DbUtils;
 import org.apache.cassandra.db.DecoratedKey;
-import org.apache.cassandra.db.DeletionTime;
-import org.apache.cassandra.db.LivenessInfo;
 import org.apache.cassandra.db.Mutation;
 import org.apache.cassandra.db.commitlog.BufferingCommitLogReader;
 import org.apache.cassandra.db.commitlog.FourZeroPartitionUpdateWrapper;
@@ -74,9 +77,33 @@ import org.jetbrains.annotations.Nullable;
 
 public abstract class AbstractCdcBridgeImplementation extends CdcBridge
 {
+    private static final TableIdLookup INTERNAL_TABLE_ID_LOOKUP = new TableIdLookup()
+    {
+        @Nullable
+        public UUID lookup(String keyspace, String table) throws NoSuchElementException
+        {
+            TableMetadata tm = Schema.instance.getTableMetadata(keyspace, table);
+            if (tm == null)
+            {
+                throw new NoSuchElementException();
+            }
+            return tm.id.asUUID();
+        }
+    };
+
     public void log(CqlTable cqlTable, CommitLogInstance log, Row row, long timestamp)
     {
         log(TimeProvider.DEFAULT, cqlTable, log, row, timestamp);
+    }
+
+    public CommitLogInstance createCommitLogInstance(Path path)
+    {
+        return new FourZeroCommitLog(path);
+    }
+
+    public TableIdLookup internalTableIdLookup()
+    {
+        return INTERNAL_TABLE_ID_LOOKUP;
     }
 
     public void updateCdcSchema(@NotNull Set<CqlTable> cdcTables, @NotNull Partitioner partitioner, @NotNull TableIdLookup tableIdLookup)
@@ -100,7 +127,7 @@ public abstract class AbstractCdcBridgeImplementation extends CdcBridge
                                                                             partitionId,
                                                                             stats,
                                                                             executor,
-                                                                            null,
+                                                                            listener, // only for testing
                                                                             startTimestampMicros,
                                                                             readCommitLogHeader))
         {
@@ -139,7 +166,7 @@ public abstract class AbstractCdcBridgeImplementation extends CdcBridge
         final org.apache.cassandra.db.rows.Row.Builder rowBuilder = BTreeRow.sortedBuilder();
         if (row.isInsert())
         {
-            rowBuilder.addPrimaryKeyLivenessInfo(LivenessInfo.create(timestamp, timeProvider.nowInSeconds()));
+            rowBuilder.addPrimaryKeyLivenessInfo(DbUtils.livenessInfo(timestamp, timeProvider.nowInSeconds()));
         }
         org.apache.cassandra.db.rows.Row staticRow = Rows.EMPTY_STATIC_ROW;
 
@@ -154,7 +181,7 @@ public abstract class AbstractCdcBridgeImplementation extends CdcBridge
         // create a mutation and return early
         if (isPartitionDeletion(cqlTable, row))
         {
-            PartitionUpdate delete = PartitionUpdate.fullPartitionDelete(table, partitionKey, timestamp, timeProvider.nowInSeconds());
+            PartitionUpdate delete = DbUtils.fullPartitionDeletion(table, partitionKey, timestamp, timeProvider.nowInSeconds());
             return new Mutation(delete);
         }
 
@@ -189,7 +216,8 @@ public abstract class AbstractCdcBridgeImplementation extends CdcBridge
 
         if (row.isDeleted())
         {
-            rowBuilder.addRowDeletion(org.apache.cassandra.db.rows.Row.Deletion.regular(new DeletionTime(timestamp, timeProvider.nowInSeconds())));
+            rowBuilder.addRowDeletion(org.apache.cassandra.db.rows.Row.Deletion.regular(
+            DbUtils.deletionTime(timestamp, timeProvider.nowInSeconds())));
         }
         else
         {
@@ -260,9 +288,8 @@ public abstract class AbstractCdcBridgeImplementation extends CdcBridge
                                                  Row row)
     {
         final List<CqlField> clusteringKeys = cqlTable.clusteringKeys();
-        PartitionUpdate.SimpleBuilder pub = PartitionUpdate.simpleBuilder(table, decoratedPartitionKey)
-                                                           .timestamp(timestamp)
-                                                           .nowInSec(timeProvider.nowInSeconds());
+        PartitionUpdate.SimpleBuilder pub = DbUtils.partitionUpdateBuilderWithNow(table, decoratedPartitionKey, timeProvider.nowInSeconds())
+                                                   .timestamp(timestamp);
         for (RangeTombstoneData rt : row.rangeTombstones())
         {
             // range tombstone builder is built when partition update builder builds

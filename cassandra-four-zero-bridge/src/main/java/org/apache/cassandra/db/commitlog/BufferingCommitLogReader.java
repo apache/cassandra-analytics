@@ -551,7 +551,7 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
             {
                 return;
             }
-            logger.trace("Invalid mutation", ex); // we see many unknown table exception logs when we skip over mutations from other tables
+            logger.trace("Invalid mutation", "error", ex); // we see many unknown table exception logs when we skip over mutations from other tables
             stats.mutationsIgnoredUnknownTableCount(1);
 
             return;

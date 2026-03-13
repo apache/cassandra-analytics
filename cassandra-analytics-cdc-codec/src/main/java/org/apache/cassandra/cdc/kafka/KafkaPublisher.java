@@ -46,6 +46,7 @@ public class KafkaPublisher implements AutoCloseable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaPublisher.class);
 
+    protected CassandraVersion version;
     protected TopicSupplier topicSupplier;
     protected int maxRecordSizeBytes;
     protected final RecordProducer recordProducer;
@@ -62,7 +63,8 @@ public class KafkaPublisher implements AutoCloseable
     ThreadLocal.withInitial(HashMap::new);
     protected final KafkaStats kafkaStats;
 
-    public KafkaPublisher(TopicSupplier topicSupplier,
+    public KafkaPublisher(CassandraVersion version,
+                          TopicSupplier topicSupplier,
                           KafkaProducer<String, byte[]> producer,
                           Serializer<CdcEvent> serializer,
                           int maxRecordSizeBytes,
@@ -71,6 +73,7 @@ public class KafkaPublisher implements AutoCloseable
                           CdcLogMode logMode)
     {
         this(
+        version,
         topicSupplier,
         producer,
         serializer,
@@ -84,7 +87,8 @@ public class KafkaPublisher implements AutoCloseable
         );
     }
 
-    public KafkaPublisher(TopicSupplier topicSupplier,
+    public KafkaPublisher(CassandraVersion version,
+                          TopicSupplier topicSupplier,
                           KafkaProducer<String, byte[]> producer,
                           Serializer<CdcEvent> serializer,
                           int maxRecordSizeBytes,
@@ -95,6 +99,7 @@ public class KafkaPublisher implements AutoCloseable
                           RecordProducer recordProducer,
                           EventHasher eventHasher)
     {
+        this.version = version;
         this.topicSupplier = topicSupplier;
         this.maxRecordSizeBytes = maxRecordSizeBytes;
         this.failOnRecordTooLargeError = failOnRecordTooLargeError;
@@ -116,7 +121,7 @@ public class KafkaPublisher implements AutoCloseable
 
     public CassandraVersion version()
     {
-        return CassandraVersion.FOURZERO;
+        return version;
     }
 
     public Logger logger()

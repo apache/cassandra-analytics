@@ -19,7 +19,8 @@
 
 package org.apache.cassandra.cdc;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.CassandraTypes;
@@ -30,10 +31,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class TypeCacheTests
 {
-    @Test
-    public void testTypeCache()
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testTypeCache(CassandraVersion version)
     {
-        TypeCache typeCache = TypeCache.get(CassandraVersion.FOURZERO);
+        TypeCache typeCache = TypeCache.get(version);
         assertThat(typeCache.cqlTypeCache).isNull();
 
         CqlField.CqlType ksBigInt = typeCache.getType("ks", "bigint");

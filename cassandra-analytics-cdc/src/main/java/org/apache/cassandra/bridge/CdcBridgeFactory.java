@@ -24,7 +24,10 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.cassandra.cdc.avro.CqlToAvroSchemaConverter;
+import org.apache.cassandra.spark.utils.Throwing;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,14 +43,17 @@ public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
         public final CdcBridge cdcBridge;
         @Nullable
         final CqlToAvroSchemaConverter avroSchemaConverter;
+        final ClassLoader classLoader;
 
         public VersionSpecificBridge(CassandraBridge cassandraBridge,
                                      CdcBridge cdcBridge,
-                                     @Nullable CqlToAvroSchemaConverter avroSchemaConverter)
+                                     @Nullable CqlToAvroSchemaConverter avroSchemaConverter,
+                                     ClassLoader classLoader)
         {
             this.cassandraBridge = cassandraBridge;
             this.cdcBridge = cdcBridge;
             this.avroSchemaConverter = avroSchemaConverter;
+            this.classLoader = classLoader;
         }
     }
 
@@ -150,12 +156,36 @@ public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
             {
             }
 
-            return new VersionSpecificBridge(bridgeInstance, cdcBridgeInstance, cqlToAvroSchemaConverter);
+            return new VersionSpecificBridge(bridgeInstance, cdcBridgeInstance, cqlToAvroSchemaConverter, loader);
         }
         catch (ClassNotFoundException | NoSuchMethodException | InstantiationException
                | IllegalAccessException | InvocationTargetException exception)
         {
             throw new RuntimeException("Failed to create Cassandra bridge for label " + label, exception);
+        }
+    }
+
+    @VisibleForTesting
+    public static <T> T executeActionOnBridgeClassLoader(@NotNull CassandraVersion version, Throwing.Function<ClassLoader, T> action)
+    {
+        ClassLoader bridgeLoader = getVersionSpecificBridge(version).classLoader;
+        Thread currentThread = Thread.currentThread();
+        ClassLoader originalClassLoader = currentThread.getContextClassLoader();
+        try
+        {
+            currentThread.setContextClassLoader(bridgeLoader);
+            try
+            {
+                return action.apply(bridgeLoader);
+            }
+            catch (Exception e)
+            {
+                throw new RuntimeException("Failed to execute function on bridge classloader", e);
+            }
+        }
+        finally
+        {
+            currentThread.setContextClassLoader(originalClassLoader);
         }
     }
 }
