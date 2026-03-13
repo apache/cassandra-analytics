@@ -127,6 +127,7 @@ public class BulkSparkConf implements Serializable
     public final int commitThreadsPerInstance;
     public final double importCoordinatorTimeoutMultiplier;
     public boolean quoteIdentifiers;
+    public final boolean skipSecondaryIndexCheck;
     protected final String keystorePassword;
     protected final String keystorePath;
     protected final String keystoreBase64Encoded;
@@ -207,6 +208,7 @@ public class BulkSparkConf implements Serializable
         this.ttl = MapUtils.getOrDefault(options, WriterOptions.TTL.name(), null);
         this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
         this.quoteIdentifiers = MapUtils.getBoolean(options, WriterOptions.QUOTE_IDENTIFIERS.name(), false, "quote identifiers");
+        this.skipSecondaryIndexCheck = MapUtils.getBoolean(options, WriterOptions.SKIP_SECONDARY_INDEX_CHECK.name(), false, "skip secondary index check");
         int storageClientConcurrency = MapUtils.getInt(options, WriterOptions.STORAGE_CLIENT_CONCURRENCY.name(),
                                                        DEFAULT_STORAGE_CLIENT_CONCURRENCY, "storage client concurrency");
         long storageClientKeepAliveSeconds = MapUtils.getLong(options, WriterOptions.STORAGE_CLIENT_THREAD_KEEP_ALIVE_SECONDS.name(),

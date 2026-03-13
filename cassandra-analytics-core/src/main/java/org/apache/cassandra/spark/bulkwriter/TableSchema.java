@@ -69,7 +69,8 @@ public class TableSchema
                        TTLOption ttlOption,
                        TimestampOption timestampOption,
                        String lowestCassandraVersion,
-                       boolean quoteIdentifiers)
+                       boolean quoteIdentifiers,
+                       boolean skipSecondaryIndexCheck)
     {
         this.writeMode = writeMode;
         this.ttlOption = ttlOption;
@@ -79,7 +80,21 @@ public class TableSchema
         this.quoteIdentifiers = quoteIdentifiers;
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
-        validateNoSecondaryIndexes(tableInfo);
+        // If a table has indexes on it, some external process (application, DB, etc.) is responsible for rebuilding
+        // indexes on the table after the bulk write completes; cassandra does this as part of the SSTable import
+        // process today. 2i and SAI have different ergonomics here regarding if stale data is served during index build;
+        // ultimately we want the bulk writer to also write native SAI index files alongside sstables but until
+        // then, this is allowable and fine for users who Know What They're Doing.
+        if (!skipSecondaryIndexCheck)
+        {
+            validateNoSecondaryIndexes(tableInfo);
+        }
+        else if (tableInfo.hasSecondaryIndex())
+        {
+            LOGGER.warn("Bulk writing to tables with SecondaryIndexes will have an asynchronous index rebuild "
+                      + "take place automatically after writing. Reads against the index during this time "
+                      + "window will produce inconsistent or stale results until index rebuild is complete.");
+        }
         validateUserAddedColumns(lowestCassandraVersion, quoteIdentifiers, ttlOption, timestampOption);
 
         this.createStatement = getCreateStatement(tableInfo);
