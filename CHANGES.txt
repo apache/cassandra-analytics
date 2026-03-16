@@ -1,9 +1,11 @@
 0.4.0
 -----
+ * Fix ReadStatusTracker to distinguish clean completion from error termination in BufferingCommitLogReader (CASSANALYTICS-129)
  * Adding CDC support for Cassandra 5.0 Commit Logs (CASSANALYTICS-60)
  * Fixing CdcTests.testMockedCdc broken due to incorrect position update in BufferingCommitLogReader (CASSANALYTICS-127)
  * Commitlog reading not progressing in CDC due to incorrect CommitLogReader.isFullyRead (CASSANALYTICS-124)
  * Incorrect hash code calculation in PartitionUpdateWrapper.Digest (CASSANALYTICS-125)
+ * Add flag to allow bulk write to indexed tables (CASSANALYTICS-128)
  * Assign data file start offset based on BTI index (CASSANALYTICS-121)
  * Quote identifiers option must be set to true if ttl has mixed case column name (CASSANALYTICS-120)
 
