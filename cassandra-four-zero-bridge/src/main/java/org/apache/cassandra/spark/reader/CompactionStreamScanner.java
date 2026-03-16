@@ -28,6 +28,7 @@ import java.util.function.LongPredicate;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.primitives.Ints;
 
 import org.apache.cassandra.db.AbstractCompactionController;
 import org.apache.cassandra.db.ColumnFamilyStore;
@@ -117,7 +118,7 @@ public class CompactionStreamScanner extends AbstractStreamScanner
     @Override
     UnfilteredPartitionIterator initializePartitions()
     {
-        int nowInSec = timeProvider.referenceEpochInSeconds();
+        long nowInSec = timeProvider.referenceEpochInSeconds();
         Keyspace keyspace = Keyspace.openWithoutSSTables(metadata.keyspace);
         ColumnFamilyStore cfStore = keyspace.getColumnFamilyStore(metadata.name);
         controller = new PurgingCompactionController(cfStore, CompactionParams.TombstoneOption.NONE);
@@ -125,7 +126,8 @@ public class CompactionStreamScanner extends AbstractStreamScanner
                                                      .map(Scannable::scanner)
                                                      .collect(Collectors.toList());
         scanners = new AbstractCompactionStrategy.ScannerList(scannerList);
-        ci = new CompactionIterator(OperationType.COMPACTION, scanners.scanners, controller, nowInSec, taskId);
+        // C* 4.0 CompactionIterator requires int for nowInSec; checked cast will throw after Y2038
+        ci = new CompactionIterator(OperationType.COMPACTION, scanners.scanners, controller, Ints.checkedCast(nowInSec), taskId);
         return ci;
     }
 

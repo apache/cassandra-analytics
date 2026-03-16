@@ -281,14 +281,14 @@ public final class CdcEventUtils
         return ttlRecord;
     }
 
-    public static Map<String, Integer> getTTL(CdcEvent event)
+    public static Map<String, Long> getTTL(CdcEvent event)
     {
         CdcEvent.TimeToLive ttl = event.getTtl();
         if (ttl == null)
         {
             return null;
         }
-        return mapOf(AvroConstants.TTL_KEY, ttl.ttlInSec, AvroConstants.DELETED_AT_KEY, ttl.expirationTimeInSec);
+        return mapOf(AvroConstants.TTL_KEY, (long) ttl.ttlInSec, AvroConstants.DELETED_AT_KEY, ttl.expirationTimeInSec);
     }
 
     public static UpdatedEvent getUpdatedEvent(CdcEvent event,

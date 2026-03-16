@@ -31,11 +31,13 @@ public abstract class CqlType extends AbstractCqlType
 {
     public static BufferCell tombstone(ColumnMetadata column, long timestamp, long nowInSec, CellPath path)
     {
+        // C* 4.0 BufferCell.tombstone requires int for nowInSec; checked cast will throw after Y2038
         return BufferCell.tombstone(column, timestamp, Ints.checkedCast(nowInSec), path);
     }
 
     public static BufferCell expiring(ColumnMetadata column, long timestamp, int ttl, long nowInSec, ByteBuffer value, CellPath path)
     {
+        // C* 4.0 BufferCell.expiring requires int for nowInSec; checked cast will throw after Y2038
         return BufferCell.expiring(column, timestamp, ttl, Ints.checkedCast(nowInSec), value, path);
     }
 }

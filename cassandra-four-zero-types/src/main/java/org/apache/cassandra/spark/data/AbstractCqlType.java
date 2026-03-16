@@ -138,7 +138,7 @@ public abstract class AbstractCqlType implements CqlField.CqlType
                         ColumnMetadata cd,
                         long timestamp,
                         int ttl,
-                        int now,
+                        long now,
                         Object value)
     {
         addCell(rowBuilder, cd, timestamp, ttl, now, value, null);
@@ -149,7 +149,7 @@ public abstract class AbstractCqlType implements CqlField.CqlType
                         ColumnMetadata cd,
                         long timestamp,
                         int ttl,
-                        int now,
+                        long now,
                         Object value,
                         CellPath cellPath)
     {
@@ -199,6 +199,7 @@ public abstract class AbstractCqlType implements CqlField.CqlType
                                     long deletionTime)
     {
         Preconditions.checkArgument(cd.isComplex(), "The method only works with complex columns");
+        // C* 4.0 DeletionTime constructor requires int for localDeletionTime
         rowBuilder.addComplexDeletion(cd, new DeletionTime(deletionTime, (int) TimeUnit.MICROSECONDS.toSeconds(deletionTime)));
     }
 }

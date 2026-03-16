@@ -101,7 +101,7 @@ public class JsonSerializerTests
         assertThat(root.has(AvroConstants.TTL_KEY)).isTrue();
         JsonNode ttl = root.get(AvroConstants.TTL_KEY);
         assertThat(ttl.get(AvroConstants.TTL_KEY).asInt()).isEqualTo(10);
-        assertThat(ttl.get(AvroConstants.DELETED_AT_KEY).asInt()).isEqualTo(1658269);
+        assertThat(ttl.get(AvroConstants.DELETED_AT_KEY).asLong()).isEqualTo(1658269);
     }
 
     @Test
@@ -137,5 +137,30 @@ public class JsonSerializerTests
         base64Str = payload.get("c").asText();
         InetAddress address = InetAddress.getByAddress(Base64.getDecoder().decode(base64Str));
         assertThat(address).isEqualTo(InetAddress.getByName("127.0.0.1"));
+    }
+
+    @Test
+    public void testJsonSerializerWithLongExpirationTime() throws IOException
+    {
+        long expirationTimePastIntMax = 2_147_483_648L;
+        CdcEventBuilder eventBuilder = CdcEventBuilder.of(CdcEvent.Kind.INSERT, TEST_KS, TEST_TBL_BASIC);
+        eventBuilder.setPartitionKeys(listOf(Value.of(TEST_KS, "a", "int", TYPES.aInt().serialize(1))));
+        eventBuilder.setValueColumns(listOf(
+        Value.of(TEST_KS, "b", "int", TYPES.aInt().serialize(2))
+        ));
+        eventBuilder.setMaxTimestampMicros(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
+        eventBuilder.setTimeToLive(new CdcEvent.TimeToLive(10, expirationTimePastIntMax));
+
+        byte[] ar;
+        try (JsonSerializer serializer = new JsonSerializer(TYPE_LOOKUP))
+        {
+            ar = serializer.serialize("topic", eventBuilder.build());
+        }
+        assertThat(ar).isNotNull();
+
+        JsonNode root = MAPPER.readTree(ar);
+        JsonNode ttl = root.get(AvroConstants.TTL_KEY);
+        assertThat(ttl.get(AvroConstants.TTL_KEY).asInt()).isEqualTo(10);
+        assertThat(ttl.get(AvroConstants.DELETED_AT_KEY).asLong()).isEqualTo(expirationTimePastIntMax);
     }
 }

@@ -25,7 +25,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import com.google.common.util.concurrent.Uninterruptibles;
@@ -73,7 +73,7 @@ public class SSTableReaderTests
                                                          int rows,
                                                          int expectedValues)
     {
-        AtomicInteger referenceEpoch = new AtomicInteger(0);
+        AtomicLong referenceEpoch = new AtomicLong(0);
         TimeProvider navigatableTimeProvider = referenceEpoch::get;
 
         Set<Integer> expectedColValue = new HashSet<>(Arrays.asList(1, 2, 3));
@@ -90,7 +90,7 @@ public class SSTableReaderTests
                 }
                 Uninterruptibles.sleepUninterruptibly(1, TimeUnit.SECONDS);
             });
-            int t1 = navigatableTimeProvider.nowInSeconds();
+            long t1 = navigatableTimeProvider.nowInSeconds();
             assertThat(countSSTables(dir)).isEqualTo(1);
 
             // open CompactionStreamScanner over SSTables

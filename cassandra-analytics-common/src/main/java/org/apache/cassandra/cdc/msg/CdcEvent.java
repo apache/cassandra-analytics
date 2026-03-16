@@ -50,9 +50,9 @@ public class CdcEvent
     public static class TimeToLive
     {
         public final int ttlInSec;
-        public final int expirationTimeInSec;
+        public final long expirationTimeInSec;
 
-        public TimeToLive(int ttlInSec, int expirationTimeInSec)
+        public TimeToLive(int ttlInSec, long expirationTimeInSec)
         {
             this.ttlInSec = ttlInSec;
             this.expirationTimeInSec = expirationTimeInSec;

@@ -31,7 +31,7 @@ public class DbUtils
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    public static DeletionTime deletionTime(long markedForDeleteAt, int localDeletionTime)
+    public static DeletionTime deletionTime(long markedForDeleteAt, long localDeletionTime)
     {
         return DeletionTime.build(markedForDeleteAt, localDeletionTime);
     }

@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import com.google.common.primitives.Ints;
+
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
@@ -120,14 +122,15 @@ public class CqlMap extends CqlCollection implements CqlField.CqlMap
                         ColumnMetadata cd,
                         long timestamp,
                         int ttl,
-                        int now,
+                        long now,
                         Object value)
     {
         for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet())
         {
             if (ttl != NO_TTL)
             {
-                rowBuilder.addCell(BufferCell.expiring(cd, timestamp, ttl, now, valueType().serialize(entry.getValue()),
+                // C* 4.0 BufferCell.expiring requires int for now; checked cast will throw after Y2038
+                rowBuilder.addCell(BufferCell.expiring(cd, timestamp, ttl, Ints.checkedCast(now), valueType().serialize(entry.getValue()),
                                                        CellPath.create(keyType().serialize(entry.getKey()))));
             }
             else

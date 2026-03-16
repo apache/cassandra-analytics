@@ -187,7 +187,7 @@ public final class SSTableTombstoneWriter implements Closeable
                                                        ClientState.forInternalCalls(),
                                                        options,
                                                        delete.getTimestamp(TimeUnit.MILLISECONDS.toMicros(now), options),
-                                                       (int) TimeUnit.MILLISECONDS.toSeconds(now),
+                                                       TimeUnit.MILLISECONDS.toSeconds(now),
                                                        delete.getTimeToLive(options),
                                                        Collections.emptyMap());
 
