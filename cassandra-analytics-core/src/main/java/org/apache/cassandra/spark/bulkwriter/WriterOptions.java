@@ -132,4 +132,12 @@ public enum WriterOptions implements WriterOption
      * - a failure otherwise
      */
     JOB_TIMEOUT_SECONDS,
+    /**
+     * Option to bypass the secondary index validation check during bulk write job setup.
+     * By default, bulk writes to tables with secondary indexes are rejected.
+     * Setting this option to {@code true} allows bulk writes to proceed on tables that have secondary indexes,
+     * with the understanding that the secondary indexes will NOT be updated by the bulk write and must be
+     * rebuilt separately after the job completes.
+     */
+    SKIP_SECONDARY_INDEX_CHECK,
 }

@@ -207,6 +207,8 @@ public final class TableSchemaTestCommon
         private TTLOption ttlOption = TTLOption.forever();
         private TimestampOption timestampOption = TimestampOption.now();
         private boolean quoteIdentifiers = false;
+        private boolean skipSecondaryIndexCheck = false;
+        private boolean hasSecondaryIndex = false;
 
         public MockTableSchemaBuilder(CassandraBridge bridge)
         {
@@ -286,6 +288,18 @@ public final class TableSchemaTestCommon
             return this;
         }
 
+        public MockTableSchemaBuilder withSkipSecondaryIndexCheck()
+        {
+            this.skipSecondaryIndexCheck = true;
+            return this;
+        }
+
+        public MockTableSchemaBuilder withHasSecondaryIndex()
+        {
+            this.hasSecondaryIndex = true;
+            return this;
+        }
+
         private ImmutableMap<String, CqlField.CqlType> addColumnToCqlColumns(ImmutableMap<String, CqlField.CqlType> currentColumns,
                                                                              String columnName,
                                                                              String cqlType)
@@ -331,8 +345,16 @@ public final class TableSchemaTestCommon
                                                                                 partitionKeyColumnTypes,
                                                                                 primaryKeyColumnNames,
                                                                                 cassandraVersion,
-                                                                                quoteIdentifiers);
-            return new TableSchema(dataFrameSchema, tableInfoProvider, writeMode, ttlOption, timestampOption, cassandraVersion, quoteIdentifiers);
+                                                                                quoteIdentifiers,
+                                                                                hasSecondaryIndex);
+            return new TableSchema(dataFrameSchema,
+                                   tableInfoProvider,
+                                   writeMode,
+                                   ttlOption,
+                                   timestampOption,
+                                   cassandraVersion,
+                                   quoteIdentifiers,
+                                   skipSecondaryIndexCheck);
         }
     }
 
@@ -349,6 +371,7 @@ public final class TableSchemaTestCommon
         Map<String, CqlField.CqlType> columns;
         private final String cassandraVersion;
         private final boolean quoteIdentifiers;
+        private final boolean hasSecondaryIndex;
 
         public MockTableInfoProvider(CassandraBridge bridge,
                                      ImmutableMap<String, CqlField.CqlType> cqlColumns,
@@ -358,6 +381,18 @@ public final class TableSchemaTestCommon
                                      String cassandraVersion,
                                      boolean quoteIdentifiers)
         {
+            this(bridge, cqlColumns, partitionKeyColumns, partitionKeyColumnTypes, primaryKeyColumnNames, cassandraVersion, quoteIdentifiers, false);
+        }
+
+        public MockTableInfoProvider(CassandraBridge bridge,
+                                     ImmutableMap<String, CqlField.CqlType> cqlColumns,
+                                     String[] partitionKeyColumns,
+                                     ColumnType[] partitionKeyColumnTypes,
+                                     String[] primaryKeyColumnNames,
+                                     String cassandraVersion,
+                                     boolean quoteIdentifiers,
+                                     boolean hasSecondaryIndex)
+        {
             this.bridge = bridge;
             this.cqlColumns = cqlColumns;
             this.partitionKeyColumns = partitionKeyColumns;
@@ -366,6 +401,7 @@ public final class TableSchemaTestCommon
             columns = cqlColumns;
             this.cassandraVersion = cassandraVersion.replaceAll("(\\w+-)*cassandra-", "");
             this.quoteIdentifiers = quoteIdentifiers;
+            this.hasSecondaryIndex = hasSecondaryIndex;
             this.uniqueTableName = TEST_TABLE_PREFIX + TEST_TABLE_ID.getAndIncrement();
         }
 
@@ -455,7 +491,7 @@ public final class TableSchemaTestCommon
         @Override
         public boolean hasSecondaryIndex()
         {
-            return false;
+            return hasSecondaryIndex;
         }
 
         @Override

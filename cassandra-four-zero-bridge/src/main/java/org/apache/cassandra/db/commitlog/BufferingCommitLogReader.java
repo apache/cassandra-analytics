@@ -316,6 +316,14 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
                     break;
                 }
             }
+
+            // If the segment is flagged complete in the index but no end-of-segment marker was
+            // encountered, advance position to maxOffset so isFullyRead() returns true and CDC
+            // can move on to the next commit log.
+            if (log.completed() && statusTracker.noErrors())
+            {
+                this.position = (int) log.maxOffset();
+            }
         }
         // Unfortunately CommitLogSegmentReader.SegmentIterator (for-loop) cannot throw a checked exception,
         // so we check to see if a RuntimeException is wrapping an IOException.
@@ -425,7 +433,7 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
                 if (end - reader.getFilePointer() < 4)
                 {
                     logger.trace("Not enough bytes left for another mutation in this CommitLog section, continuing");
-                    statusTracker.requestTermination();
+                    statusTracker.markCleanCompletion();
                     return;
                 }
 
@@ -437,7 +445,7 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
                     // Mark the log as fully consumed so isFullyRead() returns true.
                     // The guard above ensures this is not overridden after readSection returns.
                     this.position = (int) log.maxOffset();
-                    statusTracker.requestTermination();
+                    statusTracker.markCleanCompletion();
                     return;
                 }
 
@@ -673,10 +681,12 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
         public String errorContext = "";
         public boolean tolerateErrorsInSection;
         private boolean error;
+        private boolean cleanCompletion;
 
         private ReadStatusTracker(int mutationLimit, boolean tolerateErrorsInSection)
         {
             this.error = false;
+            this.cleanCompletion = false;
             this.mutationsLeft = mutationLimit;
             this.tolerateErrorsInSection = tolerateErrorsInSection;
         }
@@ -692,12 +702,22 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
 
         public boolean shouldContinue()
         {
-            return !error && mutationsLeft != 0;
+            return !error && !cleanCompletion && mutationsLeft != 0;
+        }
+
+        public boolean noErrors()
+        {
+            return !error;
         }
 
         public void requestTermination()
         {
             error = true;
+        }
+
+        public void markCleanCompletion()
+        {
+            cleanCompletion = true;
         }
     }
 
