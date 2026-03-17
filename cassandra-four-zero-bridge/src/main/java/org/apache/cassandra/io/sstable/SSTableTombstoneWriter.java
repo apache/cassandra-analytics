@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.primitives.Ints;
 
 import org.apache.cassandra.bridge.CassandraSchema;
 import org.apache.cassandra.config.DatabaseDescriptor;
@@ -185,7 +186,7 @@ public final class SSTableTombstoneWriter implements Closeable
                                                        delete.updatedColumns(),
                                                        options,
                                                        delete.getTimestamp(TimeUnit.MILLISECONDS.toMicros(now), options),
-                                                       (int) TimeUnit.MILLISECONDS.toSeconds(now),
+                                                       Ints.checkedCast(TimeUnit.MILLISECONDS.toSeconds(now)),
                                                        delete.getTimeToLive(options),
                                                        Collections.emptyMap());
 

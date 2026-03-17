@@ -24,8 +24,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.google.common.primitives.Ints;
-
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.DataType;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
@@ -113,9 +111,8 @@ public class CqlSet extends CqlList implements CqlField.CqlSet
         {
             if (ttl != NO_TTL)
             {
-                // C* 4.0 BufferCell.expiring requires int for now; checked cast will throw after Y2038
-                rowBuilder.addCell(BufferCell.expiring(cd, timestamp, ttl, Ints.checkedCast(now), ByteBufferUtil.EMPTY_BYTE_BUFFER,
-                                                       CellPath.create(type().serialize(o))));
+                rowBuilder.addCell(CqlType.expiring(cd, timestamp, ttl, now, ByteBufferUtil.EMPTY_BYTE_BUFFER,
+                                                    CellPath.create(type().serialize(o))));
             }
             else
             {

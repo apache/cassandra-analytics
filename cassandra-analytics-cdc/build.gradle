@@ -89,6 +89,9 @@ dependencies {
     implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jacksonVersion}"
 
     testImplementation project(":cassandra-analytics-common")
+    testImplementation project(":cassandra-analytics-cdc-codec")
+    testImplementation "org.apache.avro:avro:${avroVersion}"
+    testImplementation "org.apache.kafka:kafka-clients:${kafkaClientVersion}"
 
     // pull in cassandra-bridge so we can re-use TestSchema to generate arbitrary schemas for the cdc tests
     testImplementation project(":cassandra-bridge")
