@@ -66,19 +66,9 @@ commands:
             INTEGRATION_MAX_HEAP_SIZE: "1500M"
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
-            # Override test JVM settings to fit within CI memory (8GB large resource class)
-            cat > /tmp/ci-test-settings.gradle \<< 'EOF'
-            allprojects {
-                afterEvaluate {
-                    tasks.withType(Test).configureEach {
-                        maxHeapSize = '1536m'
-                        minHeapSize = '512m'
-                        maxParallelForks = Math.min(maxParallelForks, Math.max(Runtime.runtime.availableProcessors(), 2))
-                    }
-                }
-            }
-            EOF
-            ./gradlew --stacktrace --init-script /tmp/ci-test-settings.gradle clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=<<parameters.sstable_format>>
+            export GRADLE_OPTS="-Xmx2g -Dorg.gradle.jvmargs=-Xmx2g"
+            # Run compile/unit tests, skipping integration tests
+            ./gradlew --no-daemon --max-workers=2 --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=<<parameters.sstable_format>>
 
   run_integration:
     parameters:
@@ -104,10 +94,11 @@ commands:
             INTEGRATION_MAX_HEAP_SIZE: "2500M"
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
+            export GRADLE_OPTS="-Xmx2g -Dorg.gradle.jvmargs=-Xmx2g"
             export DTEST_JAR="dtest-<< parameters.cassandra >>.jar"
             export CASSANDRA_VERSION=$(echo << parameters.cassandra >> | cut -d'.' -f 1,2)
             # Run compile but not unit tests (which are run in run_build)
-            ./gradlew --stacktrace clean assemble
+            ./gradlew --no-daemon --max-workers=2 --stacktrace clean assemble
             # Run integration tests in parallel
             cd cassandra-analytics-integration-tests/src/test/java
             # Get list of classnames of tests that should run on this node
@@ -143,7 +134,7 @@ jobs:
           name: Build dependencies for jdk11 builds
           command: |
             CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
-            ./gradlew codeCheckTasks
+            ./gradlew --no-daemon --max-workers=2 codeCheckTasks
       - persist_to_workspace:
           root: dependencies
           paths:
