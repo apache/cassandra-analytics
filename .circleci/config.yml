@@ -66,8 +66,19 @@ commands:
             INTEGRATION_MAX_HEAP_SIZE: "1500M"
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
-            # Run compile/unit tests, skipping integration tests
-            ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=<<parameters.sstable_format>>
+            # Override test JVM settings to fit within CI memory (8GB large resource class)
+            cat > /tmp/ci-test-settings.gradle \<< 'EOF'
+            allprojects {
+                afterEvaluate {
+                    tasks.withType(Test).configureEach {
+                        maxHeapSize = '1536m'
+                        minHeapSize = '512m'
+                        maxParallelForks = Math.min(maxParallelForks, Math.max(Runtime.runtime.availableProcessors(), 2))
+                    }
+                }
+            }
+            EOF
+            ./gradlew --stacktrace --init-script /tmp/ci-test-settings.gradle clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=<<parameters.sstable_format>>
 
   run_integration:
     parameters:
