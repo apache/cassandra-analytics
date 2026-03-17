@@ -1,6 +1,7 @@
 0.4.0
 -----
  * Fix year 2038 problem using long for absolute times and support C* 5.0 extended localDeletionTime
+ * Flush event consumer before persisting CDC state to prevent data loss on failure (CASSANALYTICS-126)
  * Fix ReadStatusTracker to distinguish clean completion from error termination in BufferingCommitLogReader (CASSANALYTICS-129)
  * Adding CDC support for Cassandra 5.0 Commit Logs (CASSANALYTICS-60)
  * Fixing CdcTests.testMockedCdc broken due to incorrect position update in BufferingCommitLogReader (CASSANALYTICS-127)

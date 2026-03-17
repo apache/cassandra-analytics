@@ -25,4 +25,17 @@ import org.apache.cassandra.cdc.msg.CdcEvent;
 
 public interface EventConsumer extends Consumer<CdcEvent>
 {
+    /**
+     * Flush any pending events to the transport layer.
+     * Called after each micro-batch and before CDC state is persisted, to ensure
+     * all events have been durably delivered before the commit-log position advances.
+     * If delivery fails, implementations must throw so that state is NOT persisted
+     * and the micro-batch will be retried on the next run.
+     *
+     * @throws InterruptedException if the calling thread is interrupted while flushing
+     */
+    default void flush() throws InterruptedException
+    {
+        // no-op by default
+    }
 }
