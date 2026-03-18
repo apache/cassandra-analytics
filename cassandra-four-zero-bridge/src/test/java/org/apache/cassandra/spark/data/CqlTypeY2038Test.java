@@ -24,7 +24,6 @@ import java.nio.ByteBuffer;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.db.rows.BufferCell;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.TableMetadata;
@@ -40,7 +39,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 class CqlTypeY2038Test
 {
-    private static final CassandraBridgeImplementation BRIDGE = new CassandraBridgeImplementation();
     private static final int MAX_TTL_SECONDS = 20 * 365 * 24 * 60 * 60;  // 20 years, Cassandra's max allowed TTL
     private static final long NOW_IN_SEC_AT_BOUNDARY = Integer.MAX_VALUE - (long) MAX_TTL_SECONDS;  // last nowInSec where max TTL fits in int
     private static final long EXCEEDS_INT_RANGE = Integer.MAX_VALUE + 1L;

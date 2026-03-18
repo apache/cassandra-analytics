@@ -218,7 +218,8 @@ test {
     systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
     minHeapSize = '1024m'
     maxHeapSize = '3072m'
-    maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
+    maxParallelForks = System.getenv('CORE_MAX_PARALLEL_FORKS')?.toInteger()
+                       ?: Math.max(Runtime.runtime.availableProcessors() * 2, 8)
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in

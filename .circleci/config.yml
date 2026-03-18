@@ -64,6 +64,7 @@ commands:
             JDK_VERSION: "<<parameters.jdk>>"
             INTEGRATION_MAX_PARALLEL_FORKS: 1
             INTEGRATION_MAX_HEAP_SIZE: "1500M"
+            CORE_MAX_PARALLEL_FORKS: 2
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
             export GRADLE_OPTS="-Xmx2g -Dorg.gradle.jvmargs=-Xmx2g"
