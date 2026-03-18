@@ -38,7 +38,7 @@ public final class AvroConstants
     public static final String FIELD_KEY = "field";
     public static final String VALUE_KEY = "value";
 
-    public static final String CURRENT_VERSION = "3";
+    public static final String CURRENT_VERSION = "2";
     public static final String ARRAY_BASED_MAP_KEY_NAME = "key";
     public static final String ARRAY_BASED_MAP_VALUE_NAME = "value";
     public static final String ARRAY_BASED_MAP_NAME = "array_map";
