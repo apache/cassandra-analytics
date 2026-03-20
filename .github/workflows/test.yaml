@@ -79,6 +79,10 @@ jobs:
     strategy:
       matrix:
         scala: [ '2.12', '2.13' ]
+        sstable-format: [ 'big', 'bti' ]
+        exclude:
+          - scala: "2.12"
+            sstable-format: "bti"
       fail-fast: false
     steps:
       - name: Setup JDK
@@ -112,7 +116,7 @@ jobs:
           export INTEGRATION_MAX_HEAP_SIZE="1500M"
           export CASSANDRA_USE_JDK11=true
           
-          ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test
+          ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=${{ matrix.sstable-format }}
 
   integration-test:
     name: Integration test
