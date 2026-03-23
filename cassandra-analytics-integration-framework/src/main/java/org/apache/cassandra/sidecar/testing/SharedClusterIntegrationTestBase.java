@@ -217,10 +217,8 @@ public abstract class SharedClusterIntegrationTestBase
             }
             catch (RuntimeException rte)
             {
-                boolean addressAlreadyInUse = rte.getMessage() != null &&
-                        (rte.getMessage().contains("Address already in use") ||
-                         rte.getMessage().contains("is in use by another"));
-                if (addressAlreadyInUse)
+                if (rte.getMessage() != null && (rte.getMessage().contains("Address already in use") ||
+                                                 rte.getMessage().contains("is in use by another")))
                 {
                     logger.warn("Failed to provision cluster after {} retries", retry, rte);
                 }
