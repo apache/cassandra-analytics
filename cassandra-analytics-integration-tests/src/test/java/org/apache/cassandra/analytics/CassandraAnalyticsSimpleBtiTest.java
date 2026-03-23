@@ -22,7 +22,12 @@ package org.apache.cassandra.analytics;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
+import org.apache.cassandra.testing.TestUtils;
+
+import static org.assertj.core.api.Assumptions.assumeThat;
+
 
 /**
  * A simple test that runs a sample read/write Cassandra Analytics job using BTI format SSTable.
@@ -31,8 +36,18 @@ class CassandraAnalyticsSimpleBtiTest extends CassandraAnalyticsSimpleTest
 {
     static
     {
-        System.setProperty("spark.cassandra_analytics.cassandra.version", "5.0.0");
         System.setProperty("cassandra.analytics.bridges.sstable_format", "bti");
+    }
+
+    @Override
+    protected void beforeClusterProvisioning()
+    {
+        String version = TestUtils.getDTestClusterVersion().getValue();
+        assumeThat(CassandraVersion.fromVersion(version)
+                                   .orElseThrow()
+                                   .supportedSSTableFormats())
+        .as("BTI SSTable format is not supported in %s", version)
+        .contains("bti");
     }
 
     @Override
