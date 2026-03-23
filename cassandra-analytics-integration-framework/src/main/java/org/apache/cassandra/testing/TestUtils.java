@@ -24,6 +24,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.google.common.collect.ImmutableMap;
 
+import com.vdurmont.semver4j.Semver;
+import org.apache.cassandra.distributed.shared.Versions;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 
 /**
@@ -129,5 +131,15 @@ public final class TestUtils
         System.setProperty("cassandra.allow_alter_rf_during_range_movement", "true");
 
         System.setProperty("cassandra.minimum_replication_factor", "1");
+    }
+
+    /**
+     * Utility method to know Cassandra cluster version before it is being initialized.
+     */
+    public static Semver getDTestClusterVersion()
+    {
+        Versions versions = Versions.find();
+        TestVersion testVersion = TestVersionSupplier.testVersions().findFirst().orElseThrow();
+        return versions.getLatest(new Semver(testVersion.version(), Semver.SemverType.LOOSE)).version;
     }
 }
