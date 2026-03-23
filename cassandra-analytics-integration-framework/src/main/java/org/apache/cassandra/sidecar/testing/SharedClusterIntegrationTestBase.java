@@ -20,7 +20,7 @@
 package org.apache.cassandra.sidecar.testing;
 
 import java.io.IOException;
-import java.net.BindException;
+
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -78,7 +78,7 @@ import org.apache.cassandra.sidecar.common.server.utils.DriverUtils;
 import org.apache.cassandra.sidecar.common.server.utils.MillisecondBoundConfiguration;
 import org.apache.cassandra.sidecar.common.server.utils.SecondBoundConfiguration;
 import org.apache.cassandra.sidecar.common.server.utils.SidecarVersionProvider;
-import org.apache.cassandra.sidecar.common.server.utils.ThrowableUtils;
+
 import org.apache.cassandra.sidecar.config.ClusterLeaseClaimConfiguration;
 import org.apache.cassandra.sidecar.config.JmxConfiguration;
 import org.apache.cassandra.sidecar.config.KeyStoreConfiguration;
@@ -210,18 +210,23 @@ public abstract class SharedClusterIntegrationTestBase
             {
                 return classLoaderWrapper.loadCluster(testVersion.version(), testClusterConfiguration());
             }
-            catch (RuntimeException runtimeException)
+            catch (RuntimeException rte)
             {
-                boolean addressAlreadyInUse = ThrowableUtils.getCause(runtimeException, ex -> ex instanceof BindException &&
-                                                                                              ex.getMessage() != null &&
-                                                                                              ex.getMessage().contains("Address already in use")) != null;
+                /** The following is brittle in the face of changes to:
+                 * {@link org.apache.cassandra.net.InboundConnectionInitiator#bind}. The following is a couple
+                 * permutations we've had over time; this may need to be updated if upstream changes and we start
+                 * seeing startup ip:port collisions during tests.
+                 */
+                boolean addressAlreadyInUse = rte.getMessage() != null &&
+                        (rte.getMessage().contains("Address already in use") ||
+                         rte.getMessage().contains("is in use by another"));
                 if (addressAlreadyInUse)
                 {
-                    logger.warn("Failed to provision cluster after {} retries", retry, runtimeException);
+                    logger.warn("Failed to provision cluster after {} retries", retry, rte);
                 }
                 else
                 {
-                    throw runtimeException;
+                    throw rte;
                 }
             }
         }
