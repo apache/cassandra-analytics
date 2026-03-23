@@ -54,7 +54,7 @@ public final class TestUtils
      * read repairs.
      */
     public static final String CREATE_TEST_TABLE_STATEMENT =
-    "CREATE TABLE IF NOT EXISTS %s (id int, course text, marks int, PRIMARY KEY (id)) WITH read_repair='NONE';";
+    "CREATE TABLE IF NOT EXISTS %s (id int, course text, marks int, PRIMARY KEY (id, course)) WITH read_repair='NONE';";
 
     private TestUtils()
     {
