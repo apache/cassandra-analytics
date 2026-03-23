@@ -199,6 +199,11 @@ public abstract class SharedClusterIntegrationTestBase
      * Provisions a cluster with the provided {@link TestVersion}. Up to {@link #MAX_CLUSTER_PROVISION_RETRIES}
      * attempts will be made to provision a cluster when it fails to provision.
      *
+     * The exception handling and check for retry logic is brittle; it relies on
+     * {@link org.apache.cassandra.net.InboundConnectionInitiator#bind}. The following is a couple
+     * permutations we've had over time; this may need to be updated if upstream changes, and we start
+     * seeing startup ip:port collisions and retry failures again during tests.
+     *
      * @param testVersion the version for the test
      * @return the provisioned cluster
      */
@@ -206,19 +211,12 @@ public abstract class SharedClusterIntegrationTestBase
     {
         for (int retry = 0; retry < MAX_CLUSTER_PROVISION_RETRIES; retry++)
         {
-            // javadoc for navigation to the dependency so maintainers can trace the string coupling
-            //noinspection DanglingJavadoc
             try
             {
                 return classLoaderWrapper.loadCluster(testVersion.version(), testClusterConfiguration());
             }
             catch (RuntimeException rte)
             {
-                /** The following is brittle in the face of changes to:
-                 * {@link org.apache.cassandra.net.InboundConnectionInitiator#bind}. The following is a couple
-                 * permutations we've had over time; this may need to be updated if upstream changes and we start
-                 * seeing startup ip:port collisions during tests.
-                 */
                 boolean addressAlreadyInUse = rte.getMessage() != null &&
                         (rte.getMessage().contains("Address already in use") ||
                          rte.getMessage().contains("is in use by another"));
