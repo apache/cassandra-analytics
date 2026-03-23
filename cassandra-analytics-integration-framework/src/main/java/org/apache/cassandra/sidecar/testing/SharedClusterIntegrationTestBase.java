@@ -206,6 +206,8 @@ public abstract class SharedClusterIntegrationTestBase
     {
         for (int retry = 0; retry < MAX_CLUSTER_PROVISION_RETRIES; retry++)
         {
+            // javadoc for navigation to the dependency so maintainers can trace the string coupling
+            //noinspection DanglingJavadoc
             try
             {
                 return classLoaderWrapper.loadCluster(testVersion.version(), testClusterConfiguration());
