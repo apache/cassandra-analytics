@@ -59,6 +59,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class BulkWriteComplexTypeTtlTest extends SharedClusterSparkIntegrationTestBase
 {
     static final int ROW_COUNT = 100;
+    static final int TTL_SECONDS = 5;
 
     static final QualifiedName LIST_TTL_TABLE = new QualifiedName(TEST_KEYSPACE, "test_list_ttl");
     static final QualifiedName SET_TTL_TABLE = new QualifiedName(TEST_KEYSPACE, "test_set_ttl");
@@ -68,9 +69,36 @@ class BulkWriteComplexTypeTtlTest extends SharedClusterSparkIntegrationTestBase
     static final String SIMPLE_UDT_NAME = "simple_udt";
 
     @Test
-    void testListWithTtl()
+    void testComplexTypesWithTtl()
     {
         SparkSession spark = getOrCreateSparkSession();
+
+        // Write all complex types with TTL
+        writeListData(spark);
+        writeSetData(spark);
+        writeMapData(spark);
+        writeUdtData(spark);
+
+        // Wait for TTL to expire (TTL + 1 second margin)
+        Uninterruptibles.sleepUninterruptibly(TTL_SECONDS + 1, TimeUnit.SECONDS);
+
+        // Verify all types have expired
+        assertThat(bulkReaderDataFrame(LIST_TTL_TABLE).load().collectAsList())
+            .as("list TTL post-expiry")
+            .isEmpty();
+        assertThat(bulkReaderDataFrame(SET_TTL_TABLE).load().collectAsList())
+            .as("set TTL post-expiry")
+            .isEmpty();
+        assertThat(bulkReaderDataFrame(MAP_TTL_TABLE).load().collectAsList())
+            .as("map TTL post-expiry")
+            .isEmpty();
+        assertThat(bulkReaderDataFrame(UDT_TTL_TABLE).load().collectAsList())
+            .as("UDT TTL post-expiry")
+            .isEmpty();
+    }
+
+    private void writeListData(SparkSession spark)
+    {
         StructType schema = new StructType()
                             .add("id", IntegerType, false)
                             .add("listdata", createArrayType(IntegerType), false);
@@ -80,21 +108,12 @@ class BulkWriteComplexTypeTtlTest extends SharedClusterSparkIntegrationTestBase
                                   .collect(Collectors.toList());
         Dataset<Row> df = spark.createDataFrame(rows, schema);
 
-        bulkWriterDataFrameWriter(df, LIST_TTL_TABLE).option(WriterOptions.TTL.name(), TTLOption.constant(80))
+        bulkWriterDataFrameWriter(df, LIST_TTL_TABLE).option(WriterOptions.TTL.name(), TTLOption.constant(TTL_SECONDS))
                                                      .save();
-
-        Dataset<Row> preExpiry = bulkReaderDataFrame(LIST_TTL_TABLE).load();
-        assertThat(preExpiry.collectAsList()).hasSize(ROW_COUNT);
-
-        Uninterruptibles.sleepUninterruptibly(80, TimeUnit.SECONDS);
-        Dataset<Row> postExpiry = bulkReaderDataFrame(LIST_TTL_TABLE).load();
-        assertThat(postExpiry.collectAsList()).isEmpty();
     }
 
-    @Test
-    void testSetWithTtl()
+    private void writeSetData(SparkSession spark)
     {
-        SparkSession spark = getOrCreateSparkSession();
         StructType schema = new StructType()
                             .add("id", IntegerType, false)
                             .add("setdata", createArrayType(StringType), false);
@@ -104,21 +123,12 @@ class BulkWriteComplexTypeTtlTest extends SharedClusterSparkIntegrationTestBase
                                   .collect(Collectors.toList());
         Dataset<Row> df = spark.createDataFrame(rows, schema);
 
-        bulkWriterDataFrameWriter(df, SET_TTL_TABLE).option(WriterOptions.TTL.name(), TTLOption.constant(80))
+        bulkWriterDataFrameWriter(df, SET_TTL_TABLE).option(WriterOptions.TTL.name(), TTLOption.constant(TTL_SECONDS))
                                                     .save();
-
-        Dataset<Row> preExpiry = bulkReaderDataFrame(SET_TTL_TABLE).load();
-        assertThat(preExpiry.collectAsList()).hasSize(ROW_COUNT);
-
-        Uninterruptibles.sleepUninterruptibly(80, TimeUnit.SECONDS);
-        Dataset<Row> postExpiry = bulkReaderDataFrame(SET_TTL_TABLE).load();
-        assertThat(postExpiry.collectAsList()).isEmpty();
     }
 
-    @Test
-    void testMapWithTtl()
+    private void writeMapData(SparkSession spark)
     {
-        SparkSession spark = getOrCreateSparkSession();
         StructType schema = new StructType()
                             .add("id", IntegerType, false)
                             .add("mapdata", createMapType(StringType, IntegerType), false);
@@ -128,21 +138,12 @@ class BulkWriteComplexTypeTtlTest extends SharedClusterSparkIntegrationTestBase
                                   .collect(Collectors.toList());
         Dataset<Row> df = spark.createDataFrame(rows, schema);
 
-        bulkWriterDataFrameWriter(df, MAP_TTL_TABLE).option(WriterOptions.TTL.name(), TTLOption.constant(80))
+        bulkWriterDataFrameWriter(df, MAP_TTL_TABLE).option(WriterOptions.TTL.name(), TTLOption.constant(TTL_SECONDS))
                                                     .save();
-
-        Dataset<Row> preExpiry = bulkReaderDataFrame(MAP_TTL_TABLE).load();
-        assertThat(preExpiry.collectAsList()).hasSize(ROW_COUNT);
-
-        Uninterruptibles.sleepUninterruptibly(80, TimeUnit.SECONDS);
-        Dataset<Row> postExpiry = bulkReaderDataFrame(MAP_TTL_TABLE).load();
-        assertThat(postExpiry.collectAsList()).isEmpty();
     }
 
-    @Test
-    void testUdtWithTtl()
+    private void writeUdtData(SparkSession spark)
     {
-        SparkSession spark = getOrCreateSparkSession();
         StructType udtType = createStructType(new StructField[]{
             new StructField("f1", StringType, true, Metadata.empty()),
             new StructField("f2", IntegerType, true, Metadata.empty())
@@ -156,15 +157,8 @@ class BulkWriteComplexTypeTtlTest extends SharedClusterSparkIntegrationTestBase
                                   .collect(Collectors.toList());
         Dataset<Row> df = spark.createDataFrame(rows, schema);
 
-        bulkWriterDataFrameWriter(df, UDT_TTL_TABLE).option(WriterOptions.TTL.name(), TTLOption.constant(80))
+        bulkWriterDataFrameWriter(df, UDT_TTL_TABLE).option(WriterOptions.TTL.name(), TTLOption.constant(TTL_SECONDS))
                                                     .save();
-
-        Dataset<Row> preExpiry = bulkReaderDataFrame(UDT_TTL_TABLE).load();
-        assertThat(preExpiry.collectAsList()).hasSize(ROW_COUNT);
-
-        Uninterruptibles.sleepUninterruptibly(80, TimeUnit.SECONDS);
-        Dataset<Row> postExpiry = bulkReaderDataFrame(UDT_TTL_TABLE).load();
-        assertThat(postExpiry.collectAsList()).isEmpty();
     }
 
     @Override

@@ -21,6 +21,8 @@ package org.apache.cassandra.db;
 
 import java.nio.ByteBuffer;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.cassandra.db.partitions.PartitionUpdate;
 import org.apache.cassandra.schema.TableMetadata;
 
@@ -31,21 +33,25 @@ public class DbUtils
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
+    @VisibleForTesting
     public static DeletionTime deletionTime(long markedForDeleteAt, long localDeletionTime)
     {
         return DeletionTime.build(markedForDeleteAt, localDeletionTime);
     }
 
+    @VisibleForTesting
     public static LivenessInfo livenessInfo(long timestamp, long nowInSeconds)
     {
         return LivenessInfo.create(timestamp, nowInSeconds);
     }
 
+    @VisibleForTesting
     public static PartitionUpdate fullPartitionDeletion(TableMetadata metadata, ByteBuffer key, long timestamp, long nowInSec)
     {
         return PartitionUpdate.fullPartitionDelete(metadata, key, timestamp, nowInSec);
     }
 
+    @VisibleForTesting
     public static PartitionUpdate.SimpleBuilder partitionUpdateBuilderWithNow(TableMetadata metadata, DecoratedKey key, long nowInSec)
     {
         return PartitionUpdate.simpleBuilder(metadata, key).nowInSec(nowInSec);

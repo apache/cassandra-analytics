@@ -21,6 +21,7 @@ package org.apache.cassandra.db;
 
 import java.nio.ByteBuffer;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.primitives.Ints;
 
 import org.apache.cassandra.db.partitions.PartitionUpdate;
@@ -33,24 +34,29 @@ public class DbUtils
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    // C* 4.0 DeletionTime constructor requires int for localDeletionTime; checked cast will throw after Y2038
+
+    @VisibleForTesting
     public static DeletionTime deletionTime(long markedForDeleteAt, long localDeletionTime)
     {
+        // C* 4.0 DeletionTime constructor requires int for localDeletionTime; checked cast will throw after Y2038
         return new DeletionTime(markedForDeleteAt, Ints.checkedCast(localDeletionTime));
     }
 
+    @VisibleForTesting
     public static LivenessInfo livenessInfo(long timestamp, long nowInSeconds)
     {
         // C* 4.0 LivenessInfo.create requires int for nowInSeconds; checked cast will throw after Y2038
         return LivenessInfo.create(timestamp, Ints.checkedCast(nowInSeconds));
     }
 
+    @VisibleForTesting
     public static PartitionUpdate fullPartitionDeletion(TableMetadata metadata, ByteBuffer key, long timestamp, long nowInSec)
     {
         // C* 4.0 fullPartitionDelete requires int for nowInSec; checked cast will throw after Y2038
         return PartitionUpdate.fullPartitionDelete(metadata, key, timestamp, Ints.checkedCast(nowInSec));
     }
 
+    @VisibleForTesting
     public static PartitionUpdate.SimpleBuilder partitionUpdateBuilderWithNow(TableMetadata metadata, DecoratedKey key, long nowInSec)
     {
         // C* 4.0 simpleBuilder.nowInSec requires int; checked cast will throw after Y2038
