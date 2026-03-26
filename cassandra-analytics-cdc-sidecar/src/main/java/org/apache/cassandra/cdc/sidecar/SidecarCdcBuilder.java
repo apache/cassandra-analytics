@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.cdc.sidecar;
 
+import java.util.function.Function;
+
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.cdc.CdcBuilder;
@@ -35,6 +37,8 @@ public class SidecarCdcBuilder extends CdcBuilder
 {
     protected ClusterConfigProvider clusterConfigProvider;
     protected SidecarCdcClient sidecarCdcClient;
+    @NotNull
+    protected Function<String, Integer> portResolver;
     protected SidecarDownMonitor downMonitor = SidecarDownMonitor.STUB;
     protected ReplicationFactorSupplier replicationFactorSupplier = ReplicationFactorSupplier.DEFAULT;
     protected SidecarCdcStats sidecarCdcStats = SidecarCdcStats.STUB;
@@ -49,13 +53,34 @@ public class SidecarCdcBuilder extends CdcBuilder
                       SchemaSupplier schemaSupplier,
                       TokenRangeSupplier tokenRangeSupplier,
                       SidecarCdcClient sidecarCdcClient,
+                      @NotNull Function<String, Integer> portResolver,
                       ICdcStats cdcStats)
     {
         super(jobId, partitionId, eventConsumer, schemaSupplier);
         this.clusterConfigProvider = clusterConfigProvider;
         this.sidecarCdcClient = sidecarCdcClient;
+        this.portResolver = portResolver;
         withCdcOptions(cdcOptions);
         withTokenRangeSupplier(tokenRangeSupplier);
+    }
+
+    /**
+     * Builds a port resolver function from the {@link CdcSidecarInstancesProvider}. The resolver looks up
+     * the port for a given hostname from the provider, falling back to the configured effective port.
+     */
+    static Function<String, Integer> buildPortResolver(@NotNull CdcSidecarInstancesProvider provider,
+                                                       @NotNull SidecarCdcClient.ClientConfig clientConfig)
+    {
+        return hostname -> {
+            for (CdcSidecarInstance instance : provider.instances())
+            {
+                if (hostname.equals(instance.hostname()))
+                {
+                    return instance.port();
+                }
+            }
+            return clientConfig.effectivePort();
+        };
     }
 
     public SidecarCdcBuilder withClusterConfigProvider(ClusterConfigProvider clusterConfigProvider)

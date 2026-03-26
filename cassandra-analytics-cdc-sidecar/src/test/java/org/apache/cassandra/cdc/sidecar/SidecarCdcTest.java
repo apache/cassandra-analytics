@@ -19,6 +19,12 @@
 
 package org.apache.cassandra.cdc.sidecar;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.cdc.api.CdcOptions;
@@ -26,6 +32,7 @@ import org.apache.cassandra.cdc.api.EventConsumer;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.api.TokenRangeSupplier;
 import org.apache.cassandra.cdc.stats.ICdcStats;
+import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -64,5 +71,104 @@ public class SidecarCdcTest
         assertThat(builder).isInstanceOf(SidecarCdcBuilder.class);
         assertThat(builder.clusterConfigProvider).isEqualTo(clusterConfigProvider);
         assertThat(builder.sidecarCdcClient).isEqualTo(mockSidecarCdcClient);
+    }
+
+    @Test
+    public void testPerInstancePortResolution()
+    {
+        Map<String, Integer> portMapping = new HashMap<>();
+        portMapping.put("host1", 9043);
+        portMapping.put("host2", 9044);
+        portMapping.put("host3", 9045);
+        Function<String, Integer> portResolver = hostname -> portMapping.getOrDefault(hostname, 9043);
+
+        SidecarCdcClient.ClientConfig clientConfig = SidecarCdcClient.ClientConfig.create();
+        SidecarClient mockSidecarClient = mock(SidecarClient.class);
+        ICdcStats cdcStats = mock(ICdcStats.class);
+
+        SidecarCdcClient client = new SidecarCdcClient(clientConfig, mockSidecarClient, cdcStats, portResolver);
+
+        SidecarInstance si1 = client.toSidecarInstance(new CassandraInstance("0", "host1", "DC1"));
+        assertThat(si1.port()).isEqualTo(9043);
+        assertThat(si1.hostname()).isEqualTo("host1");
+
+        SidecarInstance si2 = client.toSidecarInstance(new CassandraInstance("100", "host2", "DC1"));
+        assertThat(si2.port()).isEqualTo(9044);
+        assertThat(si2.hostname()).isEqualTo("host2");
+
+        SidecarInstance si3 = client.toSidecarInstance(new CassandraInstance("200", "host3", "DC1"));
+        assertThat(si3.port()).isEqualTo(9045);
+        assertThat(si3.hostname()).isEqualTo("host3");
+    }
+
+    @Test
+    public void testFallbackToEffectivePortWhenHostNotFound()
+    {
+        Map<String, Integer> portMapping = new HashMap<>();
+        portMapping.put("host1", 9043);
+        SidecarCdcClient.ClientConfig clientConfig = SidecarCdcClient.ClientConfig.create(8888, 3, 100L);
+        Function<String, Integer> portResolver = hostname -> portMapping.getOrDefault(hostname, clientConfig.effectivePort());
+
+        SidecarClient mockSidecarClient = mock(SidecarClient.class);
+        ICdcStats cdcStats = mock(ICdcStats.class);
+
+        SidecarCdcClient client = new SidecarCdcClient(clientConfig, mockSidecarClient, cdcStats, portResolver);
+
+        SidecarInstance si1 = client.toSidecarInstance(new CassandraInstance("0", "host1", "DC1"));
+        assertThat(si1.port()).isEqualTo(9043);
+
+        SidecarInstance si2 = client.toSidecarInstance(new CassandraInstance("100", "unknown-host", "DC1"));
+        assertThat(si2.port()).isEqualTo(8888);
+    }
+
+    @Test
+    public void testDefaultPortResolverUsesEffectivePort()
+    {
+        SidecarCdcClient.ClientConfig clientConfig = SidecarCdcClient.ClientConfig.create(7777, 3, 100L);
+        SidecarClient mockSidecarClient = mock(SidecarClient.class);
+        ICdcStats cdcStats = mock(ICdcStats.class);
+
+        SidecarCdcClient client = new SidecarCdcClient(clientConfig, mockSidecarClient, cdcStats);
+
+        SidecarInstance si = client.toSidecarInstance(new CassandraInstance("0", "host1", "DC1"));
+        assertThat(si.port()).isEqualTo(7777);
+    }
+
+    @Test
+    public void testBuildPortResolverFromProvider()
+    {
+        List<CdcSidecarInstance> instances = Arrays.asList(
+            cdcSidecarInstance("host1", 9043),
+            cdcSidecarInstance("host2", 9044),
+            cdcSidecarInstance("host3", 9045)
+        );
+        CdcSidecarInstancesProvider provider = () -> instances;
+        SidecarCdcClient.ClientConfig clientConfig = SidecarCdcClient.ClientConfig.create(5555, 3, 100L);
+
+        Function<String, Integer> resolver = SidecarCdcBuilder.buildPortResolver(provider, clientConfig);
+
+        assertThat(resolver.apply("host1")).isEqualTo(9043);
+        assertThat(resolver.apply("host2")).isEqualTo(9044);
+        assertThat(resolver.apply("host3")).isEqualTo(9045);
+        // Unknown host falls back to clientConfig.effectivePort()
+        assertThat(resolver.apply("unknown-host")).isEqualTo(5555);
+    }
+
+    private static CdcSidecarInstance cdcSidecarInstance(String hostname, int port)
+    {
+        return new CdcSidecarInstance()
+        {
+            @Override
+            public int port()
+            {
+                return port;
+            }
+
+            @Override
+            public String hostname()
+            {
+                return hostname;
+            }
+        };
     }
 }

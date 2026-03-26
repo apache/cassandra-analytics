@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
@@ -45,6 +46,7 @@ import org.apache.cassandra.spark.exceptions.TransportFailureException;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_BUFFER_OVERRIDE;
@@ -61,6 +63,8 @@ public class SidecarCdcClient implements AutoCloseable
     final ClientConfig config;
     final SidecarClient sidecarClient;
     final ICdcStats stats;
+    @NotNull
+    final Function<String, Integer> portResolver;
 
     public SidecarCdcClient(ClientConfig clientConfig,
                             CdcSidecarInstancesProvider instancesProvider,
@@ -81,9 +85,18 @@ public class SidecarCdcClient implements AutoCloseable
                              SidecarClient sidecarClient,
                              ICdcStats stats)
     {
+        this(config, sidecarClient, stats, hostname -> config.effectivePort());
+    }
+
+    public SidecarCdcClient(ClientConfig config,
+                            SidecarClient sidecarClient,
+                            ICdcStats stats,
+                            @NotNull Function<String, Integer> portResolver)
+    {
         this.config = config;
         this.sidecarClient = sidecarClient;
         this.stats = stats;
+        this.portResolver = portResolver;
     }
 
     /**
@@ -190,7 +203,7 @@ public class SidecarCdcClient implements AutoCloseable
             @Override
             public int port()
             {
-                return config.effectivePort();
+                return portResolver.apply(instance.nodeName());
             }
 
             @Override
