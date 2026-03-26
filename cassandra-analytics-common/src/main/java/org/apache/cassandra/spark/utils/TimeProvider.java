@@ -38,10 +38,10 @@ public interface TimeProvider
     @VisibleForTesting
     TimeProvider DEFAULT = new TimeProvider()
     {
-        private final int referenceEpochInSeconds = nowInSeconds();
+        private final long referenceEpochInSeconds = nowInSeconds();
 
         @Override
-        public int referenceEpochInSeconds()
+        public long referenceEpochInSeconds()
         {
             return referenceEpochInSeconds;
         }
@@ -50,9 +50,9 @@ public interface TimeProvider
     /**
      * @return current time in seconds
      */
-    default int nowInSeconds()
+    default long nowInSeconds()
     {
-        return (int) TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
+        return TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis());
     }
 
     /**
@@ -62,5 +62,5 @@ public interface TimeProvider
      * <p>
      * Note that the actual constant value returned is implementation dependent
      */
-    int referenceEpochInSeconds();
+    long referenceEpochInSeconds();
 }

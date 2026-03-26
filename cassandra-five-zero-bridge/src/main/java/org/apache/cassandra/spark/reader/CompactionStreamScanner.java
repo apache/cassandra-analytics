@@ -117,7 +117,7 @@ public class CompactionStreamScanner extends AbstractStreamScanner
     @Override
     UnfilteredPartitionIterator initializePartitions()
     {
-        int nowInSec = timeProvider.referenceEpochInSeconds();
+        long nowInSec = timeProvider.referenceEpochInSeconds();
         Keyspace keyspace = Keyspace.openWithoutSSTables(metadata.keyspace);
         ColumnFamilyStore cfStore = keyspace.getColumnFamilyStore(metadata.name);
         controller = new PurgingCompactionController(cfStore, CompactionParams.TombstoneOption.NONE);

@@ -145,7 +145,7 @@
             },
             {
               "name": "deletedAt",
-              "type": "int",
+              "type": "long",
               "doc": "Future timestamp in seconds"
             }
           ]

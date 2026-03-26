@@ -104,15 +104,15 @@ public class CqlSet extends CqlList implements CqlField.CqlSet
                         ColumnMetadata cd,
                         long timestamp,
                         int ttl,
-                        int now,
+                        long now,
                         Object value)
     {
         for (Object o : (Set<?>) value)
         {
             if (ttl != NO_TTL)
             {
-                rowBuilder.addCell(BufferCell.expiring(cd, timestamp, ttl, now, ByteBufferUtil.EMPTY_BYTE_BUFFER,
-                                                       CellPath.create(type().serialize(o))));
+                rowBuilder.addCell(CqlType.expiring(cd, timestamp, ttl, now, ByteBufferUtil.EMPTY_BYTE_BUFFER,
+                                                    CellPath.create(type().serialize(o))));
             }
             else
             {

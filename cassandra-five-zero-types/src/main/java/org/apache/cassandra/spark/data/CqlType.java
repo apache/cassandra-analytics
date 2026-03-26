@@ -48,7 +48,7 @@ public abstract class CqlType extends AbstractCqlType
                                     long deletionTime)
     {
         Preconditions.checkArgument(cd.isComplex(), "The method only works with complex columns");
-        rowBuilder.addComplexDeletion(cd, DeletionTime.build(deletionTime, (int) TimeUnit.MICROSECONDS.toSeconds(deletionTime)));
+        rowBuilder.addComplexDeletion(cd, DeletionTime.build(deletionTime, TimeUnit.MICROSECONDS.toSeconds(deletionTime)));
     }
 
     public static BufferCell tombstone(ColumnMetadata column, long timestamp, long nowInSec, CellPath path)
