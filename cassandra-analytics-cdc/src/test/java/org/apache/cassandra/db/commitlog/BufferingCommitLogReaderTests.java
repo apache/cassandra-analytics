@@ -30,13 +30,14 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CdcBridge;
-import org.apache.cassandra.cdc.test.CdcBridgeProvider;
 import org.apache.cassandra.cdc.CdcTests;
 import org.apache.cassandra.cdc.LocalCommitLog;
 import org.apache.cassandra.cdc.api.CommitLog;
@@ -44,6 +45,7 @@ import org.apache.cassandra.cdc.api.CommitLogInstance;
 import org.apache.cassandra.cdc.api.CommitLogMarkers;
 import org.apache.cassandra.cdc.api.Marker;
 import org.apache.cassandra.cdc.stats.CdcStats;
+import org.apache.cassandra.cdc.test.TestCdcBridgeProvider;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -55,13 +57,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class BufferingCommitLogReaderTests
 {
+    @BeforeAll
+    static void beforeAll()
+    {
+        TestCdcBridgeProvider.setup();
+    }
+
+    @AfterAll
+    static void afterAll()
+    {
+        TestCdcBridgeProvider.tearDown();
+    }
+
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
     public void testReaderSeek(CassandraVersion version)
     {
-        CassandraBridge bridge = CdcBridgeProvider.getCassandraBridge(version);
-        CdcBridge cdcBridge = CdcBridgeProvider.getTestCdcBridge(version);
-        Path directory = CdcBridgeProvider.getCommitLogDir(version);
+        CassandraBridge bridge = TestCdcBridgeProvider.getCassandraBridge(version);
+        CdcBridge cdcBridge = TestCdcBridgeProvider.getTestCdcBridge(version);
+        Path directory = TestCdcBridgeProvider.getCommitLogDir(version);
         CommitLogInstance commitLog = cdcBridge.createCommitLogInstance(directory);
         TestSchema schema = TestSchema.builder(bridge)
                                       .withPartitionKey("pk", bridge.bigint())

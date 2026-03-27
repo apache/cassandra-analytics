@@ -233,7 +233,7 @@ public class CdcTester
             CdcOptions options = cdcOptions;
             if (options == null)
             {
-                options = CdcBridgeProvider.getCdcOptions(bridge.getVersion());
+                options = TestCdcBridgeProvider.getCdcOptions(bridge.getVersion());
             }
             return new CdcTester(bridge, cdcBridge, schemaBuilder.build(), testDir, writers, numRows, expectedNumRows,
                                  addLastModificationTime, eventChecker, shouldCdcEventWriterFailOnProcessing,
