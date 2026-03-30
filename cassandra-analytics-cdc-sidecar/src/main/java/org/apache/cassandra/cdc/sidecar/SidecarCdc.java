@@ -75,6 +75,27 @@ public class SidecarCdc extends Cdc
                                      cdcStats);
     }
 
+    public static SidecarCdcBuilder builder(@NotNull String jobId,
+                                            int partitionId,
+                                            CdcOptions cdcOptions,
+                                            ClusterConfigProvider clusterConfigProvider,
+                                            EventConsumer eventConsumer,
+                                            SchemaSupplier schemaSupplier,
+                                            TokenRangeSupplier tokenRangeSupplier,
+                                            SidecarCdcClient sidecarCdcClient,
+                                            ICdcStats cdcStats)
+    {
+        return new SidecarCdcBuilder(jobId,
+                                     partitionId,
+                                     cdcOptions,
+                                     clusterConfigProvider,
+                                     eventConsumer,
+                                     schemaSupplier,
+                                     tokenRangeSupplier,
+                                     sidecarCdcClient,
+                                     cdcStats);
+    }
+
     public void initSchema()
     {
         Set<CqlTable> tables = FutureUtils.get(schemaSupplier.getCdcEnabledTables());

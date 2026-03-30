@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.cdc.sidecar;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
@@ -32,8 +33,11 @@ import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
 import org.apache.cassandra.cdc.api.CommitLog;
 import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.clients.Sidecar;
+import org.apache.cassandra.secrets.SecretsProvider;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
+import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
+import o.a.c.sidecar.client.shaded.client.SimpleSidecarInstancesProvider;
 import o.a.c.sidecar.client.shaded.client.StreamBuffer;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
@@ -52,19 +56,40 @@ import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MILLIS_TO_SLEE
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_SIDECAR_PORT;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_TIMEOUT_SECONDS;
 
-public class SidecarCdcClient
+public class SidecarCdcClient implements AutoCloseable
 {
     final ClientConfig config;
     final SidecarClient sidecarClient;
     final ICdcStats stats;
 
-    public SidecarCdcClient(ClientConfig config,
-                            SidecarClient sidecarClient,
-                            ICdcStats stats)
+    public SidecarCdcClient(ClientConfig clientConfig,
+                            CdcSidecarInstancesProvider instancesProvider,
+                            SecretsProvider secretsProvider,
+                            ICdcStats cdcStats) throws IOException
+    {
+        this(clientConfig,
+             Sidecar.from(new SimpleSidecarInstancesProvider(instancesProvider.instances()
+                                                                              .stream()
+                                                                              .map(i -> new SidecarInstanceImpl(i.hostname(), i.port()))
+                                                                              .collect(Collectors.toList())),
+                          clientConfig.toGenericSidecarConfig(),
+                          secretsProvider),
+             cdcStats);
+    }
+
+    private SidecarCdcClient(ClientConfig config,
+                             SidecarClient sidecarClient,
+                             ICdcStats stats)
     {
         this.config = config;
         this.sidecarClient = sidecarClient;
         this.stats = stats;
+    }
+
+    @Override
+    public void close() throws Exception
+    {
+        sidecarClient.close();
     }
 
     public CompletableFuture<List<CommitLog>> listCdcCommitLogSegments(CassandraInstance instance)
