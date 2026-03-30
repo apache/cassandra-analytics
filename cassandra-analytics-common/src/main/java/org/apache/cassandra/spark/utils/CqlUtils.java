@@ -260,15 +260,41 @@ public final class CqlUtils
 
     public static int extractIndexCount(@NotNull String schemaStr, @NotNull String keyspace, @NotNull String table)
     {
+        return extractIndexStatements(schemaStr, keyspace, table).size();
+    }
+
+    /**
+     * Extracts CREATE INDEX statements for the given table from the schema string.
+     *
+     * @param schemaStr full cluster schema text
+     * @param keyspace  the keyspace name
+     * @param table     the table name
+     * @return set of CREATE INDEX statements for the table
+     */
+    public static Set<String> extractIndexStatements(@NotNull String schemaStr,
+                                                     @NotNull String keyspace,
+                                                     @NotNull String table)
+    {
         String cleaned = cleanCql(schemaStr);
         Pattern pattern = Pattern.compile(String.format("CREATE (CUSTOM )?INDEX \"?[^ ]* ON ?\"?%s?\"?\\.{1}\"?%s\"?[^;]*;", keyspace, table));
         Matcher matcher = pattern.matcher(cleaned);
-        int indexCount = 0;
+        Set<String> statements = new HashSet<>();
         while (matcher.find())
         {
-            indexCount++;
+            statements.add(matcher.group());
         }
-        return indexCount;
+        return statements;
+    }
+
+    /**
+     * Returns true if the given CREATE INDEX statement defines a Storage Attached Index (SAI).
+     *
+     * @param createIndexStatement a CREATE INDEX CQL statement
+     * @return true if the index uses SAI
+     */
+    public static boolean isSaiIndex(@NotNull String createIndexStatement)
+    {
+        return createIndexStatement.toUpperCase().contains("USING 'STORAGEATTACHEDINDEX'");
     }
 
     /**

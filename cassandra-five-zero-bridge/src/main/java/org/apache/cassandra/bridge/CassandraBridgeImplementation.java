@@ -565,6 +565,19 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
+    public SSTableWriter getSSTableWriter(String inDirectory,
+                                          String partitioner,
+                                          String createStatement,
+                                          String insertStatement,
+                                          Set<String> userDefinedTypeStatements,
+                                          Set<String> indexCreateStatements,
+                                          int bufferSizeMB)
+    {
+        return new SSTableWriterImplementation(inDirectory, partitioner, createStatement, insertStatement,
+                                               userDefinedTypeStatements, indexCreateStatements, bufferSizeMB);
+    }
+
+    @Override
     public SSTableSummary getSSTableSummary(@NotNull String keyspace,
                                             @NotNull String table,
                                             @NotNull SSTable ssTable)

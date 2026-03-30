@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,7 @@ import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
+import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.spark.sql.types.StructType;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
@@ -72,6 +74,20 @@ public class TableSchema
                        boolean quoteIdentifiers,
                        boolean skipSecondaryIndexCheck)
     {
+        this(dfSchema, tableInfo, writeMode, ttlOption, timestampOption,
+             lowestCassandraVersion, quoteIdentifiers, skipSecondaryIndexCheck, Collections.emptySet());
+    }
+
+    public TableSchema(StructType dfSchema,
+                       TableInfoProvider tableInfo,
+                       WriteMode writeMode,
+                       TTLOption ttlOption,
+                       TimestampOption timestampOption,
+                       String lowestCassandraVersion,
+                       boolean quoteIdentifiers,
+                       boolean skipSecondaryIndexCheck,
+                       Set<String> indexStatements)
+    {
         this.writeMode = writeMode;
         this.ttlOption = ttlOption;
 
@@ -80,21 +96,7 @@ public class TableSchema
         this.quoteIdentifiers = quoteIdentifiers;
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
-        // If a table has indexes on it, some external process (application, DB, etc.) is responsible for rebuilding
-        // indexes on the table after the bulk write completes; cassandra does this as part of the SSTable import
-        // process today. 2i and SAI have different ergonomics here regarding if stale data is served during index build;
-        // ultimately we want the bulk writer to also write native SAI index files alongside sstables but until
-        // then, this is allowable and fine for users who Know What They're Doing.
-        if (!skipSecondaryIndexCheck)
-        {
-            validateNoSecondaryIndexes(tableInfo);
-        }
-        else if (tableInfo.hasSecondaryIndex())
-        {
-            LOGGER.warn("Bulk writing to tables with SecondaryIndexes will have an asynchronous index rebuild "
-                      + "take place automatically after writing. Reads against the index during this time "
-                      + "window will produce inconsistent or stale results until index rebuild is complete.");
-        }
+        validateSecondaryIndexes(tableInfo, skipSecondaryIndexCheck, indexStatements, lowestCassandraVersion);
         validateUserAddedColumns(lowestCassandraVersion, quoteIdentifiers, ttlOption, timestampOption);
 
         this.createStatement = getCreateStatement(tableInfo);
@@ -308,11 +310,73 @@ public class TableSchema
         Preconditions.checkArgument(unknownFields.isEmpty(), "Unknown fields in data frame => " + unknownFields);
     }
 
+    /**
+     * Validates secondary index constraints for bulk write operations.
+     * <p>
+     * When the cluster is Cassandra 5.0+ and ALL indexes are SAI, the write is allowed because
+     * SAI index components are generated alongside SSTables and are immediately queryable after import.
+     * <p>
+     * When any index is non-SAI (legacy 2i), the write is blocked unless SKIP_SECONDARY_INDEX_CHECK is set.
+     *
+     * @param tableInfo               the table info provider
+     * @param skipSecondaryIndexCheck  whether the user explicitly opted out of the check
+     * @param indexStatements          the CREATE INDEX statements for the table
+     * @param lowestCassandraVersion   the lowest Cassandra version in the cluster
+     */
+    static void validateSecondaryIndexes(TableInfoProvider tableInfo,
+                                         boolean skipSecondaryIndexCheck,
+                                         Set<String> indexStatements,
+                                         String lowestCassandraVersion)
+    {
+        if (!tableInfo.hasSecondaryIndex())
+        {
+            return; // No indexes — nothing to validate
+        }
+
+        boolean allSai = !indexStatements.isEmpty() && indexStatements.stream().allMatch(CqlUtils::isSaiIndex);
+        boolean isCassandra5OrLater = isCassandra5OrLater(lowestCassandraVersion);
+
+        if (allSai && isCassandra5OrLater)
+        {
+            LOGGER.info("Table has SAI indexes only on Cassandra 5.0+. SAI index components will be generated "
+                      + "alongside SSTables for immediate queryability after import. indexCount={}", indexStatements.size());
+            return;
+        }
+
+        if (skipSecondaryIndexCheck)
+        {
+            LOGGER.warn("Bulk writing to tables with SecondaryIndexes will have an asynchronous index rebuild "
+                      + "take place automatically after writing. Reads against the index during this time "
+                      + "window will produce inconsistent or stale results until index rebuild is complete.");
+            return;
+        }
+
+        throw new UnsupportedAnalyticsOperationException("Bulkwriter doesn't support secondary indexes");
+    }
+
     static void validateNoSecondaryIndexes(TableInfoProvider tableInfo)
     {
         if (tableInfo.hasSecondaryIndex())
         {
             throw new UnsupportedAnalyticsOperationException("Bulkwriter doesn't support secondary indexes");
+        }
+    }
+
+    @VisibleForTesting
+    static boolean isCassandra5OrLater(String version)
+    {
+        if (version == null || version.isEmpty())
+        {
+            return false;
+        }
+        try
+        {
+            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
+            return majorVersion >= 5;
+        }
+        catch (NumberFormatException exception)
+        {
+            return false;
         }
     }
 

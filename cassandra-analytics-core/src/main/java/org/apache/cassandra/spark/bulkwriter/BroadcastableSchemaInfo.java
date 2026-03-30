@@ -27,7 +27,7 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Broadcastable wrapper for schema information with ZERO transient fields to optimize Spark broadcasting.
  * <p>
- * Contains BroadcastableTableSchema (pre-computed schema data) and UDT statements.
+ * Contains BroadcastableTableSchema (pre-computed schema data), UDT statements, and index statements.
  * Executors reconstruct CassandraSchemaInfo and TableSchema from these fields.
  * <p>
  * <b>Why ZERO transient fields matters:</b><br>
@@ -43,11 +43,12 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class BroadcastableSchemaInfo implements Serializable
 {
-    private static final long serialVersionUID = -8727074052066841748L;
+    private static final long serialVersionUID = 4719283056718294301L;
 
     // Essential fields broadcast to executors
     private final BroadcastableTableSchema broadcastableTableSchema;
     private final Set<String> userDefinedTypeStatements;
+    private final Set<String> indexStatements;
 
     /**
      * Creates a BroadcastableSchemaInfo from a source SchemaInfo.
@@ -59,15 +60,18 @@ public final class BroadcastableSchemaInfo implements Serializable
     {
         return new BroadcastableSchemaInfo(
             BroadcastableTableSchema.from(source.getTableSchema()),
-            source.getUserDefinedTypeStatements()
+            source.getUserDefinedTypeStatements(),
+            source.getIndexStatements()
         );
     }
 
     private BroadcastableSchemaInfo(BroadcastableTableSchema broadcastableTableSchema,
-                                   Set<String> userDefinedTypeStatements)
+                                   Set<String> userDefinedTypeStatements,
+                                   Set<String> indexStatements)
     {
         this.broadcastableTableSchema = broadcastableTableSchema;
         this.userDefinedTypeStatements = userDefinedTypeStatements;
+        this.indexStatements = indexStatements;
     }
 
     public BroadcastableTableSchema getBroadcastableTableSchema()
@@ -79,5 +83,11 @@ public final class BroadcastableSchemaInfo implements Serializable
     public Set<String> getUserDefinedTypeStatements()
     {
         return userDefinedTypeStatements;
+    }
+
+    @NotNull
+    public Set<String> getIndexStatements()
+    {
+        return indexStatements;
     }
 }

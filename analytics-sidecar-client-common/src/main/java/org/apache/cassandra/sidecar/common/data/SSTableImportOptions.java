@@ -33,6 +33,8 @@ public class SSTableImportOptions extends HashMap<String, String>
     private static final String INVALIDATE_CACHES = "invalidateCaches";
     private static final String EXTENDED_VERIFY = "extendedVerify";
     private static final String COPY_DATA = "copyData";
+    private static final String VALIDATE_SAI_INDEXES = "validateSaiIndexes";
+    private static final String SAI_INDEX_CHECKSUM = "saiIndexChecksum";
 
     public static SSTableImportOptions defaults()
     {
@@ -48,6 +50,8 @@ public class SSTableImportOptions extends HashMap<String, String>
         put(INVALIDATE_CACHES, Boolean.toString(true));
         put(EXTENDED_VERIFY, Boolean.toString(true));
         put(COPY_DATA, Boolean.toString(false)); // note: the default is false
+        put(VALIDATE_SAI_INDEXES, Boolean.toString(false)); // note: the default is false
+        put(SAI_INDEX_CHECKSUM, Boolean.toString(false)); // note: the default is false
     }
 
     public SSTableImportOptions resetLevel(boolean enabled)
@@ -125,5 +129,27 @@ public class SSTableImportOptions extends HashMap<String, String>
     public boolean copyData()
     {
         return Boolean.parseBoolean(get(COPY_DATA));
+    }
+
+    public SSTableImportOptions validateSaiIndexes(boolean enabled)
+    {
+        put(VALIDATE_SAI_INDEXES, Boolean.toString(enabled));
+        return this;
+    }
+
+    public boolean validateSaiIndexes()
+    {
+        return Boolean.parseBoolean(get(VALIDATE_SAI_INDEXES));
+    }
+
+    public SSTableImportOptions saiIndexChecksum(boolean enabled)
+    {
+        put(SAI_INDEX_CHECKSUM, Boolean.toString(enabled));
+        return this;
+    }
+
+    public boolean saiIndexChecksum()
+    {
+        return Boolean.parseBoolean(get(SAI_INDEX_CHECKSUM));
     }
 }

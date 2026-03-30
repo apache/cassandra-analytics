@@ -19,17 +19,27 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.util.Collections;
 import java.util.Set;
+
+import org.jetbrains.annotations.NotNull;
 
 public class CassandraSchemaInfo implements SchemaInfo
 {
     private final TableSchema tableSchema;
     private final Set<String> userDefinedTypeStatements;
+    private final Set<String> indexStatements;
 
     public CassandraSchemaInfo(TableSchema tableSchema, Set<String> userDefinedTypeStatements)
     {
+        this(tableSchema, userDefinedTypeStatements, Collections.emptySet());
+    }
+
+    public CassandraSchemaInfo(TableSchema tableSchema, Set<String> userDefinedTypeStatements, Set<String> indexStatements)
+    {
         this.tableSchema = tableSchema;
         this.userDefinedTypeStatements = userDefinedTypeStatements;
+        this.indexStatements = indexStatements;
     }
 
     /**
@@ -41,7 +51,8 @@ public class CassandraSchemaInfo implements SchemaInfo
     public CassandraSchemaInfo(BroadcastableSchemaInfo broadcastable)
     {
         this(new TableSchema(broadcastable.getBroadcastableTableSchema()),
-             broadcastable.getUserDefinedTypeStatements());
+             broadcastable.getUserDefinedTypeStatements(),
+             broadcastable.getIndexStatements());
     }
 
     @Override
@@ -51,8 +62,16 @@ public class CassandraSchemaInfo implements SchemaInfo
     }
 
     @Override
+    @NotNull
     public Set<String> getUserDefinedTypeStatements()
     {
         return userDefinedTypeStatements;
+    }
+
+    @Override
+    @NotNull
+    public Set<String> getIndexStatements()
+    {
+        return indexStatements;
     }
 }

@@ -65,6 +65,8 @@ public class ImportSSTableRequest extends JsonRequest<SSTableImportResponse>
         private Boolean invalidateCaches;
         private Boolean extendedVerify;
         private Boolean copyData;
+        private Boolean validateSaiIndexes;
+        private Boolean saiIndexChecksum;
 
         public ImportOptions()
         {
@@ -153,6 +155,32 @@ public class ImportSSTableRequest extends JsonRequest<SSTableImportResponse>
             this.copyData = copyData;
             return this;
         }
+
+        /**
+         * Sets the {@code validateSaiIndexes} and returns a reference to this ImportOptions enabling method chaining.
+         * When enabled, Cassandra validates SAI index components during import.
+         *
+         * @param validateSaiIndexes the {@code validateSaiIndexes} to set
+         * @return a reference to this ImportOptions
+         */
+        public ImportOptions validateSaiIndexes(boolean validateSaiIndexes)
+        {
+            this.validateSaiIndexes = validateSaiIndexes;
+            return this;
+        }
+
+        /**
+         * Sets the {@code saiIndexChecksum} and returns a reference to this ImportOptions enabling method chaining.
+         * When enabled, Cassandra verifies SAI index component checksums during import.
+         *
+         * @param saiIndexChecksum the {@code saiIndexChecksum} to set
+         * @return a reference to this ImportOptions
+         */
+        public ImportOptions saiIndexChecksum(boolean saiIndexChecksum)
+        {
+            this.saiIndexChecksum = saiIndexChecksum;
+            return this;
+        }
     }
 
     static String requestURI(String keyspace, String tableName, String uploadId, ImportOptions importOptions)
@@ -204,6 +232,14 @@ public class ImportSSTableRequest extends JsonRequest<SSTableImportResponse>
         if (importOptions.copyData != null)
         {
             options.add("copyData=" + importOptions.copyData);
+        }
+        if (importOptions.validateSaiIndexes != null)
+        {
+            options.add("validateSaiIndexes=" + importOptions.validateSaiIndexes);
+        }
+        if (importOptions.saiIndexChecksum != null)
+        {
+            options.add("saiIndexChecksum=" + importOptions.saiIndexChecksum);
         }
 
         return options;

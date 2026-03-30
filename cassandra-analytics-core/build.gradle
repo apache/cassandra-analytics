@@ -181,8 +181,13 @@ tasks.register('testSequential', Test) {
     }
 
     systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
+<<<<<<< Updated upstream
     minHeapSize = '1024m'
     maxHeapSize = System.getenv('CORE_TEST_MAX_HEAP_SIZE') ?: '3072m'
+=======
+    minHeapSize = System.getenv('CORE_SEQ_TEST_MIN_HEAP_SIZE') ?: '512m'
+    maxHeapSize = System.getenv('CORE_SEQ_TEST_MAX_HEAP_SIZE') ?: '4096m'
+>>>>>>> Stashed changes
     maxParallelForks = 1
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
@@ -216,10 +221,16 @@ tasks.register('testSequential', Test) {
 
 test {
     systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
+<<<<<<< Updated upstream
     minHeapSize = '1024m'
     maxHeapSize = System.getenv('CORE_TEST_MAX_HEAP_SIZE') ?: '3072m'
     maxParallelForks = System.getenv('CORE_MAX_PARALLEL_FORKS')?.toInteger()
                        ?: Math.max(Runtime.runtime.availableProcessors() * 2, 8)
+=======
+    minHeapSize = System.getenv('CORE_TEST_MIN_HEAP_SIZE') ?: '512m'
+    maxHeapSize = System.getenv('CORE_TEST_MAX_HEAP_SIZE') ?: '2048m'
+    maxParallelForks = System.getenv('CORE_MAX_PARALLEL_FORKS')?.toInteger() ?: 3
+>>>>>>> Stashed changes
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in

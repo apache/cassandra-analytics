@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.util.Collections;
 import java.util.Set;
 
 import org.jetbrains.annotations.NotNull;
@@ -36,4 +37,15 @@ public interface SchemaInfo
 
     @NotNull
     Set<String> getUserDefinedTypeStatements();
+
+    /**
+     * Returns the set of CREATE INDEX statements for the table, if any.
+     *
+     * @return set of CREATE INDEX CQL statements, empty if none
+     */
+    @NotNull
+    default Set<String> getIndexStatements()
+    {
+        return Collections.emptySet();
+    }
 }

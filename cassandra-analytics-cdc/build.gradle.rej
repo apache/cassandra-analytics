@@ -1,0 +1,20 @@
+diff a/cassandra-analytics-cdc/build.gradle b/cassandra-analytics-cdc/build.gradle	(rejected hunks)
+@@ -141,15 +141,12 @@ jar {
+     }
+ }
+ 
+-def cdcMaxHeapSize = System.getenv("CDC_MAX_HEAP_SIZE") ?: "2048m"
+-def cdcMaxParallelForks = (System.getenv("CDC_MAX_PARALLEL_FORKS") ?: "1") as int
+-
+ test {
+     systemProperty "cassandra.sidecar.versions_to_test", (System.getenv("CASSANDRA_VERSION") ?: "4.0.17,5.0.5")
+ 
+-    minHeapSize = '512m'
+-    maxHeapSize = cdcMaxHeapSize
+-    maxParallelForks = cdcMaxParallelForks
++    minHeapSize = System.getenv('CDC_TEST_MIN_HEAP_SIZE') ?: '512m'
++    maxHeapSize = System.getenv('CDC_TEST_MAX_HEAP_SIZE') ?: '2048m'
++    maxParallelForks = System.getenv('CDC_MAX_PARALLEL_FORKS')?.toInteger() ?: 3
+     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+ 
+     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in

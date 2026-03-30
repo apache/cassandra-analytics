@@ -244,12 +244,13 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         String createTableSchema = CqlUtils.extractTableSchema(keyspaceSchema, keyspace, table);
         Set<String> udts = CqlUtils.extractUdts(keyspaceSchema, keyspace);
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(keyspaceSchema, keyspace);
-        int indexCount = CqlUtils.extractIndexCount(keyspaceSchema, keyspace, table);
+        Set<String> indexStatements = CqlUtils.extractIndexStatements(keyspaceSchema, keyspace, table);
+        int indexCount = indexStatements.size();
         CqlTable cqlTable = bridge().buildSchema(createTableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
 
         TableInfoProvider tableInfoProvider = new CqlTableInfoProvider(createTableSchema, cqlTable);
-        TableSchema tableSchema = initializeTableSchema(bulkSparkConf(), structType, tableInfoProvider, lowestCassandraVersion());
-        return new CassandraSchemaInfo(tableSchema, udts);
+        TableSchema tableSchema = initializeTableSchema(bulkSparkConf(), structType, tableInfoProvider, lowestCassandraVersion(), indexStatements);
+        return new CassandraSchemaInfo(tableSchema, udts, indexStatements);
     }
 
     /*-------------------------------------------*/
@@ -315,6 +316,16 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
                                                 TableInfoProvider tableInfoProvider,
                                                 String lowestCassandraVersion)
     {
+        return initializeTableSchema(conf, dfSchema, tableInfoProvider, lowestCassandraVersion, java.util.Collections.emptySet());
+    }
+
+    @NotNull
+    protected TableSchema initializeTableSchema(@NotNull BulkSparkConf conf,
+                                                @NotNull StructType dfSchema,
+                                                TableInfoProvider tableInfoProvider,
+                                                String lowestCassandraVersion,
+                                                Set<String> indexStatements)
+    {
         return new TableSchema(dfSchema,
                                tableInfoProvider,
                                conf.writeMode,
@@ -322,7 +333,8 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
                                conf.getTimestampOptions(),
                                lowestCassandraVersion,
                                job().qualifiedTableName().quoteIdentifiers(),
-                               conf.skipSecondaryIndexCheck);
+                               conf.skipSecondaryIndexCheck,
+                               indexStatements);
     }
 
     @NotNull

@@ -400,6 +400,33 @@ public abstract class CassandraBridge
                                                    Set<String> userDefinedTypeStatements,
                                                    int bufferSizeMB);
 
+    /**
+     * Creates an SSTableWriter with optional index generation support.
+     * The default implementation ignores index statements for backward compatibility with Cassandra 4.0.
+     * Cassandra 5.0+ bridges override this to generate SAI index components alongside SSTables.
+     *
+     * @param inDirectory               output directory for SSTables
+     * @param partitioner               the partitioner name
+     * @param createStatement           CREATE TABLE CQL statement
+     * @param insertStatement           INSERT CQL statement
+     * @param userDefinedTypeStatements set of CREATE TYPE statements
+     * @param indexCreateStatements     set of CREATE INDEX statements
+     * @param bufferSizeMB             max SSTable size in MiB
+     * @return a new SSTableWriter instance
+     */
+    public SSTableWriter getSSTableWriter(String inDirectory,
+                                          String partitioner,
+                                          String createStatement,
+                                          String insertStatement,
+                                          Set<String> userDefinedTypeStatements,
+                                          Set<String> indexCreateStatements,
+                                          int bufferSizeMB)
+    {
+        // Default: ignore index statements (C* 4.0 does not support inline SAI generation)
+        return getSSTableWriter(inDirectory, partitioner, createStatement, insertStatement,
+                                userDefinedTypeStatements, bufferSizeMB);
+    }
+
     public abstract SSTableSummary getSSTableSummary(@NotNull String keyspace,
                                                      @NotNull String table,
                                                      @NotNull SSTable ssTable);

@@ -1,0 +1,24 @@
+diff a/cassandra-analytics-core/build.gradle b/cassandra-analytics-core/build.gradle	(rejected hunks)
+@@ -181,8 +181,8 @@ tasks.register('testSequential', Test) {
+     }
+ 
+     systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
+-    minHeapSize = '512m'
+-    maxHeapSize = System.getenv('CORE_TEST_MAX_HEAP_SIZE') ?: '2048m'
++    minHeapSize = System.getenv('CORE_SEQ_TEST_MIN_HEAP_SIZE') ?: '512m'
++    maxHeapSize = System.getenv('CORE_SEQ_TEST_MAX_HEAP_SIZE') ?: '4096m'
+     maxParallelForks = 1
+     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+ 
+@@ -216,8 +216,9 @@ tasks.register('testSequential', Test) {
+ 
+ test {
+     systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
+-    minHeapSize = '512m'
+-    maxHeapSize = '2048m'
++    minHeapSize = System.getenv('CORE_TEST_MIN_HEAP_SIZE') ?: '512m'
++    maxHeapSize = System.getenv('CORE_TEST_MAX_HEAP_SIZE') ?: '2048m'
++    maxParallelForks = System.getenv('CORE_MAX_PARALLEL_FORKS')?.toInteger() ?: 3
+     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+ 
+     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in

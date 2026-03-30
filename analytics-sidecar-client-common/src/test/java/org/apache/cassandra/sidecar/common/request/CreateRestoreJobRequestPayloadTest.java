@@ -64,8 +64,10 @@ class CreateRestoreJobRequestPayloadTest
                                    "\"jobAgent\":\"agent\"," +
                                    "\"secrets\":" + MAPPER.writeValueAsString(secrets) + "," +
                                    "\"importOptions\":{" +
+                                   "\"validateSaiIndexes\":\"false\"," +
                                    "\"verifyTokens\":\"true\"," +
                                    "\"resetLevel\":\"true\"," +
+                                   "\"saiIndexChecksum\":\"false\"," +
                                    "\"clearRepaired\":\"true\"," +
                                    "\"extendedVerify\":\"true\"," +
                                    "\"verifySSTables\":\"true\"," +

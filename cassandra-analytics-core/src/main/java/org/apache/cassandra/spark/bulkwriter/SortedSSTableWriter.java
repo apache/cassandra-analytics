@@ -131,6 +131,7 @@ public class SortedSSTableWriter
         tableSchema.createStatement,
         tableSchema.modificationStatement,
         schema.getUserDefinedTypeStatements(),
+        schema.getIndexStatements(),
         writerContext.job().sstableDataSizeInMiB());
     }
 
