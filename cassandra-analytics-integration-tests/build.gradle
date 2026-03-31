@@ -32,7 +32,7 @@ if (propertyWithDefault("artifactType", null) == "spark")
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
 
-def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "3000m"
+def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "4096m"
 println("Using ${integrationMaxHeapSize} maxHeapSize")
 
 // TODO: Uncomment this and push up a bit more once we figure out what works

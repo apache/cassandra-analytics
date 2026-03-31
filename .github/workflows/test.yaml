@@ -112,7 +112,7 @@ jobs:
           export SPARK_VERSION="3"
           export SCALA_VERSION="${{ matrix.scala }}"
           export JDK_VERSION="11"
-          export INTEGRATION_MAX_HEAP_SIZE="2048m"
+          export INTEGRATION_MAX_HEAP_SIZE="4096m"
           export CASSANDRA_USE_JDK11=true
           
           ./gradlew --no-daemon --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=${{ matrix.sstable-format }}
@@ -163,7 +163,7 @@ jobs:
           export SPARK_VERSION="3"
           export SCALA_VERSION="${{ matrix.scala }}"
           export JDK_VERSION="11"
-          export INTEGRATION_MAX_HEAP_SIZE="2048m"
+          export INTEGRATION_MAX_HEAP_SIZE="4096m"
           export CASSANDRA_USE_JDK11=true
           
           export DTEST_JAR="dtest-${{ matrix.cassandra }}.jar"

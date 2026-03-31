@@ -145,7 +145,7 @@ test {
     systemProperty "cassandra.sidecar.versions_to_test", (System.getenv("CASSANDRA_VERSION") ?: "4.0.17,5.0.5")
 
     minHeapSize = '1024m'
-    maxHeapSize = '3000m'
+    maxHeapSize = '4096m'
     // TODO: revisit relaxing these resource constraints once we find the offending tests
     // maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
     maxParallelForks = 2

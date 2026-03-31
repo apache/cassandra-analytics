@@ -247,7 +247,7 @@ subprojects {
   // Constrain all tests to non-parallel w/max heap at 2G while we figure out what's causing gradle error 100's
   tasks.withType(Test) {
     maxParallelForks = 2
-    maxHeapSize = '3000m'
+    maxHeapSize = '4096m'
     shouldRunAfter(codeCheckTasks)
     shouldRunAfter(tasks.withType(Checkstyle))
     shouldRunAfter(tasks.withType(RatTask))
