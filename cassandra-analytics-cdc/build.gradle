@@ -145,9 +145,10 @@ test {
     systemProperty "cassandra.sidecar.versions_to_test", (System.getenv("CASSANDRA_VERSION") ?: "4.0.17,5.0.5")
 
     minHeapSize = '1024m'
-    maxHeapSize = '2048m'
+    maxHeapSize = '3000m'
     // TODO: revisit relaxing these resource constraints once we find the offending tests
     // maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
+    maxParallelForks = 2
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in

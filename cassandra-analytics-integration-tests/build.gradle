@@ -32,7 +32,7 @@ if (propertyWithDefault("artifactType", null) == "spark")
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
 
-def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "2048m"
+def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "3000m"
 println("Using ${integrationMaxHeapSize} maxHeapSize")
 
 // TODO: Uncomment this and push up a bit more once we figure out what works
@@ -94,6 +94,7 @@ test {
     systemProperty "cassandra.integration.sidecar.test.enable_mtls", integrationEnableMtls
     minHeapSize = '1g'
     maxHeapSize = integrationMaxHeapSize
+    maxParallelForks = 2
     // TODO: revisit relaxing these resource constraints once we find the offending tests
     // maxParallelForks = integrationMaxParallelForks
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
