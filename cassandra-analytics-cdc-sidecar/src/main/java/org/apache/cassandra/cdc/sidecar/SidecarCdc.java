@@ -50,31 +50,27 @@ public class SidecarCdc extends Cdc
         initSchema();
     }
 
-    public static SidecarCdcBuilder builder(@NotNull String jobId,
-                                            int partitionId,
-                                            CdcOptions cdcOptions,
-                                            ClusterConfigProvider clusterConfigProvider,
-                                            EventConsumer eventConsumer,
-                                            SchemaSupplier schemaSupplier,
-                                            TokenRangeSupplier tokenRangeSupplier,
-                                            CdcSidecarInstancesProvider sidecarInstancesProvider,
-                                            SidecarCdcClient.ClientConfig clientConfig,
-                                            SecretsProvider secretsProvider,
-                                            ICdcStats cdcStats) throws IOException
-    {
-        return new SidecarCdcBuilder(jobId,
-                                     partitionId,
-                                     cdcOptions,
-                                     clusterConfigProvider,
-                                     eventConsumer,
-                                     schemaSupplier,
-                                     tokenRangeSupplier,
-                                     sidecarInstancesProvider,
-                                     clientConfig,
-                                     secretsProvider,
-                                     cdcStats);
-    }
-
+    /**
+     * Creates a new {@link SidecarCdcBuilder} pre-configured with the supplied parameters.
+     *
+     * <p><b>Lifecycle of {@code sidecarCdcClient}:</b> the supplied {@link SidecarCdcClient} is treated as
+     * an externally managed singleton. Neither the returned builder nor the {@link SidecarCdc} instance it
+     * produces will close the client. The caller is solely responsible for closing the
+     * {@code SidecarCdcClient} (e.g. during application shutdown) to release underlying resources such as
+     * thread pools and HTTP connections.
+     *
+     * @param jobId                  unique identifier for the CDC job
+     * @param partitionId            partition index within the job
+     * @param cdcOptions             CDC processing options
+     * @param clusterConfigProvider  provider for cluster configuration (e.g. datacenter, hosts)
+     * @param eventConsumer          consumer that receives CDC change events
+     * @param schemaSupplier         supplier for CDC-enabled table schemas
+     * @param tokenRangeSupplier     supplier for the token ranges assigned to this partition
+     * @param sidecarCdcClient       externally managed Sidecar HTTP client; <em>not</em> closed by
+     *                               {@code SidecarCdc} or {@code SidecarCdcBuilder}
+     * @param cdcStats               CDC statistics collector
+     * @return a new {@link SidecarCdcBuilder}
+     */
     public static SidecarCdcBuilder builder(@NotNull String jobId,
                                             int partitionId,
                                             CdcOptions cdcOptions,

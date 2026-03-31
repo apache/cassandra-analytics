@@ -19,8 +19,6 @@
 
 package org.apache.cassandra.cdc.sidecar;
 
-import java.io.IOException;
-
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.cdc.CdcBuilder;
@@ -29,7 +27,6 @@ import org.apache.cassandra.cdc.api.EventConsumer;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.api.TokenRangeSupplier;
 import org.apache.cassandra.cdc.stats.ICdcStats;
-import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.jetbrains.annotations.NotNull;
 
@@ -43,25 +40,6 @@ public class SidecarCdcBuilder extends CdcBuilder
     protected SidecarCdcStats sidecarCdcStats = SidecarCdcStats.STUB;
     protected SidecarCdcCassandraClient cassandraClient = SidecarCdcCassandraClient.STUB;
     protected SidecarCdcOptions sidecarCdcOptions = SidecarCdcOptions.DEFAULT;
-
-    SidecarCdcBuilder(@NotNull String jobId,
-                      int partitionId,
-                      CdcOptions cdcOptions,
-                      ClusterConfigProvider clusterConfigProvider,
-                      EventConsumer eventConsumer,
-                      SchemaSupplier schemaSupplier,
-                      TokenRangeSupplier tokenRangeSupplier,
-                      CdcSidecarInstancesProvider sidecarInstancesProvider,
-                      SidecarCdcClient.ClientConfig clientConfig,
-                      SecretsProvider secretsProvider,
-                      ICdcStats cdcStats) throws IOException
-    {
-        super(jobId, partitionId, eventConsumer, schemaSupplier);
-        this.clusterConfigProvider = clusterConfigProvider;
-        this.sidecarCdcClient = new SidecarCdcClient(clientConfig, sidecarInstancesProvider, secretsProvider, cdcStats);
-        withCdcOptions(cdcOptions);
-        withTokenRangeSupplier(tokenRangeSupplier);
-    }
 
     SidecarCdcBuilder(@NotNull String jobId,
                       int partitionId,

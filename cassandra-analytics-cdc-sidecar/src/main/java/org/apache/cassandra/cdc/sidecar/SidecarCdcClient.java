@@ -86,6 +86,16 @@ public class SidecarCdcClient implements AutoCloseable
         this.stats = stats;
     }
 
+    /**
+     * Closes the underlying {@link SidecarClient} and releases associated resources (e.g. thread pools,
+     * HTTP connections).
+     *
+     * <p>{@code SidecarCdcClient} is intended to be used as a singleton whose lifecycle is managed by the
+     * enclosing component. Callers should not create per-request instances; instead, a single instance
+     * should be constructed at startup and closed during shutdown to avoid thread and resource leaks.
+     *
+     * @throws Exception if the underlying client throws while closing
+     */
     @Override
     public void close() throws Exception
     {
