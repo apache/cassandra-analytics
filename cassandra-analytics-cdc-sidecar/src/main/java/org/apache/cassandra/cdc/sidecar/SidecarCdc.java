@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.cdc.sidecar;
 
-import java.io.IOException;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
@@ -30,7 +29,6 @@ import org.apache.cassandra.cdc.api.EventConsumer;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.api.TokenRangeSupplier;
 import org.apache.cassandra.cdc.stats.ICdcStats;
-import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.FutureUtils;
