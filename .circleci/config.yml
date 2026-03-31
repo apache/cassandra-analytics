@@ -62,12 +62,6 @@ commands:
             SPARK_VERSION: "<<parameters.spark>>"
             SCALA_VERSION: "<<parameters.scala>>"
             JDK_VERSION: "<<parameters.jdk>>"
-            INTEGRATION_MAX_PARALLEL_FORKS: 1
-            INTEGRATION_MAX_HEAP_SIZE: "2048m"
-            # We need to revisit what kind of parallelism and memory budget we should target and support.
-            # Post parameterization and merge of 5.0 CommitLog support we're getting error 100 from gradle (OOM's)
-            CORE_MAX_PARALLEL_FORKS: 1
-            CORE_TEST_MAX_HEAP_SIZE: "2048m"
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
             # Run compile/unit tests, skipping integration tests
@@ -93,8 +87,6 @@ commands:
             SPARK_VERSION: "<<parameters.spark>>"
             SCALA_VERSION: "<<parameters.scala>>"
             JDK_VERSION: "<<parameters.jdk>>"
-            INTEGRATION_MAX_PARALLEL_FORKS: 1
-            INTEGRATION_MAX_HEAP_SIZE: "2048m"
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
             export DTEST_JAR="dtest-<< parameters.cassandra >>.jar"
