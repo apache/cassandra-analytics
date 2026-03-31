@@ -59,7 +59,7 @@ jobs:
           
           CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
           
-          ./gradlew codeCheckTasks
+          ./gradlew --no-daemon codeCheckTasks
       - name: Cache Maven repository
         uses: actions/cache@v4
         with:
@@ -112,11 +112,10 @@ jobs:
           export SPARK_VERSION="3"
           export SCALA_VERSION="${{ matrix.scala }}"
           export JDK_VERSION="11"
-          export INTEGRATION_MAX_PARALLEL_FORKS=1
-          export INTEGRATION_MAX_HEAP_SIZE="1500M"
+          export INTEGRATION_MAX_HEAP_SIZE="2048m"
           export CASSANDRA_USE_JDK11=true
           
-          ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=${{ matrix.sstable-format }}
+          ./gradlew --no-daemon --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=${{ matrix.sstable-format }}
 
   integration-test:
     name: Integration test
@@ -164,15 +163,14 @@ jobs:
           export SPARK_VERSION="3"
           export SCALA_VERSION="${{ matrix.scala }}"
           export JDK_VERSION="11"
-          export INTEGRATION_MAX_PARALLEL_FORKS=1
-          export INTEGRATION_MAX_HEAP_SIZE="4096M"
+          export INTEGRATION_MAX_HEAP_SIZE="2048m"
           export CASSANDRA_USE_JDK11=true
           
           export DTEST_JAR="dtest-${{ matrix.cassandra }}.jar"
           export CASSANDRA_VERSION=$(echo ${{ matrix.cassandra }} | cut -d'.' -f 1,2)
           
-          ./gradlew --stacktrace clean assemble
-          
+          ./gradlew --no-daemon --stacktrace clean assemble
+
           cd cassandra-analytics-integration-tests/src/test/java
           CLASSNAMES=$(find . -name '*Test.java' | sort | cut -c 3- | sed 's@/@.@g' | sed 's/.\{5\}$//' | awk 'NR % ${{ matrix.job_total }} == ${{ matrix.job_index }}')
           cd ../../../..

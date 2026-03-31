@@ -63,12 +63,13 @@ commands:
             SCALA_VERSION: "<<parameters.scala>>"
             JDK_VERSION: "<<parameters.jdk>>"
             INTEGRATION_MAX_PARALLEL_FORKS: 1
-            INTEGRATION_MAX_HEAP_SIZE: "1500M"
-            CORE_MAX_PARALLEL_FORKS: 2
+            INTEGRATION_MAX_HEAP_SIZE: "2048m"
+            # We need to revisit what kind of parallelism and memory budget we should target and support.
+            # Post parameterization and merge of 5.0 CommitLog support we're getting error 100 from gradle (OOM's)
+            CORE_MAX_PARALLEL_FORKS: 1
             CORE_TEST_MAX_HEAP_SIZE: "2048m"
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
-            export GRADLE_OPTS="-Xmx2g -Dorg.gradle.jvmargs=-Xmx2g"
             # Run compile/unit tests, skipping integration tests
             ./gradlew --no-daemon --max-workers=2 --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=<<parameters.sstable_format>>
 
@@ -93,10 +94,9 @@ commands:
             SCALA_VERSION: "<<parameters.scala>>"
             JDK_VERSION: "<<parameters.jdk>>"
             INTEGRATION_MAX_PARALLEL_FORKS: 1
-            INTEGRATION_MAX_HEAP_SIZE: "2500M"
+            INTEGRATION_MAX_HEAP_SIZE: "2048m"
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
-            export GRADLE_OPTS="-Xmx2g -Dorg.gradle.jvmargs=-Xmx2g"
             export DTEST_JAR="dtest-<< parameters.cassandra >>.jar"
             export CASSANDRA_VERSION=$(echo << parameters.cassandra >> | cut -d'.' -f 1,2)
             # Run compile but not unit tests (which are run in run_build)
