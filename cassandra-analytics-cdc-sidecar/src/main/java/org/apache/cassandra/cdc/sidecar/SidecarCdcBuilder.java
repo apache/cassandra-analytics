@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.cdc.sidecar;
 
+import java.io.IOException;
+import java.util.Map;
 import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
@@ -29,16 +31,22 @@ import org.apache.cassandra.cdc.api.EventConsumer;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.api.TokenRangeSupplier;
 import org.apache.cassandra.cdc.stats.ICdcStats;
+import org.apache.cassandra.clients.Sidecar;
+import org.apache.cassandra.secrets.SecretsProvider;
+import o.a.c.sidecar.client.shaded.client.SidecarClient;
+import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings("unused")
 public class SidecarCdcBuilder extends CdcBuilder
 {
     protected ClusterConfigProvider clusterConfigProvider;
     protected SidecarCdcClient sidecarCdcClient;
+    protected SidecarCdcClient.ClientConfig clientConfig;
     @NotNull
-    protected Function<String, Integer> portResolver;
+    protected Function<CassandraInstance, Integer> portResolver;
     protected SidecarDownMonitor downMonitor = SidecarDownMonitor.STUB;
     protected ReplicationFactorSupplier replicationFactorSupplier = ReplicationFactorSupplier.DEFAULT;
     protected SidecarCdcStats sidecarCdcStats = SidecarCdcStats.STUB;
@@ -54,33 +62,63 @@ public class SidecarCdcBuilder extends CdcBuilder
                       TokenRangeSupplier tokenRangeSupplier,
                       SidecarCdcClient sidecarCdcClient,
                       @NotNull Function<String, Integer> portResolver,
+                      CdcSidecarInstancesProvider sidecarInstancesProvider,
+                      SidecarCdcClient.ClientConfig clientConfig,
+                      SecretsProvider secretsProvider,
+                      ICdcStats cdcStats) throws IOException
+    {
+        this(
+        jobId,
+        partitionId,
+        cdcOptions,
+        clusterConfigProvider,
+        eventConsumer,
+        schemaSupplier,
+        tokenRangeSupplier,
+        buildPortResolver(sidecarInstancesProvider, clientConfig),
+        clientConfig,
+        Sidecar.from(new SimpleSidecarInstancesProvider(sidecarInstancesProvider.instances().stream()
+                                                                                .map(i -> new SidecarInstanceImpl(i.hostname(), i.port()))
+                                                                                .collect(Collectors.toList())),
+                     clientConfig.toGenericSidecarConfig(), secretsProvider),
+        cdcStats
+        );
+    }
+
+    SidecarCdcBuilder(@NotNull String jobId,
+                      int partitionId,
+                      CdcOptions cdcOptions,
+                      ClusterConfigProvider clusterConfigProvider,
+                      EventConsumer eventConsumer,
+                      SchemaSupplier schemaSupplier,
+                      TokenRangeSupplier tokenRangeSupplier,
+                      @Nullable Function<CassandraInstance, Integer> portResolver,
+                      SidecarCdcClient.ClientConfig clientConfig,
+                      SidecarClient sidecarClient,
                       ICdcStats cdcStats)
     {
         super(jobId, partitionId, eventConsumer, schemaSupplier);
         this.clusterConfigProvider = clusterConfigProvider;
         this.sidecarCdcClient = sidecarCdcClient;
         this.portResolver = portResolver;
+        this.clientConfig = clientConfig;
+        this.portResolver = portResolver != null ? portResolver : ignored -> clientConfig.effectivePort();
+        this.sidecarCdcClient = new SidecarCdcClient(clientConfig, sidecarClient, cdcStats, this.portResolver);
         withCdcOptions(cdcOptions);
         withTokenRangeSupplier(tokenRangeSupplier);
     }
 
     /**
-     * Builds a port resolver function from the {@link CdcSidecarInstancesProvider}. The resolver looks up
-     * the port for a given hostname from the provider, falling back to the configured effective port.
+     * Builds a port resolver function from the {@link CdcSidecarInstancesProvider}. The resolver performs
+     * an O(1) map lookup keyed by hostname, falling back to the configured effective port.
      */
-    static Function<String, Integer> buildPortResolver(@NotNull CdcSidecarInstancesProvider provider,
-                                                       @NotNull SidecarCdcClient.ClientConfig clientConfig)
+    static Function<CassandraInstance, Integer> buildPortResolver(@NotNull CdcSidecarInstancesProvider provider,
+                                                                   @NotNull SidecarCdcClient.ClientConfig clientConfig)
     {
-        return hostname -> {
-            for (CdcSidecarInstance instance : provider.instances())
-            {
-                if (hostname.equals(instance.hostname()))
-                {
-                    return instance.port();
-                }
-            }
-            return clientConfig.effectivePort();
-        };
+        Map<String, Integer> portMap = provider.instances().stream()
+                                               .collect(Collectors.toMap(CdcSidecarInstance::hostname,
+                                                                         CdcSidecarInstance::port));
+        return instance -> portMap.getOrDefault(instance.nodeName(), clientConfig.effectivePort());
     }
 
     public SidecarCdcBuilder withClusterConfigProvider(ClusterConfigProvider clusterConfigProvider)
@@ -92,6 +130,21 @@ public class SidecarCdcBuilder extends CdcBuilder
     public SidecarCdcBuilder withDownMonitor(SidecarDownMonitor downMonitor)
     {
         this.downMonitor = downMonitor;
+        return this;
+    }
+
+    public SidecarCdcBuilder withPortResolver(@NotNull Function<CassandraInstance, Integer> portResolver)
+    {
+        this.portResolver = portResolver;
+        return this;
+    }
+
+    public SidecarCdcBuilder withSidecarClient(SidecarCdcClient.ClientConfig clientConfig,
+                                               SidecarClient sidecarClient,
+                                               ICdcStats cdcStats)
+    {
+        this.clientConfig = clientConfig;
+        this.sidecarCdcClient = new SidecarCdcClient(clientConfig, sidecarClient, cdcStats, portResolver);
         return this;
     }
 

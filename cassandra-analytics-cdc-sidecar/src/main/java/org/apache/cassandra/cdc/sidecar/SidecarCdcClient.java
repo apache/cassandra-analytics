@@ -64,7 +64,7 @@ public class SidecarCdcClient implements AutoCloseable
     final SidecarClient sidecarClient;
     final ICdcStats stats;
     @NotNull
-    final Function<String, Integer> portResolver;
+    final Function<CassandraInstance, Integer> portResolver;
 
     public SidecarCdcClient(ClientConfig clientConfig,
                             CdcSidecarInstancesProvider instancesProvider,
@@ -85,13 +85,13 @@ public class SidecarCdcClient implements AutoCloseable
                              SidecarClient sidecarClient,
                              ICdcStats stats)
     {
-        this(config, sidecarClient, stats, hostname -> config.effectivePort());
+        this(config, sidecarClient, stats, ignored -> config.effectivePort());
     }
 
     public SidecarCdcClient(ClientConfig config,
                             SidecarClient sidecarClient,
                             ICdcStats stats,
-                            @NotNull Function<String, Integer> portResolver)
+                            @NotNull Function<CassandraInstance, Integer> portResolver)
     {
         this.config = config;
         this.sidecarClient = sidecarClient;
@@ -203,7 +203,7 @@ public class SidecarCdcClient implements AutoCloseable
             @Override
             public int port()
             {
-                return portResolver.apply(instance.nodeName());
+                return portResolver.apply(instance);
             }
 
             @Override
