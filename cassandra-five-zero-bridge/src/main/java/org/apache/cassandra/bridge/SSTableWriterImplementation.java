@@ -20,7 +20,6 @@
 package org.apache.cassandra.bridge;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
@@ -68,17 +67,6 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        String createStatement,
                                        String insertStatement,
                                        @NotNull Set<String> userDefinedTypeStatements,
-                                       int bufferSizeMB)
-    {
-        this(inDirectory, determineSupportedPartitioner(partitioner), createStatement, insertStatement,
-             userDefinedTypeStatements, java.util.Collections.emptySet(), bufferSizeMB);
-    }
-
-    public SSTableWriterImplementation(String inDirectory,
-                                       String partitioner,
-                                       String createStatement,
-                                       String insertStatement,
-                                       @NotNull Set<String> userDefinedTypeStatements,
                                        @NotNull Set<String> indexCreateStatements,
                                        int bufferSizeMB)
     {
@@ -92,33 +80,13 @@ public class SSTableWriterImplementation implements SSTableWriter
                                        String createStatement,
                                        String insertStatement,
                                        @NotNull Set<String> userDefinedTypeStatements,
-                                       int bufferSizeMB)
-    {
-        this(inDirectory, partitioner, createStatement, insertStatement,
-             userDefinedTypeStatements, java.util.Collections.emptySet(), bufferSizeMB);
-    }
-
-    @VisibleForTesting
-    public SSTableWriterImplementation(String inDirectory,
-                                       IPartitioner partitioner,
-                                       String createStatement,
-                                       String insertStatement,
-                                       @NotNull Set<String> userDefinedTypeStatements,
                                        @NotNull Set<String> indexCreateStatements,
                                        int bufferSizeMB)
     {
-        CQLSSTableWriter.Builder builder = configureBuilder(inDirectory,
-                                                            createStatement,
-                                                            insertStatement,
-                                                            bufferSizeMB,
-                                                            userDefinedTypeStatements,
-                                                            this::onSSTablesProduced,
-                                                            partitioner);
-        if (!indexCreateStatements.isEmpty())
-        {
-            configureIndexes(builder, indexCreateStatements);
-        }
-        this.writer = builder.build();
+        this.writer = configureBuilder(inDirectory, createStatement, insertStatement,
+                                       bufferSizeMB, userDefinedTypeStatements, indexCreateStatements,
+                                       this::onSSTablesProduced, partitioner)
+                      .build();
     }
 
     private static IPartitioner determineSupportedPartitioner(String partitioner)
@@ -135,6 +103,9 @@ public class SSTableWriterImplementation implements SSTableWriter
                                                     .stream()
                                                     .map(sstable -> {
                                                         String baseFilename = CassandraBridgeImplementation.baseFilename(sstable.descriptor);
+                                                        // TODO: for now, the sstableReader is closed immediately,
+                                                        // TODO (CONTI): we can potentially read from the reader to validate the underlying sstable,
+                                                        // TODO (CONTI): replacing org.apache.cassandra.spark.bulkwriter.SortedSSTableWriter.validateSSTables
                                                         sstable.selfRef().close();
                                                         return new SSTableDescriptor(baseFilename);
                                                     })
@@ -174,6 +145,7 @@ public class SSTableWriterImplementation implements SSTableWriter
                                                      String insertStatement,
                                                      int bufferSizeMB,
                                                      Set<String> udts,
+                                                     Set<String> indexCreateStatements,
                                                      Consumer<Collection<SSTableReader>> producedSSTablesListener,
                                                      IPartitioner cassPartitioner)
     {
@@ -184,50 +156,24 @@ public class SSTableWriterImplementation implements SSTableWriter
             builder.withType(udt);
         }
 
-        return builder.inDirectory(inDirectory)
-                      .forTable(createStatement)
-                      .withPartitioner(cassPartitioner)
-                      .using(insertStatement)
-                      .sorted()
-                      .withSSTableProducedListener(producedSSTablesListener)
-                      .openSSTableOnProduced()
-                      .withMaxSSTableSizeInMiB(bufferSizeMB);
-    }
+        builder.inDirectory(inDirectory)
+               .forTable(createStatement)
+               .withPartitioner(cassPartitioner)
+               .using(insertStatement)
+               // The data frame to write is always sorted,
+               // see org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation.insert
+               .sorted()
+               .withSSTableProducedListener(producedSSTablesListener)
+               .openSSTableOnProduced()
+               .withMaxSSTableSizeInMiB(bufferSizeMB);
 
-    /**
-     * Configures the CQLSSTableWriter builder to generate SAI index components.
-     * Uses reflection to call withIndexes/withBuildIndexes methods since they may not be
-     * present in all Cassandra 5.0.x patch versions.
-     *
-     * @param builder              the CQLSSTableWriter builder
-     * @param indexCreateStatements the CREATE INDEX CQL statements
-     */
-    @VisibleForTesting
-    static void configureIndexes(CQLSSTableWriter.Builder builder, Set<String> indexCreateStatements)
-    {
-        try
+        if (!indexCreateStatements.isEmpty())
         {
-            // Use reflection to check for SAI index generation support in CQLSSTableWriter.Builder
-            Method withIndexMethod = CQLSSTableWriter.Builder.class.getMethod("withIndex", String.class);
-            Method withBuildIndexesMethod = CQLSSTableWriter.Builder.class.getMethod("withBuildIndexes", boolean.class);
-
-            for (String indexStatement : indexCreateStatements)
-            {
-                withIndexMethod.invoke(builder, indexStatement);
-            }
-            withBuildIndexesMethod.invoke(builder, true);
-
+            builder.withIndexes(indexCreateStatements.toArray(new String[0]));
+            builder.withBuildIndexes(true);
             LOGGER.info("SAI index generation enabled for {} index(es)", indexCreateStatements.size());
         }
-        catch (NoSuchMethodException exception)
-        {
-            LOGGER.warn("CQLSSTableWriter does not support inline SAI index generation in this Cassandra version. "
-                      + "Indexes will need to be rebuilt after import. indexCount={}", indexCreateStatements.size());
-        }
-        catch (ReflectiveOperationException exception)
-        {
-            LOGGER.error("Failed to configure SAI index generation", exception);
-            throw new RuntimeException("Failed to configure SAI index generation", exception);
-        }
+
+        return builder;
     }
 }

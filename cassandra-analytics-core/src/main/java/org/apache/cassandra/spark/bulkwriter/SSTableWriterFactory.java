@@ -39,23 +39,6 @@ public final class SSTableWriterFactory
                                                  String createStatement,
                                                  String insertStatement,
                                                  Set<String> userDefinedTypeStatements,
-                                                 int bufferSizeMB)
-    {
-        CassandraBridge cassandraBridge = CassandraBridgeFactory.get(serverVersion);
-        return cassandraBridge.getSSTableWriter(inDirectory,
-                                                partitioner,
-                                                createStatement,
-                                                insertStatement,
-                                                userDefinedTypeStatements,
-                                                bufferSizeMB);
-    }
-
-    public static SSTableWriter getSSTableWriter(CassandraVersionFeatures serverVersion,
-                                                 String inDirectory,
-                                                 String partitioner,
-                                                 String createStatement,
-                                                 String insertStatement,
-                                                 Set<String> userDefinedTypeStatements,
                                                  Set<String> indexCreateStatements,
                                                  int bufferSizeMB)
     {

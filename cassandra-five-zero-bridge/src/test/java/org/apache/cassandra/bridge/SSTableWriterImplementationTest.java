@@ -69,6 +69,7 @@ class SSTableWriterImplementationTest
                                                                                         INSERT_STATEMENT,
                                                                                         250,
                                                                                         Collections.emptySet(),
+                                                                                        Collections.emptySet(),
                                                                                         sstables -> {},
                                                                                         new Murmur3Partitioner());
 
@@ -85,6 +86,7 @@ class SSTableWriterImplementationTest
                                                                              new ByteOrderedPartitioner(), // required in order to insert ordered ints
                                                                              CREATE_STATEMENT,
                                                                              INSERT_STATEMENT,
+                                                                             Collections.emptySet(),
                                                                              Collections.emptySet(),
                                                                              1);
         writer.setSSTablesProducedListener(produced::addAll);

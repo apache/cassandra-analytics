@@ -24,6 +24,8 @@ import java.util.Set;
 
 import org.jetbrains.annotations.NotNull;
 
+import org.apache.cassandra.spark.utils.CqlUtils;
+
 /**
  * Provides schema information for bulk write operations.
  * <p>
@@ -47,5 +49,16 @@ public interface SchemaInfo
     default Set<String> getIndexStatements()
     {
         return Collections.emptySet();
+    }
+
+    /**
+     * Returns whether the table has SAI indexes.
+     *
+     * @return {@code true} if the table has index statements and all of them are SAI indexes
+     */
+    default boolean hasSaiIndexes()
+    {
+        Set<String> indexes = getIndexStatements();
+        return !indexes.isEmpty() && indexes.stream().allMatch(CqlUtils::isSaiIndex);
     }
 }

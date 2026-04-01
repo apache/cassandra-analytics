@@ -144,15 +144,9 @@ jar {
 test {
     systemProperty "cassandra.sidecar.versions_to_test", (System.getenv("CASSANDRA_VERSION") ?: "4.0.17,5.0.5")
 
-<<<<<<< Updated upstream
     minHeapSize = '1024m'
     maxHeapSize = '3072m'
     maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
-=======
-    minHeapSize = System.getenv('CDC_TEST_MIN_HEAP_SIZE') ?: '512m'
-    maxHeapSize = System.getenv('CDC_TEST_MAX_HEAP_SIZE') ?: '2048m'
-    maxParallelForks = System.getenv('CDC_MAX_PARALLEL_FORKS')?.toInteger() ?: 3
->>>>>>> Stashed changes
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in

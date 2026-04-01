@@ -125,14 +125,14 @@ public class SortedSSTableWriter
         SchemaInfo schema = writerContext.schema();
         TableSchema tableSchema = schema.getTableSchema();
         this.cqlSSTableWriter = SSTableWriterFactory.getSSTableWriter(
-        CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(packageVersion),
-        this.outDir.toString(),
-        writerContext.cluster().getPartitioner().toString(),
-        tableSchema.createStatement,
-        tableSchema.modificationStatement,
-        schema.getUserDefinedTypeStatements(),
-        schema.getIndexStatements(),
-        writerContext.job().sstableDataSizeInMiB());
+            CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(packageVersion),
+            this.outDir.toString(),
+            writerContext.cluster().getPartitioner().toString(),
+            tableSchema.createStatement,
+            tableSchema.modificationStatement,
+            schema.getUserDefinedTypeStatements(),
+            schema.getIndexStatements(),
+            writerContext.job().sstableDataSizeInMiB());
     }
 
     @NotNull

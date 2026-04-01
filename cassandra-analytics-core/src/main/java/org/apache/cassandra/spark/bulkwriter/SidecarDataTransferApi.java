@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import org.slf4j.Logger;
@@ -37,7 +36,6 @@ import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
-import org.apache.cassandra.spark.utils.CqlUtils;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
 
@@ -56,19 +54,14 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
     private final JobInfo job;
     private final boolean hasSaiIndexes;
 
-    public SidecarDataTransferApi(CassandraContext cassandraContext, CassandraBridge bridge, JobInfo job)
-    {
-        this(cassandraContext, bridge, job, Collections.emptySet());
-    }
-
     public SidecarDataTransferApi(CassandraContext cassandraContext, CassandraBridge bridge, JobInfo job,
-                                  Set<String> indexStatements)
+                                  boolean hasSaiIndexes)
     {
         this.sidecarClient = cassandraContext.getSidecarClient();
         this.sidecarPort = cassandraContext.sidecarPort();
         this.bridge = bridge;
         this.job = job;
-        this.hasSaiIndexes = !indexStatements.isEmpty() && indexStatements.stream().allMatch(CqlUtils::isSaiIndex);
+        this.hasSaiIndexes = hasSaiIndexes;
     }
 
     @Override
