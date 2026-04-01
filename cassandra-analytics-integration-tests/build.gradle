@@ -35,8 +35,7 @@ if (propertyWithDefault("artifactType", null) == "spark")
 def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "3072M"
 println("Using ${integrationMaxHeapSize} maxHeapSize")
 
-// def integrationMaxParallelForks = (System.getenv("INTEGRATION_MAX_PARALLEL_FORKS") ?: "1") as int
-def integrationMaxParallelForks = 1
+def integrationMaxParallelForks = (System.getenv("INTEGRATION_MAX_PARALLEL_FORKS") ?: "1") as int
 println("Using ${integrationMaxParallelForks} maxParallelForks")
 
 def integrationEnableMtls = (System.getenv("INTEGRATION_MTLS_ENABLED") ?: "true") as boolean

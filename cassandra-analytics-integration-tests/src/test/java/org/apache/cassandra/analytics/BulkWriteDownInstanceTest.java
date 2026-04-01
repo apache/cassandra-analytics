@@ -111,6 +111,13 @@ class BulkWriteDownInstanceTest extends SharedClusterSparkIntegrationTestBase
         return super.testClusterConfiguration().nodesPerDc(3);
     }
 
+    @Override
+    protected void resetClusterState()
+    {
+        downInstances.clear();
+        super.resetClusterState();
+    }
+
     void stopCassandraInstancesForTest(int instanceDownCount)
     {
         while (instanceDownCount > downInstances.size())

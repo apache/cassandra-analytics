@@ -103,9 +103,9 @@ class HostReplacementMultiDCTest extends HostReplacementTestBase
     static Stream<Arguments> multiDCTestInputs()
     {
         return Stream.of(
-        Arguments.of(TestConsistencyLevel.of(LOCAL_QUORUM, LOCAL_QUORUM)),
-        Arguments.of(TestConsistencyLevel.of(LOCAL_QUORUM, EACH_QUORUM)),
-        Arguments.of(TestConsistencyLevel.of(QUORUM, QUORUM))
+            Arguments.of(TestConsistencyLevel.of(LOCAL_QUORUM, LOCAL_QUORUM)),
+            Arguments.of(TestConsistencyLevel.of(LOCAL_QUORUM, EACH_QUORUM)),
+            Arguments.of(TestConsistencyLevel.of(QUORUM, QUORUM))
         );
     }
 

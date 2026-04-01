@@ -82,6 +82,8 @@ abstract class NodeMovementTestBase extends ResiliencyTestBase
         ClusterBuilderConfiguration configuration = testClusterConfiguration();
         int movingNodeIndex = configuration.dcCount > 1 ? MULTI_DC_MOVING_NODE_IDX : SINGLE_DC_MOVING_NODE_IDX;
         movingNode = cluster.get(movingNodeIndex);
+        // We don't want to wait on or block on resetting this node
+        nonResettableInstances.add(movingNodeIndex);
 
         IInstance seed = cluster.get(1);
         new Thread(() -> {

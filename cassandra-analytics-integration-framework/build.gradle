@@ -59,6 +59,10 @@ dependencies {
 
     api("org.junit.vintage:junit-vintage-engine:${junitVersion}")
     api('org.mockito:mockito-inline:4.10.0')
+    // ByteBuddy agent is core test infrastructure: SharedClusterIntegrationTestBase installs it for
+    // class redefinition during @AfterEach cluster reset. Transitive via mockito-inline but declared
+    // explicitly since the framework uses it directly.
+    api('net.bytebuddy:byte-buddy-agent:1.12.19')
     api("org.assertj:assertj-core:${assertjCoreVersion}")
 
     api('com.datastax.cassandra:cassandra-driver-core:3.11.3')

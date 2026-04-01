@@ -25,11 +25,10 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.agent.ByteBuddyAgent;
-import net.bytebuddy.dynamic.loading.ClassReloadingStrategy;
 import net.bytebuddy.implementation.MethodCall;
 import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
@@ -58,6 +57,23 @@ public class BulkReaderMultiDCConsistencyTest extends SharedClusterSparkIntegrat
     static final int TEST_KEY = 1;
     static final String TEST_VAL = "C*";
     QualifiedName table1 = uniqueTestTableFullName(TEST_KEYSPACE);
+
+    /**
+     * Test-specific data reset. CassandraDataLayer bytecode restoration and generic cluster recovery
+     * (filter reset, node restart, ring wait, JMX wait, shutdown hooks) are handled by the parent chain.
+     */
+    @AfterEach
+    @Override
+    protected void resetClusterState()
+    {
+        super.resetClusterState();
+
+        // Restore data to original values after generic cluster recovery completes
+        for (int i = 0; i < OG_DATASET.size(); i++)
+        {
+            setValueForALL(i, OG_DATASET.get(i));
+        }
+    }
 
     @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
@@ -112,9 +128,6 @@ public class BulkReaderMultiDCConsistencyTest extends SharedClusterSparkIntegrat
         String valQuorum = readValueForKey(TEST_KEY, ConsistencyLevel.QUORUM);
         String valEachQuorum = readValueForKey(TEST_KEY, ConsistencyLevel.EACH_QUORUM);
         assertThat(valAll).isEqualTo(valQuorum).isEqualTo(valEachQuorum).isEqualTo(rowList.get(1).getString(1));
-
-        // Revert the value update for all nodes
-        setValueForALL(TEST_KEY, OG_DATASET.get(TEST_KEY));
     }
 
     public static PartitionedDataLayer.AvailabilityHint getAvailability(CassandraInstance instance)
@@ -149,19 +162,18 @@ public class BulkReaderMultiDCConsistencyTest extends SharedClusterSparkIntegrat
         // primaryReplicas: [Node1, Node2, Node3, Node4]
         // secondaryReplicas: [Node5, Node6]
         // Number of nodes required for QUORUM read id 6/1 + 1 = 4. Bulk reader will read from [Node1, Node2, Node3, Node4] only.
-        ByteBuddyAgent.install();
         new ByteBuddy()
-        .redefine(CassandraDataLayer.class)
-        .method(ElementMatchers.named("getAvailability"))
-        .intercept(
-        MethodCall.invoke(BulkReaderMultiDCConsistencyTest.class.getMethod("getAvailability", CassandraInstance.class))
-                  .withAllArguments()
-        )
-        .make()
-        .load(
-        CassandraDataLayer.class.getClassLoader(),
-        ClassReloadingStrategy.fromInstalledAgent()
-        );
+            .redefine(CassandraDataLayer.class)
+            .method(ElementMatchers.named("getAvailability"))
+            .intercept(
+            MethodCall.invoke(BulkReaderMultiDCConsistencyTest.class.getMethod("getAvailability", CassandraInstance.class))
+                      .withAllArguments()
+                )
+            .make()
+            .load(
+                CassandraDataLayer.class.getClassLoader(),
+                classReloadingStrategy
+            );
 
         // Bulk read with QUORUM consistency
         List<Row> rowList = bulkRead(ConsistencyLevel.QUORUM.name());
@@ -190,19 +202,14 @@ public class BulkReaderMultiDCConsistencyTest extends SharedClusterSparkIntegrat
         String eachQuorumVal = readValueForKey(TEST_KEY, ConsistencyLevel.EACH_QUORUM);
         // Validate that EACH_QUORUM read using driver and the bulk reader are the same
         assertThat(eachQuorumVal).isEqualTo(rowList.get(TEST_KEY).getString(1));
-
-        // Revert the value update for all nodes
-        setValueForALL(TEST_KEY, OG_DATASET.get(TEST_KEY));
     }
 
     /**
      * Tests that EACH_QUORUM read succeeds with one node down in each DC.
      * Tests that value read using driver is the same as the value read using bulk reader.
-     *
-     * @throws Exception
      */
     @Test
-    void eachQuorumSuccessWithOneNodeDownEachDC() throws Exception
+    void eachQuorumSuccessWithOneNodeDownEachDC()
     {
         // Stop Node1(DC1)
         cluster.stopUnchecked(cluster.get(1));
@@ -217,10 +224,6 @@ public class BulkReaderMultiDCConsistencyTest extends SharedClusterSparkIntegrat
         String eachQuorumVal = readValueForKey(TEST_KEY, ConsistencyLevel.EACH_QUORUM);
         // Validate that data from driver and bulk reader are the same
         assertThat(eachQuorumVal).isEqualTo(rowList.get(TEST_KEY).getString(1));
-
-        // Tear down and re-create the cluster
-        tearDown();
-        setup();
     }
 
     /**
@@ -229,11 +232,9 @@ public class BulkReaderMultiDCConsistencyTest extends SharedClusterSparkIntegrat
      * QUORUM read value using bulk reader equals QUORUM read value using driver.
      * EACH_QUORUM read with bulk reader fails with cause as NotEnoughReplicasException.
      * EACH_QUORUM read with driver fails.
-     *
-     * @throws Exception
      */
     @Test
-    void eachQuorumFailureWithTwoNodesDownOneDC() throws Exception
+    void eachQuorumFailureWithTwoNodesDownOneDC()
     {
         // Stop Node4(DC2)
         cluster.stopUnchecked(cluster.get(4));
@@ -271,10 +272,6 @@ public class BulkReaderMultiDCConsistencyTest extends SharedClusterSparkIntegrat
             assertThat(ex).isNotNull();
             assertThat(ex.getMessage()).isEqualTo("Cannot achieve consistency level EACH_QUORUM in DC datacenter2");
         }
-
-        // Tear down and re-create the cluster
-        tearDown();
-        setup();
     }
 
     /**

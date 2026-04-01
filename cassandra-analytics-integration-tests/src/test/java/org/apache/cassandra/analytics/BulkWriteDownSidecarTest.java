@@ -171,6 +171,13 @@ class BulkWriteDownSidecarTest extends SharedClusterSparkIntegrationTestBase
         return super.testClusterConfiguration().nodesPerDc(3);
     }
 
+    @Override
+    protected void resetClusterState()
+    {
+        downSidecars.clear();
+        super.resetClusterState();
+    }
+
     void stopSidecarInstancesForTest(int instanceDownCount) throws Exception
     {
         assertThat(sidecarServerList).isNotEmpty();
