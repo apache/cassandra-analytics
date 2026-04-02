@@ -103,8 +103,9 @@ public class SidecarCdcClient implements AutoCloseable
     }
 
     /**
-     * Builds a port resolver function from the {@link CdcSidecarInstancesProvider}. The resolver performs
-     * an O(1) map lookup keyed by hostname, falling back to the configured effective port.
+     * Builds a port resolver function from the {@link CdcSidecarInstancesProvider}. The instances are
+     * indexed into a hostname-keyed map once (O(n)) at construction time, so that each subsequent
+     * resolution call is O(1). Unknown hostnames fall back to the configured effective port.
      */
     static Function<CassandraInstance, Integer> buildPortResolver(@NotNull CdcSidecarInstancesProvider provider,
                                                                    @NotNull ClientConfig clientConfig)
