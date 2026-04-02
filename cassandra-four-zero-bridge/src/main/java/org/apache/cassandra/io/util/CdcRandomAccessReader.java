@@ -111,8 +111,8 @@ public class CdcRandomAccessReader extends RandomAccessReader
                     // attempting to read bytes previously read
                     // in practice we read the Commit Logs sequentially
                     // but we still need to respect random access reader API, it will just require blocking
-                    int requestLen = buffer.remaining() + 1;
-                    long end = offset + requestLen;
+                    int requestLen = buffer.remaining();
+                    long end = offset + requestLen - 1;
                     BlockingStreamConsumer streamConsumer = new BlockingStreamConsumer();
                     source.request(offset, end, streamConsumer);
                     streamConsumer.getBytes(buffer);
