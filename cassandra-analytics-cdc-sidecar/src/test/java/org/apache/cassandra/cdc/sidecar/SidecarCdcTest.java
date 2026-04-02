@@ -62,7 +62,6 @@ public class SidecarCdcTest
         SchemaSupplier schemaSupplier = mock(SchemaSupplier.class);
         TokenRangeSupplier tokenRangeSupplier = mock(TokenRangeSupplier.class);
         SidecarCdcClient mockSidecarCdcClient = mock(SidecarCdcClient.class);
-        ICdcStats cdcStats = mock(ICdcStats.class);
 
         SidecarCdcBuilder builder = new SidecarCdcBuilder(
             jobId,
@@ -89,7 +88,7 @@ public class SidecarCdcTest
         SidecarCdcClient.ClientConfig clientConfig = SidecarCdcClient.ClientConfig.create();
 
         SidecarCdcClient client = new SidecarCdcClient(clientConfig, mockSidecarClient, cdcStats,
-                                                       instance -> portMapping.getOrDefault(instance.nodeName(), 9043));
+                                                       hostname -> portMapping.getOrDefault(hostname, 9043));
 
         SidecarInstance si1 = client.toSidecarInstance(new CassandraInstance("0", "host1", "DC1"));
         assertThat(si1.hostname()).isEqualTo("host1");
@@ -105,13 +104,52 @@ public class SidecarCdcTest
     }
 
     @Test
+    public void testWithPortResolverOnBuilder()
+    {
+        SidecarCdcClient.ClientConfig clientConfig = SidecarCdcClient.ClientConfig.create(9042, 3, 100L);
+        Map<String, Integer> portMapping = Map.of("host1", 9100, "host2", 9200);
+        SidecarCdcClient baseClient = new SidecarCdcClient(clientConfig, mockSidecarClient, cdcStats,
+                                                           ignored -> clientConfig.effectivePort());
+
+        SidecarCdcBuilder builder = new SidecarCdcBuilder(
+            "test-job",
+            0,
+            mock(CdcOptions.class),
+            mock(ClusterConfigProvider.class),
+            mock(EventConsumer.class),
+            mock(SchemaSupplier.class),
+            mock(TokenRangeSupplier.class),
+            baseClient,
+            cdcStats
+        );
+
+        // Before override: every host resolves to effectivePort
+        assertThat(builder.sidecarCdcClient.toSidecarInstance(new CassandraInstance("0", "host1", "DC1")).port())
+            .isEqualTo(9042);
+
+        // Override via builder chain
+        builder.withPortResolver(hostname -> portMapping.getOrDefault(hostname,
+                                                                      clientConfig.effectivePort()));
+
+        // Known hosts resolve to their mapped ports after override
+        assertThat(builder.sidecarCdcClient.toSidecarInstance(new CassandraInstance("0", "host1", "DC1")).port())
+            .isEqualTo(9100);
+        assertThat(builder.sidecarCdcClient.toSidecarInstance(new CassandraInstance("100", "host2", "DC1")).port())
+            .isEqualTo(9200);
+
+        // Unknown host falls back to effectivePort
+        assertThat(builder.sidecarCdcClient.toSidecarInstance(new CassandraInstance("200", "unknown", "DC1")).port())
+            .isEqualTo(9042);
+    }
+
+    @Test
     public void testFallbackToEffectivePortWhenHostNotFound()
     {
         SidecarCdcClient.ClientConfig clientConfig = SidecarCdcClient.ClientConfig.create(8888, 3, 100L);
         Map<String, Integer> portMapping = Map.of("host1", 9043);
 
         SidecarCdcClient client = new SidecarCdcClient(clientConfig, mockSidecarClient, cdcStats,
-                                                       instance -> portMapping.getOrDefault(instance.nodeName(),
+                                                       hostname -> portMapping.getOrDefault(hostname,
                                                                                             clientConfig.effectivePort()));
 
         assertThat(client.toSidecarInstance(new CassandraInstance("0", "host1", "DC1")).port()).isEqualTo(9043);

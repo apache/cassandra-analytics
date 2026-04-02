@@ -64,21 +64,22 @@ public class SidecarCdcClient implements AutoCloseable
     final SidecarClient sidecarClient;
     final ICdcStats stats;
     @NotNull
-    final Function<CassandraInstance, Integer> portResolver;
+    final Function<String, Integer> portResolver;
 
     public SidecarCdcClient(ClientConfig clientConfig,
                             CdcSidecarInstancesProvider instancesProvider,
                             SecretsProvider secretsProvider,
                             ICdcStats cdcStats) throws IOException
     {
-        this(clientConfig, instancesProvider, secretsProvider, cdcStats, null);
+        this(clientConfig, instancesProvider, secretsProvider, cdcStats,
+             ignored -> clientConfig.effectivePort());
     }
 
     public SidecarCdcClient(ClientConfig clientConfig,
                             CdcSidecarInstancesProvider instancesProvider,
                             SecretsProvider secretsProvider,
                             ICdcStats cdcStats,
-                            @Nullable Function<CassandraInstance, Integer> portResolver) throws IOException
+                            @NotNull Function<String, Integer> portResolver) throws IOException
     {
         this(clientConfig,
              Sidecar.from(new SimpleSidecarInstancesProvider(instancesProvider.instances()
@@ -88,13 +89,13 @@ public class SidecarCdcClient implements AutoCloseable
                           clientConfig.toGenericSidecarConfig(),
                           secretsProvider),
              cdcStats,
-             portResolver != null ? portResolver : buildPortResolver(instancesProvider, clientConfig));
+             portResolver);
     }
 
     SidecarCdcClient(ClientConfig config,
                      SidecarClient sidecarClient,
                      ICdcStats stats,
-                     @NotNull Function<CassandraInstance, Integer> portResolver)
+                     @NotNull Function<String, Integer> portResolver)
     {
         this.config = config;
         this.sidecarClient = sidecarClient;
@@ -103,17 +104,16 @@ public class SidecarCdcClient implements AutoCloseable
     }
 
     /**
-     * Builds a port resolver function from the {@link CdcSidecarInstancesProvider}. The instances are
-     * indexed into a hostname-keyed map once (O(n)) at construction time, so that each subsequent
-     * resolution call is O(1). Unknown hostnames fall back to the configured effective port.
+     * Returns a new {@link SidecarCdcClient} that is identical to this one except that it uses
+     * the supplied {@code portResolver}. The underlying {@link SidecarClient} and all other
+     * configuration are reused, so no new HTTP connections or thread pools are created.
+     *
+     * @param portResolver function that maps a Sidecar node hostname to its port
+     * @return a new client with the given port resolver
      */
-    static Function<CassandraInstance, Integer> buildPortResolver(@NotNull CdcSidecarInstancesProvider provider,
-                                                                   @NotNull ClientConfig clientConfig)
+    public SidecarCdcClient withPortResolver(@NotNull Function<String, Integer> portResolver)
     {
-        Map<String, Integer> portMap = provider.instances().stream()
-                                               .collect(Collectors.toMap(CdcSidecarInstance::hostname,
-                                                                         CdcSidecarInstance::port));
-        return instance -> portMap.getOrDefault(instance.nodeName(), clientConfig.effectivePort());
+        return new SidecarCdcClient(config, sidecarClient, stats, portResolver);
     }
 
     /**
@@ -220,7 +220,7 @@ public class SidecarCdcClient implements AutoCloseable
             @Override
             public int port()
             {
-                return portResolver.apply(instance);
+                return portResolver.apply(instance.nodeName());
             }
 
             @Override
