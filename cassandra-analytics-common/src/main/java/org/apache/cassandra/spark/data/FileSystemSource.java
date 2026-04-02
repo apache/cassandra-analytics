@@ -91,12 +91,11 @@ public class FileSystemSource<T extends CassandraFile> implements CassandraFileS
     public void request(long start, long end, StreamConsumer consumer)
     {
         executor().submit(() -> {
-            boolean close = length <= end;
+            boolean close = length <= end + 1;
             try
             {
-                // Start-end range is inclusive but on the final request end == length so we need to exclude
-                int increment = close ? 0 : 1;
-                byte[] bytes = new byte[(int) (end - start + increment)];
+                // start-end range is inclusive
+                byte[] bytes = new byte[(int) (end - start + 1)];
                 if (file.getChannel().read(ByteBuffer.wrap(bytes), start) >= 0)
                 {
                     consumer.onRead(StreamBuffer.wrap(bytes));

@@ -92,9 +92,9 @@ public class CdcRandomAccessReaderTest
             long position = call.start;
 
             // Deliver data in chunks until request is fulfilled
-            while (position < actualEnd)
+            while (position <= actualEnd) // range boundaries are inclusive
             {
-                int chunkSize = (int) Math.min(actualEnd - position, bufferSize);
+                int chunkSize = (int) Math.min(actualEnd - position + 1, bufferSize);
                 Buffer data = Buffer.buffer();
                 for (int i = 0; i < chunkSize; i++)
                 {
@@ -154,13 +154,10 @@ public class CdcRandomAccessReaderTest
         testCommitLog.setMaxOffset(100L);
         final int bufferSize = 50;
         testSource.setRequestHandler(call -> {
-            // Backward seek path has a bug: requests buffer.remaining() + 1 bytes
             // We cap delivery at buffer capacity to work around this and test flip() behavior
             long actualEnd = Math.min(call.end, testCommitLog.maxOffset());
-            long requestedBytes = actualEnd - call.start;
+            long requestedBytes = actualEnd - call.start + 1; // range boundaries are inclusive
             long position = call.start;
-
-            // Cap delivery to buffer capacity to avoid BufferOverflowException from + 1 bug
             long bytesToDeliver = Math.min(requestedBytes, bufferSize);
 
             // Deliver capped amount
@@ -214,7 +211,7 @@ public class CdcRandomAccessReaderTest
 
         // Configure source to provide sequential data
         testSource.setRequestHandler(call -> {
-            int dataSize = (int) (call.end - call.start);
+            int dataSize = (int) (call.end - call.start + 1);
             Buffer data = Buffer.buffer(dataSize);
             for (int i = 0; i < dataSize; i++)
             {
@@ -389,6 +386,7 @@ public class CdcRandomAccessReaderTest
 
         static class RequestCall
         {
+            // start and end offsets are considered inclusive
             final long start;
             final long end;
             final StreamConsumer consumer;

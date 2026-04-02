@@ -20,7 +20,10 @@
 package org.apache.cassandra.spark.utils;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -33,6 +36,7 @@ import java.util.stream.IntStream;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.junit.jupiter.api.Test;
 
@@ -289,7 +293,7 @@ public class BufferingInputStreamTests
         };
 
         int bytesToRead = chunkSize * numChunks;
-        long skipAhead = size - bytesToRead + 1;
+        long skipAhead = size - bytesToRead;
         try (BufferingInputStream<SSTable> stream = new BufferingInputStream<>(source, STATS.bufferingInputStreamStats()))
         {
             // Skip ahead so we only read the final chunks
@@ -343,6 +347,77 @@ public class BufferingInputStreamTests
         {
             ByteBufferUtils.skipFully(stream, 20971520);
             readStreamFully(stream);
+        }
+    }
+
+    @Test
+    public void testUnalignedEndReading() throws IOException
+    {
+        int dataSize = 8192;
+        int chunkSize = 4096;
+        int remainingReadBytes = 2;
+        List<byte[]> returnedBuffers = new ArrayList<>();
+        CassandraFileSource<SSTable> source = new CassandraFileSource<SSTable>()
+        {
+            @Override
+            public void request(long start, long end, StreamConsumer consumer)
+            {
+                byte[] bytes = RandomUtils.randomBytes((int) (end - start + 1));
+                StreamBuffer buffer = StreamBuffer.wrap(bytes);
+                returnedBuffers.add(bytes);
+                consumer.onRead(buffer);
+                consumer.onEnd();
+            }
+
+            @Override
+            public SSTable cassandraFile()
+            {
+                return null;
+            }
+
+            @Override
+            public FileType fileType()
+            {
+                return FileType.PARTITIONS_INDEX;
+            }
+
+            @Override
+            public long size()
+            {
+                return dataSize;
+            }
+
+            @Override
+            @Nullable
+            public Duration timeout()
+            {
+                return Duration.ofSeconds(5);
+            }
+
+            @Override
+            public long chunkBufferSize()
+            {
+                return chunkSize;
+            }
+        };
+
+        try (BufferingInputStream<SSTable> stream1 = new BufferingInputStream<>(source, STATS.bufferingInputStreamStats()))
+        {
+            // move left from the file end by (chunkSize + remainingReadBytes)
+            try (BufferingInputStream<SSTable> stream2 = stream1.reBuffer(dataSize - chunkSize - remainingReadBytes))
+            {
+                ByteBuffer buffer = ByteBuffer.allocate(chunkSize);
+                int read = stream2.read(buffer); // read last full chunk
+                assertThat(returnedBuffers).hasSize(2);
+                assertThat(read).isEqualTo(chunkSize);
+                assertThat(buffer.array()).isEqualTo(returnedBuffers.get(0));
+
+                buffer.position(0);
+                buffer.limit(remainingReadBytes);
+                read = stream2.read(buffer); // read remaining bytes
+                assertThat(read).isEqualTo(remainingReadBytes);
+                assertThat(ArrayUtils.subarray(buffer.array(), 0, remainingReadBytes)).isEqualTo(returnedBuffers.get(1));
+            }
         }
     }
 
