@@ -32,7 +32,7 @@ if (propertyWithDefault("artifactType", null) == "spark")
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
 
-def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "4096m"
+def integrationMaxHeapSize = '3072m'
 println("Using ${integrationMaxHeapSize} maxHeapSize")
 
 def integrationEnableMtls = (System.getenv("INTEGRATION_MTLS_ENABLED") ?: "true") as boolean
