@@ -35,11 +35,6 @@ if (propertyWithDefault("artifactType", null) == "spark")
 def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "4096m"
 println("Using ${integrationMaxHeapSize} maxHeapSize")
 
-// TODO: Uncomment this and push up a bit more once we figure out what works
-// def integrationMaxParallelForks = (System.getenv("INTEGRATION_MAX_PARALLEL_FORKS") ?: "4") as int
-// println("Using ${integrationMaxParallelForks} maxParallelForks")
-println("TODO: maxParallelForks is hard-coded to 1 currently; revisit this value once tests are stabilized.")
-
 def integrationEnableMtls = (System.getenv("INTEGRATION_MTLS_ENABLED") ?: "true") as boolean
 println("Using mTLS for tests? ${integrationEnableMtls}")
 
@@ -95,8 +90,6 @@ test {
     minHeapSize = '1g'
     maxHeapSize = integrationMaxHeapSize
     maxParallelForks = 2
-    // TODO: revisit relaxing these resource constraints once we find the offending tests
-    // maxParallelForks = integrationMaxParallelForks
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     beforeTest { descriptor ->

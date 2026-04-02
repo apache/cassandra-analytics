@@ -34,7 +34,7 @@ if (propertyWithDefault("artifactType", null) == "common")
 
 test {
     useJUnitPlatform()
-    maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
+    maxParallelForks = 2
     reports {
         junitXml.setRequired(true)
         def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-results", "vertx-client").toFile()

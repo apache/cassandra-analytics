@@ -146,8 +146,6 @@ test {
 
     minHeapSize = '1024m'
     maxHeapSize = '4096m'
-    // TODO: revisit relaxing these resource constraints once we find the offending tests
-    // maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
     maxParallelForks = 2
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
