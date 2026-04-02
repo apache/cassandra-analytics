@@ -19,8 +19,6 @@
 
 package org.apache.cassandra.cdc.sidecar;
 
-import java.util.function.Function;
-
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.cdc.CdcBuilder;
@@ -63,12 +61,6 @@ public class SidecarCdcBuilder extends CdcBuilder
     public SidecarCdcBuilder withClusterConfigProvider(ClusterConfigProvider clusterConfigProvider)
     {
         this.clusterConfigProvider = clusterConfigProvider;
-        return this;
-    }
-
-    public SidecarCdcBuilder withPortResolver(@NotNull Function<String, Integer> portResolver)
-    {
-        this.sidecarCdcClient = sidecarCdcClient.withPortResolver(portResolver);
         return this;
     }
 

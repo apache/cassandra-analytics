@@ -104,19 +104,6 @@ public class SidecarCdcClient implements AutoCloseable
     }
 
     /**
-     * Returns a new {@link SidecarCdcClient} that is identical to this one except that it uses
-     * the supplied {@code portResolver}. The underlying {@link SidecarClient} and all other
-     * configuration are reused, so no new HTTP connections or thread pools are created.
-     *
-     * @param portResolver function that maps a Sidecar node hostname to its port
-     * @return a new client with the given port resolver
-     */
-    public SidecarCdcClient withPortResolver(@NotNull Function<String, Integer> portResolver)
-    {
-        return new SidecarCdcClient(config, sidecarClient, stats, portResolver);
-    }
-
-    /**
      * Closes the underlying {@link SidecarClient} and releases associated resources (e.g. thread pools,
      * HTTP connections).
      *
