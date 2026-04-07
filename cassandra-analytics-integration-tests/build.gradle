@@ -32,7 +32,7 @@ if (propertyWithDefault("artifactType", null) == "spark")
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
 
-def integrationMaxHeapSize = '3072m'
+def integrationMaxHeapSize = '6144m'
 println("Using ${integrationMaxHeapSize} maxHeapSize")
 
 def integrationEnableMtls = (System.getenv("INTEGRATION_MTLS_ENABLED") ?: "true") as boolean
@@ -89,7 +89,7 @@ test {
     systemProperty "cassandra.integration.sidecar.test.enable_mtls", integrationEnableMtls
     minHeapSize = '1g'
     maxHeapSize = integrationMaxHeapSize
-    maxParallelForks = 2
+    maxParallelForks = 1
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     beforeTest { descriptor ->
