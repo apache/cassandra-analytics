@@ -244,10 +244,9 @@ subprojects {
   codeCheckTasks.dependsOn(tasks.withType(Checkstyle))
   codeCheckTasks.dependsOn(tasks.withType(RatTask))
 
-  // Constrain all tests to 2 parallel w/3G heap; we have 8G containers
   tasks.withType(Test) {
-    maxParallelForks = 2
-    maxHeapSize = '3072m'
+    maxParallelForks = 1
+    maxHeapSize = '6144m'
     shouldRunAfter(codeCheckTasks)
     shouldRunAfter(tasks.withType(Checkstyle))
     shouldRunAfter(tasks.withType(RatTask))

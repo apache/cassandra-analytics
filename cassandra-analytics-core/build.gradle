@@ -182,8 +182,8 @@ tasks.register('testSequential', Test) {
 
     systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
     minHeapSize = '1024m'
-    maxHeapSize = '3072m'
-    maxParallelForks = 2
+    maxHeapSize = '6144m'
+    maxParallelForks = 1
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in
@@ -217,8 +217,8 @@ tasks.register('testSequential', Test) {
 test {
     systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
     minHeapSize = '1024m'
-    maxHeapSize = '3072m'
-    maxParallelForks = 2
+    maxHeapSize = '6144m'
+    maxParallelForks = 1
     forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in

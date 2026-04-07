@@ -41,7 +41,7 @@ test {
     testLogging {
         events "passed", "skipped", "failed"
     }
-    maxParallelForks = 2
+    maxParallelForks = 1
     reports {
         junitXml.setRequired(true)
         def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-results", "client").toFile()
