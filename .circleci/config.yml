@@ -54,7 +54,7 @@ commands:
         default: "false"
       sstable_format:
         type: string
-        default: "bti"
+        default: "big"
     description: Build and test against Spark <<parameters.spark>> Scala <<parameters.scala>> <<parameters.jdk>>
     steps:
       - run:
@@ -157,6 +157,7 @@ jobs:
           scala: "2.12"
           jdk: "11"
           use_jdk11: "true"
+          sstable_format: "big"
 
       - store_artifacts:
           path: build/test-reports
@@ -216,6 +217,7 @@ jobs:
           scala: "2.13"
           jdk: "11"
           use_jdk11: "true"
+          sstable_format: "big"
 
       - store_artifacts:
           path: build/test-reports
