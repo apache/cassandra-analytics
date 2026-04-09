@@ -288,10 +288,14 @@ public final class CassandraSchema
                                        @NotNull Partitioner partitioner,
                                        @NotNull TableIdLookup tableIdLookup)
     {
-        LOGGER.info("Updating CDC schema tables='{}'",
+        if (LOGGER.isDebugEnabled())
+        {
+            LOGGER.debug("Updating CDC schema tables='{}'",
                     cdcTables.stream()
-                             .map(t -> String.format("%s.%s", t.keyspace(), t.table()))
-                             .collect(Collectors.joining(",")));
+                            .map(t -> String.format("%s.%s", t.keyspace(), t.table()))
+                            .collect(Collectors.joining(",")));
+        }
+
         Map<String, Set<String>> cdcEnabledTables = CassandraSchema.cdcEnabledTables(schema);
         for (CqlTable table : cdcTables)
         {
@@ -301,7 +305,7 @@ public final class CassandraSchema
             if (cdcEnabledTables.containsKey(table.keyspace()) && cdcEnabledTables.get(table.keyspace()).contains(table.table()))
             {
                 // table has cdc enabled already, update schema if it has changed
-                LOGGER.info("CDC already enabled keyspace={} table={}", table.keyspace(), table.table());
+                LOGGER.debug("CDC already enabled keyspace={} table={}", table.keyspace(), table.table());
                 cdcEnabledTables.get(table.keyspace()).remove(table.table());
                 CassandraSchema.maybeUpdateSchema(schema, partitioner, table, tableId, true);
                 Preconditions.checkArgument(CassandraSchema.isCdcEnabled(schema, table),
