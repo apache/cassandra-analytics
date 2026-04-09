@@ -292,8 +292,8 @@ public final class CassandraSchema
         {
             LOGGER.debug("Updating CDC schema tables='{}'",
                     cdcTables.stream()
-                            .map(t -> String.format("%s.%s", t.keyspace(), t.table()))
-                            .collect(Collectors.joining(",")));
+                             .map(t -> String.format("%s.%s", t.keyspace(), t.table()))
+                             .collect(Collectors.joining(",")));
         }
 
         Map<String, Set<String>> cdcEnabledTables = CassandraSchema.cdcEnabledTables(schema);
