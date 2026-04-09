@@ -82,26 +82,33 @@ dependencies {
     testRuntimeOnly 'com.fasterxml.jackson.core:jackson-annotations:2.14.2'
 }
 
-test {
-    // Because system properties aren't passed from the command line through to tests, we need to specifically
-    // set them again here.
-    systemProperty "cassandra.test.dtest_jar_path", dependencyLocation
-    systemProperty "cassandra.sidecar.versions_to_test", (System.getenv("CASSANDRA_VERSION") ?: "5.0")
-    systemProperty "SKIP_STARTUP_VALIDATIONS", "true"
-    systemProperty "logback.configurationFile", "src/test/resources/logback-test.xml"
-    systemProperty "cassandra.integration.sidecar.test.enable_mtls", integrationEnableMtls
-    minHeapSize = '1g'
-    maxHeapSize = integrationMaxHeapSize
-    maxParallelForks = integrationMaxParallelForks
-    forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+// Shared test configuration for integration tests. When majorMinor is specified (e.g. "4.0"),
+// tests run against that single Cassandra version. When null, uses env var filtering
+// (CI) or falls back to default version (local dev).
+// Using a closure (not a method) so it captures the local variables above.
+def configureIntegrationTestTask = { Test task, String majorMinor = null ->
+    task.systemProperty "cassandra.test.dtest_jar_path", dependencyLocation
+    def versionInfo = rootProject.ext.applyCassandraVersionFilter(task, majorMinor)
+    if (versionInfo) {
+        task.systemProperty "cassandra.sidecar.versions_to_test", versionInfo.fullVersion
+    } else {
+        // Major.minor format to match integration framework's TestVersionSupplier; defaults to latest version only.
+        task.systemProperty "cassandra.sidecar.versions_to_test", "5.0"
+    }
+    task.systemProperty "SKIP_STARTUP_VALIDATIONS", "true"
+    task.systemProperty "logback.configurationFile", "src/test/resources/logback-test.xml"
+    task.systemProperty "cassandra.integration.sidecar.test.enable_mtls", integrationEnableMtls
+    task.minHeapSize = '1g'
+    task.maxHeapSize = integrationMaxHeapSize
+    task.maxParallelForks = integrationMaxParallelForks
+    task.forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
-    beforeTest { descriptor ->
-        // println("Setting test tags to ${descriptor.className}-${descriptor.name}")
-        systemProperty "cassandra.testtag", "${descriptor.className}"
-        systemProperty "suitename", "${descriptor.name}"
+    task.beforeTest { descriptor ->
+        task.systemProperty "cassandra.testtag", "${descriptor.className}"
+        task.systemProperty "suitename", "${descriptor.name}"
     }
 
-    testLogging {
+    task.testLogging {
         events "passed", "skipped", "failed"
 
         showExceptions true
@@ -129,30 +136,37 @@ test {
                              '--add-opens', 'java.base/jdk.internal.module=ALL-UNNAMED',
                              '--add-opens', 'java.base/jdk.internal.util.jar=ALL-UNNAMED',
                              '--add-opens', 'jdk.management/com.sun.management.internal=ALL-UNNAMED']
-        jvmArgs(JDK11_OPTIONS)
-        println("JVM arguments for $project.name are $allJvmArgs")
+        task.jvmArgs(JDK11_OPTIONS)
+        println("JVM arguments for $project.name are ${task.allJvmArgs}")
     }
 
     // container test does not run on java 8
     if ("true" == System.getenv("skipContainerTest") || JavaVersion.current().isJava8()) {
-        exclude("**/testcontainer/**")
+        task.exclude("**/testcontainer/**")
 
-        filter {
+        task.filter {
             setFailOnNoMatchingTests(false) // do not fail the build if no matching test found, since in CI we run individual test class
         }
     }
 
-    useJUnitPlatform()
+    task.useJUnitPlatform()
     def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "integration").toFile()
-    reports {
-        junitXml {
-            enabled true
-            destination = destDir
-        }
-        html {
-            enabled true
-            destination = destDir
-        }
+    task.reports.junitXml.outputLocation = destDir
+    task.reports.html.outputLocation = destDir
+}
+
+test {
+    configureIntegrationTestTask(delegate)
+}
+
+// Per-Cassandra-version test tasks for IDE convenience.
+// These show up in IntelliJ's Gradle panel alongside 'test'.
+rootProject.ext.cassandraVersionEnumMap.keySet().each { majorMinor ->
+    def suffix = majorMinor.replace(".", "")
+    tasks.register("testCassandra${suffix}", Test) {
+        description = "Run integration tests against Cassandra ${majorMinor}"
+        group = 'verification'
+        configureIntegrationTestTask(delegate, majorMinor)
     }
 }
 

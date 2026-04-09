@@ -73,16 +73,19 @@ jobs:
           key: build-${{ github.sha }}
 
   unit-test:
-    name: Unit test
+    name: Unit test - Scala ${{ matrix.scala }} ${{ matrix.sstable-format }} C${{ matrix.cassandra }}
     needs: build
     runs-on: ubuntu-latest
     strategy:
       matrix:
         scala: [ '2.12', '2.13' ]
         sstable-format: [ 'big', 'bti' ]
+        cassandra: [ '4.0', '5.0' ]
         exclude:
           - scala: "2.12"
             sstable-format: "bti"
+          - sstable-format: "bti"
+            cassandra: "4.0"    # BTI only supported on Cassandra 5.0+
       fail-fast: false
     steps:
       - name: Setup JDK
@@ -115,7 +118,8 @@ jobs:
           export INTEGRATION_MAX_PARALLEL_FORKS=1
           export INTEGRATION_MAX_HEAP_SIZE="1500M"
           export CASSANDRA_USE_JDK11=true
-          
+          export CASSANDRA_VERSION="${{ matrix.cassandra }}"
+
           ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=${{ matrix.sstable-format }}
 
   integration-test:

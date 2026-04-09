@@ -59,6 +59,39 @@ if (!actualJdkVersion.startsWith(ext.jdkLabel))
 
 ext.dependencyLocation = (System.getenv("CASSANDRA_DEP_DIR") ?: "${rootDir}/dependencies") + "/"
 
+// Cassandra version maps used by subproject test tasks to filter parameterized tests
+// to a single version when CASSANDRA_VERSION env var is set (e.g. in CI).
+// NOTE: Both maps below must stay in sync with the defaults in CassandraVersion.java
+// (cassandra-analytics-common/.../bridge/CassandraVersion.java):
+//   - cassandraVersionEnumMap values must match the implemented_versions default
+//   - cassandraFullVersionMap values must match the supported_versions default
+ext.cassandraVersionEnumMap = ["4.0": "FOURZERO", "4.1": "FOURONE", "5.0": "FIVEZERO"]
+ext.cassandraFullVersionMap = ["4.0": "4.0.17", "4.1": "4.1.4", "5.0": "5.0.5"]
+
+// Shared helper: sets implemented_versions and supported_versions system properties on a Test task.
+// When majorMinor is provided (e.g. "4.0"), uses that version directly.
+// When majorMinor is null, falls back to the CASSANDRA_VERSION env var (CI path).
+// Returns a map with version info [majorMinor, enumName, fullVersion], or null when no version is set.
+ext.applyCassandraVersionFilter = { Test task, String majorMinor = null ->
+    if (!majorMinor) {
+        def ver = System.getenv("CASSANDRA_VERSION")
+        if (!ver) return null
+        majorMinor = ver.split("\\.").take(2).join(".")
+    }
+
+    def enumName = cassandraVersionEnumMap[majorMinor]
+    if (!enumName) {
+        throw new GradleException("Unknown CASSANDRA_VERSION: ${majorMinor}. " +
+                                  "Valid versions: ${cassandraVersionEnumMap.keySet()}")
+    }
+    def fullVersion = cassandraFullVersionMap[majorMinor]
+
+    task.systemProperty "cassandra.analytics.bridges.implemented_versions", enumName
+    task.systemProperty "cassandra.analytics.bridges.supported_versions", "cassandra-${fullVersion}"
+
+    return [majorMinor: majorMinor, enumName: enumName, fullVersion: fullVersion]
+}
+
 def buildDir = layout.buildDirectory.get().asFile.toPath()
 def ratExcludeFilePath = buildDir.resolve(".rat-excludes.txt")
 System.out.println("Rat exclude file:" + ratExcludeFilePath)

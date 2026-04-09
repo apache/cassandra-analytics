@@ -76,6 +76,7 @@ public enum CassandraVersion
     {
         sstableFormat = System.getProperty("cassandra.analytics.bridges.sstable_format", "big");
 
+        // NOTE: These default enum names must stay in sync with cassandraVersionEnumMap in build.gradle.
         String providedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.implemented_versions",
                                                               String.join(",", FOURZERO.name(), FIVEZERO.name()));
         implementedVersions = Arrays.stream(providedVersionsOrDefault.split(","))
@@ -83,6 +84,7 @@ public enum CassandraVersion
                                     .filter(v -> v.sstableFormats.contains(sstableFormat))
                                     .toArray(CassandraVersion[]::new);
 
+        // NOTE: These default versions must stay in sync with cassandraFullVersionMap in build.gradle.
         String providedSupportedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.supported_versions",
                                                                        "cassandra-4.0.17,cassandra-5.0.5");
         supportedVersions = Arrays.stream(providedSupportedVersionsOrDefault.split(","))
