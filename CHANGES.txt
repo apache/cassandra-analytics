@@ -1,5 +1,6 @@
 0.4.0
 -----
+ * Change log level for logs in CassandraSchema to debug level to avoid log spamming (CASSANALYTICS-149)
  * Pass SidecarCdcClient as a constructor parameter to avoid thread/resource leaks (CASSANALYTICS-142)
  * Support extended deletion time in CDC for Cassandra 5.0
  * Flush event consumer before persisting CDC state to prevent data loss on failure (CASSANALYTICS-126)
