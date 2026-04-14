@@ -88,7 +88,7 @@ public class SidecarCdcTest
         SidecarCdcClient.ClientConfig clientConfig = SidecarCdcClient.ClientConfig.create();
 
         SidecarCdcClient client = new SidecarCdcClient(clientConfig, mockSidecarClient, cdcStats,
-                                                       hostname -> portMapping.getOrDefault(hostname, 9043));
+                                                       instance -> portMapping.getOrDefault(instance.nodeName(), 9043));
 
         SidecarInstance si1 = client.toSidecarInstance(new CassandraInstance("0", "host1", "DC1"));
         assertThat(si1.hostname()).isEqualTo("host1");
@@ -110,7 +110,7 @@ public class SidecarCdcTest
         Map<String, Integer> portMapping = Map.of("host1", 9043);
 
         SidecarCdcClient client = new SidecarCdcClient(clientConfig, mockSidecarClient, cdcStats,
-                                                       hostname -> portMapping.getOrDefault(hostname,
+                                                       instance -> portMapping.getOrDefault(instance.nodeName(),
                                                                                             clientConfig.effectivePort()));
 
         assertThat(client.toSidecarInstance(new CassandraInstance("0", "host1", "DC1")).port()).isEqualTo(9043);
