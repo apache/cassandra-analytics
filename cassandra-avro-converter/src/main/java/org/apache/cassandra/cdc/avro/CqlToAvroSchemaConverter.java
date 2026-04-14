@@ -69,7 +69,7 @@ public interface CqlToAvroSchemaConverter
                                          new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
                                                                Collections.singletonMap("DC1", 3)),
                                          Partitioner.Murmur3Partitioner,
-                                         udts, null, 0, true);
+                                         udts, null, Collections.emptySet(), true);
 
         return convert(cqlTable);
     }

@@ -498,7 +498,7 @@ public final class TestSchema
                             rf,
                             allFields,
                             udts,
-                            0);
+                            Collections.emptySet());
     }
 
     public void writeSSTable(TemporaryDirectory directory,

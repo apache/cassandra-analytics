@@ -27,7 +27,9 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Broadcastable wrapper for schema information with ZERO transient fields to optimize Spark broadcasting.
  * <p>
- * Contains BroadcastableTableSchema (pre-computed schema data), UDT statements, and index statements.
+ * Contains BroadcastableTableSchema (pre-computed schema data) and UDT statements.
+ * Index statements are now stored in CqlTable (serialized via Kryo in BroadcastableTableSchema)
+ * and accessed through TableSchema.
  * Executors reconstruct CassandraSchemaInfo and TableSchema from these fields.
  * <p>
  * <b>Why ZERO transient fields matters:</b><br>
@@ -48,7 +50,6 @@ public final class BroadcastableSchemaInfo implements Serializable
     // Essential fields broadcast to executors
     private final BroadcastableTableSchema broadcastableTableSchema;
     private final Set<String> userDefinedTypeStatements;
-    private final Set<String> indexStatements;
 
     /**
      * Creates a BroadcastableSchemaInfo from a source SchemaInfo.
@@ -60,18 +61,15 @@ public final class BroadcastableSchemaInfo implements Serializable
     {
         return new BroadcastableSchemaInfo(
             BroadcastableTableSchema.from(source.getTableSchema()),
-            source.getUserDefinedTypeStatements(),
-            source.getIndexStatements()
+            source.getUserDefinedTypeStatements()
         );
     }
 
     private BroadcastableSchemaInfo(BroadcastableTableSchema broadcastableTableSchema,
-                                   Set<String> userDefinedTypeStatements,
-                                   Set<String> indexStatements)
+                                   Set<String> userDefinedTypeStatements)
     {
         this.broadcastableTableSchema = broadcastableTableSchema;
         this.userDefinedTypeStatements = userDefinedTypeStatements;
-        this.indexStatements = indexStatements;
     }
 
     public BroadcastableTableSchema getBroadcastableTableSchema()
@@ -83,11 +81,5 @@ public final class BroadcastableSchemaInfo implements Serializable
     public Set<String> getUserDefinedTypeStatements()
     {
         return userDefinedTypeStatements;
-    }
-
-    @NotNull
-    public Set<String> getIndexStatements()
-    {
-        return indexStatements;
     }
 }

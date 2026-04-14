@@ -21,10 +21,13 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -476,6 +479,16 @@ public final class TableSchemaTestCommon
         public boolean hasSecondaryIndex()
         {
             return hasSecondaryIndex;
+        }
+
+        @Override
+        public Set<String> getIndexStatements()
+        {
+            if (hasSecondaryIndex)
+            {
+                return new HashSet<>(Collections.singletonList("CREATE INDEX test_idx ON test." + uniqueTableName + " (col);"));
+            }
+            return Collections.emptySet();
         }
 
         @Override

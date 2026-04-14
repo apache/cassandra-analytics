@@ -277,10 +277,11 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                 Partitioner partitioner,
                                 Set<String> udts,
                                 @Nullable UUID tableId,
-                                int indexCount,
+                                Set<String> indexStatements,
                                 boolean enableCdc)
     {
-        return new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner, cassandraTypes -> udts, tableId, indexCount, enableCdc).build();
+        return new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner,
+                                 cassandraTypes -> udts, tableId, indexStatements, enableCdc).build();
     }
 
     @Override

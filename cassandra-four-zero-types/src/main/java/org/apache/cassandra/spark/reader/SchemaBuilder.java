@@ -84,7 +84,7 @@ public class SchemaBuilder
     private final String keyspace;
     private final ReplicationFactor replicationFactor;
     private final CassandraTypes cassandraTypes;
-    private final int indexCount;
+    private final Set<String> indexStatements;
 
     public SchemaBuilder(CqlTable table, Partitioner partitioner, boolean enableCdc)
     {
@@ -104,14 +104,15 @@ public class SchemaBuilder
              partitioner,
              table::udtCreateStmts,
              tableId,
-             0,
+             Collections.emptySet(),
              enableCdc);
     }
 
     @VisibleForTesting
     public SchemaBuilder(String createStmt, String keyspace, ReplicationFactor replicationFactor)
     {
-        this(createStmt, keyspace, replicationFactor, Partitioner.Murmur3Partitioner, bridge -> Collections.emptySet(), null, 0, false);
+        this(createStmt, keyspace, replicationFactor, Partitioner.Murmur3Partitioner, bridge -> Collections.emptySet(),
+             null, Collections.emptySet(), false);
     }
 
     @VisibleForTesting
@@ -120,7 +121,8 @@ public class SchemaBuilder
                          ReplicationFactor replicationFactor,
                          Partitioner partitioner)
     {
-        this(createStmt, keyspace, replicationFactor, partitioner, bridge -> Collections.emptySet(), null, 0, false);
+        this(createStmt, keyspace, replicationFactor, partitioner, bridge -> Collections.emptySet(), null,
+             Collections.emptySet(), false);
     }
 
     public SchemaBuilder(String createStmt,
@@ -129,14 +131,14 @@ public class SchemaBuilder
                          Partitioner partitioner,
                          Function<CassandraTypes, Set<String>> udtStatementsProvider,
                          @Nullable UUID tableId,
-                         int indexCount,
+                         Set<String> indexStatements,
                          boolean enableCdc)
     {
         this.createStmt = createStmt;
         this.keyspace = keyspace;
         this.replicationFactor = replicationFactor;
         this.cassandraTypes = new CassandraTypesImplementation();
-        this.indexCount = indexCount;
+        this.indexStatements = indexStatements;
 
         Pair<KeyspaceMetadata, TableMetadata> updated = CassandraSchema.apply(schema ->
                 updateSchema(schema,
@@ -477,7 +479,7 @@ public class SchemaBuilder
                             replicationFactor,
                             fields,
                             new HashSet<>(udts.values()),
-                            indexCount);
+                            indexStatements);
     }
 
     private Map<String, CqlField.CqlUdt> buildsUdts(KeyspaceMetadata keyspaceMetadata)

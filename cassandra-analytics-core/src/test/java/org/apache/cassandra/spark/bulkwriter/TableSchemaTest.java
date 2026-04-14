@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Set;
 
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.io.FileUtils;
@@ -260,10 +261,10 @@ public class TableSchemaTest
     {
         Path fullSchemaSampleFile = ResourceUtils.writeResourceToPath(CqlUtilsTest.class.getClassLoader(), tempPath, "cql/fullSchema.cql");
         String fullSchemaSample = FileUtils.readFileToString(fullSchemaSampleFile.toFile(), StandardCharsets.UTF_8);
-        int indexCount = CqlUtils.extractIndexCount(fullSchemaSample, "cycling", "rank_by_year_and_name");
-        assertThat(indexCount).isEqualTo(3);
+        Set<String> indexStatements = CqlUtils.extractIndexStatements(fullSchemaSample, "cycling", "rank_by_year_and_name");
+        assertThat(indexStatements).hasSize(3);
         CqlTable table = mock(CqlTable.class);
-        when(table.indexCount()).thenReturn(indexCount);
+        when(table.indexStatements()).thenReturn(indexStatements);
         TableInfoProvider tableInfoProvider = new CqlTableInfoProvider("", table);
         assertThatThrownBy(() -> TableSchema.validateNoSecondaryIndexes(tableInfoProvider))
                 .isInstanceOf(UnsupportedAnalyticsOperationException.class)

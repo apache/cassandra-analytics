@@ -143,7 +143,7 @@ public abstract class CassandraBridge
                                 Partitioner partitioner,
                                 Set<String> udts)
     {
-        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, udts, null, 0, false);
+        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, udts, null, Collections.emptySet(), false);
     }
 
     public abstract CqlTable buildSchema(String createStatement,
@@ -152,7 +152,7 @@ public abstract class CassandraBridge
                                          Partitioner partitioner,
                                          Set<String> udts,
                                          @Nullable UUID tableId,
-                                         int indexCount,
+                                         Set<String> indexStatements,
                                          boolean enableCdc);
 
     /**

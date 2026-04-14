@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.util.List;
+import java.util.Set;
 
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
@@ -45,4 +46,6 @@ public interface TableInfoProvider
     boolean hasSecondaryIndex();
 
     List<String> getColumnNames();
+
+    Set<String> getIndexStatements();
 }

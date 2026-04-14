@@ -175,7 +175,7 @@ public class CdcTests extends CdcTestBase
                                Partitioner.Murmur3Partitioner,
                                table.udtCreateStmts(bridge.cassandraTypes()),
                                null,
-                               0,
+                               Collections.emptySet(),
                                true);
             SchemaSupplier schemaSupplier = () -> CompletableFuture.completedFuture(ImmutableSet.of(table));
             AtomicReference<byte[]> state = new AtomicReference<>();
@@ -514,13 +514,13 @@ public class CdcTests extends CdcTestBase
                            ReplicationFactor.simpleStrategy(1),
                            Partitioner.Murmur3Partitioner,
                            Collections.emptySet(),
-                           null, 0, schema2.withCdc);
+                           null, Collections.emptySet(), schema2.withCdc);
         bridge.buildSchema(cqlTable3.createStatement(),
                            cqlTable3.keyspace(),
                            ReplicationFactor.simpleStrategy(1),
                            Partitioner.Murmur3Partitioner,
                            Collections.emptySet(),
-                           null, 0, schema3.withCdc);
+                           null, Collections.emptySet(), schema3.withCdc);
         int numRows = DEFAULT_NUM_ROWS;
 
         AtomicReference<TestSchema> schema1Holder = new AtomicReference<>();

@@ -295,7 +295,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         String fullSchema = schemaFuture.get().schema();
         String createStmt = CqlUtils.extractTableSchema(fullSchema, keyspace, table);
-        int indexCount = CqlUtils.extractIndexCount(fullSchema, keyspace, table);
+        Set<String> indexStatements = CqlUtils.extractIndexStatements(fullSchema, keyspace, table);
         Set<String> udts = CqlUtils.extractUdts(fullSchema, keyspace);
         ReplicationFactor replicationFactor = CqlUtils.extractReplicationFactor(fullSchema, keyspace);
 
@@ -316,7 +316,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         validateReplicationFactor(replicationFactor);
         udts.forEach(udt -> LOGGER.info("Adding schema UDT: '{}'", udt));
 
-        cqlTable = bridge().buildSchema(createStmt, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
+        cqlTable = bridge().buildSchema(createStmt, keyspace, replicationFactor, partitioner, udts, null, indexStatements, false);
         CassandraRing ring = createCassandraRingFromRing(partitioner, replicationFactor, ringFuture.get());
 
         int effectiveNumberOfCores = sizingFuture.get();

@@ -19,12 +19,9 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.util.Collections;
 import java.util.Set;
 
 import org.jetbrains.annotations.NotNull;
-
-import org.apache.cassandra.spark.utils.CqlUtils;
 
 /**
  * Provides schema information for bulk write operations.
@@ -39,26 +36,4 @@ public interface SchemaInfo
 
     @NotNull
     Set<String> getUserDefinedTypeStatements();
-
-    /**
-     * Returns the set of CREATE INDEX statements for the table, if any.
-     *
-     * @return set of CREATE INDEX CQL statements, empty if none
-     */
-    @NotNull
-    default Set<String> getIndexStatements()
-    {
-        return Collections.emptySet();
-    }
-
-    /**
-     * Returns whether the table has SAI indexes.
-     *
-     * @return {@code true} if the table has index statements and all of them are SAI indexes
-     */
-    default boolean hasSaiIndexes()
-    {
-        Set<String> indexes = getIndexStatements();
-        return !indexes.isEmpty() && indexes.stream().allMatch(CqlUtils::isSaiIndex);
-    }
 }

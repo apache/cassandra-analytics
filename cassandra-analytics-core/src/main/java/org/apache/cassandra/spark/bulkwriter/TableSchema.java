@@ -64,6 +64,7 @@ public class TableSchema
     final TimestampOption timestampOption;
     final String lowestCassandraVersion;
     final boolean quoteIdentifiers;
+    final Set<String> indexStatements;
 
     public TableSchema(StructType dfSchema,
                        TableInfoProvider tableInfo,
@@ -74,26 +75,13 @@ public class TableSchema
                        boolean quoteIdentifiers,
                        boolean skipSecondaryIndexCheck)
     {
-        this(dfSchema, tableInfo, writeMode, ttlOption, timestampOption,
-             lowestCassandraVersion, quoteIdentifiers, skipSecondaryIndexCheck, Collections.emptySet());
-    }
-
-    public TableSchema(StructType dfSchema,
-                       TableInfoProvider tableInfo,
-                       WriteMode writeMode,
-                       TTLOption ttlOption,
-                       TimestampOption timestampOption,
-                       String lowestCassandraVersion,
-                       boolean quoteIdentifiers,
-                       boolean skipSecondaryIndexCheck,
-                       Set<String> indexStatements)
-    {
         this.writeMode = writeMode;
         this.ttlOption = ttlOption;
 
         this.timestampOption = timestampOption;
         this.lowestCassandraVersion = lowestCassandraVersion;
         this.quoteIdentifiers = quoteIdentifiers;
+        this.indexStatements = tableInfo.getIndexStatements();
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
         validateSecondaryIndexes(tableInfo, skipSecondaryIndexCheck, indexStatements, lowestCassandraVersion);
@@ -127,6 +115,7 @@ public class TableSchema
         this.timestampOption = broadcastable.getTimestampOption();
         this.lowestCassandraVersion = broadcastable.getLowestCassandraVersion();
         this.quoteIdentifiers = broadcastable.isQuoteIdentifiers();
+        this.indexStatements = broadcastable.getIndexStatements();
     }
 
     private List<String> getRequiredKeyColumns(TableInfoProvider tableInfo)
@@ -360,6 +349,11 @@ public class TableSchema
         {
             throw new UnsupportedAnalyticsOperationException("Bulkwriter doesn't support secondary indexes");
         }
+    }
+
+    public Set<String> getIndexStatements()
+    {
+        return indexStatements;
     }
 
     @VisibleForTesting
