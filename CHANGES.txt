@@ -1,7 +1,9 @@
 0.4.0
 -----
  * Add support for tuples and tuples with collections or UDTs in the Bulk writer (CASSANALYTICS-51)
- * Setup CI Pipeline with GitHub Actions (CASSANALYTICS-106)
+ * Change log level for logs in CassandraSchema to debug level to avoid log spamming (CASSANALYTICS-149)
+ * Pass SidecarCdcClient as a constructor parameter to avoid thread/resource leaks (CASSANALYTICS-142)
+ * Support extended deletion time in CDC for Cassandra 5.0
  * Flush event consumer before persisting CDC state to prevent data loss on failure (CASSANALYTICS-126)
  * Fix ReadStatusTracker to distinguish clean completion from error termination in BufferingCommitLogReader (CASSANALYTICS-129)
  * Adding CDC support for Cassandra 5.0 Commit Logs (CASSANALYTICS-60)

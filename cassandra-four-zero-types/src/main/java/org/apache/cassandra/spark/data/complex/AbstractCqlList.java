@@ -105,15 +105,15 @@ public abstract class AbstractCqlList extends CqlCollection implements CqlField.
                         ColumnMetadata cd,
                         long timestamp,
                         int ttl,
-                        int now,
+                        long now,
                         Object value)
     {
         for (Object o : (List<?>) value)
         {
             if (ttl != NO_TTL)
             {
-                rowBuilder.addCell(BufferCell.expiring(cd, timestamp, ttl, now, type().serialize(o),
-                                                       CellPath.create(ByteBuffer.wrap(UUIDGen.getTimeUUIDBytes()))));
+                rowBuilder.addCell(CqlType.expiring(cd, timestamp, ttl, now, type().serialize(o),
+                                                    CellPath.create(ByteBuffer.wrap(UUIDGen.getTimeUUIDBytes()))));
             }
             else
             {

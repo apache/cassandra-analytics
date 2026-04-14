@@ -25,6 +25,7 @@ import java.math.BigInteger;
 import java.util.Iterator;
 
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 
 import org.apache.cassandra.db.Clustering;
 import org.apache.cassandra.db.ClusteringPrefix;
@@ -438,12 +439,14 @@ public abstract class AbstractStreamScanner implements StreamScanner<RowData>, C
             {
                 AbstractComplexTypeBuffer buffer = AbstractComplexTypeBuffer.newBuffer(column.type, cellCount);
                 long maxTimestamp = Long.MIN_VALUE;
+                // C* 4.0 Cell.isLive requires int for nowInSec; checked cast will throw after Y2038
+                int referenceEpochInSecondsAsInt = Ints.checkedCast(timeProvider.referenceEpochInSeconds());
                 while (cells.hasNext())
                 {
                     Cell<?> cell = cells.next();
                     // Re: isLive vs. isTombstone - isLive considers TTL so that if a cell is expiring soon,
                     // it is handled as tombstone
-                    if (cell.isLive(timeProvider.referenceEpochInSeconds()))
+                    if (cell.isLive(referenceEpochInSecondsAsInt))
                     {
                         buffer.addCell(cell);
                     }

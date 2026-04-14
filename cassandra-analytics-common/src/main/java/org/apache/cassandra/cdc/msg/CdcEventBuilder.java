@@ -107,7 +107,7 @@ public class CdcEventBuilder
         this.maxTimestampMicros = maxTimestampMicros;
     }
 
-    public void setTTL(int ttlInSec, int expirationTimeInSec)
+    public void setTTL(int ttlInSec, long expirationTimeInSec)
     {
         // Skip updating TTL if it already has been set.
         // For the same row, the upsert query can only set one TTL value.

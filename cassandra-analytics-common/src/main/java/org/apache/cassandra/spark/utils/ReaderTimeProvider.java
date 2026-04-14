@@ -24,7 +24,7 @@ package org.apache.cassandra.spark.utils;
  */
 public class ReaderTimeProvider implements TimeProvider
 {
-    private final int referenceEpochInSeconds;
+    private final long referenceEpochInSeconds;
 
     public ReaderTimeProvider()
     {
@@ -35,13 +35,13 @@ public class ReaderTimeProvider implements TimeProvider
      * Constructor used for deserialization
      * @param referenceEpochInSeconds reference epoch to set
      */
-    public ReaderTimeProvider(int referenceEpochInSeconds)
+    public ReaderTimeProvider(long referenceEpochInSeconds)
     {
         this.referenceEpochInSeconds = referenceEpochInSeconds;
     }
 
     @Override
-    public int referenceEpochInSeconds()
+    public long referenceEpochInSeconds()
     {
         return referenceEpochInSeconds;
     }

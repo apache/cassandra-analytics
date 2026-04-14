@@ -120,15 +120,15 @@ public class CqlMap extends CqlCollection implements CqlField.CqlMap
                         ColumnMetadata cd,
                         long timestamp,
                         int ttl,
-                        int now,
+                        long now,
                         Object value)
     {
         for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet())
         {
             if (ttl != NO_TTL)
             {
-                rowBuilder.addCell(BufferCell.expiring(cd, timestamp, ttl, now, valueType().serialize(entry.getValue()),
-                                                       CellPath.create(keyType().serialize(entry.getKey()))));
+                rowBuilder.addCell(CqlType.expiring(cd, timestamp, ttl, now, valueType().serialize(entry.getValue()),
+                                                    CellPath.create(keyType().serialize(entry.getKey()))));
             }
             else
             {

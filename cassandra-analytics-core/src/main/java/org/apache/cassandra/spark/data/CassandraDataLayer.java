@@ -771,7 +771,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             aliasLastModifiedTimestamp(this.requestedFeatures, this.lastModifiedTimestampField);
         }
         this.rfMap = (Map<String, ReplicationFactor>) in.readObject();
-        this.timeProvider = new ReaderTimeProvider(in.readInt());
+        this.timeProvider = new ReaderTimeProvider(in.readLong());
         this.sstableTimeRangeFilter = (SSTableTimeRangeFilter) in.readObject();
         this.maybeQuoteKeyspaceAndTable();
         this.initSidecarClient();
@@ -817,7 +817,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             out.writeUTF(feature.optionName());
         }
         out.writeObject(this.rfMap);
-        out.writeInt(timeProvider.referenceEpochInSeconds());
+        out.writeLong(timeProvider.referenceEpochInSeconds());
         out.writeObject(this.sstableTimeRangeFilter);
     }
 
@@ -893,7 +893,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                                                            .collect(Collectors.toList());
             kryo.writeObject(out, listWrapper);
             kryo.writeObject(out, dataLayer.rfMap);
-            out.writeInt(dataLayer.timeProvider.referenceEpochInSeconds());
+            out.writeLong(dataLayer.timeProvider.referenceEpochInSeconds());
             kryo.writeObject(out, dataLayer.sstableTimeRangeFilter);
         }
 
@@ -936,7 +936,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             in.readString(),
             kryo.readObject(in, SchemaFeaturesListWrapper.class).toList(),
             kryo.readObject(in, HashMap.class),
-            new ReaderTimeProvider(in.readInt()),
+            new ReaderTimeProvider(in.readLong()),
             kryo.readObject(in, SSTableTimeRangeFilter.class));
         }
 

@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.cdc.sidecar;
 
-import java.io.IOException;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.Set;
@@ -30,7 +29,6 @@ import org.apache.cassandra.cdc.api.EventConsumer;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.api.TokenRangeSupplier;
 import org.apache.cassandra.cdc.stats.ICdcStats;
-import org.apache.cassandra.secrets.SecretsProvider;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.utils.FutureUtils;
@@ -50,6 +48,27 @@ public class SidecarCdc extends Cdc
         initSchema();
     }
 
+    /**
+     * Creates a new {@link SidecarCdcBuilder} pre-configured with the supplied parameters.
+     *
+     * <p><b>Lifecycle of {@code sidecarCdcClient}:</b> the supplied {@link SidecarCdcClient} is treated as
+     * an externally managed singleton. Neither the returned builder nor the {@link SidecarCdc} instance it
+     * produces will close the client. The caller is solely responsible for closing the
+     * {@code SidecarCdcClient} (e.g. during application shutdown) to release underlying resources such as
+     * thread pools and HTTP connections.
+     *
+     * @param jobId                  unique identifier for the CDC job
+     * @param partitionId            partition index within the job
+     * @param cdcOptions             CDC processing options
+     * @param clusterConfigProvider  provider for cluster configuration (e.g. datacenter, hosts)
+     * @param eventConsumer          consumer that receives CDC change events
+     * @param schemaSupplier         supplier for CDC-enabled table schemas
+     * @param tokenRangeSupplier     supplier for the token ranges assigned to this partition
+     * @param sidecarCdcClient       externally managed Sidecar HTTP client; <em>not</em> closed by
+     *                               {@code SidecarCdc} or {@code SidecarCdcBuilder}
+     * @param cdcStats               CDC statistics collector
+     * @return a new {@link SidecarCdcBuilder}
+     */
     public static SidecarCdcBuilder builder(@NotNull String jobId,
                                             int partitionId,
                                             CdcOptions cdcOptions,
@@ -57,10 +76,8 @@ public class SidecarCdc extends Cdc
                                             EventConsumer eventConsumer,
                                             SchemaSupplier schemaSupplier,
                                             TokenRangeSupplier tokenRangeSupplier,
-                                            CdcSidecarInstancesProvider sidecarInstancesProvider,
-                                            SidecarCdcClient.ClientConfig clientConfig,
-                                            SecretsProvider secretsProvider,
-                                            ICdcStats cdcStats) throws IOException
+                                            SidecarCdcClient sidecarCdcClient,
+                                            ICdcStats cdcStats)
     {
         return new SidecarCdcBuilder(jobId,
                                      partitionId,
@@ -69,9 +86,7 @@ public class SidecarCdc extends Cdc
                                      eventConsumer,
                                      schemaSupplier,
                                      tokenRangeSupplier,
-                                     sidecarInstancesProvider,
-                                     clientConfig,
-                                     secretsProvider,
+                                     sidecarCdcClient,
                                      cdcStats);
     }
 

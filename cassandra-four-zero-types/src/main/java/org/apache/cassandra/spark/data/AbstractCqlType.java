@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cdc.api.Row;
@@ -138,7 +139,7 @@ public abstract class AbstractCqlType implements CqlField.CqlType
                         ColumnMetadata cd,
                         long timestamp,
                         int ttl,
-                        int now,
+                        long now,
                         Object value)
     {
         addCell(rowBuilder, cd, timestamp, ttl, now, value, null);
@@ -149,7 +150,7 @@ public abstract class AbstractCqlType implements CqlField.CqlType
                         ColumnMetadata cd,
                         long timestamp,
                         int ttl,
-                        int now,
+                        long now,
                         Object value,
                         CellPath cellPath)
     {
@@ -199,6 +200,7 @@ public abstract class AbstractCqlType implements CqlField.CqlType
                                     long deletionTime)
     {
         Preconditions.checkArgument(cd.isComplex(), "The method only works with complex columns");
-        rowBuilder.addComplexDeletion(cd, new DeletionTime(deletionTime, (int) TimeUnit.MICROSECONDS.toSeconds(deletionTime)));
+        // C* 4.0 DeletionTime constructor requires int for localDeletionTime
+        rowBuilder.addComplexDeletion(cd, new DeletionTime(deletionTime, Ints.checkedCast(TimeUnit.MICROSECONDS.toSeconds(deletionTime))));
     }
 }

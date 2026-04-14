@@ -21,7 +21,6 @@ package org.apache.cassandra.cdc.sidecar;
 
 import org.junit.jupiter.api.Test;
 
-import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import org.apache.cassandra.cdc.api.CdcOptions;
 import org.apache.cassandra.cdc.api.EventConsumer;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
@@ -46,8 +45,7 @@ public class SidecarCdcTest
         EventConsumer eventConsumer = mock(EventConsumer.class);
         SchemaSupplier schemaSupplier = mock(SchemaSupplier.class);
         TokenRangeSupplier tokenRangeSupplier = mock(TokenRangeSupplier.class);
-        SidecarCdcClient.ClientConfig clientConfig = SidecarCdcClient.ClientConfig.create();
-        SidecarClient mockSidecarClient = mock(SidecarClient.class);
+        SidecarCdcClient mockSidecarCdcClient = mock(SidecarCdcClient.class);
         ICdcStats cdcStats = mock(ICdcStats.class);
 
         SidecarCdcBuilder builder = new SidecarCdcBuilder(
@@ -58,22 +56,13 @@ public class SidecarCdcTest
             eventConsumer,
             schemaSupplier,
             tokenRangeSupplier,
-            clientConfig,
-            mockSidecarClient,
+            mockSidecarCdcClient,
             cdcStats
         );
 
-        // Verify the builder is properly created and configured
         assertThat(builder).isNotNull();
         assertThat(builder).isInstanceOf(SidecarCdcBuilder.class);
-
-        // Verify the builder has the cluster config provider set
         assertThat(builder.clusterConfigProvider).isEqualTo(clusterConfigProvider);
-
-        // Verify the builder has a sidecar CDC client configured
-        assertThat(builder.sidecarCdcClient).isNotNull();
-        assertThat(builder.sidecarCdcClient.sidecarClient).isEqualTo(mockSidecarClient);
-        assertThat(builder.sidecarCdcClient.config).isEqualTo(clientConfig);
-        assertThat(builder.sidecarCdcClient.stats).isEqualTo(cdcStats);
+        assertThat(builder.sidecarCdcClient).isEqualTo(mockSidecarCdcClient);
     }
 }
