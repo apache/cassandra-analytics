@@ -247,7 +247,7 @@ subprojects {
     }
   }
 
-  test {
+  tasks.withType(Test).configureEach {
     def heapDumpPath = "${project.rootProject.rootDir}/build/${project.name}/heapDumps"
     Files.createDirectories(Paths.get(heapDumpPath))
     if (JavaVersion.current().isJava11Compatible()) {
