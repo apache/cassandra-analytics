@@ -67,7 +67,7 @@ public class CdcBridgeImplementation extends AbstractCdcBridgeImplementation
         DatabaseDescriptor.setCommitLogSyncGroupWindow(30);
         DatabaseDescriptor.setCommitLogSegmentSize(commitLogSegmentSize);
         DatabaseDescriptor.getRawConfig().commitlog_total_space = new DataStorageSpec.IntMebibytesBound(1024);
-        DatabaseDescriptor.initializeCommitLogDiskAccessMode();
+        DatabaseDescriptor.setCommitLogWriteDiskAccessMode(Config.DiskAccessMode.mmap);
         DatabaseDescriptor.setCDCTotalSpaceInMiB(1024);
         DatabaseDescriptor.setCommitLogSegmentMgrProvider((commitLog -> new CommitLogSegmentManagerCDC(commitLog, commitLogPath.toString())));
         setup = true;
