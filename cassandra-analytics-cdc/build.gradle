@@ -150,6 +150,8 @@ def configureCdcTestTask(Test task, String majorMinor = null) {
         task.systemProperty "cassandra.sidecar.versions_to_test", versionInfo.fullVersion
     } else {
         // Full version format to match CDC's TestVersionSupplier; tests both versions for backward compat.
+        // 4.1 intentionally excluded from gradlew defaults to keep local iteration fast;
+        // use testCassandra41 for targeted 4.1 runs. CI covers 4.1 via CASSANDRA_VERSION env var.
         task.systemProperty "cassandra.sidecar.versions_to_test", "4.0.17,5.0.5"
     }
 

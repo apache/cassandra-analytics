@@ -186,7 +186,8 @@ def configureCoreTestTask(Test task, String majorMinor = null) {
     // rather than versions_to_test (which drives TestVersionSupplier in CDC and integration tests).
     rootProject.ext.applyCassandraVersionFilter(task, majorMinor)
     task.minHeapSize = '1024m'
-    task.maxHeapSize = System.getenv('CORE_TEST_MAX_HEAP_SIZE') ?: '3072m'
+    task.maxHeapSize = '2048m'
+    task.maxParallelForks = 3
     task.forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in

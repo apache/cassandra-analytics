@@ -94,6 +94,8 @@ def configureIntegrationTestTask = { Test task, String majorMinor = null ->
         task.systemProperty "cassandra.sidecar.versions_to_test", versionInfo.fullVersion
     } else {
         // Major.minor format to match integration framework's TestVersionSupplier; defaults to latest version only.
+        // 4.0 and 4.1 intentionally excluded from gradlew defaults to keep local iteration fast;
+        // use testCassandra40/testCassandra41 for targeted runs. CI covers all versions via CASSANDRA_VERSION.
         task.systemProperty "cassandra.sidecar.versions_to_test", "5.0"
     }
     task.systemProperty "SKIP_STARTUP_VALIDATIONS", "true"
@@ -104,6 +106,8 @@ def configureIntegrationTestTask = { Test task, String majorMinor = null ->
     task.maxParallelForks = integrationMaxParallelForks
     task.forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
+    // NOTE: Setting system properties in beforeTest only works because forkEvery = 1 ensures a fresh
+    // JVM per test class. If forkEvery is changed, these properties would stop varying per test.
     task.beforeTest { descriptor ->
         task.systemProperty "cassandra.testtag", "${descriptor.className}"
         task.systemProperty "suitename", "${descriptor.name}"

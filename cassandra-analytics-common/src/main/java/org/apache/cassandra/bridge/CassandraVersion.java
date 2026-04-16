@@ -77,6 +77,8 @@ public enum CassandraVersion
         sstableFormat = System.getProperty("cassandra.analytics.bridges.sstable_format", "big");
 
         // NOTE: These default enum names must stay in sync with cassandraVersionEnumMap in build.gradle.
+        // FOURONE is intentionally excluded from local-dev defaults to keep iteration fast;
+        // CI covers 4.1 via explicit CASSANDRA_VERSION env var or per-version Gradle tasks (e.g. testCassandra41).
         String providedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.implemented_versions",
                                                               String.join(",", FOURZERO.name(), FIVEZERO.name()));
         implementedVersions = Arrays.stream(providedVersionsOrDefault.split(","))
