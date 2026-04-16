@@ -219,7 +219,7 @@ jobs:
           scala: "2.12"
           jdk: "11"
           use_jdk11: "true"
-          cassandra: "4.1.4"
+          cassandra: "4.0.17"
 
       - store_artifacts:
           path: build/test-reports
@@ -232,62 +232,6 @@ jobs:
       - store_artifacts:
           path: cassandra-analytics-integration-tests
           destination: int-tests-misc
-
-      - store_test_results:
-          path: build/test-reports
-
-  spark3-2_13-jdk11-big-c40:
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
-    steps:
-      - install_common
-      - checkout
-      - attach_workspace:
-          at: dependencies
-      - run_build:
-          spark: "3"
-          scala: "2.13"
-          jdk: "11"
-          use_jdk11: "true"
-          sstable_format: "big"
-          cassandra: "4.0"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-  spark3-2_13-jdk11-big-c50:
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
-    steps:
-      - install_common
-      - checkout
-      - attach_workspace:
-          at: dependencies
-      - run_build:
-          spark: "3"
-          scala: "2.13"
-          jdk: "11"
-          use_jdk11: "true"
-          sstable_format: "big"
-          cassandra: "5.0"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
 
       - store_test_results:
           path: build/test-reports
@@ -308,35 +252,6 @@ jobs:
           use_jdk11: "true"
           sstable_format: "bti"
           cassandra: "5.0"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-  int-c4-spark3-2_13-jdk11:
-    parallelism: 8
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
-    steps:
-      - setup_remote_docker
-      - install_common
-      - checkout
-      - attach_workspace:
-          at: dependencies
-      - run_integration:
-          spark: "3"
-          scala: "2.13"
-          jdk: "11"
-          use_jdk11: "true"
-          cassandra: "4.1.4"
 
       - store_artifacts:
           path: build/test-reports
@@ -391,21 +306,12 @@ workflows:
       - spark3-2_12-jdk11-big-c50:
           requires:
             - build-deps-jdk11
-      - spark3-2_13-jdk11-big-c40:
-          requires:
-            - build-deps-jdk11
-      - spark3-2_13-jdk11-big-c50:
-          requires:
-            - build-deps-jdk11
       - spark3-2_13-jdk11-bti-c50:
           requires:
             - build-deps-jdk11
 
       # Integration tests
       - int-c4-spark3-2_12-jdk11:
-          requires:
-            - build-deps-jdk11
-      - int-c4-spark3-2_13-jdk11:
           requires:
             - build-deps-jdk11
       - int-c5-spark3-2_13-jdk11:

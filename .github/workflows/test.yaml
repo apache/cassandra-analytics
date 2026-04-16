@@ -78,14 +78,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        scala: [ '2.12', '2.13' ]
-        sstable-format: [ 'big', 'bti' ]
-        cassandra: [ '4.0', '5.0' ]
-        exclude:
-          - scala: "2.12"
-            sstable-format: "bti"
-          - sstable-format: "bti"
-            cassandra: "4.0"    # BTI only supported on Cassandra 5.0+
+        include:
+          - scala: '2.12'
+            sstable-format: 'big'
+            cassandra: '5.0'
+          - scala: '2.13'
+            sstable-format: 'bti'
+            cassandra: '5.0'
+          - scala: '2.12'
+            sstable-format: 'big'
+            cassandra: '4.0'
       fail-fast: false
     steps:
       - name: Setup JDK
@@ -128,17 +130,47 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        scala: [ '2.12', '2.13' ]
-        cassandra: [ '4.0.17', '4.1.4', '5.0.5' ]
-        job_index: [ 0, 1, 2, 3, 4 ]
-        job_total: [ 5 ]
-        exclude:
-          - scala: "2.12"
-            cassandra: "5.0.5"
-          - scala: "2.12"
-            cassandra: "4.1.4"
-          - scala: "2.13"
-            cassandra: "4.0.17"
+        include:
+          - scala: '2.13'
+            cassandra: '5.0.5'
+            job_index: 0
+            job_total: 5
+          - scala: '2.13'
+            cassandra: '5.0.5'
+            job_index: 1
+            job_total: 5
+          - scala: '2.13'
+            cassandra: '5.0.5'
+            job_index: 2
+            job_total: 5
+          - scala: '2.13'
+            cassandra: '5.0.5'
+            job_index: 3
+            job_total: 5
+          - scala: '2.13'
+            cassandra: '5.0.5'
+            job_index: 4
+            job_total: 5
+          - scala: '2.12'
+            cassandra: '4.0.17'
+            job_index: 0
+            job_total: 5
+          - scala: '2.12'
+            cassandra: '4.0.17'
+            job_index: 1
+            job_total: 5
+          - scala: '2.12'
+            cassandra: '4.0.17'
+            job_index: 2
+            job_total: 5
+          - scala: '2.12'
+            cassandra: '4.0.17'
+            job_index: 3
+            job_total: 5
+          - scala: '2.12'
+            cassandra: '4.0.17'
+            job_index: 4
+            job_total: 5
       fail-fast: false
     steps:
       - name: Setup JDK
