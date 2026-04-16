@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.slf4j.Logger;
@@ -42,6 +43,7 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InterruptException;
 import org.apache.kafka.common.errors.RecordTooLargeException;
+import org.apache.kafka.common.serialization.ByteArraySerializer;
 
 /**
  * Publishes CDC events to Kafka.
@@ -276,6 +278,56 @@ public abstract class KafkaPublisher<V> implements AutoCloseable
                Pair.of(event.keyspace, event.table),
                args -> String.format("%s:%s:", event.keyspace, event.table)
                );
+    }
+
+
+    public static KafkaPublisher<?> create(CassandraVersion version,
+                                           TopicSupplier topicSupplier,
+                                           Map<String, Object> kafkaConfigs,
+                                           SchemaStore schemaStore,
+                                           Function<KeyspaceTypeKey, CqlField.CqlType> typeLookup,
+                                           String schemaNamespacePrefix,
+                                           int maxRecordSizeBytes,
+                                           boolean failOnRecordTooLargeError,
+                                           boolean failOnKafkaError,
+                                           CdcLogMode logMode)
+    {
+        return create(version, topicSupplier, kafkaConfigs, KafkaProducerFactory.DEFAULT,
+                      schemaStore, typeLookup, schemaNamespacePrefix,
+                      maxRecordSizeBytes, failOnRecordTooLargeError, failOnKafkaError, logMode);
+    }
+
+    @SuppressWarnings("unchecked")
+    public static KafkaPublisher<?> create(CassandraVersion version,
+                                           TopicSupplier topicSupplier,
+                                           Map<String, Object> kafkaConfigs,
+                                           KafkaProducerFactory producerFactory,
+                                           SchemaStore schemaStore,
+                                           Function<KeyspaceTypeKey, CqlField.CqlType> typeLookup,
+                                           String schemaNamespacePrefix,
+                                           int maxRecordSizeBytes,
+                                           boolean failOnRecordTooLargeError,
+                                           boolean failOnKafkaError,
+                                           CdcLogMode logMode)
+    {
+        String valueSerializer = (String) kafkaConfigs.getOrDefault("value.serializer", "");
+        if (ByteArraySerializer.class.getName().equals(valueSerializer))
+        {
+            KafkaProducer<String, byte[]> producer =
+                (KafkaProducer<String, byte[]>) producerFactory.create(kafkaConfigs);
+            return new ByteArrayKafkaPublisher(version, topicSupplier, producer, schemaStore,
+                                               typeLookup, maxRecordSizeBytes,
+                                               failOnRecordTooLargeError, failOnKafkaError, logMode);
+        }
+        else
+        {
+            KafkaProducer<String, GenericData.Record> producer =
+                (KafkaProducer<String, GenericData.Record>) producerFactory.create(kafkaConfigs);
+            return new GenericRecordKafkaPublisher(version, topicSupplier, producer, schemaStore,
+                                                   typeLookup, schemaNamespacePrefix,
+                                                   maxRecordSizeBytes, failOnRecordTooLargeError,
+                                                   failOnKafkaError, logMode);
+        }
     }
 
     public static TableIdentifier extractTableIdFromPublishKey(String publishKey)
