@@ -141,10 +141,14 @@ jar {
     }
 }
 
+// Assuming container w/8g ram, 2x3G == 6G + overhead; override via CDC_MAX_PARALLEL_FORKS for local dev
+def cdcMaxParallelForks = (System.getenv("CDC_MAX_PARALLEL_FORKS") ?: "2") as int
+
 // Shared test configuration for CDC tests. When majorMinor is specified (e.g. "4.0"),
 // tests run against that single Cassandra version. When null, uses env var filtering
 // (CI) or falls back to all supported versions (local dev).
-def configureCdcTestTask(Test task, String majorMinor = null) {
+// Using a closure (not a method) so it captures the local variables above.
+def configureCdcTestTask = { Test task, String majorMinor = null ->
     def versionInfo = rootProject.ext.applyCassandraVersionFilter(task, majorMinor)
     if (versionInfo) {
         task.systemProperty "cassandra.sidecar.versions_to_test", versionInfo.fullVersion
@@ -157,8 +161,7 @@ def configureCdcTestTask(Test task, String majorMinor = null) {
 
     task.minHeapSize = '1024m'
     task.maxHeapSize = '3072m'
-    // Assuming container w/8g ram, 2x3G == 6G + overhead
-    task.maxParallelForks = 2
+    task.maxParallelForks = cdcMaxParallelForks
     task.forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in
