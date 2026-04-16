@@ -79,12 +79,12 @@ jobs:
     strategy:
       matrix:
         include:
-          - scala: '2.12'
-            sstable-format: 'big'
-            cassandra: '5.0'
           - scala: '2.13'
             sstable-format: 'bti'
             cassandra: '5.0'
+          - scala: '2.12'
+            sstable-format: 'big'
+            cassandra: '4.1'
           - scala: '2.12'
             sstable-format: 'big'
             cassandra: '4.0'
@@ -117,8 +117,8 @@ jobs:
           export SPARK_VERSION="3"
           export SCALA_VERSION="${{ matrix.scala }}"
           export JDK_VERSION="11"
-          export INTEGRATION_MAX_PARALLEL_FORKS=1
-          export INTEGRATION_MAX_HEAP_SIZE="1500M"
+          export INTEGRATION_MAX_PARALLEL_FORKS=3
+          export INTEGRATION_MAX_HEAP_SIZE="2048M"
           export CASSANDRA_USE_JDK11=true
           export CASSANDRA_VERSION="${{ matrix.cassandra }}"
 
@@ -149,6 +149,26 @@ jobs:
             job_total: 5
           - scala: '2.13'
             cassandra: '5.0.5'
+            job_index: 4
+            job_total: 5
+          - scala: '2.12'
+            cassandra: '4.1.4'
+            job_index: 0
+            job_total: 5
+          - scala: '2.12'
+            cassandra: '4.1.4'
+            job_index: 1
+            job_total: 5
+          - scala: '2.12'
+            cassandra: '4.1.4'
+            job_index: 2
+            job_total: 5
+          - scala: '2.12'
+            cassandra: '4.1.4'
+            job_index: 3
+            job_total: 5
+          - scala: '2.12'
+            cassandra: '4.1.4'
             job_index: 4
             job_total: 5
           - scala: '2.12'
@@ -210,7 +230,11 @@ jobs:
           ./gradlew --stacktrace clean assemble
           
           cd cassandra-analytics-integration-tests/src/test/java
-          CLASSNAMES=$(find . -name '*Test.java' | sort | cut -c 3- | sed 's@/@.@g' | sed 's/.\{5\}$//' | awk 'NR % ${{ matrix.job_total }} == ${{ matrix.job_index }}')
+          # Shuffle test classes using the commit SHA as seed for reproducible randomization,
+          # then shard across runners via round-robin on the shuffled order.
+          CLASSNAMES=$(find . -name '*Test.java' | cut -c 3- | sed 's@/@.@g' | sed 's/.\{5\}$//' \
+            | python3 -c "import random,sys; lines=sys.stdin.read().splitlines(); random.seed('$GITHUB_SHA'); random.shuffle(lines); print('\n'.join(lines))" \
+            | awk 'NR % ${{ matrix.job_total }} == ${{ matrix.job_index }}')
           cd ../../../..
           
           EXIT_STATUS=0

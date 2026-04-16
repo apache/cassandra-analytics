@@ -155,7 +155,6 @@ def configureCdcTestTask(Test task, String majorMinor = null) {
 
     task.minHeapSize = '1024m'
     task.maxHeapSize = '3072m'
-    // task.maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
     // Assuming container w/8g ram, 2x3G == 6G + overhead
     task.maxParallelForks = 2
     task.forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
