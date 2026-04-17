@@ -38,6 +38,7 @@ import org.apache.cassandra.spark.data.CqlField;
 /**
  * Caches Cassandra CqlField.CqlType objects, so they don't need to be re-created everytime. Keyed on keyspace and type to permit per keyspace UDT definitions.
  */
+@SuppressWarnings("UnstableApiUsage")
 public class TypeCache
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(TypeCache.class);
@@ -47,6 +48,12 @@ public class TypeCache
 
     private final Supplier<CassandraTypes> cassandraTypesSupplier;
 
+    /** We have contention between instance level cache access and the global {@link #clear} method; we go ahead and
+     * lock at the class level since the clearing operation is expected to happen very infrequently leaving cache
+     * access uncontended and as predominantly a very fast null check.
+     */
+    private static final Object creationLock = new Object();
+
     protected TypeCache(Supplier<CassandraTypes> cassandraTypesSupplier)
     {
         this.cassandraTypesSupplier = cassandraTypesSupplier;
@@ -54,12 +61,12 @@ public class TypeCache
 
     public CqlField.CqlType getType(String keyspace, String typeString)
     {
-        maybeInit();
+        Cache<KeyspaceTypeKey, CqlField.CqlType> localCache = maybeInit();
         CqlField.CqlType result;
         KeyspaceTypeKey key = KeyspaceTypeKey.of(keyspace, typeString);
         try
         {
-            result = cqlTypeCache.get(key, () -> getTypes().parseType(keyspace, typeString));
+            result = localCache.get(key, () -> getTypes().parseType(keyspace, typeString));
         }
         catch (CacheLoader.InvalidCacheLoadException | ExecutionException e)
         {
@@ -69,7 +76,7 @@ public class TypeCache
             {
                 throw new RuntimeException("Unable to parse type: " + typeString);
             }
-            cqlTypeCache.put(key, result);
+            localCache.put(key, result);
         }
         return result;
     }
@@ -82,36 +89,67 @@ public class TypeCache
     public static TypeCache get(CassandraVersion version)
     {
         return VERSION_TYPE_CACHE
-               .compute(version,
-                        (key, previous) ->
-                        new TypeCache(() -> CdcBridgeFactory.get(key).cassandraTypes())
+               .computeIfAbsent(version,
+                                key ->
+                                new TypeCache(() -> CdcBridgeFactory.get(key).cassandraTypes())
                );
     }
 
-    private void maybeInit()
+    /**
+     * Globally clears all cached TypeCache instances. Each entry's Guava cache is invalidated and
+     * nullified to release references to CQL types (and transitively, bridge classloaders).
+     *
+     * This is a "do it once" kind of shutdown action; while _in theory_ it should be unnecessary (i.e. we let JVM
+     * shutdown just nuke everything), in practice better to be deliberate about this, especially in test environments
+     * where things are spun up and spun down and global resources hanging around can be problematic.
+     */
+    public static void clear()
     {
-        if (cqlTypeCache != null)
+        synchronized (creationLock)
         {
-            return;
+            VERSION_TYPE_CACHE.forEach((version, typeCache) -> {
+                if (typeCache.cqlTypeCache != null)
+                {
+                    typeCache.cqlTypeCache.invalidateAll();
+                    typeCache.cqlTypeCache = null;
+                }
+            });
+            VERSION_TYPE_CACHE.clear();
         }
+    }
 
-        synchronized (this)
+    /**
+     * We use a manual cache since the parser is version dependent
+     * see {@link org.apache.cassandra.cdc.test.TestCdcBridgeProvider#getCassandraBridge}
+     *
+     * Since there's a real risk of race between this and {@link #clear}, we lock on {@link #creationLock} to enforce
+     * clear boundaries between the two.
+     *
+     * Since most calls here will jump right into the "cqlTypeCache != null" path, the risk of contention on a simple
+     * variable null check should be very _very_ low. We can't rely on {@link #cqlTypeCache} being volatile since we
+     * have the "check for null then return" pattern and we could race with teardown leading to NPE.
+     *
+     * @return Reference to the cache so subsequent clear calls don't NPE us.
+     */
+    private Cache<KeyspaceTypeKey, CqlField.CqlType> maybeInit()
+    {
+        synchronized (creationLock)
         {
             if (cqlTypeCache != null)
             {
-                return;
+                return cqlTypeCache;
             }
 
-            // using a manual cache since the parser is version dependent, see getCassandraBridge()
             cqlTypeCache = CacheBuilder.newBuilder()
-                                       .initialCapacity(CACHE_CAPACITY / 2)
-                                       .maximumSize(CACHE_CAPACITY)
-                                       .removalListener(notification -> {
-                                           // Log at the info level: the event is not expected, but could happen.
-                                           // With the logs, we can check how frequent it happens.
-                                           LOGGER.info("Type is evicted from cache. type='{}'", notification.getKey());
-                                       })
-                                       .build();
+                    .initialCapacity(CACHE_CAPACITY / 2)
+                    .maximumSize(CACHE_CAPACITY)
+                    .removalListener(notification -> {
+                        // Log at the info level: the event is not expected, but could happen.
+                        // With the logs, we can check how frequent it happens.
+                        LOGGER.info("Type is evicted from cache. type='{}'", notification.getKey());
+                    })
+                    .build();
+            return cqlTypeCache;
         }
     }
 }

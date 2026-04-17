@@ -27,7 +27,6 @@ import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -77,20 +76,6 @@ import org.jetbrains.annotations.Nullable;
 
 public abstract class AbstractCdcBridgeImplementation extends CdcBridge
 {
-    private static final TableIdLookup INTERNAL_TABLE_ID_LOOKUP = new TableIdLookup()
-    {
-        @Nullable
-        public UUID lookup(String keyspace, String table) throws NoSuchElementException
-        {
-            TableMetadata tm = Schema.instance.getTableMetadata(keyspace, table);
-            if (tm == null)
-            {
-                throw new NoSuchElementException();
-            }
-            return tm.id.asUUID();
-        }
-    };
-
     public void log(CqlTable cqlTable, CommitLogInstance log, Row row, long timestamp)
     {
         log(TimeProvider.DEFAULT, cqlTable, log, row, timestamp);
@@ -101,9 +86,21 @@ public abstract class AbstractCdcBridgeImplementation extends CdcBridge
         return new FourZeroCommitLog(path);
     }
 
+    /**
+     * Returns a TableIdLookup that resolves table IDs via the current Schema instance.
+     * Creates a new lambda on each call to avoid permanently pinning Schema.instance
+     * to a static field, which would prevent GC of the entire schema graph.
+     */
     public TableIdLookup internalTableIdLookup()
     {
-        return INTERNAL_TABLE_ID_LOOKUP;
+        return (keyspace, table) -> {
+            TableMetadata tm = Schema.instance.getTableMetadata(keyspace, table);
+            if (tm == null)
+            {
+                throw new NoSuchElementException();
+            }
+            return tm.id.asUUID();
+        };
     }
 
     public void updateCdcSchema(@NotNull Set<CqlTable> cdcTables, @NotNull Partitioner partitioner, @NotNull TableIdLookup tableIdLookup)

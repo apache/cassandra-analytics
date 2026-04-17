@@ -22,25 +22,56 @@ package org.apache.cassandra.bridge;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 import com.google.common.base.Preconditions;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.jetbrains.annotations.NotNull;
 
 public class BaseCassandraBridgeFactory
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(BaseCassandraBridgeFactory.class);
+
     protected BaseCassandraBridgeFactory()
     {
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
+
+    /**
+     * Closes all bridge classloaders in the provided cache and clears it.
+     * Each entry's classloader is extracted via the provided function; if it is a
+     * {@link PostDelegationClassLoader}, it is closed (which deletes its temp JAR files).
+     */
+    static <T> void closeBridges(Map<String, T> bridges, Function<T, ClassLoader> classLoaderExtractor)
+    {
+        bridges.forEach((label, bridge) -> {
+            ClassLoader classLoader = classLoaderExtractor.apply(bridge);
+            if (classLoader instanceof PostDelegationClassLoader)
+            {
+                try
+                {
+                    ((PostDelegationClassLoader) classLoader).close();
+                }
+                catch (IOException e)
+                {
+                    LOGGER.warn("Failed to close classloader for bridge: {}", label, e);
+                }
+            }
+        });
+        bridges.clear();
     }
 
     @NotNull
@@ -90,21 +121,17 @@ public class BaseCassandraBridgeFactory
         }
     }
 
-    @SuppressWarnings("unchecked")
-    public static CassandraBridge loadCassandraBridge(String label)
-    throws ClassNotFoundException, NoSuchMethodException, InvocationTargetException, InstantiationException, IllegalAccessException
+    /**
+     * Builds a classloader from the given resource names. Temp files extracted from class resources
+     * are tracked by the returned {@link PostDelegationClassLoader} and deleted when it is closed.
+     */
+    public static PostDelegationClassLoader buildClassLoader(String... resourceNames)
     {
-        ClassLoader loader = buildClassLoader(cassandraResourceName(label), bridgeResourceName(label), typesResourceName(label));
-        Class<CassandraBridge> bridge = (Class<CassandraBridge>) loader.loadClass(CassandraBridge.IMPLEMENTATION_FQCN);
-        Constructor<CassandraBridge> constructor = bridge.getConstructor();
-        return constructor.newInstance();
-    }
-
-    public static ClassLoader buildClassLoader(String... resourceNames)
-    {
+        List<Path> tempFiles = new ArrayList<>(resourceNames.length);
         URL[] urls = Arrays.stream(resourceNames)
                            .map(BaseCassandraBridgeFactory::copyClassResourceToFile)
                            .map(jar -> {
+                               tempFiles.add(jar.toPath());
                                try
                                {
                                    return jar.toURI().toURL();
@@ -115,7 +142,7 @@ public class BaseCassandraBridgeFactory
                                }
                            }).toArray(URL[]::new);
 
-        return new PostDelegationClassLoader(urls, Thread.currentThread().getContextClassLoader());
+        return new PostDelegationClassLoader(urls, Thread.currentThread().getContextClassLoader(), tempFiles);
     }
 
     public static File copyClassResourceToFile(String resource)
@@ -127,6 +154,7 @@ public class BaseCassandraBridgeFactory
                 throw new NullPointerException("Could not find resource: " + resource);
             }
             Path jarPath = Files.createTempFile(null, ".jar");
+            jarPath.toFile().deleteOnExit();
             Files.copy(contents, jarPath, StandardCopyOption.REPLACE_EXISTING);
             return jarPath.toFile();
         }

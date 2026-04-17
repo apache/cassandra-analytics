@@ -450,6 +450,11 @@ public class Cdc implements Closeable
 
     // Closable
 
+    /**
+     * Stops the CDC consumer. Bridge resources (classloaders, temp files, type caches) are owned
+     * by the static bridge factories and should be cleaned up at application shutdown via
+     * {@link TypeCache#clear} and {@link CdcBridgeFactory#close}, not per-instance.
+     */
     @Override
     public void close()
     {

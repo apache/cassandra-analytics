@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.cassandra.bridge.BridgeInitializationParameters;
 import org.apache.cassandra.bridge.CassandraBridge;
@@ -35,39 +36,72 @@ import org.apache.cassandra.bridge.CdcBridgeFactory;
 import org.apache.cassandra.cdc.api.CdcOptions;
 import org.apache.cassandra.cdc.msg.jdk.JdkMessageConverter;
 
-public class CdcBridgeProvider
+/**
+ * Test utility for managing CDC bridge instances per version. Call {@link #setup()} explicitly
+ * before using any getter methods (e.g. from a {@code @BeforeAll} hook). Call {@link #tearDown()}
+ * to release all cached bridges, temp directories, and classloaders.
+ */
+public class TestCdcBridgeProvider
 {
     private static final ConcurrentMap<CassandraVersion, CdcOptions> OPTIONS = new ConcurrentHashMap<>();
     private static final ConcurrentMap<CassandraVersion, Path> COMMIT_LOG_DIRS = new ConcurrentHashMap<>();
     private static final ConcurrentMap<CassandraVersion, CassandraBridge> BRIDGES = new ConcurrentHashMap<>();
     private static final ConcurrentMap<CassandraVersion, CdcBridge> CDC_BRIDGES = new ConcurrentHashMap<>();
     private static final ConcurrentMap<CassandraVersion, JdkMessageConverter> MESSAGE_CONVERTERS = new ConcurrentHashMap<>();
+    private static final AtomicBoolean initialized = new AtomicBoolean(false);
 
-    static
-    {
-        setup();
-    }
-
-    private CdcBridgeProvider()
+    private TestCdcBridgeProvider()
     {
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    private static void setup()
+    /**
+     * Initializes bridge instances for all test versions. Idempotent via {@link AtomicBoolean};
+     * only the first call performs initialization. Must be called from {@code @BeforeAll} in test classes.
+     */
+    public static void setup()
     {
-        TestVersionSupplier.testVersions().forEach(v -> {
-            try
-            {
-                setup(v);
-            }
-            catch (IOException e)
-            {
-                throw new IllegalStateException(e);
-            }
-        });
+        if (initialized.compareAndSet(false, true))
+        {
+            TestVersionSupplier.testVersions().forEach(v -> {
+                try
+                {
+                    setupVersion(v);
+                }
+                catch (IOException e)
+                {
+                    throw new IllegalStateException(e);
+                }
+            });
+        }
     }
 
-    private static void setup(CassandraVersion version) throws IOException
+    /**
+     * Releases all cached bridges, temp commit log directories, and resets the bridge factory.
+     * Call from {@code @AfterAll} in test base classes when explicit cleanup is needed.
+     */
+    public static void tearDown()
+    {
+        OPTIONS.clear();
+        CDC_BRIDGES.clear();
+        BRIDGES.clear();
+        MESSAGE_CONVERTERS.clear();
+        COMMIT_LOG_DIRS.forEach((version, dir) -> {
+            try
+            {
+                Files.deleteIfExists(dir);
+            }
+            catch (IOException ignored)
+            {
+                // best-effort cleanup
+            }
+        });
+        COMMIT_LOG_DIRS.clear();
+        CdcBridgeFactory.close();
+        initialized.set(false);
+    }
+
+    private static void setupVersion(CassandraVersion version) throws IOException
     {
         OPTIONS.put(version, new CdcOptions()
         {

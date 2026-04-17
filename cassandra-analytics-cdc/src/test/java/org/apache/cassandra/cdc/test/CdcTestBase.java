@@ -21,6 +21,8 @@ package org.apache.cassandra.cdc.test;
 
 import java.nio.file.Path;
 
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import org.apache.cassandra.bridge.CassandraBridge;
@@ -44,13 +46,28 @@ public abstract class CdcTestBase
     protected CommitLogInstance commitLog;
     protected Path commitLogDir;
 
+    @BeforeAll
+    static void beforeAll()
+    {
+        TestCdcBridgeProvider.setup();
+    }
+
+    /**
+     * Releases all cached bridges, temp directories, and classloaders after all tests in the class complete.
+     */
+    @AfterAll
+    static void afterAll()
+    {
+        TestCdcBridgeProvider.tearDown();
+    }
+
     void setup(CassandraVersion version)
     {
-        this.cdcOptions = CdcBridgeProvider.getCdcOptions(version);
-        this.bridge = CdcBridgeProvider.getCassandraBridge(version);
-        this.cdcBridge = CdcBridgeProvider.getTestCdcBridge(version);
-        this.commitLogDir = CdcBridgeProvider.getCommitLogDir(version);
+        this.cdcOptions = TestCdcBridgeProvider.getCdcOptions(version);
+        this.bridge = TestCdcBridgeProvider.getCassandraBridge(version);
+        this.cdcBridge = TestCdcBridgeProvider.getTestCdcBridge(version);
+        this.commitLogDir = TestCdcBridgeProvider.getCommitLogDir(version);
         this.commitLog = cdcBridge.createCommitLogInstance(commitLogDir);
-        this.messageConverter = CdcBridgeProvider.getMessageConverter(version);
+        this.messageConverter = TestCdcBridgeProvider.getMessageConverter(version);
     }
 }

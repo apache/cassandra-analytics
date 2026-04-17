@@ -19,8 +19,15 @@
 
 package org.apache.cassandra.bridge;
 
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -28,14 +35,18 @@ import org.jetbrains.annotations.Nullable;
 /**
  * This custom implementation of a {@link ClassLoader} enables deferred execution-time loading of a particular version
  * of class hierarchy from one of many embedded the {@code cassandra-all} library JARs. It first attempts to load any
- * requested class from the extracted JAR, and resorts to using the parent class loader when the the class is not there.
+ * requested class from the extracted JAR, and resorts to using the parent class loader when the class is not there.
  * This behavior is opposite to the one of standard {@link URLClassLoader}, which invokes its parent class loader first.
  */
 public class PostDelegationClassLoader extends URLClassLoader
 {
-    public PostDelegationClassLoader(@NotNull URL[] urls, @Nullable ClassLoader parent)
+    private static final Logger LOGGER = LoggerFactory.getLogger(PostDelegationClassLoader.class);
+    private final List<Path> tempFiles;
+
+    public PostDelegationClassLoader(@NotNull URL[] urls, @Nullable ClassLoader parent, @NotNull List<Path> tempFiles)
     {
         super(urls, parent);
+        this.tempFiles = tempFiles;
     }
 
     @Override
@@ -65,5 +76,31 @@ public class PostDelegationClassLoader extends URLClassLoader
             resolveClass(type);
         }
         return type;
+    }
+
+    /**
+     * Closes this classloader and deletes all associated temp JAR files.
+     */
+    @Override
+    public void close() throws IOException
+    {
+        try
+        {
+            super.close();
+        }
+        finally
+        {
+            for (Path tempFile : tempFiles)
+            {
+                try
+                {
+                    Files.deleteIfExists(tempFile);
+                }
+                catch (IOException e)
+                {
+                    LOGGER.warn("Failed to delete temp JAR file: {}", tempFile, e);
+                }
+            }
+        }
     }
 }

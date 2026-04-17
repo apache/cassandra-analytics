@@ -23,9 +23,12 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import com.google.common.base.Preconditions;
+import org.apache.cassandra.cdc.TypeCache;
 import org.apache.cassandra.cdc.avro.CqlToAvroSchemaConverter;
 import org.apache.cassandra.spark.utils.Throwing;
 import org.jetbrains.annotations.NotNull;
@@ -33,9 +36,11 @@ import org.jetbrains.annotations.Nullable;
 
 public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
 {
+    private static final AtomicBoolean SHUTDOWN_HOOK_REGISTERED = new AtomicBoolean(false);
+
     // maps Cassandra version-specific jar name (e.g. 'four-zero') to matching CassandraBridge and SparkSqlTypeConverter
     private static final Map<String, VersionSpecificBridge> CASSANDRA_BRIDGES =
-    new ConcurrentHashMap<>(CassandraVersion.values().length);
+        new ConcurrentHashMap<>(CassandraVersion.values().length);
 
     public static class VersionSpecificBridge
     {
@@ -77,11 +82,9 @@ public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
 
     private static CdcBridgeFactory.VersionSpecificBridge getVersionSpecificBridge(@NotNull CassandraVersion version)
     {
+        maybeRegisterShutdownHook();
         String jarBaseName = version.jarBaseName();
-        if (jarBaseName == null)
-        {
-            throw new NullPointerException("Cassandra version " + version + " is not supported");
-        }
+        Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
         return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CdcBridgeFactory::create);
     }
 
@@ -163,6 +166,57 @@ public final class CdcBridgeFactory extends BaseCassandraBridgeFactory
         {
             throw new RuntimeException("Failed to create Cassandra bridge for label " + label, exception);
         }
+    }
+
+    /**
+     * Returns whether the shutdown hook has been registered.
+     */
+    @VisibleForTesting
+    static boolean isShutdownHookRegistered()
+    {
+        return SHUTDOWN_HOOK_REGISTERED.get();
+    }
+
+    /**
+     * Registers a JVM shutdown hook that calls {@link #close()} to release classloader resources.
+     * Clears the {@link TypeCache} first so type references are released before classloaders close.
+     * Uses CAS to ensure the hook is registered at most once.
+     */
+    @VisibleForTesting
+    static void maybeRegisterShutdownHook()
+    {
+        if (SHUTDOWN_HOOK_REGISTERED.compareAndSet(false, true))
+        {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try
+                {
+                    TypeCache.clear();
+                    close();
+                }
+                catch (Exception e)
+                {
+                    // best-effort cleanup during JVM shutdown
+                }
+            }, CdcBridgeFactory.class.getSimpleName() + "-shutdown"));
+        }
+    }
+
+    /**
+     * Closes all cached bridge classloaders and clears the cache. Call during application shutdown
+     * to release classloader resources and delete temp JAR files.
+     *
+     * Do not use this method outside testing; rely on the shutdown hook logic to clean things up in prod.
+     */
+    @VisibleForTesting
+    public static void close()
+    {
+        closeBridges(CASSANDRA_BRIDGES, bridge -> bridge.classLoader);
+    }
+
+    @VisibleForTesting
+    public static boolean areBridgesClosed()
+    {
+        return CASSANDRA_BRIDGES.isEmpty();
     }
 
     @VisibleForTesting
