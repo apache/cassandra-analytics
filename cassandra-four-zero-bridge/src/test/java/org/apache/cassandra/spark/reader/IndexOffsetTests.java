@@ -166,9 +166,9 @@ public class IndexOffsetTests
                                          index,
                                          // Cast to ByteBuffer required when compiling with Java 8
                                          ReaderUtils.tokenToBigInteger(BRIDGE
-                                                .getPartitioner(partitioner)
-                                                .decorateKey((ByteBuffer) ByteBuffer.allocate(4).putInt(index).flip())
-                                                .getToken()),
+                                                                       .getPartitioner(partitioner)
+                                                                       .decorateKey((ByteBuffer) ByteBuffer.allocate(4).putInt(index).flip())
+                                                                       .getToken()),
                                          partitioner.name());
                         }
                         else if (count > 1)
@@ -177,9 +177,9 @@ public class IndexOffsetTests
                                          index,
                                          // Cast to ByteBuffer required when compiling with Java 8
                                          ReaderUtils.tokenToBigInteger(BRIDGE
-                                                .getPartitioner(partitioner)
-                                                .decorateKey((ByteBuffer) ByteBuffer.allocate(4).putInt(index).flip())
-                                                .getToken()),
+                                                                       .getPartitioner(partitioner)
+                                                                       .decorateKey((ByteBuffer) ByteBuffer.allocate(4).putInt(index).flip())
+                                                                       .getToken()),
                                          partitioner.name());
                         }
                         assertThat(count).as(count > 0 ? "Key " + index + " read " + count + " times"
