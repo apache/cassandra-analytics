@@ -165,14 +165,17 @@ jobs:
           cassandra: "4.0"
 
       - store_artifacts:
+          when: always
           path: build/test-reports
           destination: test-reports
 
       - store_artifacts:
+          when: always
           path: build/reports
           destination: reports
 
       - store_test_results:
+          when: always
           path: build/test-reports
 
   spark3-2_12-jdk11-big-c41:
@@ -193,14 +196,17 @@ jobs:
           cassandra: "4.1"
 
       - store_artifacts:
+          when: always
           path: build/test-reports
           destination: test-reports
 
       - store_artifacts:
+          when: always
           path: build/reports
           destination: reports
 
       - store_test_results:
+          when: always
           path: build/test-reports
 
   int-c4-spark3-2_12-jdk11:
@@ -222,18 +228,22 @@ jobs:
           cassandra: "4.0.17"
 
       - store_artifacts:
+          when: always
           path: build/test-reports
           destination: test-reports
 
       - store_artifacts:
+          when: always
           path: build/reports
           destination: reports
 
       - store_artifacts:
+          when: always
           path: cassandra-analytics-integration-tests
           destination: int-tests-misc
 
       - store_test_results:
+          when: always
           path: build/test-reports
 
   int-c41-spark3-2_12-jdk11:
@@ -255,18 +265,22 @@ jobs:
           cassandra: "4.1.4"
 
       - store_artifacts:
+          when: always
           path: build/test-reports
           destination: test-reports
 
       - store_artifacts:
+          when: always
           path: build/reports
           destination: reports
 
       - store_artifacts:
+          when: always
           path: cassandra-analytics-integration-tests
           destination: int-tests-misc
 
       - store_test_results:
+          when: always
           path: build/test-reports
 
   spark3-2_13-jdk11-bti-c50:
@@ -287,14 +301,17 @@ jobs:
           cassandra: "5.0"
 
       - store_artifacts:
+          when: always
           path: build/test-reports
           destination: test-reports
 
       - store_artifacts:
+          when: always
           path: build/reports
           destination: reports
 
       - store_test_results:
+          when: always
           path: build/test-reports
 
   int-c5-spark3-2_13-jdk11:
@@ -316,14 +333,17 @@ jobs:
           cassandra: "5.0.5"
 
       - store_artifacts:
+          when: always
           path: build/test-reports
           destination: test-reports
 
       - store_artifacts:
+          when: always
           path: build/reports
           destination: reports
 
       - store_test_results:
+          when: always
           path: build/test-reports
 
 workflows:
