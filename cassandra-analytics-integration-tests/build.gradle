@@ -145,13 +145,16 @@ def configureIntegrationTestTask = { Test task, String majorMinor = null ->
         println("JVM arguments for $project.name are ${task.allJvmArgs}")
     }
 
+    // Some test classes are skipped entirely via assumeThat (e.g. MultipleTokens tests on C* 4.0).
+    // When CI runs individual classes with --tests, a skipped @BeforeAll leaves zero discovered tests,
+    // which Gradle treats as an error unless we tell it otherwise.
+    task.filter {
+        setFailOnNoMatchingTests(false)
+    }
+
     // container test does not run on java 8
     if ("true" == System.getenv("skipContainerTest") || JavaVersion.current().isJava8()) {
         task.exclude("**/testcontainer/**")
-
-        task.filter {
-            setFailOnNoMatchingTests(false) // do not fail the build if no matching test found, since in CI we run individual test class
-        }
     }
 
     task.useJUnitPlatform()
