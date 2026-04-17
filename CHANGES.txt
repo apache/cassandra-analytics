@@ -1,5 +1,6 @@
 0.4.0
 -----
+ * Cannot read start offset from BTI index with big partitions (CASSANALYTICS-151)
  * BufferingInputStream fails to read last unaligned chunk (CASSANALYTICS-147)
  * Support per-instance sidecar port resolution in CDC client (CASSANALYTICS-130)
  * Change log level for logs in CassandraSchema to debug level to avoid log spamming (CASSANALYTICS-149)
