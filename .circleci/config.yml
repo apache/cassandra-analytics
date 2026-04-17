@@ -65,8 +65,8 @@ commands:
             SPARK_VERSION: "<<parameters.spark>>"
             SCALA_VERSION: "<<parameters.scala>>"
             JDK_VERSION: "<<parameters.jdk>>"
-            INTEGRATION_MAX_PARALLEL_FORKS: 3
-            INTEGRATION_MAX_HEAP_SIZE: "2048m"
+            INTEGRATION_MAX_PARALLEL_FORKS: 2
+            INTEGRATION_MAX_HEAP_SIZE: "3072m"
             CORE_MAX_PARALLEL_FORKS: 3
             CORE_TEST_MAX_HEAP_SIZE: "2048m"
             CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>

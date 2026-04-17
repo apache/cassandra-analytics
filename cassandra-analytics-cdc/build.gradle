@@ -142,8 +142,8 @@ jar {
 }
 
 // Assuming container w/8g ram, 2x3G == 6G + overhead; override via CDC_MAX_PARALLEL_FORKS for local dev
-def cdcMaxHeap = '2048m'
-def cdcMaxParallelForks = (System.getenv("CDC_MAX_PARALLEL_FORKS") ?: "3") as int
+def cdcMaxHeap = '3072m'
+def cdcMaxParallelForks = (System.getenv("CDC_MAX_PARALLEL_FORKS") ?: "2") as int
 
 // Shared test configuration for CDC tests. When majorMinor is specified (e.g. "4.0"),
 // tests run against that single Cassandra version. When null, uses env var filtering
