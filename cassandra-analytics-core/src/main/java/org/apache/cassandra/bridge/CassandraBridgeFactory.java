@@ -23,7 +23,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 
 import org.apache.cassandra.spark.data.converter.SparkSqlTypeConverter;
@@ -31,6 +33,8 @@ import org.jetbrains.annotations.NotNull;
 
 public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
 {
+    private static final AtomicBoolean SHUTDOWN_HOOK_REGISTERED = new AtomicBoolean(false);
+
     // maps Cassandra version-specific jar name (e.g. 'four-zero') to matching CassandraBridge and SparkSqlTypeConverter
     private static final Map<String, VersionSpecificBridge> CASSANDRA_BRIDGES =
     new ConcurrentHashMap<>(CassandraVersion.values().length);
@@ -39,11 +43,15 @@ public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
     {
         public final CassandraBridge cassandraBridge;
         public final SparkSqlTypeConverter sparkSqlTypeConverter;
+        final ClassLoader classLoader;
 
-        public VersionSpecificBridge(CassandraBridge cassandraBridge, SparkSqlTypeConverter sparkSqlTypeConverter)
+        public VersionSpecificBridge(CassandraBridge cassandraBridge,
+                                     SparkSqlTypeConverter sparkSqlTypeConverter,
+                                     ClassLoader classLoader)
         {
             this.cassandraBridge = cassandraBridge;
             this.sparkSqlTypeConverter = sparkSqlTypeConverter;
+            this.classLoader = classLoader;
         }
     }
 
@@ -65,12 +73,18 @@ public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
         return get(getCassandraVersion(features));
     }
 
+    private static VersionSpecificBridge getVersionSpecificBridge(@NotNull CassandraVersion version)
+    {
+        maybeRegisterShutdownHook();
+        String jarBaseName = version.jarBaseName();
+        Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
+        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create);
+    }
+
     @NotNull
     public static CassandraBridge get(@NotNull CassandraVersion version)
     {
-        String jarBaseName = version.jarBaseName();
-        Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
-        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).cassandraBridge;
+        return getVersionSpecificBridge(version).cassandraBridge;
     }
 
     @NotNull
@@ -88,9 +102,7 @@ public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
     @NotNull
     public static SparkSqlTypeConverter getSparkSql(@NotNull CassandraVersion version)
     {
-        String jarBaseName = version.jarBaseName();
-        Preconditions.checkNotNull(jarBaseName, "Cassandra version " + version + " is not supported");
-        return CASSANDRA_BRIDGES.computeIfAbsent(jarBaseName, CassandraBridgeFactory::create).sparkSqlTypeConverter;
+        return getVersionSpecificBridge(version).sparkSqlTypeConverter;
     }
 
     @NotNull
@@ -119,13 +131,69 @@ public final class CassandraBridgeFactory extends BaseCassandraBridgeFactory
                                                          .loadClass(SparkSqlTypeConverter.IMPLEMENTATION_FQCN);
             Constructor<SparkSqlTypeConverter> typeConverterConstructor = typeConverter.getConstructor();
             SparkSqlTypeConverter typeConverterInstance = typeConverterConstructor.newInstance();
-            return new VersionSpecificBridge(bridgeInstance, typeConverterInstance);
+            return new VersionSpecificBridge(bridgeInstance, typeConverterInstance, loader);
         }
         catch (ClassNotFoundException | NoSuchMethodException | InstantiationException
                | IllegalAccessException | InvocationTargetException exception)
         {
             throw new RuntimeException("Failed to create Cassandra bridge for label " + label, exception);
         }
+    }
+
+    @VisibleForTesting
+    static boolean isShutdownHookRegistered()
+    {
+        return SHUTDOWN_HOOK_REGISTERED.get();
+    }
+
+    /**
+     * Registers a JVM shutdown hook that calls {@link #close} to release classloader resources.
+     * Uses CAS to ensure the hook is registered at most once.
+     */
+    @VisibleForTesting
+    static void maybeRegisterShutdownHook()
+    {
+        if (SHUTDOWN_HOOK_REGISTERED.compareAndSet(false, true))
+        {
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                try
+                {
+                    close();
+                }
+                catch (Exception e)
+                {
+                    // best-effort cleanup during JVM shutdown
+                }
+            }, CassandraBridgeFactory.class.getSimpleName() + "-shutdown"));
+        }
+    }
+
+    /**
+     * Closes all cached bridge classloaders and clears the cache. Call during application shutdown
+     * to release classloader resources and delete temp JAR files.
+     *
+     * Do not use this method outside testing; rely on the shutdown hook logic to clean things up in prod.
+     */
+    @VisibleForTesting
+    public static void close()
+    {
+        closeBridges(CASSANDRA_BRIDGES, bridge -> bridge.classLoader);
+    }
+
+    @VisibleForTesting
+    public static boolean areBridgesClosed()
+    {
+        return CASSANDRA_BRIDGES.isEmpty();
+    }
+
+    /**
+     * Clears the bridge cache without closing classloaders. Intended for test cleanup where
+     * JVM exit handles resource release.
+     */
+    @VisibleForTesting
+    public static void reset()
+    {
+        CASSANDRA_BRIDGES.clear();
     }
 
     /***
