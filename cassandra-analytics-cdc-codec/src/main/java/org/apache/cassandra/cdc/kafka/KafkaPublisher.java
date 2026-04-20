@@ -54,6 +54,8 @@ import org.apache.kafka.common.errors.RecordTooLargeException;
  * <p>The type parameter {@code V} is the value type accepted by the Kafka producer:
  * {@code V = GenericData.Record} for PIE / Confluent paths (the serializer handles encoding),
  * or {@code V = byte[]} for the no-registry path — see {@link ByteArrayKafkaPublisher}.
+ *
+ * @param <V> the Kafka producer value type
  */
 public abstract class KafkaPublisher<V> implements AutoCloseable
 {
