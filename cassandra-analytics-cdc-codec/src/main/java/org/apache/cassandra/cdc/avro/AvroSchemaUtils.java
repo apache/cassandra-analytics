@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.cdc.avro;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,18 +37,54 @@ import org.apache.avro.Schema;
  */
 public final class AvroSchemaUtils
 {
+    static final String CDC_ENVELOPE_TEMPLATE = "cdc_generic_record.avsc";
+
     private AvroSchemaUtils()
     {
     }
 
     /**
-     * Build a merged CDC Avro schema by injecting {@code payloadSchema} into the CDC envelope template.
+     * Build a merged CDC Avro schema using the standard CDC envelope template
+     * ({@code cdc_generic_record.avsc}) bundled in this JAR.
+     *
+     * <p>This is the preferred entry point for producers and the sidecar schema store,
+     * since it guarantees both sides use the identical envelope template and therefore
+     * produce the same schema fingerprint.
+     *
+     * @param payloadSchema the table-specific Avro schema produced by the CQL-to-Avro converter
+     * @param name          the record name for the merged schema
+     * @param namespace     the namespace for the merged schema
+     * @return merged Avro schema
+     */
+    public static Schema buildMergedSchema(Schema payloadSchema, String name, String namespace)
+    {
+        InputStream is = AvroSchemaUtils.class.getClassLoader().getResourceAsStream(CDC_ENVELOPE_TEMPLATE);
+        if (is == null)
+        {
+            throw new IllegalStateException("CDC envelope template not found on classpath: " + CDC_ENVELOPE_TEMPLATE);
+        }
+        try
+        {
+            Schema envelopeTemplate = new Schema.Parser().parse(is);
+            return buildMergedSchema(envelopeTemplate, payloadSchema, name, namespace);
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException("Failed to parse CDC envelope template: " + CDC_ENVELOPE_TEMPLATE, e);
+        }
+    }
+
+    /**
+     * Build a merged CDC Avro schema by injecting {@code payloadSchema} into the given envelope template.
      *
      * <p>All fields from {@code envelopeTemplate} (except the placeholder {@code payload},
      * {@code namespace}, and {@code name} fields) are copied verbatim, and the table-specific
      * {@code payloadSchema} is appended as the {@code payload} field.
      *
-     * @param envelopeTemplate the base CDC envelope schema (e.g. parsed from {@code cdc_generic_record.avsc})
+     * <p>Prefer {@link #buildMergedSchema(Schema, String, String)} unless a custom envelope
+     * template is explicitly required.
+     *
+     * @param envelopeTemplate the base CDC envelope schema
      * @param payloadSchema    the table-specific Avro schema produced by the CQL-to-Avro converter
      * @param name             the record name for the merged schema
      * @param namespace        the namespace for the merged schema

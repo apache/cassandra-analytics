@@ -78,4 +78,27 @@ public class AvroSchemaUtilsTest
         String uuid2 = UUID.nameUUIDFromBytes(merged2.toString().getBytes(StandardCharsets.UTF_8)).toString();
         assertThat(uuid1).isEqualTo(uuid2);
     }
+
+    /**
+     * Verifies that the 3-param overload loads {@code cdc_generic_record.avsc} from the classpath
+     * and produces a schema identical to calling the 4-param overload with that template explicitly.
+     */
+    @Test
+    public void buildMergedSchemaLoadsStandardEnvelopeTemplate() throws IOException
+    {
+        Schema payloadSchema = Schema.createRecord("Payload", null, "test.payload", false);
+        payloadSchema.setFields(Collections.singletonList(
+                new Schema.Field("id", Schema.create(Schema.Type.INT), null)));
+
+        // 3-param overload — loads cdc_generic_record.avsc internally
+        Schema mergedFromClasspath = AvroSchemaUtils.buildMergedSchema(payloadSchema, "TestRecord", "test.ns");
+
+        // 4-param overload with the same template loaded explicitly
+        Schema envelope = new Schema.Parser().parse(
+                AvroSchemaUtilsTest.class.getClassLoader().getResourceAsStream(AvroSchemaUtils.CDC_ENVELOPE_TEMPLATE));
+        Schema mergedExplicit = AvroSchemaUtils.buildMergedSchema(envelope, payloadSchema, "TestRecord", "test.ns");
+
+        // Both overloads must produce identical schemas and therefore the same fingerprint
+        assertThat(mergedFromClasspath.toString()).isEqualTo(mergedExplicit.toString());
+    }
 }
