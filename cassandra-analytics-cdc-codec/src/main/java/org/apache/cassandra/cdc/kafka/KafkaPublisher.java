@@ -54,7 +54,7 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
  * via {@link org.apache.cassandra.cdc.schemastore.SchemaStore#getVersion}.
  *
  * <p>The type parameter {@code V} is the value type accepted by the Kafka producer:
- * {@code V = GenericData.Record} for PIE / Confluent paths (the serializer handles encoding),
+ * {@code V = GenericData.Record} for schema-registry paths (the Avro-aware serializer handles encoding),
  * or {@code V = byte[]} for the no-registry path — see {@link ByteArrayKafkaPublisher}.
  *
  * @param <V> the Kafka producer value type
@@ -156,7 +156,7 @@ public abstract class KafkaPublisher<V> implements AutoCloseable
      * Converts the transformed {@link GenericData.Record} into the value type {@code V}
      * expected by the Kafka producer.
      *
-     * <p>The default implementation is an identity cast for PIE / Confluent paths
+     * <p>The default implementation is an identity cast for schema-registry paths
      * where {@code V = GenericData.Record}. Override to perform encoding, e.g. in
      * {@link ByteArrayKafkaPublisher} for the {@code ByteArraySerializer} path.
      */

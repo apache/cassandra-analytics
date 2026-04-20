@@ -33,7 +33,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
  * When a {@code schemaUuid} is provided it is also added as the {@value #SCHEMA_UUID_HEADER} header,
  * allowing consumers to look up the correct Avro schema.
  *
- * @param <V> the Kafka producer value type ({@code GenericData.Record} for PIE/Confluent,
+ * @param <V> the Kafka producer value type ({@code GenericData.Record} for schema-registry paths,
  *            {@code byte[]} for the no-registry path)
  */
 public interface RecordProducer<V>
