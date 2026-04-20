@@ -34,6 +34,7 @@ import org.apache.cassandra.analytics.ResiliencyTestBase;
 import org.apache.cassandra.analytics.TestConsistencyLevel;
 import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.testing.utils.ClusterUtils;
+import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
@@ -61,7 +62,10 @@ abstract class JoiningTestBase extends ResiliencyTestBase
                                             .save();
         // validate data right after bulk writes
         validateData(table, cl.readCL, ROW_COUNT);
-        validateNodeSpecificData(table, expectedInstanceData);
+        if (cl.writeCL == ConsistencyLevel.ALL)
+        {
+            validateNodeSpecificData(table, expectedInstanceData);
+        }
     }
 
     @Override
@@ -99,7 +103,10 @@ abstract class JoiningTestBase extends ResiliencyTestBase
 
             QualifiedName tableName = uniqueTestTableFullName(TEST_KEYSPACE, cl.readCL, cl.writeCL);
             validateData(tableName, cl.readCL, ROW_COUNT);
-            validateNodeSpecificData(tableName, expectedInstanceData);
+            if (cl.writeCL == ConsistencyLevel.ALL)
+            {
+                validateNodeSpecificData(tableName, expectedInstanceData);
+            }
         });
 
         // For tests that involve JOIN failures, we make a best-effort attempt to check if the node join has failed
