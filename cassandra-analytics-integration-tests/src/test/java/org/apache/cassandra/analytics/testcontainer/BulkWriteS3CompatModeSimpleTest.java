@@ -68,7 +68,10 @@ class BulkWriteS3CompatModeSimpleTest extends SharedClusterSparkIntegrationTestB
     @Override
     protected void afterClusterShutdown()
     {
-        s3Mock.stop();
+        if (s3Mock != null)
+        {
+            s3Mock.stop();
+        }
     }
 
     @Override
