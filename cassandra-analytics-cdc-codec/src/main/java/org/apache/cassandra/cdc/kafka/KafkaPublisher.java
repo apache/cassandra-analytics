@@ -278,7 +278,6 @@ public abstract class KafkaPublisher<V> implements AutoCloseable
                );
     }
 
-
     public static TableIdentifier extractTableIdFromPublishKey(String publishKey)
     {
         String[] components = publishKey.split(":");

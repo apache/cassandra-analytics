@@ -32,6 +32,24 @@ import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.kafka.clients.producer.KafkaProducer;
 
+/**
+ * {@link KafkaPublisher} for schema-registry paths where {@code value.serializer} is an
+ * Avro-aware serializer that accepts {@link GenericData.Record} directly.
+ *
+ * <p>Each CDC event is transformed into a merged Avro record whose schema combines the fixed CDC
+ * envelope ({@code cdc_generic_record.avsc}) with the table-specific payload schema produced by
+ * {@link org.apache.cassandra.cdc.avro.AvroGenericRecordTransformer}. The Avro serializer
+ * registered with the Kafka producer handles encoding and schema registration.
+ *
+ * <p>{@code schemaNamespacePrefix} controls the Avro schema identity of each produced record:
+ * <ul>
+ *   <li>If non-empty, the merged schema is given the name of the source table and the namespace
+ *       {@code <schemaNamespacePrefix>.<keyspace>}, producing a unique schema per table that can
+ *       be registered independently in the schema registry.</li>
+ *   <li>If empty, the name and namespace from the CDC envelope template are used for all tables,
+ *       resulting in a single shared schema registration.</li>
+ * </ul>
+ */
 public class GenericRecordKafkaPublisher extends KafkaPublisher<GenericData.Record>
 {
     private final CdcEventTransformer<GenericData.Record> transformer;

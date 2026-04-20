@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.cdc.kafka;
 
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
@@ -57,15 +56,6 @@ public interface RecordProducer<V>
                                                   String table,
                                                   String topic,
                                                   String key,
-                                                  V payload)
-    {
-        return buildRecord(keyspace, table, topic, key, payload, null);
-    }
-
-    default ProducerRecord<String, V> buildRecord(String keyspace,
-                                                  String table,
-                                                  String topic,
-                                                  String key,
                                                   V payload,
                                                   String schemaUuid)
     {
@@ -82,14 +72,6 @@ public interface RecordProducer<V>
     default List<ProducerRecord<String, V>> buildRecords(CdcEvent cdcEvent,
                                                          String topic,
                                                          String key,
-                                                         V payload)
-    {
-        return buildRecords(cdcEvent.keyspace, cdcEvent.table, topic, key, payload, null);
-    }
-
-    default List<ProducerRecord<String, V>> buildRecords(CdcEvent cdcEvent,
-                                                         String topic,
-                                                         String key,
                                                          V payload,
                                                          String schemaUuid)
     {
@@ -100,29 +82,10 @@ public interface RecordProducer<V>
                                                          String table,
                                                          String topic,
                                                          String key,
-                                                         V payload)
-    {
-        return buildRecords(keyspace, table, topic, key, payload, null);
-    }
-
-    default List<ProducerRecord<String, V>> buildRecords(String keyspace,
-                                                         String table,
-                                                         String topic,
-                                                         String key,
                                                          V payload,
                                                          String schemaUuid)
     {
         return Collections.singletonList(buildRecord(keyspace, table, topic, key, payload, schemaUuid));
-    }
-
-    static <K, V> void addHeader(ProducerRecord<K, V> record, String name, short value)
-    {
-        addHeader(record, name, ByteBuffer.allocate(2).putShort(value).array());
-    }
-
-    static <K, V> void addHeader(ProducerRecord<K, V> record, String name, int value)
-    {
-        addHeader(record, name, ByteBuffer.allocate(4).putInt(value).array());
     }
 
     static <K, V> void addHeader(ProducerRecord<K, V> record, String name, String value)
