@@ -28,43 +28,91 @@ import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 /**
- * The RecordProducer provides an interface to build the Kafka `ProducerRecord` object
+ * Builds Kafka {@link ProducerRecord} objects for CDC events.
+ *
+ * <p>Every produced record carries at minimum {@code keyspace} and {@code table} headers.
+ * When a {@code schemaUuid} is provided it is also added as the {@value #SCHEMA_UUID_HEADER} header,
+ * allowing consumers to look up the correct Avro schema.
+ *
+ * @param <V> the Kafka producer value type ({@code GenericData.Record} for PIE/Confluent,
+ *            {@code byte[]} for the no-registry path)
  */
-public interface RecordProducer
+public interface RecordProducer<V>
 {
-    RecordProducer DEFAULT = new RecordProducer()
-    {
-    };
     String KEYSPACE_HEADER = "keyspace";
     String TABLE_HEADER = "table";
+    String SCHEMA_UUID_HEADER = "schemaUuid";
 
-    default ProducerRecord<String, byte[]> buildRecord(String keyspace,
-                                                       String table,
-                                                       String topic,
-                                                       String key,
-                                                       byte[] payload)
+    RecordProducer<?> DEFAULT_INSTANCE = new RecordProducer<Object>()
     {
-        ProducerRecord<String, byte[]> record = new ProducerRecord<>(topic, key, payload);
+    };
+
+    @SuppressWarnings("unchecked")
+    static <V> RecordProducer<V> defaultProducer()
+    {
+        return (RecordProducer<V>) DEFAULT_INSTANCE;
+    }
+
+    default ProducerRecord<String, V> buildRecord(String keyspace,
+                                                  String table,
+                                                  String topic,
+                                                  String key,
+                                                  V payload)
+    {
+        return buildRecord(keyspace, table, topic, key, payload, null);
+    }
+
+    default ProducerRecord<String, V> buildRecord(String keyspace,
+                                                  String table,
+                                                  String topic,
+                                                  String key,
+                                                  V payload,
+                                                  String schemaUuid)
+    {
+        ProducerRecord<String, V> record = new ProducerRecord<>(topic, key, payload);
         RecordProducer.addHeader(record, RecordProducer.KEYSPACE_HEADER, keyspace);
         RecordProducer.addHeader(record, RecordProducer.TABLE_HEADER, table);
+        if (schemaUuid != null)
+        {
+            RecordProducer.addHeader(record, RecordProducer.SCHEMA_UUID_HEADER, schemaUuid);
+        }
         return record;
     }
 
-    default List<ProducerRecord<String, byte[]>> buildRecords(CdcEvent cdcEvent,
-                                                              String topic,
-                                                              String key,
-                                                              byte[] payload)
+    default List<ProducerRecord<String, V>> buildRecords(CdcEvent cdcEvent,
+                                                         String topic,
+                                                         String key,
+                                                         V payload)
     {
-        return buildRecords(cdcEvent.keyspace, cdcEvent.table, topic, key, payload);
+        return buildRecords(cdcEvent.keyspace, cdcEvent.table, topic, key, payload, null);
     }
 
-    default List<ProducerRecord<String, byte[]>> buildRecords(String keyspace,
-                                                              String table,
-                                                              String topic,
-                                                              String key,
-                                                              byte[] payload)
+    default List<ProducerRecord<String, V>> buildRecords(CdcEvent cdcEvent,
+                                                         String topic,
+                                                         String key,
+                                                         V payload,
+                                                         String schemaUuid)
     {
-        return Collections.singletonList(buildRecord(keyspace, table, topic, key, payload));
+        return buildRecords(cdcEvent.keyspace, cdcEvent.table, topic, key, payload, schemaUuid);
+    }
+
+    default List<ProducerRecord<String, V>> buildRecords(String keyspace,
+                                                         String table,
+                                                         String topic,
+                                                         String key,
+                                                         V payload)
+    {
+        return buildRecords(keyspace, table, topic, key, payload, null);
+    }
+
+    default List<ProducerRecord<String, V>> buildRecords(String keyspace,
+                                                         String table,
+                                                         String topic,
+                                                         String key,
+                                                         V payload,
+                                                         String schemaUuid)
+    {
+        return Collections.singletonList(buildRecord(keyspace, table, topic, key, payload, schemaUuid));
     }
 
     static <K, V> void addHeader(ProducerRecord<K, V> record, String name, short value)

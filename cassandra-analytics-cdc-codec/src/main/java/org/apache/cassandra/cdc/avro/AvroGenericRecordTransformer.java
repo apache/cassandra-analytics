@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.cdc.avro;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
@@ -80,24 +79,7 @@ public class AvroGenericRecordTransformer extends AvroBaseRecordTransformer<Gene
             name = event.table;
             namespace = schemaNamespacePrefix + '.' + event.keyspace;
         }
-        Schema tempSchema = Schema.createRecord(name, "schema", namespace, false);
-        Schema.Field payloadField = new Schema.Field(AvroConstants.PAYLOAD_KEY, event.payload.getSchema(), AvroConstants.PAYLOAD_KEY);
-
-        // Avro schema fields can't be modified. That's why we need to create a new schema with the
-        // dynamically generated payload field.
-        List<Schema.Field> fields = new ArrayList<>();
-        for (Schema.Field f : cdcSchema.getFields())
-        {
-            if (!f.name().equals(AvroConstants.PAYLOAD_KEY) && !f.name().equals("namespace") && !f.name().equals("name"))
-            {
-                Schema.Field ff = new Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal());
-                fields.add(ff);
-            }
-        }
-
-        fields.add(payloadField);
-        tempSchema.setFields(fields);
-        return tempSchema;
+        return AvroSchemaUtils.buildMergedSchema(cdcSchema, event.payload.getSchema(), name, namespace);
     }
 
     /**

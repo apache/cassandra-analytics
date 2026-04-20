@@ -134,11 +134,20 @@ public class AvroSerializer implements KafkaCdcSerializer<CdcEvent>
 
         public CdcEnvelope deserialize(String keyspace, String table, byte[] data)
         {
+            return deserialize(keyspace, table, data, null);
+        }
+
+        /**
+         * Deserialize a CDC Avro message, using {@code schemaUuid} (e.g. from the Kafka header)
+         * to locate the payload schema.
+         */
+        public CdcEnvelope deserialize(String keyspace, String table, byte[] data, String schemaUuid)
+        {
             BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(data, decoderReuse);
             try
             {
                 GenericRecord header = cdcReader.read(null, decoder);
-                GenericRecord payload = deserializePayload(keyspace, table, header.get(AvroConstants.SCHEMA_UUID_KEY).toString(), getPayload(header));
+                GenericRecord payload = deserializePayload(keyspace, table, schemaUuid, getPayload(header));
                 return new CdcEnvelope(header, payload);
             }
             catch (IOException e)

@@ -24,9 +24,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.avro.generic.GenericData;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cdc.CdcLogMode;
 import org.apache.cassandra.cdc.TypeCache;
@@ -40,64 +42,75 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.InterruptException;
 import org.apache.kafka.common.errors.RecordTooLargeException;
-import org.apache.kafka.common.serialization.Serializer;
 
-public class KafkaPublisher implements AutoCloseable
+/**
+ * Publishes CDC events to Kafka.
+ *
+ * <p>Each subclass holds its own {@link org.apache.cassandra.cdc.CdcEventTransformer} and implements
+ * {@link #getPayload} to convert a {@link CdcEvent} into the value type {@code V}.
+ * The deterministic UUID-v3 of the schema is stamped as the {@code schemaUuid} Kafka header
+ * via {@link org.apache.cassandra.cdc.schemastore.SchemaStore#getVersion}.
+ *
+ * <p>The type parameter {@code V} is the value type accepted by the Kafka producer:
+ * {@code V = GenericData.Record} for PIE / Confluent paths (the serializer handles encoding),
+ * or {@code V = byte[]} for the no-registry path — see {@link ByteArrayKafkaPublisher}.
+ */
+public abstract class KafkaPublisher<V> implements AutoCloseable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaPublisher.class);
 
     protected CassandraVersion version;
     protected TopicSupplier topicSupplier;
     protected int maxRecordSizeBytes;
-    protected final RecordProducer recordProducer;
+    protected final RecordProducer<V> recordProducer;
     protected final EventHasher eventHasher;
     protected boolean failOnRecordTooLargeError;
     protected boolean failOnKafkaError;
     protected CdcLogMode cdcLogMode;
 
     protected final AtomicReference<Throwable> failure = new AtomicReference<>();
-    protected final KafkaProducer<String, byte[]> producer;
-    protected final Serializer<CdcEvent> serializer;
+    protected final KafkaProducer<String, V> producer;
+    private final SchemaStore schemaStore;
 
     protected ThreadLocal<Map<Pair<String, String>, String>> prefixCache =
     ThreadLocal.withInitial(HashMap::new);
     protected final KafkaStats kafkaStats;
 
-    public KafkaPublisher(CassandraVersion version,
-                          TopicSupplier topicSupplier,
-                          KafkaProducer<String, byte[]> producer,
-                          Serializer<CdcEvent> serializer,
-                          int maxRecordSizeBytes,
-                          boolean failOnRecordTooLargeError,
-                          boolean failOnKafkaError,
-                          CdcLogMode logMode)
+    KafkaPublisher(CassandraVersion version,
+                   TopicSupplier topicSupplier,
+                   KafkaProducer<String, V> producer,
+                   SchemaStore schemaStore,
+                   int maxRecordSizeBytes,
+                   boolean failOnRecordTooLargeError,
+                   boolean failOnKafkaError,
+                   CdcLogMode logMode)
     {
         this(
         version,
         topicSupplier,
         producer,
-        serializer,
+        schemaStore,
         maxRecordSizeBytes,
         failOnRecordTooLargeError,
         failOnKafkaError,
         logMode,
         KafkaStats.STUB,
-        RecordProducer.DEFAULT,
+        RecordProducer.defaultProducer(),
         EventHasher.MURMUR2
         );
     }
 
-    public KafkaPublisher(CassandraVersion version,
-                          TopicSupplier topicSupplier,
-                          KafkaProducer<String, byte[]> producer,
-                          Serializer<CdcEvent> serializer,
-                          int maxRecordSizeBytes,
-                          boolean failOnRecordTooLargeError,
-                          boolean failOnKafkaError,
-                          CdcLogMode logMode,
-                          KafkaStats kafkaStats,
-                          RecordProducer recordProducer,
-                          EventHasher eventHasher)
+    KafkaPublisher(CassandraVersion version,
+                   TopicSupplier topicSupplier,
+                   KafkaProducer<String, V> producer,
+                   SchemaStore schemaStore,
+                   int maxRecordSizeBytes,
+                   boolean failOnRecordTooLargeError,
+                   boolean failOnKafkaError,
+                   CdcLogMode logMode,
+                   KafkaStats kafkaStats,
+                   RecordProducer<V> recordProducer,
+                   EventHasher eventHasher)
     {
         this.version = version;
         this.topicSupplier = topicSupplier;
@@ -106,7 +119,7 @@ public class KafkaPublisher implements AutoCloseable
         this.failOnKafkaError = failOnKafkaError;
         this.cdcLogMode = logMode;
         this.kafkaStats = kafkaStats;
-        this.serializer = serializer;
+        this.schemaStore = schemaStore;
         this.producer = producer;
         this.eventHasher = eventHasher;
         this.recordProducer = recordProducer;
@@ -130,39 +143,44 @@ public class KafkaPublisher implements AutoCloseable
         return LOGGER;
     }
 
-    protected RecordProducer recordProducer()
+    protected RecordProducer<V> recordProducer()
     {
         return recordProducer;
     }
 
-    protected byte[] getPayload(String topic, CdcEvent event)
-    {
-        return serializer.serialize(topic, event);
-    }
+    /**
+     * Converts the transformed {@link GenericData.Record} into the value type {@code V}
+     * expected by the Kafka producer.
+     *
+     * <p>The default implementation is an identity cast for PIE / Confluent paths
+     * where {@code V = GenericData.Record}. Override to perform encoding, e.g. in
+     * {@link ByteArrayKafkaPublisher} for the {@code ByteArraySerializer} path.
+     */
+    protected abstract V getPayload(CdcEvent cdcEvent);
 
     public void processEvent(CdcEvent event)
     {
         String topic = topicSupplier.topic(event);
         cdcLogMode.info(logger(), "Processing CDC event", event, topic);
         long time = System.currentTimeMillis();
-        byte[] recordPayload;
+        String schemaUuid = schemaStore.getVersion(event.keyspace + "." + event.table, null);
+        String publishKey = getOrBuildKafkaPrefix(event) + eventHasher.hashEvent(event);
+        V payload;
         try
         {
-            recordPayload = getPayload(topic, event);
+            payload = getPayload(event);
         }
         catch (Exception e)
         {
             cdcLogMode.warn(logger(), "Skip publishing the event because it cannot be serialized",
                             event, topic, e);
-            throw e; // rethrow for user to handle
+            throw e;
         }
-        String publishKey = getOrBuildKafkaPrefix(event) + eventHasher.hashEvent(event);
-        List<ProducerRecord<String, byte[]>> records = recordProducer()
-                                                       .buildRecords(event, topic, publishKey,
-                                                                     recordPayload);
-        for (ProducerRecord<String, byte[]> record : records)
+        List<ProducerRecord<String, V>> records = recordProducer()
+                                                  .buildRecords(event, topic, publishKey, payload, schemaUuid);
+        for (ProducerRecord<String, V> producerRecord : records)
         {
-            producer.send(record, (metadata, throwable) -> {
+            producer.send(producerRecord, (metadata, throwable) -> {
                 long elapsedTime = System.currentTimeMillis() - time;
                 if (throwable != null)
                 {
@@ -206,7 +224,7 @@ public class KafkaPublisher implements AutoCloseable
 
     public void flush() throws InterruptedException
     {
-        KafkaProducer<String, byte[]> producerRef = this.producer;
+        KafkaProducer<String, V> producerRef = this.producer;
         if (producerRef == null)
         {
             return;
@@ -246,11 +264,6 @@ public class KafkaPublisher implements AutoCloseable
         {
             producer.close();
         }
-
-        if (serializer != null)
-        {
-            serializer.close();
-        }
     }
 
     protected String getOrBuildKafkaPrefix(CdcEvent event)
@@ -262,6 +275,7 @@ public class KafkaPublisher implements AutoCloseable
                args -> String.format("%s:%s:", event.keyspace, event.table)
                );
     }
+
 
     public static TableIdentifier extractTableIdFromPublishKey(String publishKey)
     {
