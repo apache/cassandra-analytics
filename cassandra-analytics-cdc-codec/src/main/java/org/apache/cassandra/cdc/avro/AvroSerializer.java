@@ -23,6 +23,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -38,11 +39,13 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.cassandra.cdc.api.KeyspaceTypeKey;
 import org.apache.cassandra.cdc.avro.msg.CdcEnvelope;
 import org.apache.cassandra.cdc.kafka.KafkaCdcSerializer;
+import org.apache.cassandra.cdc.kafka.RecordProducer;
 import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.schemastore.LocalTableSchemaStore;
 import org.apache.cassandra.cdc.schemastore.SchemaStore;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
+import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 
 /**
@@ -132,9 +135,15 @@ public class AvroSerializer implements KafkaCdcSerializer<CdcEvent>
             ByteBufferUtils.EMPTY), null);
         }
 
-        public CdcEnvelope deserialize(String keyspace, String table, byte[] data)
+        /**
+         * Deserialize a CDC Avro message, extracting {@code schemaUuid} from the Kafka message
+         * headers to locate the correct payload schema version in the schema store.
+         */
+        public CdcEnvelope deserialize(String keyspace, String table, byte[] data, Headers headers)
         {
-            return deserialize(keyspace, table, data, null);
+            Header h = headers.lastHeader(RecordProducer.SCHEMA_UUID_HEADER);
+            String schemaUuid = h != null ? new String(h.value(), StandardCharsets.UTF_8) : null;
+            return deserialize(keyspace, table, data, schemaUuid);
         }
 
         /**
@@ -164,44 +173,11 @@ public class AvroSerializer implements KafkaCdcSerializer<CdcEvent>
             return ar;
         }
 
-        Object deserializeRangePredicateValue(String keyspace, String table, String fieldName, ByteBuffer value)
-        {
-            GenericDatumReader<GenericRecord> reader = store.getReader(keyspace + '.' + table, null);
-            byte[] bytes = new byte[value.remaining()];
-            try
-            {
-                value.get(bytes);
-                BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(bytes, this.decoderReuse);
-                GenericRecord valueRecord = reader.read(null, decoder);
-                return valueRecord.get(fieldName);
-            }
-            catch (IOException e)
-            {
-                throw new RuntimeException(String.format("Unable to deserialize CDC update from %s/%s", keyspace, table), e);
-            }
-        }
-
         public GenericRecord deserializePayload(String keyspace, String table, String schemaUuid, byte[] data) throws IOException
         {
             GenericDatumReader<GenericRecord> payloadReader = store.getReader(keyspace + "." + table, schemaUuid);
             BinaryDecoder decoder = DecoderFactory.get().binaryDecoder(data, this.decoderReuse);
             return payloadReader.read(null, decoder);
         }
-    }
-
-    /**
-     * Deserialize the data and return a pair of cdc update and cdc record
-     * The left of the pair is the cdc update of a table.
-     * The right of the pair is the header/metadata.
-     *
-     * @param keyspace Cassandra keyspace
-     * @param table    Cassandra table
-     * @param data     raw serialized Avro message
-     * @return deserialized CdcEnvelope wrapping the payload and header.
-     */
-    @Deprecated
-    public CdcEnvelope deserialize(String keyspace, String table, byte[] data)
-    {
-        return deserializer.deserialize(keyspace, table, data);
     }
 }
