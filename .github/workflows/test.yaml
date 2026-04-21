@@ -136,6 +136,7 @@ jobs:
       matrix:
         config: ['s2.13-c5.0.5', 's2.12-c4.1.4', 's2.12-c4.0.17']
         job_index: [0, 1, 2, 3, 4]
+        job_total: [5]
         include:
           - config: 's2.13-c5.0.5'
             scala: '2.13'
@@ -189,7 +190,7 @@ jobs:
           # then shard across runners via round-robin on the shuffled order.
           CLASSNAMES=$(find . -name '*Test.java' | cut -c 3- | sed 's@/@.@g' | sed 's/.\{5\}$//' \
             | python3 -c "import random,sys; lines=sys.stdin.read().splitlines(); random.seed('$GITHUB_SHA'); random.shuffle(lines); print('\n'.join(lines))" \
-            | awk 'NR % 5 == ${{ matrix.job_index }}')
+            | awk 'NR % ${{ matrix.job_total }} == ${{ matrix.job_index }}')
           cd ../../../..
           
           EXIT_STATUS=0
