@@ -58,13 +58,12 @@ public final class AvroSchemaUtils
      */
     public static Schema buildMergedSchema(Schema payloadSchema, String name, String namespace)
     {
-        InputStream is = AvroSchemaUtils.class.getClassLoader().getResourceAsStream(CDC_ENVELOPE_TEMPLATE);
-        if (is == null)
+        try (InputStream is = AvroSchemaUtils.class.getClassLoader().getResourceAsStream(CDC_ENVELOPE_TEMPLATE))
         {
-            throw new IllegalStateException("CDC envelope template not found on classpath: " + CDC_ENVELOPE_TEMPLATE);
-        }
-        try
-        {
+            if (is == null)
+            {
+                throw new IllegalStateException("CDC envelope template not found on classpath: " + CDC_ENVELOPE_TEMPLATE);
+            }
             Schema envelopeTemplate = new Schema.Parser().parse(is);
             return buildMergedSchema(envelopeTemplate, payloadSchema, name, namespace);
         }
