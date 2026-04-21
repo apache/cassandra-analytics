@@ -39,8 +39,31 @@ public final class AvroSchemaUtils
 {
     static final String CDC_ENVELOPE_TEMPLATE = "cdc_generic_record.avsc";
 
+    /**
+     * Parsed CDC envelope template, loaded once at class-load time.
+     * Used by {@link #buildMergedSchema(Schema, String, String)} to avoid re-reading
+     * the classpath resource on every message.
+     */
+    private static final Schema ENVELOPE_TEMPLATE = loadEnvelopeTemplate();
+
     private AvroSchemaUtils()
     {
+    }
+
+    private static Schema loadEnvelopeTemplate()
+    {
+        try (InputStream is = AvroSchemaUtils.class.getClassLoader().getResourceAsStream(CDC_ENVELOPE_TEMPLATE))
+        {
+            if (is == null)
+            {
+                throw new IllegalStateException("CDC envelope template not found on classpath: " + CDC_ENVELOPE_TEMPLATE);
+            }
+            return new Schema.Parser().parse(is);
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException("Failed to parse CDC envelope template: " + CDC_ENVELOPE_TEMPLATE, e);
+        }
     }
 
     /**
@@ -58,19 +81,7 @@ public final class AvroSchemaUtils
      */
     public static Schema buildMergedSchema(Schema payloadSchema, String name, String namespace)
     {
-        try (InputStream is = AvroSchemaUtils.class.getClassLoader().getResourceAsStream(CDC_ENVELOPE_TEMPLATE))
-        {
-            if (is == null)
-            {
-                throw new IllegalStateException("CDC envelope template not found on classpath: " + CDC_ENVELOPE_TEMPLATE);
-            }
-            Schema envelopeTemplate = new Schema.Parser().parse(is);
-            return buildMergedSchema(envelopeTemplate, payloadSchema, name, namespace);
-        }
-        catch (IOException e)
-        {
-            throw new RuntimeException("Failed to parse CDC envelope template: " + CDC_ENVELOPE_TEMPLATE, e);
-        }
+        return buildMergedSchema(ENVELOPE_TEMPLATE, payloadSchema, name, namespace);
     }
 
     /**
