@@ -111,10 +111,10 @@ public abstract class SSTable implements Serializable, CassandraFile
         {
             throw new IncompleteSSTableException(FileType.SUMMARY, FileType.INDEX);
         }
-        // For BTI format, we just need partitions index
-        if (isBtiFormat() && isMissing(FileType.PARTITIONS_INDEX))
+        // For BTI format, we may need both - partitions and rows index
+        if (isBtiFormat() && (isMissing(FileType.PARTITIONS_INDEX) || isMissing(FileType.ROWS_INDEX)))
         {
-            throw new IncompleteSSTableException(FileType.PARTITIONS_INDEX);
+            throw new IncompleteSSTableException(FileType.PARTITIONS_INDEX, FileType.ROWS_INDEX);
         }
     }
 
