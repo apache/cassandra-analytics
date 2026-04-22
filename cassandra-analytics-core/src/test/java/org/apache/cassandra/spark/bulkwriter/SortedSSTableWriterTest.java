@@ -133,8 +133,14 @@ public class SortedSSTableWriterTest
         {
             dataFileStream.forEach(dataFilePath -> {
                 dataFilePaths.add(dataFilePath);
-                assertThat(SSTables.cassandraVersionFromTable(dataFilePath).getMajorVersion())
-                .isEqualTo(CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion());
+                int sstableVersion = SSTables.cassandraVersionFromTable(dataFilePath).getMajorVersion();
+                int expectedVersion = CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion();
+                // 4.0 and 4.1 share the same SSTable format (nb), so the SSTable-level version is always 40
+                if (expectedVersion == 41)
+                {
+                    expectedVersion = 40;
+                }
+                assertThat(sstableVersion).isEqualTo(expectedVersion);
             });
         }
         // no exception should be thrown from both the validate methods

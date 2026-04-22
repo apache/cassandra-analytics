@@ -141,27 +141,50 @@ jar {
     }
 }
 
-test {
-    systemProperty "cassandra.sidecar.versions_to_test", (System.getenv("CASSANDRA_VERSION") ?: "4.0.17,5.0.5")
+// Assuming container w/8g ram, 2x3G == 6G + overhead; override via CDC_MAX_PARALLEL_FORKS for local dev
+def cdcMaxHeap = '3072m'
+def cdcMaxParallelForks = (System.getenv("CDC_MAX_PARALLEL_FORKS") ?: "2") as int
 
-    minHeapSize = '1024m'
-    maxHeapSize = '3072m'
-    maxParallelForks = Math.max(Runtime.runtime.availableProcessors() * 2, 8)
-    forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+// Shared test configuration for CDC tests. When majorMinor is specified (e.g. "4.0"),
+// tests run against that single Cassandra version. When null, uses env var filtering
+// (CI) or falls back to all supported versions (local dev).
+// Using a closure (not a method) so it captures the local variables above.
+def configureCdcTestTask = { Test task, String majorMinor = null ->
+    def versionInfo = rootProject.ext.applyCassandraVersionFilter(task, majorMinor)
+    if (versionInfo) {
+        task.systemProperty "cassandra.sidecar.versions_to_test", versionInfo.fullVersion
+    } else {
+        // Full version format to match CDC's TestVersionSupplier; tests both versions for backward compat.
+        // 4.1 intentionally excluded from gradlew defaults to keep local iteration fast;
+        // use testCassandra41 for targeted 4.1 runs. CI covers 4.1 via CASSANDRA_VERSION env var.
+        task.systemProperty "cassandra.sidecar.versions_to_test", "4.0.17,5.0.5"
+    }
+
+    task.minHeapSize = '1024m'
+    task.maxHeapSize = cdcMaxHeap
+    task.maxParallelForks = cdcMaxParallelForks
+    task.forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
     // Make it so unit tests run on a Jar with Cassandra bridge implementations built in
-    dependsOn(tasks.jar)
-    classpath += files(jar.archiveFile)
-    useJUnitPlatform()
-    reports {
-        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "cdc").toFile()
-        junitXml {
-            enabled true
-            destination = destDir
-        }
-        html {
-            enabled true
-            destination = destDir
-        }
+    task.dependsOn(tasks.jar)
+    task.classpath += files(jar.archiveFile)
+    task.useJUnitPlatform()
+    def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "cdc").toFile()
+    task.reports.junitXml.outputLocation = destDir
+    task.reports.html.outputLocation = destDir
+}
+
+test {
+    configureCdcTestTask(delegate)
+}
+
+// Per-Cassandra-version test tasks for IDE convenience.
+// These show up in IntelliJ's Gradle panel alongside 'test'.
+rootProject.ext.cassandraVersionEnumMap.keySet().each { majorMinor ->
+    def suffix = majorMinor.replace(".", "")
+    tasks.register("testCassandra${suffix}", Test) {
+        description = "Run CDC tests against Cassandra ${majorMinor}"
+        group = 'verification'
+        configureCdcTestTask(delegate, majorMinor)
     }
 }
