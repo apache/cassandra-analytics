@@ -84,12 +84,20 @@ public class SingleReplicaTests
         runTest(dataFileName, false, FileType.SUMMARY);
     }
 
-    @ParameterizedTest
-    @MethodSource("dataFileNames")
-    public void testMissingOnlyIndexFile(String dataFileName) throws ExecutionException, InterruptedException, IOException
+    @Test
+    public void testBigMissingOnlyIndexFile() throws ExecutionException, InterruptedException, IOException
     {
         // Index.db can be missing if we can use Summary.db
-        runTest(dataFileName, false, FileType.INDEX);
+        runTest("na-1-big-Data.db", false, FileType.INDEX);
+    }
+
+    @Test
+    public void testBtiMissingPartitionsRowsIndexFile()
+    {
+        assertThatThrownBy(() -> runTest("da-1-bti-Data.db", true, FileType.PARTITIONS_INDEX))
+        .isInstanceOf(IOException.class);
+        assertThatThrownBy(() -> runTest("da-1-bti-Data.db", true, FileType.ROWS_INDEX))
+        .isInstanceOf(IOException.class);
     }
 
     @ParameterizedTest
@@ -268,6 +276,9 @@ public class SingleReplicaTests
 
     public static List<Named<String>> dataFileNames()
     {
-        return Arrays.asList(Named.of("BIG", "na-1-big-Data.db"));
+        return Arrays.asList(
+        Named.of("BIG", "na-1-big-Data.db"),
+        Named.of("BTI", "da-1-bti-Data.db")
+        );
     }
 }

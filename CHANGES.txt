@@ -1,5 +1,6 @@
 0.4.0
 -----
+ * Reading BTI may require partitions and rows indexes (CASSANALYTICS-156)
  * Make KafkaPublisher class generic to publish GenericRecords for different value serializers (CASSANALYTICS-154)
  * Cannot read start offset from BTI index with big partitions (CASSANALYTICS-151)
  * BufferingInputStream fails to read last unaligned chunk (CASSANALYTICS-147)
