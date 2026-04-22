@@ -36,10 +36,6 @@
       "type": "string"
     },
     {
-      "name": "schemaUuid",
-      "type": "string"
-    },
-    {
       "name": "truncatedFields",
       "type": {
         "type": "array",

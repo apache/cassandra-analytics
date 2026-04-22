@@ -83,8 +83,6 @@ extends CdcEventAvroEncoder
             return ByteBuffer.wrap(encode(store.getWriter(event.keyspace + '.' + event.table, null), update));
         };
         applyCommonFields(event, record, predicateFieldEncoder);
-        String schemaUuid = store.getVersion(event.keyspace + '.' + event.table, null);
-        record.put(AvroConstants.SCHEMA_UUID_KEY, schemaUuid);
         record.put(AvroConstants.TRUNCATED_FIELDS_KEY, serializedEvent.truncatedFields);
         return record;
     }
