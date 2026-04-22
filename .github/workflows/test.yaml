@@ -117,8 +117,8 @@ jobs:
           export SPARK_VERSION="3"
           export SCALA_VERSION="${{ matrix.scala }}"
           export JDK_VERSION="11"
-          export INTEGRATION_MAX_PARALLEL_FORKS=3
-          export INTEGRATION_MAX_HEAP_SIZE="2048M"
+          export INTEGRATION_MAX_PARALLEL_FORKS=1
+          export INTEGRATION_MAX_HEAP_SIZE="3072M"
           export CASSANDRA_USE_JDK11=true
           export CASSANDRA_VERSION="${{ matrix.cassandra }}"
 
@@ -129,7 +129,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     strategy:
-      # GHA generates a cross-product of 'config' × 'job_index' (3 × 5 = 15 jobs).
+      # GitHub Actions generate a cross-product of 'config' × 'job_index' (3 × 5 = 15 jobs).
       # The 'include' entries don't add new combinations — they augment existing ones
       # by matching on 'config' and injecting 'scala' and 'cassandra' into each match.
       # To add a new version: add one entry to 'config' and one to 'include'.
@@ -177,7 +177,7 @@ jobs:
           export SCALA_VERSION="${{ matrix.scala }}"
           export JDK_VERSION="11"
           export INTEGRATION_MAX_PARALLEL_FORKS=1
-          export INTEGRATION_MAX_HEAP_SIZE="4096M"
+          export INTEGRATION_MAX_HEAP_SIZE="3072M"
           export CASSANDRA_USE_JDK11=true
           
           export DTEST_JAR="dtest-${{ matrix.cassandra }}.jar"

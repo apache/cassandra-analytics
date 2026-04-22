@@ -32,11 +32,11 @@ if (propertyWithDefault("artifactType", null) == "spark")
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
 
-def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "2048M"
+def integrationMaxHeapSize = System.getenv("INTEGRATION_MAX_HEAP_SIZE") ?: "3072M"
 println("Using ${integrationMaxHeapSize} maxHeapSize")
 
-// Large in circle and other env assumed to be 8G total heap available; we restrict to 3x2 at 6G and leave headroom for system
-def integrationMaxParallelForks = (System.getenv("INTEGRATION_MAX_PARALLEL_FORKS") ?: "3") as int
+// def integrationMaxParallelForks = (System.getenv("INTEGRATION_MAX_PARALLEL_FORKS") ?: "1") as int
+def integrationMaxParallelForks = 1
 println("Using ${integrationMaxParallelForks} maxParallelForks")
 
 def integrationEnableMtls = (System.getenv("INTEGRATION_MTLS_ENABLED") ?: "true") as boolean

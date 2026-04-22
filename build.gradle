@@ -65,6 +65,7 @@ ext.dependencyLocation = (System.getenv("CASSANDRA_DEP_DIR") ?: "${rootDir}/depe
 // (cassandra-analytics-common/.../bridge/CassandraVersion.java):
 //   - cassandraVersionEnumMap values must match the implemented_versions default
 //   - cassandraFullVersionMap values must match the supported_versions default
+// NOTE: Both maps must ALSO stay in sync with the values in build-dtest-jars.sh
 ext.cassandraVersionEnumMap = ["4.0": "FOURZERO", "4.1": "FOURONE", "5.0": "FIVEZERO"]
 ext.cassandraFullVersionMap = ["4.0": "4.0.17", "4.1": "4.1.4", "5.0": "5.0.5"]
 
