@@ -147,7 +147,6 @@ abstract class LeavingTestBase extends ResiliencyTestBase
         for (int i = 0; i < leavingNodesPerDC * numDcs; i++)
         {
             IInstance node = cluster.get(cluster.size() - i);
-            nonResettableInstances.add(node.config().num());
             new Thread(() -> {
                 NodeToolResult decommission = node.nodetoolResult("decommission");
                 if (decommission.getRc() != 0 || decommission.getError() != null)

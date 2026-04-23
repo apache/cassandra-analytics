@@ -46,5 +46,4 @@
   <logger name="org.apache.cassandra.sidecar" level="INFO" />
   <logger name="com.datastax.driver.core" level="ERROR" />
   <logger name="com.datastax.driver.core.ControlConnection" level="OFF" />
-  <logger name="io.netty" level="OFF" />
 </configuration>

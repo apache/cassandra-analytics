@@ -63,7 +63,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Tests bulk writes in different scenarios when Sidecar instances are down. In this test
  * we have one Sidecar managing a single Cassandra instance
  */
-class BulkWriteDownSidecarTest extends SharedClusterSparkIntegrationTestBase
+class BulkWriteDownSidecarTest extends DestructiveTopologySparkIntegrationTestBase
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(BulkWriteDownSidecarTest.class);
     Set<Server> downSidecars = new HashSet<>();
@@ -169,13 +169,6 @@ class BulkWriteDownSidecarTest extends SharedClusterSparkIntegrationTestBase
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
         return super.testClusterConfiguration().nodesPerDc(3);
-    }
-
-    @Override
-    protected void resetClusterState()
-    {
-        downSidecars.clear();
-        super.resetClusterState();
     }
 
     void stopSidecarInstancesForTest(int instanceDownCount) throws Exception

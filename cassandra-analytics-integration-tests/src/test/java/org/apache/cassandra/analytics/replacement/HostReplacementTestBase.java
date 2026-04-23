@@ -262,7 +262,6 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
             // awaitRingStatus will assert that the node status is down. It retries multiple times until a timeout
             // is reached and fails if the expected status is not seen.
             cluster.awaitRingStatus(seed, node, "Down");
-            nonResettableInstances.add(node.config().num());
         }
     }
 

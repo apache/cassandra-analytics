@@ -51,7 +51,7 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 /**
  * Tests bulk writes in different scenarios when Cassandra instances are down
  */
-class BulkWriteDownInstanceTest extends SharedClusterSparkIntegrationTestBase
+class BulkWriteDownInstanceTest extends DestructiveTopologySparkIntegrationTestBase
 {
     Set<IInstance> downInstances = new HashSet<>();
 
@@ -109,13 +109,6 @@ class BulkWriteDownInstanceTest extends SharedClusterSparkIntegrationTestBase
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
         return super.testClusterConfiguration().nodesPerDc(3);
-    }
-
-    @Override
-    protected void resetClusterState()
-    {
-        downInstances.clear();
-        super.resetClusterState();
     }
 
     void stopCassandraInstancesForTest(int instanceDownCount)

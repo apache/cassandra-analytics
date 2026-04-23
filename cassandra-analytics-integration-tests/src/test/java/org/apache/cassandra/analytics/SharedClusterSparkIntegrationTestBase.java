@@ -19,8 +19,6 @@
 
 package org.apache.cassandra.analytics;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -29,7 +27,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +38,6 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.sidecar.testing.SharedClusterIntegrationTestBase;
-import org.apache.cassandra.spark.data.CassandraDataLayer;
 import org.apache.spark.SparkConf;
 import org.apache.spark.sql.DataFrameReader;
 import org.apache.spark.sql.DataFrameWriter;
@@ -84,26 +80,6 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
     {
         super.afterClusterShutdown();
         sparkTestUtils.tearDown();
-    }
-
-    /**
-     * Restores any ByteBuddy redefinitions of {@link CassandraDataLayer} before the generic cluster
-     * recovery in the grandparent. No-op if {@code CassandraDataLayer} was never redefined through the
-     * shared strategy.
-     */
-    @AfterEach
-    @Override
-    protected void resetClusterState()
-    {
-        try
-        {
-            classReloadingStrategy.reset(CassandraDataLayer.class);
-        }
-        catch (IOException e)
-        {
-            throw new UncheckedIOException("Failed to reset CassandraDataLayer bytecode", e);
-        }
-        super.resetClusterState();
     }
 
     /**

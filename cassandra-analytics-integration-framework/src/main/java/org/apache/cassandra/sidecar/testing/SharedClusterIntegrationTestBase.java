@@ -27,12 +27,10 @@ import java.net.UnknownHostException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -40,8 +38,6 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import com.google.common.util.concurrent.Uninterruptibles;
-import net.bytebuddy.agent.ByteBuddyAgent;
-import net.bytebuddy.dynamic.loading.ClassReloadingStrategy;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -172,38 +168,24 @@ public abstract class SharedClusterIntegrationTestBase
     protected MtlsTestHelper mtlsTestHelper;
     private IsolatedDTestClassLoaderWrapper classLoaderWrapper;
     private Injector sidecarServerInjector;
-    private int initialClusterSize;
-
-    /**
-     * Instance indices (1-based) that should not be restarted or awaited during {@link #resetClusterState()}.
-     * Subclasses that permanently alter topology (e.g. host replacement, decommission) should add the
-     * affected node indices here during {@link #afterClusterProvisioned()}.
-     */
-    protected final Set<Integer> nonResettableInstances = new HashSet<>();
-
-    /**
-     * Shared ByteBuddy class-reloading strategy. Subclasses that redefine classes via ByteBuddy should
-     * use this strategy instance so that {@link #resetClusterState()} (or overrides in child classes)
-     * can restore original bytecode. A fresh {@code fromInstalledAgent()} would have an empty internal
-     * map and {@code reset()} would be a no-op.
-     *
-     * Since we share a single cluster across multiple test calls, our options are either to isolate and split up any
-     * tests that make ByteBuddy changes or to wire them up to the reset logic.
-     */
-    protected final ClassReloadingStrategy classReloadingStrategy;
 
     static
     {
         TestUtils.configureDefaultDTestJarProperties();
-        ByteBuddyAgent.install();
-    }
-
-    {
-        classReloadingStrategy = ClassReloadingStrategy.fromInstalledAgent();
     }
 
     @BeforeAll
     protected void setup() throws Exception
+    {
+        provisionClusterAndSidecar();
+    }
+
+    /**
+     * Provisions the Cassandra cluster, initializes schemas, and starts the sidecar. Extracted
+     * from {@link #setup()} so that subclasses with a different lifecycle (e.g. per-method) can
+     * reuse the same bring-up sequence.
+     */
+    protected final void provisionClusterAndSidecar() throws Exception
     {
         Optional<TestVersion> maybeTestVersion = TestVersionSupplier.testVersions().findFirst();
         assertThat(maybeTestVersion).isPresent();
@@ -216,7 +198,6 @@ public abstract class SharedClusterIntegrationTestBase
         beforeClusterProvisioning();
         cluster = provisionClusterWithRetries(this.testVersion);
         assertThat(cluster).isNotNull();
-        initialClusterSize = cluster.size();
         afterClusterProvisioned();
         initializeSchemaForTest();
         mtlsTestHelper = new MtlsTestHelper(secretsPath);
@@ -277,6 +258,15 @@ public abstract class SharedClusterIntegrationTestBase
     @AfterAll
     protected void tearDown() throws Exception
     {
+        shutdownClusterAndSidecar();
+    }
+
+    /**
+     * Stops the sidecar and closes the cluster. Extracted from {@link #tearDown()} so subclasses
+     * with a different lifecycle can reuse the same teardown sequence.
+     */
+    protected final void shutdownClusterAndSidecar() throws Exception
+    {
         try
         {
             beforeSidecarStop();
@@ -290,51 +280,24 @@ public abstract class SharedClusterIntegrationTestBase
             if (classLoaderWrapper != null)
             {
                 classLoaderWrapper.closeDTestJarClassLoader();
+                classLoaderWrapper = null;
             }
         }
     }
 
     /**
-     * Resets shared cluster state after each test. Clears message filters, restarts any stopped
-     * instances, and waits for gossip and sidecar JMX readiness.
-     *
-     * <p>Subclasses that need additional cleanup (e.g. ByteBuddy class resets, data resets) should
-     * override, perform their cleanup, then call {@code super.resetClusterState()}.
+     * Minimal per-test reset for cleanly-behaved shared-cluster tests: clears any message filters
+     * installed by the previous test so they do not leak forward. Tests that mutate cluster
+     * topology should not run on the shared base; they belong on a per-method lifecycle base
+     * (see {@code DestructiveTopologySparkIntegrationTestBase}).
      */
     @AfterEach
     protected void resetClusterState()
     {
-        if (cluster == null)
+        if (cluster != null)
         {
-            return;
+            cluster.filters().reset();
         }
-
-        cluster.filters().reset();
-
-        for (int i = 1; i <= initialClusterSize; i++)
-        {
-            if (nonResettableInstances.contains(i))
-            {
-                continue;
-            }
-            IInstance instance = cluster.get(i);
-            if (instance.isShutdown())
-            {
-                instance.startup();
-            }
-        }
-
-        IInstance reference = cluster.getFirstRunningInstance();
-        for (int i = 1; i <= initialClusterSize; i++)
-        {
-            if (nonResettableInstances.contains(i))
-            {
-                continue;
-            }
-            cluster.awaitRingState(reference, cluster.get(i), "Normal");
-        }
-
-        waitForSidecarJmxReady(60);
     }
 
     /**
@@ -458,57 +421,6 @@ public abstract class SharedClusterIntegrationTestBase
 
         context.awaitCompletion(5, TimeUnit.SECONDS);
         return sidecarServer;
-    }
-
-    /**
-     * Waits for the sidecar's JMX connections to all running Cassandra instances to be re-established.
-     *
-     * <p>After a node restart, the gossip ring state reaches "Normal" before the sidecar's async JMX
-     * reconnection loop fires. Calling this method ensures the sidecar can serve JMX-backed requests
-     * (e.g. {@code /api/v1/cassandra/settings}) for every running node before the next test starts.
-     *
-     * @param timeoutSeconds maximum time to wait; method returns early once all instances are ready
-     */
-    protected void waitForSidecarJmxReady(long timeoutSeconds)
-    {
-        if (sidecarServerInjector == null || cluster == null)
-        {
-            return;
-        }
-
-        InstancesMetadata instancesMetadata = sidecarServerInjector.getInstance(InstancesMetadata.class);
-        long deadlineMs = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(timeoutSeconds);
-
-        for (int i = 1; i <= initialClusterSize; i++)
-        {
-            if (nonResettableInstances.contains(i))
-            {
-                continue;
-            }
-            IInstance instance = cluster.get(i);
-            if (instance.isShutdown())
-            {
-                continue;
-            }
-
-            int instanceId = i;
-            while (System.currentTimeMillis() < deadlineMs)
-            {
-                try
-                {
-                    CassandraAdapterDelegate delegate = instancesMetadata.instanceFromId(instanceId).delegate();
-                    if (delegate.isJmxUp())
-                    {
-                        break;
-                    }
-                }
-                catch (Exception ignored)
-                {
-                    // delegate not ready yet, continue polling
-                }
-                Uninterruptibles.sleepUninterruptibly(500, TimeUnit.MILLISECONDS);
-            }
-        }
     }
 
     protected void waitForSchemaReady(long timeout, TimeUnit timeUnit)
