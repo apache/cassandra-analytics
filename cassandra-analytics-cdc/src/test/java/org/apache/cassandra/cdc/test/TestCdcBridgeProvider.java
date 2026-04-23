@@ -120,6 +120,19 @@ public class TestCdcBridgeProvider
 
         BRIDGES.put(version, CdcBridgeFactory.get(version));
         MESSAGE_CONVERTERS.put(version, new JdkMessageConverter(BRIDGES.get(version).cassandraTypes()));
+
+        // When the bridge jar is shared across versions (e.g. FOURONE uses the four-zero bridge,
+        // whose getVersion() returns FOURZERO), register under the bridge's reported version too.
+        // This ensures lookups via bridge.getVersion() find the correct entries.
+        CassandraBridge bridgeInstance = BRIDGES.get(version);
+        CassandraVersion bridgeVersion = bridgeInstance.getVersion();
+        if (bridgeVersion != version)
+        {
+            OPTIONS.putIfAbsent(bridgeVersion, OPTIONS.get(version));
+            COMMIT_LOG_DIRS.putIfAbsent(bridgeVersion, commitLogDir);
+            BRIDGES.putIfAbsent(bridgeVersion, bridgeInstance);
+            MESSAGE_CONVERTERS.putIfAbsent(bridgeVersion, MESSAGE_CONVERTERS.get(version));
+        }
     }
 
     public static CdcOptions getCdcOptions(CassandraVersion version)

@@ -87,7 +87,7 @@ public class BtiReaderUtils
                                                      @NotNull List<PartitionKeyFilter> filters) throws IOException
     {
         final AtomicBoolean exists = new AtomicBoolean(false);
-        withPartitionIndex(ssTable, descriptor, metadata, true, true, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
+        withPartitionIndex(ssTable, descriptor, metadata, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
             TableMetadataRef metadataRef = TableMetadataRef.forOfflineTools(metadata);
             BtiTableReader btiTableReader = new BtiTableReader.Builder(descriptor)
                                             .setDataFile(dataFileHandle)
@@ -135,11 +135,12 @@ public class BtiReaderUtils
 
         try
         {
-            withPartitionIndex(ssTable, descriptor, metadata, true, false, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
+            withPartitionIndex(ssTable, descriptor, metadata, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
                 TableMetadataRef metadataRef = TableMetadataRef.forOfflineTools(metadata);
                 BtiTableReader btiTableReader = new BtiTableReader.Builder(descriptor)
                                                 .setDataFile(dataFileHandle)
                                                 .setPartitionIndex(partitionIndex)
+                                                .setRowIndexFile(rowFileHandle)
                                                 .setComponents(indexComponents)
                                                 .setTableMetadataRef(metadataRef)
                                                 .setFilter(FilterFactory.AlwaysPresent)
@@ -179,7 +180,7 @@ public class BtiReaderUtils
         org.apache.cassandra.spark.reader.CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(
         ssTable, descriptor.version.hasMaxCompressedLength(), metadata.params.crcCheckChance);
 
-        withPartitionIndex(ssTable, descriptor, metadata, true, true, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
+        withPartitionIndex(ssTable, descriptor, metadata, (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
             BtiTableReader btiTableReader = new BtiTableReader.Builder(descriptor)
                                             .setDataFile(dataFileHandle)
                                             .setPartitionIndex(partitionIndex)
@@ -249,7 +250,7 @@ public class BtiReaderUtils
                                         double crcCheckChance,
                                         @NotNull Function<ByteBuffer, Boolean> tracker) throws IOException
     {
-        withPartitionIndex(sstable, descriptor, partitioner, crcCheckChance, true, true,
+        withPartitionIndex(sstable, descriptor, partitioner, crcCheckChance,
                            (dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex) -> {
                                try (PartitionIterator iter = PartitionIterator.create(partitionIndex, partitioner,
                                                                                       rowFileHandle, dataFileHandle,
@@ -272,11 +273,9 @@ public class BtiReaderUtils
     private static void withPartitionIndex(@NotNull SSTable sstable,
                                            @NotNull Descriptor descriptor,
                                            @NotNull TableMetadata metadata,
-                                           boolean loadDataFile,
-                                           boolean loadRowsIndex,
                                            @NotNull BtiPartitionIndexConsumer consumer) throws IOException
     {
-        withPartitionIndex(sstable, descriptor, metadata.partitioner, metadata.params.crcCheckChance, loadDataFile, loadRowsIndex, consumer);
+        withPartitionIndex(sstable, descriptor, metadata.partitioner, metadata.params.crcCheckChance, consumer);
     }
 
     /**
@@ -285,8 +284,6 @@ public class BtiReaderUtils
      * @param descriptor sstable descriptor
      * @param partitioner partitioner
      * @param crcCheckChance crc check chance
-     * @param loadDataFile when true, open the data component. The dataFile for BtiPartitionIndexConsumer is not null; otherwise, null
-     * @param loadRowsIndex when true, open the rowIndex component. The rowFile for BtiPartitionIndexConsumer is not null; otherwise, null
      * @param consumer BtiPartitionIndexConsumer
      * @throws IOException on I/O errors
      */
@@ -294,24 +291,22 @@ public class BtiReaderUtils
                                            @NotNull Descriptor descriptor,
                                            @NotNull IPartitioner partitioner,
                                            double crcCheckChance,
-                                           boolean loadDataFile,
-                                           boolean loadRowsIndex,
                                            @NotNull BtiPartitionIndexConsumer consumer) throws IOException
     {
         File file = new File(sstable.getDataFileName());
         try (CompressionMetadata compression = getCompressionMetadata(sstable, crcCheckChance, descriptor);
-             FileHandle dataFileHandle = loadDataFile ? createFileHandle(file,
-                                                                         sstable.openDataStream(),
-                                                                         sstable.length(FileType.DATA),
-                                                                         compression) : null;
+             FileHandle dataFileHandle = createFileHandle(file,
+                                                          sstable.openDataStream(),
+                                                          sstable.length(FileType.DATA),
+                                                          compression);
              FileHandle partitionFileHandle = createFileHandle(file,
                                                                sstable.openPrimaryIndexStream(),
                                                                sstable.length(FileType.PARTITIONS_INDEX),
                                                                null);
-             FileHandle rowFileHandle = loadRowsIndex ? createFileHandle(file,
-                                                                         sstable.openRowIndexStream(),
-                                                                         sstable.length(FileType.ROWS_INDEX),
-                                                                         null) : null;
+             FileHandle rowFileHandle = createFileHandle(file,
+                                                         sstable.openRowIndexStream(),
+                                                         sstable.length(FileType.ROWS_INDEX),
+                                                         null);
              PartitionIndex partitionIndex = PartitionIndex.load(partitionFileHandle, partitioner, false))
         {
             consumer.accept(dataFileHandle, partitionFileHandle, rowFileHandle, partitionIndex);
