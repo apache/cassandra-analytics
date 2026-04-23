@@ -173,13 +173,20 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
                 rows.add(id + ":" + course + ":" + marks);
             }
 
+            Set<String> expected = expectedInstanceData.get(instance);
+            String instanceLabel = String.format("instance=%s (broadcast=%s) table=%s actualSize=%d expectedSize=%d",
+                                                 instance.config().num(),
+                                                 instance.broadcastAddress(),
+                                                 table,
+                                                 rows.size(),
+                                                 expected.size());
             if (hasNewNodes)
             {
-                assertThat(rows).containsExactlyInAnyOrderElementsOf(expectedInstanceData.get(instance));
+                assertThat(rows).as(instanceLabel).containsExactlyInAnyOrderElementsOf(expected);
             }
             else
             {
-                assertThat(rows).containsAll(expectedInstanceData.get(instance));
+                assertThat(rows).as(instanceLabel).containsAll(expected);
             }
         }
     }

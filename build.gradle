@@ -248,7 +248,15 @@ subprojects {
     }
   }
 
+  // We want to get all the exception information we can on test failure in a multi-node in-jvm env
   tasks.withType(Test).configureEach {
+    testLogging {
+      showExceptions true
+      exceptionFormat "full"
+      showCauses true
+      showStackTraces true
+    }
+
     def heapDumpPath = "${project.rootProject.rootDir}/build/${project.name}/heapDumps"
     Files.createDirectories(Paths.get(heapDumpPath))
     if (JavaVersion.current().isJava11Compatible()) {
