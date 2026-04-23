@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.type.InternalDuration;
 import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.utils.SparkTypeUtils;
 import org.apache.cassandra.spark.utils.UUIDs;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
@@ -138,8 +139,7 @@ public final class SqlToCqlTypeConverter implements Serializable
                 return NO_OP_CONVERTER;
             case FROZEN:
                 assert cqlType instanceof CqlField.CqlFrozen;
-                CqlField.CqlFrozen frozen = (CqlField.CqlFrozen) cqlType;
-                return getConverter(frozen.inner());
+                return getConverter(CqlTable.unwrapIfFrozen(cqlType));
             case INT:
                 return INTEGER_CONVERTER;
             case TEXT:
@@ -172,13 +172,8 @@ public final class SqlToCqlTypeConverter implements Serializable
             case SET:
                 return new SetConverter<>((CqlField.CqlCollection) cqlType);
             case TUPLE:
-                if (cqlType.internalType() == CqlField.CqlType.InternalType.Tuple)
-                {
-                    assert cqlType instanceof CqlField.CqlTuple;
-                    return new TupleConverter((CqlField.CqlTuple) cqlType);
-                }
-                LOGGER.warn("Unable to match type={}. Defaulting to NoOp Converter", cqlName);
-                return NO_OP_CONVERTER;
+                assert cqlType instanceof CqlField.CqlTuple;
+                return new TupleConverter((CqlField.CqlTuple) cqlType);
             default:
                 if (cqlType.internalType() == CqlField.CqlType.InternalType.Udt)
                 {

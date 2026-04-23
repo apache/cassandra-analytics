@@ -379,7 +379,7 @@ public class RecordWriter
     private Map<String, Object> getBindValuesForColumns(Map<String, Object> map, String[] columnNames, Object[] values)
     {
         Preconditions.checkArgument(values.length == columnNames.length,
-                "Number of values does not match the number of columns " + values.length + ", " + columnNames.length);
+                                    "Number of values does not match the number of columns " + values.length + ", " + columnNames.length);
 
         for (int i = 0; i < columnNames.length; i++)
         {
