@@ -103,11 +103,27 @@ public final class TableSchemaTestCommon
     }
 
     @NotNull
+    public static CqlField.CqlCollection mockListCqlType(CqlField.CqlType collectionType)
+    {
+        return mockCollectionCqlType(LIST, collectionType);
+    }
+
+    @NotNull
     public static CqlField.CqlCollection mockCollectionCqlType(String cqlName, CqlField.CqlType collectionType)
     {
         CqlField.CqlCollection mock = mock(CqlField.CqlCollection.class);
         when(mock.name()).thenReturn(cqlName);
         when(mock.type()).thenReturn(collectionType);
+        return mock;
+    }
+
+    @NotNull
+    public static CqlField.CqlTuple mockTupleCqlType(List<CqlField.CqlType> types)
+    {
+        CqlField.CqlTuple mock = mock(CqlField.CqlTuple.class);
+        when(mock.name()).thenReturn(SqlToCqlTypeConverter.TUPLE);
+        when(mock.internalType()).thenReturn(CqlField.CqlType.InternalType.Tuple);
+        when(mock.types()).thenReturn(types);
         return mock;
     }
 

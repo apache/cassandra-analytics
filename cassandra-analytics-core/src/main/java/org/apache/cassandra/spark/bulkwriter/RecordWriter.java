@@ -383,15 +383,43 @@ public class RecordWriter
 
         for (int i = 0; i < columnNames.length; i++)
         {
-            if (cqlTable.containsUdt(columnNames[i]))
+            String columnName = columnNames[i];
+            Object columnValue = values[i];
+
+            // convert all BridgeUDTValue types in the column to UDTValue
+            if (cqlTable.containsUdt(columnName))
             {
-                map.put(columnNames[i], maybeConvertUdt(values[i]));
+                columnValue = maybeConvertUdt(columnValue);
             }
-            else
+
+            // Convert tuples to TupleValue for CQLSSTableWriter
+            // - Direct tuple columns: Object[] → TupleValue
+            // - Collections with tuples: List<Object[]> → List<TupleValue> (via collection's convertForCqlWriter)
+            CqlField field = cqlTable.getField(columnName);
+            if (field != null && columnValue != null)
             {
-                map.put(columnNames[i], values[i]);
+                CqlField.CqlType fieldType = field.type();
+
+                // Check if this is a direct tuple
+                if (CqlTable.isTupleType(fieldType))
+                {
+                    CqlField.CqlTuple cqlTuple = (CqlField.CqlTuple) CqlTable.unwrapIfFrozen(fieldType);
+                    columnValue = cqlTuple.convertForCqlWriter(columnValue, writerContext.bridge().getVersion(), false);
+                }
+                // Check if this is a collection that contains tuples
+                else if (CqlTable.containsTuples(fieldType))
+                {
+                    CqlField.CqlType collectionType = CqlTable.unwrapIfFrozen(fieldType);
+                    if (collectionType instanceof CqlField.CqlCollection)
+                    {
+                        columnValue = ((CqlField.CqlCollection) collectionType).convertForCqlWriter(columnValue, writerContext.bridge().getVersion(), false);
+                    }
+                }
             }
+
+            map.put(columnName, columnValue);
         }
+
         return map;
     }
 
@@ -412,6 +440,19 @@ public class RecordWriter
             }
 
             return resultList;
+        }
+
+        // Tuples come here as Object[]
+        if (value instanceof Object[])
+        {
+            Object[] valueArray = (Object[]) value;
+            Object[] resultArray = new Object[valueArray.length];
+            for (int i = 0; i < valueArray.length; i++)
+            {
+                resultArray[i] = maybeConvertUdt(valueArray[i]);
+            }
+
+            return resultArray;
         }
 
         if (value instanceof Set && !((Set<?>) value).isEmpty())
