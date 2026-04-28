@@ -3,7 +3,19 @@
 
 Upgrading
 ---------
-    - Use long for absolute times and support C* 5.0 extended localDeletionTime (CASSANALYTICS-122).
+    - Absolute time values (TTL expiry timestamps, deletion times) changed from `int` to `long`
+      (CASSANALYTICS-122). Three areas require attention on upgrade:
+
+      * CDC Avro schema (breaking): `deletedAt` in the TTL record of `cdc_bytes.avsc` and
+        `cdc_generic_record.avsc` changed from `int` to `long`. Consumers reading `deletedAt`
+        as an integer must update to `long` before upgrading or deserialization will fail.
+
+      * `TimeProvider` API: `referenceEpochInSeconds()` now returns `long`. Custom
+        implementations must update their return type.
+
+      * Cassandra 4.0: expiry timestamps beyond Y2038 (January 19, 2038) will throw
+        `IllegalArgumentException` at runtime due to Cassandra 4.0's internal `int` limit.
+        Cassandra 5.0 handles these correctly via its native `long` support.
 
 
 New features
