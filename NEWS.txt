@@ -1,3 +1,35 @@
+0.4
+===
+
+Upgrading
+---------
+    - Use long for absolute times and support C* 5.0 extended localDeletionTime (CASSANALYTICS-122).
+
+
+New features
+------------
+    - Add support for Tuples, Tuples with collections and UDTs in the Bulk writer (CASSANALYTICS-51).
+    - CDC support for Cassandra 5.0 commit logs (CASSANALYTICS-60).
+    - Add flag to allow bulk write to indexed tables (CASSANALYTICS-128).
+    - Support per-instance sidecar port resolution in CDC client (CASSANALYTICS-130).
+    - Make KafkaPublisher class generic to publish GenericRecords for different value serializers (CASSANALYTICS-154).
+
+
+Bug fixes
+---------
+    - Fix quote identifiers option must be set to true if TTL column name has mixed case (CASSANALYTICS-120).
+    - Assign data file start offset based on BTI index (CASSANALYTICS-121).
+    - Fix commitlog reading not progressing in CDC due to incorrect CommitLogReader.isFullyRead (CASSANALYTICS-124).
+    - Fix incorrect hash code calculation in PartitionUpdateWrapper.Digest (CASSANALYTICS-125).
+    - Flush event consumer before persisting CDC state to prevent data loss on failure (CASSANALYTICS-126).
+    - Fix ReadStatusTracker to distinguish clean completion from error termination in BufferingCommitLogReader (CASSANALYTICS-129).
+    - Fix SidecarCdcClient thread/resource leaks by passing it as a constructor parameter (CASSANALYTICS-142).
+    - Fix various leaks in CDC caching and bridge implementation (CASSANALYTICS-143).
+    - Fix BufferingInputStream failing to read last unaligned chunk (CASSANALYTICS-147).
+    - Fix cannot read start offset from BTI index with big partitions (CASSANALYTICS-151).
+    - Fix reading BTI may require partitions and rows indexes (CASSANALYTICS-156).
+
+
 0.3
 ===
 
