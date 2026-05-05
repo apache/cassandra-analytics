@@ -44,7 +44,7 @@ public interface TopicSupplier
     }
 
     /**
-     * @param format topic string format like "org.apple.ase.%s"
+     * @param format topic string format like "org.apache.cassandra.%s"
      * @return a topic provider that formats a string template to include the keyspace name
      */
     static PerKeyspace keyspaceSupplier(String format)
@@ -53,7 +53,7 @@ public interface TopicSupplier
     }
 
     /**
-     * @param format topic string format like "org.apple.ase.%s.%s"
+     * @param format topic string format like "org.apache.cassandra.%s.%s"
      * @return a topic provider that formats a string template to include the keyspace and table name
      */
     static PerKeyspaceTable keyspaceTableSupplier(String format)
@@ -62,7 +62,7 @@ public interface TopicSupplier
     }
 
     /**
-     * @param format topic string format like "org.apple.ase.%s"
+     * @param format topic string format like "org.apache.cassandra.%s"
      * @return a topic provider that formats a string template to include the table name
      */
     static PerTable tableSupplier(String format)
