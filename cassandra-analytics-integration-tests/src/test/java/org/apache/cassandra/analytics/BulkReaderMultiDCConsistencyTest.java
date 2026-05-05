@@ -203,7 +203,7 @@ public class BulkReaderMultiDCConsistencyTest extends SharedClusterSparkIntegrat
                 }
                 catch (Exception e)
                 {
-                    if (attempt == 10 || !e.getClass().getSimpleName().equals("ReadTimeoutException"))
+                    if (attempt == 10 || !(e instanceof ReadTimeoutException))
                     {
                         throw e;
                     }
