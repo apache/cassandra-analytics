@@ -119,11 +119,47 @@ commands:
             # Format the arguments to "./gradlew test"
             # GRADLE_ARGS=$(echo $CLASSNAMES | awk '{for (i=1; i<=NF; i++) print "--tests",$i}')
             echo "CircleCI assigned the following classes for testing: $CLASSNAMES"
+            # Each test class runs in its own ./gradlew invocation. Gradle treats
+            # build/test-reports/integration/ as a task output and wipes stale
+            # files on each run, so without aggregation only the last class's XML
+            # would survive, hiding most results from the CircleCI dashboard.
+            # Drain reports into a per-class subdirectory after each iteration.
+            SRC_REPORT_DIR="$(pwd)/build/test-reports/integration"
+            AGG_ROOT="$(pwd)/build/aggregated-test-reports/integration"
+            mkdir -p "$AGG_ROOT"
             # collect up exit statuses for all of the test classes and exit with that result at the end.
             # If no gradle processes exit with non-zero status, it will still be 0
             EXIT_STATUS=0
             for TEST_NAME in $CLASSNAMES; do
                 ./gradlew --stacktrace cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
+                DEST="$AGG_ROOT/$TEST_NAME"
+                mkdir -p "$DEST"
+                MOVED=0
+                if [ -d "$SRC_REPORT_DIR" ]; then
+                    for f in "$SRC_REPORT_DIR"/TEST-*.xml; do
+                        [ -e "$f" ] || continue
+                        mv "$f" "$DEST"/
+                        MOVED=1
+                    done
+                    for f in "$SRC_REPORT_DIR"/*.html; do
+                        [ -e "$f" ] || continue
+                        mv "$f" "$DEST"/ 2>/dev/null || true
+                    done
+                fi
+                # If Gradle produced no XML (e.g. class-level crash before any
+                # @Test ran), synthesize a minimal JUnit record so CircleCI's
+                # dashboard still surfaces that the shard attempted the class.
+                if [ "$MOVED" = "0" ]; then
+                    MSG="Gradle produced no JUnit XML for $TEST_NAME; likely a class-level crash before tests ran. Exit status: $EXIT_STATUS. See job artifacts for full logs."
+                    {
+                      printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>'
+                      printf '<testsuite name="%s" tests="1" failures="1" errors="0" skipped="0">\n' "$TEST_NAME"
+                      printf '  <testcase classname="%s" name="noJUnitReportProduced">\n' "$TEST_NAME"
+                      printf '    <failure message="%s">%s</failure>\n' "$MSG" "$MSG"
+                      printf '  </testcase>\n'
+                      printf '</testsuite>\n'
+                    } > "$DEST/TEST-${TEST_NAME}.xml"
+                fi
             done;
             exit $EXIT_STATUS
           no_output_timeout: 30m
@@ -244,7 +280,7 @@ jobs:
 
       - store_test_results:
           when: always
-          path: build/test-reports
+          path: build/aggregated-test-reports
 
   int-c41-spark3-2_12-jdk11:
     parallelism: 8
@@ -281,7 +317,7 @@ jobs:
 
       - store_test_results:
           when: always
-          path: build/test-reports
+          path: build/aggregated-test-reports
 
   spark3-2_13-jdk11-bti-c50:
     docker:
@@ -344,7 +380,7 @@ jobs:
 
       - store_test_results:
           when: always
-          path: build/test-reports
+          path: build/aggregated-test-reports
 
 workflows:
   version: 2
