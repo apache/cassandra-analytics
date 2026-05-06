@@ -1,9 +1,6 @@
-0.5.0
------
- * Fix com.apple.mg namespace in cdc_bytes.avsc and cdc_generic_record.avsc (CASSANALYTICS-166)
-
 0.4.0
 -----
+ * Fix com.apple.mg namespace in cdc_bytes.avsc and cdc_generic_record.avsc (CASSANALYTICS-166)
  * Add support for tuples and tuples with collections or UDTs in the Bulk writer (CASSANALYTICS-51)
  * Reading BTI may require partitions and rows indexes (CASSANALYTICS-156)
  * Make KafkaPublisher class generic to publish GenericRecords for different value serializers (CASSANALYTICS-154)
