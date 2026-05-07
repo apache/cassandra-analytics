@@ -48,6 +48,7 @@ import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
 import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup;
+import org.apache.cassandra.spark.bulkwriter.IBroadcastableClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -136,7 +137,14 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
         return new CassandraClusterInfoGroup(clusterInfos);
     }
 
-    @VisibleForTesting // ONLY FOR TESTING
+    /**
+     * Creates a {@link CassandraClusterInfoGroup} from a pre-built list of {@link ClusterInfo} instances.
+     * This factory is intended for custom {@link IBroadcastableClusterInfo} implementations that reconstruct
+     * cluster infos individually and need to wrap them in a group.
+     *
+     * @param clusterInfos the list of already-reconstructed ClusterInfo instances
+     * @return a new CassandraClusterInfoGroup
+     */
     public static CassandraClusterInfoGroup createFrom(List<ClusterInfo> clusterInfos)
     {
         return new CassandraClusterInfoGroup(clusterInfos);

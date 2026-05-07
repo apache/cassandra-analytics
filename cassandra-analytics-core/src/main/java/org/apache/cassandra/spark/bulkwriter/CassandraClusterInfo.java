@@ -65,24 +65,32 @@ import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIden
 /**
  * Driver-only implementation of {@link ClusterInfo} for single cluster operations.
  * <p>
- * This class is NOT serialized and does NOT have a serialVersionUID.
- * When broadcasting to executors, the driver extracts information from this class
- * and creates a {@link BroadcastableClusterInfo} instance, which is then included
- * in the {@link BulkWriterConfig} that gets broadcast.
+ * This class is NOT serialized. When broadcasting to executors, the driver extracts
+ * broadcast-safe fields via {@link BroadcastableClusterInfo#from(ClusterInfo, BulkSparkConf)}
+ * and includes the result in the {@link BulkWriterConfig} that gets broadcast.
  * <p>
- * This class implements Serializable only because the {@link ClusterInfo} interface
- * requires it (for use as a field type in broadcast classes), but instances of this
- * class are never directly serialized.
+ * On executors, a new instance is reconstructed from {@link BroadcastableClusterInfo}
+ * using {@link #CassandraClusterInfo(BroadcastableClusterInfo)}, reusing broadcast-safe
+ * fields and fetching other data fresh from Sidecar.
+ *
+ * @see BroadcastableClusterInfo for the broadcast-safe subset of fields
  */
 public class CassandraClusterInfo implements ClusterInfo, Closeable
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraClusterInfo.class);
 
+    // -- Broadcast-safe fields --
+    // Extracted by BroadcastableClusterInfo.from() and sent to executors.
+    // Changes here must be reflected in BroadcastableClusterInfo.
     protected final BulkSparkConf conf;
     protected final String clusterId;
     protected String cassandraVersion;
     protected Partitioner partitioner;
 
+    // -- Driver-only fields (not broadcast) --
+    // NOT included in BroadcastableClusterInfo. Either expensive to serialize
+    // (token mappings, schema) or non-serializable (CassandraContext, Futures).
+    // Executors reconstruct these fresh from Sidecar via CassandraClusterInfo(BroadcastableClusterInfo).
     protected volatile TokenRangeMapping<RingInstance> tokenRangeReplicas;
     protected volatile String keyspaceSchema;
     protected volatile ReplicationFactor replicationFactor;
