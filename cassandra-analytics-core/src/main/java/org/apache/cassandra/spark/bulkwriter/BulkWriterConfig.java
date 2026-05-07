@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraCoordinatedBulkWriterContext;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -42,10 +43,10 @@ import org.jetbrains.annotations.NotNull;
  * and minimize Spark SizeEstimator overhead.
  * <p>
  * On executors, {@link BulkWriterContext} instances are reconstructed from this config using
- * {@link BulkWriterContext#from(BulkWriterConfig)}, which detects the broadcastable
- * wrappers and reconstructs the full implementations with fresh data from Cassandra Sidecar.
+ * {@link #toBulkWriterContext()}, which creates the appropriate context implementation and
+ * reconstructs the full implementations with fresh data from Cassandra Sidecar.
  */
-public final class BulkWriterConfig implements Serializable
+public class BulkWriterConfig implements Serializable
 {
     private static final long serialVersionUID = 1L;
 
@@ -110,5 +111,24 @@ public final class BulkWriterConfig implements Serializable
     public String getLowestCassandraVersion()
     {
         return lowestCassandraVersion;
+    }
+
+    /**
+     * Factory method that reconstructs a {@link BulkWriterContext} on executors from this broadcast config.
+     * Subclasses may override this to return custom context implementations for specialized reconstruction.
+     *
+     * @return a new BulkWriterContext instance appropriate for the current configuration
+     */
+    public BulkWriterContext toBulkWriterContext()
+    {
+        BulkSparkConf conf = getConf();
+        if (conf.isCoordinatedWriteConfigured())
+        {
+            return new CassandraCoordinatedBulkWriterContext(this);
+        }
+        else
+        {
+            return new CassandraBulkWriterContext(this);
+        }
     }
 }

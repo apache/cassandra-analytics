@@ -25,10 +25,15 @@ import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
 
 import org.apache.cassandra.spark.bulkwriter.AbstractBulkWriterContext;
+import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup;
+import org.apache.cassandra.spark.bulkwriter.BroadcastableJobInfo;
+import org.apache.cassandra.spark.bulkwriter.BroadcastableSchemaInfo;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.BulkWriterConfig;
 import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.DataTransport;
+import org.apache.cassandra.spark.bulkwriter.IBroadcastableClusterInfo;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
@@ -50,7 +55,7 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
     }
 
     /**
-     * Constructor used by {@link org.apache.cassandra.spark.bulkwriter.BulkWriterContext#from(BulkWriterConfig)} factory method.
+     * Constructor used by {@link BulkWriterConfig#toBulkWriterContext()}.
      * This constructor is only used on executors to reconstruct context from broadcast config.
      *
      * @param config immutable configuration for the bulk writer
@@ -114,5 +119,32 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
     protected CassandraClusterInfoGroup clusterInfoGroup()
     {
         return (CassandraClusterInfoGroup) cluster();
+    }
+
+    @Override
+    public BulkWriterConfig toBulkWriterConfigForBroadcasting(JavaSparkContext sparkContext)
+    {
+        ClusterInfo originalClusterInfo = cluster();
+
+        // Extract only broadcast-safe cluster metadata
+
+        // ClusterInfo has transient fields (CassandraContext, token mappings) that are not serializable
+        CassandraClusterInfoGroup multiCluster = (CassandraClusterInfoGroup) originalClusterInfo;
+        IBroadcastableClusterInfo broadcastableClusterInfo = BroadcastableClusterInfoGroup.from(multiCluster, bulkSparkConf());
+
+        // TokenPartitioner contains a Logger field that is not serializable and expensive for SizeEstimator
+        BroadcastableJobInfo broadcastableJobInfo = BroadcastableJobInfo.from(job(), bulkSparkConf());
+
+        // TableSchema contains a Logger field that is not serializable and expensive for SizeEstimator
+        BroadcastableSchemaInfo broadcastableSchemaInfo = BroadcastableSchemaInfo.from(schema());
+
+        return new BulkWriterConfig(
+                bulkSparkConf(),
+                sparkContext.defaultParallelism(),
+                broadcastableJobInfo,
+                broadcastableClusterInfo,
+                broadcastableSchemaInfo,
+                lowestCassandraVersion()
+        );
     }
 }

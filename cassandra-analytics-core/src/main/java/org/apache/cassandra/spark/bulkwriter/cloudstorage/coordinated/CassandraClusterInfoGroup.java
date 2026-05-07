@@ -136,7 +136,14 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
         return new CassandraClusterInfoGroup(clusterInfos);
     }
 
-    @VisibleForTesting // ONLY FOR TESTING
+    /**
+     * Creates a {@link CassandraClusterInfoGroup} from a pre-built list of {@link ClusterInfo} instances.
+     * This factory is intended for custom {@link IBroadcastableClusterInfo} implementations that reconstruct
+     * cluster infos individually and need to wrap them in a group.
+     *
+     * @param clusterInfos the list of already-reconstructed ClusterInfo instances
+     * @return a new CassandraClusterInfoGroup
+     */
     public static CassandraClusterInfoGroup createFrom(List<ClusterInfo> clusterInfos)
     {
         return new CassandraClusterInfoGroup(clusterInfos);

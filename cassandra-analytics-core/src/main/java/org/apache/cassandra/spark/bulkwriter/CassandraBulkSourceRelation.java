@@ -90,67 +90,11 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         this.sqlContext = sqlContext;
         this.sparkContext = JavaSparkContext.fromSparkContext(sqlContext.sparkContext());
         // Extract immutable configuration from the context for broadcasting
-        BulkWriterConfig config = extractConfig(writerContext, sparkContext.defaultParallelism());
+        BulkWriterConfig config = writerContext.toBulkWriterConfigForBroadcasting(sparkContext);
         this.broadcastConfig = sparkContext.<BulkWriterConfig>broadcast(config);
         ReplicaAwareFailureHandler<RingInstance> failureHandler = new MultiClusterReplicaAwareFailureHandler<>(writerContext.cluster().getPartitioner());
         this.writeValidator = new BulkWriteValidator(writerContext, failureHandler);
         this.simpleTaskScheduler = new SimpleTaskScheduler();
-    }
-
-    /**
-     * Extracts immutable configuration from a BulkWriterContext for broadcasting.
-     * Creates BroadcastableCluster, BroadcastableJobInfo, and BroadcastableSchemaInfo
-     * to ensure zero transient fields and avoid Logger references in the broadcast object.
-     */
-    private static BulkWriterConfig extractConfig(BulkWriterContext context, int sparkDefaultParallelism)
-    {
-        if (context instanceof AbstractBulkWriterContext)
-        {
-            AbstractBulkWriterContext abstractContext = (AbstractBulkWriterContext) context;
-            ClusterInfo originalClusterInfo = abstractContext.cluster();
-
-            // Create BroadcastableCluster to avoid transient fields in broadcast
-            IBroadcastableClusterInfo broadcastableClusterInfo;
-            if (originalClusterInfo instanceof CassandraClusterInfoGroup)
-            {
-                // Coordinated write scenario
-                @SuppressWarnings("unchecked")
-                CassandraClusterInfoGroup multiCluster = (CassandraClusterInfoGroup) originalClusterInfo;
-                broadcastableClusterInfo = BroadcastableClusterInfoGroup.from(
-                    multiCluster,
-                    abstractContext.bulkSparkConf()
-                );
-            }
-            else
-            {
-                // Single cluster scenario
-                broadcastableClusterInfo = BroadcastableClusterInfo.from(
-                    originalClusterInfo,
-                    abstractContext.bulkSparkConf()
-                );
-            }
-
-            // Create BroadcastableJobInfo to avoid Logger in TokenPartitioner
-            BroadcastableJobInfo broadcastableJobInfo = BroadcastableJobInfo.from(
-                abstractContext.job(),
-                abstractContext.bulkSparkConf()
-            );
-
-            // Create BroadcastableSchemaInfo to avoid Logger in TableSchema
-            BroadcastableSchemaInfo broadcastableSchemaInfo = BroadcastableSchemaInfo.from(
-                abstractContext.schema()
-            );
-
-            return new BulkWriterConfig(
-                abstractContext.bulkSparkConf(),
-                sparkDefaultParallelism,
-                broadcastableJobInfo,
-                broadcastableClusterInfo,
-                broadcastableSchemaInfo,
-                abstractContext.lowestCassandraVersion()
-            );
-        }
-        throw new IllegalArgumentException("Cannot extract config from context type: " + context.getClass().getName());
     }
 
     @Override

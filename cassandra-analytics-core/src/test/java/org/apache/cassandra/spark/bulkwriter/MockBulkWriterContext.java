@@ -60,6 +60,7 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.apache.cassandra.spark.validation.StartupValidator;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
@@ -550,5 +551,11 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public void startupValidate()
     {
         StartupValidator.instance().perform();
+    }
+
+    @Override
+    public BulkWriterConfig toBulkWriterConfigForBroadcasting(JavaSparkContext sparkContext)
+    {
+        throw new UnsupportedOperationException("Not implemented in mock");
     }
 }

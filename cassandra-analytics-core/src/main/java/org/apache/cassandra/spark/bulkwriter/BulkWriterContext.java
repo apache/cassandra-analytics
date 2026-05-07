@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraCoordinatedBulkWriterContext;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.spark.api.java.JavaSparkContext;
 
 /**
  * Context for bulk write operations, providing access to cluster, job, schema, and transport information.
@@ -29,7 +30,7 @@ import org.apache.cassandra.bridge.CassandraBridge;
  * Serialization Architecture:
  * This interface does NOT extend Serializable. BulkWriterContext instances are never broadcast to executors.
  * Instead, {@link BulkWriterConfig} is broadcast, and executors reconstruct BulkWriterContext instances
- * from the config using the factory method {@link #from(BulkWriterConfig)}.
+ * from the config using {@link BulkWriterConfig#toBulkWriterContext()}.
  * <p>
  * The implementations ({@link CassandraBulkWriterContext}, {@link CassandraCoordinatedBulkWriterContext})
  * do NOT have serialVersionUID fields as they are never serialized.
@@ -53,23 +54,12 @@ public interface BulkWriterContext
     TransportContext transportContext();
 
     /**
-     * Factory method to create a BulkWriterContext from a BulkWriterConfig on executors.
-     * This method reconstructs context instances on executors from the broadcast configuration.
-     * The driver creates contexts directly using constructors, not this method.
+     * Converts this context into an immutable {@link BulkWriterConfig} suitable for broadcasting to executors.
+     * Executors reconstruct a full {@link BulkWriterContext} from the config via
+     * {@link BulkWriterConfig#toBulkWriterContext()}.
      *
-     * @param config the immutable configuration object broadcast from driver
-     * @return a new BulkWriterContext instance
+     * @param sparkContext the Spark context (used to obtain default parallelism)
+     * @return an immutable config containing all broadcastable state
      */
-    static BulkWriterContext from(BulkWriterConfig config)
-    {
-        BulkSparkConf conf = config.getConf();
-        if (conf.isCoordinatedWriteConfigured())
-        {
-            return new CassandraCoordinatedBulkWriterContext(config);
-        }
-        else
-        {
-            return new CassandraBulkWriterContext(config);
-        }
-    }
+    BulkWriterConfig toBulkWriterConfigForBroadcasting(JavaSparkContext sparkContext);
 }
