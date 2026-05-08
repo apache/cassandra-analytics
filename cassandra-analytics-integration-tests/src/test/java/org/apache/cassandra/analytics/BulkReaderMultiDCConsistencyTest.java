@@ -203,6 +203,9 @@ public class BulkReaderMultiDCConsistencyTest extends SharedClusterSparkIntegrat
                 }
                 catch (Exception e)
                 {
+                    // ReadTimeoutException here is of type org.apache.cassandra.exceptions.ReadTimeoutException
+                    // which is not available on the integration-tests compile classpath
+                    // Hence checking for class name instead of using instanceof
                     if (attempt == 10 || !e.getClass().getName().endsWith("ReadTimeoutException"))
                     {
                         throw e;
