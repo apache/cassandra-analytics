@@ -65,7 +65,7 @@ class BulkWriterConfigExtensibilityTest
 
         BulkWriterContext context = customConfig.toBulkWriterContext();
         assertThat(context).isNotNull();
-        // The OSS default would return CassandraBulkWriterContext or CassandraCoordinatedBulkWriterContext,
+        // The base class would return CassandraBulkWriterContext or CassandraCoordinatedBulkWriterContext,
         // but our subclass returns a mock — proving the override is dispatched.
         assertThat(context).isNotInstanceOf(CassandraBulkWriterContext.class);
     }

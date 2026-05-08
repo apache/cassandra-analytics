@@ -124,18 +124,9 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
     @Override
     public BulkWriterConfig toBulkWriterConfigForBroadcasting(JavaSparkContext sparkContext)
     {
-        ClusterInfo originalClusterInfo = cluster();
-
-        // Extract only broadcast-safe cluster metadata
-
-        // ClusterInfo has transient fields (CassandraContext, token mappings) that are not serializable
-        CassandraClusterInfoGroup multiCluster = (CassandraClusterInfoGroup) originalClusterInfo;
+        CassandraClusterInfoGroup multiCluster = (CassandraClusterInfoGroup) cluster();
         IBroadcastableClusterInfo broadcastableClusterInfo = BroadcastableClusterInfoGroup.from(multiCluster, bulkSparkConf());
-
-        // TokenPartitioner contains a Logger field that is not serializable and expensive for SizeEstimator
         BroadcastableJobInfo broadcastableJobInfo = BroadcastableJobInfo.from(job(), bulkSparkConf());
-
-        // TableSchema contains a Logger field that is not serializable and expensive for SizeEstimator
         BroadcastableSchemaInfo broadcastableSchemaInfo = BroadcastableSchemaInfo.from(schema());
 
         return new BulkWriterConfig(

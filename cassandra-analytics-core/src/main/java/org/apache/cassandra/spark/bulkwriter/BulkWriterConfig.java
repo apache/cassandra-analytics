@@ -121,14 +121,8 @@ public class BulkWriterConfig implements Serializable
      */
     public BulkWriterContext toBulkWriterContext()
     {
-        BulkSparkConf conf = getConf();
-        if (conf.isCoordinatedWriteConfigured())
-        {
-            return new CassandraCoordinatedBulkWriterContext(this);
-        }
-        else
-        {
-            return new CassandraBulkWriterContext(this);
-        }
+        return getConf().isCoordinatedWriteConfigured()
+             ? new CassandraCoordinatedBulkWriterContext(this)
+             : new CassandraBulkWriterContext(this);
     }
 }
