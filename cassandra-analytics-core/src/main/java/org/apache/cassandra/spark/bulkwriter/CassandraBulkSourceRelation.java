@@ -42,7 +42,6 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageDataTransf
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageStreamResult;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCompletionCoordinator;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.ImportCoordinator;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCloudStorageDataTransferApi;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedImportCoordinator;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedWriteConf;

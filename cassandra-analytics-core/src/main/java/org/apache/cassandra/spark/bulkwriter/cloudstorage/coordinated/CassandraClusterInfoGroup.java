@@ -48,6 +48,7 @@ import org.apache.cassandra.spark.bulkwriter.ClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.RingInstance;
 import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup;
+import org.apache.cassandra.spark.bulkwriter.IBroadcastableClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.WriteAvailability;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
