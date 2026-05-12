@@ -45,23 +45,36 @@ public final class BackupReaderConfig implements Serializable
         this.customProperties = customProperties != null ? customProperties : Collections.emptyMap();
     }
 
-    /** Convenience factory: no custom properties. */
+    /**
+     * Convenience factory: no custom properties.
+     *
+     * @param s3Config S3 client configuration
+     * @return a config carrying only {@code s3Config} (custom properties empty)
+     */
     public static BackupReaderConfig of(S3ClientConfig s3Config)
     {
         return new BackupReaderConfig(s3Config, Collections.emptyMap());
     }
 
-    /** Factory with custom properties pre-populated. */
+    /**
+     * Factory with custom properties pre-populated.
+     *
+     * @param s3Config         S3 client configuration
+     * @param customProperties vendor-specific string-keyed knobs; may be {@code null} (treated as empty)
+     * @return a config carrying {@code s3Config} and the supplied properties
+     */
     public static BackupReaderConfig of(S3ClientConfig s3Config, Map<String, String> customProperties)
     {
         return new BackupReaderConfig(s3Config, customProperties);
     }
 
+    /** @return the S3 client configuration */
     public S3ClientConfig s3Config()
     {
         return s3Config;
     }
 
+    /** @return Specific custom properties (never {@code null}; may be empty) */
     public Map<String, String> customProperties()
     {
         return customProperties;

@@ -30,6 +30,11 @@ import java.io.Serializable;
 @FunctionalInterface
 public interface BackupReaderFactory extends Serializable
 {
-    /** Creates a {@link BackupReader} from the given configuration. */
+    /**
+     * Creates a {@link BackupReader} from the given configuration.
+     *
+     * @param config configuration bundle
+     * @return a configured {@link BackupReader} instance
+     */
     BackupReader create(BackupReaderConfig config);
 }

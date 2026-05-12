@@ -99,8 +99,7 @@ import org.apache.cassandra.spark.utils.RangeUtils;
  * <p>
  * Assumes that Murmur3Partitioner is used. The backup reader is expected to return a list of
  * Cassandra instances per individual vnode.
- * <p>
- **/
+ */
 public class S3CassandraDataLayer extends PartitionedDataLayer implements Serializable
 {
     private static final long serialVersionUID = 1997L;
@@ -379,6 +378,15 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
      * Test-only entry to {@link ReaderInternCache#canonicalize}, bypassing layer construction.
      * Layer constructors register a Spark shutdown hook that pins the layer (and reader) for
      * JVM lifetime, which would defeat weak-value GC assertions.
+     *
+     * @param clusterName                 logical cluster identity
+     * @param keyspace                    Cassandra keyspace
+     * @param table                       Cassandra table
+     * @param datacenter                  datacenter
+     * @param earliestSnapshotEpochSecond earliest contributing snapshot epoch (seconds)
+     * @param latestSnapshotEpochSecond   latest contributing snapshot epoch (seconds)
+     * @param fresh                       freshly-constructed candidate reader to canonicalize
+     * @return the canonical {@link BackupReader} (may be {@code fresh}, or a previously interned instance)
      */
     @VisibleForTesting
     public static BackupReader canonicalizeForTesting(String clusterName,
@@ -750,7 +758,11 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
         return s3Config.s3Config();
     }
 
-    /** Returns the {@link BackupReader} type this layer was constructed with. */
+    /**
+     * Returns the {@link BackupReader} type this layer was constructed with.
+     *
+     * @return the configured backup reader type
+     */
     public String backupReaderType()
     {
         return backupReaderType;
@@ -1001,6 +1013,13 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
     /**
      * Test-only factory mirroring {@code listInstance}'s SSTable construction. Lets tests choose the
      * captured publisher-read flag at construction time without needing to name {@link S3SSTableContext}.
+     *
+     * @param token                Cassandra token used for path resolution
+     * @param fileName             SSTable file name
+     * @param componentSizes       per-component byte sizes
+     * @param sstableKey           identifies the SSTable
+     * @param publisherReadEnabled if {@code true}, Data.db reads use publisher transformer
+     * @return a configured {@link S3SSTable} for tests
      */
     @VisibleForTesting
     public S3SSTable newSSTableForTesting(String token,
@@ -1189,6 +1208,9 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
          * Cross-package test hook delegating to the protected {@link #openInputStream(FileType)}.
          * Production code should use the {@code BufferingInputStream} accessors on
          * {@link SSTable} (e.g. {@code openSummaryStream()}) instead.
+         *
+         * @param fileType SSTable component to open
+         * @return an {@link InputStream} for the requested component
          */
         @VisibleForTesting
         public InputStream openInputStreamForTesting(FileType fileType)

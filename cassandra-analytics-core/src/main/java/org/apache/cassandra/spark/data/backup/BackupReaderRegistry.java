@@ -51,6 +51,10 @@ public final class BackupReaderRegistry
     /**
      * Registers a factory for the given type. Re-registering the same type replaces the previous
      * factory (the most recent registration wins).
+     *
+     * @param type    short type name; must be non-null and non-empty
+     * @param factory factory implementation; must be non-null
+     * @throws IllegalArgumentException if {@code type} is null/empty or {@code factory} is null
      */
     public static void register(String type, BackupReaderFactory factory)
     {
@@ -73,7 +77,13 @@ public final class BackupReaderRegistry
         }
     }
 
-    /** Returns the factory registered for the given type, or throws if none is registered. */
+    /**
+     * Returns the factory registered for the given type, or throws if none is registered.
+     *
+     * @param type short type name to resolve
+     * @return the registered factory
+     * @throws IllegalArgumentException if no factory is registered for {@code type}
+     */
     public static BackupReaderFactory factoryFor(String type)
     {
         BackupReaderFactory factory = FACTORIES.get(type);
@@ -84,7 +94,14 @@ public final class BackupReaderRegistry
         return factory;
     }
 
-    /** Resolves the factory for {@code type} and invokes it with {@code config}. */
+    /**
+     * Resolves the factory for {@code type} and invokes it with {@code config}.
+     *
+     * @param type   short type name to resolve
+     * @param config configuration bundle passed to the factory
+     * @return a freshly-constructed {@link BackupReader}
+     * @throws IllegalArgumentException if no factory is registered for {@code type}
+     */
     public static BackupReader create(String type, BackupReaderConfig config)
     {
         BackupReader reader = factoryFor(type).create(config);
@@ -92,7 +109,11 @@ public final class BackupReaderRegistry
         return reader;
     }
 
-    /** Returns an unmodifiable view of the registered type names. */
+    /**
+     * Returns an unmodifiable view of the registered type names.
+     *
+     * @return alphabetically-ordered, unmodifiable set of registered type names
+     */
     public static Set<String> registeredTypes()
     {
         return Collections.unmodifiableSet(new TreeMap<>(FACTORIES).keySet());

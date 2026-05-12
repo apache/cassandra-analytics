@@ -142,6 +142,8 @@ public class S3ClientConfig implements Serializable
 
     /**
      * Get the AWS region for S3 operations.
+     *
+     * @return the AWS region
      */
     @NotNull
     public String s3Region()
@@ -151,6 +153,8 @@ public class S3ClientConfig implements Serializable
 
     /**
      * Get the S3 bucket name.
+     *
+     * @return the S3 bucket name
      */
     @NotNull
     public String s3Bucket()
@@ -195,6 +199,8 @@ public class S3ClientConfig implements Serializable
     /**
      * Get the async S3 HTTP client max concurrency override.
      * A value of 0 means the cache should auto-size from Spark executor task slots.
+     *
+     * @return the configured max concurrency, or 0 to auto-size
      */
     public int s3HttpMaxConcurrency()
     {

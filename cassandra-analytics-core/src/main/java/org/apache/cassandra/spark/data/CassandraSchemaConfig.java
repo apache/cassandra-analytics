@@ -110,7 +110,7 @@ public class CassandraSchemaConfig implements Serializable
      * <p>
      * Cluster identity is a single string downstream: it flows into the {@link
      * org.apache.cassandra.spark.data.backup.BackupReader} contract as one {@code clusterName}
-     * parameter, and the {@link BackupReader} implementation is free to interpret it however it
+     * parameter, and the implementation is free to interpret it however it
      * needs (UUID, human-readable name, etc.). For caller convenience, two option keys are
      * accepted at the DataSource boundary and aliased onto that single field: {@code clusterId}
      * and {@code clusterName}. At least one must be provided; when both are set, {@code
@@ -177,6 +177,8 @@ public class CassandraSchemaConfig implements Serializable
      * option wins when present, otherwise {@code clusterName} is passed through verbatim. The
      * concrete {@link org.apache.cassandra.spark.data.backup.BackupReader} decides how to
      * interpret the value (UUID, human-readable name, etc.).
+     *
+     * @return the resolved cluster identifier
      */
     @NotNull
     public String clusterName()
@@ -186,6 +188,8 @@ public class CassandraSchemaConfig implements Serializable
 
     /**
      * Get the Cassandra keyspace name.
+     *
+     * @return the keyspace name
      */
     @NotNull
     public String keyspace()
@@ -195,6 +199,8 @@ public class CassandraSchemaConfig implements Serializable
 
     /**
      * Get the Cassandra table name.
+     *
+     * @return the table name
      */
     @NotNull
     public String table()
@@ -215,6 +221,8 @@ public class CassandraSchemaConfig implements Serializable
 
     /**
      * Get the CREATE TABLE statement for the Cassandra table.
+     *
+     * @return the CREATE TABLE DDL string
      */
     @NotNull
     public String tableCreateStmt()
@@ -224,6 +232,8 @@ public class CassandraSchemaConfig implements Serializable
 
     /**
      * Get the Cassandra version as a string.
+     *
+     * @return the Cassandra version string (e.g. {@code "FOURZERO"})
      */
     @NotNull
     public String cassandraVersionString()
@@ -233,6 +243,8 @@ public class CassandraSchemaConfig implements Serializable
 
     /**
      * Get the Cassandra version as an enum.
+     *
+     * @return the Cassandra version enum
      */
     @NotNull
     public CassandraVersion cassandraVersion()
@@ -243,6 +255,8 @@ public class CassandraSchemaConfig implements Serializable
     /**
      * Get the raw UDT definitions string.
      * UDTs are separated by newlines.
+     *
+     * @return the raw UDT definitions string (never {@code null}; may be empty)
      */
     @NotNull
     public String udts()
@@ -265,6 +279,8 @@ public class CassandraSchemaConfig implements Serializable
 
     /**
      * Get the replication strategy name.
+     *
+     * @return the replication strategy name (e.g. {@code SimpleStrategy}, {@code NetworkTopologyStrategy})
      */
     @NotNull
     public String replicationStrategy()
@@ -275,6 +291,8 @@ public class CassandraSchemaConfig implements Serializable
     /**
      * Get the raw replication factor string.
      * Format depends on strategy: "3" for SimpleStrategy, "dc1:3,dc2:3" for NetworkTopologyStrategy.
+     *
+     * @return the raw replication-factor string in its strategy-specific format
      */
     @NotNull
     public String replicationFactorString()

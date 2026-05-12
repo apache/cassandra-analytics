@@ -235,6 +235,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the S3 client configuration.
+     *
+     * @return the S3 client configuration
      */
     @NotNull
     public S3ClientConfig s3Config()
@@ -244,6 +246,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the Cassandra schema configuration.
+     *
+     * @return the Cassandra schema configuration
      */
     @NotNull
     public CassandraSchemaConfig schemaConfig()
@@ -320,13 +324,21 @@ public class S3DataSourceClientConfig implements Serializable
         return sstableS3ReadTimeoutSeconds;
     }
 
-    /** Ranged-GET chunk size (bytes) for {@code Data.db}; trades per-GET / KMS overhead vs per-chunk heap. */
+    /**
+     * Ranged-GET chunk size (bytes) for {@code Data.db}; trades per-GET / KMS overhead vs per-chunk heap.
+     *
+     * @return the per-GET chunk size in bytes
+     */
     public long s3DataChunkBufferSize()
     {
         return s3DataChunkBufferSize;
     }
 
-    /** Per-stream buffer cap for Data.db; values above the chunk size allow one in-flight + one draining. */
+    /**
+     * Per-stream buffer cap for Data.db; values above the chunk size allow one in-flight + one draining.
+     *
+     * @return the per-stream buffer cap in bytes
+     */
     public long s3DataMaxBufferSize()
     {
         return s3DataMaxBufferSize;
@@ -336,6 +348,8 @@ public class S3DataSourceClientConfig implements Serializable
      * When false, Data.db reads use {@code AsyncResponseTransformer.toBytes()}.
      * When true (default), Data.db reads use {@code AsyncResponseTransformer.toPublisher()}.
      * Non-Data file types and mutable metadata reads are unaffected.
+     *
+     * @return {@code true} iff publisher-based reads are enabled for Data.db
      */
     public boolean sstableDataPublisherReadEnabled()
     {
@@ -395,7 +409,11 @@ public class S3DataSourceClientConfig implements Serializable
         return sstableCacheCompressionInfoMaxEntries;
     }
 
-    /** Returns the configured backup reader type (a registered key in {@link BackupReaderRegistry}). */
+    /**
+     * Returns the configured backup reader type (a registered key in {@link BackupReaderRegistry}).
+     *
+     * @return the configured backup reader type
+     */
     @NotNull
     public String backupReaderType()
     {
@@ -403,10 +421,13 @@ public class S3DataSourceClientConfig implements Serializable
     }
 
     /**
-     * Builds a {@link BackupReaderConfig} from this config's {@link S3ClientConfig}. Stats are
-     * intentionally left unset; callers install the appropriate {@code Stats} instance
-     * (executor-local {@code SparkCustomMetricsStats} for reads, {@code DoNothingStats.INSTANCE}
-     * for prebuild) via {@link BackupReaderConfig#withStats(org.apache.cassandra.analytics.stats.Stats)}.
+     * Builds a {@link BackupReaderConfig} from this config's {@link S3ClientConfig}. {@code Stats}
+     * are not carried on the config object; instead callers pass the appropriate {@code Stats}
+     * instance per call into
+     * {@link org.apache.cassandra.spark.data.backup.BackupReader} read methods (executor-local
+     * {@code SparkCustomMetricsStats} for reads, {@code DoNothingStats.INSTANCE} for prebuild).
+     *
+     * @return a {@link BackupReaderConfig} populated from this config's S3 client settings
      */
     public BackupReaderConfig toBackupReaderConfig()
     {
@@ -443,6 +464,8 @@ public class S3DataSourceClientConfig implements Serializable
     /**
      * Get the cluster identifier (UUID). Resolved eagerly at config creation.
      * Delegates to schemaConfig.
+     *
+     * @return the cluster identifier
      */
     public String clusterName()
     {
@@ -451,6 +474,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the keyspace name. Delegates to schemaConfig.
+     *
+     * @return the keyspace name
      */
     public String keyspace()
     {
@@ -459,6 +484,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the table name. Delegates to schemaConfig.
+     *
+     * @return the table name
      */
     public String table()
     {
@@ -467,6 +494,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the datacenter. Delegates to schemaConfig.
+     *
+     * @return the datacenter name, or {@code null} if not specified
      */
     public String datacenter()
     {
@@ -475,6 +504,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the CREATE TABLE statement. Delegates to schemaConfig.
+     *
+     * @return the CREATE TABLE DDL string
      */
     public String tableCreateStmt()
     {
@@ -483,6 +514,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the Cassandra version. Delegates to schemaConfig.
+     *
+     * @return the Cassandra version enum
      */
     public org.apache.cassandra.bridge.CassandraVersion cassandraVersion()
     {
@@ -491,6 +524,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get raw UDT definitions string. Delegates to schemaConfig.
+     *
+     * @return the raw UDT definitions string
      */
     public String udts()
     {
@@ -499,6 +534,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get parsed UDTs. Delegates to schemaConfig.
+     *
+     * @return parsed UDT definition strings
      */
     public java.util.Set<String> parsedUdts()
     {
@@ -507,6 +544,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get parsed replication factor. Delegates to schemaConfig.
+     *
+     * @return the parsed replication factor
      */
     public ReplicationFactor getParsedReplicationFactor()
     {
@@ -515,6 +554,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the S3 region. Delegates to s3Config.
+     *
+     * @return the S3 region
      */
     public String s3Region()
     {
@@ -523,6 +564,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the S3 bucket. Delegates to s3Config.
+     *
+     * @return the S3 bucket name
      */
     public String s3Bucket()
     {
@@ -531,6 +574,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the S3 endpoint override. Delegates to s3Config.
+     *
+     * @return the S3 endpoint override, or {@code null} if using default
      */
     public String s3EndpointOverride()
     {
@@ -539,6 +584,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the S3 access key ID. Delegates to s3Config.
+     *
+     * @return the S3 access key ID, or {@code null} if using default credentials
      */
     public String s3AccessKeyId()
     {
@@ -547,6 +594,8 @@ public class S3DataSourceClientConfig implements Serializable
 
     /**
      * Get the S3 secret access key. Delegates to s3Config.
+     *
+     * @return the S3 secret access key, or {@code null} if using default credentials
      */
     public String s3SecretAccessKey()
     {
