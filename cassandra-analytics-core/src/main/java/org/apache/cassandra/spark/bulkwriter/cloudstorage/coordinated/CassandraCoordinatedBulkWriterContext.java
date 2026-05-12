@@ -124,7 +124,7 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
     @Override
     public BulkWriterConfig toBulkWriterConfigForBroadcasting(JavaSparkContext sparkContext)
     {
-        CassandraClusterInfoGroup multiCluster = (CassandraClusterInfoGroup) cluster();
+        CassandraClusterInfoGroup multiCluster = clusterInfoGroup();
         IBroadcastableClusterInfo broadcastableClusterInfo = BroadcastableClusterInfoGroup.from(multiCluster, bulkSparkConf());
         BroadcastableJobInfo broadcastableJobInfo = BroadcastableJobInfo.from(job(), bulkSparkConf());
         BroadcastableSchemaInfo broadcastableSchemaInfo = BroadcastableSchemaInfo.from(schema());

@@ -26,9 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
-import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -74,52 +72,15 @@ class BulkWriterConfigExtensibilityTest
     void testCustomIBroadcastableClusterInfoReconstructIsCalled()
     {
         ClusterInfo expectedCluster = mock(ClusterInfo.class);
-
-        // Custom IBroadcastableClusterInfo whose reconstruct() returns a specific ClusterInfo
-        IBroadcastableClusterInfo customBroadcastable = new IBroadcastableClusterInfo()
-        {
-            @Override
-            public Partitioner getPartitioner()
-            {
-                return Partitioner.Murmur3Partitioner;
-            }
-
-            @Override
-            public String getLowestCassandraVersion()
-            {
-                return "4.0.0";
-            }
-
-            @Nullable
-            @Override
-            public String clusterId()
-            {
-                return null;
-            }
-
-            @NotNull
-            @Override
-            public BulkSparkConf getConf()
-            {
-                return mock(BulkSparkConf.class);
-            }
-
-            @Override
-            public ClusterInfo reconstruct()
-            {
-                return expectedCluster;
-            }
-        };
+        IBroadcastableClusterInfo mockBroadcastable = mock(IBroadcastableClusterInfo.class);
+        when(mockBroadcastable.reconstruct()).thenReturn(expectedCluster);
 
         BulkSparkConf mockConf = mock(BulkSparkConf.class);
         BroadcastableJobInfo mockJobInfo = mock(BroadcastableJobInfo.class);
-        when(mockJobInfo.getConf()).thenReturn(mockConf);
-        when(mockJobInfo.getRestoreJobIds()).thenReturn(MultiClusterContainer.ofSingle(UUID.randomUUID()));
         BroadcastableSchemaInfo mockSchemaInfo = mock(BroadcastableSchemaInfo.class);
 
-        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, customBroadcastable, mockSchemaInfo, "4.0.0");
+        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mockBroadcastable, mockSchemaInfo, "4.0.0");
 
-        // Use a test subclass that overrides expensive methods to avoid needing real infrastructure
         TestBulkWriterContext context = new TestBulkWriterContext(config);
 
         assertThat(context.cluster()).isSameAs(expectedCluster);
@@ -129,50 +90,10 @@ class BulkWriterConfigExtensibilityTest
     void testReconstructJobInfoOnExecutorCanBeOverridden()
     {
         JobInfo expectedJobInfo = mock(JobInfo.class);
-        ClusterInfo mockCluster = mock(ClusterInfo.class);
-
-        IBroadcastableClusterInfo customBroadcastable = new IBroadcastableClusterInfo()
-        {
-            @Override
-            public Partitioner getPartitioner()
-            {
-                return Partitioner.Murmur3Partitioner;
-            }
-
-            @Override
-            public String getLowestCassandraVersion()
-            {
-                return "4.0.0";
-            }
-
-            @Nullable
-            @Override
-            public String clusterId()
-            {
-                return null;
-            }
-
-            @NotNull
-            @Override
-            public BulkSparkConf getConf()
-            {
-                return mock(BulkSparkConf.class);
-            }
-
-            @Override
-            public ClusterInfo reconstruct()
-            {
-                return mockCluster;
-            }
-        };
-
         BulkSparkConf mockConf = mock(BulkSparkConf.class);
         BroadcastableJobInfo mockJobInfo = mock(BroadcastableJobInfo.class);
-        when(mockJobInfo.getConf()).thenReturn(mockConf);
-        when(mockJobInfo.getRestoreJobIds()).thenReturn(MultiClusterContainer.ofSingle(UUID.randomUUID()));
         BroadcastableSchemaInfo mockSchemaInfo = mock(BroadcastableSchemaInfo.class);
-
-        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, customBroadcastable, mockSchemaInfo, "4.0.0");
+        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mock(IBroadcastableClusterInfo.class), mockSchemaInfo, "4.0.0");
 
         // Subclass that overrides reconstructJobInfoOnExecutor to return custom JobInfo
         TestBulkWriterContext context = new TestBulkWriterContext(config)
