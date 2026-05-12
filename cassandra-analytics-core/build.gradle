@@ -24,6 +24,9 @@ plugins {
     id('jacoco')
     id('maven-publish')
     id('com.github.johnrengelman.shadow')
+    // Publishes src/testFixtures so other modules can reuse cross-module test utilities such as
+    // org.apache.cassandra.bridge.VersionRunner via testImplementation(testFixtures(project(...))).
+    id('java-test-fixtures')
 }
 
 if (propertyWithDefault("artifactType", null) == "spark") {
@@ -143,6 +146,11 @@ dependencies {
 
     compileOnly(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
     compileOnly(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+
+    // testFixtures: cross-module test utilities (e.g. VersionRunner). Kept minimal so consumers
+    // pull in only what the published fixtures require.
+    testFixturesApi(project(':cassandra-bridge'))
+    testFixturesApi("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
 
     testImplementation(group: 'com.google.guava', name: 'guava', version: '19.0')
     testImplementation(testFixtures(project(':cassandra-bridge')))
