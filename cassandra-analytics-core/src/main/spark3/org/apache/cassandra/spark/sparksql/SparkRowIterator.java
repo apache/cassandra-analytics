@@ -30,8 +30,18 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
+import org.apache.cassandra.spark.sparksql.metrics.TaskTotalSummaryReadDuration;
+import org.apache.cassandra.spark.sparksql.metrics.TaskTotalOpenedSSTableDuration;
+import org.apache.cassandra.spark.sparksql.metrics.TaskTotalCorruptSSTableCount;
+import org.apache.cassandra.spark.sparksql.metrics.TaskTotalMutableMetadataDriftCount;
+import org.apache.cassandra.spark.sparksql.metrics.TaskTotalMutableMetadataHeadFallbackCount;
+import org.apache.cassandra.spark.sparksql.metrics.TaskTotalSkippedSSTableCount;
+import org.apache.cassandra.spark.sparksql.metrics.TaskTotalS3HeadObjectDuration;
+import org.apache.cassandra.spark.sparksql.metrics.TaskTotalS3GetObjectDuration;
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
+import org.apache.spark.sql.connector.metric.CustomTaskMetric;
 import org.apache.spark.sql.connector.read.PartitionReader;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
@@ -83,5 +93,32 @@ public class SparkRowIterator extends AbstractSparkRowIterator<GenericInternalRo
     public GenericInternalRow rowBuilder(Object[] valueArray)
     {
         return new GenericInternalRow(valueArray);
+    }
+
+    /**
+     * Returns custom metrics collected during task execution.
+     * This is called by Spark to collect task-level metrics for aggregation.
+     */
+    @Override
+    public CustomTaskMetric[] currentMetricsValues()
+    {
+        Stats stats = this.it.stats();
+        if (stats instanceof SparkCustomMetricsStats)
+        {
+            SparkCustomMetricsStats metricsStats = (SparkCustomMetricsStats) stats;
+            return new CustomTaskMetric[] {
+                TaskTotalSummaryReadDuration.from(metricsStats.getTotalSummaryReadDurationNanos()),
+                TaskTotalOpenedSSTableDuration.from(metricsStats.getTotalOpenedSSTableDurationNanos()),
+                TaskTotalCorruptSSTableCount.from(metricsStats.getTotalCorruptSSTableCount()),
+                TaskTotalSkippedSSTableCount.from(metricsStats.getTotalSkippedSSTableCount()),
+                TaskTotalS3HeadObjectDuration.from(metricsStats.getTotalS3HeadObjectDurationNanos()),
+                TaskTotalS3GetObjectDuration.from(metricsStats.getTotalS3GetObjectDurationNanos()),
+                TaskTotalMutableMetadataDriftCount.from(metricsStats.getTotalMutableMetadataDriftCount()),
+                TaskTotalMutableMetadataHeadFallbackCount.from(metricsStats.getTotalMutableMetadataHeadFallbackCount())
+            };
+        }
+
+        // Return empty array if no metrics available
+        return new CustomTaskMetric[0];
     }
 }

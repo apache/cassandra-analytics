@@ -19,42 +19,24 @@
 
 package org.apache.cassandra.spark.sparksql;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
+import org.apache.spark.sql.connector.read.partitioning.UnknownPartitioning;
 
-import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.data.DataLayer;
-import org.apache.spark.sql.connector.read.partitioning.ClusteredDistribution;
-import org.apache.spark.sql.connector.read.partitioning.Distribution;
-import org.apache.spark.sql.connector.read.partitioning.Partitioning;
-
-class CassandraPartitioning implements Partitioning
+/**
+ * Reports the number of Spark partitions to the planner via {@link UnknownPartitioning}.
+ *
+ * <p>Spark 3.3+ replaced the older {@code Partitioning#satisfy(Distribution)} contract with
+ * concrete partitioning types. The Cassandra reader can report its partition count, but not a
+ * key grouping Spark can safely use for storage-partitioned joins.
+ *
+ * <p>Each {@link CassandraInputPartition} is a token range. Although each row's token is derived
+ * from the partition key, rows in the same token range usually have many distinct partition keys
+ * and many distinct tokens. That does not satisfy {@code KeyGroupedPartitioning}'s contract that
+ * every row in one Spark partition evaluates to the same partition value.
+ */
+class CassandraPartitioning extends UnknownPartitioning
 {
-    final DataLayer dataLayer;
-
-    CassandraPartitioning(DataLayer dataLayer)
+    CassandraPartitioning(int numPartitions)
     {
-        this.dataLayer = dataLayer;
-    }
-
-    @Override
-    public int numPartitions()
-    {
-        return dataLayer.partitionCount();
-    }
-
-    @Override
-    public boolean satisfy(Distribution distribution)
-    {
-        if (distribution instanceof ClusteredDistribution)
-        {
-            String[] clusteredCols = ((ClusteredDistribution) distribution).clusteredColumns;
-            List<String> partitionKeys = dataLayer.cqlTable().partitionKeys().stream()
-                                                                             .map(CqlField::name)
-                                                                             .collect(Collectors.toList());
-            return Arrays.asList(clusteredCols).containsAll(partitionKeys);
-        }
-        return false;
+        super(numPartitions);
     }
 }
