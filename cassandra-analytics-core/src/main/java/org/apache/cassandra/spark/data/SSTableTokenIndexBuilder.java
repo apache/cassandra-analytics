@@ -318,7 +318,9 @@ public final class SSTableTokenIndexBuilder
 
     private static long toLong(BigInteger token)
     {
-        return token.longValue();
+        // SSTableTokenBounds stores Murmur3 tokens as long. Fail fast if a non-Murmur3 token
+        // ever reaches here instead of silently truncating to the low 64 bits.
+        return token.longValueExact();
     }
 
     private static final class FailureReporter

@@ -70,12 +70,58 @@ class SSTableTokenIndexTest
     }
 
     @Test
-    void invertedBoundsAreNormalized()
+    void invertedBoundsModelWrapAround()
     {
+        // firstToken > lastToken is the Cassandra ring's wrap-around convention; bounds (200, 100]
+        // cover [200, MAX] U [MIN, 100], so queries hitting either segment overlap and queries
+        // falling entirely in the gap (100, 200) do not.
         SSTableKey key = key("node1", "1");
         SSTableTokenIndex index = indexFor(key, new SSTableTokenBounds(200L, 100L));
 
-        assertTrue(index.include(key, range(150L, 160L)));
+        assertTrue(index.include(key, range(0L, 50L)));
+        assertTrue(index.include(key, range(300L, 400L)));
+        assertTrue(index.include(key, range(50L, 250L)));
+        assertTrue(index.include(key, range(100L, 100L)));
+        assertTrue(index.include(key, range(200L, 200L)));
+        assertFalse(index.include(key, range(150L, 160L)));
+        assertFalse(index.include(key, range(101L, 199L)));
+    }
+
+    @Test
+    void boundaryAndSingletonBoundsOverlap()
+    {
+        // Regression coverage for boundary conditions on the well-formed (non-inverted) path.
+        SSTableKey key = key("node1", "1");
+        SSTableTokenIndex pointIndex = indexFor(key, new SSTableTokenBounds(100L, 100L));
+        SSTableTokenIndex rangeIndex = indexFor(key, new SSTableTokenBounds(100L, 200L));
+
+        assertTrue(pointIndex.include(key, range(50L, 100L)));
+        assertTrue(pointIndex.include(key, range(100L, 100L)));
+        assertFalse(pointIndex.include(key, range(101L, 200L)));
+
+        assertTrue(rangeIndex.include(key, range(100L, 100L)));
+        assertTrue(rangeIndex.include(key, range(200L, 200L)));
+        assertFalse(rangeIndex.include(key, range(99L, 99L)));
+        assertFalse(rangeIndex.include(key, range(201L, 201L)));
+    }
+
+    @Test
+    void extremeTokenBoundsCoverRing()
+    {
+        // Murmur3 tokens span [Long.MIN_VALUE, Long.MAX_VALUE]. Both the well-formed full-ring bounds
+        // and the inverted MAX..MIN pair (covering [MAX, MAX] U [MIN, MIN] under wrap-around) hit
+        // their respective endpoints; the inverted form must not silently cover the interior.
+        SSTableKey key = key("node1", "1");
+        SSTableTokenIndex fullRing = indexFor(key, new SSTableTokenBounds(Long.MIN_VALUE, Long.MAX_VALUE));
+        SSTableTokenIndex inverted = indexFor(key, new SSTableTokenBounds(Long.MAX_VALUE, Long.MIN_VALUE));
+
+        assertTrue(fullRing.include(key, range(0L, 0L)));
+        assertTrue(fullRing.include(key, range(Long.MIN_VALUE, Long.MIN_VALUE)));
+        assertTrue(fullRing.include(key, range(Long.MAX_VALUE, Long.MAX_VALUE)));
+        assertTrue(inverted.include(key, range(Long.MIN_VALUE, Long.MIN_VALUE)));
+        assertTrue(inverted.include(key, range(Long.MAX_VALUE, Long.MAX_VALUE)));
+        assertFalse(inverted.include(key, range(0L, 0L)));
+        assertFalse(inverted.include(key, range(-1_000L, 1_000L)));
     }
 
     @Test

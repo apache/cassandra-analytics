@@ -28,6 +28,10 @@ public final class SSTableTokenBounds implements Serializable
 {
     private static final long serialVersionUID = 2026042501L;
 
+    // Murmur3 partitioner only: tokens fit in a long. RandomPartitioner is not supported here.
+    private static final BigInteger MIN_TOKEN = BigInteger.valueOf(Long.MIN_VALUE);
+    private static final BigInteger MAX_TOKEN = BigInteger.valueOf(Long.MAX_VALUE);
+
     private final long firstToken;
     private final long lastToken;
 
@@ -51,8 +55,14 @@ public final class SSTableTokenBounds implements Serializable
     {
         BigInteger first = BigInteger.valueOf(firstToken);
         BigInteger last = BigInteger.valueOf(lastToken);
-        TokenRange sstableRange = first.compareTo(last) <= 0 ? TokenRange.closed(first, last)
-                                                            : TokenRange.closed(last, first);
-        return range.isConnected(sstableRange);
+        // firstToken > lastToken represents a ring wrap-around (the same convention as
+        // RangeUtils.calculateTokenRanges); model it as the two segments [first, MAX] and
+        // [MIN, last] and report overlap if the query range hits either.
+        if (firstToken > lastToken)
+        {
+            return range.isConnected(TokenRange.closed(first, MAX_TOKEN))
+                || range.isConnected(TokenRange.closed(MIN_TOKEN, last));
+        }
+        return range.isConnected(TokenRange.closed(first, last));
     }
 }
