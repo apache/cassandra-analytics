@@ -1049,7 +1049,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
     }
 
-    static void aliasLastModifiedTimestamp(List<SchemaFeature> requestedFeatures, String alias)
+    public static void aliasLastModifiedTimestamp(List<SchemaFeature> requestedFeatures, String alias)
     {
         SchemaFeature featureAlias = new SchemaFeature()
         {

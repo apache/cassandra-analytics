@@ -575,9 +575,12 @@ public class CassandraBridgeImplementation extends CassandraBridge
     {
         try
         {
-            SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(ssTable, partitioner, minIndexInterval, maxIndexInterval);
-            Pair<DecoratedKey, DecoratedKey> keys = summary == null ? null : Pair.of(summary.first(), summary.last());
-            if (summary == null)
+            Pair<DecoratedKey, DecoratedKey> keys;
+            try (SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(ssTable, partitioner, minIndexInterval, maxIndexInterval))
+            {
+                keys = summary == null ? null : Pair.of(summary.first(), summary.last());
+            }
+            if (keys == null)
             {
                 keys = ReaderUtils.keysFromIndex(partitioner, ssTable);
             }

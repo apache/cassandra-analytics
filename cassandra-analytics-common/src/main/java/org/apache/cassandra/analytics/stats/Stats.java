@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Set;
 
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.SSTable;
 import org.apache.cassandra.spark.data.SSTablesSupplier;
 import org.apache.cassandra.spark.reader.IndexEntry;
@@ -495,6 +496,52 @@ public abstract class Stats
      * When an Index.db file can be fully skipped because it does not overlap with token range.
      */
     public void indexFileSkipped()
+    {
+
+    }
+
+    /**
+     * S3 headObject operation performed for existence check.
+     *
+     * @param timeNanos time taken in nanoseconds for the S3 headObject operation
+     */
+    public void s3HeadObjectOperation(long timeNanos)
+    {
+
+    }
+
+    /**
+     * S3 getObject operation performed for data retrieval.
+     *
+     * @param timeNanos time taken in nanoseconds for the S3 getObject operation
+     */
+    public void s3GetObjectOperation(long timeNanos)
+    {
+
+    }
+
+    /**
+     * Mutable SSTable metadata objects (Summary.db, Filter.db, Statistics.db) can be rewritten in place
+     * on Cassandra live data directories. Backup manifests can therefore carry a stale size for the
+     * same S3 key. This event records when the actual object size differs from the manifest-provided
+     * size.
+     *
+     * @param fileType     mutable SSTable component type
+     * @param manifestSize size recorded in the autosnap manifest
+     * @param actualSize   current S3 object size
+     */
+    public void s3MutableMetadataDriftDetected(FileType fileType, long manifestSize, long actualSize)
+    {
+
+    }
+
+    /**
+     * Mutable metadata object was large enough that the reader used HEAD + exact ranged GET instead
+     * of a single open-ended GET.
+     *
+     * @param fileType mutable SSTable component type
+     */
+    public void s3MutableMetadataHeadFallback(FileType fileType)
     {
 
     }
