@@ -83,9 +83,7 @@ public final class SSTableTokenIndexBuilder
                                              CassandraVersion cassandraVersion,
                                              int concurrency)
     {
-        // Build the reader on the executor via the closure-captured factory. The prebuild path
-        // does not flow metrics back to Spark, so install DoNothingStats.
-        BackupReader reader = backupReaderFactory.create(backupReaderConfig.withStats(Stats.DoNothingStats.INSTANCE));
+        BackupReader reader = backupReaderFactory.create(backupReaderConfig);
         CassandraBridge bridge = CassandraBridgeFactory.get(cassandraVersion);
         int maxInFlight = Math.max(1, concurrency);
         ExecutorService executor = Executors.newFixedThreadPool(maxInFlight);
@@ -461,7 +459,8 @@ public final class SSTableTokenIndexBuilder
                                                            workItem.token(),
                                                            workItem.sstableKey(),
                                                            fileType,
-                                                           size).join();
+                                                           size,
+                                                           Stats.DoNothingStats.INSTANCE).join();
             actualSizes.put(fileType, (long) bytes.length);
             return new ByteArrayInputStream(bytes);
         }

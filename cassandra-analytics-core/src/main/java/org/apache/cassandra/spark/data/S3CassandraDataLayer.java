@@ -130,8 +130,8 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
      * no layer references them. {@link Cache#get(Object, java.util.concurrent.Callable)} is
      * the atomic install-or-return primitive and pins the returned value across the call.
      * <p>
-     * Caveat: {@link BackupReader#setStats} mutates a per-reader field, so the most recent
-     * task's {@code Stats} wins during overlap; a task-scoped Stats refactor is a follow-up.
+     * BackupReader read methods receive the task {@link Stats}, preserving S3 GET/HEAD metric
+     * attribution when tasks share a canonical reader.
      */
     private static final class ReaderInternCache
     {
@@ -641,9 +641,6 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
                                                              earliestSnapshotEpochSecond, latestSnapshotEpochSecond,
                                                              s3BackupReader);
 
-        // Shared mutation under canonicalization; see ReaderInternCache javadoc caveat.
-        this.s3BackupReader.setStats(this.stats);
-
         // No shutdown hook here: production never reaches this ctor (Spark task closures use
         // JDK readObject, which doesn't run constructors; Kryo is unused for this layer).
         // Registering a hook would pin `this` for JVM lifetime and defeat weakValues() on the
@@ -716,7 +713,7 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
         if (s3BackupReader == null)
         {
             this.s3BackupReader = BackupReaderRegistry.create(this.backupReaderType,
-                                                              this.s3Config.toBackupReaderConfig().withStats(stats));
+                                                              this.s3Config.toBackupReaderConfig());
             this.s3BackupReader.initializeSSTableInfoCache(clusterName, keyspace, table, datacenter);
         }
     }
@@ -1220,7 +1217,7 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
             {
                 return !componentSizes.containsKey(fileType);
             }
-            return !context.s3BackupReader.exists(context.clusterName, context.datacenter, token, sstableKey, fileType);
+            return !context.s3BackupReader.exists(context.clusterName, context.datacenter, token, sstableKey, fileType, context.stats);
         }
 
         public String getDataFileName()
@@ -1300,7 +1297,8 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
                                                     fileType,
                                                     start,
                                                     Math.min(end, size - 1),
-                                                    consumer);
+                                                    consumer,
+                                                    context.stats);
                     return;
                 }
                 context.s3BackupReader.getMutableMetadataAsync(context.clusterName,
@@ -1312,7 +1310,8 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
                                                                 end,
                                                                 consumer,
                                                                 this::setActualSize,
-                                                                manifestSize);
+                                                                manifestSize,
+                                                                context.stats);
                 return;
             }
 
@@ -1336,7 +1335,8 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
                                                   ssTable.sstableKey,
                                                   fileType,
                                                   start,
-                                                  end)
+                                                  end,
+                                                  context.stats)
                                        .whenComplete((bytes, throwable) -> {
                                            if (throwable != null)
                                            {
@@ -1359,7 +1359,7 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
             }
 
             context.s3BackupReader.getAsync(context.clusterName, context.datacenter, ssTable.token,
-                                             ssTable.sstableKey, fileType, start, end, consumer);
+                                             ssTable.sstableKey, fileType, start, end, consumer, context.stats);
         }
 
         public S3SSTable cassandraFile()
@@ -1497,12 +1497,8 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
         // Mirror constructor: re-apply cache sysprops so executor-side cache sizes match driver.
         applySSTableCacheSystemProperties();
 
-        // setStats on a canonicalized reader is shared mutation; see ReaderInternCache javadoc.
+        // Recreate the executor-local Spark metrics sink.
         this.stats = new SparkCustomMetricsStats();
-        if (this.s3BackupReader != null)
-        {
-            this.s3BackupReader.setStats(this.stats);
-        }
     }
 
     private void writeObject(final ObjectOutputStream out) throws IOException, ClassNotFoundException

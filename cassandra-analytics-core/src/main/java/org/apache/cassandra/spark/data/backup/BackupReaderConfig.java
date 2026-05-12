@@ -23,49 +23,38 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.Map;
 
-import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.data.S3ClientConfig;
 
 /**
- * Configuration bundle passed to {@link BackupReaderFactory#create(BackupReaderConfig)}.
+ * Configuration bundle passed to {@link BackupReaderFactory#create(BackupReaderConfig)}. Holds
+ * the inputs an implementation needs to instantiate a {@link BackupReader} (S3 client config and
+ * arbitrary string-keyed custom properties for vendor-specific knobs).
  *
- * <p>{@code stats} is {@code transient}: {@link Stats} is never serialized cross-JVM (metrics
- * aggregate through Spark DSv2's {@code currentMetricsValues()} hook off an executor-local
- * sink), and keeping the field transient lets this config be safely captured in
- * {@code Serializable} closures. Callers should call {@link #withStats(Stats)} before invoking
- * the factory if they need non-default stats.
+ * <p>Task metrics sinks are supplied on individual {@link BackupReader} read calls.
  */
 public final class BackupReaderConfig implements Serializable
 {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     private final S3ClientConfig s3Config;
     private final Map<String, String> customProperties;
-    private transient Stats stats;
 
-    private BackupReaderConfig(S3ClientConfig s3Config, Map<String, String> customProperties, Stats stats)
+    private BackupReaderConfig(S3ClientConfig s3Config, Map<String, String> customProperties)
     {
         this.s3Config = s3Config;
         this.customProperties = customProperties != null ? customProperties : Collections.emptyMap();
-        this.stats = stats;
     }
 
-    /** Convenience factory: no custom properties, no explicit stats (defaults to {@link Stats.DoNothingStats}). */
+    /** Convenience factory: no custom properties. */
     public static BackupReaderConfig of(S3ClientConfig s3Config)
     {
-        return new BackupReaderConfig(s3Config, Collections.emptyMap(), null);
+        return new BackupReaderConfig(s3Config, Collections.emptyMap());
     }
 
     /** Factory with custom properties pre-populated. */
     public static BackupReaderConfig of(S3ClientConfig s3Config, Map<String, String> customProperties)
     {
-        return new BackupReaderConfig(s3Config, customProperties, null);
-    }
-
-    /** Returns a copy of this config with the supplied {@link Stats}. */
-    public BackupReaderConfig withStats(Stats stats)
-    {
-        return new BackupReaderConfig(this.s3Config, this.customProperties, stats);
+        return new BackupReaderConfig(s3Config, customProperties);
     }
 
     public S3ClientConfig s3Config()
@@ -76,11 +65,5 @@ public final class BackupReaderConfig implements Serializable
     public Map<String, String> customProperties()
     {
         return customProperties;
-    }
-
-    /** Returns the configured {@link Stats}, or {@link Stats.DoNothingStats#INSTANCE} if unset. */
-    public Stats stats()
-    {
-        return stats != null ? stats : Stats.DoNothingStats.INSTANCE;
     }
 }

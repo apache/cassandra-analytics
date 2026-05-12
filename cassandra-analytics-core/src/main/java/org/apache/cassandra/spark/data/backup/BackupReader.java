@@ -46,9 +46,6 @@ import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
  */
 public interface BackupReader extends Serializable, AutoCloseable
 {
-    /** Replaces the reader's stats sink. Called per task on executors. */
-    void setStats(Stats stats);
-
     /** Populates the reader's per-(cluster, keyspace, table) cache by walking the backup manifest. */
     void initializeSSTableInfoCache(String clusterName, String keyspace, String table, String datacenter)
         throws IllegalArgumentException;
@@ -66,14 +63,18 @@ public interface BackupReader extends Serializable, AutoCloseable
                                                   String datacenter,
                                                   String nodeId);
 
-    /** Buffered ranged GET; completes with the full {@code [start, end]} byte range. */
+    /**
+     * Buffered ranged GET; completes with the full {@code [start, end]} byte range.
+     * {@code stats} receives S3 operation metrics for this read.
+     */
     CompletableFuture<byte[]> readAsync(String clusterName,
                                         String datacenter,
                                         String token,
                                         SSTableKey sstableKey,
                                         FileType fileType,
                                         long start,
-                                        long end);
+                                        long end,
+                                        Stats stats);
 
     /**
      * Buffered read for {@linkplain FileType#isMutableMetadata mutable-metadata} components whose
@@ -84,7 +85,8 @@ public interface BackupReader extends Serializable, AutoCloseable
                                                        String token,
                                                        SSTableKey sstableKey,
                                                        FileType fileType,
-                                                       long manifestSize);
+                                                       long manifestSize,
+                                                       Stats stats);
 
     /** Streaming ranged GET. Chunks are pushed to {@code consumer} and the future completes on termination. */
     CompletableFuture<Void> getAsync(String clusterName,
@@ -94,7 +96,8 @@ public interface BackupReader extends Serializable, AutoCloseable
                                      FileType fileType,
                                      long start,
                                      long end,
-                                     @NotNull StreamConsumer consumer);
+                                     @NotNull StreamConsumer consumer,
+                                     Stats stats);
 
     /**
      * Streaming variant of {@link #readMutableMetadataAsync}. {@code actualSizeConsumer} is invoked
@@ -109,14 +112,16 @@ public interface BackupReader extends Serializable, AutoCloseable
                                                     long end,
                                                     @NotNull StreamConsumer consumer,
                                                     LongConsumer actualSizeConsumer,
-                                                    long manifestSize);
+                                                    long manifestSize,
+                                                    Stats stats);
 
     /** Checks whether a specific SSTable component exists in the backup. */
     boolean exists(String clusterName,
                    String datacenter,
                    String token,
                    SSTableKey sstableKey,
-                   FileType fileType);
+                   FileType fileType,
+                   Stats stats);
 
     /** Earliest per-node snapshot epoch (seconds) across the contributing nodes. */
     long getSnapshotEpochSecond(String clusterName, String keyspace, String table, String datacenter);

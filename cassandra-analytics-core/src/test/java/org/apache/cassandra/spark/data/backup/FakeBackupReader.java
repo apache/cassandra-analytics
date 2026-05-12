@@ -45,7 +45,6 @@ public class FakeBackupReader implements BackupReader
 
     private final S3ClientConfig s3Config;
     private final String bucket;
-    private transient Stats stats;
 
     public FakeBackupReader()
     {
@@ -56,17 +55,6 @@ public class FakeBackupReader implements BackupReader
     {
         this.s3Config = s3Config;
         this.bucket = bucket;
-    }
-
-    @Override
-    public void setStats(Stats stats)
-    {
-        this.stats = stats;
-    }
-
-    public Stats stats()
-    {
-        return stats;
     }
 
     @Override
@@ -96,14 +84,16 @@ public class FakeBackupReader implements BackupReader
 
     @Override
     public CompletableFuture<byte[]> readAsync(String clusterName, String datacenter, String token,
-                                               SSTableKey sstableKey, FileType fileType, long start, long end)
+                                               SSTableKey sstableKey, FileType fileType, long start, long end,
+                                               Stats stats)
     {
         return CompletableFuture.completedFuture(new byte[0]);
     }
 
     @Override
     public CompletableFuture<byte[]> readMutableMetadataAsync(String clusterName, String datacenter, String token,
-                                                              SSTableKey sstableKey, FileType fileType, long manifestSize)
+                                                              SSTableKey sstableKey, FileType fileType, long manifestSize,
+                                                              Stats stats)
     {
         return CompletableFuture.completedFuture(new byte[0]);
     }
@@ -111,7 +101,7 @@ public class FakeBackupReader implements BackupReader
     @Override
     public CompletableFuture<Void> getAsync(String clusterName, String datacenter, String token,
                                             SSTableKey sstableKey, FileType fileType, long start, long end,
-                                            @NotNull StreamConsumer consumer)
+                                            @NotNull StreamConsumer consumer, Stats stats)
     {
         return CompletableFuture.completedFuture(null);
     }
@@ -120,13 +110,15 @@ public class FakeBackupReader implements BackupReader
     public CompletableFuture<Void> getMutableMetadataAsync(String clusterName, String datacenter, String token,
                                                            SSTableKey sstableKey, FileType fileType, long start,
                                                            long end, @NotNull StreamConsumer consumer,
-                                                           LongConsumer actualSizeConsumer, long manifestSize)
+                                                           LongConsumer actualSizeConsumer, long manifestSize,
+                                                           Stats stats)
     {
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public boolean exists(String clusterName, String datacenter, String token, SSTableKey sstableKey, FileType fileType)
+    public boolean exists(String clusterName, String datacenter, String token, SSTableKey sstableKey, FileType fileType,
+                          Stats stats)
     {
         return false;
     }
