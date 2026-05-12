@@ -81,12 +81,43 @@ public class TokenPartitioner implements Serializable
 
     public TokenPartitioner(CassandraRing ring, int defaultParallelism, int numCores, boolean shuffle)
     {
-        LOGGER.info("Creating TokenPartitioner defaultParallelism={} numCores={}", defaultParallelism, numCores);
+        this(ring, null, defaultParallelism, numCores, shuffle);
+    }
+
+    /**
+     * Variant that accepts an optional user-specified override for the number of splits per token
+     * range. When {@code userSpecifiedNumberSplits} is non-null and {@code > 0}, it bypasses the
+     * default {@code max(cores, defaultParallelism) / ranges} formula. Values {@code <= 0} (and
+     * {@code null}) fall back to the default formula, matching the existing 2-/3-arg overloads.
+     * <p>
+     * Mirrors the analogous knob on
+     * {@code org.apache.cassandra.spark.bulkwriter.TokenPartitioner} in cassandra-analytics-core
+     * (referenced as text to avoid a reverse module dependency).
+     * Motivation: the S3 batch-read path reconstructs the ring from an autosnap manifest rather
+     * than a live cluster, so the auto formula can pick parallelism that's a poor fit for the
+     * SSTable count / per-node size. Plumbed through {@code S3DataSourceClientConfig.number_splits}.
+     */
+    public TokenPartitioner(CassandraRing ring,
+                            Integer userSpecifiedNumberSplits,
+                            int defaultParallelism,
+                            int numCores)
+    {
+        this(ring, userSpecifiedNumberSplits, defaultParallelism, numCores, false);
+    }
+
+    public TokenPartitioner(CassandraRing ring,
+                            Integer userSpecifiedNumberSplits,
+                            int defaultParallelism,
+                            int numCores,
+                            boolean shuffle)
+    {
+        LOGGER.info("Creating TokenPartitioner userSpecifiedNumberSplits={} defaultParallelism={} numCores={}",
+                    userSpecifiedNumberSplits, defaultParallelism, numCores);
         this.partitionMap = TreeRangeMap.create();
         this.reversePartitionMap = new HashMap<>();
         this.ring = ring;
 
-        int numSplits = TokenPartitioner.calculateSplits(ring, defaultParallelism, numCores);
+        int numSplits = TokenPartitioner.calculateSplits(ring, userSpecifiedNumberSplits, defaultParallelism, numCores);
         this.subRanges = ring.rangeMap().asMapOfRanges().keySet().stream()
                              .flatMap(tr -> RangeUtils.split(tr, numSplits).stream()).collect(Collectors.toList());
 
@@ -132,6 +163,26 @@ public class TokenPartitioner implements Serializable
         int calculatedSplits = TokenPartitioner.divCeil(tasksToRun, ranges);
         LOGGER.info("Calculated number of splits as {}", calculatedSplits);
         return calculatedSplits;
+    }
+
+    /**
+     * Override-aware variant. Uses {@code userSpecifiedNumberSplits} when {@code > 0}, otherwise
+     * falls through to the default formula. {@code 0} and negative values mean "auto" — matching
+     * the {@code S3DataSourceClientConfig#DEFAULT_NUM_SPLITS} sentinel (defined in
+     * cassandra-analytics-core to avoid a reverse module dependency) and avoiding the degenerate
+     * "zero splits per range" case that an unguarded {@code >= 0} check would allow.
+     */
+    private static int calculateSplits(CassandraRing ring,
+                                       Integer userSpecifiedNumberSplits,
+                                       int defaultParallelism,
+                                       Integer cores)
+    {
+        if (userSpecifiedNumberSplits != null && userSpecifiedNumberSplits > 0)
+        {
+            LOGGER.info("Using user-specified number of splits: {}", userSpecifiedNumberSplits);
+            return userSpecifiedNumberSplits;
+        }
+        return calculateSplits(ring, defaultParallelism, cores);
     }
 
     public CassandraRing ring()

@@ -17,12 +17,19 @@
  * under the License.
  */
 
-ext {
-    jacksonVersion="2.14.2"
-    jacksonScalaModuleVersion="2.14.2"
-    scalaMajorVersion="2.12"
-    scalaVersion="2.12.10"
-    sparkGroupId="org.apache.spark"
-    sparkMajorVersion="3"
-    sparkVersion="3.5.2"
+package org.apache.cassandra.spark.data.backup;
+
+import java.io.Serializable;
+
+/**
+ * {@link Serializable} factory used to construct {@link BackupReader} instances. Extending
+ * {@code Serializable} is load-bearing: the prebuild path captures a factory into a Spark
+ * closure and Spark's closure serializer (Java-only) ships it to executors, where it runs to
+ * produce a freshly-constructed reader. Implementations must not capture non-serializable state.
+ */
+@FunctionalInterface
+public interface BackupReaderFactory extends Serializable
+{
+    /** Creates a {@link BackupReader} from the given configuration. */
+    BackupReader create(BackupReaderConfig config);
 }

@@ -23,6 +23,7 @@ plugins {
     id('java-library')
     id('jacoco')
     id('maven-publish')
+    id('com.github.johnrengelman.shadow')
 }
 
 if (propertyWithDefault("artifactType", null) == "spark") {
@@ -38,6 +39,39 @@ java {
     // Allows publishing the test jar
     registerFeature("test") {
         usingSourceSet(sourceSets.test)
+    }
+}
+
+// Add shadow publication alongside the default maven publication inherited from common/publishing.gradle.
+// Only register when the spark publishing is active; otherwise rootProject.group is unresolved for non-spark
+// artifactType invocations of this module.
+if (propertyWithDefault("artifactType", null) == "spark")
+{
+    publishing {
+        publications {
+            shadow(MavenPublication) {
+                // Use the shadowJar task artifact directly instead of components.shadow
+                artifact shadowJar
+                groupId rootProject.group
+                artifactId "${archivesBaseName}-shadow"
+                version System.getenv("CODE_VERSION") ?: "${project.version}"
+
+                if (mavenRepositoryUrl != "") {
+                    pom {
+                        name = 'Apache Cassandra Analytics Core (Shadow)'
+                        description = 'Apache Cassandra Analytics Core module with all dependencies (Shadow JAR)'
+                        url = "https://cassandra.apache.org/"
+                        licenses {
+                            license {
+                                name = "The Apache License, Version 2.0"
+                                url = "https://www.apache.org/licenses/LICENSE-2.0.txt"
+                                distribution = "repo"
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -96,8 +130,14 @@ dependencies {
         implementation(group: 'org.scala-lang.modules', name: "scala-java8-compat_2.11", version: '1.0.1', transitive: false)
     }
 
+    // Spark 3.5 no longer brings both commons-lang variants transitively. Core classes use both
+    // package names, so keep the dependencies explicit.
+    implementation "org.apache.commons:commons-lang3:${project.commonsLang3Version}"
+    implementation "commons-lang:commons-lang:2.6"
+
     // aws sdk BOM + s3
     implementation 'software.amazon.awssdk:s3'
+    implementation 'software.amazon.awssdk:s3-transfer-manager'
     implementation 'software.amazon.awssdk:netty-nio-client'
     implementation platform(group: 'software.amazon.awssdk', name:'bom', version:"${project.aswSdkVersion}")
 
