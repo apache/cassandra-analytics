@@ -107,9 +107,6 @@ exit 0
     git clean -fd
     CASSANDRA_VERSION=$(cat build.xml | grep 'property name="base.version"' | awk -F "\"" '{print $4}')
     # Loop to prevent failure due to maven-ant-tasks not downloading a jar.
-    # Sleep between retries to allow Maven Central rate limit window to reset.
-    # Successfully downloaded artifacts remain cached in ~/.m2/repository,
-    # so subsequent attempts only need to fetch the ones that failed.
     for x in $(seq 1 3); do
         if [ -f "${DTEST_JAR_DIR}/dtest-${CASSANDRA_VERSION}.jar" ]; then
             RETURN="0"
@@ -120,8 +117,6 @@ exit 0
             if [ "${RETURN}" -eq "0" ]; then
                 break
             fi
-            echo "Attempt ${x} failed; sleeping 600s before retry to reset Maven Central rate limit..."
-            sleep 600
         fi
     done
     # Exit, if we didn't build successfully
