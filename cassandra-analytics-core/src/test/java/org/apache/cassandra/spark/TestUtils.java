@@ -80,6 +80,7 @@ public final class TestUtils extends CommonTestUtils
                                // Spark is not case-sensitive by default, but we want to make it case-sensitive for
                                // the quoted identifiers tests where we test mixed case
                                .config("spark.sql.caseSensitive", "True")
+                               .config("spark.ui.enabled", "false")
                                .getOrCreate();
         }
     }
