@@ -194,6 +194,7 @@ public class SparkTestUtils
                               // Spark is not case-sensitive by default, but we want to make it case-sensitive for
                               // the quoted identifiers tests where we test mixed case
                               .set("spark.sql.caseSensitive", "True")
+                              .set("spark.ui.enabled", "false")
                               .set("spark.driver.bindAddress", "127.0.0.1")
                               .set("spark.master", "local[8,4]")
                               .set("spark.cassandra_analytics.cassandra.version", "5.0.0")
