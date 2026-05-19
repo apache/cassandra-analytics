@@ -59,9 +59,9 @@ import org.jetbrains.annotations.NotNull;
  *
  * <p>Broadcastable wrappers used in BulkWriterConfig:
  * <ul>
- *   <li>{@link IBroadcastableClusterInfo} → reconstructs to {@link CassandraClusterInfo} or {@link CassandraClusterInfoGroup}</li>
- *   <li>{@link BroadcastableJobInfo} → reconstructs to {@link CassandraJobInfo}</li>
- *   <li>{@link BroadcastableSchemaInfo} → reconstructs to {@link CassandraSchemaInfo}</li>
+ *   <li>{@link IBroadcastableClusterInfo} -&gt; reconstructs to {@link CassandraClusterInfo} or {@link CassandraClusterInfoGroup}</li>
+ *   <li>{@link BroadcastableJobInfo} -&gt; reconstructs to {@link CassandraJobInfo}</li>
+ *   <li>{@link BroadcastableSchemaInfo} -&gt; reconstructs to {@link CassandraSchemaInfo}</li>
  * </ul>
  *
  * <p>Implements KryoSerializable with fail-fast approach to detect missing Kryo registration.

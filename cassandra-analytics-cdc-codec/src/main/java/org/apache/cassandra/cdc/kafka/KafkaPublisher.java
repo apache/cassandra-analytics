@@ -55,7 +55,7 @@ import org.apache.kafka.common.serialization.ByteArraySerializer;
  *
  * <p>The type parameter {@code V} is the value type accepted by the Kafka producer:
  * {@code V = GenericData.Record} for schema-registry paths (the Avro-aware serializer handles encoding),
- * or {@code V = byte[]} for the no-registry path — see {@link ByteArrayKafkaPublisher}.
+ * or {@code V = byte[]} for the no-registry path -- see {@link ByteArrayKafkaPublisher}.
  *
  * @param <V> the Kafka producer value type
  */
