@@ -46,6 +46,7 @@ import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
 import org.apache.cassandra.spark.transports.storage.StorageAccessConfiguration;
 import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
@@ -293,6 +294,36 @@ public class KryoSerializationTests
                 assertThat(deserialized).isEqualTo(ring);
                 assertThat(deserialized.partitioner()).isEqualTo(partitioner);
             });
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCassandraRingWithAuthoritativeReplicas(CassandraBridge bridge)
+    {
+        java.util.List<CassandraInstance> instances = java.util.Arrays.asList(
+            new CassandraInstance("0",   "dc1-a", "DC1"),
+            new CassandraInstance("100", "dc1-b", "DC1"),
+            new CassandraInstance("200", "dc1-c", "DC1"),
+            new CassandraInstance("1",   "dc2-a", "DC2"),
+            new CassandraInstance("101", "dc2-b", "DC2"),
+            new CassandraInstance("201", "dc2-c", "DC2"));
+        ReplicationFactor rf = new ReplicationFactor(ImmutableMap.of(
+            "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+            "DC1", "3", "DC2", "3"));
+        java.math.BigInteger minToken = Partitioner.Murmur3Partitioner.minToken();
+        java.math.BigInteger maxToken = Partitioner.Murmur3Partitioner.maxToken();
+        com.google.common.collect.RangeMap<java.math.BigInteger, java.util.List<CassandraInstance>> auth =
+            com.google.common.collect.TreeRangeMap.create();
+        auth.put(com.google.common.collect.Range.openClosed(minToken, java.math.BigInteger.ZERO),
+                 java.util.Arrays.asList(instances.get(0), instances.get(3)));
+        auth.put(com.google.common.collect.Range.openClosed(java.math.BigInteger.ZERO, maxToken),
+                 java.util.Arrays.asList(instances.get(1), instances.get(2),
+                                         instances.get(4), instances.get(5)));
+        CassandraRing ring = new CassandraRing(Partitioner.Murmur3Partitioner, "ks", rf, instances, auth);
+        Output out = serialize(bridge.getVersion(), ring);
+        CassandraRing deserialized = deserialize(bridge.getVersion(), out, CassandraRing.class);
+        assertThat(deserialized).isEqualTo(ring);
+        assertThat(deserialized.rangeMap().asMapOfRanges()).isEqualTo(auth.asMapOfRanges());
     }
 
     @ParameterizedTest

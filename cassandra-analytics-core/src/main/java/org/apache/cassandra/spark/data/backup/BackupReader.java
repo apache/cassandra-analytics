@@ -20,18 +20,23 @@
 package org.apache.cassandra.spark.data.backup;
 
 import java.io.Serializable;
+import java.math.BigInteger;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.LongConsumer;
 
+import com.google.common.collect.RangeMap;
 import org.jetbrains.annotations.NotNull;
 
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.data.FileType;
+import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.S3ClientConfig;
 import org.apache.cassandra.spark.data.SSTableKey;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
 
 /**
@@ -253,6 +258,43 @@ public interface BackupReader extends Serializable, AutoCloseable
      * @return the S3 bucket name
      */
     String bucket();
+
+    /**
+     * Returns an authoritative per-range replica mapping for the given dataset slice, or
+     * {@link Optional#empty()} if this reader has no rack-aware source to draw from. The
+     * returned {@link RangeMap} is keyed by {@code (start, end]} sub-ranges that tile the
+     * full token ring and is consumed by the 5-arg
+     * {@link org.apache.cassandra.spark.data.partitioner.CassandraRing} constructor; each
+     * {@link CassandraInstance} in a replica list MUST be element-equal to one in
+     * {@code instances} (same {@code nodeName} / {@code dataCenter} / {@code token}).
+     * <p>
+     * Returning {@link Optional#empty()} is a benign signal — callers must fall back to the
+     * rack-unaware naive derivation that the 4-arg {@code CassandraRing} constructor
+     * performs (see CASSANALYTICS-79). Implementations should reserve exceptions for
+     * actually-broken state (parse error, range gap/overlap, unknown replica id, missing
+     * coverage) where silently degrading to naive would mask data integrity issues.
+     *
+     * @param clusterName logical cluster identity (UUID or human-readable name)
+     * @param keyspace    Cassandra keyspace
+     * @param table       Cassandra table
+     * @param datacenter  datacenter to read from
+     * @param partitioner partitioner whose {@code (minToken, maxToken]} bounds the ring
+     * @param rf          per-DC replication factor configuration
+     * @param instances   Cassandra instances contributing to this slice (same set the
+     *                    caller passes to {@code CassandraRing})
+     * @return authoritative per-range replicas, or {@link Optional#empty()} for fallback
+     */
+    default Optional<RangeMap<BigInteger, List<CassandraInstance>>> buildRackAwareReplicas(
+        String clusterName,
+        String keyspace,
+        String table,
+        String datacenter,
+        Partitioner partitioner,
+        ReplicationFactor rf,
+        List<CassandraInstance> instances)
+    {
+        return Optional.empty();
+    }
 
     /** Closes any reader-local resources. Should be a no-op for resources owned by shared pools. */
     @Override

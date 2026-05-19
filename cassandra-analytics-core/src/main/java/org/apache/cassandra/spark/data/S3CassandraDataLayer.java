@@ -502,10 +502,29 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
 
         // list Cassandra instances in S3 bucket
         final List<CassandraInstance> instances = s3BackupReader.instances(clusterName, config.keyspace(), config.table(), config.datacenter());
-        // build CassandraRing and TokenPartitioner
+        // build CassandraRing and TokenPartitioner. Prefer rack-aware authoritative replica
+        // placement from the BackupReader; fall back to the naive (rack-unaware) ring when
+        // none is available. Exceptions from the reader signal a genuine integrity issue and
+        // must surface — see BackupReader#buildRackAwareReplicas for the contract.
         final Partitioner partitioner = Partitioner.Murmur3Partitioner;
         final ReplicationFactor rf = config.getParsedReplicationFactor();
-        this.ring = new CassandraRing(Partitioner.Murmur3Partitioner, config.keyspace(), rf, instances);
+        java.util.Optional<com.google.common.collect.RangeMap<java.math.BigInteger, List<CassandraInstance>>> authoritative =
+            s3BackupReader.buildRackAwareReplicas(clusterName, config.keyspace(), config.table(),
+                                                  config.datacenter(), partitioner, rf, instances);
+        if (authoritative.isPresent())
+        {
+            LOGGER.info("S3CassandraDataLayer: using rack-aware authoritative ring for cluster={}, keyspace={}, table={}, dc={}",
+                        clusterName, config.keyspace(), config.table(), config.datacenter());
+            this.ring = new CassandraRing(partitioner, config.keyspace(), rf, instances, authoritative.get());
+        }
+        else
+        {
+            LOGGER.warn("S3CassandraDataLayer: rack-aware replicas unavailable for cluster={}, keyspace={}, table={}, dc={}; "
+                        + "falling back to naive (rack-unaware) ring derivation. Cross-DC replicas and local racks "
+                        + "will not be honored.",
+                        clusterName, config.keyspace(), config.table(), config.datacenter());
+            this.ring = new CassandraRing(partitioner, config.keyspace(), rf, instances);
+        }
 
         // Calculate effective number of cores using dynamic sizing. config.numberSplits() honors the
         // optional `number_splits` DataSource option; -1 (DEFAULT_NUM_SPLITS) falls back to the
