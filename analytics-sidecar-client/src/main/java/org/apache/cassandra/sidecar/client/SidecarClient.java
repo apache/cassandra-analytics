@@ -392,7 +392,7 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
      * @param snapshotTTL  an optional time to live option for the snapshot (available since Cassandra 4.1+).
      *                     The TTL option must specify the units, for example 2d represents a TTL for 2 days;
      *                     1h represents a TTL of 1 hour, etc. Valid units are {@code d}, {@code h}, {@code s},
-     *                     {@code ms}, {@code us}, {@code µs}, {@code ns}, and {@code m}.
+     *                     {@code ms}, {@code us}, {@code &#181;s}, {@code ns}, and {@code m}.
      * @return a completable future for the request
      */
     public CompletableFuture<Void> createSnapshot(SidecarInstance instance,
