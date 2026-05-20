@@ -26,10 +26,7 @@ import java.io.ObjectOutputStream;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Locks in the Java-serialization contract that backs executor-side {@link BackupReader}
@@ -45,12 +42,14 @@ class BackupReaderFactorySerializationTest
 
         BackupReaderFactory roundTripped = roundTrip(factory);
 
-        assertNotNull(roundTripped, "deserialized factory must not be null");
+        assertThat(roundTripped).as("deserialized factory must not be null").isNotNull();
         BackupReader created = roundTripped.create(BackupReaderConfig.of(/* s3Config */ null));
-        assertTrue(created instanceof FakeBackupReader,
-                   "deserialized factory must continue producing the expected reader type");
-        assertEquals("ser-test-bucket", created.bucket(),
-                     "captured state inside the lambda must survive serialization");
+        assertThat(created)
+                .as("deserialized factory must continue producing the expected reader type")
+                .isInstanceOf(FakeBackupReader.class);
+        assertThat(created.bucket())
+                .as("captured state inside the lambda must survive serialization")
+                .isEqualTo("ser-test-bucket");
     }
 
     @Test
@@ -63,7 +62,7 @@ class BackupReaderFactorySerializationTest
         BackupReaderFactory roundTripped = roundTrip(factory);
 
         BackupReader created = roundTripped.create(BackupReaderConfig.of(null));
-        assertSame(FakeBackupReader.class, created.getClass());
+        assertThat(created.getClass()).isSameAs(FakeBackupReader.class);
     }
 
     private static FakeBackupReader createFake(BackupReaderConfig config)

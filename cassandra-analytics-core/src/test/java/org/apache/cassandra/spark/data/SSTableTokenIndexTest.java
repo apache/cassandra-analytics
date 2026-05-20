@@ -44,10 +44,8 @@ import org.apache.cassandra.spark.data.backup.FakeBackupReader;
 
 import software.amazon.awssdk.core.exception.SdkException;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SSTableTokenIndexTest
 {
@@ -56,7 +54,7 @@ class SSTableTokenIndexTest
     {
         SSTableTokenIndex index = SSTableTokenIndex.fromShards(Collections.emptyList());
 
-        assertTrue(index.include(key("node1", "1"), range(0L, 100L)));
+        assertThat(index.include(key("node1", "1"), range(0L, 100L))).isTrue();
     }
 
     @Test
@@ -65,8 +63,8 @@ class SSTableTokenIndexTest
         SSTableKey key = key("node1", "1");
         SSTableTokenIndex index = indexFor(key, new SSTableTokenBounds(100L, 200L));
 
-        assertTrue(index.include(key, range(50L, 100L)));
-        assertFalse(index.include(key, range(201L, 300L)));
+        assertThat(index.include(key, range(50L, 100L))).isTrue();
+        assertThat(index.include(key, range(201L, 300L))).isFalse();
     }
 
     @Test
@@ -78,13 +76,13 @@ class SSTableTokenIndexTest
         SSTableKey key = key("node1", "1");
         SSTableTokenIndex index = indexFor(key, new SSTableTokenBounds(200L, 100L));
 
-        assertTrue(index.include(key, range(0L, 50L)));
-        assertTrue(index.include(key, range(300L, 400L)));
-        assertTrue(index.include(key, range(50L, 250L)));
-        assertTrue(index.include(key, range(100L, 100L)));
-        assertTrue(index.include(key, range(200L, 200L)));
-        assertFalse(index.include(key, range(150L, 160L)));
-        assertFalse(index.include(key, range(101L, 199L)));
+        assertThat(index.include(key, range(0L, 50L))).isTrue();
+        assertThat(index.include(key, range(300L, 400L))).isTrue();
+        assertThat(index.include(key, range(50L, 250L))).isTrue();
+        assertThat(index.include(key, range(100L, 100L))).isTrue();
+        assertThat(index.include(key, range(200L, 200L))).isTrue();
+        assertThat(index.include(key, range(150L, 160L))).isFalse();
+        assertThat(index.include(key, range(101L, 199L))).isFalse();
     }
 
     @Test
@@ -95,14 +93,14 @@ class SSTableTokenIndexTest
         SSTableTokenIndex pointIndex = indexFor(key, new SSTableTokenBounds(100L, 100L));
         SSTableTokenIndex rangeIndex = indexFor(key, new SSTableTokenBounds(100L, 200L));
 
-        assertTrue(pointIndex.include(key, range(50L, 100L)));
-        assertTrue(pointIndex.include(key, range(100L, 100L)));
-        assertFalse(pointIndex.include(key, range(101L, 200L)));
+        assertThat(pointIndex.include(key, range(50L, 100L))).isTrue();
+        assertThat(pointIndex.include(key, range(100L, 100L))).isTrue();
+        assertThat(pointIndex.include(key, range(101L, 200L))).isFalse();
 
-        assertTrue(rangeIndex.include(key, range(100L, 100L)));
-        assertTrue(rangeIndex.include(key, range(200L, 200L)));
-        assertFalse(rangeIndex.include(key, range(99L, 99L)));
-        assertFalse(rangeIndex.include(key, range(201L, 201L)));
+        assertThat(rangeIndex.include(key, range(100L, 100L))).isTrue();
+        assertThat(rangeIndex.include(key, range(200L, 200L))).isTrue();
+        assertThat(rangeIndex.include(key, range(99L, 99L))).isFalse();
+        assertThat(rangeIndex.include(key, range(201L, 201L))).isFalse();
     }
 
     @Test
@@ -115,13 +113,13 @@ class SSTableTokenIndexTest
         SSTableTokenIndex fullRing = indexFor(key, new SSTableTokenBounds(Long.MIN_VALUE, Long.MAX_VALUE));
         SSTableTokenIndex inverted = indexFor(key, new SSTableTokenBounds(Long.MAX_VALUE, Long.MIN_VALUE));
 
-        assertTrue(fullRing.include(key, range(0L, 0L)));
-        assertTrue(fullRing.include(key, range(Long.MIN_VALUE, Long.MIN_VALUE)));
-        assertTrue(fullRing.include(key, range(Long.MAX_VALUE, Long.MAX_VALUE)));
-        assertTrue(inverted.include(key, range(Long.MIN_VALUE, Long.MIN_VALUE)));
-        assertTrue(inverted.include(key, range(Long.MAX_VALUE, Long.MAX_VALUE)));
-        assertFalse(inverted.include(key, range(0L, 0L)));
-        assertFalse(inverted.include(key, range(-1_000L, 1_000L)));
+        assertThat(fullRing.include(key, range(0L, 0L))).isTrue();
+        assertThat(fullRing.include(key, range(Long.MIN_VALUE, Long.MIN_VALUE))).isTrue();
+        assertThat(fullRing.include(key, range(Long.MAX_VALUE, Long.MAX_VALUE))).isTrue();
+        assertThat(inverted.include(key, range(Long.MIN_VALUE, Long.MIN_VALUE))).isTrue();
+        assertThat(inverted.include(key, range(Long.MAX_VALUE, Long.MAX_VALUE))).isTrue();
+        assertThat(inverted.include(key, range(0L, 0L))).isFalse();
+        assertThat(inverted.include(key, range(-1_000L, 1_000L))).isFalse();
     }
 
     @Test
@@ -132,8 +130,8 @@ class SSTableTokenIndexTest
 
         SSTableTokenIndex roundTripped = roundTrip(index);
 
-        assertFalse(roundTripped.include(key("node1", "1"), range(201L, 300L)));
-        assertTrue(roundTripped.include(key("node1", "2"), range(201L, 300L)));
+        assertThat(roundTripped.include(key("node1", "1"), range(201L, 300L))).isFalse();
+        assertThat(roundTripped.include(key("node1", "2"), range(201L, 300L))).isTrue();
     }
 
     @Test
@@ -149,12 +147,12 @@ class SSTableTokenIndexTest
         SSTableTokenIndex index = SSTableTokenIndex.fromShards(Arrays.asList(new TokenIndexShard(shard1Bounds, 2, 3),
                                                                              new TokenIndexShard(shard2Bounds, 5, 7)));
 
-        assertEquals(2, index.size());
-        assertEquals(2, index.successCount());
-        assertEquals(7, index.missingCount());
-        assertEquals(10, index.errorCount());
-        assertFalse(index.include(key1, range(101L, 199L)));
-        assertTrue(index.include(key2, range(250L, 260L)));
+        assertThat(index.size()).isEqualTo(2);
+        assertThat(index.successCount()).isEqualTo(2);
+        assertThat(index.missingCount()).isEqualTo(7);
+        assertThat(index.errorCount()).isEqualTo(10);
+        assertThat(index.include(key1, range(101L, 199L))).isFalse();
+        assertThat(index.include(key2, range(250L, 260L))).isTrue();
     }
 
     @Test
@@ -166,20 +164,21 @@ class SSTableTokenIndexTest
         SSTableSummaryWorkItem workItem = new SSTableSummaryWorkItem(key, "0", componentSizes);
         componentSizes.put(FileType.SUMMARY, 20L);
 
-        assertFalse(workItem.componentSizes().containsKey(FileType.SUMMARY));
-        assertThrows(UnsupportedOperationException.class,
-                     () -> workItem.componentSizes().put(FileType.SUMMARY, 20L));
-        assertEquals(workItem.indexKey(), roundTrip(workItem).indexKey());
+        assertThat(workItem.componentSizes()).doesNotContainKey(FileType.SUMMARY);
+        assertThatThrownBy(() -> workItem.componentSizes().put(FileType.SUMMARY, 20L))
+                .isInstanceOf(UnsupportedOperationException.class);
+        assertThat(roundTrip(workItem).indexKey()).isEqualTo(workItem.indexKey());
 
         Map<SSTableIndexKey, SSTableTokenBounds> shardBounds = new HashMap<>();
         shardBounds.put(SSTableIndexKey.from(key), new SSTableTokenBounds(0L, 10L));
         TokenIndexShard shard = new TokenIndexShard(shardBounds, 1, 2);
         shardBounds.clear();
 
-        assertEquals(1, shard.successCount());
-        assertEquals(1, shard.boundsBySSTable().size());
-        assertThrows(UnsupportedOperationException.class, () -> shard.boundsBySSTable().clear());
-        assertEquals(1, roundTrip(shard).boundsBySSTable().size());
+        assertThat(shard.successCount()).isEqualTo(1);
+        assertThat(shard.boundsBySSTable()).hasSize(1);
+        assertThatThrownBy(() -> shard.boundsBySSTable().clear())
+                .isInstanceOf(UnsupportedOperationException.class);
+        assertThat(roundTrip(shard).boundsBySSTable()).hasSize(1);
     }
 
     @Test
@@ -201,10 +200,10 @@ class SSTableTokenIndexTest
                                                                     0);
         SSTableTokenIndex index = SSTableTokenIndex.fromShards(Collections.singletonList(shard));
 
-        assertEquals(0, shard.successCount());
-        assertEquals(1, shard.missingCount());
-        assertEquals(0, shard.errorCount());
-        assertTrue(index.include(key, range(1_000L, 2_000L)));
+        assertThat(shard.successCount()).isZero();
+        assertThat(shard.missingCount()).isEqualTo(1);
+        assertThat(shard.errorCount()).isZero();
+        assertThat(index.include(key, range(1_000L, 2_000L))).isTrue();
     }
 
     @Test
@@ -220,8 +219,8 @@ class SSTableTokenIndexTest
             return "ok";
         }, 3, 0L, 0L);
 
-        assertEquals("ok", result);
-        assertEquals(3, attempts.get());
+        assertThat(result).isEqualTo("ok");
+        assertThat(attempts.get()).isEqualTo(3);
     }
 
     @Test
@@ -238,8 +237,8 @@ class SSTableTokenIndexTest
             return "ok";
         }, 3, 0L, 0L);
 
-        assertEquals("ok", result);
-        assertEquals(3, attempts.get());
+        assertThat(result).isEqualTo("ok");
+        assertThat(attempts.get()).isEqualTo(3);
     }
 
     @Test
@@ -247,13 +246,12 @@ class SSTableTokenIndexTest
     {
         AtomicInteger attempts = new AtomicInteger();
 
-        assertThrows(IOException.class,
-                     () -> SSTableTokenIndexBuilder.executeWithRetry(() -> {
-                         attempts.incrementAndGet();
-                         throw new IOException("deterministic Summary.db read failure");
-                     }, 3, 0L, 0L));
+        assertThatThrownBy(() -> SSTableTokenIndexBuilder.executeWithRetry(() -> {
+            attempts.incrementAndGet();
+            throw new IOException("deterministic Summary.db read failure");
+        }, 3, 0L, 0L)).isInstanceOf(IOException.class);
 
-        assertEquals(1, attempts.get());
+        assertThat(attempts.get()).isEqualTo(1);
     }
 
     @Test
@@ -261,13 +259,12 @@ class SSTableTokenIndexTest
     {
         AtomicInteger attempts = new AtomicInteger();
 
-        assertThrows(IllegalArgumentException.class,
-                     () -> SSTableTokenIndexBuilder.executeWithRetry(() -> {
-                         attempts.incrementAndGet();
-                         throw new IllegalArgumentException("bad summary metadata");
-                     }, 3, 0L, 0L));
+        assertThatThrownBy(() -> SSTableTokenIndexBuilder.executeWithRetry(() -> {
+            attempts.incrementAndGet();
+            throw new IllegalArgumentException("bad summary metadata");
+        }, 3, 0L, 0L)).isInstanceOf(IllegalArgumentException.class);
 
-        assertEquals(1, attempts.get());
+        assertThat(attempts.get()).isEqualTo(1);
     }
 
     @Test
@@ -277,13 +274,12 @@ class SSTableTokenIndexTest
         // it must not consume the retry budget.
         AtomicInteger attempts = new AtomicInteger();
 
-        assertThrows(EOFException.class,
-                     () -> SSTableTokenIndexBuilder.executeWithRetry(() -> {
-                         attempts.incrementAndGet();
-                         throw new EOFException("truncated Summary.db");
-                     }, 3, 0L, 0L));
+        assertThatThrownBy(() -> SSTableTokenIndexBuilder.executeWithRetry(() -> {
+            attempts.incrementAndGet();
+            throw new EOFException("truncated Summary.db");
+        }, 3, 0L, 0L)).isInstanceOf(EOFException.class);
 
-        assertEquals(1, attempts.get());
+        assertThat(attempts.get()).isEqualTo(1);
     }
 
     @Test
@@ -293,13 +289,12 @@ class SSTableTokenIndexTest
         // detect the deterministic EOF and skip retries.
         AtomicInteger attempts = new AtomicInteger();
 
-        assertThrows(IOException.class,
-                     () -> SSTableTokenIndexBuilder.executeWithRetry(() -> {
-                         attempts.incrementAndGet();
-                         throw new IOException("failed to read Summary.db", new EOFException("eof"));
-                     }, 3, 0L, 0L));
+        assertThatThrownBy(() -> SSTableTokenIndexBuilder.executeWithRetry(() -> {
+            attempts.incrementAndGet();
+            throw new IOException("failed to read Summary.db", new EOFException("eof"));
+        }, 3, 0L, 0L)).isInstanceOf(IOException.class);
 
-        assertEquals(1, attempts.get());
+        assertThat(attempts.get()).isEqualTo(1);
     }
 
     private static final class RetryableSdkException extends SdkException

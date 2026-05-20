@@ -31,10 +31,8 @@ import org.apache.cassandra.spark.data.backup.BackupReaderRegistry;
 import org.apache.cassandra.spark.data.backup.FakeBackupReader;
 import org.apache.cassandra.spark.utils.Properties;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit tests for the new DataSource options on {@link S3DataSourceClientConfig}:
@@ -95,21 +93,23 @@ class S3DataSourceClientConfigBufferTest
     {
         S3DataSourceClientConfig config = S3DataSourceClientConfig.create(minimalOptions());
 
-        assertEquals(Properties.DEFAULT_S3_DATA_CHUNK_BUFFER_SIZE, config.s3DataChunkBufferSize());
-        assertEquals(Properties.DEFAULT_S3_DATA_MAX_BUFFER_SIZE,   config.s3DataMaxBufferSize());
-        assertTrue(config.s3DataMaxBufferSize() >= config.s3DataChunkBufferSize(),
-                   "max buffer must be >= chunk buffer so BufferingInputStream can enqueue a full chunk");
+        assertThat(config.s3DataChunkBufferSize()).isEqualTo(Properties.DEFAULT_S3_DATA_CHUNK_BUFFER_SIZE);
+        assertThat(config.s3DataMaxBufferSize()).isEqualTo(Properties.DEFAULT_S3_DATA_MAX_BUFFER_SIZE);
+        assertThat(config.s3DataMaxBufferSize())
+                .as("max buffer must be >= chunk buffer so BufferingInputStream can enqueue a full chunk")
+                .isGreaterThanOrEqualTo(config.s3DataChunkBufferSize());
 
         // Data.db publisher-read path defaults to enabled.
-        assertTrue(config.sstableDataPublisherReadEnabled(),
-                   "sstableDataPublisherReadEnabled must default true to use the streaming path");
+        assertThat(config.sstableDataPublisherReadEnabled())
+                .as("sstableDataPublisherReadEnabled must default true to use the streaming path")
+                .isTrue();
 
         // Cache defaults — aligned with SSTableCache bump.
-        assertEquals(32768, config.sstableCacheSummaryMaxEntries());
-        assertEquals(16384, config.sstableCacheIndexMaxEntries());
-        assertEquals(16384, config.sstableCacheStatsMaxEntries());
-        assertEquals(16384, config.sstableCacheFilterMaxEntries());
-        assertEquals(16384, config.sstableCacheCompressionInfoMaxEntries());
+        assertThat(config.sstableCacheSummaryMaxEntries()).isEqualTo(32768);
+        assertThat(config.sstableCacheIndexMaxEntries()).isEqualTo(16384);
+        assertThat(config.sstableCacheStatsMaxEntries()).isEqualTo(16384);
+        assertThat(config.sstableCacheFilterMaxEntries()).isEqualTo(16384);
+        assertThat(config.sstableCacheCompressionInfoMaxEntries()).isEqualTo(16384);
     }
 
     @Test
@@ -120,8 +120,9 @@ class S3DataSourceClientConfigBufferTest
 
         S3DataSourceClientConfig config = S3DataSourceClientConfig.create(options);
 
-        assertTrue(config.sstableDataPublisherReadEnabled(),
-                   "explicit true must enable the AsyncResponseTransformer.toPublisher() experiment path");
+        assertThat(config.sstableDataPublisherReadEnabled())
+                .as("explicit true must enable the AsyncResponseTransformer.toPublisher() experiment path")
+                .isTrue();
     }
 
     @Test
@@ -132,8 +133,9 @@ class S3DataSourceClientConfigBufferTest
 
         S3DataSourceClientConfig config = S3DataSourceClientConfig.create(options);
 
-        assertFalse(config.sstableDataPublisherReadEnabled(),
-                    "explicit false must keep the toBytes() baseline path for Data.db");
+        assertThat(config.sstableDataPublisherReadEnabled())
+                .as("explicit false must keep the toBytes() baseline path for Data.db")
+                .isFalse();
     }
 
     @Test
@@ -149,10 +151,10 @@ class S3DataSourceClientConfigBufferTest
 
         S3DataSourceClientConfig config = S3DataSourceClientConfig.create(options);
 
-        assertEquals(16L * 1024 * 1024, config.s3DataChunkBufferSize());
-        assertEquals(48L * 1024 * 1024, config.s3DataMaxBufferSize());
-        assertEquals(4096, config.sstableCacheSummaryMaxEntries());
-        assertEquals(2048, config.sstableCacheCompressionInfoMaxEntries());
+        assertThat(config.s3DataChunkBufferSize()).isEqualTo(16L * 1024 * 1024);
+        assertThat(config.s3DataMaxBufferSize()).isEqualTo(48L * 1024 * 1024);
+        assertThat(config.sstableCacheSummaryMaxEntries()).isEqualTo(4096);
+        assertThat(config.sstableCacheCompressionInfoMaxEntries()).isEqualTo(2048);
     }
 
     @Test
@@ -167,9 +169,10 @@ class S3DataSourceClientConfigBufferTest
 
         S3DataSourceClientConfig config = S3DataSourceClientConfig.create(options);
 
-        assertEquals(64L * 1024 * 1024, config.s3DataChunkBufferSize());
-        assertEquals(64L * 1024 * 1024, config.s3DataMaxBufferSize(),
-                     "maxBuffer must be clamped up to at least chunk size");
+        assertThat(config.s3DataChunkBufferSize()).isEqualTo(64L * 1024 * 1024);
+        assertThat(config.s3DataMaxBufferSize())
+                .as("maxBuffer must be clamped up to at least chunk size")
+                .isEqualTo(64L * 1024 * 1024);
     }
 
     @Test
@@ -183,7 +186,7 @@ class S3DataSourceClientConfigBufferTest
 
         S3DataSourceClientConfig config = S3DataSourceClientConfig.create(options);
 
-        assertEquals(1024L * 1024L, config.s3DataChunkBufferSize());
+        assertThat(config.s3DataChunkBufferSize()).isEqualTo(1024L * 1024L);
     }
 
     @Test
@@ -191,18 +194,19 @@ class S3DataSourceClientConfigBufferTest
     {
         for (String name : CACHE_SYSPROPS)
         {
-            assertTrue(System.getProperty(name) == null,
-                       "precondition: cache sysprop " + name + " should not be set prior to the test");
+            assertThat(System.getProperty(name))
+                    .as("precondition: cache sysprop %s should not be set prior to the test", name)
+                    .isNull();
         }
 
         S3DataSourceClientConfig config = S3DataSourceClientConfig.create(minimalOptions());
         config.applySSTableCacheSystemProperties();
 
-        assertEquals("32768", System.getProperty("sbr.cache.summary.maxEntries"));
-        assertEquals("16384", System.getProperty("sbr.cache.index.maxEntries"));
-        assertEquals("16384", System.getProperty("sbr.cache.stats.maxEntries"));
-        assertEquals("16384", System.getProperty("sbr.cache.filter.maxEntries"));
-        assertEquals("16384", System.getProperty("sbr.cache.compressionInfo.maxEntries"));
+        assertThat(System.getProperty("sbr.cache.summary.maxEntries")).isEqualTo("32768");
+        assertThat(System.getProperty("sbr.cache.index.maxEntries")).isEqualTo("16384");
+        assertThat(System.getProperty("sbr.cache.stats.maxEntries")).isEqualTo("16384");
+        assertThat(System.getProperty("sbr.cache.filter.maxEntries")).isEqualTo("16384");
+        assertThat(System.getProperty("sbr.cache.compressionInfo.maxEntries")).isEqualTo("16384");
     }
 
     @Test
@@ -215,13 +219,10 @@ class S3DataSourceClientConfigBufferTest
         Map<String, String> options = minimalOptions();
         options.put("sstablecacheindexmaxentries", "-1");
 
-        IllegalArgumentException ex = assertThrows(
-            IllegalArgumentException.class,
-            () -> S3DataSourceClientConfig.create(options));
-        assertTrue(ex.getMessage().contains("sstableCacheIndexMaxEntries"),
-                   "error message must include the offending option key, was: " + ex.getMessage());
-        assertTrue(ex.getMessage().contains("-1"),
-                   "error message must echo the offending value, was: " + ex.getMessage());
+        assertThatThrownBy(() -> S3DataSourceClientConfig.create(options))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("sstableCacheIndexMaxEntries")
+                .hasMessageContaining("-1");
     }
 
     @Test
@@ -233,7 +234,7 @@ class S3DataSourceClientConfigBufferTest
         options.put("sstablecachesummarymaxentries", "0");
 
         S3DataSourceClientConfig config = S3DataSourceClientConfig.create(options);
-        assertEquals(0, config.sstableCacheSummaryMaxEntries());
+        assertThat(config.sstableCacheSummaryMaxEntries()).isZero();
     }
 
     @Test
@@ -246,7 +247,8 @@ class S3DataSourceClientConfigBufferTest
         S3DataSourceClientConfig config = S3DataSourceClientConfig.create(minimalOptions());
         config.applySSTableCacheSystemProperties();
 
-        assertEquals("65536", System.getProperty("sbr.cache.summary.maxEntries"),
-                     "operator-set sysprops must win over config defaults");
+        assertThat(System.getProperty("sbr.cache.summary.maxEntries"))
+                .as("operator-set sysprops must win over config defaults")
+                .isEqualTo("65536");
     }
 }

@@ -28,9 +28,7 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Reflection-based guard tests pinning the structural fix for the {@code SSTableCache.INSTANCE}
@@ -80,15 +78,17 @@ public class S3SSTableLeakTests
         // S3SSTable is the cache key inside SSTableCache.INSTANCE. If it ever stops being static,
         // the synthetic this$0 field returns and the leak chain is back.
         Class<?> sstable = S3CassandraDataLayer.S3SSTable.class;
-        assertTrue(Modifier.isStatic(sstable.getModifiers()),
-                   "S3CassandraDataLayer.S3SSTable must be static so cached keys do not pin the layer");
+        assertThat(Modifier.isStatic(sstable.getModifiers()))
+                .as("S3CassandraDataLayer.S3SSTable must be static so cached keys do not pin the layer")
+                .isTrue();
         assertNoSyntheticOuterReference(sstable);
 
         // S3SSTableSource is held transitively via openInputStream() / newSourceForTesting(). It must
         // also be static, otherwise the streaming path re-introduces the same outer reference.
         Class<?> source = Class.forName(SOURCE_CLASS_NAME);
-        assertTrue(Modifier.isStatic(source.getModifiers()),
-                   "S3SSTableSource must be a static nested class (binary name " + SOURCE_CLASS_NAME + ")");
+        assertThat(Modifier.isStatic(source.getModifiers()))
+                .as("S3SSTableSource must be a static nested class (binary name %s)", SOURCE_CLASS_NAME)
+                .isTrue();
         assertNoSyntheticOuterReference(source);
     }
 
@@ -98,8 +98,9 @@ public class S3SSTableLeakTests
         // S3SSTableContext is the package-private bundle threaded into S3SSTable / S3SSTableSource.
         // Class.forName works because this test lives in the same package as S3CassandraDataLayer.
         Class<?> context = Class.forName(CONTEXT_CLASS_NAME);
-        assertTrue(Modifier.isStatic(context.getModifiers()),
-                   "S3SSTableContext must be static; an inner class would re-introduce the leak via this$0");
+        assertThat(Modifier.isStatic(context.getModifiers()))
+                .as("S3SSTableContext must be static; an inner class would re-introduce the leak via this$0")
+                .isTrue();
         assertNoSyntheticOuterReference(context);
 
         // Compare only declared instance fields. We tolerate compiler-synthetic fields by skipping
@@ -110,9 +111,10 @@ public class S3SSTableLeakTests
                                    .filter(f -> !Modifier.isStatic(f.getModifiers()))
                                    .map(Field::getName)
                                    .collect(Collectors.toSet());
-        assertEquals(EXPECTED_CONTEXT_FIELDS, actual,
-                     "S3SSTableContext field set drifted; update EXPECTED_CONTEXT_FIELDS and review whether the "
-                     + "added field carries a back-edge to S3CassandraDataLayer (it must not)");
+        assertThat(actual)
+                .as("S3SSTableContext field set drifted; update EXPECTED_CONTEXT_FIELDS and review whether the "
+                    + "added field carries a back-edge to S3CassandraDataLayer (it must not)")
+                .isEqualTo(EXPECTED_CONTEXT_FIELDS);
     }
 
     /**
@@ -124,9 +126,11 @@ public class S3SSTableLeakTests
     {
         for (Field field : clazz.getDeclaredFields())
         {
-            assertFalse(field.getName().startsWith("this$"),
-                        clazz.getName() + " unexpectedly declares synthetic outer-reference field " + field.getName()
-                        + "; this means the class became a non-static inner class and the SSTableCache leak chain is back");
+            assertThat(field.getName().startsWith("this$"))
+                    .as("%s unexpectedly declares synthetic outer-reference field %s; "
+                        + "this means the class became a non-static inner class and the SSTableCache leak chain is back",
+                        clazz.getName(), field.getName())
+                    .isFalse();
         }
     }
 }

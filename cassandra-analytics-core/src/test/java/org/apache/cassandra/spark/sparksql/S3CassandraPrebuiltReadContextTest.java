@@ -35,12 +35,8 @@ import org.apache.spark.sql.connector.read.PartitionReaderFactory;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -63,8 +59,8 @@ class S3CassandraPrebuiltReadContextTest
         S3CassandraDataSource dataSource = new S3CassandraDataSource();
         CaseInsensitiveStringMap options = optionsWithContext("context-1");
 
-        assertSame(dataLayer, dataSource.getDataLayer(options));
-        assertNull(dataSource.getSSTableTokenIndexBroadcast(options));
+        assertThat(dataSource.getDataLayer(options)).isSameAs(dataLayer);
+        assertThat(dataSource.getSSTableTokenIndexBroadcast(options)).isNull();
     }
 
     @Test
@@ -72,7 +68,8 @@ class S3CassandraPrebuiltReadContextTest
     {
         S3CassandraDataSource dataSource = new S3CassandraDataSource();
 
-        assertThrows(IllegalArgumentException.class, () -> dataSource.getDataLayer(optionsWithContext("missing")));
+        assertThatThrownBy(() -> dataSource.getDataLayer(optionsWithContext("missing")))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -84,7 +81,7 @@ class S3CassandraPrebuiltReadContextTest
 
         context.close();
 
-        assertNull(S3CassandraPrebuiltReadContextRegistry.get("context-1"));
+        assertThat(S3CassandraPrebuiltReadContextRegistry.get("context-1")).isNull();
         verify(dataLayer).close();
     }
 
@@ -95,7 +92,7 @@ class S3CassandraPrebuiltReadContextTest
 
         // Capabilities are inherited from CassandraTable (BATCH_READ + MICRO_BATCH_READ) since this port keeps
         // the upstream value-set; the prebuild path only relies on BATCH_READ.
-        assertTrue(table.capabilities().contains(TableCapability.BATCH_READ));
+        assertThat(table.capabilities()).contains(TableCapability.BATCH_READ);
     }
 
     @Test
@@ -104,7 +101,7 @@ class S3CassandraPrebuiltReadContextTest
         StructType schema = new StructType();
         CassandraScanBuilder scanBuilder = new CassandraScanBuilder(mock(DataLayer.class), schema, CaseInsensitiveStringMap.empty());
 
-        assertSame(schema, scanBuilder.build().readSchema());
+        assertThat(scanBuilder.build().readSchema()).isSameAs(schema);
     }
 
     @Test
@@ -133,7 +130,7 @@ class S3CassandraPrebuiltReadContextTest
 
         Table table = provider.getTable(new StructType(), new org.apache.spark.sql.connector.expressions.Transform[0], secondOptions);
 
-        assertEquals("ks.second", table.name());
+        assertThat(table.name()).isEqualTo("ks.second");
     }
 
     @Test
@@ -163,7 +160,7 @@ class S3CassandraPrebuiltReadContextTest
                                         new org.apache.spark.sql.connector.expressions.Transform[0],
                                         sameOptionsDifferentCase);
 
-        assertEquals("ks.first", table.name());
+        assertThat(table.name()).isEqualTo("ks.first");
     }
 
     @Test
@@ -182,7 +179,7 @@ class S3CassandraPrebuiltReadContextTest
 
         PartitionReaderFactory factory = scanBuilder.createReaderFactory();
 
-        assertNotNull(factory);
+        assertThat(factory).isNotNull();
     }
 
     private static CaseInsensitiveStringMap optionsWithContext(String contextId)
