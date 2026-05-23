@@ -49,9 +49,6 @@ commands:
         type: string
       jdk:
         type: string
-      use_jdk11:
-        type: string
-        default: "false"
       sstable_format:
         type: string
         default: "big"
@@ -69,7 +66,6 @@ commands:
             INTEGRATION_MAX_HEAP_SIZE: "3072m"
             CORE_MAX_PARALLEL_FORKS: 3
             CORE_TEST_MAX_HEAP_SIZE: "2048m"
-            CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
             CASSANDRA_VERSION: "<<parameters.cassandra>>"
           command: |
             export GRADLE_OPTS="-Xmx2g -Dorg.gradle.jvmargs=-Xmx2g"
@@ -84,9 +80,6 @@ commands:
         type: string
       jdk:
         type: string
-      use_jdk11:
-        type: string
-        default: "false"
       cassandra:
         type: string
     description: Build and integration test against Spark <<parameters.spark>> Scala <<parameters.scala>> <<parameters.jdk>>
@@ -98,7 +91,6 @@ commands:
             JDK_VERSION: "<<parameters.jdk>>"
             INTEGRATION_MAX_PARALLEL_FORKS: 1
             INTEGRATION_MAX_HEAP_SIZE: "3072M"
-            CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
           command: |
             export GRADLE_OPTS="-Xmx2g -Dorg.gradle.jvmargs=-Xmx2g"
             export DTEST_JAR="dtest-<< parameters.cassandra >>.jar"
@@ -174,8 +166,10 @@ jobs:
       - checkout
       - run:
           name: Build dependencies for jdk11 builds
+          environment:
+            CASSANDRA_USE_JDK11: "true"
           command: |
-            CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
+            ./scripts/build-dependencies.sh
             ./gradlew --no-daemon --max-workers=2 codeCheckTasks
       - persist_to_workspace:
           root: dependencies
@@ -196,7 +190,6 @@ jobs:
           spark: "3"
           scala: "2.12"
           jdk: "11"
-          use_jdk11: "true"
           sstable_format: "big"
           cassandra: "4.0"
 
@@ -227,7 +220,6 @@ jobs:
           spark: "3"
           scala: "2.12"
           jdk: "11"
-          use_jdk11: "true"
           sstable_format: "big"
           cassandra: "4.1"
 
@@ -260,7 +252,6 @@ jobs:
           spark: "3"
           scala: "2.12"
           jdk: "11"
-          use_jdk11: "true"
           cassandra: "4.0.17"
 
       - store_artifacts:
@@ -297,7 +288,6 @@ jobs:
           spark: "3"
           scala: "2.12"
           jdk: "11"
-          use_jdk11: "true"
           cassandra: "4.1.4"
 
       - store_artifacts:
@@ -332,7 +322,6 @@ jobs:
           spark: "3"
           scala: "2.13"
           jdk: "11"
-          use_jdk11: "true"
           sstable_format: "bti"
           cassandra: "5.0"
 
@@ -365,7 +354,6 @@ jobs:
           spark: "3"
           scala: "2.13"
           jdk: "11"
-          use_jdk11: "true"
           cassandra: "5.0.5"
 
       - store_artifacts:
