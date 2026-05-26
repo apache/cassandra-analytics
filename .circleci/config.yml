@@ -173,8 +173,8 @@ jobs:
             SPARK_VERSION: "3"
             SCALA_VERSION: "2.12"
           command: |
-            ./gradlew --no-daemon --max-workers=2 codeCheckTasks
             ./scripts/build-dependencies.sh
+            ./gradlew --no-daemon --max-workers=2 codeCheckTasks
       - persist_to_workspace:
           root: dependencies
           paths:
@@ -202,8 +202,8 @@ jobs:
             # (build-dtest-jars.sh reads this var to filter CANDIDATE_BRANCHES).
             BRANCHES: "cassandra-5.0"
           command: |
-            ./gradlew --no-daemon --max-workers=2 codeCheckTasks
             ./scripts/build-dependencies.sh
+            ./gradlew --no-daemon --max-workers=2 codeCheckTasks
       - persist_to_workspace:
           root: dependencies
           paths:
