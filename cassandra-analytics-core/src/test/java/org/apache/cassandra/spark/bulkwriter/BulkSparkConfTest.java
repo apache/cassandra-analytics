@@ -127,7 +127,12 @@ class BulkSparkConfTest
         BulkSparkConf.setupSparkConf(sparkConf, true);
         assertThat(sparkConf.get("spark.kryo.registrator", ""))
         .isEqualTo("," + SbwKryoRegistrator.class.getName());
-        if (BuildInfo.isAtLeastJava11(BuildInfo.javaSpecificationVersion()))
+        if (BuildInfo.isAtLeastJava17(BuildInfo.javaSpecificationVersion()))
+        {
+            assertThat(sparkConf.get("spark.executor.extraJavaOptions", ""))
+            .isEqualTo(BulkSparkConf.JDK11_OPTIONS + BulkSparkConf.JDK17_OPTIONS);
+        }
+        else if (BuildInfo.isAtLeastJava11(BuildInfo.javaSpecificationVersion()))
         {
             assertThat(sparkConf.get("spark.executor.extraJavaOptions", ""))
             .isEqualTo(BulkSparkConf.JDK11_OPTIONS);
