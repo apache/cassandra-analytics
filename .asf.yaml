@@ -34,7 +34,7 @@ github:
       bypass_teams:
         - root
       restrict_deletion: true
-      restrict_force_push: true
+      restrict_deletion: true
 notifications:
   commits: commits@cassandra.apache.org
   issues: commits@cassandra.apache.org
