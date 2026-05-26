@@ -36,7 +36,6 @@ import java.util.stream.IntStream;
 import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.common.util.concurrent.Uninterruptibles;
-import org.apache.commons.lang.ArrayUtils;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.analytics.stats.Stats;
@@ -415,7 +414,7 @@ public class BufferingInputStreamTests
                 buffer.limit(remainingReadBytes);
                 read = stream2.read(buffer); // read remaining bytes
                 assertThat(read).isEqualTo(remainingReadBytes);
-                assertThat(ArrayUtils.subarray(buffer.array(), 0, remainingReadBytes)).isEqualTo(returnedBuffers.get(1));
+                assertThat(buffer.array()).startsWith(returnedBuffers.get(1));
             }
         }
     }
