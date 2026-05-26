@@ -165,9 +165,10 @@ jobs:
       - install_common
       - checkout
       - run:
-          name: Build dependencies for jdk11 builds
+          name: Build dependencies for JDK11 builds
           environment:
             CASSANDRA_USE_JDK11: "true"
+            JDK_VERSION: "11"
           command: |
             ./scripts/build-dependencies.sh
             ./gradlew --no-daemon --max-workers=2 codeCheckTasks
@@ -182,7 +183,7 @@ jobs:
   # C5.0 + Scala 2.13 + BTI). Splitting into several small matrices is cleaner
   # than one big matrix with a long `exclude:` list, because CircleCI's
   # `exclude:` requires every parameter to be listed in every entry.
-  unit-test:
+  unit:
     parameters:
       spark:
         type: string
@@ -225,7 +226,7 @@ jobs:
 
   # Single parameterized integration-test job, invoked once per Cassandra/Scala
   # compatibility group from the workflow's `matrix:` block.
-  integration-test:
+  int-test:
     parameters:
       spark:
         type: string
@@ -278,7 +279,7 @@ workflows:
 
       # ---- Unit tests ----
       # Cassandra 4.x: Scala 2.12 + BIG sstable format
-      - unit-test:
+      - unit:
           requires:
             - build-deps-jdk11
           matrix:
@@ -291,7 +292,7 @@ workflows:
               cassandra: ["4.0", "4.1"]
 
       # Cassandra 5.0: Scala 2.13 + BTI sstable format
-      - unit-test:
+      - unit:
           requires:
             - build-deps-jdk11
           matrix:
@@ -305,7 +306,7 @@ workflows:
 
       # ---- Integration tests ----
       # Cassandra 4.x: Scala 2.12, full patch versions for dtest jar lookup
-      - integration-test:
+      - int-test:
           requires:
             - build-deps-jdk11
           matrix:
@@ -317,7 +318,7 @@ workflows:
               cassandra: ["4.0.17", "4.1.4"]
 
       # Cassandra 5.0: Scala 2.13
-      - integration-test:
+      - int-test:
           requires:
             - build-deps-jdk11
           matrix:
