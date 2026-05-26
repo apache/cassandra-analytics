@@ -168,7 +168,10 @@ jobs:
           name: Build dependencies for JDK11 builds
           environment:
             CASSANDRA_USE_JDK11: "true"
+            # Set JDK_VERSION, SPARK_VERSION, and SCALA_VERSION for codeCheckTasks
             JDK_VERSION: "11"
+            SPARK_VERSION: "3"
+            SCALA_VERSION: "2.12"
           command: |
             ./scripts/build-dependencies.sh
             ./gradlew --no-daemon --max-workers=2 codeCheckTasks
