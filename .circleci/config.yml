@@ -181,6 +181,31 @@ jobs:
             - "*.jar"
             - "org/**/*"
 
+  # JDK17 dependency build for the Spark 4 / Scala 2.13 matrix.
+  # Workspace paths overlap with build-deps-jdk11, so any downstream job must
+  # `requires:` only ONE of these two — never both — to avoid jar collisions.
+  build-deps-jdk17:
+    docker:
+      - image: cimg/openjdk:17.0
+    resource_class: large
+    steps:
+      - install_common
+      - checkout
+      - run:
+          name: Build dependencies for JDK17 builds
+          environment:
+            JDK_VERSION: "17"
+            SPARK_VERSION: "4"
+            SCALA_VERSION: "2.13"
+          command: |
+            ./scripts/build-dependencies.sh
+            ./gradlew --no-daemon --max-workers=2 codeCheckTasks
+      - persist_to_workspace:
+          root: dependencies
+          paths:
+            - "*.jar"
+            - "org/**/*"
+
   # Single parameterized unit-test job. The workflow invokes it via `matrix:`
   # multiple times, once per "compatibility group" (e.g. C4.x + Scala 2.12 + BIG,
   # C5.0 + Scala 2.13 + BTI). Splitting into several small matrices is cleaner
@@ -279,6 +304,7 @@ workflows:
   build-and-test:
     jobs:
       - build-deps-jdk11
+      - build-deps-jdk17
 
       # ---- Unit tests ----
       # Cassandra 4.x: Scala 2.12 + BIG sstable format
@@ -307,6 +333,19 @@ workflows:
               sstable_format: ["bti"]
               cassandra: ["5.0"]
 
+      # Cassandra 5.0 on Spark 4 / Scala 2.13 / JDK 17 + BTI sstable format
+      - unit:
+          requires:
+            - build-deps-jdk17
+          matrix:
+            alias: unit-c5-spark4
+            parameters:
+              spark: ["4"]
+              scala: ["2.13"]
+              jdk: ["17"]
+              sstable_format: ["bti"]
+              cassandra: ["5.0"]
+
       # ---- Integration tests ----
       # Cassandra 4.x: Scala 2.12, full patch versions for dtest jar lookup
       - int-test:
@@ -330,4 +369,16 @@ workflows:
               spark: ["3"]
               scala: ["2.13"]
               jdk: ["11"]
+              cassandra: ["5.0.5"]
+
+      # Cassandra 5.0 on Spark 4 / Scala 2.13 / JDK 17
+      - int-test:
+          requires:
+            - build-deps-jdk17
+          matrix:
+            alias: int-c5-spark4
+            parameters:
+              spark: ["4"]
+              scala: ["2.13"]
+              jdk: ["17"]
               cassandra: ["5.0.5"]
