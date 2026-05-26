@@ -32,9 +32,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.SystemUtils;
 
 import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
@@ -54,6 +52,8 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
 import org.jetbrains.annotations.NotNull;
 
+import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.JDK11_OPTIONS;
+import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.JDK17_OPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
@@ -203,8 +203,8 @@ public class SparkTestUtils
                               .set("spark.cassandra_analytics.sidecar.request.retries", "5")
                               .set("spark.cassandra_analytics.sidecar.request.retries.delay.milliseconds", "500")
                               .set("spark.cassandra_analytics.sidecar.request.retries.max.delay.milliseconds", "500")
-                              .set("spark.driver.extraJavaOptions", "--add-exports=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED")
-                              .set("spark.executor.extraJavaOptions", "--add-exports=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens java.base/java.net=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED");
+                              .set("spark.driver.extraJavaOptions", JDK11_OPTIONS + JDK17_OPTIONS)
+                              .set("spark.executor.extraJavaOptions", JDK11_OPTIONS + JDK17_OPTIONS);
 
         BulkSparkConf.setupSparkConf(sparkConf, true);
         KryoRegister.setup(sparkConf);

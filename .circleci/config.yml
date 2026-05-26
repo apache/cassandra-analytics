@@ -197,6 +197,9 @@ jobs:
             JDK_VERSION: "17"
             SPARK_VERSION: "4"
             SCALA_VERSION: "2.13"
+            # JDK17 only targets Cassandra 5.0+; skip 4.0 / 4.1 dtest jar builds
+            # (build-dtest-jars.sh reads this var to filter CANDIDATE_BRANCHES).
+            BRANCHES: "cassandra-5.0"
           command: |
             ./scripts/build-dependencies.sh
             ./gradlew --no-daemon --max-workers=2 codeCheckTasks

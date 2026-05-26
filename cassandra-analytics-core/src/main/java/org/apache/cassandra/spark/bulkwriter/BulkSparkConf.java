@@ -82,10 +82,12 @@ public class BulkSparkConf implements Serializable
                                              + " --add-opens java.base/java.lang.invoke=ALL-UNNAMED"
                                              + " --add-opens java.base/java.lang.reflect=ALL-UNNAMED"
                                              + " --add-opens java.base/java.math=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.net=ALL-UNNAMED"
                                              + " --add-opens java.base/java.nio=ALL-UNNAMED"
                                              + " --add-opens java.base/java.util=ALL-UNNAMED"
                                              + " --add-opens java.base/java.util.concurrent=ALL-UNNAMED"
                                              + " --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED"
+                                             + " --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
                                              + " --add-opens java.base/sun.nio.ch=ALL-UNNAMED"
                                              + " --add-opens java.base/sun.util.calendar=ALL-UNNAMED"
                                              + " --add-opens java.rmi/sun.rmi.transport.tcp=ALL-UNNAMED";

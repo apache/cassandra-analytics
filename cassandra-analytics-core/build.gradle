@@ -205,9 +205,7 @@ test {
     maxParallelForks = System.getenv('CORE_MAX_PARALLEL_FORKS')?.toInteger()
                        ?: Math.max(Runtime.runtime.availableProcessors() * 2, 8)
 
-    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_17)) {
-        jvmArgs(project.ext.JDK17_OPTIONS)
-    }
+    jvmArgs(project.ext.JDK_OPTIONS)
 
     useJUnitPlatform {
         excludeTags 'Sequential'
