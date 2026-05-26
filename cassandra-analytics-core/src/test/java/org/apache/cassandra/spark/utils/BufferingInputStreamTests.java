@@ -59,9 +59,9 @@ public class BufferingInputStreamTests
 {
     private static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(1);
     private static final ExecutorService EXECUTOR =
-            Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("sstable-tests-%d")
-                                                                      .setDaemon(true)
-                                                                      .build());
+    Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("sstable-tests-%d")
+                                                              .setDaemon(true)
+                                                              .build());
     static final int DEFAULT_CHUNK_SIZE = 8192;
     static final Stats STATS = Stats.DoNothingStats.INSTANCE;
 
@@ -137,9 +137,9 @@ public class BufferingInputStreamTests
                                                                 maxBufferSize,
                                                                 requestChunkSize,
                                                                 (start, end, consumer) -> {
-            requestCount.incrementAndGet();
-            writeBuffers(consumer, randomBuffers(chunksPerRequest));
-        }, null);
+                                                                    requestCount.incrementAndGet();
+                                                                    writeBuffers(consumer, randomBuffers(chunksPerRequest));
+                                                                }, null);
         BufferingInputStream<SSTable> is = new BufferingInputStream<>(mockedClient, STATS.bufferingInputStreamStats());
         readStreamFully(is);
         assertThat(requestCount.get()).isEqualTo(numRequests);
@@ -159,18 +159,18 @@ public class BufferingInputStreamTests
                                                           CassandraFileSource.DEFAULT_MAX_BUFFER_SIZE,
                                                           CassandraFileSource.DEFAULT_CHUNK_BUFFER_SIZE,
                                                           (start, end, consumer) -> {
-            if (count.incrementAndGet() > (numRequests / 2))
-            {
-                // Halfway through throw random exception
-                EXECUTOR.submit(() -> consumer.onError(new RuntimeException("Something bad happened...")));
-            }
-            else
-            {
-                writeBuffers(consumer, randomBuffers(chunksPerRequest));
-            }
-        }, null);
+                                                              if (count.incrementAndGet() > (numRequests / 2))
+                                                              {
+                                                                  // Halfway through throw random exception
+                                                                  EXECUTOR.submit(() -> consumer.onError(new RuntimeException("Something bad happened...")));
+                                                              }
+                                                              else
+                                                              {
+                                                                  writeBuffers(consumer, randomBuffers(chunksPerRequest));
+                                                              }
+                                                          }, null);
         assertThatThrownBy(() -> readStreamFully(new BufferingInputStream<>(source, STATS.bufferingInputStreamStats())))
-            .isInstanceOf(IOException.class);
+        .isInstanceOf(IOException.class);
     }
 
     @Test
@@ -178,21 +178,21 @@ public class BufferingInputStreamTests
     {
         long now = System.nanoTime();
         assertThat(timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(900).toNanos()))
-            .isEqualTo(Duration.ofMillis(100).toNanos());
+        .isEqualTo(Duration.ofMillis(100).toNanos());
         assertThat(timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(1500).toNanos()))
-            .isEqualTo(Duration.ofMillis(-500).toNanos());
+        .isEqualTo(Duration.ofMillis(-500).toNanos());
         assertThat(timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(5).toNanos()))
-            .isEqualTo(Duration.ofMillis(995).toNanos());
+        .isEqualTo(Duration.ofMillis(995).toNanos());
         assertThat(timeoutLeftNanos(Duration.ofMillis(1000), now, now - Duration.ofMillis(0).toNanos()))
-            .isEqualTo(Duration.ofMillis(1000).toNanos());
+        .isEqualTo(Duration.ofMillis(1000).toNanos());
         assertThat(timeoutLeftNanos(Duration.ofMillis(1000), now, now + Duration.ofMillis(500).toNanos()))
-            .isEqualTo(Duration.ofMillis(1000).toNanos());
+        .isEqualTo(Duration.ofMillis(1000).toNanos());
         assertThat(timeoutLeftNanos(Duration.ofMillis(60000), now, now - Duration.ofMillis(25000).toNanos()))
-            .isEqualTo(Duration.ofMillis(35000).toNanos());
+        .isEqualTo(Duration.ofMillis(35000).toNanos());
         assertThat(timeoutLeftNanos(Duration.ofMillis(60000), now, now - Duration.ofMillis(65000).toNanos()))
-            .isEqualTo(Duration.ofMillis(-5000).toNanos());
+        .isEqualTo(Duration.ofMillis(-5000).toNanos());
         assertThat(timeoutLeftNanos(Duration.ofMillis(60000), now, now - Duration.ofMillis(60000).toNanos()))
-            .isEqualTo(Duration.ofMillis(0).toNanos());
+        .isEqualTo(Duration.ofMillis(0).toNanos());
     }
 
     @Test
@@ -210,15 +210,15 @@ public class BufferingInputStreamTests
                                                           CassandraFileSource.DEFAULT_MAX_BUFFER_SIZE,
                                                           CassandraFileSource.DEFAULT_CHUNK_BUFFER_SIZE,
                                                           (start, end, consumer) -> {
-            // Only respond once so future requests will time out
-            if (count.incrementAndGet() == 1)
-            {
-                EXECUTOR.submit(() -> {
-                    Uninterruptibles.sleepUninterruptibly(sleepTimeInMillis, TimeUnit.MILLISECONDS);
-                    writeBuffers(consumer, randomBuffers(chunksPerRequest));
-                });
-            }
-        }, timeout);
+                                                              // Only respond once so future requests will time out
+                                                              if (count.incrementAndGet() == 1)
+                                                              {
+                                                                  EXECUTOR.submit(() -> {
+                                                                      Uninterruptibles.sleepUninterruptibly(sleepTimeInMillis, TimeUnit.MILLISECONDS);
+                                                                      writeBuffers(consumer, randomBuffers(chunksPerRequest));
+                                                                  });
+                                                              }
+                                                          }, timeout);
         BufferingInputStream<SSTable> inputStream = new BufferingInputStream<>(source, STATS.bufferingInputStreamStats());
         try
         {
@@ -232,9 +232,9 @@ public class BufferingInputStreamTests
         long readAndTimeoutTotal = TimeUnit.NANOSECONDS.toMillis(inputStream.timeBlockedNanos()) + timeout.toMillis();
         Duration clientTimeoutTotal = Duration.ofNanos(System.nanoTime() - startTime);
         assertThat(clientTimeoutTotal.toMillis()).isGreaterThanOrEqualTo(readAndTimeoutTotal)
-            .describedAs("Timeout didn't account for activity time. "
-                       + "Took %dms should have taken at least %dms",
-                       clientTimeoutTotal.toMillis(), readAndTimeoutTotal);
+                                                 .describedAs("Timeout didn't account for activity time. "
+                                                              + "Took %dms should have taken at least %dms",
+                                                              clientTimeoutTotal.toMillis(), readAndTimeoutTotal);
     }
 
     @Test
