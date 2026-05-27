@@ -85,11 +85,13 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
         Dataset<Row> df = generateDataset(spark, typeTestSetup);
 
         QualifiedName table = new QualifiedName(TEST_KEYSPACE, tableName);
-        if (typeTestSetup.expectedFailureMessage != null)
+        if (typeTestSetup.expectedFailureMessages != null)
         {
             assertThatException()
             .isThrownBy(() -> bulkWriterDataFrameWriter(df, table).save())
-            .withMessageContaining(typeTestSetup.expectedFailureMessage);
+            .extracting(Throwable::getMessage)
+            .asString()
+            .containsAnyOf(typeTestSetup.expectedFailureMessages);
         }
         else
         {
@@ -227,7 +229,10 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
                                  Arrays.asList(IntegerType, CalendarIntervalType),
                                  Arrays.asList(INTEGER_MAPPER, DURATION_MAPPER),
                                  "CREATE TABLE %s (id int, took duration, PRIMARY KEY (id))",
-                                 "Cannot save interval data type into external storage.");
+                                 "Cannot save interval data type into external storage",
+                                 // Error message changed in Cassandra 5.0
+                                 "datasource doesn't support the column `took` of the type \"INTERVAL\"."
+                                 );
     }
 
     static TypeTestSetup integersAndStringsSchemaSetup()
@@ -467,7 +472,7 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
         final List<DataType> columnTypes;
         final List<Function<Integer, Object>> valueFunction;
         final String createTableSchema;
-        final String expectedFailureMessage;
+        final String[] expectedFailureMessages;
         final int numRows = 10_000;
         Function<Object[], String> columnMapperValidation =
         columns -> String.format(String.join(":", Collections.nCopies(columns.length, "%s")), columns);
@@ -492,7 +497,7 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
             this.columnTypes = columnTypes;
             this.valueFunction = valueFunction;
             this.createTableSchema = createTableSchema;
-            this.expectedFailureMessage = null;
+            this.expectedFailureMessages = null;
         }
 
         TypeTestSetup(String tableName,
@@ -500,14 +505,14 @@ class BulkWriteDataTypesTest extends SharedClusterSparkIntegrationTestBase
                       List<DataType> columnTypes,
                       List<Function<Integer, Object>> valueFunction,
                       String createTableSchema,
-                      String expectedFailureMessage)
+                      String... expectedFailureMessages)
         {
             this.tableName = tableName;
             this.columns = columns;
             this.columnTypes = columnTypes;
             this.valueFunction = valueFunction;
             this.createTableSchema = createTableSchema;
-            this.expectedFailureMessage = expectedFailureMessage;
+            this.expectedFailureMessages = expectedFailureMessages;
         }
     }
 }
