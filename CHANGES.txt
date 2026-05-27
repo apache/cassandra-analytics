@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Downgrade noisy TokenPartitioner partition/range maps to DEBUG (CASSANALYTICS-52)
  * Make BulkWriterConfig extensible (CASSANALYTICS-168)
 
 0.4.0

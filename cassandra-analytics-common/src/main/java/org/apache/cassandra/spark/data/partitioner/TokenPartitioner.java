@@ -116,9 +116,9 @@ public class TokenPartitioner implements Serializable
         validateCompleteRangeCoverage();
         validateRangesDoNotOverlap();
 
-        LOGGER.info("Number of partitions {}", reversePartitionMap.size());
-        LOGGER.info("Partition map " + partitionMap);
-        LOGGER.info("Reverse partition map " + reversePartitionMap);
+        LOGGER.debug("Number of partitions {}", reversePartitionMap.size());
+        LOGGER.debug("Partition map {}", partitionMap);
+        LOGGER.debug("Reverse partition map {}", reversePartitionMap);
     }
 
     private static int calculateSplits(CassandraRing ring, int defaultParallelism, Integer cores)
@@ -126,7 +126,7 @@ public class TokenPartitioner implements Serializable
         int tasksToRun = Math.max(cores, defaultParallelism);
         LOGGER.info("Tasks to run: {}", tasksToRun);
         Map<Range<BigInteger>, List<CassandraInstance>> rangeListMap = ring.rangeMap().asMapOfRanges();
-        LOGGER.info("Initial ranges: {}", rangeListMap);
+        LOGGER.debug("Initial ranges: {}", rangeListMap);
         int ranges = rangeListMap.size();
         LOGGER.info("Number of ranges: {}", ranges);
         int calculatedSplits = TokenPartitioner.divCeil(tasksToRun, ranges);

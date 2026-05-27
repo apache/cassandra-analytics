@@ -104,9 +104,9 @@ public class TokenPartitioner extends Partitioner
 
     private void logPartitionInfo()
     {
-        LOGGER.info("Number of partitions: {}", nrPartitions);
-        LOGGER.info("Partition map: {}", partitionMap);
-        LOGGER.info("Reverse partition map: {}", reversePartitionMap);
+        LOGGER.debug("Number of partitions: {}", nrPartitions);
+        LOGGER.debug("Partition map: {}", partitionMap);
+        LOGGER.debug("Reverse partition map: {}", reversePartitionMap);
     }
 
     /**
@@ -278,7 +278,7 @@ public class TokenPartitioner extends Partitioner
         }
         int tasksToRun = Math.max(cores, defaultParallelism);
         Map<Range<BigInteger>, List<RingInstance>> rangeListMap = tokenRangeMapping.getRangeMap().asMapOfRanges();
-        LOGGER.info("Initial ranges: {}", rangeListMap);
+        LOGGER.debug("Initial ranges: {}", rangeListMap);
         int ranges = rangeListMap.size();
         LOGGER.info("Number of ranges: {}", ranges);
         int calculatedSplits = divCeil(tasksToRun, ranges);
