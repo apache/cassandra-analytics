@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.nio.file.DirectoryStream;
 import java.nio.file.Path;
 
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
@@ -35,5 +36,12 @@ public class NonValidatingTestSortedSSTableWriter extends SortedSSTableWriter
     public void validateSSTables(@NotNull BulkWriterContext writerContext)
     {
         // Skip validation for these tests
+    }
+
+    @Override
+    protected void rebuildFilterComponents(@NotNull BulkWriterContext writerContext,
+                                           @NotNull DirectoryStream.Filter<Path> filter)
+    {
+        // Skip rebuild for these tests
     }
 }
