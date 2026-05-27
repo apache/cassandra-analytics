@@ -31,6 +31,7 @@ import java.util.stream.Collectors;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.cassandra.bridge.CassandraBridge;
@@ -467,7 +468,7 @@ public final class TableSchemaTestCommon
             String clusteringKey = primaryColumns.stream()
                                                  .map(this::maybeQuoteIdentifierIfRequested)
                                                  .collect(Collectors.joining(","));
-            return "PRIMARY KEY (" + partitionKey + clusteringKey + ")";
+            return "PRIMARY KEY (" + partitionKey + (StringUtils.isNotBlank(clusteringKey) ? ("," + clusteringKey) : "") + ")";
         }
 
         @Override

@@ -69,7 +69,8 @@ import static org.apache.cassandra.spark.utils.CqlUtils.isTimeRangeFilterSupport
 import static org.apache.cassandra.spark.utils.FilterUtils.parseSSTableTimeRangeFilter;
 
 /**
- * Basic DataLayer implementation to read SSTables from local file system. Mostly used for testing.
+ * Basic DataLayer implementation to read SSTables from local file system.
+ * Mostly used for testing, but also for validating SSTables during bulk data insertion.
  */
 @SuppressWarnings({"unused", "WeakerAccess"})
 public class LocalDataLayer extends DataLayer implements Serializable

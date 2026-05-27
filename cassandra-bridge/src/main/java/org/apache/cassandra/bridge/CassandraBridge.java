@@ -557,6 +557,21 @@ public abstract class CassandraBridge
                                                 @NotNull SSTable ssTable) throws IOException;
 
     /**
+     * Recreates bloom filter for a given SSTable based on index file.
+     * Old {@code Filter.db} file is overwritten if present.
+     *
+     * @param partitioner Cassandra partitioner
+     * @param cqltable    CQL table
+     * @param ssTable     SSTable instance
+     * @param directory   Directory where SSTable files are present
+     * @throws IOException
+     */
+    public abstract void rebuildBloomFilter(@NotNull Partitioner partitioner,
+                                            @NotNull CqlTable cqltable,
+                                            @NotNull SSTable ssTable,
+                                            @NotNull Path directory) throws IOException;
+
+    /**
      * @param partitioner   Cassandra partitioner
      * @param keyspace      keyspace name
      * @param table         table name

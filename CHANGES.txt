@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Regenerate bloom filters for CQLSSTableWriter (CASSANALYTICS-167)
  * Avoid Spark 4 partitioning warnings during bulk reads (CASSANALYTICS-171)
  * Spark 4.0 Support (CASSANALYTICS-34)
  * Add IAM credential support for S3 storage transport (CASSANALYTICS-155)

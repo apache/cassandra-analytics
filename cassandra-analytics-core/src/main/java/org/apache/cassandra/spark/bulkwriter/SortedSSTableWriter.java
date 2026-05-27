@@ -43,12 +43,14 @@ import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
+import org.apache.cassandra.spark.data.FileSystemSSTable;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
+import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
 import org.apache.cassandra.spark.utils.DigestAlgorithm;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -227,6 +229,9 @@ public class SortedSSTableWriter
         };
         Set<Path> dataFilePaths = new HashSet<>();
         Map<Path, Digest> fileDigests = new HashMap<>();
+        // FIXME: CQLSSTableWriter may produce incomplete Filter.db file, rebuilding it manually (see CASSANDRA-21423).
+        // rebuild Filter.db files before calculating their digest
+        rebuildFilterComponents(writerContext, sstableFilter);
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(getOutDir(), sstableFilter))
         {
             for (Path path : stream)
@@ -281,20 +286,41 @@ public class SortedSSTableWriter
         // Only process new SSTables produced during final flush
         DirectoryStream.Filter<Path> unhashedFilter = path -> !hashedFiles.contains(path);
 
-        for (Path dataFile : getDataFileStream(unhashedFilter))
+        // FIXME: CQLSSTableWriter may produce incomplete Filter.db file, rebuilding it manually (see CASSANDRA-21423).
+        rebuildFilterComponents(writerContext, unhashedFilter);
+
+        try (DirectoryStream<Path> dataFileStream = getDataFileStream(unhashedFilter))
         {
-            // NOTE: We calculate file hashes before re-reading so that we know what we hashed
-            //       is what we validated. Then we send these along with the files and the
-            //       receiving end re-hashes the files to make sure they still match.
-            Map<Path, Digest> newFileDigests = calculateFileDigestMap(dataFile);
-            overallFileDigests.putAll(newFileDigests);
-            newlyHashedFiles.addAll(newFileDigests.keySet());
-            sstableCount += 1;
+            for (Path dataFile : dataFileStream)
+            {
+                // NOTE: We calculate file hashes before re-reading so that we know what we hashed
+                //       is what we validated. Then we send these along with the files and the
+                //       receiving end re-hashes the files to make sure they still match.
+                Map<Path, Digest> newFileDigests = calculateFileDigestMap(dataFile);
+                overallFileDigests.putAll(newFileDigests);
+                newlyHashedFiles.addAll(newFileDigests.keySet());
+                sstableCount += 1;
+            }
         }
         // Only calculate size for newly hashed files, not all files in overallFileDigests
         // (previously hashed files may have been deleted by prepareSStablesToSend)
         bytesWritten += calculatedTotalSize(newlyHashedFiles);
         validateSSTables(writerContext);
+    }
+
+    protected void rebuildFilterComponents(@NotNull BulkWriterContext writerContext,
+                                           @NotNull DirectoryStream.Filter<Path> filter) throws IOException
+    {
+        LocalDataLayer layer = buildLocalDataLayer(writerContext, getOutDir(), null);
+        try (DirectoryStream<Path> dataFileStream = getDataFileStream(filter))
+        {
+            for (Path dataFile : dataFileStream)
+            {
+                FileSystemSSTable ssTable = new FileSystemSSTable(dataFile, false, BufferingInputStreamStats::doNothingStats);
+                writerContext.bridge().rebuildBloomFilter(layer.partitioner(), layer.cqlTable(), ssTable, getOutDir());
+                LOGGER.debug("Rebuilt bloom filter for sstable {}", dataFile);
+            }
+        }
     }
 
     @VisibleForTesting
@@ -319,26 +345,7 @@ public class SortedSSTableWriter
         //       and then validate all of them in parallel threads
         try
         {
-            CassandraVersion version = CassandraBridgeFactory.getCassandraVersion(writerContext.cluster().getLowestCassandraVersion());
-            String keyspace = writerContext.job().qualifiedTableName().keyspace();
-            String schema = writerContext.schema().getTableSchema().createStatement;
-            Partitioner partitioner = writerContext.cluster().getPartitioner();
-            Set<String> udtStatements = writerContext.schema().getUserDefinedTypeStatements();
-            LocalDataLayer layer = new LocalDataLayer(version,
-                                                      partitioner,
-                                                      keyspace,
-                                                      schema,
-                                                      udtStatements,
-                                                      Collections.emptyList() /* requestedFeatures */,
-                                                      false /* useSSTableInputStream */,
-                                                      null /* statsClass */,
-                                                      SSTableTimeRangeFilter.ALL,
-                                                      outputDirectory.toString());
-            if (dataFilePaths != null)
-            {
-                layer.setDataFilePaths(dataFilePaths);
-            }
-
+            LocalDataLayer layer = buildLocalDataLayer(writerContext, outputDirectory, dataFilePaths);
             try (StreamScanner<RowData> scanner = layer.openCompactionScanner(partitionId, Collections.emptyList(), null))
             {
                 while (scanner.next())
@@ -352,6 +359,30 @@ public class SortedSSTableWriter
             LOGGER.error("[{}]: Unexpected exception while validating SSTables {}", partitionId, getOutDir());
             throw new RuntimeException(exception);
         }
+    }
+
+    private LocalDataLayer buildLocalDataLayer(@NotNull BulkWriterContext writerContext, @NotNull Path outputDirectory, @Nullable Set<Path> dataFilePaths)
+    {
+        CassandraVersion version = CassandraBridgeFactory.getCassandraVersion(writerContext.cluster().getLowestCassandraVersion());
+        String keyspace = writerContext.job().qualifiedTableName().keyspace();
+        String schema = writerContext.schema().getTableSchema().createStatement;
+        Partitioner partitioner = writerContext.cluster().getPartitioner();
+        Set<String> udtStatements = writerContext.schema().getUserDefinedTypeStatements();
+        LocalDataLayer layer = new LocalDataLayer(version,
+                                                  partitioner,
+                                                  keyspace,
+                                                  schema,
+                                                  udtStatements,
+                                                  Collections.emptyList() /* requestedFeatures */,
+                                                  false /* useSSTableInputStream */,
+                                                  null /* statsClass */,
+                                                  SSTableTimeRangeFilter.ALL,
+                                                  outputDirectory.toString());
+        if (dataFilePaths != null)
+        {
+            layer.setDataFilePaths(dataFilePaths);
+        }
+        return layer;
     }
 
     private DirectoryStream<Path> getDataFileStream(DirectoryStream.Filter<Path> filter) throws IOException
