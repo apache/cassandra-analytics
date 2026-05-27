@@ -80,11 +80,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.OptionalLong;
@@ -572,6 +574,59 @@ public class S3CassandraDataLayer extends PartitionedDataLayer implements Serial
     public List<SchemaFeature> requestedFeatures()
     {
         return requestedFeatures;
+    }
+
+    /**
+     * Identifies the token-end primary owner of each per-range replica list as a tie-break
+     * hint for {@code splitReplicas}. The S3 data source does not have live node availability
+     * signals, so this makes primary replica selection deterministic and prefers the natural
+     * ring owner when all candidates have the same availability hint.
+     *
+     * <p>Owners are computed by token-keyed lookup against {@code range.upperEndpoint()} —
+     * {@link TreeMap#ceilingEntry} returns the smallest replica token that is greater than or
+     * equal to the range's upper endpoint, with wrap-around to the smallest-token replica when
+     * no replica exceeds the upper endpoint.
+     *
+     * <p>The S3 data path is hard-restricted to {@link Partitioner#Murmur3Partitioner}, so token
+     * strings are decimal {@code long} values parseable as {@link BigInteger}. The
+     * {@code try/catch} below is purely defensive against unexpected fixture inputs.
+     */
+    @Override
+    protected Predicate<CassandraInstance> getPrimaryHint(Map<Range<BigInteger>, List<CassandraInstance>> ranges)
+    {
+        Set<CassandraInstance> primaries = new HashSet<>();
+        for (Map.Entry<Range<BigInteger>, List<CassandraInstance>> entry : ranges.entrySet())
+        {
+            TreeMap<BigInteger, CassandraInstance> byToken = new TreeMap<>();
+            for (CassandraInstance replica : entry.getValue())
+            {
+                String token = replica.token();
+                if (token == null)
+                {
+                    continue;
+                }
+                try
+                {
+                    byToken.put(new BigInteger(token), replica);
+                }
+                catch (NumberFormatException ignored)
+                {
+                    // Defensive: skip non-numeric tokens. Murmur3 enforcement above guarantees
+                    // numeric tokens in production; this is belt-and-braces for fixtures.
+                }
+            }
+            if (byToken.isEmpty())
+            {
+                continue;
+            }
+            BigInteger upper = entry.getKey().upperEndpoint();
+            Map.Entry<BigInteger, CassandraInstance> ownerEntry = byToken.ceilingEntry(upper);
+            CassandraInstance owner = ownerEntry != null
+                                      ? ownerEntry.getValue()
+                                      : byToken.firstEntry().getValue();
+            primaries.add(owner);
+        }
+        return primaries::contains;
     }
 
     // For deserialization
