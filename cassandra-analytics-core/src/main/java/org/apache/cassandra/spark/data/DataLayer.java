@@ -29,8 +29,6 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang.StringUtils;
-
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
@@ -318,7 +316,7 @@ public abstract class DataLayer implements Serializable
     public Filter[] unsupportedPushDownFilters(Filter[] filters)
     {
         Set<String> partitionKeys = cqlTable().partitionKeys().stream()
-                                              .map(key -> StringUtils.lowerCase(key.name()))
+                                              .map(key -> lowerCase(key.name()))
                                               .collect(Collectors.toSet());
 
         List<Filter> unsupportedFilters = new ArrayList<>(filters.length);
@@ -326,9 +324,9 @@ public abstract class DataLayer implements Serializable
         {
             if (filter instanceof EqualTo || filter instanceof In)
             {
-                String columnName = StringUtils.lowerCase(filter instanceof EqualTo
-                                                          ? ((EqualTo) filter).attribute()
-                                                          : ((In) filter).attribute());
+                String columnName = lowerCase(filter instanceof EqualTo
+                                              ? ((EqualTo) filter).attribute()
+                                              : ((In) filter).attribute());
 
                 if (partitionKeys.contains(columnName))
                 {
@@ -358,5 +356,14 @@ public abstract class DataLayer implements Serializable
     public Stats stats()
     {
         return Stats.DoNothingStats.INSTANCE;
+    }
+
+    static String lowerCase(String s)
+    {
+        if (s == null)
+        {
+            return s;
+        }
+        return s.toLowerCase();
     }
 }

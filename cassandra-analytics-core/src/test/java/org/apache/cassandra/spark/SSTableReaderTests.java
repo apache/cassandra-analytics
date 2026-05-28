@@ -29,17 +29,16 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import com.google.common.util.concurrent.Uninterruptibles;
-import org.apache.commons.lang.StringUtils;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.data.BasicSupplier;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.StreamScanner;
-import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
@@ -123,7 +122,7 @@ public class SSTableReaderTests
                     ByteBuffer colBuf = rowData.getColumnName();
                     String colName = ByteBufferUtils.string(ByteBufferUtils.readBytesWithShortLength(colBuf));
                     colBuf.get();
-                    if (StringUtils.isEmpty(colName))
+                    if (colName == null || colName.isEmpty())
                     {
                         continue;
                     }
@@ -230,7 +229,7 @@ public class SSTableReaderTests
                     ByteBuffer colBuf = rowData.getColumnName();
                     String colName = ByteBufferUtils.string(ByteBufferUtils.readBytesWithShortLength(colBuf));
                     colBuf.get();
-                    if (StringUtils.isEmpty(colName))
+                    if (colName == null || colName.isEmpty())
                     {
                         continue;
                     }

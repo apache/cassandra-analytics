@@ -124,7 +124,7 @@ public class DirectStreamSessionTest
                                            replicaAwareFailureHandler(), null)
                                            )
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessage("No replicas found for range (0‥0]");
+                .hasMessageMatching("No replicas found for range \\(0(‥|..)0]");
     }
 
     @Test

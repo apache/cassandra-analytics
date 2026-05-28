@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 import org.apache.avro.AvroRuntimeException;
@@ -93,13 +94,17 @@ public class AvroLogicalTypesTest
     @Test
     public void testTimeMicros() throws IOException
     {
-        testLogicalTypeDataWriteAndReadBack("time_micros", LocalTime.now());
+        // In https://bugs.openjdk.org/browse/JDK-8242504 the precision of clock was enhanced to
+        // nanoseconds. However, for Cassandra we only need microseconds
+        testLogicalTypeDataWriteAndReadBack("time_micros", LocalTime.now().truncatedTo(ChronoUnit.MICROS));
     }
 
     @Test
     public void testTimestampMicros() throws IOException
     {
-        testLogicalTypeDataWriteAndReadBack("timestamp_micros", Instant.now());
+        // In https://bugs.openjdk.org/browse/JDK-8242504 the precision of clock was enhanced to
+        // nanoseconds. However, for Cassandra we only need microseconds
+        testLogicalTypeDataWriteAndReadBack("timestamp_micros", Instant.now().truncatedTo(ChronoUnit.MICROS));
     }
 
     private <T> void testLogicalTypeDataWriteAndReadBack(String typeName, T testData) throws IOException

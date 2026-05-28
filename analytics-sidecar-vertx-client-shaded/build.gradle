@@ -33,12 +33,10 @@ plugins {
     id('java-library')
     id('maven-publish')
     id('signing')
-    id('com.gradleup.shadow') version '8.3.0'
+    id('com.gradleup.shadow') version '8.3.9'
 }
 
 version project.version
-
-sourceCompatibility = 1.8
 
 configurations {
     all*.exclude(group: 'ch.qos.logback')
@@ -69,6 +67,23 @@ tasks.named('test') {
 // Relocating a Package
 shadowJar {
     archiveClassifier.set('')
+
+    // Exclude unsupported java versions from jar files with multi-release class support
+    exclude 'META-INF/versions/12/'
+    exclude 'META-INF/versions/13/'
+    exclude 'META-INF/versions/14/'
+    exclude 'META-INF/versions/15/'
+    exclude 'META-INF/versions/16/'
+    exclude 'META-INF/versions/17/'
+    exclude 'META-INF/versions/18/'
+    exclude 'META-INF/versions/19/'
+    exclude 'META-INF/versions/20/'
+    exclude 'META-INF/versions/21/'
+    exclude 'META-INF/versions/22/'
+    exclude 'META-INF/versions/23/'
+    exclude 'META-INF/versions/24/'
+    exclude 'META-INF/versions/25/'
+
     // Our use of Jackson should be an implementation detail - shade everything so no matter what
     // version of Jackson is available in the classpath we don't break consumers of the client
     relocate 'org.apache.cassandra.sidecar.common', 'o.a.c.sidecar.client.shaded.common'
@@ -107,8 +122,7 @@ ext {
 // analytics-sidecar-vertx-client-shaded_* as the artifact name
 archivesBaseName = "analytics-sidecar-vertx-client-all"
 
-if (propertyWithDefault("artifactType", null) == "common")
-{
+if (propertyWithDefault("artifactType", null) == "common") {
     publishing {
         publications {
             shadow(MavenPublication) { publication ->

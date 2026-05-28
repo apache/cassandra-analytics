@@ -21,8 +21,8 @@ package org.apache.cassandra.spark.utils;
 
 import java.util.List;
 
-import scala.collection.JavaConverters;
 import scala.collection.mutable.Seq;
+import scala.jdk.javaapi.CollectionConverters;
 
 /**
  * Compatibility layer for scala conversions
@@ -34,23 +34,23 @@ public final class ScalaConversionUtils
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    public static <A> java.lang.Iterable<A> asJavaIterable(scala.collection.Iterable<A> iterable)
+    public static <A> Iterable<A> asJavaIterable(scala.collection.Iterable<A> iterable)
     {
-        return JavaConverters.asJavaIterable(iterable);
+        return CollectionConverters.asJava(iterable);
     }
 
     public static <A> scala.collection.Iterator<A> asScalaIterator(java.util.Iterator<A> iterator)
     {
-        return JavaConverters.asScalaIterator(iterator);
+        return CollectionConverters.asScala(iterator);
     }
 
-    public static <A, B> java.util.Map<A, B> mapAsJavaMap(scala.collection.Map<A, B> map)
+    public static <K, V> java.util.Map<K, V> mapAsJavaMap(scala.collection.Map<K, V> map)
     {
-        return JavaConverters.mapAsJavaMap(map);
+        return CollectionConverters.asJava(map);
     }
 
     public static <A> List<A> mutableSeqAsJavaList(Seq<A> seq)
     {
-        return JavaConverters.mutableSeqAsJavaList(seq);
+        return CollectionConverters.asJava(seq);
     }
 }

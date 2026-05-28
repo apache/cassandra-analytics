@@ -68,7 +68,11 @@ sourceSets {
     }
 }
 
+apply from: "${project.rootDir}/gradle/common/javaOptions.gradle"
+
 test {
+    jvmArgs(project.ext.JDK_OPTIONS)
+
     useJUnitPlatform()
     reports {
         def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "four-zero-types").toFile()

@@ -25,10 +25,7 @@ plugins {
     id('maven-publish')
 }
 
-sourceCompatibility = 1.8
-
-if (propertyWithDefault("artifactType", null) == "common")
-{
+if (propertyWithDefault("artifactType", null) == "common") {
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
 
