@@ -21,7 +21,9 @@ package org.apache.cassandra.sidecar.common.data;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.CREDENTIALS_ACCESS_KEY_ID;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.CREDENTIALS_REGION;
@@ -29,13 +31,16 @@ import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.CREDE
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.CREDENTIALS_SESSION_TOKEN;
 
 /**
- * Used for storing credential details needed for either reading/writing to S3
+ * Used for storing credential details needed for either reading/writing to S3.
+ * In IAM mode only {@code region} is required; the key fields are absent and the sidecar
+ * resolves credentials via the AWS default credential chain.
  */
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class StorageCredentials
 {
-    private final String accessKeyId;
-    private final String secretAccessKey;
-    private final String sessionToken;
+    private final @Nullable String accessKeyId;
+    private final @Nullable String secretAccessKey;
+    private final @Nullable String sessionToken;
     private final String region;
 
     public static Builder builder()
@@ -44,14 +49,11 @@ public class StorageCredentials
     }
 
     @JsonCreator
-    public StorageCredentials(@JsonProperty(CREDENTIALS_ACCESS_KEY_ID) String accessKeyId,
-                              @JsonProperty(CREDENTIALS_SECRET_ACCESS_KEY) String secretAccessKey,
-                              @JsonProperty(CREDENTIALS_SESSION_TOKEN) String sessionToken,
+    public StorageCredentials(@JsonProperty(CREDENTIALS_ACCESS_KEY_ID) @Nullable String accessKeyId,
+                              @JsonProperty(CREDENTIALS_SECRET_ACCESS_KEY) @Nullable String secretAccessKey,
+                              @JsonProperty(CREDENTIALS_SESSION_TOKEN) @Nullable String sessionToken,
                               @JsonProperty(CREDENTIALS_REGION) String region)
     {
-        Objects.requireNonNull(accessKeyId, "accessKeyId must be supplied");
-        Objects.requireNonNull(secretAccessKey, "secretAccessKey must be supplied");
-        Objects.requireNonNull(sessionToken, "sessionToken must be supplied");
         Objects.requireNonNull(region, "region must be supplied");
         this.accessKeyId = accessKeyId;
         this.secretAccessKey = secretAccessKey;
@@ -60,19 +62,19 @@ public class StorageCredentials
     }
 
     @JsonProperty(CREDENTIALS_ACCESS_KEY_ID)
-    public String accessKeyId()
+    public @Nullable String accessKeyId()
     {
         return accessKeyId;
     }
 
     @JsonProperty(CREDENTIALS_SECRET_ACCESS_KEY)
-    public String secretAccessKey()
+    public @Nullable String secretAccessKey()
     {
         return secretAccessKey;
     }
 
     @JsonProperty(CREDENTIALS_SESSION_TOKEN)
-    public String sessionToken()
+    public @Nullable String sessionToken()
     {
         return sessionToken;
     }
@@ -81,6 +83,15 @@ public class StorageCredentials
     public String region()
     {
         return region;
+    }
+
+    /**
+     * Returns true if all three key fields are non-null, indicating static AWS credentials are present.
+     * A false result means key fields are absent, which is expected in IAM mode.
+     */
+    public boolean hasStaticCredentials()
+    {
+        return accessKeyId != null && secretAccessKey != null && sessionToken != null;
     }
 
     /**
@@ -123,13 +134,13 @@ public class StorageCredentials
     }
 
     /**
-     * Builds the RestoreJobSecrets
+     * Builds the StorageCredentials
      */
     public static class Builder
     {
-        private String accessKeyId;
-        private String secretAccessKey;
-        private String sessionToken;
+        private @Nullable String accessKeyId;
+        private @Nullable String secretAccessKey;
+        private @Nullable String sessionToken;
         private String region;
 
         private Builder()

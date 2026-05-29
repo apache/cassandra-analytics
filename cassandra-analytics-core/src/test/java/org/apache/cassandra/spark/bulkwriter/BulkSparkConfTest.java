@@ -373,6 +373,27 @@ class BulkSparkConfTest
         assertThat(conf.cassandraRole).isEqualTo("custom_role");
     }
 
+    @Test
+    void testStorageCredentialTypeValidValues()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.STORAGE_CREDENTIAL_TYPE.name(), "STATIC");
+        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options));
+
+        options.put(WriterOptions.STORAGE_CREDENTIAL_TYPE.name(), "IAM");
+        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options));
+    }
+
+    @Test
+    void testStorageCredentialTypeInvalidValue()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.STORAGE_CREDENTIAL_TYPE.name(), "INVALID");
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid value 'INVALID' for option 'STORAGE_CREDENTIAL_TYPE'");
+    }
+
     private Map<String, String> copyDefaultOptions()
     {
         TreeMap<String, String> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);

@@ -248,7 +248,21 @@ public class BulkSparkConf implements Serializable
         long maxSizePerSSTableBundleInBytesS3Transport = MapUtils.getLong(options, WriterOptions.MAX_SIZE_PER_SSTABLE_BUNDLE_IN_BYTES_S3_TRANSPORT.name(),
                                                                           DEFAULT_MAX_SIZE_PER_SSTABLE_BUNDLE_IN_BYTES_S3_TRANSPORT);
         String transportExtensionClass = MapUtils.getOrDefault(options, WriterOptions.DATA_TRANSPORT_EXTENSION_CLASS.name(), null);
-        this.dataTransportInfo = new DataTransportInfo(dataTransport, transportExtensionClass, maxSizePerSSTableBundleInBytesS3Transport);
+        String rawCredentialType = MapUtils.getOrDefault(options, WriterOptions.STORAGE_CREDENTIAL_TYPE.name(), null);
+        String storageCredentialType = null;
+        if (rawCredentialType != null)
+        {
+            storageCredentialType = rawCredentialType.toUpperCase();
+            if (!storageCredentialType.equals("STATIC") && !storageCredentialType.equals("IAM"))
+            {
+                throw new IllegalArgumentException(
+                String.format("Invalid value '%s' for option '%s'. Valid values are: STATIC, IAM",
+                              rawCredentialType, WriterOptions.STORAGE_CREDENTIAL_TYPE.name()));
+            }
+        }
+        this.dataTransportInfo = new DataTransportInfo(dataTransport, transportExtensionClass,
+                                                       maxSizePerSSTableBundleInBytesS3Transport,
+                                                       storageCredentialType);
         this.jobKeepAliveMinutes = MapUtils.getInt(options, WriterOptions.JOB_KEEP_ALIVE_MINUTES.name(), MINIMUM_JOB_KEEP_ALIVE_MINUTES);
         if (this.jobKeepAliveMinutes < MINIMUM_JOB_KEEP_ALIVE_MINUTES)
         {

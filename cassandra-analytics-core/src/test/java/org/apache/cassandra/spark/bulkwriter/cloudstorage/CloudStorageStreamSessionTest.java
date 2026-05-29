@@ -64,7 +64,7 @@ import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
-import org.apache.cassandra.spark.transports.storage.StorageCredentials;
+import org.apache.cassandra.spark.transports.storage.StorageAuth;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
 import org.apache.cassandra.spark.utils.TemporaryDirectory;
@@ -218,7 +218,7 @@ class CloudStorageStreamSessionTest
         }
 
         @Override
-        public BundleStorageObject uploadBundle(StorageCredentials writeCredentials, Bundle bundle)
+        public BundleStorageObject uploadBundle(StorageAuth writeAuth, Bundle bundle)
         {
             uploadedBundleManifest.put(bundle.firstToken, bundle);
             return BundleStorageObject.builder()

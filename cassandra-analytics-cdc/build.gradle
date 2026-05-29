@@ -172,9 +172,6 @@ def configureCdcTestTask = { Test task, String majorMinor = null ->
     task.dependsOn(tasks.jar)
     task.classpath += files(jar.archiveFile)
     task.useJUnitPlatform()
-    def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "cdc").toFile()
-    task.reports.junitXml.outputLocation = destDir
-    task.reports.html.outputLocation = destDir
 }
 
 test {

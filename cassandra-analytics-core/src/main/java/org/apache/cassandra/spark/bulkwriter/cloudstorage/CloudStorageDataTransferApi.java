@@ -28,7 +28,7 @@ import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobSummaryRespons
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import org.apache.cassandra.spark.exception.S3ApiCallException;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
-import org.apache.cassandra.spark.transports.storage.StorageCredentials;
+import org.apache.cassandra.spark.transports.storage.StorageAuth;
 
 /**
  * The collection of APIs for cloud-storage-based data transfer
@@ -37,7 +37,7 @@ public interface CloudStorageDataTransferApi
 {
     /*------ Cloud storage APIs -------*/
 
-    BundleStorageObject uploadBundle(StorageCredentials writeCredentials, Bundle bundle) throws S3ApiCallException;
+    BundleStorageObject uploadBundle(StorageAuth writeAuth, Bundle bundle) throws S3ApiCallException;
 
 
     /*------ Sidecar APIs -------*/

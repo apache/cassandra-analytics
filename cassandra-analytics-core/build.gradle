@@ -177,13 +177,6 @@ def configureCoreTestTask(Test task, String majorMinor = null) {
     task.dependsOn(tasks.jar)
     task.classpath += files(jar.archiveFile)
 
-    def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "core").toFile()
-    task.reports.junitXml.outputLocation = destDir
-    task.reports.html.outputLocation = destDir
-
-    task.testLogging {
-        events "started", "passed", "skipped", "failed"
-    }
 }
 
 // Tests tagged 'Sequential' do not run in parallel, to prevent OOM errors

@@ -34,14 +34,6 @@ if (propertyWithDefault("artifactType", null) == "common") {
 test {
     useJUnitPlatform()
     maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
-    reports {
-        junitXml.setRequired(true)
-        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-results", "client-common").toFile()
-        println("Destination directory for client-common tests: ${destDir}")
-        junitXml.getOutputLocation().set(destDir)
-        html.setRequired(true)
-        html.getOutputLocation().set(destDir)
-    }
 }
 
 dependencies {

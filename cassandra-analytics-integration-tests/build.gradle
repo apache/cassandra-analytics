@@ -115,17 +115,6 @@ def configureIntegrationTestTask = { Test task, String majorMinor = null ->
         task.systemProperty "suitename", "${descriptor.name}"
     }
 
-    task.testLogging {
-        events "passed", "skipped", "failed"
-
-        showExceptions true
-        exceptionFormat "full"
-        showCauses true
-        showStackTraces true
-
-        showStandardStreams = false
-    }
-
     task.jvmArgs(project.ext.JDK_OPTIONS)
     println("JVM arguments for $project.name are ${task.allJvmArgs}")
 
@@ -142,9 +131,6 @@ def configureIntegrationTestTask = { Test task, String majorMinor = null ->
     }
 
     task.useJUnitPlatform()
-    def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "integration").toFile()
-    task.reports.junitXml.outputLocation = destDir
-    task.reports.html.outputLocation = destDir
 }
 
 test {

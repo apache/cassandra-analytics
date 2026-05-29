@@ -24,13 +24,17 @@ import java.util.Objects;
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import software.amazon.awssdk.auth.credentials.AwsCredentials;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 
 /**
  * StorageCredentials are used to represent the security information required to read from or write to a storage endpoint.
  * Storage credentials can be either an access key ID and secret key, or also include a sessionToken when using
  * temporary a temporary IAM credential.
  */
-public class StorageCredentials
+public class StorageCredentials implements StorageAuth
 {
     private final String accessKeyId;
     private final String secretKey;
@@ -85,6 +89,13 @@ public class StorageCredentials
     public String getSessionToken()
     {
         return sessionToken;
+    }
+
+    @Override
+    public AwsCredentialsProvider toAwsCredentialsProvider()
+    {
+        AwsCredentials credentials = AwsSessionCredentials.create(accessKeyId, secretKey, sessionToken);
+        return StaticCredentialsProvider.create(credentials);
     }
 
     public o.a.c.sidecar.client.shaded.common.data.StorageCredentials toSidecarCredentials(String region)

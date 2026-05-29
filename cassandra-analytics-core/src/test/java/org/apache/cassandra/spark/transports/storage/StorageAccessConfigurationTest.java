@@ -26,15 +26,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 class StorageAccessConfigurationTest
 {
     @Test
-    void testCopyWithNewCredentials()
+    void testCopyWithNewAuth()
     {
         StorageAccessConfiguration config1 = new StorageAccessConfiguration("writeRegion", "writeBucket",
                                                                             new StorageCredentials("access", "secret"));
-        StorageAccessConfiguration config2 = config1.copyWithNewCredentials(new StorageCredentials("newAccess", "newSecret"));
+        StorageAccessConfiguration config2 = config1.copyWithNewAuth(new StorageCredentials("newAccess", "newSecret"));
         assertThat(config1).isNotSameAs(config2);
         assertThat(config1.bucket()).isEqualTo(config2.bucket());
         assertThat(config1.region()).isEqualTo(config2.region());
-        assertThat(config1.storageCredentials()).isNotEqualTo(config2.storageCredentials());
+        assertThat(config1.storageAuth()).isNotEqualTo(config2.storageAuth());
     }
 
     @Test
@@ -47,8 +47,9 @@ class StorageAccessConfigurationTest
         assertThat(config1.hashCode()).isEqualTo(config2.hashCode());
         assertThat(config1).isEqualTo(config2);
 
-        config2 = config1.copyWithNewCredentials(new StorageCredentials("newAccess", "newSecret"));
+        config2 = config1.copyWithNewAuth(new StorageCredentials("newAccess", "newSecret"));
         assertThat(config1.hashCode()).isNotEqualTo(config2.hashCode());
         assertThat(config1).isNotEqualTo(config2);
     }
+
 }

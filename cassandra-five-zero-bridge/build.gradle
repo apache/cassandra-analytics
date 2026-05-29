@@ -93,17 +93,6 @@ jar {
 test {
     systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
     useJUnitPlatform()
-    reports {
-        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "five-zero-bridge").toFile()
-        junitXml {
-            enabled true
-            destination = destDir
-        }
-        html {
-            enabled true
-            destination = destDir
-        }
-    }
 }
 
 // automatically run BIG and BTI tests for Cassandra 5.x bridge
@@ -115,17 +104,6 @@ tasks.register('testBti', Test) {
 
     systemProperty "cassandra.analytics.bridges.sstable_format", "bti"
     useJUnitPlatform()
-    reports {
-        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "five-zero-bridge").toFile()
-        junitXml {
-            enabled true
-            destination = destDir
-        }
-        html {
-            enabled true
-            destination = destDir
-        }
-    }
 }
 
 check {

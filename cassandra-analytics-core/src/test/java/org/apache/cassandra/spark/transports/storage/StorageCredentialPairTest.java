@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSecrets;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class StorageCredentialPairTest
 {
@@ -53,6 +54,15 @@ class StorageCredentialPairTest
         pair2 = makePair(2);
         assertThat(pair1.hashCode()).isNotEqualTo(pair2.hashCode());
         assertThat(pair1).isNotEqualTo(pair2);
+    }
+
+    @Test
+    void testToRestoreJobSecretsThrowsForIamPair()
+    {
+        StorageCredentialPair iamPair = StorageCredentialPair.iamPair("us-east-1", "eu-west-1");
+        assertThatThrownBy(iamPair::toRestoreJobSecrets)
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("IAM credential pair");
     }
 
     private StorageCredentialPair makePair(int id)

@@ -52,7 +52,7 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.CloudStorageDataTransf
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.exception.S3ApiCallException;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
-import org.apache.cassandra.spark.transports.storage.StorageCredentials;
+import org.apache.cassandra.spark.transports.storage.StorageAuth;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -95,9 +95,9 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
     }
 
     @Override
-    public BundleStorageObject uploadBundle(StorageCredentials writeCredentials, Bundle bundle) throws S3ApiCallException
+    public BundleStorageObject uploadBundle(StorageAuth writeAuth, Bundle bundle) throws S3ApiCallException
     {
-        return dataTransferApis.getAnyValueOrThrow().uploadBundle(writeCredentials, bundle);
+        return dataTransferApis.getAnyValueOrThrow().uploadBundle(writeAuth, bundle);
     }
 
     @Override

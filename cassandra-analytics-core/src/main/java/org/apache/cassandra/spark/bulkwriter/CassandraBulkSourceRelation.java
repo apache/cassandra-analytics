@@ -34,6 +34,7 @@ import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import o.a.c.sidecar.client.shaded.common.data.CredentialType;
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSecrets;
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobStatus;
 import o.a.c.sidecar.client.shaded.common.request.data.CreateRestoreJobRequestPayload;
@@ -51,6 +52,7 @@ import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
+import org.apache.cassandra.spark.transports.storage.StorageCredentialPair;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportExtension;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportHandler;
@@ -445,11 +447,11 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     private void createRestoreJob(TransportContext.CloudStorageTransportContext context)
     {
         StorageTransportConfiguration conf = context.transportConfiguration();
+        String credTypeName = writerContext.job().transportInfo().getStorageCredentialType();
         // todo: refactor to move away from using 'null'
-        RestoreJobSecrets secrets = conf.getStorageCredentialPair(null)
-                                        .toRestoreJobSecrets();
+        RestoreJobSecrets secrets = buildRestoreJobSecrets(conf.getStorageCredentialPair(null), credTypeName);
         JobInfo job = writerContext.job();
-        CreateRestoreJobRequestPayload payload = createJobPayloadBuilder(job, secrets).build();
+        CreateRestoreJobRequestPayload payload = createJobPayloadBuilder(job, secrets, null, credTypeName).build();
         context.dataTransferApi().createRestoreJob(payload);
     }
 
@@ -461,14 +463,14 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
         JobInfo job = writerContext.job();
         ConsistencyLevel cl = job.getConsistencyLevel();
+        String credTypeName = job.transportInfo().getStorageCredentialType();
 
         // create restore job on each cluster
         dataTransferApi.forEach((clusterId, api) -> {
-            RestoreJobSecrets secrets = conf.getStorageCredentialPair(clusterId)
-                                            .toRestoreJobSecrets();
+            RestoreJobSecrets secrets = buildRestoreJobSecrets(conf.getStorageCredentialPair(clusterId), credTypeName);
             CoordinatedWriteConf.ClusterConf cluster = coordinatedWriteConf.cluster(clusterId);
             String localDc = cluster.resolveLocalDc(cl); // resolve the cluster specific localDc name
-            CreateRestoreJobRequestPayload payload = createJobPayloadBuilder(job, secrets, clusterId)
+            CreateRestoreJobRequestPayload payload = createJobPayloadBuilder(job, secrets, clusterId, credTypeName)
                                                      .consistencyLevel(toSidecarConsistencyLevel(cl), localDc)
                                                      // TODO: add test case once we advance the sidecar version that understands the flag,
                                                      //       or a better testing strategy is figured out
@@ -478,12 +480,26 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         });
     }
 
-    private CreateRestoreJobRequestPayload.Builder createJobPayloadBuilder(JobInfo job, RestoreJobSecrets secrets)
+    /**
+     * Builds {@link RestoreJobSecrets} appropriate for the given credential type.
+     * When {@code credentialTypeName} is {@code "IAM"}, region-only secrets are produced
+     * and the sidecar will use the AWS default credential chain.
+     * Otherwise, full static credentials from the pair are used.
+     */
+    static RestoreJobSecrets buildRestoreJobSecrets(StorageCredentialPair pair,
+                                                    @org.jetbrains.annotations.Nullable String credentialTypeName)
     {
-        return createJobPayloadBuilder(job, secrets, null);
+        if ("IAM".equals(credentialTypeName))
+        {
+            return RestoreJobSecrets.iamMode(pair.readRegion(), pair.writeRegion());
+        }
+        return pair.toRestoreJobSecrets();
     }
 
-    private CreateRestoreJobRequestPayload.Builder createJobPayloadBuilder(JobInfo job, RestoreJobSecrets secrets, String clusterId)
+    private CreateRestoreJobRequestPayload.Builder createJobPayloadBuilder(JobInfo job,
+                                                                            RestoreJobSecrets secrets,
+                                                                            String clusterId,
+                                                                            @org.jetbrains.annotations.Nullable String credentialTypeName)
     {
         CreateRestoreJobRequestPayload.Builder builder = CreateRestoreJobRequestPayload.builder(secrets, updatedLeaseTime());
         builder.jobAgent(BuildInfo.APPLICATION_NAME)
@@ -492,6 +508,10 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                    importOptions.verifySSTables(true) // we disallow the end-user to bypass the non-extended verify anymore
                                 .extendedVerify(false); // always turn off
                });
+        if (credentialTypeName != null)
+        {
+            builder.credentialType(CredentialType.valueOf(credentialTypeName.toUpperCase()));
+        }
         return builder;
     }
 

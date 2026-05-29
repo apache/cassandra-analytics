@@ -140,4 +140,18 @@ public enum WriterOptions implements WriterOption
      * rebuilt separately after the job completes.
      */
     SKIP_SECONDARY_INDEX_CHECK,
+    /**
+     * Option to specify the credential mechanism the sidecar should use to authenticate with S3.
+     * Accepted values (case-insensitive): {@code "STATIC"}, {@code "IAM"}.
+     * <p>
+     * When absent the sidecar defaults to static credentials (backward-compatible behavior).
+     * <ul>
+     *   <li>{@code STATIC}: send full credentials; the sidecar uses {@code StaticCredentialsProvider}.</li>
+     *   <li>{@code IAM}: send region only; the sidecar uses {@code DefaultCredentialsProvider}
+     *       (instance profile / IRSA / ECS task role). The {@link StorageTransportExtension} should
+     *       return a {@code StorageCredentialPair} created with
+     *       {@code StorageCredentialPair.iamPair(readRegion, writeRegion)}.</li>
+     * </ul>
+     */
+    STORAGE_CREDENTIAL_TYPE,
 }

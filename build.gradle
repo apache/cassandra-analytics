@@ -250,10 +250,15 @@ subprojects {
   }
 
   // We want to get all the exception information we can on test failure in a multi-node in-jvm env
-  tasks.withType(Test).configureEach {
+  tasks.withType(Test).configureEach { testTask ->
+    reports {
+      junitXml.outputLocation.set(rootProject.file("build/test-results/${project.name}/${testTask.name}"))
+      html.outputLocation.set(rootProject.file("build/reports/tests/${project.name}/${testTask.name}"))
+    }
     testLogging {
-      showExceptions true
+      events "started", "passed", "skipped", "failed"
       exceptionFormat "full"
+      showExceptions true
       showCauses true
       showStackTraces true
     }

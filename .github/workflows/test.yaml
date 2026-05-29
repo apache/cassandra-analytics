@@ -200,6 +200,15 @@ jobs:
           fi
 
           ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=${{ matrix.sstable-format }}
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-s${{ matrix.scala }}-${{ matrix.sstable-format }}-C${{ matrix.cassandra }}-Spark${{ matrix.spark }}-JDK${{ matrix.jdk }}
+          path: |
+            build/test-results/**
+            build/reports/tests/**
+          retention-days: 30
 
   integration-test:
     name: Integration test - ${{ matrix.config }} (${{ matrix.job_index }})
@@ -302,23 +311,23 @@ jobs:
             done
 
             test_id=$(date +%H%M%S)
-            mkdir -p test-reports/$test_id
+            mkdir -p "test-reports/$test_id/html"
 
             if [ $SKIP == "false" ]; then
               echo Executing test $TEST_NAME
               ./gradlew --stacktrace cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
-              mv build/test-reports/* test-reports/$test_id
+              find build/test-results -name "*.xml" -exec cp {} "test-reports/$test_id/" \; 2>/dev/null || true
+              [ -d "build/reports/tests" ] && cp -r build/reports/tests/. "test-reports/$test_id/html/" 2>/dev/null || true
             else
               echo "Skipping test $TEST_NAME"
             fi
           done;
 
-          tar czf integration-tests.tar.gz test-reports/*
-
           exit $EXIT_STATUS
-      - name: Publish test results
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
-        if: (!cancelled())
         with:
           name: integration-tests-${{ matrix.config }}-${{ matrix.job_index }}
-          path: integration-tests.tar.gz
+          path: test-reports/
+          retention-days: 30

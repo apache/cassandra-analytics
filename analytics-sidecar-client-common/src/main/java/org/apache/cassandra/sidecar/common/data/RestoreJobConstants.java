@@ -58,6 +58,7 @@ public class RestoreJobConstants
     public static final String SLICE_COMPRESSED_SIZE = "sliceCompressedSize";
     public static final String SECRET_READ_CREDENTIALS = "readCredentials";
     public static final String SECRET_WRITE_CREDENTIALS = "writeCredentials";
+    public static final String JOB_CREDENTIAL_TYPE = "credentialType";
     public static final String CREDENTIALS_ACCESS_KEY_ID = "accessKeyId";
     public static final String CREDENTIALS_SECRET_ACCESS_KEY = "secretAccessKey";
     public static final String CREDENTIALS_SESSION_TOKEN = "sessionToken";

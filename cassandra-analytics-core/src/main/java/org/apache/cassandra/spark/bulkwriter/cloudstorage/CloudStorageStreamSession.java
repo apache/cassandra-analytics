@@ -57,6 +57,8 @@ import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
 import org.apache.cassandra.spark.exception.S3ApiCallException;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
+import org.apache.cassandra.spark.transports.storage.IamStorageAuth;
+import org.apache.cassandra.spark.transports.storage.StorageAuth;
 import org.apache.cassandra.spark.transports.storage.StorageCredentials;
 
 /**
@@ -227,11 +229,11 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
 
     void sendBundle(Bundle bundle, boolean hasRefreshedCredentials)
     {
-        StorageCredentials writeCredentials = getStorageCredentialsFromSidecar();
+        StorageAuth writeAuth = resolveWriteCredentials();
         BundleStorageObject bundleStorageObject;
         try
         {
-            bundleStorageObject = uploadBundle(writeCredentials, bundle);
+            bundleStorageObject = uploadBundle(writeAuth, bundle);
         }
         catch (Exception e)
         {
@@ -276,6 +278,15 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
         }
     }
 
+    private StorageAuth resolveWriteCredentials()
+    {
+        if ("IAM".equals(writerContext.job().transportInfo().getStorageCredentialType()))
+        {
+            return IamStorageAuth.INSTANCE;
+        }
+        return getStorageCredentialsFromSidecar();
+    }
+
     private StorageCredentials getStorageCredentialsFromSidecar()
     {
         try
@@ -293,9 +304,9 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
     /**
      * Uploads generated SSTable bundle
      */
-    private BundleStorageObject uploadBundle(StorageCredentials writeCredentials, Bundle bundle) throws S3ApiCallException
+    private BundleStorageObject uploadBundle(StorageAuth writeAuth, Bundle bundle) throws S3ApiCallException
     {
-        BundleStorageObject object = dataTransferApi.uploadBundle(writeCredentials, bundle);
+        BundleStorageObject object = dataTransferApi.uploadBundle(writeAuth, bundle);
         transportContext.transportExtensionImplementation()
                         .onObjectPersisted(transportContext.transportConfiguration()
                                                            .writeAccessConfiguration()

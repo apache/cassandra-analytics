@@ -116,7 +116,8 @@ commands:
             # files on each run, so without aggregation only the last class's XML
             # would survive, hiding most results from the CircleCI dashboard.
             # Drain reports into a per-class subdirectory after each iteration.
-            SRC_REPORT_DIR="$(pwd)/build/test-reports/integration"
+            SRC_REPORT_DIR="$(pwd)/build/test-results/cassandra-analytics-integration-tests/test"
+            HTML_REPORT_DIR="$(pwd)/build/reports/tests/cassandra-analytics-integration-tests/test"
             AGG_ROOT="$(pwd)/build/aggregated-test-reports/integration"
             mkdir -p "$AGG_ROOT"
             # collect up exit statuses for all of the test classes and exit with that result at the end.
@@ -133,10 +134,10 @@ commands:
                         mv "$f" "$DEST"/
                         MOVED=1
                     done
-                    for f in "$SRC_REPORT_DIR"/*.html; do
-                        [ -e "$f" ] || continue
-                        mv "$f" "$DEST"/ 2>/dev/null || true
-                    done
+                fi
+                if [ -d "$HTML_REPORT_DIR" ]; then
+                    mkdir -p "$DEST/html"
+                    cp -r "$HTML_REPORT_DIR/." "$DEST/html/"
                 fi
                 # If Gradle produced no XML (e.g. class-level crash before any
                 # @Test ran), synthesize a minimal JUnit record so CircleCI's
@@ -244,8 +245,8 @@ jobs:
 
       - store_artifacts:
           when: always
-          path: build/test-reports
-          destination: test-reports
+          path: build/test-results
+          destination: test-results
 
       - store_artifacts:
           when: always
@@ -254,7 +255,7 @@ jobs:
 
       - store_test_results:
           when: always
-          path: build/test-reports
+          path: build/test-results
 
   # Single parameterized integration-test job, invoked once per Cassandra/Scala
   # compatibility group from the workflow's `matrix:` block.
@@ -286,8 +287,8 @@ jobs:
 
       - store_artifacts:
           when: always
-          path: build/test-reports
-          destination: test-reports
+          path: build/aggregated-test-reports
+          destination: test-results
 
       - store_artifacts:
           when: always

@@ -74,15 +74,4 @@ test {
     jvmArgs(project.ext.JDK_OPTIONS)
 
     useJUnitPlatform()
-    reports {
-        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "four-zero-types").toFile()
-        junitXml {
-            enabled true
-            destination = destDir
-        }
-        html {
-            enabled true
-            destination = destDir
-        }
-    }
 }

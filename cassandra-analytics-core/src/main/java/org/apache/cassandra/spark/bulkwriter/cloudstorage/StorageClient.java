@@ -41,12 +41,10 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.cassandra.spark.transports.storage.StorageCredentials;
+import org.apache.cassandra.spark.transports.storage.StorageAuth;
 import org.apache.cassandra.spark.transports.storage.extensions.StorageTransportConfiguration;
-import software.amazon.awssdk.auth.credentials.AwsCredentials;
+
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials;
-import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.awscore.AwsRequestOverrideConfiguration;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.core.client.config.SdkAdvancedAsyncClientOption;
@@ -77,7 +75,7 @@ public class StorageClient implements AutoCloseable
     private final DataChunker dataChunker;
     private final Tagging tagging;
     private final S3AsyncClient client;
-    private final Map<StorageCredentials, AwsCredentialsProvider> credentialsCache;
+    private final Map<StorageAuth, AwsCredentialsProvider> credentialsCache;
 
     public StorageClient(StorageTransportConfiguration storageTransportConfiguration,
                          StorageClientConfig storageClientConfig)
@@ -139,27 +137,24 @@ public class StorageClient implements AutoCloseable
      * We use {@link CreateMultipartUploadRequest} to break down each SSTable bundle into chunks, according to
      * chunk size set, and upload to S3.
      *
-     * @param credentials credentials used for uploading to S3
-     * @param bundle      bundle of sstables
+     * @param auth   the auth mechanism for this upload (e.g. {@link org.apache.cassandra.spark.transports.storage.StorageCredentials}
+     *               for static STS keys, {@link org.apache.cassandra.spark.transports.storage.IamStorageAuth} for instance profile)
+     * @param bundle bundle of sstables
      * @return BundleStorageObject representing the uploaded bundle
      * @throws IOException          when an IO exception occurs during the multipart upload
      * @throws ExecutionException   when it fails to retrieve the state of a task
      * @throws InterruptedException when the thread is interrupted
      */
-    public BundleStorageObject multiPartUpload(StorageCredentials credentials,
+    public BundleStorageObject multiPartUpload(StorageAuth auth,
                                                Bundle bundle)
     throws IOException, ExecutionException, InterruptedException
     {
-        if (credentials == null)
-        {
-            throw new IllegalArgumentException("No credentials provided for uploading bundles");
-        }
 
         String key = calculateStorageKeyForBundle(storageTransportConfiguration.getPrefix(),
                                                   bundle.bundleFile);
         String bucket = storageTransportConfiguration.writeAccessConfiguration().bucket();
         CreateMultipartUploadRequest multipartUploadRequest = CreateMultipartUploadRequest.builder()
-                                                                                          .overrideConfiguration(credentialsOverride(credentials))
+                                                                                          .overrideConfiguration(credentialsOverride(auth))
                                                                                           .bucket(bucket)
                                                                                           .key(key)
                                                                                           .tagging(tagging)
@@ -168,7 +163,7 @@ public class StorageClient implements AutoCloseable
         CreateMultipartUploadResponse multipartUploadResponse = client.createMultipartUpload(multipartUploadRequest).get();
         String uploadId = multipartUploadResponse.uploadId();
 
-        List<CompletedPart> completedParts = uploadPartsOfBundle(key, uploadId, credentials, bundle);
+        List<CompletedPart> completedParts = uploadPartsOfBundle(key, uploadId, auth, bundle);
 
         // tell s3 to merge all completed parts by making the CompleteMultipartUploadRequest
         CompletedMultipartUpload completedUpload = CompletedMultipartUpload.builder()
@@ -176,7 +171,7 @@ public class StorageClient implements AutoCloseable
                                                                            .build();
 
         CompleteMultipartUploadRequest completeMultipartUploadRequest = CompleteMultipartUploadRequest.builder()
-                                                                                                      .overrideConfiguration(credentialsOverride(credentials))
+                                                                                                      .overrideConfiguration(credentialsOverride(auth))
                                                                                                       .bucket(bucket)
                                                                                                       .key(key)
                                                                                                       .uploadId(uploadId)
@@ -200,7 +195,7 @@ public class StorageClient implements AutoCloseable
     }
 
     private List<CompletedPart> uploadPartsOfBundle(String key, String uploadId,
-                                                    StorageCredentials credentials,
+                                                    StorageAuth auth,
                                                     Bundle bundle)
     throws IOException, ExecutionException, InterruptedException
     {
@@ -221,7 +216,7 @@ public class StorageClient implements AutoCloseable
                 // get a copy of the remaining ByteBuffer; for the last chunk, the cloned ByteBuffer is resized accordingly.
                 AsyncRequestBody body = AsyncRequestBody.fromRemainingByteBuffer(buffer);
                 UploadPartRequest uploadPartRequest = UploadPartRequest.builder()
-                                                                       .overrideConfiguration(credentialsOverride(credentials))
+                                                                       .overrideConfiguration(credentialsOverride(auth))
                                                                        .bucket(bucket)
                                                                        .key(key)
                                                                        .uploadId(uploadId)
@@ -248,16 +243,8 @@ public class StorageClient implements AutoCloseable
         return prefix + SEPARATOR + bundleLocation.getFileName();
     }
 
-    private AwsCredentialsProvider toCredentialsProvider(StorageCredentials storageCredentials)
+    private Consumer<AwsRequestOverrideConfiguration.Builder> credentialsOverride(StorageAuth auth)
     {
-        AwsCredentials credentials = AwsSessionCredentials.create(storageCredentials.getAccessKeyId(),
-                                                                  storageCredentials.getSecretKey(),
-                                                                  storageCredentials.getSessionToken());
-        return StaticCredentialsProvider.create(credentials);
-    }
-
-    private Consumer<AwsRequestOverrideConfiguration.Builder> credentialsOverride(StorageCredentials credentials)
-    {
-        return b -> b.credentialsProvider(credentialsCache.computeIfAbsent(credentials, this::toCredentialsProvider));
+        return b -> b.credentialsProvider(credentialsCache.computeIfAbsent(auth, StorageAuth::toAwsCredentialsProvider));
     }
 }

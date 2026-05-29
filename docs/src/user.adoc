@@ -342,30 +342,48 @@ as soon as it can be downloaded from S3 storage.
 |no
 |
 a|
-Configuration of coordinated write operation in JSON format. Lists all remote Cassandra clusters to write,
-together with list of local Sidecar instances. This property is required only when importing data to multiple
-Cassandra clusters.
+Configuration of coordinated write operation in JSON format. Each key is a logical cluster ID that must match
+the keys in the read bucket map returned by `StorageTransportExtension.getStorageConfiguration()`. This property
+is required only when importing data to multiple targets via the 2-phase coordination protocol.
 
-Example:
+Two topologies are supported:
+
+*Multiple independent Cassandra clusters* — each entry points to a separate Cassandra deployment with its own
+Sidecar instances. Set `writeToLocalDcOnly: false` to validate consistency across the whole cluster.
 
 [source,json]
 ----
 {
-  "cluster1": {
-    "sidecarContactPoints": [
-      "instance-1:9999",
-      "instance-2:9999",
-      "instance-3:9999"
-    ],
-    "localDc": "dc1",
+  "cluster-us": {
+    "sidecarContactPoints": ["us-sidecar-1:9043", "us-sidecar-2:9043"],
+    "localDc": "us-east",
     "writeToLocalDcOnly": false
   },
-  "cluster2": {
-    "sidecarContactPoints": [
-      "instance-4:8888"
-    ],
-    "localDc": "dc2",
+  "cluster-eu": {
+    "sidecarContactPoints": ["eu-sidecar-1:9043", "eu-sidecar-2:9043"],
+    "localDc": "eu-west",
     "writeToLocalDcOnly": false
+  }
+}
+----
+
+*Multiple DCs within a single Cassandra cluster* — use one entry per DC, pointing to the Sidecar instances
+in that DC. Set `localDc` to the DC name and `writeToLocalDcOnly: true` to scope both the write and the
+consistency check to that DC. S3 Cross-Region Replication provides a separate read bucket for each DC
+(see <<S3 Bucket Topology>>).
+
+[source,json]
+----
+{
+  "dc-us-east": {
+    "sidecarContactPoints": ["us-sidecar-1:9043", "us-sidecar-2:9043"],
+    "localDc": "us-east",
+    "writeToLocalDcOnly": true
+  },
+  "dc-eu-west": {
+    "sidecarContactPoints": ["eu-sidecar-1:9043", "eu-sidecar-2:9043"],
+    "localDc": "eu-west",
+    "writeToLocalDcOnly": true
   }
 }
 ----
@@ -375,6 +393,17 @@ Example:
 |
 |Fully qualified class name that implements `StorageTransportExtension` interface. Consult JavaDoc for
 implementation details
+
+|_storage_credential_type_
+|no
+|`STATIC`
+a|Controls how Spark executors and Sidecar authenticate to S3. Accepted values (case-insensitive):
+
+* `STATIC`: STS access key / secret / session token credentials are passed to Sidecar. The `StorageTransportExtension`
+  must supply a `StorageCredentialPair` built with `StorageCredentials`.
+* `IAM`: No credentials are passed. Both the Spark executors and Sidecar use the AWS SDK default provider chain
+  (EC2 instance profile, EKS IRSA, ECS task role). The `StorageTransportExtension` must supply a
+  `StorageCredentialPair` built with `StorageCredentialPair.iamPair(writeRegion, readRegion)`.
 
 |_storage_client_endpoint_override_
 |no
@@ -417,6 +446,135 @@ implementation details
 |Specifies concurrency of the NIO HTTP component employed in S3 client
 
 |===
+
+=== S3 Bucket Topology
+
+The library separates write and read access into distinct `StorageAccessConfiguration` objects, each with its own
+bucket, region, and credentials. This maps to the following topology:
+
+* **Write bucket**: a single S3 bucket in one region where all Spark executors upload SSTable bundles.
+* **Read bucket per cluster**: each target Cassandra cluster reads from a bucket in its own region. In a
+  cross-region setup this is a replica of the write bucket, configured externally via S3 Cross-Region Replication.
+  The library does not manage replication — it only tells each Sidecar instance which bucket and region to pull from.
+
+For a single-cluster write, write and read buckets may be the same bucket in the same region, or different buckets
+when Sidecar should read from a regional replica.
+
+=== Implementing StorageTransportExtension
+
+The `StorageTransportExtension` interface is the integration point where bucket names, regions, and credentials
+are supplied. The library calls `getStorageConfiguration()` once on startup, then registers a
+`CredentialChangeListener` via `setCredentialChangeListener()` so the extension can push refreshed credentials
+during long-running jobs without restarting.
+
+==== Static credentials (STS tokens)
+
+Use `StorageCredentials` when a credential vending service issues short-lived STS tokens. Store the listener
+and call `onCredentialsChanged()` on each refresh.
+
+[source,java]
+----
+public class MyStorageTransportExtension implements StorageTransportExtension {
+    private String jobId;
+    private CredentialChangeListener credentialChangeListener;
+
+    @Override
+    public void initialize(String jobId, SparkConf conf, boolean isOnDriver) {
+        this.jobId = jobId;
+    }
+
+    @Override
+    public StorageTransportConfiguration getStorageConfiguration() {
+        StorageCredentialPair credentials = new StorageCredentialPair(
+            "us-east-1",
+            new StorageCredentials("writeAccessKeyId", "writeSecretKey", "writeSessionToken"),
+            "eu-west-1",
+            new StorageCredentials("readAccessKeyId", "readSecretKey", "readSessionToken"));
+
+        return new StorageTransportConfiguration(
+            "my-write-bucket",    // Spark executors upload here
+            "us-east-1",
+            "my-read-bucket-eu",  // Sidecar in eu-west-1 reads from this S3 replica
+            "eu-west-1",
+            "job-prefix",
+            credentials,
+            Map.of());
+    }
+
+    @Override
+    public void setCredentialChangeListener(CredentialChangeListener listener) {
+        this.credentialChangeListener = listener;
+        startTokenRefreshScheduler();
+    }
+
+    private void onTokenRefresh(StorageCredentialPair newCredentials) {
+        credentialChangeListener.onCredentialsChanged(jobId, newCredentials);
+    }
+
+    // ... remaining lifecycle methods
+}
+----
+
+Set `storage_credential_type=STATIC` (or omit it; STATIC is the default).
+
+==== IAM credentials (instance profile / IRSA / ECS task role)
+
+Use IAM mode when Spark executors and Sidecar instances have AWS identity attached at the infrastructure level.
+Only regions are required — no credentials are passed in the configuration.
+
+[source,java]
+----
+public class MyIamStorageTransportExtension implements StorageTransportExtension {
+
+    @Override
+    public void initialize(String jobId, SparkConf conf, boolean isOnDriver) { }
+
+    @Override
+    public StorageTransportConfiguration getStorageConfiguration() {
+        return new StorageTransportConfiguration(
+            "my-write-bucket",
+            "us-east-1",
+            "my-read-bucket-eu",
+            "eu-west-1",
+            "job-prefix",
+            StorageCredentialPair.iamPair("us-east-1", "eu-west-1"),
+            Map.of());
+    }
+
+    @Override
+    public void setCredentialChangeListener(CredentialChangeListener listener) {
+        // no-op: credentials are resolved by the AWS SDK default provider chain
+    }
+
+    // ... remaining lifecycle methods
+}
+----
+
+Set `storage_credential_type=IAM` in your write options.
+
+==== Multi-cluster (coordinated write)
+
+For coordinated writes to multiple clusters, use the constructor that accepts a read-configuration map keyed by
+`clusterId`. Each entry must have its own bucket and region. The `clusterId` keys must match those in
+`coordinated_write_config`.
+
+[source,java]
+----
+@Override
+public StorageTransportConfiguration getStorageConfiguration() {
+    return new StorageTransportConfiguration(
+        "job-prefix",
+        Map.of(),
+        new StorageAccessConfiguration("us-east-1", "my-write-bucket", IamStorageAuth.INSTANCE),
+        Map.of(
+            "cluster-eu", new StorageAccessConfiguration("eu-west-1",      "my-read-bucket-eu", IamStorageAuth.INSTANCE),
+            "cluster-ap", new StorageAccessConfiguration("ap-southeast-1", "my-read-bucket-ap", IamStorageAuth.INSTANCE)
+        ));
+}
+----
+
+For static credentials, replace `IamStorageAuth.INSTANCE` with a `StorageCredentials` instance and call
+`credentialChangeListener.onCredentialsChanged(jobId, clusterId, newCredentials)` per cluster on refresh.
 
 === Other Properties
 
