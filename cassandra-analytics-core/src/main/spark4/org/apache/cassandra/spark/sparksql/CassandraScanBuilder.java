@@ -43,6 +43,7 @@ import org.apache.spark.sql.connector.read.SupportsPushDownFilters;
 import org.apache.spark.sql.connector.read.SupportsPushDownRequiredColumns;
 import org.apache.spark.sql.connector.read.SupportsReportPartitioning;
 import org.apache.spark.sql.connector.read.partitioning.Partitioning;
+import org.apache.spark.sql.connector.read.partitioning.UnknownPartitioning;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
@@ -121,7 +122,7 @@ class CassandraScanBuilder implements ScanBuilder, Scan, Batch, SupportsPushDown
     @Override
     public Partitioning outputPartitioning()
     {
-        return new CassandraPartitioning(dataLayer);
+        return new UnknownPartitioning(dataLayer.partitionCount());
     }
 
     private List<PartitionKeyFilter> buildPartitionKeyFilters()
