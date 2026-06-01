@@ -52,6 +52,9 @@ public final class CqlUtils
                                                                                         "max_index_interval"
                                                                                         );
     private static final Pattern REPLICATION_FACTOR_PATTERN = Pattern.compile("WITH REPLICATION = (\\{[^\\}]*\\})");
+    private static final String TRACKED_REPLICATION_TYPE = "tracked";
+    private static final Pattern REPLICATION_TYPE_PATTERN = Pattern.compile("replication_type\\s*=\\s*'(\\w+)'",
+                                                                             Pattern.CASE_INSENSITIVE);
     // Initialize a mapper allowing single quotes to process the RF string from the CREATE KEYSPACE statement
     private static final ObjectMapper MAPPER = new ObjectMapper().configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
     private static final Pattern ESCAPED_WHITESPACE_PATTERN = Pattern.compile("(\\\\r|\\\\n|\\\\r\\n)+");
@@ -295,5 +298,34 @@ public final class CqlUtils
     public static boolean isTimeRangeFilterSupported(String compactionStrategy)
     {
         return compactionStrategy == null || compactionStrategy.endsWith("TimeWindowCompactionStrategy");
+    }
+
+    /**
+     * Extracts replication type from create schema statement
+     *
+     * @param schemaStr full cluster schema string as returned by Sidecar
+     * @param keyspace  name of the keyspace to check
+     * @return {@code true} if keyspace is tracked {@code false} otherwise
+     */
+    public static String extractReplicationType(@NotNull String schemaStr, @NotNull String keyspace)
+    {
+        String createKeyspaceSchema = extractKeyspaceSchema(schemaStr, keyspace);
+        Matcher matcher = REPLICATION_TYPE_PATTERN.matcher(createKeyspaceSchema);
+        if (matcher.find())
+        {
+            return matcher.group(1);
+        }
+        return null;
+    }
+
+    /**
+     * Returns {@code true} if {@code replication_type = 'tracked'} in create statement otherwise {@code false}
+     *
+     * @param replicationType replication type extracted from create statement
+     * @return {@code true} if replication type is tracked {@code false} otherwise
+     */
+    public static boolean isTracked(String replicationType)
+    {
+        return TRACKED_REPLICATION_TYPE.equalsIgnoreCase(replicationType);
     }
 }

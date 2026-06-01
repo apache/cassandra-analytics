@@ -30,8 +30,10 @@ import org.junit.jupiter.api.Test;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
+import org.apache.cassandra.spark.utils.CqlUtils;
 
 import static org.apache.cassandra.spark.TestUtils.range;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -75,6 +77,50 @@ public class CassandraClusterInfoTest
         return new MockClusterInfoForTimeSkew(allowanceMinutes, remoteNow);
     }
 
+    @Test
+    void testGetTrackedReplicationType()
+    {
+        String schema = "CREATE KEYSPACE mykeyspace "
+                        + "WITH replication = {'class': 'NetworkTopologyStrategy', 'dc1': '3'}"
+                        + "  AND durable_writes = true"
+                        + "  AND replication_type = 'tracked';";
+        CassandraClusterInfo ci = mockClusterInfoWithSchema("mykeyspace", schema);
+        assertThat(ci.getReplicationType())
+        .describedAs("Keyspace with replication_type = 'tracked' should return 'tracked'")
+        .isEqualTo("tracked");
+    }
+
+    @Test
+    void testGetUntrackedReplicationType()
+    {
+        String schema = "CREATE KEYSPACE k "
+                        + "WITH replication = {'class': 'NetworkTopologyStrategy', 'dc1': '3'}"
+                        + "  AND durable_writes = true"
+                        + "  AND replication_type = 'untracked';";
+        CassandraClusterInfo ci = mockClusterInfoWithSchema("k", schema);
+        assertThat(ci.getReplicationType())
+        .describedAs("Keyspace with replication_type = 'untracked' should return 'untracked'")
+        .isEqualTo("untracked");
+    }
+
+    @Test
+    void testGetReplicationTypeReturnsNullWhenPropertyAbsent()
+    {
+        // Schema without replication_type — pre-mutation-tracking clusters
+        String schema = "CREATE KEYSPACE k "
+                        + "WITH replication = {'class': 'NetworkTopologyStrategy', 'dc1': '3'}"
+                        + "  AND durable_writes = true;";
+        CassandraClusterInfo ci = mockClusterInfoWithSchema("k", schema);
+        assertThat(ci.getReplicationType())
+        .describedAs("Keyspace without replication_type property should return null")
+        .isNull();
+    }
+
+    private static CassandraClusterInfo mockClusterInfoWithSchema(String keyspace, String schemaStr)
+    {
+        return new MockClusterInfoForSchema(keyspace, schemaStr);
+    }
+
     private static class MockClusterInfoForTimeSkew extends CassandraClusterInfo
     {
         private CassandraContext cassandraContext;
@@ -105,6 +151,41 @@ public class CassandraClusterInfoTest
             when(cassandraContext.getSidecarClient().timeSkew(any()))
             .thenReturn(CompletableFuture.completedFuture(tsr));
             when(cassandraContext.sidecarPort()).thenReturn(9043);
+        }
+    }
+
+    /**
+     * Minimal ClusterInfo stub that returns a fixed keyspace schema string, used to test
+     * {@link CassandraClusterInfo#getReplicationType()}.
+     */
+    private static class MockClusterInfoForSchema extends CassandraClusterInfo
+    {
+        private final String keyspaceName;
+        private final String schemaStr;
+
+        MockClusterInfoForSchema(String keyspace, String schemaStr)
+        {
+            super((BulkSparkConf) null);
+            this.keyspaceName = keyspace;
+            this.schemaStr = schemaStr;
+        }
+
+        @Override
+        protected CassandraContext buildCassandraContext()
+        {
+            return mock(CassandraContext.class, RETURNS_DEEP_STUBS);
+        }
+
+        @Override
+        public String getKeyspaceSchema(boolean cached)
+        {
+            return schemaStr;
+        }
+
+        @Override
+        public String getReplicationType()
+        {
+            return CqlUtils.extractReplicationType(schemaStr, keyspaceName);
         }
     }
 }

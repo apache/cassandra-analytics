@@ -99,6 +99,7 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
 
     private final UUID jobId;
     private boolean skipClean = false;
+    private String replicationType = null;
     public int refreshClusterInfoCallCount = 0;  // CHECKSTYLE IGNORE: Public mutable field
     private final Map<CassandraInstance, List<UploadRequest>> uploads = new ConcurrentHashMap<>();
     private final Map<CassandraInstance, List<String>> commits = new ConcurrentHashMap<>();
@@ -202,6 +203,17 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     public void setReplicationFactor(ReplicationFactor replicationFactor)
     {
         this.replicationFactor = replicationFactor;
+    }
+
+    @Override
+    public String getReplicationType()
+    {
+        return replicationType;
+    }
+
+    public void setTrackedKeyspace(boolean tracked)
+    {
+        this.replicationType = tracked ? "tracked" : "untracked";
     }
 
     @Override
