@@ -19,21 +19,31 @@
 
 package org.apache.cassandra.spark.sparksql;
 
+import org.junit.jupiter.api.Test;
+
 import org.apache.cassandra.spark.data.DataLayer;
 import org.apache.spark.sql.connector.read.partitioning.Partitioning;
+import org.apache.spark.sql.connector.read.partitioning.UnknownPartitioning;
+import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-class CassandraPartitioning implements Partitioning
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+class CassandraScanBuilderTest
 {
-    final DataLayer dataLayer;
-
-    CassandraPartitioning(DataLayer dataLayer)
+    @Test
+    void outputPartitioningReportsUnknownPartitioningWithPartitionCount()
     {
-        this.dataLayer = dataLayer;
-    }
+        DataLayer dataLayer = mock(DataLayer.class);
+        when(dataLayer.partitionCount()).thenReturn(7);
+        CassandraScanBuilder builder =
+            new CassandraScanBuilder(dataLayer, new StructType(), CaseInsensitiveStringMap.empty());
 
-    @Override
-    public int numPartitions()
-    {
-        return dataLayer.partitionCount();
+        Partitioning partitioning = builder.outputPartitioning();
+
+        assertThat(partitioning).isInstanceOf(UnknownPartitioning.class);
+        assertThat(partitioning.numPartitions()).isEqualTo(7);
     }
 }
