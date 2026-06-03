@@ -95,14 +95,11 @@ public class SparkRowIterator extends AbstractSparkRowIterator<GenericInternalRo
         return new GenericInternalRow(valueArray);
     }
 
-    /**
-     * Returns custom metrics collected during task execution.
-     * This is called by Spark to collect task-level metrics for aggregation.
-     */
     @Override
     public CustomTaskMetric[] currentMetricsValues()
     {
         Stats stats = this.it.stats();
+        // Only the S3 read path collects these counters; other DataLayers expose no task metrics.
         if (stats instanceof SparkCustomMetricsStats)
         {
             SparkCustomMetricsStats metricsStats = (SparkCustomMetricsStats) stats;
@@ -117,8 +114,6 @@ public class SparkRowIterator extends AbstractSparkRowIterator<GenericInternalRo
                 TaskTotalMutableMetadataHeadFallbackCount.from(metricsStats.getTotalMutableMetadataHeadFallbackCount())
             };
         }
-
-        // Return empty array if no metrics available
         return new CustomTaskMetric[0];
     }
 }
