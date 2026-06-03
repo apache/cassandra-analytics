@@ -58,6 +58,7 @@ import org.apache.spark.sql.connector.read.SupportsPushDownRequiredColumns;
 import org.apache.spark.sql.connector.read.SupportsReportPartitioning;
 import org.apache.spark.sql.connector.read.SupportsReportStatistics;
 import org.apache.spark.sql.connector.read.partitioning.Partitioning;
+import org.apache.spark.sql.connector.read.partitioning.UnknownPartitioning;
 import org.apache.spark.sql.sources.Filter;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
@@ -160,10 +161,11 @@ class CassandraScanBuilder implements ScanBuilder, Scan, Batch, SupportsPushDown
     @Override
     public Partitioning outputPartitioning()
     {
-        // See CassandraPartitioning for why we report UnknownPartitioning (token-range Spark
-        // partitions are not key-grouped by Cassandra partition key, so KeyGroupedPartitioning
-        // is the wrong contract here).
-        return new CassandraPartitioning(dataLayer.partitionCount());
+        // Report the partition count via Spark's UnknownPartitioning. Each Cassandra input
+        // partition is a token range whose rows span many distinct partition keys and tokens,
+        // so it does not satisfy KeyGroupedPartitioning's contract that every row in a Spark
+        // partition evaluates to the same partition value.
+        return new UnknownPartitioning(dataLayer.partitionCount());
     }
 
     private List<PartitionKeyFilter> buildPartitionKeyFilters()
