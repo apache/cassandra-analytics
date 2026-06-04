@@ -224,13 +224,6 @@ class S3ClientCacheTest
     }
 
     @Test
-    void testNonBlockingDnsResolverAvailabilityMatchesClasspath()
-    {
-        assertThat(S3ClientCache.isNonBlockingDnsResolverAvailable())
-        .isEqualTo(isClassAvailable(S3ClientCache.NETTY_DNS_RESOLVER_CLASS));
-    }
-
-    @Test
     void testResolveTaskSlotsPrioritizesSparkConfThenEnvThenRuntime()
     {
         SparkConf conf = new SparkConf(false)
@@ -394,18 +387,5 @@ class S3ClientCacheTest
     private S3ClientConfig createConfig(Map<String, String> options)
     {
         return S3ClientConfig.create(new CaseInsensitiveStringMap(options));
-    }
-
-    private static boolean isClassAvailable(String className)
-    {
-        try
-        {
-            Class.forName(className, false, S3ClientCacheTest.class.getClassLoader());
-            return true;
-        }
-        catch (ClassNotFoundException exception)
-        {
-            return false;
-        }
     }
 }

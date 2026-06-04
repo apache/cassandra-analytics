@@ -68,8 +68,6 @@ public final class S3ClientCache
     static final int CONNECTION_TIMEOUT_SECONDS = 5;
     static final int READ_TIMEOUT_SECONDS = 120;
     static final int CONNECTION_MAX_IDLE_TIME_SECONDS = 60;
-    static final String NETTY_DNS_RESOLVER_CLASS = "io.netty.resolver.dns.DnsAddressResolverGroup";
-    private static final boolean NON_BLOCKING_DNS_RESOLVER_AVAILABLE = isClassAvailable(NETTY_DNS_RESOLVER_CLASS);
     private static volatile boolean loggedTaskSlotSource = false;
 
     // Separate caches for different client types
@@ -221,7 +219,7 @@ public final class S3ClientCache
                + "|connectTimeout=" + CONNECTION_TIMEOUT_SECONDS
                + "|readTimeout=" + READ_TIMEOUT_SECONDS
                + "|idleTime=" + CONNECTION_MAX_IDLE_TIME_SECONDS
-               + "|tcpKeepAlive=true|dns=nonBlocking";
+               + "|tcpKeepAlive=true";
     }
 
     // ========================================================================
@@ -295,16 +293,6 @@ public final class S3ClientCache
             .connectionMaxIdleTime(Duration.ofSeconds(CONNECTION_MAX_IDLE_TIME_SECONDS))
             .tcpKeepAlive(true);
 
-        if (isNonBlockingDnsResolverAvailable())
-        {
-            httpClientBuilder.useNonBlockingDnsResolver(true);
-        }
-        else
-        {
-            LOGGER.info("Netty non-blocking DNS resolver is not available on the classpath; "
-                        + "building S3AsyncClient with the AWS SDK default DNS resolver");
-        }
-
         software.amazon.awssdk.services.s3.S3AsyncClientBuilder builder = S3AsyncClient.builder()
             .region(Region.of(config.s3Region()))
             .credentialsProvider(credentialsProvider)
@@ -317,33 +305,14 @@ public final class S3ClientCache
         }
 
         LOGGER.info("Built S3AsyncClient region={} maxConcurrency={} maxPendingConnectionAcquires={} "
-                    + "nonBlockingDnsResolver={} (knob={}, taskSlotsSource={}, taskSlots={})",
+                    + "(knob={}, taskSlotsSource={}, taskSlots={})",
                     config.s3Region(),
                     resolved.maxConcurrency,
                     resolved.maxPendingConnectionAcquires,
-                    isNonBlockingDnsResolverAvailable(),
                     config.s3HttpMaxConcurrency(),
                     resolved.taskSlots.source,
                     resolved.taskSlots.taskSlots);
         return builder.build();
-    }
-
-    static boolean isNonBlockingDnsResolverAvailable()
-    {
-        return NON_BLOCKING_DNS_RESOLVER_AVAILABLE;
-    }
-
-    private static boolean isClassAvailable(String className)
-    {
-        try
-        {
-            Class.forName(className, false, S3ClientCache.class.getClassLoader());
-            return true;
-        }
-        catch (ClassNotFoundException exception)
-        {
-            return false;
-        }
     }
 
     static int resolveMaxConcurrency(S3ClientConfig config)
