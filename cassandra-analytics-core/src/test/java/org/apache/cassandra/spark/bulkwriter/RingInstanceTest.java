@@ -100,6 +100,21 @@ public class RingInstanceTest
     }
 
     @Test
+    public void testEqualsAndHashcodeIgnoreIpAddress()
+    {
+        // The same logical instance can come back with a different IP address,
+        // e.g. when Kubernetes replaces a pod; it should compare equal
+        RingInstance instance1 = new RingInstance(mockRingEntryBuilder()
+                                                  .address("127.0.0.1")
+                                                  .build());
+        RingInstance instance2 = new RingInstance(mockRingEntryBuilder()
+                                                  .address("127.0.0.2")
+                                                  .build());
+        assertThat(instance1).isEqualTo(instance2);
+        assertThat(instance1.hashCode()).isEqualTo(instance2.hashCode());
+    }
+
+    @Test
     public void testEqualsAndHashcodeConsidersClusterId()
     {
         RingEntry ringEntry = mockRingEntry();

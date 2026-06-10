@@ -85,6 +85,44 @@ public final class TokenRangeMappingUtils
                                        new HashSet<>(instances));
     }
 
+    /**
+     * Builds the same topology as {@link #buildTokenRangeMapping(int, ImmutableMap, int)}, but every instance
+     * has a different IP address, simulating nodes coming back with new IPs, e.g. pod replacement in Kubernetes
+     */
+    public static TokenRangeMapping<RingInstance> buildTokenRangeMappingWithChangedIpAddresses(int initialToken,
+                                                                                               ImmutableMap<String, Integer> rfByDC,
+                                                                                               int instancesPerDC)
+    {
+        List<RingInstance> instances = getInstances(initialToken, rfByDC, instancesPerDC)
+                                       .stream()
+                                       .map(TokenRangeMappingUtils::withChangedIpAddress)
+                                       .collect(Collectors.toList());
+        ReplicationFactor replicationFactor = getReplicationFactor(rfByDC);
+        Multimap<RingInstance, Range<BigInteger>> tokenRanges = setupTokenRangeMap(Partitioner.Murmur3Partitioner, replicationFactor, instances);
+        return new TokenRangeMapping<>(Partitioner.Murmur3Partitioner,
+                                       tokenRanges,
+                                       new HashSet<>(instances));
+    }
+
+    private static RingInstance withChangedIpAddress(RingInstance instance)
+    {
+        RingEntry entry = instance.ringEntry();
+        RingEntry newEntry = new RingEntry.Builder()
+                             .datacenter(entry.datacenter())
+                             .port(entry.port())
+                             .address(entry.address().replace("127.", "10."))
+                             .status(entry.status())
+                             .state(entry.state())
+                             .token(entry.token())
+                             .fqdn(entry.fqdn())
+                             .rack(entry.rack())
+                             .owns(entry.owns())
+                             .load(entry.load())
+                             .hostId(entry.hostId())
+                             .build();
+        return new RingInstance(newEntry);
+    }
+
     public static TokenRangeMapping<RingInstance> buildTokenRangeMapping(int initialToken,
                                                                          ImmutableMap<String, Integer> rfByDC,
                                                                          int instancesPerDC,
