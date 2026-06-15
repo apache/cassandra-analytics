@@ -36,7 +36,6 @@ import org.slf4j.LoggerFactory;
 import o.a.c.sidecar.client.shaded.common.request.data.CreateSliceRequestPayload;
 import o.a.c.sidecar.client.shaded.common.response.data.RestoreJobSummaryResponsePayload;
 import org.apache.cassandra.bridge.CassandraBridge;
-import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.clients.Sidecar;
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
@@ -82,7 +81,7 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
                                      ExecutorService executorService)
     {
         this(bulkWriterContext, sstableWriter, transportContext, sessionID, tokenRange,
-             CassandraBridgeFactory.get(bulkWriterContext.cluster().getLowestCassandraVersion()),
+             bulkWriterContext.bridge(),  // Use bridge from context (SSTable version-based)
              failureHandler, executorService);
     }
 

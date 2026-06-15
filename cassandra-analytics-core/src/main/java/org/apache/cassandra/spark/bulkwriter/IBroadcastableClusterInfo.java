@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -37,10 +38,9 @@ import org.jetbrains.annotations.Nullable;
  * Methods in this interface:
  * <ul>
  *   <li>{@link #getPartitioner()} - static cluster partitioner configuration</li>
- *   <li>{@link #getLowestCassandraVersion()} - pre-computed version string</li>
  *   <li>{@link #clusterId()} - cluster identifier (optional)</li>
  *   <li>{@link #getConf()} - BulkSparkConf needed for reconstruction on executors</li>
- *   <li>{@link #reconstruct()} - reconstructs full ClusterInfo instance on executors</li>
+ *   <li>{@link #reconstruct(CassandraVersion)} - reconstructs full ClusterInfo instance on executors with bridge version</li>
  * </ul>
  */
 public interface IBroadcastableClusterInfo extends Serializable
@@ -49,11 +49,6 @@ public interface IBroadcastableClusterInfo extends Serializable
      * @return the partitioner used by the cluster
      */
     Partitioner getPartitioner();
-
-    /**
-     * @return the lowest Cassandra version in the cluster
-     */
-    String getLowestCassandraVersion();
 
     /**
      * ID string that can uniquely identify a cluster.
@@ -77,7 +72,8 @@ public interface IBroadcastableClusterInfo extends Serializable
      * This allows adding new broadcastable types without modifying the reconstruction logic
      * in {@link AbstractBulkWriterContext}.
      *
+     * @param bridgeVersion the bridge version from broadcast
      * @return reconstructed ClusterInfo (CassandraClusterInfo or CassandraClusterInfoGroup)
      */
-    ClusterInfo reconstruct();
+    ClusterInfo reconstruct(CassandraVersion bridgeVersion);
 }

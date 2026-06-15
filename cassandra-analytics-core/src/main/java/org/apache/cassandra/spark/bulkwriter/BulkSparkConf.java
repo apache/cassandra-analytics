@@ -117,6 +117,9 @@ public class BulkSparkConf implements Serializable
     // Cassandra version of target cluster. Configuration parameter is exposed to be able to correctly initialize static
     // components, before cluster version is discovered via Sidecar.
     public static final String CASSANDRA_VERSION                       = SETTING_PREFIX + "cassandra.version";
+    // Disable SSTable version-based bridge determination. When true, falls back to using cassandra.version for bridge selection.
+    // This provides a safety fallback mechanism if SSTable version detection fails or encounters issues.
+    public static final String DISABLE_SSTABLE_VERSION_BASED_BRIDGE   = SETTING_PREFIX + "bridge.disable_sstable_version_based";
     public static final String HTTP_MAX_CONNECTIONS                    = SETTING_PREFIX + "request.max_connections";
     public static final String HTTP_RESPONSE_TIMEOUT                   = SETTING_PREFIX + "request.response_timeout";
     public static final String HTTP_CONNECTION_TIMEOUT                 = SETTING_PREFIX + "request.connection_timeout";
@@ -169,6 +172,7 @@ public class BulkSparkConf implements Serializable
     protected final String configuredJobId;
     protected boolean useOpenSsl;
     protected int ringRetryCount;
+    protected final boolean disableSSTableVersionBasedBridge;
     // create sidecarInstances from sidecarContactPointsValue and effectiveSidecarPort
     private final String sidecarContactPointsValue; // It takes comma separated values
     private transient Set<SidecarInstance> sidecarContactPoints; // not serialized
@@ -221,6 +225,7 @@ public class BulkSparkConf implements Serializable
         // else fall back to props, and then default if neither specified
         this.useOpenSsl = getBoolean(USE_OPENSSL, true);
         this.ringRetryCount = getInt(RING_RETRY_COUNT, DEFAULT_RING_RETRY_COUNT);
+        this.disableSSTableVersionBasedBridge = getBoolean(DISABLE_SSTABLE_VERSION_BASED_BRIDGE, false);
         this.importCoordinatorTimeoutMultiplier = getDouble(IMPORT_COORDINATOR_TIMEOUT_MULTIPLIER, 0.5);
         this.ttl = MapUtils.getOrDefault(options, WriterOptions.TTL.name(), null);
         this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
@@ -730,6 +735,25 @@ public class BulkSparkConf implements Serializable
     public int getRingRetryCount()
     {
         return ringRetryCount;
+    }
+
+    public boolean isSSTableVersionBasedBridgeDisabled()
+    {
+        return disableSSTableVersionBasedBridge;
+    }
+
+    /**
+     * Utility method to retrieve the disable SSTable version-based bridge flag
+     * from Spark configuration. This can be called from contexts where a BulkSparkConf
+     * instance is not available.
+     *
+     * @return true if SSTable version-based bridge selection should be disabled
+     */
+    public static boolean getDisableSSTableVersionBasedBridge()
+    {
+        return org.apache.spark.SparkContext.getOrCreate()
+                                            .getConf()
+                                            .getBoolean(DISABLE_SSTABLE_VERSION_BASED_BRIDGE, false);
     }
 
     public StorageClientConfig getStorageClientConfig()

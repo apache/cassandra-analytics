@@ -61,7 +61,7 @@ public class BtiReaderUtilsTest
     public void testPartitionIndexTokenRange(boolean compression)
     {
         // Only test BTI format for Cassandra 5.0+
-        assumeThat(CassandraVersion.sstableFormat()).isEqualTo("bti");
+        assumeThat(CassandraVersion.configuredSSTableFormat()).isEqualTo("bti");
 
         qt().forAll(arbitrary().enumValues(Partitioner.class))
             .checkAssert(partitioner -> {
@@ -103,7 +103,7 @@ public class BtiReaderUtilsTest
     public void testPrimaryIndexContainsAnyKey(boolean compression)
     {
         // Only test BTI format for Cassandra 5.0+
-        assumeThat(CassandraVersion.sstableFormat()).isEqualTo("bti");
+        assumeThat(CassandraVersion.configuredSSTableFormat()).isEqualTo("bti");
 
         qt().forAll(arbitrary().enumValues(Partitioner.class))
             .checkAssert(partitioner -> {
@@ -162,7 +162,7 @@ public class BtiReaderUtilsTest
     public void testReadPrimaryIndex(boolean compression)
     {
         // Only test BTI format for Cassandra 5.0+
-        assumeThat(CassandraVersion.sstableFormat()).isEqualTo("bti");
+        assumeThat(CassandraVersion.configuredSSTableFormat()).isEqualTo("bti");
 
         qt().forAll(arbitrary().enumValues(Partitioner.class))
             .checkAssert(partitioner -> {
@@ -221,7 +221,7 @@ public class BtiReaderUtilsTest
     public void testConsumePrimaryIndex(boolean compression)
     {
         // Only test BTI format for Cassandra 5.0+
-        assumeThat(CassandraVersion.sstableFormat()).isEqualTo("bti");
+        assumeThat(CassandraVersion.configuredSSTableFormat()).isEqualTo("bti");
 
         qt().forAll(arbitrary().enumValues(Partitioner.class))
             .checkAssert(partitioner -> {

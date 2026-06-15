@@ -24,11 +24,13 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.jetbrains.annotations.NotNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -52,7 +54,7 @@ class BulkWriterConfigExtensibilityTest
         BroadcastableSchemaInfo mockSchemaInfo = mock(BroadcastableSchemaInfo.class);
 
         // A custom BulkWriterConfig subclass overriding toBulkWriterContext()
-        BulkWriterConfig customConfig = new BulkWriterConfig(mockConf, 4, mockJobInfo, mockClusterInfo, mockSchemaInfo, "4.0.0")
+        BulkWriterConfig customConfig = new BulkWriterConfig(mockConf, 4, mockJobInfo, mockClusterInfo, mockSchemaInfo, CassandraVersion.FOURZERO)
         {
             @Override
             public BulkWriterContext toBulkWriterContext()
@@ -73,13 +75,13 @@ class BulkWriterConfigExtensibilityTest
     {
         ClusterInfo expectedCluster = mock(ClusterInfo.class);
         IBroadcastableClusterInfo mockBroadcastable = mock(IBroadcastableClusterInfo.class);
-        when(mockBroadcastable.reconstruct()).thenReturn(expectedCluster);
+        when(mockBroadcastable.reconstruct(any(CassandraVersion.class))).thenReturn(expectedCluster);
 
         BulkSparkConf mockConf = mock(BulkSparkConf.class);
         BroadcastableJobInfo mockJobInfo = mock(BroadcastableJobInfo.class);
         BroadcastableSchemaInfo mockSchemaInfo = mock(BroadcastableSchemaInfo.class);
 
-        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mockBroadcastable, mockSchemaInfo, "4.0.0");
+        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mockBroadcastable, mockSchemaInfo, CassandraVersion.FOURZERO);
 
         TestBulkWriterContext context = new TestBulkWriterContext(config);
 
@@ -93,7 +95,7 @@ class BulkWriterConfigExtensibilityTest
         BulkSparkConf mockConf = mock(BulkSparkConf.class);
         BroadcastableJobInfo mockJobInfo = mock(BroadcastableJobInfo.class);
         BroadcastableSchemaInfo mockSchemaInfo = mock(BroadcastableSchemaInfo.class);
-        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mock(IBroadcastableClusterInfo.class), mockSchemaInfo, "4.0.0");
+        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mock(IBroadcastableClusterInfo.class), mockSchemaInfo, CassandraVersion.FOURZERO);
 
         // Subclass that overrides reconstructJobInfoOnExecutor to return custom JobInfo
         TestBulkWriterContext context = new TestBulkWriterContext(config)
@@ -120,7 +122,19 @@ class BulkWriterConfigExtensibilityTest
         }
 
         @Override
-        protected ClusterInfo buildClusterInfo()
+        protected ClusterInfo buildClusterInfo(CassandraVersion bridgeVersion)
+        {
+            throw new UnsupportedOperationException("Driver-only");
+        }
+
+        @Override
+        protected String getLowestCassandraVersion(@NotNull BulkSparkConf conf)
+        {
+            throw new UnsupportedOperationException("Driver-only");
+        }
+
+        @Override
+        protected java.util.Set<String> getSSTableVersionsOnCluster(@NotNull BulkSparkConf conf)
         {
             throw new UnsupportedOperationException("Driver-only");
         }

@@ -24,21 +24,20 @@ package org.apache.cassandra.bridge;
  */
 public class BridgeInitializationParameters
 {
-    private final String sstableFormat;
+    private final String configuredSSTableFormat;
 
-    public BridgeInitializationParameters(String sstableFormat)
+    public BridgeInitializationParameters(String configuredSSTableFormat)
     {
-        this.sstableFormat = sstableFormat;
+        this.configuredSSTableFormat = configuredSSTableFormat;
     }
 
     public static BridgeInitializationParameters fromEnvironment()
     {
-        String sstableFormat = CassandraVersion.sstableFormat();
-        return new BridgeInitializationParameters(sstableFormat);
+        return new BridgeInitializationParameters(CassandraVersion.configuredSSTableFormat());
     }
 
-    public String getSstableFormat()
+    public String getConfiguredSSTableFormat()
     {
-        return sstableFormat;
+        return configuredSSTableFormat;
     }
 }

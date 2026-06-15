@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.bulkwriter;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraCoordinatedBulkWriterContext;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.spark.api.java.JavaSparkContext;
 
 /**
@@ -46,6 +47,8 @@ public interface BulkWriterContext
     SchemaInfo schema();
 
     CassandraBridge bridge();
+
+    CassandraVersion bridgeVersion();
 
     // NOTE: This interface intentionally does *not* implement AutoClosable as Spark can close Broadcast variables
     //       that implement AutoClosable while they are still in use, causing the underlying object to become unusable

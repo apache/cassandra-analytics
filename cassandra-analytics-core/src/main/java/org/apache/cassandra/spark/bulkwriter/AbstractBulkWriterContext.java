@@ -32,6 +32,9 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.SSTableVersionAnalyzer;
+import org.apache.cassandra.spark.KryoRegister;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -76,7 +79,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     private final JobInfo jobInfo;
     private final ClusterInfo clusterInfo;
     private final SchemaInfo schemaInfo;
-    private final String lowestCassandraVersion;
+    private final CassandraVersion bridgeVersion;
     // Note: do not declare transient fields as final; but they need to be volatile as there could be contention when recreating them after deserialization
     // For the transient field, they are assigned null once deserialized, remember to use getOrRebuildAfterDeserialization for their getters
     private transient volatile CassandraBridge bridge;
@@ -98,10 +101,37 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         this.conf = conf;
         this.sparkDefaultParallelism = sparkDefaultParallelism;
 
-        // Build everything fresh on driver
-        this.clusterInfo = buildClusterInfo();
+        // Retrieve lowest Cassandra version without building full ClusterInfo
+        String lowestCassandraVersion = getLowestCassandraVersion(conf);
+        Set<String> sstableVersionsOnCluster = null;
+
+        // Get SSTable versions from cluster only if SSTable version-based selection is enabled
+        // If disabled, skip retrieval to allow job to proceed even when SSTable version detection fails
+        if (!conf.isSSTableVersionBasedBridgeDisabled())
+        {
+            sstableVersionsOnCluster = getSSTableVersionsOnCluster(conf);
+        }
+
+        // Determine bridge version
+        this.bridgeVersion = SSTableVersionAnalyzer.determineBridgeVersionForWrite(
+            sstableVersionsOnCluster,
+            CassandraVersion.configuredSSTableFormat(),
+            lowestCassandraVersion,
+            conf.isSSTableVersionBasedBridgeDisabled()
+        );
+
+        logger.info("Selected bridge version: {}, lowest Cassandra version: {}, SSTable versions: {}",
+                    this.bridgeVersion.versionName(),
+                    lowestCassandraVersion,
+                    sstableVersionsOnCluster);
+
+        // Validate that Kryo registrator exists for this bridge version
+        KryoRegister.validateKryoRegistratorExists(this.bridgeVersion, lowestCassandraVersion);
+
+        // Build cluster info with determined bridge version
+        this.clusterInfo = buildClusterInfo(this.bridgeVersion);
         this.clusterInfo.startupValidate();
-        this.lowestCassandraVersion = findLowestCassandraVersion();
+
         this.bridge = buildCassandraBridge();
         this.jobInfo = buildJobInfo();
         this.schemaInfo = buildSchemaInfo(structType);
@@ -121,9 +151,12 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         this.conf = config.getConf();
         this.sparkDefaultParallelism = config.getSparkDefaultParallelism();
 
-        // Reconstruct from broadcast data on executor
-        this.clusterInfo = reconstructClusterInfoOnExecutor(config.getBroadcastableClusterInfo());
-        this.lowestCassandraVersion = config.getLowestCassandraVersion();
+        // Get bridge version from broadcast config
+        this.bridgeVersion = config.getBridgeVersion();
+
+        // Reconstruct from broadcast data on executor with bridge version
+        this.clusterInfo = reconstructClusterInfoOnExecutor(config.getBroadcastableClusterInfo(), this.bridgeVersion);
+
         this.bridge = buildCassandraBridge();
         this.jobInfo = reconstructJobInfoOnExecutor(config.getBroadcastableJobInfo());
         this.schemaInfo = reconstructSchemaInfoOnExecutor(config.getBroadcastableSchemaInfo());
@@ -141,14 +174,44 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         return sparkDefaultParallelism;
     }
 
-    protected String lowestCassandraVersion()
+    @Override
+    public CassandraVersion bridgeVersion()
     {
-        return lowestCassandraVersion;
+        if (bridgeVersion == null)
+        {
+            throw new IllegalStateException(
+                "Bridge version must be determined before accessing it. " +
+                "Ensure SSTable versions are retrieved from cluster and bridge version is set.");
+        }
+
+        return bridgeVersion;
     }
 
     /*---  Methods to build required fields   ---*/
 
-    protected abstract ClusterInfo buildClusterInfo();
+    /**
+     * Retrieves the lowest Cassandra version from the cluster(s).
+     *
+     * @param conf Bulk Spark configuration
+     * @return lowest Cassandra version string
+     */
+    protected abstract String getLowestCassandraVersion(@NotNull BulkSparkConf conf);
+
+    /**
+     * Retrieves SSTable versions from the cluster(s).
+     *
+     * @param conf Bulk Spark configuration
+     * @return set of SSTable version strings present on the cluster(s)
+     */
+    protected abstract Set<String> getSSTableVersionsOnCluster(@NotNull BulkSparkConf conf);
+
+    /**
+     * Builds the ClusterInfo with the determined bridge version.
+     *
+     * @param bridgeVersion the determined Cassandra bridge version
+     * @return ClusterInfo instance with bridge version set
+     */
+    protected abstract ClusterInfo buildClusterInfo(CassandraVersion bridgeVersion);
 
     /**
      * Reconstructs ClusterInfo on executors from broadcastable versions.
@@ -157,11 +220,13 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
      * into the appropriate full ClusterInfo implementation.
      *
      * @param clusterInfo the BroadcastableClusterInfo from broadcast
+     * @param bridgeVersion the bridge version from broadcast
      * @return reconstructed ClusterInfo (CassandraClusterInfo or CassandraClusterInfoGroup)
      */
-    protected ClusterInfo reconstructClusterInfoOnExecutor(IBroadcastableClusterInfo clusterInfo)
+    protected ClusterInfo reconstructClusterInfoOnExecutor(IBroadcastableClusterInfo clusterInfo,
+                                                           CassandraVersion bridgeVersion)
     {
-        return clusterInfo.reconstruct();
+        return clusterInfo.reconstruct(bridgeVersion);
     }
 
     /**
@@ -216,7 +281,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
 
     protected CassandraBridge buildCassandraBridge()
     {
-        return CassandraBridgeFactory.get(lowestCassandraVersion());
+        return CassandraBridgeFactory.get(bridgeVersion());
     }
 
     protected TransportContext buildTransportContext(boolean isOnDriver)
@@ -227,11 +292,6 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     protected JobStatsPublisher buildJobStatsPublisher()
     {
         return new LogStatsPublisher();
-    }
-
-    protected String findLowestCassandraVersion()
-    {
-        return cluster().getLowestCassandraVersion();
     }
 
     protected SchemaInfo buildSchemaInfo(StructType structType)
@@ -248,7 +308,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         CqlTable cqlTable = bridge().buildSchema(createTableSchema, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
 
         TableInfoProvider tableInfoProvider = new CqlTableInfoProvider(createTableSchema, cqlTable);
-        TableSchema tableSchema = initializeTableSchema(bulkSparkConf(), structType, tableInfoProvider, lowestCassandraVersion());
+        TableSchema tableSchema = initializeTableSchema(bulkSparkConf(), structType, tableInfoProvider, bridgeVersion());
         return new CassandraSchemaInfo(tableSchema, udts);
     }
 
@@ -313,14 +373,14 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     protected TableSchema initializeTableSchema(@NotNull BulkSparkConf conf,
                                                 @NotNull StructType dfSchema,
                                                 TableInfoProvider tableInfoProvider,
-                                                String lowestCassandraVersion)
+                                                CassandraVersion bridgeVersion)
     {
         return new TableSchema(dfSchema,
                                tableInfoProvider,
                                conf.writeMode,
                                conf.getTTLOptions(),
                                conf.getTimestampOptions(),
-                               lowestCassandraVersion,
+                               bridgeVersion,
                                job().qualifiedTableName().quoteIdentifiers(),
                                conf.skipSecondaryIndexCheck);
     }

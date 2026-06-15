@@ -34,6 +34,7 @@ import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
@@ -90,12 +91,10 @@ class CassandraClusterInfoGroupTest
                                                                                              () -> Partitioner.Murmur3Partitioner,
                                                                                              RingInstance::new);
         when(clusterInfo.getTokenRangeMapping(anyBoolean())).thenReturn(expectedTokenRangeMapping);
-        when(clusterInfo.getLowestCassandraVersion()).thenReturn("lowestCassandraVersion");
         when(clusterInfo.clusterWriteAvailability()).thenReturn(Collections.emptyMap());
         CassandraClusterInfoGroup group = mockClusterGroup(1, index -> clusterInfo);
         // Since there is a single clusterInfo in the group. It behaves as a simple delegation to the sole clusterInfo
         assertThat(group.clusterWriteAvailability()).isSameAs(clusterInfo.clusterWriteAvailability());
-        assertThat(group.getLowestCassandraVersion()).isSameAs(clusterInfo.getLowestCassandraVersion());
         assertThat(group.getTokenRangeMapping(true)).isSameAs(clusterInfo.getTokenRangeMapping(true));
     }
 
@@ -136,30 +135,6 @@ class CassandraClusterInfoGroupTest
         .describedAs("clusterWriteAvailability retrieved from group contains entries from both clusters")
         .hasSize(2)
         .containsValues(WriteAvailability.AVAILABLE, WriteAvailability.UNAVAILABLE_DOWN);
-    }
-
-    @Test
-    void testAggregateLowestCassandraVersion()
-    {
-        CassandraClusterInfoGroup goodGroup = mockClusterGroup(2, index -> {
-            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
-            when(clusterInfo.getLowestCassandraVersion()).thenReturn("4.0." + index);
-            return clusterInfo;
-        });
-        assertThat(goodGroup.getLowestCassandraVersion()).isEqualTo("4.0.0");
-    }
-
-    @Test
-    void testAggregateLowestCassandraVersionFailDueToDifference()
-    {
-        CassandraClusterInfoGroup badGroup = mockClusterGroup(2, index -> {
-            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
-            when(clusterInfo.getLowestCassandraVersion()).thenReturn((4 + index) + ".0.0");
-            return clusterInfo;
-        });
-        assertThatThrownBy(badGroup::getLowestCassandraVersion)
-        .isExactlyInstanceOf(IllegalStateException.class)
-        .hasMessage("Cluster versions are not compatible. lowest=4.0.0 and highest=5.0.0");
     }
 
     @Test
@@ -240,7 +215,7 @@ class CassandraClusterInfoGroupTest
     void testCreateClusterInfoListFailsDueToAbsentConfiguration()
     {
         BulkSparkConf conf = mock(BulkSparkConf.class);
-        assertThatThrownBy(() -> fromBulkSparkConf(conf))
+        assertThatThrownBy(() -> fromBulkSparkConf(conf, (CassandraVersion) null))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("In order to create an instance of CassandraCoordinatedBulkWriterContext, " +
                     "you must provide the appropriate coordinated write configuration by " +
@@ -252,7 +227,7 @@ class CassandraClusterInfoGroupTest
     {
         BulkSparkConf conf = mock(BulkSparkConf.class, RETURNS_DEEP_STUBS);
         when(conf.coordinatedWriteConf().clusters()).thenReturn(Collections.emptyMap());
-        assertThatThrownBy(() -> fromBulkSparkConf(conf))
+        assertThatThrownBy(() -> fromBulkSparkConf(conf, (CassandraVersion) null))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("No cluster info is built from");
     }
@@ -263,7 +238,7 @@ class CassandraClusterInfoGroupTest
         BulkSparkConf conf = mock(BulkSparkConf.class);
         CoordinatedWriteConf.ClusterConf clusterConf = new CoordinatedWriteConf.SimpleClusterConf(Collections.singletonList("localhost:9043"), "localDc");
         when(conf.coordinatedWriteConf()).thenReturn(new CoordinatedWriteConf(Collections.singletonMap("", clusterConf)));
-        assertThatThrownBy(() -> fromBulkSparkConf(conf))
+        assertThatThrownBy(() -> fromBulkSparkConf(conf, (CassandraVersion) null))
         .isInstanceOf(IllegalStateException.class)
         .describedAs("The exception message should include the original json to help spot the wrong configuration (empty clusterId)")
         .hasMessage("Found coordinatedWriteConf with empty or null clusterId. " +
@@ -277,7 +252,6 @@ class CassandraClusterInfoGroupTest
         CassandraClusterInfoGroup originalGroup = mockClusterGroup(2, index -> {
             CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
             when(clusterInfo.getPartitioner()).thenReturn(Partitioner.Murmur3Partitioner);
-            when(clusterInfo.getLowestCassandraVersion()).thenReturn("4.0.0");
             return clusterInfo;
         });
 
@@ -299,10 +273,6 @@ class CassandraClusterInfoGroupTest
         assertThat(deserializedBroadcastable.getPartitioner())
         .describedAs("Partitioner should be preserved after serialization")
         .isEqualTo(Partitioner.Murmur3Partitioner);
-
-        assertThat(deserializedBroadcastable.getLowestCassandraVersion())
-        .describedAs("Lowest Cassandra version should be preserved after serialization")
-        .isEqualTo("4.0.0");
 
         assertThat(deserializedBroadcastable.size())
         .describedAs("Number of clusters should be preserved after serialization")

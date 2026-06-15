@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterSupport;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -34,7 +35,7 @@ import org.jetbrains.annotations.Nullable;
  * Broadcastable wrapper for coordinated writes with ZERO transient fields to optimize Spark broadcasting.
  * <p>
  * This class wraps multiple BroadcastableCluster instances for multi-cluster scenarios.
- * Pre-computed values (partitioner, lowestCassandraVersion) are extracted from CassandraClusterInfoGroup on the driver
+ * Pre-computed values (partitioner) are extracted from CassandraClusterInfoGroup on the driver
  * to avoid duplicating aggregation/validation logic on executors.
  * <p>
  * <b>Why ZERO transient fields matters:</b><br>
@@ -56,12 +57,10 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
     private final String clusterId;
     private final BulkSparkConf conf;
     private final Partitioner partitioner;
-    private final String lowestCassandraVersion;
 
     /**
      * Creates a BroadcastableClusterInfoGroup from a source ClusterInfo group.
-     * Extracts pre-computed values (partitioner, lowestCassandraVersion) from the source
-     * to avoid duplicating aggregation/validation logic on executors.
+     * Extracts pre-computed partitioner from the source to avoid duplicating validation logic on executors.
      *
      * @param source the source CassandraClusterInfoGroup
      * @param conf   the BulkSparkConf needed to connect to Sidecar on executors
@@ -72,25 +71,22 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
         List<BroadcastableClusterInfo> broadcastableInfos = new ArrayList<>();
         source.forEach((clusterId, clusterInfo) -> broadcastableInfos.add(BroadcastableClusterInfo.from(clusterInfo, conf)));
 
-        // Extract pre-computed values from CassandraClusterInfoGroup
+        // Extract pre-computed value from CassandraClusterInfoGroup
         // These have already been validated/computed on the driver
         Partitioner partitioner = source.getPartitioner();
-        String lowestVersion = source.getLowestCassandraVersion();
 
-        return new BroadcastableClusterInfoGroup(broadcastableInfos, source.clusterId(), conf, partitioner, lowestVersion);
+        return new BroadcastableClusterInfoGroup(broadcastableInfos, source.clusterId(), conf, partitioner);
     }
 
     private BroadcastableClusterInfoGroup(List<BroadcastableClusterInfo> clusterInfos,
                                           String clusterId,
                                           BulkSparkConf conf,
-                                          Partitioner partitioner,
-                                          String lowestCassandraVersion)
+                                          Partitioner partitioner)
     {
         this.clusterInfos = Collections.unmodifiableList(clusterInfos);
         this.conf = conf;
         this.clusterId = clusterId;
         this.partitioner = partitioner;
-        this.lowestCassandraVersion = lowestCassandraVersion;
     }
 
     @Override
@@ -98,14 +94,6 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
     public BulkSparkConf getConf()
     {
         return conf;
-    }
-
-    @Override
-    public String getLowestCassandraVersion()
-    {
-        // Return pre-computed value from CassandraClusterInfoGroup
-        // No need to duplicate aggregation/validation logic
-        return lowestCassandraVersion;
     }
 
     @Override
@@ -143,8 +131,8 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
     }
 
     @Override
-    public ClusterInfo reconstruct()
+    public ClusterInfo reconstruct(CassandraVersion bridgeVersion)
     {
-        return CassandraClusterInfoGroup.from(this);
+        return CassandraClusterInfoGroup.from(this, bridgeVersion);
     }
 }

@@ -83,6 +83,44 @@ public class KryoRegister implements KryoRegistrator
         KRYO_SERIALIZERS.put(type, serializer);
     }
 
+    /**
+     * Validates that a Kryo registrator exists for the given Cassandra version.
+     * This should be called after bridge version determination to ensure that
+     * Spark can properly serialize objects for the selected bridge.
+     *
+     * @param bridgeVersion the CassandraVersion to validate
+     * @param clusterCassandraVersion optional Cassandra version string for additional context in error messages
+     * @throws IllegalStateException if no Kryo registrator is configured for this version
+     */
+    public static void validateKryoRegistratorExists(@NotNull CassandraVersion bridgeVersion,
+                                                     String clusterCassandraVersion)
+    {
+        Class<?> registratorClass = KRYO_REGISTRATORS.get(bridgeVersion);
+        if (registratorClass == null)
+        {
+            // Build available versions list for suggestion
+            String availableKryoVersions = KRYO_REGISTRATORS.keySet().stream()
+                .map(v -> v.name() + " (" + v.versionName() + ")")
+                .collect(Collectors.joining(", "));
+
+            throw new IllegalStateException(
+                String.format("No Kryo registrator configured for bridge version %s (%s). " +
+                              "Cluster Cassandra version: %s. " +
+                              "Available Kryo registrators: %s. " +
+                              "Cannot proceed with job as Spark serialization will fail. " +
+                              "To resolve this issue, update the '%s' configuration property to match the bridge version: %s",
+                              bridgeVersion.name(),
+                              bridgeVersion.versionName(),
+                              clusterCassandraVersion,
+                              availableKryoVersions,
+                              CASSANDRA_VERSION,
+                              bridgeVersion.versionName()));
+        }
+
+        LOGGER.debug("Validated Kryo registrator exists for bridge version {}: {}",
+                    bridgeVersion.versionName(), registratorClass.getName());
+    }
+
     private final CassandraVersion cassandraVersion;
 
     protected KryoRegister(CassandraVersion cassandraVersion)
