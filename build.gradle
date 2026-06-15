@@ -223,10 +223,6 @@ subprojects {
 
   repositories {
     mavenCentral()
-    // Confluent repository for kafka-avro-serializer (transitive dep of sidecar-server)
-    maven {
-      url 'https://packages.confluent.io/maven/'
-    }
     // for dtest-jars
     mavenLocal {
       url Paths.get(dependencyLocation)
