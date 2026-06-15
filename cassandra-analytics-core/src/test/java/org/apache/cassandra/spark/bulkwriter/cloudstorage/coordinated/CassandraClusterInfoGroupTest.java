@@ -34,6 +34,7 @@ import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
@@ -90,12 +91,10 @@ class CassandraClusterInfoGroupTest
                                                                                              () -> Partitioner.Murmur3Partitioner,
                                                                                              RingInstance::new);
         when(clusterInfo.getTokenRangeMapping(anyBoolean())).thenReturn(expectedTokenRangeMapping);
-        when(clusterInfo.getLowestCassandraVersion()).thenReturn("lowestCassandraVersion");
         when(clusterInfo.clusterWriteAvailability()).thenReturn(Collections.emptyMap());
         CassandraClusterInfoGroup group = mockClusterGroup(1, index -> clusterInfo);
         // Since there is a single clusterInfo in the group. It behaves as a simple delegation to the sole clusterInfo
         assertThat(group.clusterWriteAvailability()).isSameAs(clusterInfo.clusterWriteAvailability());
-        assertThat(group.getLowestCassandraVersion()).isSameAs(clusterInfo.getLowestCassandraVersion());
         assertThat(group.getTokenRangeMapping(true)).isSameAs(clusterInfo.getTokenRangeMapping(true));
     }
 
@@ -136,30 +135,6 @@ class CassandraClusterInfoGroupTest
         .describedAs("clusterWriteAvailability retrieved from group contains entries from both clusters")
         .hasSize(2)
         .containsValues(WriteAvailability.AVAILABLE, WriteAvailability.UNAVAILABLE_DOWN);
-    }
-
-    @Test
-    void testAggregateLowestCassandraVersion()
-    {
-        CassandraClusterInfoGroup goodGroup = mockClusterGroup(2, index -> {
-            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
-            when(clusterInfo.getLowestCassandraVersion()).thenReturn("4.0." + index);
-            return clusterInfo;
-        });
-        assertThat(goodGroup.getLowestCassandraVersion()).isEqualTo("4.0.0");
-    }
-
-    @Test
-    void testAggregateLowestCassandraVersionFailDueToDifference()
-    {
-        CassandraClusterInfoGroup badGroup = mockClusterGroup(2, index -> {
-            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
-            when(clusterInfo.getLowestCassandraVersion()).thenReturn((4 + index) + ".0.0");
-            return clusterInfo;
-        });
-        assertThatThrownBy(badGroup::getLowestCassandraVersion)
-        .isExactlyInstanceOf(IllegalStateException.class)
-        .hasMessage("Cluster versions are not compatible. lowest=4.0.0 and highest=5.0.0");
     }
 
     @Test
@@ -233,7 +208,6 @@ class CassandraClusterInfoGroupTest
             .hasMessageContaining("remoteCassandraTime=2024-09-17T20:18:09.530Z, ")
             .hasMessageContaining("clusterId=cluster" + clusterIndexWithLargeTimeSkew);
         }
-
     }
 
     @Test
@@ -277,7 +251,7 @@ class CassandraClusterInfoGroupTest
         CassandraClusterInfoGroup originalGroup = mockClusterGroup(2, index -> {
             CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
             when(clusterInfo.getPartitioner()).thenReturn(Partitioner.Murmur3Partitioner);
-            when(clusterInfo.getLowestCassandraVersion()).thenReturn("4.0.0");
+            when(clusterInfo.getBridgeVersion()).thenReturn(CassandraVersion.FIVEZERO);
             return clusterInfo;
         });
 
@@ -300,9 +274,9 @@ class CassandraClusterInfoGroupTest
         .describedAs("Partitioner should be preserved after serialization")
         .isEqualTo(Partitioner.Murmur3Partitioner);
 
-        assertThat(deserializedBroadcastable.getLowestCassandraVersion())
-        .describedAs("Lowest Cassandra version should be preserved after serialization")
-        .isEqualTo("4.0.0");
+        assertThat(deserializedBroadcastable.getBridgeVersion())
+        .describedAs("Bridge version should be preserved after serialization")
+        .isEqualTo(CassandraVersion.FIVEZERO);
 
         assertThat(deserializedBroadcastable.size())
         .describedAs("Number of clusters should be preserved after serialization")
@@ -316,6 +290,67 @@ class CassandraClusterInfoGroupTest
             clusterCount[0]++;
         });
         assertThat(clusterCount[0]).isEqualTo(2);
+    }
+
+    @Test
+    void testGetBridgeVersionSingleClusterDelegates()
+    {
+        CassandraClusterInfoGroup group = mockClusterGroup(1, index -> {
+            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+            when(clusterInfo.getBridgeVersion()).thenReturn(CassandraVersion.FIVEZERO);
+            return clusterInfo;
+        });
+        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FIVEZERO);
+    }
+
+    @Test
+    void testGetBridgeVersionMultiClusterSameVersionReturnsIt()
+    {
+        // All clusters resolve to the same version -> compatible; the (equal) lowest is returned
+        CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
+            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+            when(clusterInfo.getBridgeVersion()).thenReturn(CassandraVersion.FOURZERO);
+            return clusterInfo;
+        });
+        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
+    }
+
+    @Test
+    void testGetBridgeVersionMultiClusterAcrossMajorsReturnsLowest()
+    {
+        // 4.0 and 5.0 clusters -> write at the lowest (4.0) so the produced SSTables are importable by both
+        CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
+            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? CassandraVersion.FOURZERO : CassandraVersion.FIVEZERO);
+            return clusterInfo;
+        });
+        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
+    }
+
+    @Test
+    void testGetBridgeVersionFourZeroAndFourOneReturnsLowest()
+    {
+        // 4.0 and 4.1 clusters -> write at the lowest (4.0)
+        CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
+            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? CassandraVersion.FOURZERO : CassandraVersion.FOURONE);
+            return clusterInfo;
+        });
+        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
+    }
+
+    @Test
+    void testGetBridgeVersionIncompatibleMajorsThrows()
+    {
+        // 3.0 and 5.0 clusters -> SSTables written at 3.0 cannot be imported by 5.0, so the coordinated write fails
+        CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
+            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? CassandraVersion.THREEZERO : CassandraVersion.FIVEZERO);
+            return clusterInfo;
+        });
+        assertThatThrownBy(group::getBridgeVersion)
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining("not mutually compatible");
     }
 
     private CassandraClusterInfoGroup mockClusterGroup(int size,

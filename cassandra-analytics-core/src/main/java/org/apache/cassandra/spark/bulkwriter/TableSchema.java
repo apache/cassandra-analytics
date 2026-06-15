@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
@@ -60,7 +61,7 @@ public class TableSchema
     final WriteMode writeMode;
     final TTLOption ttlOption;
     final TimestampOption timestampOption;
-    final String lowestCassandraVersion;
+    final CassandraVersion bridgeVersion;
     final boolean quoteIdentifiers;
 
     public TableSchema(StructType dfSchema,
@@ -68,7 +69,7 @@ public class TableSchema
                        WriteMode writeMode,
                        TTLOption ttlOption,
                        TimestampOption timestampOption,
-                       String lowestCassandraVersion,
+                       CassandraVersion bridgeVersion,
                        boolean quoteIdentifiers,
                        boolean skipSecondaryIndexCheck)
     {
@@ -76,7 +77,7 @@ public class TableSchema
         this.ttlOption = ttlOption;
 
         this.timestampOption = timestampOption;
-        this.lowestCassandraVersion = lowestCassandraVersion;
+        this.bridgeVersion = bridgeVersion;
         this.quoteIdentifiers = quoteIdentifiers;
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
@@ -95,7 +96,7 @@ public class TableSchema
                       + "take place automatically after writing. Reads against the index during this time "
                       + "window will produce inconsistent or stale results until index rebuild is complete.");
         }
-        validateUserAddedColumns(lowestCassandraVersion, quoteIdentifiers, ttlOption, timestampOption);
+        validateUserAddedColumns(bridgeVersion, quoteIdentifiers, ttlOption, timestampOption);
 
         this.createStatement = getCreateStatement(tableInfo);
         this.modificationStatement = getModificationStatement(dfSchema, tableInfo);
@@ -123,7 +124,7 @@ public class TableSchema
         this.writeMode = broadcastable.getWriteMode();
         this.ttlOption = broadcastable.getTtlOption();
         this.timestampOption = broadcastable.getTimestampOption();
-        this.lowestCassandraVersion = broadcastable.getLowestCassandraVersion();
+        this.bridgeVersion = broadcastable.getBridgeVersion();
         this.quoteIdentifiers = broadcastable.isQuoteIdentifiers();
     }
 
@@ -198,7 +199,7 @@ public class TableSchema
                                       TTLOption ttlOption,
                                       TimestampOption timestampOption)
     {
-        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+        CassandraBridge bridge = CassandraBridgeFactory.get(bridgeVersion);
 
         List<String> columnNames = Arrays.stream(dfSchema.fieldNames())
                                          .filter(fieldName -> !fieldName.equals(ttlOption.columnName()))
@@ -242,7 +243,7 @@ public class TableSchema
 
     private String getDeleteStatement(StructType dfSchema, TableInfoProvider tableInfo)
     {
-        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+        CassandraBridge bridge = CassandraBridgeFactory.get(bridgeVersion);
         Stream<String> fieldEqualityStatements = Arrays.stream(dfSchema.fieldNames()).map(key -> maybeQuotedIdentifier(bridge, quoteIdentifiers, key) + "=?");
         String deleteStatement = String.format("DELETE FROM %s.%s where %s;",
                                                maybeQuotedIdentifier(bridge, quoteIdentifiers, tableInfo.getKeyspaceName()),
@@ -327,12 +328,12 @@ public class TableSchema
                           .collect(Collectors.toList());
     }
 
-    private static void validateUserAddedColumns(String lowestCassandraVersion, boolean quoteIdentifiers,
+    private static void validateUserAddedColumns(CassandraVersion bridgeVersion, boolean quoteIdentifiers,
                                                  TTLOption ttlOption, TimestampOption timestampOption)
     {
         if (!quoteIdentifiers)
         {
-            CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+            CassandraBridge bridge = CassandraBridgeFactory.get(bridgeVersion);
             validateColumnName(bridge, ttlOption.columnName(), WriterOptions.TTL.name());
             validateColumnName(bridge, timestampOption.columnName(), WriterOptions.TIMESTAMP.name());
         }

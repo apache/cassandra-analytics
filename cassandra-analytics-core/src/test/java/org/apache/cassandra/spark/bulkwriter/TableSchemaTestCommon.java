@@ -36,6 +36,7 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.spark.sql.types.DataTypes;
@@ -339,6 +340,10 @@ public final class TableSchemaTestCommon
                 dataFrameSchema = dataFrameSchema.add(timestampOption.columnName(), DataTypes.LongType);
                 updatedCqlColumns = addColumnToCqlColumns(updatedCqlColumns, timestampOption.columnName(), SqlToCqlTypeConverter.BIGINT);
             }
+            // Validate the configured version is supported and resolve the bridge version it maps to.
+            CassandraVersion bridgeVersion = CassandraVersion.fromVersion(cassandraVersion)
+                                                             .orElseThrow(
+                                                             () -> new IllegalArgumentException("Unsupported Cassandra version: " + cassandraVersion));
 
             MockTableInfoProvider tableInfoProvider = new MockTableInfoProvider(bridge,
                                                                                 updatedCqlColumns,
@@ -353,7 +358,7 @@ public final class TableSchemaTestCommon
                                    writeMode,
                                    ttlOption,
                                    timestampOption,
-                                   cassandraVersion,
+                                   bridgeVersion,
                                    quoteIdentifiers,
                                    skipSecondaryIndexCheck);
         }

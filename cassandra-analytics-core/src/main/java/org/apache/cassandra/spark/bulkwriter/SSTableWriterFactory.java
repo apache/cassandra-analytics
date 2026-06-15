@@ -33,7 +33,7 @@ public final class SSTableWriterFactory
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    public static SSTableWriter getSSTableWriter(CassandraVersionFeatures serverVersion,
+    public static SSTableWriter getSSTableWriter(CassandraVersionFeatures bridgeVersion,
                                                  String inDirectory,
                                                  String partitioner,
                                                  String createStatement,
@@ -41,7 +41,7 @@ public final class SSTableWriterFactory
                                                  Set<String> userDefinedTypeStatements,
                                                  int bufferSizeMB)
     {
-        CassandraBridge cassandraBridge = CassandraBridgeFactory.get(serverVersion);
+        CassandraBridge cassandraBridge = CassandraBridgeFactory.get(bridgeVersion);
         return cassandraBridge.getSSTableWriter(inDirectory,
                                                 partitioner,
                                                 createStatement,

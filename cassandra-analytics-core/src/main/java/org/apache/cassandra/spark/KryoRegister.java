@@ -22,7 +22,10 @@ package org.apache.cassandra.spark;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,7 +34,6 @@ import org.slf4j.LoggerFactory;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;
-import org.apache.cassandra.bridge.BaseCassandraBridgeFactory;
 import org.apache.cassandra.bridge.BigNumberConfigImpl;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
@@ -46,8 +48,6 @@ import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.spark.SparkConf;
 import org.apache.spark.serializer.KryoRegistrator;
 import org.jetbrains.annotations.NotNull;
-
-import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.CASSANDRA_VERSION;
 
 /**
  * Helper class to register classes for Kryo serialization
@@ -104,26 +104,33 @@ public class KryoRegister implements KryoRegistrator
         LOGGER.info("Setting up Kryo");
         configuration.set(SPARK_SERIALIZER, "org.apache.spark.serializer.KryoSerializer");
 
-        // Add KryoRegister to SparkConf serialization if not already there
+        // Preserve any pre-existing (e.g. user-supplied) registrators and keep them first.
+        // LinkedHashSet gives a stable, predictable registration order on the driver; the same
+        // resulting spark.kryo.registrator string is then propagated to all executors via SparkConf.
         Set<String> registratorsSet = Arrays.stream(configuration.get(SPARK_REGISTRATORS, "").split(","))
                                             .filter(string -> string != null && !string.isEmpty())
-                                            .collect(Collectors.toSet());
+                                            .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        // TODO: Find a better way to initialize Kryo serializer, instead of relaying
-        //  on Cassandra version specified as parameter of Spark job. Can we get Cassandra version from Sidecar?
-        CassandraVersion cassandraVersion = BaseCassandraBridgeFactory.getCassandraVersion(configuration.get(CASSANDRA_VERSION, "4.0.0"));
-        Class<?> registratorClass = KRYO_REGISTRATORS.get(cassandraVersion);
-        if (registratorClass == null)
+        // SSTable based bridge selection feature selects the bridge version, registering every
+        // loadable bridge's registrator ensures Spark can serialize objects for whichever bridge
+        // is chosen. Only implemented (bundled) versions are used, so we never attempt to load a
+        // bridge JAR that is not available.
+        List<Class<?>> registratorClasses = Arrays.stream(CassandraVersion.implementedVersions())
+                                                  .map(KRYO_REGISTRATORS::get)
+                                                  .filter(Objects::nonNull)
+                                                  .collect(Collectors.toList());
+        if (registratorClasses.isEmpty())
         {
-            throw new IllegalArgumentException("Kryo registrator not configured for Cassandra version: " + cassandraVersion);
+            throw new IllegalStateException("No Kryo registrators configured for implemented Cassandra versions: "
+                                            + Arrays.toString(CassandraVersion.implementedVersions()));
         }
 
-        registratorsSet.add(registratorClass.getName());
+        registratorClasses.forEach(registratorClass -> registratorsSet.add(registratorClass.getName()));
         String registratorsString = String.join(",", registratorsSet);
         LOGGER.info("Setting kryo registrators: " + registratorsString);
         configuration.set(SPARK_REGISTRATORS, registratorsString);
 
-        configuration.registerKryoClasses(new Class<?>[]{registratorClass});
+        configuration.registerKryoClasses(registratorClasses.toArray(new Class<?>[0]));
     }
 
     public static class V40 extends KryoRegister

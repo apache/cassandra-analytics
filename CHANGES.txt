@@ -1,6 +1,7 @@
 0.5.0
 -----
- * Upgrade sidecar version to 0.4.0
+ * SSTable-version-based bridge determination (CASSANALYTICS-24)
+ * Upgrade sidecar version to 0.4.0 (CASSANALYTICS-176)
  * Exclude IP address from RingInstance equality so node replacement does not fail bulk write jobs (CASSANALYTICS-175)
  * Regenerate bloom filters for CQLSSTableWriter (CASSANALYTICS-167)
  * Avoid Spark 4 partitioning warnings during bulk reads (CASSANALYTICS-171)

@@ -17,27 +17,23 @@
  * under the License.
  */
 
-package org.apache.cassandra.bridge;
+package org.apache.cassandra.analytics;
 
 /**
- * Parameters required to initialize Cassandra bridge.
+ * Runs the {@link BulkRoundtripSSTableVersionBridgeTestBase} roundtrip suite with the BTI (bti-da) SSTable format
+ * and SSTable version-based bridge selection DISABLED (legacy bridge selection).
  */
-public class BridgeInitializationParameters
+class BulkRoundtripBtiSSTableVersionBridgeDisabledTest extends BulkRoundtripSSTableVersionBridgeTestBase
 {
-    private final String configuredSSTableFormat;
-
-    public BridgeInitializationParameters(String configuredSSTableFormat)
+    @Override
+    protected boolean sstableVersionBridgeEnabled()
     {
-        this.configuredSSTableFormat = configuredSSTableFormat;
+        return false;
     }
 
-    public static BridgeInitializationParameters fromEnvironment()
+    @Override
+    protected String sstableFormat()
     {
-        return new BridgeInitializationParameters(CassandraVersion.configuredSSTableFormat());
-    }
-
-    public String getConfiguredSSTableFormat()
-    {
-        return configuredSSTableFormat;
+        return "bti";
     }
 }

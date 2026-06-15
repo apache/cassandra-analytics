@@ -134,6 +134,6 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
                                     broadcastableJobInfo,
                                     broadcastableClusterInfo,
                                     broadcastableSchemaInfo,
-                                    lowestCassandraVersion());
+                                    bridgeVersion());
     }
 }
