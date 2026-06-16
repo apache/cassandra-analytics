@@ -22,12 +22,50 @@ package org.apache.cassandra.spark.common;
 import java.nio.file.Path;
 
 import org.apache.cassandra.bridge.SSTableDescriptor;
+import org.apache.cassandra.spark.data.FileType;
 
 public final class SSTables
 {
+    /**
+     * Suffix identifying the primary SSTable data component, e.g. "-Data.db".
+     * The leading '-' is significant: it excludes SAI per-index components such as
+     * "...+TermsData.db" that also end with "Data.db".
+     */
+    private static final String DATA_COMPONENT_SUFFIX = "-" + FileType.DATA.getFileSuffix();
+
+    /**
+     * Glob matching primary SSTable data components, e.g. "*-Data.db".
+     * Suitable for {@link java.nio.file.Files#newDirectoryStream(Path, String)}.
+     */
+    public static final String DATA_COMPONENT_GLOB = "*" + DATA_COMPONENT_SUFFIX;
+
     private SSTables()
     {
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
+    }
+
+    /**
+     * Determine whether the given file name is a primary SSTable data component ("&lt;descriptor&gt;-Data.db").
+     * The leading '-' check excludes SAI per-index components such as "...+TermsData.db" which also end with "Data.db".
+     *
+     * @param fileName file name (not a full path)
+     * @return true if the name is a primary data component
+     */
+    public static boolean isDataComponent(String fileName)
+    {
+        return fileName.endsWith(DATA_COMPONENT_SUFFIX);
+    }
+
+    /**
+     * Determine whether the given path is a primary SSTable data component ("&lt;descriptor&gt;-Data.db").
+     *
+     * @param path file path
+     * @return true if the path's file name is a primary data component
+     * @see #isDataComponent(String)
+     */
+    public static boolean isDataComponent(Path path)
+    {
+        return isDataComponent(path.getFileName().toString());
     }
 
     /**

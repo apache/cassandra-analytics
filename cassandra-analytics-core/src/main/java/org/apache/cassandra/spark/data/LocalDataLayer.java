@@ -51,6 +51,7 @@ import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -365,7 +366,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                                   .stream(paths)
                                   .map(Paths::get)
                                   .flatMap(Throwing.function(Files::list))
-                                  .filter(path -> path.getFileName().toString().endsWith("-" + FileType.DATA.getFileSuffix()));
+                                  .filter(SSTables::isDataComponent);
         }
 
         return new BasicSupplier(dataFilePathsStream

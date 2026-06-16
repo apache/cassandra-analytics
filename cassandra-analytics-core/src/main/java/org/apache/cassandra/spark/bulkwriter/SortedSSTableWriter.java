@@ -44,7 +44,6 @@ import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
-import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.RowData;
@@ -237,7 +236,7 @@ public class SortedSSTableWriter
         {
             for (Path path : stream)
             {
-                if (path.getFileName().toString().endsWith("-" + FileType.DATA.getFileSuffix()))
+                if (SSTables.isDataComponent(path))
                 {
                     dataFilePaths.add(path);
                     sstableCount += 1;
@@ -388,11 +387,10 @@ public class SortedSSTableWriter
 
     private DirectoryStream<Path> getDataFileStream(DirectoryStream.Filter<Path> filter) throws IOException
     {
-        // Combine the data file filter with the provided filter
-        DirectoryStream.Filter<Path> combinedFilter = path -> {
-            String fileName = path.getFileName().toString();
-            return fileName.endsWith("Data.db") && filter.accept(path);
-        };
+        // Combine the data file filter with the provided filter.
+        // Match only the primary SSTable data component ("<descriptor>-Data.db"); the leading '-' excludes
+        // SAI per-index components such as "...+TermsData.db" which also end with "Data.db".
+        DirectoryStream.Filter<Path> combinedFilter = path -> SSTables.isDataComponent(path) && filter.accept(path);
         return Files.newDirectoryStream(getOutDir(), combinedFilter);
     }
 

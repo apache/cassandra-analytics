@@ -43,7 +43,6 @@ import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
-import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.util.IntWrapper;
 
 public class DirectStreamSession extends StreamSession<TransportContext.DirectDataBulkWriterContext>
@@ -86,11 +85,12 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                 // 3. send the sstables to all replicas
                 // 4. remove the sstables once sent
                 Map<Path, Digest> fileDigests = sstableWriter.prepareSStablesToSend(writerContext, sstables);
-                // retain only the SSTable data components
+                // retain only the primary SSTable data components ("<descriptor>-Data.db"); SAI per-index
+                // components such as "...+TermsData.db" (which also end with "Data.db") are excluded
                 IntWrapper sstableCounter = new IntWrapper();
                 fileDigests.keySet()
                            .stream()
-                           .filter(p -> p.getFileName().toString().endsWith(FileType.DATA.getFileSuffix()))
+                           .filter(SSTables::isDataComponent)
                            .forEach(sstable -> {
                                sstableCounter.value++;
                                sendSStableToReplicas(sstable);
@@ -153,7 +153,8 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
     @Override
     protected void sendRemainingSSTables()
     {
-        try (DirectoryStream<Path> dataFileStream = Files.newDirectoryStream(sstableWriter.getOutDir(), "*Data.db"))
+        try (DirectoryStream<Path> dataFileStream = Files.newDirectoryStream(sstableWriter.getOutDir(),
+                                                                             SSTables.DATA_COMPONENT_GLOB))
         {
             for (Path dataFile : dataFileStream)
             {
@@ -224,8 +225,9 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
         {
             for (Path componentFile : componentFileStream)
             {
-                // send data component the last
-                if (componentFile.getFileName().toString().endsWith("Data.db"))
+                // send the primary data component ("<descriptor>-Data.db") last; SAI per-index components
+                // such as "...+TermsData.db" are still streamed here rather than skipped
+                if (SSTables.isDataComponent(componentFile))
                 {
                     continue;
                 }
