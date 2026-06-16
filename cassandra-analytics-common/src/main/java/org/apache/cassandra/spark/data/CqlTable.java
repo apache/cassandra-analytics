@@ -387,12 +387,14 @@ public class CqlTable implements Serializable
             {
                 udts.add((CqlField.CqlUdt) CqlField.CqlType.read(input, cassandraTypes));
             }
+
             int numIndexStatements = input.readInt();
             Set<String> indexStatements = new LinkedHashSet<>(numIndexStatements);
             for (int idx = 0; idx < numIndexStatements; idx++)
             {
                 indexStatements.add(input.readString());
             }
+
             return new CqlTable(keyspace, table, createStatement, replicationFactor, fields, udts, indexStatements);
         }
 
@@ -415,6 +417,7 @@ public class CqlTable implements Serializable
             {
                 udt.write(output);
             }
+
             Set<String> indexStatements = table.indexStatements();
             output.writeInt(indexStatements.size());
             for (String stmt : indexStatements)

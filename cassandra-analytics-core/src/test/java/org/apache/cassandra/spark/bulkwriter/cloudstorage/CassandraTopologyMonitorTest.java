@@ -59,8 +59,31 @@ class CassandraTopologyMonitorTest
         assertThat(noChange.get()).isFalse();
     }
 
+    // In environments where nodes are not bound to fixed IP addresses, a node that goes down can
+    // come back with a new IP while remaining the same logical instance — same hostname, tokens and
+    // data. This is routine in Kubernetes: a rescheduled pod keeps its identity but gets a new IP.
+    // The write is still correct, so the monitor must not report a topology change and cancel the
+    // job when instances differ only by IP address.
+    @Test
+    void testIpAddressChangeIsNotTopologyChange()
+    {
+        ClusterInfo mockClusterInfo = mock(ClusterInfo.class);
+        when(mockClusterInfo.getTokenRangeMapping(false))
+        .thenReturn(buildTopology(10))
+        .thenReturn(buildTopologyWithChangedIpAddresses(10)); // same instances, new IP addresses
+        AtomicBoolean noChange = new AtomicBoolean(true);
+        CassandraTopologyMonitor monitor = new CassandraTopologyMonitor(mockClusterInfo, event -> noChange.set(false));
+        monitor.checkTopologyOnDemand();
+        assertThat(noChange.get()).isTrue();
+    }
+
     private TokenRangeMapping<RingInstance> buildTopology(int instancesCount)
     {
         return TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), instancesCount);
+    }
+
+    private TokenRangeMapping<RingInstance> buildTopologyWithChangedIpAddresses(int instancesCount)
+    {
+        return TokenRangeMappingUtils.buildTokenRangeMappingWithChangedIpAddresses(0, ImmutableMap.of("DC1", 3), instancesCount);
     }
 }
