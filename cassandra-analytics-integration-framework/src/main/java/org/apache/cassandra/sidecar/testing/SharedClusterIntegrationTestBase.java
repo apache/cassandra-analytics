@@ -738,6 +738,7 @@ public abstract class SharedClusterIntegrationTestBase
                 hostName = ipAddress;
             }
             int port = tryGetIntConfig(config, "native_transport_port", 9042);
+            int storagePort = tryGetIntConfig(config, "storage_port", 7000);
             String[] dataDirectories = (String[]) config.get("data_file_directories");
             String stagingDir = stagingDir(dataDirectories);
 
@@ -762,6 +763,7 @@ public abstract class SharedClusterIntegrationTestBase
                                        .id(config.num())
                                        .host(hostName)
                                        .port(port)
+                                       .storagePort(storagePort)
                                        .dataDirs(Arrays.asList(dataDirectories))
                                        .cdcDir(config.getString("cdc_raw_directory"))
                                        .commitlogDir(config.getString("commitlog_directory"))

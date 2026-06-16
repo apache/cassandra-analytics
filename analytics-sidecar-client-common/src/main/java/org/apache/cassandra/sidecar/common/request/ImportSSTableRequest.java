@@ -65,8 +65,8 @@ public class ImportSSTableRequest extends JsonRequest<SSTableImportResponse>
         private Boolean invalidateCaches;
         private Boolean extendedVerify;
         private Boolean copyData;
-        private Boolean validateSaiIndexes;
-        private Boolean saiIndexChecksum;
+        private Boolean failOnMissingIndex;
+        private Boolean validateIndexChecksum;
 
         public ImportOptions()
         {
@@ -157,28 +157,28 @@ public class ImportSSTableRequest extends JsonRequest<SSTableImportResponse>
         }
 
         /**
-         * Sets the {@code validateSaiIndexes} and returns a reference to this ImportOptions enabling method chaining.
+         * Sets the {@code failOnMissingIndex} and returns a reference to this ImportOptions enabling method chaining.
          * When enabled, Cassandra validates SAI index components during import.
          *
-         * @param validateSaiIndexes the {@code validateSaiIndexes} to set
+         * @param failOnMissingIndex the {@code failOnMissingIndex} to set
          * @return a reference to this ImportOptions
          */
-        public ImportOptions validateSaiIndexes(boolean validateSaiIndexes)
+        public ImportOptions failOnMissingIndex(boolean failOnMissingIndex)
         {
-            this.validateSaiIndexes = validateSaiIndexes;
+            this.failOnMissingIndex = failOnMissingIndex;
             return this;
         }
 
         /**
-         * Sets the {@code saiIndexChecksum} and returns a reference to this ImportOptions enabling method chaining.
+         * Sets the {@code validateIndexChecksum} and returns a reference to this ImportOptions enabling method chaining.
          * When enabled, Cassandra verifies SAI index component checksums during import.
          *
-         * @param saiIndexChecksum the {@code saiIndexChecksum} to set
+         * @param validateIndexChecksum the {@code validateIndexChecksum} to set
          * @return a reference to this ImportOptions
          */
-        public ImportOptions saiIndexChecksum(boolean saiIndexChecksum)
+        public ImportOptions validateIndexChecksum(boolean validateIndexChecksum)
         {
-            this.saiIndexChecksum = saiIndexChecksum;
+            this.validateIndexChecksum = validateIndexChecksum;
             return this;
         }
     }
@@ -233,13 +233,13 @@ public class ImportSSTableRequest extends JsonRequest<SSTableImportResponse>
         {
             options.add("copyData=" + importOptions.copyData);
         }
-        if (importOptions.validateSaiIndexes != null)
+        if (importOptions.failOnMissingIndex != null)
         {
-            options.add("validateSaiIndexes=" + importOptions.validateSaiIndexes);
+            options.add("failOnMissingIndex=" + importOptions.failOnMissingIndex);
         }
-        if (importOptions.saiIndexChecksum != null)
+        if (importOptions.validateIndexChecksum != null)
         {
-            options.add("saiIndexChecksum=" + importOptions.saiIndexChecksum);
+            options.add("validateIndexChecksum=" + importOptions.validateIndexChecksum);
         }
 
         return options;

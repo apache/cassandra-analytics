@@ -86,6 +86,9 @@ dependencies {
         exclude(group: 'org.apache.logging.log4j')
         exclude(group: 'org.slf4j')
         exclude(group: 'ch.qos.logback')
+        // kafka-avro-serializer is only needed when sidecar publishes CDC events to a
+        // Schema-Registry-backed Kafka topic, which our in-jvm integration tests do not exercise.
+        exclude(group: 'io.confluent')
     }
     api(group: 'org.apache.cassandra', name: 'sidecar-server-common', version: "${sidecarVersion}")
 }

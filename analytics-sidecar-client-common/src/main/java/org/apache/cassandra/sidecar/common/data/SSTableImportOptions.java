@@ -18,14 +18,19 @@
 
 package org.apache.cassandra.sidecar.common.data;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 /**
  * Options for Cassandra import nodetool command. It is like properties.
  * Supports Json serialization and deserialization.
+ * <p>
+ * This class is used exclusively in the S3 restore job path ({@code CreateRestoreJobRequestPayload}).
  */
-public class SSTableImportOptions extends HashMap<String, String>
+public class SSTableImportOptions extends LinkedHashMap<String, String>
 {
+    public static final boolean DEFAULT_FAIL_ON_MISSING_INDEX = false;
+    public static final boolean DEFAULT_VALIDATE_INDEX_CHECKSUM = false;
+
     private static final String RESET_LEVEL = "resetLevel";
     private static final String CLEAR_REPAIRED = "clearRepaired";
     private static final String VERIFY_SSTABLES = "verifySSTables";
@@ -33,8 +38,8 @@ public class SSTableImportOptions extends HashMap<String, String>
     private static final String INVALIDATE_CACHES = "invalidateCaches";
     private static final String EXTENDED_VERIFY = "extendedVerify";
     private static final String COPY_DATA = "copyData";
-    private static final String VALIDATE_SAI_INDEXES = "validateSaiIndexes";
-    private static final String SAI_INDEX_CHECKSUM = "saiIndexChecksum";
+    private static final String FAIL_ON_MISSING_INDEX = "failOnMissingIndex";
+    private static final String VALIDATE_INDEX_CHECKSUM = "validateIndexChecksum";
 
     public static SSTableImportOptions defaults()
     {
@@ -50,8 +55,8 @@ public class SSTableImportOptions extends HashMap<String, String>
         put(INVALIDATE_CACHES, Boolean.toString(true));
         put(EXTENDED_VERIFY, Boolean.toString(true));
         put(COPY_DATA, Boolean.toString(false)); // note: the default is false
-        put(VALIDATE_SAI_INDEXES, Boolean.toString(false)); // note: the default is false
-        put(SAI_INDEX_CHECKSUM, Boolean.toString(false)); // note: the default is false
+        put(FAIL_ON_MISSING_INDEX, Boolean.toString(DEFAULT_FAIL_ON_MISSING_INDEX));
+        put(VALIDATE_INDEX_CHECKSUM, Boolean.toString(DEFAULT_VALIDATE_INDEX_CHECKSUM));
     }
 
     public SSTableImportOptions resetLevel(boolean enabled)
@@ -131,25 +136,25 @@ public class SSTableImportOptions extends HashMap<String, String>
         return Boolean.parseBoolean(get(COPY_DATA));
     }
 
-    public SSTableImportOptions validateSaiIndexes(boolean enabled)
+    public SSTableImportOptions failOnMissingIndex(boolean enabled)
     {
-        put(VALIDATE_SAI_INDEXES, Boolean.toString(enabled));
+        put(FAIL_ON_MISSING_INDEX, Boolean.toString(enabled));
         return this;
     }
 
-    public boolean validateSaiIndexes()
+    public boolean failOnMissingIndex()
     {
-        return Boolean.parseBoolean(get(VALIDATE_SAI_INDEXES));
+        return Boolean.parseBoolean(get(FAIL_ON_MISSING_INDEX));
     }
 
-    public SSTableImportOptions saiIndexChecksum(boolean enabled)
+    public SSTableImportOptions validateIndexChecksum(boolean enabled)
     {
-        put(SAI_INDEX_CHECKSUM, Boolean.toString(enabled));
+        put(VALIDATE_INDEX_CHECKSUM, Boolean.toString(enabled));
         return this;
     }
 
-    public boolean saiIndexChecksum()
+    public boolean validateIndexChecksum()
     {
-        return Boolean.parseBoolean(get(SAI_INDEX_CHECKSUM));
+        return Boolean.parseBoolean(get(VALIDATE_INDEX_CHECKSUM));
     }
 }

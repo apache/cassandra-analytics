@@ -67,15 +67,15 @@ class CreateRestoreJobRequestPayloadTest
                                    "\"jobAgent\":\"agent\"," +
                                    "\"secrets\":" + MAPPER.writeValueAsString(secrets) + "," +
                                    "\"importOptions\":{" +
-                                   "\"validateSaiIndexes\":\"false\"," +
-                                   "\"verifyTokens\":\"true\"," +
                                    "\"resetLevel\":\"true\"," +
-                                   "\"saiIndexChecksum\":\"false\"," +
                                    "\"clearRepaired\":\"true\"," +
-                                   "\"extendedVerify\":\"true\"," +
                                    "\"verifySSTables\":\"true\"," +
+                                   "\"verifyTokens\":\"true\"," +
                                    "\"invalidateCaches\":\"true\"," +
-                                   "\"copyData\":\"false\"}," +
+                                   "\"extendedVerify\":\"true\"," +
+                                   "\"copyData\":\"false\"," +
+                                   "\"failOnMissingIndex\":\"false\"," +
+                                   "\"validateIndexChecksum\":\"false\"}," +
                                    "\"expireAt\":" + expireAt + "," +
                                    "\"consistencyLevel\":\"QUORUM\"}");
         CreateRestoreJobRequestPayload test = MAPPER.readValue(json, CreateRestoreJobRequestPayload.class);

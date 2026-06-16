@@ -110,10 +110,12 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
         // Always verify SSTables on import
         importOptions.verifySSTables(true).extendedVerify(!job.skipExtendedVerify());
 
-        // When SAI index components were generated alongside SSTables, enable SAI validation on import
+        // When SAI index components were generated alongside SSTables, enable SAI validation on import.
+        // failOnMissingIndex makes the import fail (instead of silently rebuilding) when the uploaded
+        // SSTables are missing their SAI components, and validateIndexChecksum verifies their checksums.
         if (hasSaiIndexes)
         {
-            importOptions.validateSaiIndexes(true).saiIndexChecksum(true);
+            importOptions.failOnMissingIndex(true).validateIndexChecksum(true);
         }
 
         try

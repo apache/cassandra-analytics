@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Upgrade sidecar version to 0.4.0
  * Regenerate bloom filters for CQLSSTableWriter (CASSANALYTICS-167)
  * Avoid Spark 4 partitioning warnings during bulk reads (CASSANALYTICS-171)
  * Spark 4.0 Support (CASSANALYTICS-34)
