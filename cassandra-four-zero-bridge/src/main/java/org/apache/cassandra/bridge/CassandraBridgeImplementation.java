@@ -605,6 +605,8 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                           Set<String> indexCreateStatements,
                                           int bufferSizeMB)
     {
+        // indexCreateStatements is intentionally ignored: SAI component generation is a Cassandra 5.0+ feature
+        // handled by the five-zero bridge. On 4.0, indexes are rebuilt by Cassandra after import as before.
         return new SSTableWriterImplementation(inDirectory, partitioner, createStatement, insertStatement,
                                                userDefinedTypeStatements, bufferSizeMB);
     }

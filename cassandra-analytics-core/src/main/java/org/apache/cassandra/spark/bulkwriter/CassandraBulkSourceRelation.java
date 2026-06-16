@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -502,11 +503,21 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                                                                             @org.jetbrains.annotations.Nullable String credentialTypeName)
     {
         CreateRestoreJobRequestPayload.Builder builder = CreateRestoreJobRequestPayload.builder(secrets, updatedLeaseTime());
+        Set<String> indexStatements = writerContext.schema().getTableSchema().getIndexStatements();
+        boolean hasSaiIndexes = TableSchema.isSaiWrite(indexStatements, writerContext.cluster().getLowestCassandraVersion());
         builder.jobAgent(BuildInfo.APPLICATION_NAME)
                .jobId(job.getRestoreJobId(clusterId))
                .updateImportOptions(importOptions -> {
                    importOptions.verifySSTables(true) // we disallow the end-user to bypass the non-extended verify anymore
                                 .extendedVerify(false); // always turn off
+
+                   // When the table has SAI indexes, the bulk writer generates SAI components alongside the
+                   // SSTables (Cassandra 5.0+). Enable SAI validation on import so that a slice missing its
+                   // index components fails instead of silently rebuilding, mirroring the direct write path.
+                   if (hasSaiIndexes)
+                   {
+                       importOptions.failOnMissingIndex(true).validateIndexChecksum(true);
+                   }
                });
         if (credentialTypeName != null)
         {

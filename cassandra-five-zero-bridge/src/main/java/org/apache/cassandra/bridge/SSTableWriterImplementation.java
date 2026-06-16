@@ -21,6 +21,7 @@ package org.apache.cassandra.bridge;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -40,6 +41,7 @@ import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.exceptions.InvalidRequestException;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
+import org.apache.cassandra.spark.utils.CqlUtils;
 import org.jetbrains.annotations.NotNull;
 
 /**
@@ -167,11 +169,17 @@ public class SSTableWriterImplementation implements SSTableWriter
                .openSSTableOnProduced()
                .withMaxSSTableSizeInMiB(bufferSizeMB);
 
-        if (!indexCreateStatements.isEmpty())
+        // Only SAI indexes are generated alongside SSTables. Filter out any non-SAI (legacy 2i) statements so they
+        // are never handed to CQLSSTableWriter.withIndexes, which expects SAI definitions. Mixed-index tables can
+        // only reach this point via SKIP_SECONDARY_INDEX_CHECK; their 2i indexes are rebuilt by Cassandra on import.
+        List<String> saiIndexStatements = indexCreateStatements.stream()
+                                                               .filter(CqlUtils::isSaiIndex)
+                                                               .collect(Collectors.toList());
+        if (!saiIndexStatements.isEmpty())
         {
-            builder.withIndexes(indexCreateStatements.toArray(new String[0]));
+            builder.withIndexes(saiIndexStatements.toArray(new String[0]));
             builder.withBuildIndexes(true);
-            LOGGER.info("SAI index generation enabled for {} index(es)", indexCreateStatements.size());
+            LOGGER.info("SAI index generation enabled for {} index(es)", saiIndexStatements.size());
         }
 
         return builder;

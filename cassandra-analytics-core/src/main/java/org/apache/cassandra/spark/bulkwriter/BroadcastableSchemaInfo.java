@@ -28,8 +28,6 @@ import org.jetbrains.annotations.NotNull;
  * Broadcastable wrapper for schema information with ZERO transient fields to optimize Spark broadcasting.
  * <p>
  * Contains BroadcastableTableSchema (pre-computed schema data) and UDT statements.
- * Index statements are now stored in CqlTable (serialized via Kryo in BroadcastableTableSchema)
- * and accessed through TableSchema.
  * Executors reconstruct CassandraSchemaInfo and TableSchema from these fields.
  * <p>
  * <b>Why ZERO transient fields matters:</b><br>
@@ -45,7 +43,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class BroadcastableSchemaInfo implements Serializable
 {
-    private static final long serialVersionUID = 4719283056718294301L;
+    private static final long serialVersionUID = -8727074052066841748L;
 
     // Essential fields broadcast to executors
     private final BroadcastableTableSchema broadcastableTableSchema;

@@ -505,6 +505,7 @@ public final class TableSchemaTestCommon
             {
                 return new HashSet<>(Collections.singletonList("CREATE INDEX test_idx ON test." + uniqueTableName + " (col);"));
             }
+
             return Collections.emptySet();
         }
 

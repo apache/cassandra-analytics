@@ -100,6 +100,7 @@ import org.apache.cassandra.spark.reader.BigIndexReader;
 import org.apache.cassandra.spark.reader.ReaderUtils;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.SchemaBuilder;
+import org.apache.cassandra.spark.reader.StorageAttachedIndexApplier;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.reader.SummaryDbUtils;
 import org.apache.cassandra.spark.sparksql.CellIterator;
@@ -284,8 +285,14 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                 Set<String> indexStatements,
                                 boolean enableCdc)
     {
-        return new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner,
-                                 cassandraTypes -> udts, tableId, indexStatements, enableCdc).build();
+        CqlTable cqlTable = new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner,
+                                              cassandraTypes -> udts, tableId, indexStatements, enableCdc).build();
+        // SAI is a Cassandra 5.0+ feature: register any Storage Attached Index definitions on the table metadata
+        // after the shared SchemaBuilder has built/registered the (index-less) table.
+        // buildSchema is invoked repeatedly within a JVM (the index-carrying per-partition RecordWriter included),
+        // so this re-applies the SAI definitions whenever a rebuild left the table without them.
+        StorageAttachedIndexApplier.maybeApply(keyspace, cqlTable.table(), indexStatements);
+        return cqlTable;
     }
 
     @Override

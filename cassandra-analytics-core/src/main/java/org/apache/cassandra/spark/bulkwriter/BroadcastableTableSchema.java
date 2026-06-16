@@ -47,7 +47,7 @@ import org.jetbrains.annotations.NotNull;
  */
 public final class BroadcastableTableSchema implements Serializable
 {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 2L;
 
     // All fields from TableSchema needed for reconstruction on executors
     private final String createStatement;

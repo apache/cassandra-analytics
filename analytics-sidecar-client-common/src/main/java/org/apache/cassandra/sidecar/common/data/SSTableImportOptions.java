@@ -18,19 +18,14 @@
 
 package org.apache.cassandra.sidecar.common.data;
 
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 
 /**
  * Options for Cassandra import nodetool command. It is like properties.
  * Supports Json serialization and deserialization.
- * <p>
- * This class is used exclusively in the S3 restore job path ({@code CreateRestoreJobRequestPayload}).
  */
-public class SSTableImportOptions extends LinkedHashMap<String, String>
+public class SSTableImportOptions extends HashMap<String, String>
 {
-    public static final boolean DEFAULT_FAIL_ON_MISSING_INDEX = false;
-    public static final boolean DEFAULT_VALIDATE_INDEX_CHECKSUM = false;
-
     private static final String RESET_LEVEL = "resetLevel";
     private static final String CLEAR_REPAIRED = "clearRepaired";
     private static final String VERIFY_SSTABLES = "verifySSTables";
@@ -55,8 +50,6 @@ public class SSTableImportOptions extends LinkedHashMap<String, String>
         put(INVALIDATE_CACHES, Boolean.toString(true));
         put(EXTENDED_VERIFY, Boolean.toString(true));
         put(COPY_DATA, Boolean.toString(false)); // note: the default is false
-        put(FAIL_ON_MISSING_INDEX, Boolean.toString(DEFAULT_FAIL_ON_MISSING_INDEX));
-        put(VALIDATE_INDEX_CHECKSUM, Boolean.toString(DEFAULT_VALIDATE_INDEX_CHECKSUM));
     }
 
     public SSTableImportOptions resetLevel(boolean enabled)
@@ -136,6 +129,10 @@ public class SSTableImportOptions extends LinkedHashMap<String, String>
         return Boolean.parseBoolean(get(COPY_DATA));
     }
 
+    /**
+     * When enabled, SSTable import fails if a table with Storage Attached Indexes (SAI) is missing its index
+     * components, instead of silently rebuilding them. Only meaningful for SAI tables (Cassandra 5.0+).
+     */
     public SSTableImportOptions failOnMissingIndex(boolean enabled)
     {
         put(FAIL_ON_MISSING_INDEX, Boolean.toString(enabled));
@@ -147,6 +144,10 @@ public class SSTableImportOptions extends LinkedHashMap<String, String>
         return Boolean.parseBoolean(get(FAIL_ON_MISSING_INDEX));
     }
 
+    /**
+     * When enabled, SSTable import validates the checksums of Storage Attached Index (SAI) components.
+     * Only meaningful for SAI tables (Cassandra 5.0+).
+     */
     public SSTableImportOptions validateIndexChecksum(boolean enabled)
     {
         put(VALIDATE_INDEX_CHECKSUM, Boolean.toString(enabled));

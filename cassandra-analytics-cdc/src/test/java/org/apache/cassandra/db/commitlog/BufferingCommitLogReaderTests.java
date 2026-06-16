@@ -89,7 +89,7 @@ public class BufferingCommitLogReaderTests
                            ReplicationFactor.simpleStrategy(1),
                            Partitioner.Murmur3Partitioner,
                            Collections.emptySet(),
-                           null, 0, true);
+                           null, Collections.emptySet(), true);
         int numRows = 1000;
 
         // write some rows to a CommitLog

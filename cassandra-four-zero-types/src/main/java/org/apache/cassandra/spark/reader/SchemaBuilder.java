@@ -44,7 +44,6 @@ import org.apache.cassandra.bridge.SchemaUpdater;
 import org.apache.cassandra.cql3.CQL3Type;
 import org.apache.cassandra.cql3.CQLFragmentParser;
 import org.apache.cassandra.cql3.CqlParser;
-import org.apache.cassandra.cql3.statements.schema.CreateIndexStatement;
 import org.apache.cassandra.cql3.statements.schema.CreateTableStatement;
 import org.apache.cassandra.cql3.statements.schema.CreateTypeStatement;
 import org.apache.cassandra.db.Keyspace;
@@ -59,14 +58,11 @@ import org.apache.cassandra.dht.IPartitioner;
 import org.apache.cassandra.schema.ColumnMetadata;
 import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.KeyspaceParams;
-import org.apache.cassandra.schema.Keyspaces;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.TableMetadataRef;
-import org.apache.cassandra.schema.Tables;
 import org.apache.cassandra.schema.Types;
-import org.apache.cassandra.service.ClientState;
 import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlTable;
@@ -152,7 +148,6 @@ public class SchemaBuilder
                              partitioner,
                              this.replicationFactor,
                              tableId, enableCdc,
-                             this.indexStatements,
                              this::validateColumnMetaData));
         this.keyspaceMetadata = updated.left;
         this.metadata = updated.right;
@@ -169,7 +164,6 @@ public class SchemaBuilder
                                                                       ReplicationFactor replicationFactor,
                                                                       UUID tableId,
                                                                       boolean enableCdc,
-                                                                      Set<String> indexStatements,
                                                                       Consumer<ColumnMetadata> columnValidator)
     {
         // Set up and open keyspace if needed
@@ -230,8 +224,20 @@ public class SchemaBuilder
         }
 
         tableMetadata.columns().forEach(columnValidator);
-        tableMetadata = maybeApplyStorageAttachedIndexes(schema, keyspace, tableMetadata,
-                                                         maybeExistingTableMetadata, indexStatements);
+
+        // This builder always produces an index-less table (indexes are applied later by the 5.0 bridge), so a
+        // rebuild never carries indexes even if the caller passed index statements. buildSchema runs repeatedly per
+        // table in a JVM; if an earlier call already registered indexes, copy them onto this rebuild so it matches
+        // the registered table.
+        if (maybeExistingTableMetadata != null
+            && !maybeExistingTableMetadata.indexes.isEmpty()
+            && tableMetadata.indexes.isEmpty())
+        {
+            tableMetadata = tableMetadata.unbuild()
+                                         .indexes(maybeExistingTableMetadata.indexes)
+                                         .build();
+        }
+
         setupTableAndUdt(schema, keyspace, tableMetadata, types);
 
         return validateKeyspaceTable(schema, keyspace, tableMetadata.name);
@@ -347,70 +353,6 @@ public class SchemaBuilder
             return false;
         }
         return true;
-    }
-
-    /**
-     * Ensures the table metadata registered in the schema carries its Storage Attached Index (SAI) definitions.
-     * <p>
-     * {@code buildSchema} is invoked repeatedly for the same table within a JVM — once with the index statements
-     * (from {@code AbstractBulkWriterContext}) and once per partition with an empty index set (from
-     * {@code RecordWriter}). To keep the registered metadata stable across these calls:
-     * <ul>
-     *   <li>If the table is already registered with indexes, reuse that metadata verbatim. Rebuilding would either
-     *       drop the indexes (index-less callers) or mint fresh non-deterministic index ids (indexed callers), and
-     *       either difference forces a table-metadata update that fails with {@code AlreadyExistsException}.</li>
-     *   <li>Otherwise apply only the SAI statements; legacy (2i) and empty index sets are left untouched, so non-SAI
-     *       and Cassandra 4.0 paths are unchanged.</li>
-     * </ul>
-     */
-    private static TableMetadata maybeApplyStorageAttachedIndexes(Schema schema,
-                                                                  String keyspace,
-                                                                  TableMetadata tableMetadata,
-                                                                  TableMetadata existingTableMetadata,
-                                                                  Set<String> indexStatements)
-    {
-        if (existingTableMetadata != null && !existingTableMetadata.indexes.isEmpty())
-        {
-            return existingTableMetadata;
-        }
-
-        if (indexStatements == null || indexStatements.isEmpty())
-        {
-            return tableMetadata;
-        }
-
-        List<String> saiStatements = indexStatements.stream()
-                                                    .filter(SchemaBuilder::isStorageAttachedIndex)
-                                                    .collect(Collectors.toList());
-        if (saiStatements.isEmpty())
-        {
-            return tableMetadata;
-        }
-
-        KeyspaceMetadata keyspaceMetadata = schema.getKeyspaceMetadata(keyspace);
-        Keyspaces keyspaces = Keyspaces.of(keyspaceMetadata.withSwapped(Tables.of(tableMetadata)));
-        ClientState state = ClientState.forInternalCalls();
-        for (String saiStatement : saiStatements)
-        {
-            CreateIndexStatement.Raw raw = CQLFragmentParser.parseAny(CqlParser::createIndexStatement,
-                                                                      saiStatement, "CREATE INDEX");
-            keyspaces = raw.prepare(state).apply(keyspaces);
-        }
-
-        TableMetadata withIndexes = keyspaces.get(keyspace)
-                                             .flatMap(ks -> ks.tables.get(tableMetadata.name))
-                                             .orElseThrow(() -> new IllegalStateException(
-                                                     "SAI index application produced no table metadata for "
-                                                     + keyspace + '.' + tableMetadata.name));
-
-        LOGGER.info("Applied {} SAI index(es) to table metadata keyspace={} table={}",
-                    saiStatements.size(), keyspace, tableMetadata.name);
-        return withIndexes;
-    }
-
-    private static boolean isStorageAttachedIndex(String createIndexStatement)
-    {
-        return createIndexStatement.toUpperCase().contains("USING 'STORAGEATTACHEDINDEX'");
     }
 
     // Check whether keyspace metadata exists. Create keyspace metadata, if not.

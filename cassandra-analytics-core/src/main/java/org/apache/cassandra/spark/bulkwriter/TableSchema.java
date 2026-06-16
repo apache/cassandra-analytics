@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
@@ -322,13 +323,10 @@ public class TableSchema
             return; // No indexes — nothing to validate
         }
 
-        boolean allSai = !indexStatements.isEmpty() && indexStatements.stream().allMatch(CqlUtils::isSaiIndex);
-        boolean isCassandra5OrLater = isCassandra5OrLater(lowestCassandraVersion);
-
-        if (allSai && isCassandra5OrLater)
+        if (isSaiWrite(indexStatements, lowestCassandraVersion))
         {
-            LOGGER.info("Table has SAI indexes only on Cassandra 5.0+. SAI index components will be generated "
-                      + "alongside SSTables for immediate queryability after import. indexCount={}", indexStatements.size());
+            LOGGER.info("Table has SAI indexes on Cassandra 5.0+. SAI index components will be generated "
+                      + "alongside SSTables. indexCount={}", indexStatements.size());
             return;
         }
 
@@ -363,15 +361,31 @@ public class TableSchema
         {
             return false;
         }
+
         try
         {
-            int majorVersion = Integer.parseInt(version.split("\\.")[0]);
-            return majorVersion >= 5;
+            return CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion() >= 50;
         }
-        catch (NumberFormatException exception)
+        catch (RuntimeException exception)
         {
+            // Unparseable version string — treat as "not 5.0+".
             return false;
         }
+    }
+
+    /**
+     * Returns true when the bulk writer generates SAI components alongside SSTables for this table, i.e. the
+     * table's indexes are all SAI and the cluster is Cassandra 5.0+. This single predicate is shared by schema
+     * validation (to allow the write) and by the commit/restore paths (to enable SAI import options), so the
+     * "we generate SAI components" and "we validate SAI components on import" decisions can never diverge.
+     *
+     * @param indexStatements         the CREATE INDEX statements for the table
+     * @param lowestCassandraVersion  the lowest Cassandra version in the cluster
+     * @return true if this is an all-SAI write on Cassandra 5.0+
+     */
+    static boolean isSaiWrite(Set<String> indexStatements, String lowestCassandraVersion)
+    {
+        return CqlUtils.hasOnlySaiIndexes(indexStatements) && isCassandra5OrLater(lowestCassandraVersion);
     }
 
     private static List<Integer> getKeyFieldPositions(StructType dfSchema,

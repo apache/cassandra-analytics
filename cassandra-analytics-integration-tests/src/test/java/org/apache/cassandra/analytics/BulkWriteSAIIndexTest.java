@@ -94,6 +94,15 @@ class BulkWriteSAIIndexTest extends SharedClusterSparkIntegrationTestBase
                                                                  TABLE_SAI),
                                                    ConsistencyLevel.ALL);
         assertThat(marksResults).isNotNull();
+        assertThat(marksResults.length)
+            .as("SAI filter on marks=50 should return the matching row")
+            .isGreaterThan(0);
+
+        for (Object[] row : marksResults)
+        {
+            // marks is the third column (id, course, marks)
+            assertThat(row[2]).isEqualTo(50);
+        }
     }
 
     /**

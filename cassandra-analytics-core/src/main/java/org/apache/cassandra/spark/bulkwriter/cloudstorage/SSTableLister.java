@@ -43,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.SSTableSummary;
 import org.apache.cassandra.spark.common.Digest;
+import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.data.SSTable;
@@ -218,7 +219,7 @@ public class SSTableLister implements SSTableCollector
     private SSTable buildSSTable(List<Path> components)
     {
         List<Path> dataComponents = components.stream()
-                                              .filter(path -> path.getFileName().toString().contains("Data.db"))
+                                              .filter(SSTables::isDataComponent)
                                               .collect(Collectors.toList());
         if (dataComponents.size() != 1)
         {
