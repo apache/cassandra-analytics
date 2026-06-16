@@ -20,7 +20,6 @@
 package org.apache.cassandra.bridge;
 
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
@@ -60,7 +59,7 @@ public enum CassandraVersion
         this.number = number;
         this.name = name;
         this.jarBaseName = jarBaseName;
-        this.sstableFormats = new HashSet<>(Arrays.asList(sstableFormats));
+        this.sstableFormats = Set.copyOf(Arrays.asList(sstableFormats));
     }
 
     public int versionNumber()
@@ -76,6 +75,11 @@ public enum CassandraVersion
     public String jarBaseName()
     {
         return jarBaseName;
+    }
+
+    public Set<String> supportedSSTableFormats()
+    {
+        return sstableFormats;
     }
 
     private static final String sstableFormat;
