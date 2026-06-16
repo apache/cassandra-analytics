@@ -47,7 +47,7 @@ public class RequestExecutor implements AutoCloseable
     protected final HttpClient httpClient;
     protected final ScheduledExecutorService singleThreadExecutorService;
 
-    protected RequestExecutor(HttpClient httpClient)
+    public RequestExecutor(HttpClient httpClient)
     {
         this.httpClient = requireNonNull(httpClient, "The httpClient is required");
         this.singleThreadExecutorService = Executors.newSingleThreadScheduledExecutor();
@@ -159,6 +159,13 @@ public class RequestExecutor implements AutoCloseable
     public void close() throws Exception
     {
         httpClient.close();
+
+        singleThreadExecutorService.shutdown();
+        if (!singleThreadExecutorService.awaitTermination(1, TimeUnit.MINUTES))
+        {
+            logger.warn("Executor service did not terminate within 1 minute");
+            singleThreadExecutorService.shutdownNow();
+        }
     }
 
     /**
@@ -267,17 +274,17 @@ public class RequestExecutor implements AutoCloseable
         Request request = context.request();
         context.retryPolicy()
                .onResponse(future, request, response, throwable, attempt, retryOnNewHost, (nextAttempt, delay) -> {
-            String statusCode = response != null ? String.valueOf(response.statusCode()) : "<Not Available>";
-            SidecarInstance nextInstance = iterator.hasNext() ? iterator.next() : sidecarInstance;
-            if (response == null || response.statusCode() != HttpResponseStatus.ACCEPTED.code())
-            {
-                logger.warn("Retrying request on {} instance after {}ms. " +
-                            "Failed on instance={}, attempt={}, statusCode={}",
-                            nextInstance == sidecarInstance ? "same" : "next", delay,
-                            sidecarInstance, attempt, statusCode, throwable);
-            }
-            schedule(delay, () -> executeWithRetries(future, iterator, nextInstance, context, nextAttempt));
-        });
+                   String statusCode = response != null ? String.valueOf(response.statusCode()) : "<Not Available>";
+                   SidecarInstance nextInstance = iterator.hasNext() ? iterator.next() : sidecarInstance;
+                   if (response == null || response.statusCode() != HttpResponseStatus.ACCEPTED.code())
+                   {
+                       logger.warn("Retrying request on {} instance after {}ms. " +
+                                   "Failed on instance={}, attempt={}, statusCode={}",
+                                   nextInstance == sidecarInstance ? "same" : "next", delay,
+                                   sidecarInstance, attempt, statusCode, throwable);
+                   }
+                   schedule(delay, () -> executeWithRetries(future, iterator, nextInstance, context, nextAttempt));
+               });
     }
 
     /**
@@ -306,17 +313,17 @@ public class RequestExecutor implements AutoCloseable
         Request request = context.request();
         context.retryPolicy()
                .onResponse(future, request, response, throwable, attempt, retryOnNewHost, (nextAttempt, delay) -> {
-            String statusCode = response != null ? String.valueOf(response.statusCode()) : "<Not Available>";
-            SidecarInstance nextInstance = iterator.hasNext() ? iterator.next() : sidecarInstance;
-            if (response == null || response.statusCode() != HttpResponseStatus.ACCEPTED.code())
-            {
-                logger.warn("Retrying stream on {} instance after {}ms. " +
-                            "Failed on instance={}, attempt={}, statusCode={}",
-                            nextInstance == sidecarInstance ? "same" : "next", delay,
-                            sidecarInstance, attempt, statusCode, throwable);
-            }
-            schedule(delay, () -> streamWithRetries(future, consumer, iterator, nextInstance, context, nextAttempt));
-        });
+                   String statusCode = response != null ? String.valueOf(response.statusCode()) : "<Not Available>";
+                   SidecarInstance nextInstance = iterator.hasNext() ? iterator.next() : sidecarInstance;
+                   if (response == null || response.statusCode() != HttpResponseStatus.ACCEPTED.code())
+                   {
+                       logger.warn("Retrying stream on {} instance after {}ms. " +
+                                   "Failed on instance={}, attempt={}, statusCode={}",
+                                   nextInstance == sidecarInstance ? "same" : "next", delay,
+                                   sidecarInstance, attempt, statusCode, throwable);
+                   }
+                   schedule(delay, () -> streamWithRetries(future, consumer, iterator, nextInstance, context, nextAttempt));
+               });
     }
 
     /**

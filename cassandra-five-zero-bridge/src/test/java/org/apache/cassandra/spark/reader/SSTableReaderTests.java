@@ -45,7 +45,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
-import org.apache.commons.lang.StringUtils;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -562,7 +561,7 @@ public class SSTableReaderTests
                             colBuf.get();
                             String colName = ByteBufferUtils.string(ByteBufferUtils.readBytesWithShortLength(colBuf));
                             colBuf.get();
-                            if (StringUtils.isEmpty(colName))
+                            if (colName == null || colName.isEmpty())
                             {
                                 continue;
                             }
@@ -942,7 +941,7 @@ public class SSTableReaderTests
                             colBuf.get();
                             String colName = ByteBufferUtils.string(ByteBufferUtils.readBytesWithShortLength(colBuf));
                             colBuf.get();
-                            if (StringUtils.isEmpty(colName))
+                            if (colName == null || colName.isEmpty())
                             {
                                 continue;
                             }

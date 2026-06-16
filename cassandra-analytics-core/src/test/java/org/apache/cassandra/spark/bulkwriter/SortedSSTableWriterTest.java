@@ -19,25 +19,31 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.validation.constraints.NotNull;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.AfterAll;
@@ -46,13 +52,22 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import org.apache.cassandra.bridge.BloomFilter;
+import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.bulkwriter.token.ConsistencyLevel;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.Digest;
+import org.apache.cassandra.spark.data.CqlTable;
+import org.apache.cassandra.spark.data.FileSystemSSTable;
+import org.apache.cassandra.spark.data.ReplicationFactor;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.stats.BufferingInputStreamStats;
 import org.apache.cassandra.spark.utils.XXHash32DigestAlgorithm;
+import org.jetbrains.annotations.NotNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
@@ -133,13 +148,135 @@ public class SortedSSTableWriterTest
         {
             dataFileStream.forEach(dataFilePath -> {
                 dataFilePaths.add(dataFilePath);
-                assertThat(SSTables.cassandraVersionFromTable(dataFilePath).getMajorVersion())
-                .isEqualTo(CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion());
+                int sstableVersion = SSTables.cassandraVersionFromTable(dataFilePath).getMajorVersion();
+                int expectedVersion = CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion();
+                // 4.0 and 4.1 share the same SSTable format (nb), so the SSTable-level version is always 40
+                if (expectedVersion == 41)
+                {
+                    expectedVersion = 40;
+                }
+                assertThat(sstableVersion).isEqualTo(expectedVersion);
             });
         }
         // no exception should be thrown from both the validate methods
         tw.validateSSTables(writerContext);
         tw.validateSSTables(writerContext, tw.getOutDir(), dataFilePaths);
+    }
+
+    @ParameterizedTest
+    @MethodSource("supportedVersions")
+    public void testBloomFilterRebuild(String version) throws IOException
+    {
+        int rowCount = 50_000;
+        CassandraBridge bridge = CassandraBridgeFactory.get(version);
+        MockBulkWriterContext writerContext = new MockBulkWriterContext(tokenRangeMapping, version, ConsistencyLevel.CL.LOCAL_QUORUM);
+        Partitioner partitioner = writerContext.getPartitioner();
+        CqlTable cqlTable = bridge.buildSchema(writerContext.schema().getTableSchema().createStatement,
+                                               writerContext.qualifiedTableName().keyspace(),
+                                               new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
+                                                                     ImmutableMap.of("replication_factor", 1)),
+                                               partitioner,
+                                               Collections.emptySet());
+        SortedMap<BigInteger, List<String>> sortedKeys = new TreeMap<>();
+        for (int i = 0; i < rowCount; ++i)
+        {
+            List<String> keys = ImmutableList.of(String.valueOf(i), "1");
+            AbstractMap.SimpleEntry<ByteBuffer, BigInteger> partitionKey = bridge.getPartitionKey(cqlTable, partitioner, keys);
+            sortedKeys.put(partitionKey.getValue(), keys);
+        }
+
+        SortedSSTableWriter tw = new SortedSSTableWriter(writerContext, tmpDir, new XXHash32DigestAlgorithm(), 1);
+        List<SSTableDescriptor> allSSTables = new ArrayList<>();
+        tw.setSSTablesProducedListener(allSSTables::addAll);
+        for (BigInteger token : sortedKeys.keySet())
+        {
+            List<String> partitionKey = sortedKeys.get(token);
+            tw.addRow(token,
+                      ImmutableMap.of("id", Integer.parseInt(partitionKey.get(0)),
+                                      "date", Integer.parseInt(partitionKey.get(1)),
+                                      "course", "foo", "marks", 1));
+        }
+        tw.close(writerContext);
+
+        assertThat(allSSTables).hasSize(1);
+
+        Set<Path> filterFilePaths = new HashSet<>();
+        try (DirectoryStream<Path> filterFileStream = Files.newDirectoryStream(tw.getOutDir(), "*-Filter.db"))
+        {
+            filterFileStream.forEach(filterFilePaths::add);
+        }
+
+        assertThat(filterFilePaths).hasSize(1);
+
+        Path filterFile = filterFilePaths.iterator().next();
+        String dataFileName = filterFile.toFile().getName().replace("-Filter", "-Data");
+        Path dataFilePath = filterFile.getParent().resolve(dataFileName);
+        FileSystemSSTable ssTable = new FileSystemSSTable(dataFilePath, false, BufferingInputStreamStats::doNothingStats);
+
+        BloomFilter bloomFilter = bridge.openBloomFilter(partitioner,
+                                                         writerContext.qualifiedTableName().keyspace(),
+                                                         writerContext.qualifiedTableName().table(),
+                                                         ssTable);
+
+        // second column is always set to 1 when inserting data
+        List<ByteBuffer> searchKeys = bridge.encodePartitionKeys(partitioner,
+                                                                 writerContext.qualifiedTableName().keyspace(),
+                                                                 writerContext.schema().getTableSchema().createStatement,
+                                                                 ImmutableList.of(ImmutableList.of("1", "1"), ImmutableList.of("7", "2")));
+
+        assertThat(bloomFilter.mightContain(searchKeys.get(0))).isTrue();
+        // Flaky assertion: bloom filters can answer false positive, but since we are using limited data set,
+        // it is unlikely to happen.
+        assertThat(bloomFilter.doesNotContain(searchKeys.get(1))).isTrue();
+    }
+
+    @ParameterizedTest
+    @MethodSource("supportedVersions")
+    public void testBloomFilterRebuildErrorHandling(String version) throws IOException
+    {
+        MockBulkWriterContext writerContext = new MockBulkWriterContext(tokenRangeMapping, version, ConsistencyLevel.CL.LOCAL_QUORUM);
+        SortedSSTableWriter tw = new SortedSSTableWriter(writerContext, tmpDir, new XXHash32DigestAlgorithm(), 1)
+        {
+            protected void rebuildFilterComponents(@NotNull BulkWriterContext writerContext,
+                                                   @NotNull DirectoryStream.Filter<Path> filter) throws IOException
+            {
+                // temporarily move index file to simulate error in bloom filter rebuild process
+                try (DirectoryStream<Path> indexFileStream = Files.newDirectoryStream(getOutDir(), "*.db"))
+                {
+                    indexFileStream.forEach(indexFilePath -> {
+                        for (String indexSuffix : Arrays.asList("Partitions.db", "Index.db"))
+                        {
+                            if (indexFilePath.toFile().getName().endsWith(indexSuffix))
+                            {
+                                File indexFile = indexFilePath.toFile();
+                                boolean moved = indexFile.renameTo(new File(indexFile.getAbsolutePath() + "_hidden"));
+                                assertThat(moved).isTrue();
+                            }
+                        }
+                    });
+                }
+                super.rebuildFilterComponents(writerContext, filter);
+                // move the index files back
+                try (DirectoryStream<Path> hiddenFileStream = Files.newDirectoryStream(getOutDir(), "*_hidden"))
+                {
+                    hiddenFileStream.forEach(hiddenFilePath -> {
+                        File hiddenFile = hiddenFilePath.toFile();
+                        boolean moved = hiddenFile.renameTo(new File(hiddenFile.getParent(), hiddenFile.getName().replace("_hidden", "")));
+                        assertThat(moved).isTrue();
+                    });
+                }
+            }
+        };
+        List<SSTableDescriptor> allSSTables = new ArrayList<>();
+        tw.setSSTablesProducedListener(allSSTables::addAll);
+        tw.addRow(BigInteger.ONE, ImmutableMap.of("id", 1, "date", 1, "course", "foo", "marks", 1));
+        tw.close(writerContext);
+        assertThat(allSSTables).hasSize(1);
+        // verify that bloom filter was not created
+        try (DirectoryStream<Path> filterFileStream = Files.newDirectoryStream(tw.getOutDir(), "*Filter.db"))
+        {
+            assertThat(filterFileStream.iterator().hasNext()).isFalse();
+        }
     }
 
     /**

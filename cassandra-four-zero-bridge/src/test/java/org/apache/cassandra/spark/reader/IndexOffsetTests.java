@@ -23,11 +23,11 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.Multimap;
-import org.apache.commons.lang.mutable.MutableInt;
-import org.apache.commons.lang.mutable.MutableLong;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,8 +111,8 @@ public class IndexOffsetTests
                     LOGGER.info("Testing index offsets numKeys={} sparkPartitions={} partitioner={} enableCompression={}",
                                 numKeys, ranges.size(), partitioner.name(), enableCompression);
 
-                    MutableInt skippedPartitions = new MutableInt(0);
-                    MutableLong skippedDataOffsets = new MutableLong(0);
+                    AtomicInteger skippedPartitions = new AtomicInteger(0);
+                    AtomicLong skippedDataOffsets = new AtomicLong(0);
                     int[] counts = new int[numKeys];
                     for (TokenRange range : ranges)
                     {
@@ -122,12 +122,12 @@ public class IndexOffsetTests
                                                             {
                                                                 public void skippedPartition(ByteBuffer key, BigInteger token)
                                                                 {
-                                                                    skippedPartitions.add(1);
+                                                                    skippedPartitions.addAndGet(1);
                                                                 }
 
                                                                 public void skippedDataDbStartOffset(long length)
                                                                 {
-                                                                    skippedDataOffsets.add(length);
+                                                                    skippedDataOffsets.addAndGet(length);
                                                                 }
                                                             })
                                                             .build();
@@ -166,9 +166,9 @@ public class IndexOffsetTests
                                          index,
                                          // Cast to ByteBuffer required when compiling with Java 8
                                          ReaderUtils.tokenToBigInteger(BRIDGE
-                                                .getPartitioner(partitioner)
-                                                .decorateKey((ByteBuffer) ByteBuffer.allocate(4).putInt(index).flip())
-                                                .getToken()),
+                                                                       .getPartitioner(partitioner)
+                                                                       .decorateKey((ByteBuffer) ByteBuffer.allocate(4).putInt(index).flip())
+                                                                       .getToken()),
                                          partitioner.name());
                         }
                         else if (count > 1)
@@ -177,9 +177,9 @@ public class IndexOffsetTests
                                          index,
                                          // Cast to ByteBuffer required when compiling with Java 8
                                          ReaderUtils.tokenToBigInteger(BRIDGE
-                                                .getPartitioner(partitioner)
-                                                .decorateKey((ByteBuffer) ByteBuffer.allocate(4).putInt(index).flip())
-                                                .getToken()),
+                                                                       .getPartitioner(partitioner)
+                                                                       .decorateKey((ByteBuffer) ByteBuffer.allocate(4).putInt(index).flip())
+                                                                       .getToken()),
                                          partitioner.name());
                         }
                         assertThat(count).as(count > 0 ? "Key " + index + " read " + count + " times"

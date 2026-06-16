@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.cassandra.sidecar.common.DataObjectBuilder;
 import org.apache.cassandra.sidecar.common.data.ConsistencyConfig;
 import org.apache.cassandra.sidecar.common.data.ConsistencyLevel;
+import org.apache.cassandra.sidecar.common.data.CredentialType;
 import org.apache.cassandra.sidecar.common.data.RestoreJobSecrets;
 import org.apache.cassandra.sidecar.common.data.RestoreJobStatus;
 import org.apache.cassandra.sidecar.common.data.SSTableImportOptions;
@@ -38,6 +39,7 @@ import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_AGENT;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_CONSISTENCY_LEVEL;
+import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_CREDENTIAL_TYPE;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_EXPIRE_AT;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_ID;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_IMPORT_OPTIONS;
@@ -47,6 +49,14 @@ import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_S
 
 /**
  * Request payload for creating restore jobs.
+ *
+ * <p>Three credential modes are supported via the optional {@code credentialType} field:
+ * <ul>
+ *   <li><b>absent</b> (field omitted): the sidecar defaults to {@code STATIC}; backward-compatible.</li>
+ *   <li><b>{@link CredentialType#STATIC}</b>: all three key fields must be present on both credentials.</li>
+ *   <li><b>{@link CredentialType#IAM}</b>: key fields must be absent; only {@code region} is required.
+ *       Use {@link RestoreJobSecrets#iamMode(String, String)} to build the secrets object.</li>
+ * </ul>
  */
 @JsonInclude(JsonInclude.Include.NON_DEFAULT)
 public class CreateRestoreJobRequestPayload
@@ -54,6 +64,8 @@ public class CreateRestoreJobRequestPayload
     private final UUID jobId;
     private final String jobAgent;
     private final RestoreJobSecrets secrets;
+    @Nullable
+    private final CredentialType credentialType;
     private final SSTableImportOptions importOptions;
     private final long expireAtInMillis;
     private final ConsistencyConfig consistencyConfig;
@@ -75,19 +87,21 @@ public class CreateRestoreJobRequestPayload
     /**
      * CreateRestoreJobRequest deserializer
      *
-     * @param jobId            job id of restore job
-     * @param jobAgent         arbitrary text a job can put, which can be used to identify itself during Http request
-     * @param secrets          secrets to be used by restore job to download data
-     * @param importOptions    the configured options for SSTable import
-     * @param expireAtInMillis a timestamp in the future when the job is considered expired
-     * @param consistencyLevel consistency level a job should satisfy
-     * @param localDatacenter  the local datacenter name; required if using local consistency level and localDatacenterOnly is specified
+     * @param jobId               job id of restore job
+     * @param jobAgent            arbitrary text a job can put, which can be used to identify itself during Http request
+     * @param secrets             secrets to be used by restore job to download data
+     * @param credentialType      the credential mode; when null the sidecar defaults to STATIC
+     * @param importOptions       the configured options for SSTable import
+     * @param expireAtInMillis    a timestamp in the future when the job is considered expired
+     * @param consistencyLevel    consistency level a job should satisfy
+     * @param localDatacenter     the local datacenter name; required if using local consistency level and localDatacenterOnly is specified
      * @param localDatacenterOnly whether the job should restore to the specified local datacenter only
      */
     @JsonCreator
     public CreateRestoreJobRequestPayload(@JsonProperty(JOB_ID) UUID jobId,
                                           @JsonProperty(JOB_AGENT) String jobAgent,
                                           @JsonProperty(JOB_SECRETS) RestoreJobSecrets secrets,
+                                          @JsonProperty(JOB_CREDENTIAL_TYPE) @Nullable CredentialType credentialType,
                                           @JsonProperty(JOB_IMPORT_OPTIONS) SSTableImportOptions importOptions,
                                           @JsonProperty(JOB_EXPIRE_AT) long expireAtInMillis,
                                           @JsonProperty(JOB_CONSISTENCY_LEVEL) String consistencyLevel,
@@ -102,6 +116,7 @@ public class CreateRestoreJobRequestPayload
         this.jobId = jobId;
         this.jobAgent = jobAgent;
         this.secrets = secrets;
+        this.credentialType = credentialType;
         this.importOptions = importOptions == null
                              ? SSTableImportOptions.defaults()
                              : importOptions;
@@ -117,6 +132,7 @@ public class CreateRestoreJobRequestPayload
         this(builder.jobId,
              builder.jobAgent,
              builder.secrets,
+             builder.credentialType,
              builder.importOptions,
              builder.expireAtInMillis,
              nameOrNull(builder.consistencyLevel),
@@ -149,6 +165,17 @@ public class CreateRestoreJobRequestPayload
     public RestoreJobSecrets secrets()
     {
         return secrets;
+    }
+
+    /**
+     * @return the credential type for this job; null means the sidecar will use its default (STATIC)
+     */
+    @JsonProperty(JOB_CREDENTIAL_TYPE)
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @Nullable
+    public CredentialType credentialType()
+    {
+        return credentialType;
     }
 
     /**
@@ -220,6 +247,7 @@ public class CreateRestoreJobRequestPayload
                JOB_ID + "='" + jobId + "', " +
                JOB_AGENT + "='" + jobAgent + "', " +
                JOB_SECRETS + "='" + secrets + "', " +
+               JOB_CREDENTIAL_TYPE + "='" + credentialType + "', " +
                JOB_EXPIRE_AT + "='" + expireAtInMillis + "', " +
                JOB_CONSISTENCY_LEVEL + "='" + consistencyLevel() + "', " +
                JOB_LOCAL_DATA_CENTER + "='" + localDatacenter() + "', " +
@@ -238,6 +266,8 @@ public class CreateRestoreJobRequestPayload
 
         private UUID jobId = null;
         private String jobAgent = null;
+        @Nullable
+        private CredentialType credentialType = null;
         private ConsistencyLevel consistencyLevel = null;
         private String localDc = null;
         private boolean localDatacenterOnly = false;
@@ -256,6 +286,11 @@ public class CreateRestoreJobRequestPayload
         public Builder jobAgent(String jobAgent)
         {
             return update(b -> b.jobAgent = jobAgent);
+        }
+
+        public Builder credentialType(@Nullable CredentialType credentialType)
+        {
+            return update(b -> b.credentialType = credentialType);
         }
 
         public Builder updateImportOptions(Consumer<SSTableImportOptions> updater)

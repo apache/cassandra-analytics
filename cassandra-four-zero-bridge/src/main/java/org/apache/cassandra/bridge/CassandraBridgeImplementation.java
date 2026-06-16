@@ -21,6 +21,7 @@ package org.apache.cassandra.bridge;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -44,6 +45,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -68,6 +70,7 @@ import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.io.compress.ICompressor;
 import org.apache.cassandra.io.compress.LZ4Compressor;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
+import org.apache.cassandra.io.sstable.Component;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.SSTableTombstoneWriter;
@@ -75,6 +78,8 @@ import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
 import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
+import org.apache.cassandra.io.util.BufferedDataOutputStreamPlus;
+import org.apache.cassandra.io.util.DataOutputStreamPlus;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.TableMetadataRef;
@@ -111,7 +116,11 @@ import org.apache.cassandra.tools.Util;
 import org.apache.cassandra.util.CompressionUtil;
 import org.apache.cassandra.util.IntWrapper;
 import org.apache.cassandra.utils.BloomFilter;
+import org.apache.cassandra.utils.BloomFilterSerializer;
 import org.apache.cassandra.utils.CompressionUtilImplementation;
+import org.apache.cassandra.utils.FilterDbUtils;
+import org.apache.cassandra.utils.IFilter;
+import org.apache.cassandra.utils.SyncUtil;
 import org.apache.cassandra.utils.TokenUtils;
 import org.apache.cassandra.utils.UUIDGen;
 import org.jetbrains.annotations.NotNull;
@@ -323,6 +332,58 @@ public class CassandraBridgeImplementation extends CassandraBridge
     {
         CqlTable table = new SchemaBuilder(createTableStmt, keyspace, ReplicationFactor.simpleStrategy(1), partitioner).build();
         return keys.stream().map(key -> buildPartitionKey(table, key)).collect(Collectors.toList());
+    }
+
+    @Override
+    public void rebuildBloomFilter(@NotNull Partitioner partitioner,
+                                   @NotNull CqlTable cqltable,
+                                   @NotNull SSTable ssTable,
+                                   @NotNull Path directory) throws IOException
+    {
+        String keyspace = cqltable.keyspace();
+        String table = cqltable.table();
+        IPartitioner iPartitioner = getPartitioner(partitioner);
+        SchemaBuilder schemaBuilder = new SchemaBuilder(cqltable, partitioner);
+        TableMetadata tableMetadata = schemaBuilder.tableMetaData();
+
+        if (tableMetadata.params.bloomFilterFpChance == 1.0)
+        {
+            return; // bloom filter has been disabled for the table
+        }
+
+        Descriptor descriptor = ReaderUtils.constructDescriptor(keyspace, table, ssTable);
+        File filterFile = new File(directory.toFile(), descriptor.relativeFilenameFor(Component.FILTER));
+        try (IFilter filter = FilterDbUtils.buildBloomFilter(cqltable, ssTable, tableMetadata))
+        {
+            Function<ByteBuffer, Boolean> tracker = bytes -> {
+                DecoratedKey key = iPartitioner.decorateKey(bytes);
+                filter.add(key);
+                return false;
+            };
+
+            try (InputStream primaryIndex = ssTable.openPrimaryIndexStream())
+            {
+                if (primaryIndex == null)
+                {
+                    throw new IOException("Could not read Index.db file");
+                }
+                ReaderUtils.readPrimaryIndex(primaryIndex, tracker);
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(filterFile, false);
+                 DataOutputStreamPlus stream = new BufferedDataOutputStreamPlus(fos))
+            {
+                BloomFilterSerializer.serialize((BloomFilter) filter, stream);
+                stream.flush();
+                SyncUtil.sync(fos);
+            }
+        }
+        catch (Exception e)
+        {
+            LOGGER.error("Failed to rebuild bloom filter for sstable {}/{}", directory, ssTable.getDataFileName(), e);
+            // Remove potentially corrupted bloom filter. It will be rebuilt by Cassandra during sstable import.
+            Files.deleteIfExists(filterFile.toPath());
+        }
     }
 
     @Override

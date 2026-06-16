@@ -75,6 +75,23 @@ public class BulkSparkConf implements Serializable
                                              + " --add-opens java.base/jdk.internal.util.jar=ALL-UNNAMED"
                                              + " --add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED";
 
+    public static final String JDK17_OPTIONS = " --add-exports java.rmi/sun.rmi.transport=ALL-UNNAMED"
+                                             + " --add-exports java.rmi/sun.rmi.transport.tcp=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.io=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.lang=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.lang.invoke=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.lang.reflect=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.math=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.net=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.nio=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.util=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.util.concurrent=ALL-UNNAMED"
+                                             + " --add-opens java.base/java.util.concurrent.atomic=ALL-UNNAMED"
+                                             + " --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+                                             + " --add-opens java.base/sun.nio.ch=ALL-UNNAMED"
+                                             + " --add-opens java.base/sun.util.calendar=ALL-UNNAMED"
+                                             + " --add-opens java.rmi/sun.rmi.transport.tcp=ALL-UNNAMED";
+
     public static final int DEFAULT_NUM_SPLITS = -1;
     public static final int DEFAULT_HTTP_CONNECTION_TIMEOUT = 100_000;
     public static final int DEFAULT_HTTP_RESPONSE_TIMEOUT = 100_000;
@@ -231,7 +248,21 @@ public class BulkSparkConf implements Serializable
         long maxSizePerSSTableBundleInBytesS3Transport = MapUtils.getLong(options, WriterOptions.MAX_SIZE_PER_SSTABLE_BUNDLE_IN_BYTES_S3_TRANSPORT.name(),
                                                                           DEFAULT_MAX_SIZE_PER_SSTABLE_BUNDLE_IN_BYTES_S3_TRANSPORT);
         String transportExtensionClass = MapUtils.getOrDefault(options, WriterOptions.DATA_TRANSPORT_EXTENSION_CLASS.name(), null);
-        this.dataTransportInfo = new DataTransportInfo(dataTransport, transportExtensionClass, maxSizePerSSTableBundleInBytesS3Transport);
+        String rawCredentialType = MapUtils.getOrDefault(options, WriterOptions.STORAGE_CREDENTIAL_TYPE.name(), null);
+        String storageCredentialType = null;
+        if (rawCredentialType != null)
+        {
+            storageCredentialType = rawCredentialType.toUpperCase();
+            if (!storageCredentialType.equals("STATIC") && !storageCredentialType.equals("IAM"))
+            {
+                throw new IllegalArgumentException(
+                String.format("Invalid value '%s' for option '%s'. Valid values are: STATIC, IAM",
+                              rawCredentialType, WriterOptions.STORAGE_CREDENTIAL_TYPE.name()));
+            }
+        }
+        this.dataTransportInfo = new DataTransportInfo(dataTransport, transportExtensionClass,
+                                                       maxSizePerSSTableBundleInBytesS3Transport,
+                                                       storageCredentialType);
         this.jobKeepAliveMinutes = MapUtils.getInt(options, WriterOptions.JOB_KEEP_ALIVE_MINUTES.name(), MINIMUM_JOB_KEEP_ALIVE_MINUTES);
         if (this.jobKeepAliveMinutes < MINIMUM_JOB_KEEP_ALIVE_MINUTES)
         {
@@ -666,7 +697,12 @@ public class BulkSparkConf implements Serializable
     public static void setupSparkConf(SparkConf conf, boolean addKryoRegistrator)
     {
         String previousOptions = conf.get("spark.executor.extraJavaOptions", "");
-        if (BuildInfo.isAtLeastJava11(BuildInfo.javaSpecificationVersion()))
+
+        if (BuildInfo.isAtLeastJava17(BuildInfo.javaSpecificationVersion()))
+        {
+            conf.set("spark.executor.extraJavaOptions", previousOptions + JDK11_OPTIONS + JDK17_OPTIONS);
+        }
+        else if (BuildInfo.isAtLeastJava11(BuildInfo.javaSpecificationVersion()))
         {
             conf.set("spark.executor.extraJavaOptions", previousOptions + JDK11_OPTIONS);
         }

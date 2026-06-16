@@ -59,6 +59,40 @@ if (!actualJdkVersion.startsWith(ext.jdkLabel))
 
 ext.dependencyLocation = (System.getenv("CASSANDRA_DEP_DIR") ?: "${rootDir}/dependencies") + "/"
 
+// Cassandra version maps used by subproject test tasks to filter parameterized tests
+// to a single version when CASSANDRA_VERSION env var is set (e.g. in CI).
+// NOTE: Both maps below must stay in sync with the defaults in CassandraVersion.java
+// (cassandra-analytics-common/.../bridge/CassandraVersion.java):
+//   - cassandraVersionEnumMap values must match the implemented_versions default
+//   - cassandraFullVersionMap values must match the supported_versions default
+// NOTE: Both maps must ALSO stay in sync with the values in build-dtest-jars.sh
+ext.cassandraVersionEnumMap = ["4.0": "FOURZERO", "4.1": "FOURONE", "5.0": "FIVEZERO"]
+ext.cassandraFullVersionMap = ["4.0": "4.0.17", "4.1": "4.1.4", "5.0": "5.0.5"]
+
+// Shared helper: sets implemented_versions and supported_versions system properties on a Test task.
+// When majorMinor is provided (e.g. "4.0"), uses that version directly.
+// When majorMinor is null, falls back to the CASSANDRA_VERSION env var (CI path).
+// Returns a map with version info [majorMinor, enumName, fullVersion], or null when no version is set.
+ext.applyCassandraVersionFilter = { Test task, String majorMinor = null ->
+    if (!majorMinor) {
+        def ver = System.getenv("CASSANDRA_VERSION")
+        if (!ver) return null
+        majorMinor = ver.split("\\.").take(2).join(".")
+    }
+
+    def enumName = cassandraVersionEnumMap[majorMinor]
+    if (!enumName) {
+        throw new GradleException("Unknown CASSANDRA_VERSION: ${majorMinor}. " +
+                                  "Valid versions: ${cassandraVersionEnumMap.keySet()}")
+    }
+    def fullVersion = cassandraFullVersionMap[majorMinor]
+
+    task.systemProperty "cassandra.analytics.bridges.implemented_versions", enumName
+    task.systemProperty "cassandra.analytics.bridges.supported_versions", "cassandra-${fullVersion}"
+
+    return [majorMinor: majorMinor, enumName: enumName, fullVersion: fullVersion]
+}
+
 def buildDir = layout.buildDirectory.get().asFile.toPath()
 def ratExcludeFilePath = buildDir.resolve(".rat-excludes.txt")
 System.out.println("Rat exclude file:" + ratExcludeFilePath)
@@ -74,7 +108,6 @@ println("Using profile ${profile}")
 apply(from: profile)
 
 apply(plugin: 'idea')
-
 
 // Force checkstyle and rat to run before test tasks for faster feedback
 def codeCheckTasks = task("codeCheckTasks")
@@ -156,6 +189,8 @@ subprojects {
   apply(plugin: 'java-library')
   apply(plugin: 'checkstyle')
 
+  apply from: "${project.rootDir}/gradle/common/javaOptions.gradle"
+
   sourceCompatibility = "${project.rootProject.ext.jdkLabel}"
   targetCompatibility = "${project.rootProject.ext.jdkLabel}"
 
@@ -214,31 +249,30 @@ subprojects {
     }
   }
 
-  test {
+  // We want to get all the exception information we can on test failure in a multi-node in-jvm env
+  tasks.withType(Test).configureEach { testTask ->
+    reports {
+      junitXml.outputLocation.set(rootProject.file("build/test-results/${project.name}/${testTask.name}"))
+      html.outputLocation.set(rootProject.file("build/reports/tests/${project.name}/${testTask.name}"))
+    }
+    testLogging {
+      events "started", "passed", "skipped", "failed"
+      exceptionFormat "full"
+      showExceptions true
+      showCauses true
+      showStackTraces true
+    }
+
     def heapDumpPath = "${project.rootProject.rootDir}/build/${project.name}/heapDumps"
     Files.createDirectories(Paths.get(heapDumpPath))
-    if (JavaVersion.current().isJava11Compatible()) {
-      def JDK11_OPTIONS = ['-Djdk.attach.allowAttachSelf=true',
-                           '--add-exports', 'java.base/jdk.internal.misc=ALL-UNNAMED',
-                           '--add-exports', 'java.base/jdk.internal.ref=ALL-UNNAMED',
-                           '--add-exports', 'java.base/sun.nio.ch=ALL-UNNAMED',
-                           '--add-exports', 'java.management.rmi/com.sun.jmx.remote.internal.rmi=ALL-UNNAMED',
-                           '--add-exports', 'java.rmi/sun.rmi.registry=ALL-UNNAMED',
-                           '--add-exports', 'java.rmi/sun.rmi.server=ALL-UNNAMED',
-                           '--add-exports', 'java.sql/java.sql=ALL-UNNAMED',
-                           '--add-opens', 'java.base/java.lang.module=ALL-UNNAMED',
-                           '--add-opens', 'java.base/jdk.internal.loader=ALL-UNNAMED',
-                           '--add-opens', 'java.base/jdk.internal.ref=ALL-UNNAMED',
-                           '--add-opens', 'java.base/jdk.internal.reflect=ALL-UNNAMED',
-                           '--add-opens', 'java.base/jdk.internal.math=ALL-UNNAMED',
-                           '--add-opens', 'java.base/jdk.internal.module=ALL-UNNAMED',
-                           '--add-opens', 'java.base/jdk.internal.util.jar=ALL-UNNAMED',
-                           '--add-opens', 'jdk.management/com.sun.management.internal=ALL-UNNAMED',
-                           '-XX:+HeapDumpOnOutOfMemoryError',
-                           "-XX:HeapDumpPath=${heapDumpPath}"]
-      jvmArgs(JDK11_OPTIONS)
-      println("JVM arguments for $project.name are $allJvmArgs")
-    }
+    def jdkOptions = project.ext.JDK_OPTIONS
+
+    jdkOptions += [
+            '-XX:+HeapDumpOnOutOfMemoryError',
+            "-XX:HeapDumpPath=${heapDumpPath}",
+    ]
+    jvmArgs(jdkOptions)
+    println("JVM arguments for $project.name are $allJvmArgs")
   }
 
   codeCheckTasks.dependsOn(tasks.withType(Checkstyle))

@@ -26,8 +26,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Compile and build
+  build-jdk11:
+    name: Compile and build (JDK 11)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -38,58 +38,138 @@ jobs:
           java-version: 11
       - run: |
           sudo apt-get update
-          
+
           if [ -f /etc/ssl/certs/java/cacerts/cacerts ]; then
               sudo mv /etc/ssl/certs/java/cacerts/ /etc/ssl/certs/java/cacerts-old
               sudo mv /etc/ssl/certs/java/cacerts-old/cacerts /etc/ssl/certs/java/
               sudo rmdir /etc/ssl/certs/java/cacerts-old
           fi
-          
+
           apt-get download ant ant-optional
           sudo dpkg --force-all -i ant*.deb
           rm ant*.deb
-          
+
           sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
-          
+
           for i in {2..20}
           do
             sudo ip addr add "127.0.0.${i}" dev lo
             sudo route add -host "127.0.0.${i}" dev lo;
           done
-          
-          CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
-          
-          ./gradlew codeCheckTasks
+
+          export JDK_VERSION="11"
+          export SPARK_VERSION="3"
+          export SCALA_VERSION="2.12"
+          export CASSANDRA_USE_JDK11="true"
+
+          ./scripts/build-dependencies.sh
+
+          ./gradlew --no-daemon --max-workers=2 codeCheckTasks
       - name: Cache Maven repository
         uses: actions/cache@v4
         with:
           path: ~/.m2
-          key: maven-repo-${{ github.sha }}
+          key: maven-repo-jdk11-${{ github.sha }}
       - name: Cache workspace
         id: cache-build-save
         uses: actions/cache/save@v4
         with:
           path: ${{ github.workspace }}
-          key: build-${{ github.sha }}
+          key: build-jdk11-${{ github.sha }}
+
+  # JDK17 dependency build for the Spark 4 / Scala 2.13 / Cassandra 5.0 matrix.
+  # Produces a distinct workspace cache (build-jdk17-...) so downstream test jobs
+  # must restore from exactly one of build-jdk11 / build-jdk17 — mixing them
+  # would clobber dependency jars.
+  build-jdk17:
+    name: Compile and build (JDK 17)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+      - run: |
+          sudo apt-get update
+
+          if [ -f /etc/ssl/certs/java/cacerts/cacerts ]; then
+              sudo mv /etc/ssl/certs/java/cacerts/ /etc/ssl/certs/java/cacerts-old
+              sudo mv /etc/ssl/certs/java/cacerts-old/cacerts /etc/ssl/certs/java/
+              sudo rmdir /etc/ssl/certs/java/cacerts-old
+          fi
+
+          apt-get download ant ant-optional
+          sudo dpkg --force-all -i ant*.deb
+          rm ant*.deb
+
+          sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
+
+          for i in {2..20}
+          do
+            sudo ip addr add "127.0.0.${i}" dev lo
+            sudo route add -host "127.0.0.${i}" dev lo;
+          done
+
+          export JDK_VERSION="17"
+          export SPARK_VERSION="4"
+          export SCALA_VERSION="2.13"
+          # JDK17 only targets Cassandra 5.0+; skip 4.0 / 4.1 dtest jar builds
+          # (build-dtest-jars.sh reads this var to filter CANDIDATE_BRANCHES).
+          export BRANCHES="cassandra-5.0"
+
+          ./scripts/build-dependencies.sh
+
+          ./gradlew codeCheckTasks
+      - name: Cache Maven repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: maven-repo-jdk17-${{ github.sha }}
+      - name: Cache workspace
+        id: cache-build-save
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}
+          key: build-jdk17-${{ github.sha }}
 
   unit-test:
-    name: Unit test
-    needs: build
+    name: Unit test - Scala ${{ matrix.scala }} ${{ matrix.sstable-format }} C${{ matrix.cassandra }} Spark${{ matrix.spark }} JDK${{ matrix.jdk }}
+    # Each matrix entry only consumes one of these caches (selected by matrix.jdk),
+    # but `needs:` cannot be matrix-conditional so we wait on both builds.
+    needs: [build-jdk11, build-jdk17]
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        scala: [ '2.12', '2.13' ]
-        sstable-format: [ 'big', 'bti' ]
-        exclude:
-          - scala: "2.12"
-            sstable-format: "bti"
+        include:
+          - scala: '2.13'
+            sstable-format: 'bti'
+            cassandra: '5.0'
+            jdk: '11'
+            spark: '3'
+          - scala: '2.12'
+            sstable-format: 'big'
+            cassandra: '4.1'
+            jdk: '11'
+            spark: '3'
+          - scala: '2.12'
+            sstable-format: 'big'
+            cassandra: '4.0'
+            jdk: '11'
+            spark: '3'
+          - scala: '2.13'
+            sstable-format: 'bti'
+            cassandra: '5.0'
+            jdk: '17'
+            spark: '4'
       fail-fast: false
     steps:
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: ${{ matrix.jdk }}
       - run: |
           sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
           for i in {2..20}
@@ -101,47 +181,79 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.m2
-          key: maven-repo-${{ github.sha }}
+          key: maven-repo-jdk${{ matrix.jdk }}-${{ github.sha }}
       - name: Cache workspace
         id: cache-build-restore
         uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}
-          key: build-${{ github.sha }}
+          key: build-jdk${{ matrix.jdk }}-${{ github.sha }}
       - run: |
-          export SPARK_VERSION="3"
+          export SPARK_VERSION="${{ matrix.spark }}"
           export SCALA_VERSION="${{ matrix.scala }}"
-          export JDK_VERSION="11"
+          export JDK_VERSION="${{ matrix.jdk }}"
           export INTEGRATION_MAX_PARALLEL_FORKS=1
-          export INTEGRATION_MAX_HEAP_SIZE="1500M"
-          export CASSANDRA_USE_JDK11=true
-          
+          export INTEGRATION_MAX_HEAP_SIZE="3072M"
+          export CASSANDRA_VERSION="${{ matrix.cassandra }}"
+          if [ "${{ matrix.jdk }}" = "11" ]; then
+            export CASSANDRA_USE_JDK11=true
+          fi
+
           ./gradlew --stacktrace clean assemble check -x cassandra-analytics-integration-tests:test -Dcassandra.analytics.bridges.sstable_format=${{ matrix.sstable-format }}
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results-s${{ matrix.scala }}-${{ matrix.sstable-format }}-C${{ matrix.cassandra }}-Spark${{ matrix.spark }}-JDK${{ matrix.jdk }}
+          path: |
+            build/test-results/**
+            build/reports/tests/**
+          retention-days: 30
 
   integration-test:
-    name: Integration test
-    needs: build
+    name: Integration test - ${{ matrix.config }} (${{ matrix.job_index }})
+    # Each matrix entry only consumes one of these caches (selected by matrix.jdk),
+    # but `needs:` cannot be matrix-conditional so we wait on both builds.
+    needs: [build-jdk11, build-jdk17]
     runs-on: ubuntu-latest
     strategy:
+      # GitHub Actions generate a cross-product of 'config' × 'job_index' (4 × 5 = 20 jobs).
+      # The 'include' entries don't add new combinations — they augment existing ones
+      # by matching on 'config' and injecting 'scala', 'cassandra', 'jdk', and 'spark'
+      # into each match. To add a new version: add one entry to 'config' and one to
+      # 'include'.
       matrix:
-        scala: [ '2.12', '2.13' ]
-        cassandra: [ '4.0.17', '4.1.4', '5.0.5' ]
-        job_index: [ 0, 1, 2, 3, 4 ]
-        job_total: [ 5 ]
-        exclude:
-          - scala: "2.12"
-            cassandra: "5.0.5"
-          - scala: "2.12"
-            cassandra: "4.1.4"
-          - scala: "2.13"
-            cassandra: "4.0.17"
+        config: ['s2.13-c5.0.5', 's2.12-c4.1.4', 's2.12-c4.0.17', 's2.13-c5.0.5-spark4']
+        job_index: [0, 1, 2, 3, 4]
+        job_total: [5]
+        include:
+          - config: 's2.13-c5.0.5'
+            scala: '2.13'
+            cassandra: '5.0.5'
+            jdk: '11'
+            spark: '3'
+          - config: 's2.12-c4.1.4'
+            scala: '2.12'
+            cassandra: '4.1.4'
+            jdk: '11'
+            spark: '3'
+          - config: 's2.12-c4.0.17'
+            scala: '2.12'
+            cassandra: '4.0.17'
+            jdk: '11'
+            spark: '3'
+          - config: 's2.13-c5.0.5-spark4'
+            scala: '2.13'
+            cassandra: '5.0.5'
+            jdk: '17'
+            spark: '4'
       fail-fast: false
     steps:
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: 11
+          java-version: ${{ matrix.jdk }}
       - run: |
           sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
           for i in {2..20}
@@ -153,30 +265,36 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.m2
-          key: maven-repo-${{ github.sha }}
+          key: maven-repo-jdk${{ matrix.jdk }}-${{ github.sha }}
       - name: Cache workspace
         id: cache-build-restore
         uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}
-          key: build-${{ github.sha }}
+          key: build-jdk${{ matrix.jdk }}-${{ github.sha }}
       - run: |
-          export SPARK_VERSION="3"
+          export SPARK_VERSION="${{ matrix.spark }}"
           export SCALA_VERSION="${{ matrix.scala }}"
-          export JDK_VERSION="11"
+          export JDK_VERSION="${{ matrix.jdk }}"
           export INTEGRATION_MAX_PARALLEL_FORKS=1
-          export INTEGRATION_MAX_HEAP_SIZE="4096M"
-          export CASSANDRA_USE_JDK11=true
-          
+          export INTEGRATION_MAX_HEAP_SIZE="3072M"
+          if [ "${{ matrix.jdk }}" = "11" ]; then
+            export CASSANDRA_USE_JDK11=true
+          fi
+
           export DTEST_JAR="dtest-${{ matrix.cassandra }}.jar"
           export CASSANDRA_VERSION=$(echo ${{ matrix.cassandra }} | cut -d'.' -f 1,2)
-          
+
           ./gradlew --stacktrace clean assemble
-          
+
           cd cassandra-analytics-integration-tests/src/test/java
-          CLASSNAMES=$(find . -name '*Test.java' | sort | cut -c 3- | sed 's@/@.@g' | sed 's/.\{5\}$//' | awk 'NR % ${{ matrix.job_total }} == ${{ matrix.job_index }}')
+          # Shuffle test classes using the commit SHA as seed for reproducible randomization,
+          # then shard across runners via round-robin on the shuffled order.
+          CLASSNAMES=$(find . -name '*Test.java' | cut -c 3- | sed 's@/@.@g' | sed 's/.\{5\}$//' \
+            | python3 -c "import random,sys; lines=sys.stdin.read().splitlines(); random.seed('$GITHUB_SHA'); random.shuffle(lines); print('\n'.join(lines))" \
+            | awk 'NR % ${{ matrix.job_total }} == ${{ matrix.job_index }}')
           cd ../../../..
-          
+
           EXIT_STATUS=0
           # Execution of "gradle test --test $TEST_NAME" returns non-zero exit code when commend did not run any test
           # (e.g. when all tests are ignored). Currently there is no option to change Gradle behaviour.
@@ -193,23 +311,23 @@ jobs:
             done
 
             test_id=$(date +%H%M%S)
-            mkdir -p test-reports/$test_id
+            mkdir -p "test-reports/$test_id/html"
 
             if [ $SKIP == "false" ]; then
               echo Executing test $TEST_NAME
               ./gradlew --stacktrace cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
-              mv build/test-reports/* test-reports/$test_id
+              find build/test-results -name "*.xml" -exec cp {} "test-reports/$test_id/" \; 2>/dev/null || true
+              [ -d "build/reports/tests" ] && cp -r build/reports/tests/. "test-reports/$test_id/html/" 2>/dev/null || true
             else
               echo "Skipping test $TEST_NAME"
             fi
           done;
-          
-          tar czf integration-tests.tar.gz test-reports/*
-          
+
           exit $EXIT_STATUS
-      - name: Publish test results
+      - name: Upload test results
+        if: always()
         uses: actions/upload-artifact@v4
-        if: (!cancelled())
         with:
-          name: integration-tests-${{ matrix.scala }}-${{ matrix.cassandra }}-${{ matrix.job_index }}
-          path: integration-tests.tar.gz
+          name: integration-tests-${{ matrix.config }}-${{ matrix.job_index }}
+          path: test-reports/
+          retention-days: 30

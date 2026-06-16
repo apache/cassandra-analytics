@@ -36,7 +36,10 @@ import org.apache.cassandra.sidecar.common.data.SSTableImportOptions;
 import org.apache.cassandra.sidecar.common.request.data.CreateRestoreJobRequestPayload;
 import org.apache.cassandra.sidecar.foundation.RestoreJobSecretsGen;
 
+import org.apache.cassandra.sidecar.common.data.CredentialType;
+
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_CONSISTENCY_LEVEL;
+import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_CREDENTIAL_TYPE;
 import static org.apache.cassandra.sidecar.common.data.RestoreJobConstants.JOB_LOCAL_DATA_CENTER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -191,28 +194,6 @@ class CreateRestoreJobRequestPayloadTest
     }
 
     @Test
-    void testBuilder()
-    {
-        RestoreJobSecrets secrets = RestoreJobSecretsGen.genRestoreJobSecrets();
-        CreateRestoreJobRequestPayload req = CreateRestoreJobRequestPayload
-                                             .builder(secrets, System.currentTimeMillis() + 10000)
-                                             .jobAgent("agent")
-                                             .updateImportOptions(options -> {
-                                                 options
-                                                 .resetLevel(false)
-                                                 .clearRepaired(false);
-                                             })
-                                             .consistencyLevel(ConsistencyLevel.QUORUM)
-                                             .build();
-        assertThat(req.secrets()).isEqualTo(secrets);
-        assertThat(req.jobAgent()).isEqualTo("agent");
-        assertThat(req.importOptions()).isEqualTo(SSTableImportOptions.defaults()
-                                                                      .resetLevel(false)
-                                                                      .clearRepaired(false));
-        assertThat(req.consistencyLevel()).isEqualTo("QUORUM");
-    }
-
-    @Test
     void testCreateLocalQuorumJobWithoutLocalDCFails()
     {
         RestoreJobSecrets secrets = RestoreJobSecretsGen.genRestoreJobSecrets();
@@ -256,5 +237,58 @@ class CreateRestoreJobRequestPayloadTest
                                  .build())
         .isExactlyInstanceOf(IllegalArgumentException.class)
         .hasMessage("Must specify a localDatacenter when restoreToLocalDatacenterOnly is true");
+    }
+
+    @Test
+    void testNullCredentialTypeOmittedFromJson() throws JsonProcessingException
+    {
+        RestoreJobSecrets secrets = RestoreJobSecretsGen.genRestoreJobSecrets();
+        CreateRestoreJobRequestPayload req = CreateRestoreJobRequestPayload
+                                             .builder(secrets, System.currentTimeMillis() + 10000)
+                                             .build();
+        assertThat(req.credentialType()).isNull();
+        String json = MAPPER.writeValueAsString(req);
+        assertThat(json).doesNotContain(JOB_CREDENTIAL_TYPE);
+    }
+
+    @Test
+    void testIamCredentialTypeSerializedInJson() throws JsonProcessingException
+    {
+        RestoreJobSecrets secrets = RestoreJobSecretsGen.genRestoreJobSecrets();
+        CreateRestoreJobRequestPayload req = CreateRestoreJobRequestPayload
+                                             .builder(secrets, System.currentTimeMillis() + 10000)
+                                             .credentialType(CredentialType.IAM)
+                                             .build();
+        assertThat(req.credentialType()).isEqualTo(CredentialType.IAM);
+        String json = MAPPER.writeValueAsString(req);
+        assertThat(json).contains("\"" + JOB_CREDENTIAL_TYPE + "\":\"IAM\"");
+    }
+
+    @Test
+    void testStaticCredentialTypeSerializedInJson() throws JsonProcessingException
+    {
+        RestoreJobSecrets secrets = RestoreJobSecretsGen.genRestoreJobSecrets();
+        CreateRestoreJobRequestPayload req = CreateRestoreJobRequestPayload
+                                             .builder(secrets, System.currentTimeMillis() + 10000)
+                                             .credentialType(CredentialType.STATIC)
+                                             .build();
+        assertThat(req.credentialType()).isEqualTo(CredentialType.STATIC);
+        String json = MAPPER.writeValueAsString(req);
+        assertThat(json).contains("\"" + JOB_CREDENTIAL_TYPE + "\":\"STATIC\"");
+    }
+
+    @Test
+    void testCredentialTypeRoundTrip() throws JsonProcessingException
+    {
+        RestoreJobSecrets secrets = RestoreJobSecretsGen.genRestoreJobSecrets();
+        long expireAt = System.currentTimeMillis() + 10000;
+        CreateRestoreJobRequestPayload original = CreateRestoreJobRequestPayload
+                                                  .builder(secrets, expireAt)
+                                                  .credentialType(CredentialType.IAM)
+                                                  .build();
+        String json = MAPPER.writeValueAsString(original);
+        CreateRestoreJobRequestPayload deserialized = MAPPER.readValue(json, CreateRestoreJobRequestPayload.class);
+        assertThat(deserialized.credentialType()).isEqualTo(CredentialType.IAM);
+        assertThat(deserialized.secrets()).isEqualTo(secrets);
     }
 }

@@ -32,6 +32,16 @@ import com.google.common.base.Preconditions;
  * Customers of this library looking to implement additional bridges or replace existing ones with proprietary implementations
  * should inject/replace bridge implementation JARs embedded into this library's resources and replace this class with an identical one,
  * but with implementedVersions() and supportedVersions() modified accordingly.
+ *
+ * NOTE: The following values need to stay in sync with:
+ * - build.gradle:
+ *   - ext.cassandraVersionEnumMap = ["4.0": "FOURZERO", "4.1": "FOURONE", "5.0": "FIVEZERO"]
+ *   - ext.cassandraFullVersionMap = ["4.0": "4.0.17", "4.1": "4.1.4", "5.0": "5.0.5"]
+ * - build-dtest-jars.sh:
+ *   - CANDIDATE_BRANCHES=(
+ *      "cassandra-4.0:cassandra-4.0.17"
+ *      "cassandra-4.1:99d9faeef57c9cf5240d11eac9db5b283e45a4f9"
+ *      "cassandra-5.0:cassandra-5.0.5"
  */
 public enum CassandraVersion
 {
@@ -76,6 +86,9 @@ public enum CassandraVersion
     {
         sstableFormat = System.getProperty("cassandra.analytics.bridges.sstable_format", "big");
 
+        // NOTE: These default enum names must stay in sync with cassandraVersionEnumMap in build.gradle.
+        // FOURONE is intentionally excluded from local-dev defaults to keep iteration fast;
+        // CI covers 4.1 via explicit CASSANDRA_VERSION env var or per-version Gradle tasks (e.g. testCassandra41).
         String providedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.implemented_versions",
                                                               String.join(",", FOURZERO.name(), FIVEZERO.name()));
         implementedVersions = Arrays.stream(providedVersionsOrDefault.split(","))
@@ -83,6 +96,7 @@ public enum CassandraVersion
                                     .filter(v -> v.sstableFormats.contains(sstableFormat))
                                     .toArray(CassandraVersion[]::new);
 
+        // NOTE: These default versions must stay in sync with cassandraFullVersionMap in build.gradle.
         String providedSupportedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.supported_versions",
                                                                        "cassandra-4.0.17,cassandra-5.0.5");
         supportedVersions = Arrays.stream(providedSupportedVersionsOrDefault.split(","))

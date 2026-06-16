@@ -19,11 +19,12 @@
 
 package org.apache.cassandra.spark.endtoend;
 
+import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -43,6 +44,8 @@ import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.Row;
+import org.apache.spark.sql.functions;
+import org.apache.spark.sql.types.DataTypes;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
@@ -284,7 +287,11 @@ public class SchemaTests
                                                      .withClusteringKey("c", bridge.text())
                                                      .withColumn("d", bridge.text())
                                                      .withColumn("e", bridge.bigint());
-        AtomicLong total = new AtomicLong(0);
+        // AtomicLong is not sufficient here, using BigInteger instead. The aggregation
+        // in the withCheck block will overflow and this will throw an exception in Spark 4.
+        // In earlier versions of Spark the long value would just overflow and the aggregated
+        // value was incorrect.
+        AtomicReference<BigInteger> total = new AtomicReference<>(BigInteger.ZERO);
         Map<UUID, TestSchema.TestRow> rows = new HashMap<>(Tester.DEFAULT_NUM_ROWS);
         Tester.builder(schemaBuilder)
               // Don't write random data
@@ -319,7 +326,7 @@ public class SchemaTests
                       TestSchema.TestRow newTestRow = testRow.copy("e", RandomUtils.RANDOM.nextLong())
                                                              .copy("d", UUID.randomUUID().toString().substring(0, 10));
                       rows.put(testRow.getUUID("a"), newTestRow);
-                      total.addAndGet(newTestRow.getLong("e"));
+                      total.updateAndGet(t -> t.add(BigInteger.valueOf(newTestRow.getLong("e"))));
                       writer.write(newTestRow.allValues());
                   }
               })
@@ -328,10 +335,17 @@ public class SchemaTests
               .withReadListener(actualRow -> assertThat(actualRow).isEqualTo(rows.get(actualRow.getUUID("a"))))
               .withReadListener(actualRow -> assertThat(actualRow.getLong("e")).isEqualTo(rows.get(actualRow.getUUID("a")).getLong("e")))
               // Verify Spark aggregations match expected
-              .withCheck(dataset -> assertThat(dataset.groupBy().sum("e").first().getLong(0)).isEqualTo(total.get()))
+              .withCheck(dataset -> {
+                  BigInteger sum = dataset.agg(functions.sum(
+                                          functions.col("e").cast(DataTypes.createDecimalType(38, 0))))
+                                          .first()
+                                          .getDecimal(0)
+                                          .toBigInteger();
+                  assertThat(sum).isEqualTo(total.get());
+              })
               .withCheck(dataset -> assertThat(dataset.groupBy().count().first().getLong(0)).isEqualTo(rows.size()))
               .withReset(() -> {
-                  total.set(0);
+                  total.set(BigInteger.ZERO);
                   rows.clear();
               })
               .run(bridge.getVersion());

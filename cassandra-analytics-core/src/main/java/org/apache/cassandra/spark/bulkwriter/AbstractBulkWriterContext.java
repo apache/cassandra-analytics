@@ -54,14 +54,14 @@ import org.jetbrains.annotations.NotNull;
  *   <li>Driver creates BulkWriterContext using constructor</li>
  *   <li>Driver extracts BulkWriterConfig in {@link CassandraBulkSourceRelation} constructor</li>
  *   <li>BulkWriterConfig gets broadcast to executors</li>
- *   <li>Executors reconstruct BulkWriterContext via {@link BulkWriterContext#from(BulkWriterConfig)}</li>
+ *   <li>Executors reconstruct BulkWriterContext via {@link BulkWriterConfig#toBulkWriterContext()}</li>
  * </ol>
  *
  * <p>Broadcastable wrappers used in BulkWriterConfig:
  * <ul>
- *   <li>{@link IBroadcastableClusterInfo} → reconstructs to {@link CassandraClusterInfo} or {@link CassandraClusterInfoGroup}</li>
- *   <li>{@link BroadcastableJobInfo} → reconstructs to {@link CassandraJobInfo}</li>
- *   <li>{@link BroadcastableSchemaInfo} → reconstructs to {@link CassandraSchemaInfo}</li>
+ *   <li>{@link IBroadcastableClusterInfo} -&gt; reconstructs to {@link CassandraClusterInfo} or {@link CassandraClusterInfoGroup}</li>
+ *   <li>{@link BroadcastableJobInfo} -&gt; reconstructs to {@link CassandraJobInfo}</li>
+ *   <li>{@link BroadcastableSchemaInfo} -&gt; reconstructs to {@link CassandraSchemaInfo}</li>
  * </ul>
  *
  * <p>Implements KryoSerializable with fail-fast approach to detect missing Kryo registration.
@@ -112,7 +112,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     /**
      * Constructor for executor usage.
      * Reconstructs components from broadcast configuration on executors.
-     * This is used by the factory method {@link BulkWriterContext#from(BulkWriterConfig)}.
+     * This is used by {@link BulkWriterConfig#toBulkWriterContext()}.
      *
      * @param config immutable configuration for the bulk writer with pre-computed values
      */

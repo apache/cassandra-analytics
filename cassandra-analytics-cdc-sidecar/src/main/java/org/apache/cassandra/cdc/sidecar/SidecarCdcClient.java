@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.cdc.sidecar;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.HashMap;
@@ -26,14 +27,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import o.a.c.sidecar.client.shaded.common.utils.HttpRange;
 import org.apache.cassandra.cdc.api.CommitLog;
 import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.clients.Sidecar;
+import org.apache.cassandra.secrets.SecretsProvider;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
+import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
+import o.a.c.sidecar.client.shaded.client.SimpleSidecarInstancesProvider;
 import o.a.c.sidecar.client.shaded.client.StreamBuffer;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
@@ -41,6 +46,7 @@ import org.apache.cassandra.spark.exceptions.TransportFailureException;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.cassandra.spark.utils.ThrowableUtils;
 import org.apache.cassandra.spark.utils.streaming.StreamConsumer;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_BUFFER_OVERRIDE;
@@ -52,19 +58,65 @@ import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MILLIS_TO_SLEE
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_SIDECAR_PORT;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_TIMEOUT_SECONDS;
 
-public class SidecarCdcClient
+public class SidecarCdcClient implements AutoCloseable
 {
     final ClientConfig config;
     final SidecarClient sidecarClient;
     final ICdcStats stats;
+    @NotNull
+    final Function<CassandraInstance, Integer> portResolver;
 
-    public SidecarCdcClient(ClientConfig config,
-                            SidecarClient sidecarClient,
-                            ICdcStats stats)
+    public SidecarCdcClient(ClientConfig clientConfig,
+                            CdcSidecarInstancesProvider instancesProvider,
+                            SecretsProvider secretsProvider,
+                            ICdcStats cdcStats) throws IOException
+    {
+        this(clientConfig, instancesProvider, secretsProvider, cdcStats,
+             ignored -> clientConfig.effectivePort());
+    }
+
+    public SidecarCdcClient(ClientConfig clientConfig,
+                            CdcSidecarInstancesProvider instancesProvider,
+                            SecretsProvider secretsProvider,
+                            ICdcStats cdcStats,
+                            @NotNull Function<CassandraInstance, Integer> portResolver) throws IOException
+    {
+        this(clientConfig,
+             Sidecar.from(new SimpleSidecarInstancesProvider(instancesProvider.instances()
+                                                                              .stream()
+                                                                              .map(i -> new SidecarInstanceImpl(i.hostname(), i.port()))
+                                                                              .collect(Collectors.toList())),
+                          clientConfig.toGenericSidecarConfig(),
+                          secretsProvider),
+             cdcStats,
+             portResolver);
+    }
+
+    SidecarCdcClient(ClientConfig config,
+                     SidecarClient sidecarClient,
+                     ICdcStats stats,
+                     @NotNull Function<CassandraInstance, Integer> portResolver)
     {
         this.config = config;
         this.sidecarClient = sidecarClient;
         this.stats = stats;
+        this.portResolver = portResolver;
+    }
+
+    /**
+     * Closes the underlying {@link SidecarClient} and releases associated resources (e.g. thread pools,
+     * HTTP connections).
+     *
+     * <p>{@code SidecarCdcClient} is intended to be used as a singleton whose lifecycle is managed by the
+     * enclosing component. Callers should not create per-request instances; instead, a single instance
+     * should be constructed at startup and closed during shutdown to avoid thread and resource leaks.
+     *
+     * @throws Exception if the underlying client throws while closing
+     */
+    @Override
+    public void close() throws Exception
+    {
+        sidecarClient.close();
     }
 
     public CompletableFuture<List<CommitLog>> listCdcCommitLogSegments(CassandraInstance instance)
@@ -155,7 +207,7 @@ public class SidecarCdcClient
             @Override
             public int port()
             {
-                return config.effectivePort();
+                return portResolver.apply(instance);
             }
 
             @Override

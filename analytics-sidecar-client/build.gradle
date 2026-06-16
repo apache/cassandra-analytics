@@ -29,27 +29,13 @@ plugins {
     id('maven-publish')
 }
 
-if (propertyWithDefault("artifactType", null) == "common")
-{
+if (propertyWithDefault("artifactType", null) == "common") {
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
 
-sourceCompatibility = 1.8
-
 test {
     useJUnitPlatform()
-    testLogging {
-        events "passed", "skipped", "failed"
-    }
     maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
-    reports {
-        junitXml.setRequired(true)
-        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-results", "client").toFile()
-        println("Destination directory for client tests: ${destDir}")
-        junitXml.getOutputLocation().set(destDir)
-        html.setRequired(true)
-        html.getOutputLocation().set(destDir)
-    }
 }
 
 configurations {

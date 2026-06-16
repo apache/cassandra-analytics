@@ -217,8 +217,22 @@ public abstract class SharedClusterIntegrationTestBase
             }
             catch (RuntimeException rte)
             {
-                if (rte.getMessage() != null && (rte.getMessage().contains("Address already in use") ||
-                                                 rte.getMessage().contains("is in use by another")))
+                // The BindException ("Address already in use") is several levels deep in the cause
+                // chain when thrown through the reflection-based cluster provisioning path, so we
+                // must walk the full chain rather than checking only rte.getMessage().
+                boolean isBindFailure = false;
+                for (Throwable cause = rte; cause != null; cause = cause.getCause())
+                {
+                    String message = cause.getMessage();
+                    if (message != null && (message.contains("Address already in use") ||
+                                            message.contains("is in use by another") ||
+                                            message.contains("Failed to bind port")))
+                    {
+                        isBindFailure = true;
+                        break;
+                    }
+                }
+                if (isBindFailure)
                 {
                     logger.warn("Failed to provision cluster after {} retries", retry, rte);
                 }

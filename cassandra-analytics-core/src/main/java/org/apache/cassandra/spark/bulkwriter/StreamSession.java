@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
@@ -41,7 +42,6 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import o.a.c.sidecar.client.shaded.io.vertx.core.impl.ConcurrentHashSet;
 import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -61,7 +61,7 @@ public abstract class StreamSession<T extends TransportContext>
     protected final SortedSSTableWriter sstableWriter;
     protected final ExecutorService executorService;
 
-    private final Set<Path> streamedFiles = new ConcurrentHashSet<>();
+    private final Set<Path> streamedFiles = ConcurrentHashMap.newKeySet();
     private final AtomicReference<Exception> lastStreamFailure = new AtomicReference<>();
     private volatile boolean isStreamFinalized = false;
 

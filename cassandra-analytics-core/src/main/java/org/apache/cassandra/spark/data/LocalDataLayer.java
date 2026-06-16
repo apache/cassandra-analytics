@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -43,9 +44,6 @@ import java.util.stream.Stream;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableMap;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang.builder.EqualsBuilder;
-import org.apache.commons.lang.builder.HashCodeBuilder;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
@@ -71,7 +69,8 @@ import static org.apache.cassandra.spark.utils.CqlUtils.isTimeRangeFilterSupport
 import static org.apache.cassandra.spark.utils.FilterUtils.parseSSTableTimeRangeFilter;
 
 /**
- * Basic DataLayer implementation to read SSTables from local file system. Mostly used for testing.
+ * Basic DataLayer implementation to read SSTables from local file system.
+ * Mostly used for testing, but also for validating SSTables during bulk data insertion.
  */
 @SuppressWarnings({"unused", "WeakerAccess"})
 public class LocalDataLayer extends DataLayer implements Serializable
@@ -179,7 +178,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                 getOrThrow(options, lowerCaseKey("keyspace")),
                 getOrThrow(options, lowerCaseKey("createStmt")),
                 Arrays.stream(options.getOrDefault(lowerCaseKey("udts"), "").split("\n"))
-                      .filter(StringUtils::isNotEmpty)
+                      .filter(s -> !s.isEmpty())
                       .collect(Collectors.toSet()),
                 SchemaFeatureSet.initializeFromOptions(options),
                 getBoolean(options, lowerCaseKey("useBufferingInputStream"), getBoolean(options, lowerCaseKey("useSSTableInputStream"), false)),
@@ -407,35 +406,20 @@ public class LocalDataLayer extends DataLayer implements Serializable
     @Override
     public int hashCode()
     {
-        return new HashCodeBuilder()
-               .append(cqlTable)
-               .append(paths)
-               .append(version())
-               .toHashCode();
+        return Objects.hash(cqlTable, Arrays.hashCode(paths), version());
     }
 
     @Override
-    public boolean equals(Object other)
+    public boolean equals(Object o)
     {
-        if (other == null)
+        if (o == null || getClass() != o.getClass())
         {
             return false;
         }
-        if (this == other)
-        {
-            return true;
-        }
-        if (this.getClass() != other.getClass())
-        {
-            return false;
-        }
-
-        LocalDataLayer that = (LocalDataLayer) other;
-        return new EqualsBuilder()
-               .append(this.cqlTable, that.cqlTable)
-               .append(this.paths, that.paths)
-               .append(this.version(), that.version())
-               .isEquals();
+        LocalDataLayer that = (LocalDataLayer) o;
+        return Objects.equals(cqlTable, that.cqlTable)
+               && Objects.deepEquals(paths, that.paths)
+               && Objects.equals(version(), that.version());
     }
 
     // JDK Serialization

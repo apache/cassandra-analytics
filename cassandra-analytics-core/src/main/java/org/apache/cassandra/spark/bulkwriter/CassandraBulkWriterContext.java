@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import org.apache.commons.lang3.StringUtils;
 
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
+import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
@@ -45,7 +46,7 @@ public class CassandraBulkWriterContext extends AbstractBulkWriterContext
     }
 
     /**
-     * Constructor used by {@link BulkWriterContext#from(BulkWriterConfig)} factory method.
+     * Constructor used by {@link BulkWriterConfig#toBulkWriterContext()}.
      * This constructor is only used on executors to reconstruct context from broadcast config.
      *
      * @param config immutable configuration for the bulk writer
@@ -80,5 +81,20 @@ public class CassandraBulkWriterContext extends AbstractBulkWriterContext
     protected MultiClusterContainer<UUID> generateRestoreJobIds()
     {
         return MultiClusterContainer.ofSingle(bridge().getTimeUUID());
+    }
+
+    @Override
+    public BulkWriterConfig toBulkWriterConfigForBroadcasting(JavaSparkContext sparkContext)
+    {
+        IBroadcastableClusterInfo broadcastableClusterInfo = BroadcastableClusterInfo.from(cluster(), bulkSparkConf());
+        BroadcastableJobInfo broadcastableJobInfo = BroadcastableJobInfo.from(job(), bulkSparkConf());
+        BroadcastableSchemaInfo broadcastableSchemaInfo = BroadcastableSchemaInfo.from(schema());
+
+        return new BulkWriterConfig(bulkSparkConf(),
+                                    sparkContext.defaultParallelism(),
+                                    broadcastableJobInfo,
+                                    broadcastableClusterInfo,
+                                    broadcastableSchemaInfo,
+                                    lowestCassandraVersion());
     }
 }

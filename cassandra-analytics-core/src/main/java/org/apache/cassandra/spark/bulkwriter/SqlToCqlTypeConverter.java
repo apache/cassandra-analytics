@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.type.InternalDuration;
 import org.apache.cassandra.spark.data.BridgeUdtValue;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.utils.SparkTypeUtils;
 import org.apache.cassandra.spark.utils.UUIDs;
 import org.apache.spark.sql.catalyst.expressions.GenericRowWithSchema;
@@ -138,8 +139,7 @@ public final class SqlToCqlTypeConverter implements Serializable
                 return NO_OP_CONVERTER;
             case FROZEN:
                 assert cqlType instanceof CqlField.CqlFrozen;
-                CqlField.CqlFrozen frozen = (CqlField.CqlFrozen) cqlType;
-                return getConverter(frozen.inner());
+                return getConverter(CqlTable.unwrapIfFrozen(cqlType));
             case INT:
                 return INTEGER_CONVERTER;
             case TEXT:
@@ -172,7 +172,8 @@ public final class SqlToCqlTypeConverter implements Serializable
             case SET:
                 return new SetConverter<>((CqlField.CqlCollection) cqlType);
             case TUPLE:
-                return NO_OP_CONVERTER;
+                assert cqlType instanceof CqlField.CqlTuple;
+                return new TupleConverter((CqlField.CqlTuple) cqlType);
             default:
                 if (cqlType.internalType() == CqlField.CqlType.InternalType.Udt)
                 {
@@ -875,6 +876,53 @@ public final class SqlToCqlTypeConverter implements Serializable
                 Converter<?> converter = converters.get(fieldName);
                 Object val = row.get(row.fieldIndex(fieldName));
                 result.put(fieldName, converter.convert(val));
+            }
+            return result;
+        }
+    }
+
+    public static class TupleConverter extends NullableConverter<Object[]>
+    {
+        private final List<Converter<?>> converters;
+
+        TupleConverter(CqlField.CqlTuple cqlTuple)
+        {
+            // Each field of Tuple can be of different type
+            // hence, prepare list of converters
+            this.converters = new ArrayList<>();
+            for (CqlField.CqlType type : cqlTuple.types())
+            {
+                converters.add(getConverter(type));
+            }
+        }
+
+        @Override
+        public Object[] convertInternal(Object object)
+        {
+            if (object instanceof org.apache.spark.sql.Row)
+            {
+                // Handle generic Row type (may come from nested structures)
+                return makeTupleFromRow((org.apache.spark.sql.Row) object);
+            }
+
+            throw new RuntimeException("Unsupported conversion for Tuple from " + object.getClass().getTypeName());
+        }
+
+        @Override
+        public String toString()
+        {
+            return "Tuple";
+        }
+
+        private Object[] makeTupleFromRow(org.apache.spark.sql.Row row)
+        {
+            Object[] result = new Object[row.size()];
+            for (int i = 0; i < row.size(); i++)
+            {
+                Converter<?> converter = converters.get(i);
+                Object val = row.isNullAt(i) ? null : row.get(i);
+                // Recursively convert inner values (handles nested UDTs, Tuples, Collections)
+                result[i] = val == null ? null : converter.convert(val);
             }
             return result;
         }

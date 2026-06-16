@@ -1,5 +1,22 @@
+0.5.0
+-----
+ * Regenerate bloom filters for CQLSSTableWriter (CASSANALYTICS-167)
+ * Avoid Spark 4 partitioning warnings during bulk reads (CASSANALYTICS-171)
+ * Spark 4.0 Support (CASSANALYTICS-34)
+ * Add IAM credential support for S3 storage transport (CASSANALYTICS-155)
+ * Make BulkWriterConfig extensible (CASSANALYTICS-168)
+
 0.4.0
 -----
+ * Fix com.apple.mg namespace in cdc_bytes.avsc and cdc_generic_record.avsc (CASSANALYTICS-166)
+ * Add support for tuples and tuples with collections or UDTs in the Bulk writer (CASSANALYTICS-51)
+ * Reading BTI may require partitions and rows indexes (CASSANALYTICS-156)
+ * Make KafkaPublisher class generic to publish GenericRecords for different value serializers (CASSANALYTICS-154)
+ * Cannot read start offset from BTI index with big partitions (CASSANALYTICS-151)
+ * BufferingInputStream fails to read last unaligned chunk (CASSANALYTICS-147)
+ * Support per-instance sidecar port resolution in CDC client (CASSANALYTICS-130)
+ * Change log level for logs in CassandraSchema to debug level to avoid log spamming (CASSANALYTICS-149)
+ * Pass SidecarCdcClient as a constructor parameter to avoid thread/resource leaks (CASSANALYTICS-142)
  * Support extended deletion time in CDC for Cassandra 5.0
  * Flush event consumer before persisting CDC state to prevent data loss on failure (CASSANALYTICS-126)
  * Fix ReadStatusTracker to distinguish clean completion from error termination in BufferingCommitLogReader (CASSANALYTICS-129)

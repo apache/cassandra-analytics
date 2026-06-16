@@ -49,12 +49,12 @@ public class LocalCoordinatedStorageTransportExtension extends LocalStorageTrans
         StorageCredentialPair tokens = generateTokens();
         return new StorageTransportConfiguration("key-prefix",
                                                  ImmutableMap.of(),
-                                                 new StorageAccessConfiguration("writeRegion", BUCKET_NAME, tokens.writeCredentials),
+                                                 new StorageAccessConfiguration("writeRegion", BUCKET_NAME, tokens.writeAuth()),
                                                  ImmutableMap.of(
                                                  "cluster1",
-                                                 new StorageAccessConfiguration("readRegion1", BUCKET_NAME, tokens.readCredentials),
+                                                 new StorageAccessConfiguration("readRegion1", BUCKET_NAME, tokens.readAuth()),
                                                  "cluster2",
-                                                 new StorageAccessConfiguration("readRegion2", BUCKET_NAME, tokens.readCredentials)));
+                                                 new StorageAccessConfiguration("readRegion2", BUCKET_NAME, tokens.readAuth())));
     }
 
     @Override

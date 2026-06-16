@@ -25,10 +25,11 @@ plugins {
     id('maven-publish')
 }
 
-if (propertyWithDefault("artifactType", null) == "spark")
-{
+if (propertyWithDefault("artifactType", null) == "spark") {
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
+
+apply from: "${project.rootDir}/gradle/common/javaOptions.gradle"
 
 java {
     withJavadocJar()
@@ -154,60 +155,38 @@ jar {
     }
 }
 
+// Shared test configuration for core tests. When majorMinor is specified (e.g. "4.0"),
+// tests run against that single Cassandra version. When null, uses env var filtering
+// (CI) or falls back to all supported versions (local dev).
+def configureCoreTestTask(Test task, String majorMinor = null) {
+    task.doFirst {
+        task.jvmArgs(project.ext.JDK_OPTIONS)
+        println("JVM arguments for $project.name are $allJvmArgs")
+    }
+
+    task.systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
+    // Core tests use implemented_versions/supported_versions (set by applyCassandraVersionFilter)
+    // rather than versions_to_test (which drives TestVersionSupplier in CDC and integration tests).
+    rootProject.ext.applyCassandraVersionFilter(task, majorMinor)
+    task.minHeapSize = '1024m'
+    task.maxHeapSize = '2048m'
+    task.maxParallelForks = 3
+    task.forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
+
+    // Make it so unit tests run on a Jar with Cassandra bridge implementations built in
+    task.dependsOn(tasks.jar)
+    task.classpath += files(jar.archiveFile)
+
+}
+
 // Tests tagged 'Sequential' do not run in parallel, to prevent OOM errors
 // when running in CI environment.
 tasks.register('testSequential', Test) {
-    doFirst {
-        if (JavaVersion.current().isJava11Compatible()) {
-            def JDK11_OPTIONS = ['-Djdk.attach.allowAttachSelf=true',
-                                 '--add-exports', 'java.base/jdk.internal.misc=ALL-UNNAMED',
-                                 '--add-exports', 'java.base/jdk.internal.ref=ALL-UNNAMED',
-                                 '--add-exports', 'java.base/sun.nio.ch=ALL-UNNAMED',
-                                 '--add-exports', 'java.management.rmi/com.sun.jmx.remote.internal.rmi=ALL-UNNAMED',
-                                 '--add-exports', 'java.rmi/sun.rmi.registry=ALL-UNNAMED',
-                                 '--add-exports', 'java.rmi/sun.rmi.server=ALL-UNNAMED',
-                                 '--add-exports', 'java.sql/java.sql=ALL-UNNAMED',
-                                 '--add-opens', 'java.base/java.lang.module=ALL-UNNAMED',
-                                 '--add-opens', 'java.base/jdk.internal.loader=ALL-UNNAMED',
-                                 '--add-opens', 'java.base/jdk.internal.ref=ALL-UNNAMED',
-                                 '--add-opens', 'java.base/jdk.internal.reflect=ALL-UNNAMED',
-                                 '--add-opens', 'java.base/jdk.internal.math=ALL-UNNAMED',
-                                 '--add-opens', 'java.base/jdk.internal.module=ALL-UNNAMED',
-                                 '--add-opens', 'java.base/jdk.internal.util.jar=ALL-UNNAMED',
-                                 '--add-opens', 'jdk.management/com.sun.management.internal=ALL-UNNAMED']
-            jvmArgs(JDK11_OPTIONS)
-            println("JVM arguments for $project.name are $allJvmArgs")
-        }
-    }
-
-    systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
-    minHeapSize = '1024m'
-    maxHeapSize = System.getenv('CORE_TEST_MAX_HEAP_SIZE') ?: '3072m'
+    configureCoreTestTask(delegate)
     maxParallelForks = 1
-    forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
-
-    // Make it so unit tests run on a Jar with Cassandra bridge implementations built in
-    dependsOn(tasks.jar)
-    classpath += files(jar.archiveFile)
 
     useJUnitPlatform {
         includeTags 'Sequential'
-    }
-
-    reports {
-        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "core").toFile()
-        junitXml {
-            enabled true
-            destination = destDir
-        }
-        html {
-            enabled true
-            destination = destDir
-        }
-    }
-
-    testLogging {
-        events "started", "passed", "skipped", "failed"
     }
 
     shouldRunAfter test
@@ -215,42 +194,52 @@ tasks.register('testSequential', Test) {
 }
 
 test {
-    systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
-    minHeapSize = '1024m'
-    maxHeapSize = System.getenv('CORE_TEST_MAX_HEAP_SIZE') ?: '3072m'
+    configureCoreTestTask(delegate)
     maxParallelForks = System.getenv('CORE_MAX_PARALLEL_FORKS')?.toInteger()
                        ?: Math.max(Runtime.runtime.availableProcessors() * 2, 8)
-    forkEvery = 1  // Enables different end-to-end test classes use Spark contexts with different configurations
 
-    // Make it so unit tests run on a Jar with Cassandra bridge implementations built in
-    dependsOn(tasks.jar)
-    classpath += files(jar.archiveFile)
+    jvmArgs(project.ext.JDK_OPTIONS)
 
     useJUnitPlatform {
         excludeTags 'Sequential'
-    }
-    reports {
-        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "core").toFile()
-        junitXml {
-            enabled true
-            destination = destDir
-        }
-        html {
-            enabled true
-            destination = destDir
-        }
-    }
-
-    testLogging {
-        events "started", "passed", "skipped", "failed"
     }
 
     finalizedBy jacocoTestReport // report is always generated after tests run
 }
 
+// Per-Cassandra-version test tasks for IDE convenience.
+// These show up in IntelliJ's Gradle panel alongside 'test' and 'testSequential'.
+rootProject.ext.cassandraVersionEnumMap.keySet().each { majorMinor ->
+    def suffix = majorMinor.replace(".", "")
+
+    tasks.register("testCassandra${suffix}", Test) {
+        description = "Run core tests (non-Sequential) against Cassandra ${majorMinor}"
+        group = 'verification'
+        configureCoreTestTask(delegate, majorMinor)
+        maxParallelForks = System.getenv('CORE_MAX_PARALLEL_FORKS')?.toInteger()
+                           ?: Math.max(Runtime.runtime.availableProcessors() * 2, 8)
+        useJUnitPlatform {
+            excludeTags 'Sequential'
+        }
+        finalizedBy jacocoTestReport
+    }
+
+    tasks.register("testSequentialCassandra${suffix}", Test) {
+        description = "Run core Sequential tests against Cassandra ${majorMinor}"
+        group = 'verification'
+        configureCoreTestTask(delegate, majorMinor)
+        maxParallelForks = 1
+        useJUnitPlatform {
+            includeTags 'Sequential'
+        }
+        shouldRunAfter tasks.named("testCassandra${suffix}")
+        finalizedBy jacocoTestReport
+    }
+}
+
 /* Start: JaCoCo check */
 jacoco {
-    toolVersion = '0.8.4'
+    toolVersion = '0.8.13'
 }
 
 jacocoTestReport {

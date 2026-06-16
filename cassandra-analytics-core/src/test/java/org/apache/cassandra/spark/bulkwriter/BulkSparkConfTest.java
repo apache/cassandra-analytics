@@ -127,7 +127,12 @@ class BulkSparkConfTest
         BulkSparkConf.setupSparkConf(sparkConf, true);
         assertThat(sparkConf.get("spark.kryo.registrator", ""))
         .isEqualTo("," + SbwKryoRegistrator.class.getName());
-        if (BuildInfo.isAtLeastJava11(BuildInfo.javaSpecificationVersion()))
+        if (BuildInfo.isAtLeastJava17(BuildInfo.javaSpecificationVersion()))
+        {
+            assertThat(sparkConf.get("spark.executor.extraJavaOptions", ""))
+            .isEqualTo(BulkSparkConf.JDK11_OPTIONS + BulkSparkConf.JDK17_OPTIONS);
+        }
+        else if (BuildInfo.isAtLeastJava11(BuildInfo.javaSpecificationVersion()))
         {
             assertThat(sparkConf.get("spark.executor.extraJavaOptions", ""))
             .isEqualTo(BulkSparkConf.JDK11_OPTIONS);
@@ -366,6 +371,27 @@ class BulkSparkConfTest
         options.put(WriterOptions.CASSANDRA_ROLE.name(), "custom_role");
         conf = new BulkSparkConf(sparkConf, options);
         assertThat(conf.cassandraRole).isEqualTo("custom_role");
+    }
+
+    @Test
+    void testStorageCredentialTypeValidValues()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.STORAGE_CREDENTIAL_TYPE.name(), "STATIC");
+        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options));
+
+        options.put(WriterOptions.STORAGE_CREDENTIAL_TYPE.name(), "IAM");
+        assertThatNoException().isThrownBy(() -> new BulkSparkConf(sparkConf, options));
+    }
+
+    @Test
+    void testStorageCredentialTypeInvalidValue()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        options.put(WriterOptions.STORAGE_CREDENTIAL_TYPE.name(), "INVALID");
+        assertThatThrownBy(() -> new BulkSparkConf(sparkConf, options))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Invalid value 'INVALID' for option 'STORAGE_CREDENTIAL_TYPE'");
     }
 
     private Map<String, String> copyDefaultOptions()

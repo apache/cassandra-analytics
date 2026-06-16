@@ -19,22 +19,14 @@
 
 package org.apache.cassandra.cdc.sidecar;
 
-import java.io.IOException;
-import java.util.stream.Collectors;
-
 import com.google.common.base.Preconditions;
 
-import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
-import o.a.c.sidecar.client.shaded.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.cdc.CdcBuilder;
 import org.apache.cassandra.cdc.api.CdcOptions;
 import org.apache.cassandra.cdc.api.EventConsumer;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.api.TokenRangeSupplier;
 import org.apache.cassandra.cdc.stats.ICdcStats;
-import org.apache.cassandra.clients.Sidecar;
-import org.apache.cassandra.secrets.SecretsProvider;
-import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.jetbrains.annotations.NotNull;
 
@@ -56,42 +48,12 @@ public class SidecarCdcBuilder extends CdcBuilder
                       EventConsumer eventConsumer,
                       SchemaSupplier schemaSupplier,
                       TokenRangeSupplier tokenRangeSupplier,
-                      CdcSidecarInstancesProvider sidecarInstancesProvider,
-                      SidecarCdcClient.ClientConfig clientConfig,
-                      SecretsProvider secretsProvider,
-                      ICdcStats cdcStats) throws IOException
-    {
-        this(
-        jobId,
-        partitionId,
-        cdcOptions,
-        clusterConfigProvider,
-        eventConsumer,
-        schemaSupplier,
-        tokenRangeSupplier,
-        clientConfig,
-        Sidecar.from(new SimpleSidecarInstancesProvider(sidecarInstancesProvider.instances().stream()
-                                                                                .map(i -> new SidecarInstanceImpl(i.hostname(), i.port()))
-                                                                                .collect(Collectors.toList())),
-                     clientConfig.toGenericSidecarConfig(), secretsProvider),
-        cdcStats
-        );
-    }
-
-    SidecarCdcBuilder(@NotNull String jobId,
-                      int partitionId,
-                      CdcOptions cdcOptions,
-                      ClusterConfigProvider clusterConfigProvider,
-                      EventConsumer eventConsumer,
-                      SchemaSupplier schemaSupplier,
-                      TokenRangeSupplier tokenRangeSupplier,
-                      SidecarCdcClient.ClientConfig clientConfig,
-                      SidecarClient sidecarClient,
+                      SidecarCdcClient sidecarCdcClient,
                       ICdcStats cdcStats)
     {
         super(jobId, partitionId, eventConsumer, schemaSupplier);
         this.clusterConfigProvider = clusterConfigProvider;
-        this.sidecarCdcClient = new SidecarCdcClient(clientConfig, sidecarClient, cdcStats);
+        this.sidecarCdcClient = sidecarCdcClient;
         withCdcOptions(cdcOptions);
         withTokenRangeSupplier(tokenRangeSupplier);
     }
@@ -105,14 +67,6 @@ public class SidecarCdcBuilder extends CdcBuilder
     public SidecarCdcBuilder withDownMonitor(SidecarDownMonitor downMonitor)
     {
         this.downMonitor = downMonitor;
-        return this;
-    }
-
-    public SidecarCdcBuilder withSidecarClient(SidecarCdcClient.ClientConfig clientConfig,
-                                               SidecarClient sidecarClient,
-                                               ICdcStats cdcStats)
-    {
-        this.sidecarCdcClient = new SidecarCdcClient(clientConfig, sidecarClient, cdcStats);
         return this;
     }
 

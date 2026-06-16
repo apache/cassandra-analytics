@@ -206,6 +206,6 @@ class ClientConfigTests
 
         assertThatThrownBy(() -> ClientConfig.create(options))
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("Invalid range: [2000‥1000]");
+            .hasMessageMatching("Invalid range: \\[2000(‥|..)1000]");
     }
 }

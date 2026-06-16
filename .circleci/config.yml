@@ -49,12 +49,12 @@ commands:
         type: string
       jdk:
         type: string
-      use_jdk11:
-        type: string
-        default: "false"
       sstable_format:
         type: string
-        default: "bti"
+        default: "big"
+      cassandra:
+        type: string
+        default: ""
     description: Build and test against Spark <<parameters.spark>> Scala <<parameters.scala>> <<parameters.jdk>>
     steps:
       - run:
@@ -63,10 +63,10 @@ commands:
             SCALA_VERSION: "<<parameters.scala>>"
             JDK_VERSION: "<<parameters.jdk>>"
             INTEGRATION_MAX_PARALLEL_FORKS: 1
-            INTEGRATION_MAX_HEAP_SIZE: "1500M"
-            CORE_MAX_PARALLEL_FORKS: 2
+            INTEGRATION_MAX_HEAP_SIZE: "3072m"
+            CORE_MAX_PARALLEL_FORKS: 3
             CORE_TEST_MAX_HEAP_SIZE: "2048m"
-            CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
+            CASSANDRA_VERSION: "<<parameters.cassandra>>"
           command: |
             export GRADLE_OPTS="-Xmx2g -Dorg.gradle.jvmargs=-Xmx2g"
             # Run compile/unit tests, skipping integration tests
@@ -80,9 +80,6 @@ commands:
         type: string
       jdk:
         type: string
-      use_jdk11:
-        type: string
-        default: "false"
       cassandra:
         type: string
     description: Build and integration test against Spark <<parameters.spark>> Scala <<parameters.scala>> <<parameters.jdk>>
@@ -93,8 +90,7 @@ commands:
             SCALA_VERSION: "<<parameters.scala>>"
             JDK_VERSION: "<<parameters.jdk>>"
             INTEGRATION_MAX_PARALLEL_FORKS: 1
-            INTEGRATION_MAX_HEAP_SIZE: "2500M"
-            CASSANDRA_USE_JDK11: <<parameters.use_jdk11>>
+            INTEGRATION_MAX_HEAP_SIZE: "3072M"
           command: |
             export GRADLE_OPTS="-Xmx2g -Dorg.gradle.jvmargs=-Xmx2g"
             export DTEST_JAR="dtest-<< parameters.cassandra >>.jar"
@@ -115,11 +111,48 @@ commands:
             # Format the arguments to "./gradlew test"
             # GRADLE_ARGS=$(echo $CLASSNAMES | awk '{for (i=1; i<=NF; i++) print "--tests",$i}')
             echo "CircleCI assigned the following classes for testing: $CLASSNAMES"
+            # Each test class runs in its own ./gradlew invocation. Gradle treats
+            # build/test-reports/integration/ as a task output and wipes stale
+            # files on each run, so without aggregation only the last class's XML
+            # would survive, hiding most results from the CircleCI dashboard.
+            # Drain reports into a per-class subdirectory after each iteration.
+            SRC_REPORT_DIR="$(pwd)/build/test-results/cassandra-analytics-integration-tests/test"
+            HTML_REPORT_DIR="$(pwd)/build/reports/tests/cassandra-analytics-integration-tests/test"
+            AGG_ROOT="$(pwd)/build/aggregated-test-reports/integration"
+            mkdir -p "$AGG_ROOT"
             # collect up exit statuses for all of the test classes and exit with that result at the end.
             # If no gradle processes exit with non-zero status, it will still be 0
             EXIT_STATUS=0
             for TEST_NAME in $CLASSNAMES; do
                 ./gradlew --stacktrace cassandra-analytics-integration-tests:test --tests $TEST_NAME --no-daemon || EXIT_STATUS=$?;
+                DEST="$AGG_ROOT/$TEST_NAME"
+                mkdir -p "$DEST"
+                MOVED=0
+                if [ -d "$SRC_REPORT_DIR" ]; then
+                    for f in "$SRC_REPORT_DIR"/TEST-*.xml; do
+                        [ -e "$f" ] || continue
+                        mv "$f" "$DEST"/
+                        MOVED=1
+                    done
+                fi
+                if [ -d "$HTML_REPORT_DIR" ]; then
+                    mkdir -p "$DEST/html"
+                    cp -r "$HTML_REPORT_DIR/." "$DEST/html/"
+                fi
+                # If Gradle produced no XML (e.g. class-level crash before any
+                # @Test ran), synthesize a minimal JUnit record so CircleCI's
+                # dashboard still surfaces that the shard attempted the class.
+                if [ "$MOVED" = "0" ]; then
+                    MSG="Gradle produced no JUnit XML for $TEST_NAME; likely a class-level crash before tests ran. Exit status: $EXIT_STATUS. See job artifacts for full logs."
+                    {
+                      printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>'
+                      printf '<testsuite name="%s" tests="1" failures="1" errors="0" skipped="0">\n' "$TEST_NAME"
+                      printf '  <testcase classname="%s" name="noJUnitReportProduced">\n' "$TEST_NAME"
+                      printf '    <failure message="%s">%s</failure>\n' "$MSG" "$MSG"
+                      printf '  </testcase>\n'
+                      printf '</testsuite>\n'
+                    } > "$DEST/TEST-${TEST_NAME}.xml"
+                fi
             done;
             exit $EXIT_STATUS
           no_output_timeout: 30m
@@ -133,9 +166,15 @@ jobs:
       - install_common
       - checkout
       - run:
-          name: Build dependencies for jdk11 builds
+          name: Build dependencies for JDK11 builds
+          environment:
+            CASSANDRA_USE_JDK11: "true"
+            # Set JDK_VERSION, SPARK_VERSION, and SCALA_VERSION for codeCheckTasks
+            JDK_VERSION: "11"
+            SPARK_VERSION: "3"
+            SCALA_VERSION: "2.12"
           command: |
-            CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
+            ./scripts/build-dependencies.sh
             ./gradlew --no-daemon --max-workers=2 codeCheckTasks
       - persist_to_workspace:
           root: dependencies
@@ -143,9 +182,54 @@ jobs:
             - "*.jar"
             - "org/**/*"
 
-  spark3-2_12-jdk11-big:
+  # JDK17 dependency build for the Spark 4 / Scala 2.13 matrix.
+  # Workspace paths overlap with build-deps-jdk11, so any downstream job must
+  # `requires:` only ONE of these two — never both — to avoid jar collisions.
+  build-deps-jdk17:
     docker:
-      - image: cimg/openjdk:11.0
+      - image: cimg/openjdk:17.0
+    resource_class: large
+    steps:
+      - install_common
+      - checkout
+      - run:
+          name: Build dependencies for JDK17 builds
+          environment:
+            # Set JDK_VERSION, SPARK_VERSION, and SCALA_VERSION for codeCheckTasks
+            JDK_VERSION: "17"
+            SPARK_VERSION: "4"
+            SCALA_VERSION: "2.13"
+            # JDK17 only targets Cassandra 5.0+; skip 4.0 / 4.1 dtest jar builds
+            # (build-dtest-jars.sh reads this var to filter CANDIDATE_BRANCHES).
+            BRANCHES: "cassandra-5.0"
+          command: |
+            ./scripts/build-dependencies.sh
+            ./gradlew --no-daemon --max-workers=2 codeCheckTasks
+      - persist_to_workspace:
+          root: dependencies
+          paths:
+            - "*.jar"
+            - "org/**/*"
+
+  # Single parameterized unit-test job. The workflow invokes it via `matrix:`
+  # multiple times, once per "compatibility group" (e.g. C4.x + Scala 2.12 + BIG,
+  # C5.0 + Scala 2.13 + BTI). Splitting into several small matrices is cleaner
+  # than one big matrix with a long `exclude:` list, because CircleCI's
+  # `exclude:` requires every parameter to be listed in every entry.
+  unit:
+    parameters:
+      spark:
+        type: string
+      scala:
+        type: string
+      jdk:
+        type: string
+      cassandra:
+        type: string
+      sstable_format:
+        type: string
+    docker:
+      - image: cimg/openjdk:<<parameters.jdk>>.0
     resource_class: large
     steps:
       - install_common
@@ -153,26 +237,41 @@ jobs:
       - attach_workspace:
           at: dependencies
       - run_build:
-          spark: "3"
-          scala: "2.12"
-          jdk: "11"
-          use_jdk11: "true"
+          spark: "<<parameters.spark>>"
+          scala: "<<parameters.scala>>"
+          jdk: "<<parameters.jdk>>"
+          sstable_format: "<<parameters.sstable_format>>"
+          cassandra: "<<parameters.cassandra>>"
 
       - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
+          when: always
+          path: build/test-results
+          destination: test-results
 
       - store_artifacts:
+          when: always
           path: build/reports
           destination: reports
 
       - store_test_results:
-          path: build/test-reports
+          when: always
+          path: build/test-results
 
-  int-c4-spark3-2_12-jdk11:
+  # Single parameterized integration-test job, invoked once per Cassandra/Scala
+  # compatibility group from the workflow's `matrix:` block.
+  int-test:
+    parameters:
+      spark:
+        type: string
+      scala:
+        type: string
+      jdk:
+        type: string
+      cassandra:
+        type: string
     parallelism: 8
     docker:
-      - image: cimg/openjdk:11.0
+      - image: cimg/openjdk:<<parameters.jdk>>.0
     resource_class: large
     steps:
       - setup_remote_docker
@@ -181,158 +280,110 @@ jobs:
       - attach_workspace:
           at: dependencies
       - run_integration:
-          spark: "3"
-          scala: "2.12"
-          jdk: "11"
-          use_jdk11: "true"
-          cassandra: "4.1.4"
+          spark: "<<parameters.spark>>"
+          scala: "<<parameters.scala>>"
+          jdk: "<<parameters.jdk>>"
+          cassandra: "<<parameters.cassandra>>"
 
       - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
+          when: always
+          path: build/aggregated-test-reports
+          destination: test-results
 
       - store_artifacts:
+          when: always
           path: build/reports
           destination: reports
 
       - store_artifacts:
+          when: always
           path: cassandra-analytics-integration-tests
           destination: int-tests-misc
 
       - store_test_results:
-          path: build/test-reports
-
-  spark3-2_13-jdk11-big:
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
-    steps:
-      - install_common
-      - checkout
-      - attach_workspace:
-          at: dependencies
-      - run_build:
-          spark: "3"
-          scala: "2.13"
-          jdk: "11"
-          use_jdk11: "true"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-  spark3-2_13-jdk11-bti:
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
-    steps:
-      - install_common
-      - checkout
-      - attach_workspace:
-          at: dependencies
-      - run_build:
-          spark: "3"
-          scala: "2.13"
-          jdk: "11"
-          use_jdk11: "true"
-          sstable_format: "bti"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-  int-c4-spark3-2_13-jdk11:
-    parallelism: 8
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
-    steps:
-      - setup_remote_docker
-      - install_common
-      - checkout
-      - attach_workspace:
-          at: dependencies
-      - run_integration:
-          spark: "3"
-          scala: "2.13"
-          jdk: "11"
-          use_jdk11: "true"
-          cassandra: "4.1.4"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
-
-  int-c5-spark3-2_13-jdk11:
-    parallelism: 8
-    docker:
-      - image: cimg/openjdk:11.0
-    resource_class: large
-    steps:
-      - setup_remote_docker
-      - install_common
-      - checkout
-      - attach_workspace:
-          at: dependencies
-      - run_integration:
-          spark: "3"
-          scala: "2.13"
-          jdk: "11"
-          use_jdk11: "true"
-          cassandra: "5.0.5"
-
-      - store_artifacts:
-          path: build/test-reports
-          destination: test-reports
-
-      - store_artifacts:
-          path: build/reports
-          destination: reports
-
-      - store_test_results:
-          path: build/test-reports
+          when: always
+          path: build/aggregated-test-reports
 
 workflows:
   version: 2
   build-and-test:
     jobs:
       - build-deps-jdk11
-      - spark3-2_12-jdk11-big:
+      - build-deps-jdk17
+
+      # ---- Unit tests ----
+      # Cassandra 4.x: Scala 2.12 + BIG sstable format
+      - unit:
           requires:
             - build-deps-jdk11
-      - spark3-2_13-jdk11-big:
+          matrix:
+            alias: unit-c4x
+            parameters:
+              spark: ["3"]
+              scala: ["2.12"]
+              jdk: ["11"]
+              sstable_format: ["big"]
+              cassandra: ["4.0", "4.1"]
+
+      # Cassandra 5.0: Scala 2.13 + BTI sstable format
+      - unit:
           requires:
             - build-deps-jdk11
-      - spark3-2_13-jdk11-bti:
+          matrix:
+            alias: unit-c5
+            parameters:
+              spark: ["3"]
+              scala: ["2.13"]
+              jdk: ["11"]
+              sstable_format: ["bti"]
+              cassandra: ["5.0"]
+
+      # Cassandra 5.0 on Spark 4 / Scala 2.13 / JDK 17 + BTI sstable format
+      - unit:
+          requires:
+            - build-deps-jdk17
+          matrix:
+            alias: unit-c5-spark4
+            parameters:
+              spark: ["4"]
+              scala: ["2.13"]
+              jdk: ["17"]
+              sstable_format: ["bti"]
+              cassandra: ["5.0"]
+
+      # ---- Integration tests ----
+      # Cassandra 4.x: Scala 2.12, full patch versions for dtest jar lookup
+      - int-test:
           requires:
             - build-deps-jdk11
-      - int-c4-spark3-2_12-jdk11:
+          matrix:
+            alias: int-c4x
+            parameters:
+              spark: ["3"]
+              scala: ["2.12"]
+              jdk: ["11"]
+              cassandra: ["4.0.17", "4.1.4"]
+
+      # Cassandra 5.0: Scala 2.13
+      - int-test:
           requires:
             - build-deps-jdk11
-      - int-c4-spark3-2_13-jdk11:
+          matrix:
+            alias: int-c5
+            parameters:
+              spark: ["3"]
+              scala: ["2.13"]
+              jdk: ["11"]
+              cassandra: ["5.0.5"]
+
+      # Cassandra 5.0 on Spark 4 / Scala 2.13 / JDK 17
+      - int-test:
           requires:
-            - build-deps-jdk11
-      - int-c5-spark3-2_13-jdk11:
-          requires:
-            - build-deps-jdk11
+            - build-deps-jdk17
+          matrix:
+            alias: int-c5-spark4
+            parameters:
+              spark: ["4"]
+              scala: ["2.13"]
+              jdk: ["17"]
+              cassandra: ["5.0.5"]

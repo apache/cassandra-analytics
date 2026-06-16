@@ -71,12 +71,14 @@ import org.apache.cassandra.io.sstable.CQLSSTableWriter;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
 import org.apache.cassandra.io.sstable.SSTableTombstoneWriter;
+import org.apache.cassandra.io.sstable.format.SSTableFormat;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.format.bti.BtiReaderUtils;
 import org.apache.cassandra.io.sstable.metadata.MetadataComponent;
 import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
 import org.apache.cassandra.io.util.File;
+import org.apache.cassandra.io.util.FileOutputStreamPlus;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.TableMetadataRef;
@@ -115,6 +117,8 @@ import org.apache.cassandra.util.CompressionUtil;
 import org.apache.cassandra.util.IntWrapper;
 import org.apache.cassandra.utils.BloomFilter;
 import org.apache.cassandra.utils.CompressionUtilImplementation;
+import org.apache.cassandra.utils.FilterDbUtils;
+import org.apache.cassandra.utils.IFilter;
 import org.apache.cassandra.utils.TimeUUID;
 import org.apache.cassandra.utils.TokenUtils;
 import org.jetbrains.annotations.NotNull;
@@ -347,6 +351,64 @@ public class CassandraBridgeImplementation extends CassandraBridge
             DecoratedKey decoratedKey = iPartitioner.decorateKey(partitionKey);
             return filter.isPresent(decoratedKey);
         };
+    }
+
+    @Override
+    public void rebuildBloomFilter(@NotNull Partitioner partitioner,
+                                   @NotNull CqlTable cqltable,
+                                   @NotNull SSTable ssTable,
+                                   @NotNull Path directory) throws IOException
+    {
+        String keyspace = cqltable.keyspace();
+        String table = cqltable.table();
+        IPartitioner iPartitioner = getPartitioner(partitioner);
+        SchemaBuilder schemaBuilder = new SchemaBuilder(cqltable, partitioner);
+        TableMetadata tableMetadata = schemaBuilder.tableMetaData();
+
+        if (tableMetadata.params.bloomFilterFpChance == 1.0)
+        {
+            return; // bloom filter has been disabled for the table
+        }
+
+        Descriptor descriptor = ReaderUtils.constructDescriptor(keyspace, table, ssTable);
+        File filterFile = new File(directory, descriptor.fileFor(SSTableFormat.Components.FILTER).name());
+        try (IFilter filter = FilterDbUtils.buildBloomFilter(cqltable, ssTable, tableMetadata))
+        {
+            Function<ByteBuffer, Boolean> tracker = bytes -> {
+                DecoratedKey key = iPartitioner.decorateKey(bytes);
+                filter.add(key);
+                return false;
+            };
+            if (ssTable.isBtiFormat())
+            {
+                BtiReaderUtils.readPrimaryIndex(ssTable, iPartitioner, descriptor,
+                                                tableMetadata.params.crcCheckChance, tracker);
+            }
+            else
+            {
+                try (InputStream primaryIndex = ssTable.openPrimaryIndexStream())
+                {
+                    if (primaryIndex == null)
+                    {
+                        throw new IOException("Could not read Index.db file");
+                    }
+                    ReaderUtils.readPrimaryIndex(primaryIndex, tracker);
+                }
+            }
+
+            try (FileOutputStreamPlus stream = filterFile.newOutputStream(File.WriteMode.OVERWRITE))
+            {
+                filter.serialize(stream, descriptor.version.hasOldBfFormat());
+                stream.flush();
+                stream.sync();
+            }
+        }
+        catch (Exception e)
+        {
+            LOGGER.error("Failed to rebuild bloom filter for sstable {}/{}", directory, ssTable.getDataFileName(), e);
+            // Remove potentially corrupted bloom filter. It will be rebuilt by Cassandra during sstable import.
+            Files.deleteIfExists(filterFile.toPath());
+        }
     }
 
     private BloomFilter openBloomFilter(Descriptor descriptor, SSTable ssTable) throws IOException

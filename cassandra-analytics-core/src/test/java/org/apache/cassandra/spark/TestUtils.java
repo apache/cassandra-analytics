@@ -80,6 +80,7 @@ public final class TestUtils extends CommonTestUtils
                                // Spark is not case-sensitive by default, but we want to make it case-sensitive for
                                // the quoted identifiers tests where we test mixed case
                                .config("spark.sql.caseSensitive", "True")
+                               .config("spark.ui.enabled", "false")
                                .getOrCreate();
         }
     }
@@ -308,7 +309,7 @@ public final class TestUtils extends CommonTestUtils
     public static List<CassandraVersion> tombstoneTestableVersions()
     {
         // Tombstone SSTable writing and SSTable-to-JSON conversion are not implemented for Cassandra version 3.0
-        List<CassandraVersion> tombstoneTestableVersions = ImmutableList.of(CassandraVersion.FOURZERO, CassandraVersion.FIVEZERO);
+        List<CassandraVersion> tombstoneTestableVersions = ImmutableList.of(CassandraVersion.FOURZERO, CassandraVersion.FOURONE, CassandraVersion.FIVEZERO);
         return filterTestableVersions(tombstoneTestableVersions);
     }
 

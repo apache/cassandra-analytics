@@ -52,9 +52,9 @@ public class StorageTransportConfiguration
                                          Map<String, String> objectTags)
     {
         this(prefix, objectTags,
-             new StorageAccessConfiguration(writeRegion, writeBucket, storageCredentialPair.writeCredentials),
+             new StorageAccessConfiguration(writeRegion, writeBucket, storageCredentialPair.writeAuth()),
              new MultiClusterContainer<>());
-        StorageAccessConfiguration readAccess = new StorageAccessConfiguration(readRegion, readBucket, storageCredentialPair.readCredentials);
+        StorageAccessConfiguration readAccess = new StorageAccessConfiguration(readRegion, readBucket, storageCredentialPair.readAuth());
         readAccessConfigurations.setValue(null, readAccess);
     }
 
@@ -101,9 +101,9 @@ public class StorageTransportConfiguration
     {
         StorageAccessConfiguration readAccess = readAccessConfigurations.getValueOrThrow(clusterId);
         return new StorageCredentialPair(writeAccessConfiguration.region(),
-                                         writeAccessConfiguration.storageCredentials(),
+                                         writeAccessConfiguration.storageAuth(),
                                          readAccess.region(),
-                                         readAccess.storageCredentials());
+                                         readAccess.storageAuth());
     }
 
     /**
@@ -112,8 +112,8 @@ public class StorageTransportConfiguration
      */
     public void setStorageCredentialPair(@Nullable String clusterId, StorageCredentialPair newCredentials)
     {
-        writeAccessConfiguration = writeAccessConfiguration.copyWithNewCredentials(newCredentials.writeCredentials);
-        readAccessConfigurations.updateValue(clusterId, readAccess -> readAccess.copyWithNewCredentials(newCredentials.readCredentials));
+        writeAccessConfiguration = writeAccessConfiguration.copyWithNewAuth(newCredentials.writeAuth());
+        readAccessConfigurations.updateValue(clusterId, readAccess -> readAccess.copyWithNewAuth(newCredentials.readAuth()));
     }
 
     public String getPrefix()

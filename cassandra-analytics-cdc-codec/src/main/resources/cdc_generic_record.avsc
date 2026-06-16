@@ -36,10 +36,6 @@
       "type": "string"
     },
     {
-      "name": "schemaUuid",
-      "type": "string"
-    },
-    {
       "name": "truncatedFields",
       "type": {
         "type": "array",
@@ -57,7 +53,7 @@
       "type": {
         "type": "enum",
         "name": "OperationType",
-        "namespace": "com.apple.mg",
+        "namespace": "org.apache.cassandra",
         "symbols": [
           "INSERT",
           "UPDATE",
@@ -95,7 +91,7 @@
           "items": {
             "type": "record",
             "name": "RangePredicate",
-            "namespace": "com.apple.mg",
+            "namespace": "org.apache.cassandra",
             "fields": [
               {
                 "name": "field",
@@ -106,7 +102,7 @@
                 "type": {
                   "type": "enum",
                   "name": "RangePredicateType",
-                  "namespace": "com.apple.mg",
+                  "namespace": "org.apache.cassandra",
                   "symbols": [
                     "LT",
                     "LTE",
@@ -136,7 +132,7 @@
         {
           "type": "record",
           "name": "TTL",
-          "namespace": "com.apple.mg",
+          "namespace": "org.apache.cassandra",
           "fields": [
             {
               "name": "ttl",

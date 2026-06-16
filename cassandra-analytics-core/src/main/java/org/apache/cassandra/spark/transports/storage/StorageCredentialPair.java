@@ -24,41 +24,95 @@ import java.util.Objects;
 import o.a.c.sidecar.client.shaded.common.data.RestoreJobSecrets;
 
 /**
- * A class representing the pair of credentials needed to complete an analytics operation using the Storage transport.
- * It is possible that both credentials (read and write) are the same, but also that they could represent
- * the credentials needed for two different buckets when using cross-region synchronization to transfer data
- * between regions.
+ * A class representing the pair of auth configurations needed to complete an analytics operation using the
+ * Storage transport. It is possible that both read and write auth are the same, but they could also represent
+ * different buckets when using cross-region synchronization to transfer data between regions.
+ *
+ * <p>The auth field is a {@link StorageAuth}, either:
+ * <ul>
+ *   <li>{@link StorageCredentials} — explicit STS credentials for static auth</li>
+ *   <li>{@link IamStorageAuth} — no static credentials; the sidecar and Spark executors use the AWS SDK
+ *       default provider chain (instance profile / IRSA / ECS task role)</li>
+ * </ul>
+ *
+ * <p>For IAM mode use {@link #iamPair(String, String)}. The library wires the correct sidecar payload
+ * automatically when {@code STORAGE_CREDENTIAL_TYPE=IAM} is set.
  */
 public class StorageCredentialPair
 {
     private final String writeRegion;
-    public final StorageCredentials writeCredentials;
+    private final StorageAuth writeAuth;
     private final String readRegion;
-    public final StorageCredentials readCredentials;
+    private final StorageAuth readAuth;
+
+    /**
+     * Creates a {@link StorageCredentialPair} for IAM instance profile mode.
+     * The credentials fields are null; only the regions are required so the sidecar can route requests.
+     *
+     * @param readRegion  the AWS region for the read (download) bucket
+     * @param writeRegion the AWS region for the write (upload) bucket
+     * @return a region-only pair suitable for use with {@code STORAGE_CREDENTIAL_TYPE=IAM}
+     */
+    public static StorageCredentialPair iamPair(String readRegion, String writeRegion)
+    {
+        return new StorageCredentialPair(writeRegion, IamStorageAuth.INSTANCE, readRegion, IamStorageAuth.INSTANCE);
+    }
 
     /**
      * Create a new instance of a StorageCredentialPair
      *
      * @param writeRegion the name of the region where write/upload happens
-     * @param writeCredentials the credentials used for writing to the storage endpoint
-     * @param readRegion the name of the region where read/download happens
-     * @param readCredentials  the credentials used to read from the storage endpoint
+     * @param writeAuth   the auth used for writing to the storage endpoint
+     * @param readRegion  the name of the region where read/download happens
+     * @param readAuth    the auth used for reading from the storage endpoint
      */
     public StorageCredentialPair(String writeRegion,
-                                 StorageCredentials writeCredentials,
+                                 StorageAuth writeAuth,
                                  String readRegion,
-                                 StorageCredentials readCredentials)
+                                 StorageAuth readAuth)
     {
         this.writeRegion = writeRegion;
-        this.writeCredentials = writeCredentials;
+        this.writeAuth = writeAuth;
         this.readRegion = readRegion;
-        this.readCredentials = readCredentials;
+        this.readAuth = readAuth;
     }
 
+    public String writeRegion()
+    {
+        return writeRegion;
+    }
+
+    public StorageAuth writeAuth()
+    {
+        return writeAuth;
+    }
+
+    public String readRegion()
+    {
+        return readRegion;
+    }
+
+    public StorageAuth readAuth()
+    {
+        return readAuth;
+    }
+
+    /**
+     * Converts this pair to {@link RestoreJobSecrets} for static credential mode.
+     * Throws {@link IllegalStateException} if either auth is not a {@link StorageCredentials} (i.e. this is an IAM pair);
+     * use {@link RestoreJobSecrets#iamMode(String, String)} for IAM mode.
+     */
     public RestoreJobSecrets toRestoreJobSecrets()
     {
-        return new RestoreJobSecrets(readCredentials.toSidecarCredentials(readRegion),
-                                     writeCredentials.toSidecarCredentials(writeRegion));
+        if (!(writeAuth instanceof StorageCredentials) || !(readAuth instanceof StorageCredentials))
+        {
+            throw new IllegalStateException("Cannot call toRestoreJobSecrets() on an IAM credential pair. " +
+                                            "Use RestoreJobSecrets.iamMode() instead.");
+        }
+        StorageCredentials write = (StorageCredentials) writeAuth;
+        StorageCredentials read = (StorageCredentials) readAuth;
+        return new RestoreJobSecrets(read.toSidecarCredentials(readRegion),
+                                     write.toSidecarCredentials(writeRegion));
     }
 
     @Override
@@ -66,9 +120,9 @@ public class StorageCredentialPair
     {
         return "StorageCredentialPair{"
                + "writeRegion=" + writeRegion
-               + ", writeCredentials=" + writeCredentials
+               + ", writeAuth=" + writeAuth
                + ", readRegion=" + readRegion
-               + ", readCredentials=" + readCredentials
+               + ", readAuth=" + readAuth
                + '}';
     }
 
@@ -85,14 +139,14 @@ public class StorageCredentialPair
         }
         StorageCredentialPair that = (StorageCredentialPair) o;
         return Objects.equals(writeRegion, that.writeRegion)
-               && Objects.equals(writeCredentials, that.writeCredentials)
+               && Objects.equals(writeAuth, that.writeAuth)
                && Objects.equals(readRegion, that.readRegion)
-               && Objects.equals(readCredentials, that.readCredentials);
+               && Objects.equals(readAuth, that.readAuth);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(writeRegion, writeCredentials, readRegion, readCredentials);
+        return Objects.hash(writeRegion, writeAuth, readRegion, readAuth);
     }
 }

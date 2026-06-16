@@ -32,7 +32,6 @@ public final class AvroConstants
     public static final String RANGE_KEY = "range";
     public static final String TTL_KEY = "ttl";
     public static final String DELETED_AT_KEY = "deletedAt";
-    public static final String SCHEMA_UUID_KEY = "schemaUuid";
     public static final String TRUNCATED_FIELDS_KEY = "truncatedFields";
     public static final String RANGE_PREDICATE_KEY = "rangePredicateType";
     public static final String FIELD_KEY = "field";

@@ -132,16 +132,5 @@ jar {
 
 test {
     useJUnitPlatform()
-    reports {
-        def destDir = Paths.get(rootProject.rootDir.absolutePath, "build", "test-reports", "cdc-sidecar").toFile()
-        junitXml {
-            enabled true
-            destination = destDir
-        }
-        html {
-            enabled true
-            destination = destDir
-        }
-    }
 }
 

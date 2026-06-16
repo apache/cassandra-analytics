@@ -42,8 +42,9 @@ import org.apache.cassandra.spark.bulkwriter.JobInfo;
 import org.apache.cassandra.spark.data.QualifiedTableName;
 import org.apache.cassandra.spark.exception.S3ApiCallException;
 import org.apache.cassandra.spark.exception.SidecarApiCallException;
-import org.apache.cassandra.spark.transports.storage.StorageCredentials;
+import org.apache.cassandra.spark.transports.storage.StorageAuth;
 import org.jetbrains.annotations.Nullable;
+
 
 /**
  * Encapsulates transfer APIs used by {@link CloudStorageStreamSession}. {@link StorageClient} is used to interact with S3 and
@@ -80,11 +81,11 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
     /*------ Blob APIs -------*/
 
     @Override
-    public BundleStorageObject uploadBundle(StorageCredentials writeCredentials, Bundle bundle) throws S3ApiCallException
+    public BundleStorageObject uploadBundle(StorageAuth writeAuth, Bundle bundle) throws S3ApiCallException
     {
         try
         {
-            return storageClient.multiPartUpload(writeCredentials, bundle);
+            return storageClient.multiPartUpload(writeAuth, bundle);
         }
         catch (Exception exception)
         {

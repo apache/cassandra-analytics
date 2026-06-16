@@ -52,6 +52,8 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SparkSession;
 import org.jetbrains.annotations.NotNull;
 
+import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.JDK11_OPTIONS;
+import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.JDK17_OPTIONS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
@@ -194,12 +196,17 @@ public class SparkTestUtils
                               // Spark is not case-sensitive by default, but we want to make it case-sensitive for
                               // the quoted identifiers tests where we test mixed case
                               .set("spark.sql.caseSensitive", "True")
+                              .set("spark.ui.enabled", "false")
+                              .set("spark.driver.host", "127.0.0.1")
                               .set("spark.driver.bindAddress", "127.0.0.1")
                               .set("spark.master", "local[8,4]")
                               .set("spark.cassandra_analytics.cassandra.version", "5.0.0")
                               .set("spark.cassandra_analytics.sidecar.request.retries", "5")
                               .set("spark.cassandra_analytics.sidecar.request.retries.delay.milliseconds", "500")
-                              .set("spark.cassandra_analytics.sidecar.request.retries.max.delay.milliseconds", "500");
+                              .set("spark.cassandra_analytics.sidecar.request.retries.max.delay.milliseconds", "500")
+                              .set("spark.driver.extraJavaOptions", JDK11_OPTIONS + JDK17_OPTIONS)
+                              .set("spark.executor.extraJavaOptions", JDK11_OPTIONS + JDK17_OPTIONS);
+
         BulkSparkConf.setupSparkConf(sparkConf, true);
         KryoRegister.setup(sparkConf);
         return sparkConf;

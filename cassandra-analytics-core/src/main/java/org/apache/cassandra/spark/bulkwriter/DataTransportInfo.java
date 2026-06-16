@@ -21,6 +21,8 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 
+import org.jetbrains.annotations.Nullable;
+
 public class DataTransportInfo implements Serializable
 {
     private static final long serialVersionUID = 1823178559314014761L;
@@ -30,11 +32,30 @@ public class DataTransportInfo implements Serializable
     // note this should be shifted under appropriate class
     private final long maxSizePerBundleInBytes;
 
-    public DataTransportInfo(DataTransport transport, String transportExtensionClass, long maxSizePerBundleInBytes)
+    /**
+     * The credential type name (e.g. "STATIC", "IAM"), stored as a String to avoid tight coupling to
+     * shaded sidecar classes and to stay safely serializable across Spark broadcast. Null means the user
+     * did not specify one, and the sidecar will use its default (STATIC).
+     */
+    @Nullable
+    private final String storageCredentialType;
+
+    public DataTransportInfo(DataTransport transport,
+                             String transportExtensionClass,
+                             long maxSizePerBundleInBytes)
+    {
+        this(transport, transportExtensionClass, maxSizePerBundleInBytes, null);
+    }
+
+    public DataTransportInfo(DataTransport transport,
+                             String transportExtensionClass,
+                             long maxSizePerBundleInBytes,
+                             @Nullable String storageCredentialType)
     {
         this.transport = transport;
         this.transportExtensionClass = transportExtensionClass;
         this.maxSizePerBundleInBytes = maxSizePerBundleInBytes;
+        this.storageCredentialType = storageCredentialType;
     }
 
     public DataTransport getTransport()
@@ -52,10 +73,17 @@ public class DataTransportInfo implements Serializable
         return maxSizePerBundleInBytes;
     }
 
+    @Nullable
+    public String getStorageCredentialType()
+    {
+        return storageCredentialType;
+    }
+
     public String toString()
     {
         return "TransportInfo={dataTransport=" + transport
                + ",transportExtensionClass=" + transportExtensionClass
-               + ",maxSizePerBundleInBytes=" + maxSizePerBundleInBytes + '}';
+               + ",maxSizePerBundleInBytes=" + maxSizePerBundleInBytes
+               + ",storageCredentialType=" + storageCredentialType + '}';
     }
 }

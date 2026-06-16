@@ -18,10 +18,22 @@
 
 github:
   enabled_merge_buttons:
-    squash:  true
-    merge:   false
-    rebase:  true
+    squash: true
+    merge: false
+    rebase: true
 
+  rulesets:
+    - name: "Default Branch Protection"
+      type: branch
+      branches:
+        includes:
+          - "~DEFAULT_BRANCH"
+          - "release/*"
+          - "rel/*"
+        excludes: []
+      bypass_teams:
+        - root
+      restrict_deletion: true
 notifications:
   commits: commits@cassandra.apache.org
   issues: commits@cassandra.apache.org

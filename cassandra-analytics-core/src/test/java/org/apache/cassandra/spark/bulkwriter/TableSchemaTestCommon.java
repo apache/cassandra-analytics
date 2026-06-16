@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
 import org.apache.cassandra.bridge.CassandraBridge;
@@ -106,11 +107,27 @@ public final class TableSchemaTestCommon
     }
 
     @NotNull
+    public static CqlField.CqlCollection mockListCqlType(CqlField.CqlType collectionType)
+    {
+        return mockCollectionCqlType(LIST, collectionType);
+    }
+
+    @NotNull
     public static CqlField.CqlCollection mockCollectionCqlType(String cqlName, CqlField.CqlType collectionType)
     {
         CqlField.CqlCollection mock = mock(CqlField.CqlCollection.class);
         when(mock.name()).thenReturn(cqlName);
         when(mock.type()).thenReturn(collectionType);
+        return mock;
+    }
+
+    @NotNull
+    public static CqlField.CqlTuple mockTupleCqlType(List<CqlField.CqlType> types)
+    {
+        CqlField.CqlTuple mock = mock(CqlField.CqlTuple.class);
+        when(mock.name()).thenReturn(SqlToCqlTypeConverter.TUPLE);
+        when(mock.internalType()).thenReturn(CqlField.CqlType.InternalType.Tuple);
+        when(mock.types()).thenReturn(types);
         return mock;
     }
 
@@ -454,7 +471,7 @@ public final class TableSchemaTestCommon
             String clusteringKey = primaryColumns.stream()
                                                  .map(this::maybeQuoteIdentifierIfRequested)
                                                  .collect(Collectors.joining(","));
-            return "PRIMARY KEY (" + partitionKey + clusteringKey + ")";
+            return "PRIMARY KEY (" + partitionKey + (StringUtils.isNotBlank(clusteringKey) ? ("," + clusteringKey) : "") + ")";
         }
 
         @Override

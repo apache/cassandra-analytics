@@ -33,23 +33,25 @@ public class StorageAccessConfiguration
 {
     private final String region;
     private final String bucket;
-    private final StorageCredentials storageCredentials;
+    private final StorageAuth storageAuth;
 
-    public StorageAccessConfiguration(@NotNull String region, @NotNull String bucket, @NotNull StorageCredentials storageCredentials)
+    public StorageAccessConfiguration(@NotNull String region, @NotNull String bucket,
+                                      @NotNull StorageAuth storageAuth)
     {
         this.region = region;
         this.bucket = bucket;
-        this.storageCredentials = storageCredentials;
+        this.storageAuth = storageAuth;
     }
 
     /**
-     * Create a new instance of StorageAccessConfiguration with the credentials updated
-     * @param newCredentials credentials to update
+     * Create a new instance of StorageAccessConfiguration with the auth updated.
+     *
+     * @param newAuth the new auth mechanism
      * @return new instance
      */
-    public StorageAccessConfiguration copyWithNewCredentials(@NotNull StorageCredentials newCredentials)
+    public StorageAccessConfiguration copyWithNewAuth(@NotNull StorageAuth newAuth)
     {
-        return new StorageAccessConfiguration(this.region, this.bucket, newCredentials);
+        return new StorageAccessConfiguration(this.region, this.bucket, newAuth);
     }
 
     public String region()
@@ -62,9 +64,9 @@ public class StorageAccessConfiguration
         return bucket;
     }
 
-    public StorageCredentials storageCredentials()
+    public StorageAuth storageAuth()
     {
-        return storageCredentials;
+        return storageAuth;
     }
 
     @Override
@@ -83,13 +85,13 @@ public class StorageAccessConfiguration
         StorageAccessConfiguration that = (StorageAccessConfiguration) obj;
         return Objects.equals(region, that.region)
                && Objects.equals(bucket, that.bucket)
-               && Objects.equals(storageCredentials, that.storageCredentials);
+               && Objects.equals(storageAuth, that.storageAuth);
     }
 
     @Override
     public int hashCode()
     {
-        return Objects.hash(region, bucket, storageCredentials);
+        return Objects.hash(region, bucket, storageAuth);
     }
 
     @Override
@@ -98,7 +100,7 @@ public class StorageAccessConfiguration
         return "StorageAccessConfiguration{"
                + "region='" + region + '\''
                + ", bucket='" + bucket + '\''
-               + ", credentials='" + storageCredentials + '\''
+               + ", auth='" + storageAuth + '\''
                + '}';
     }
 
@@ -109,16 +111,22 @@ public class StorageAccessConfiguration
         {
             out.writeString(object.region);
             out.writeString(object.bucket);
-            kryo.writeObject(out, object.storageCredentials);
+            String authType = object.storageAuth instanceof IamStorageAuth ? "IAM" : "STATIC";
+            out.writeString(authType);
+            if (!"IAM".equals(authType))
+            {
+                kryo.writeObject(out, (StorageCredentials) object.storageAuth);
+            }
         }
 
         @Override
         public StorageAccessConfiguration read(Kryo kryo, Input in, Class<StorageAccessConfiguration> type)
         {
-            return new StorageAccessConfiguration(
-            in.readString(), // region
-            in.readString(), // bucket
-            kryo.readObject(in, StorageCredentials.class));
+            String region = in.readString();
+            String bucket = in.readString();
+            String authType = in.readString();
+            StorageAuth auth = "IAM".equals(authType) ? IamStorageAuth.INSTANCE : kryo.readObject(in, StorageCredentials.class);
+            return new StorageAccessConfiguration(region, bucket, auth);
         }
     }
 }
