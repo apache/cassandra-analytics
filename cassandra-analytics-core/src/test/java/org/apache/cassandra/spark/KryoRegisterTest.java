@@ -19,9 +19,14 @@
 
 package org.apache.cassandra.spark;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.spark.SparkConf;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
@@ -91,5 +96,49 @@ public class KryoRegisterTest
         assertThatNoException()
         .describedAs("Validation should work with null cassandraVersion string")
         .isThrownBy(() -> KryoRegister.validateKryoRegistratorExists(CassandraVersion.FOURZERO, null));
+    }
+
+    @Test
+    void testSetupRegistersAllImplementedVersions()
+    {
+        SparkConf conf = new SparkConf();
+        KryoRegister.setup(conf);
+
+        List<String> expected = Arrays.stream(CassandraVersion.implementedVersions())
+                                      .map(KryoRegister.KRYO_REGISTRATORS::get)
+                                      .map(Class::getName)
+                                      .collect(Collectors.toList());
+
+        // setup() must register a registrator for every implemented (bundled) bridge version,
+        // independent of spark.cassandra_analytics.cassandra.version, so serialization works for
+        // whichever bridge the SSTable-version analyzer selects at runtime.
+        assertThat(expected).isNotEmpty();
+        List<String> registrators = Arrays.asList(conf.get("spark.kryo.registrator").split(","));
+        assertThat(registrators).containsAll(expected);
+    }
+
+    @Test
+    void testSetupDoesNotDependOnCassandraVersionConfig()
+    {
+        // Even with a cassandra.version that differs from the bridge that may be selected,
+        // setup() registers all implemented versions and never throws based on that config.
+        SparkConf conf = new SparkConf()
+                         .set("spark.cassandra_analytics.cassandra.version", "5.0.0");
+        assertThatNoException().isThrownBy(() -> KryoRegister.setup(conf));
+        assertThat(conf.get("spark.serializer")).isEqualTo("org.apache.spark.serializer.KryoSerializer");
+    }
+
+    @Test
+    void testSetupPreservesExistingRegistrators()
+    {
+        SparkConf conf = new SparkConf()
+                         .set("spark.kryo.registrator", "com.example.CustomRegistrator");
+        KryoRegister.setup(conf);
+
+        List<String> registrators = Arrays.asList(conf.get("spark.kryo.registrator").split(","));
+        assertThat(registrators).contains("com.example.CustomRegistrator");
+        assertThat(registrators.get(0))
+        .describedAs("pre-existing registrators should be kept first (deterministic order)")
+        .isEqualTo("com.example.CustomRegistrator");
     }
 }

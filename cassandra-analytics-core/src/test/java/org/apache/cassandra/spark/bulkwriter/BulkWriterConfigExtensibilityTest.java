@@ -95,7 +95,8 @@ class BulkWriterConfigExtensibilityTest
         BulkSparkConf mockConf = mock(BulkSparkConf.class);
         BroadcastableJobInfo mockJobInfo = mock(BroadcastableJobInfo.class);
         BroadcastableSchemaInfo mockSchemaInfo = mock(BroadcastableSchemaInfo.class);
-        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mock(IBroadcastableClusterInfo.class), mockSchemaInfo, CassandraVersion.FOURZERO);
+        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mock(IBroadcastableClusterInfo.class),
+                                                       mockSchemaInfo, CassandraVersion.FOURZERO);
 
         // Subclass that overrides reconstructJobInfoOnExecutor to return custom JobInfo
         TestBulkWriterContext context = new TestBulkWriterContext(config)
