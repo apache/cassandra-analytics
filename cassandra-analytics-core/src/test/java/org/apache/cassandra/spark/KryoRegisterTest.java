@@ -66,7 +66,7 @@ public class KryoRegisterTest
     {
         assertThatThrownBy(() -> KryoRegister.validateKryoRegistratorExists(CassandraVersion.THREEZERO, "3.0.0"))
         .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("No Kryo registrator configured for bridge version THREEZERO")
+        .hasMessageContaining("No Kryo registrator registered for bridge version THREEZERO")
         .hasMessageContaining("Cluster Cassandra version: 3.0.0")
         .hasMessageContaining("Available Kryo registrators:")
         .hasMessageContaining("FOURZERO")

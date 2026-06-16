@@ -71,7 +71,7 @@ import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIden
  * and includes the result in the {@link BulkWriterConfig} that gets broadcast.
  * <p>
  * On executors, a new instance is reconstructed from {@link BroadcastableClusterInfo}
- * using {@link #CassandraClusterInfo(BroadcastableClusterInfo)}, reusing broadcast-safe
+ * using {@link #CassandraClusterInfo(BroadcastableClusterInfo, CassandraVersion)}, reusing broadcast-safe
  * fields and fetching other data fresh from Sidecar.
  *
  * @see BroadcastableClusterInfo for the broadcast-safe subset of fields
@@ -435,6 +435,11 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         if (resolvedNodeSettings != null)
         {
             return resolvedNodeSettings;
+        }
+
+        if (allNodeSettingFutures == null)
+        {
+            throw new IllegalStateException("allNodeSettingFutures is null");
         }
 
         final long totalTimeout = conf.getSidecarRequestMaxRetryDelayMillis() *

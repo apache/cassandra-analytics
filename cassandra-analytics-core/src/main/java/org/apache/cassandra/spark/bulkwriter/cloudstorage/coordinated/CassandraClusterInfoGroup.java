@@ -115,7 +115,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     }
 
     /**
-     * Similar to {@link #fromBulkSparkConf(BulkSparkConf, CassandraVersion)} (BulkSparkConf)} but takes additional function to create {@link ClusterInfo}
+     * Similar to {@link #fromBulkSparkConf(BulkSparkConf, CassandraVersion)} but takes additional function to create {@link ClusterInfo}
      */
     public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf, Function<String, ClusterInfo> clusterInfoFactory)
     {

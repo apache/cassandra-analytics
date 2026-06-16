@@ -359,10 +359,13 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         boolean isSSTableVersionBasedBridgeDisabled = isSSTableVersionBasedBridgeDisabled();
 
         // Get SSTable versions from cluster only if SSTable version-based selection is enabled
-        // If disabled, skip retrieval to allow job to proceed even when SSTable version detection fails
+        // If disabled, use an empty set (never null) so downstream code - including executor-side
+        // validation and serialization - needs no null handling. On executors an empty set is the
+        // signal that the feature was disabled on the driver.
         if (isSSTableVersionBasedBridgeDisabled)
         {
-            this.sstableVersionsOnCluster = null;
+            //Use a HashSet, because Kryo serializer reads back via kryo.readObject(in, HashSet.class)
+            this.sstableVersionsOnCluster = new HashSet<>();
         }
         else
         {
@@ -945,7 +948,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         // Skip validation when fallback mode is enabled
         if (isSSTableVersionBasedBridgeDisabled)
         {
-            LOGGER.debug("Skipping SSTable version validation on driver - fallback mode enabled",
+            LOGGER.debug("Skipping SSTable version validation on driver - fallback mode enabled via {}=true",
                          BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE);
             return;
         }
@@ -1000,27 +1003,17 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     @VisibleForTesting
     void validateSStableVersions(List<SSTable> sstables)
     {
-        // Check if user has explicitly disabled SSTable version-based selection
-        boolean isSSTableVersionBasedBridgeDisabled = isSSTableVersionBasedBridgeDisabled();
-
-        // Skip validation when fallback mode is enabled
-        if (isSSTableVersionBasedBridgeDisabled)
-        {
-            LOGGER.debug("Skipping SSTable version validation on executor - " +
-                         "fallback mode enabled via {}=true",
-                         BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE);
-            return;
-        }
-
         Set<String> expectedVersions = this.sstableVersionsOnCluster;
+        // An empty (or null) expected set means SSTable version-based bridge selection was disabled
+        // on the driver. In enabled mode the driver fails fast when no versions are observed, so
+        // executors never see an empty set in that mode; hence empty here == disabled -> skip.
+        // This avoids reading Spark configuration on executors (no SparkContext is available there).
         if (expectedVersions == null || expectedVersions.isEmpty())
         {
-            // Fail fast with helpful error message
-            throw new IllegalStateException(
-            "Unable to validate SSTable versions - no expected versions available from cluster. " +
-            "This is required for SSTable version-based bridge selection. " +
-            "If you want to bypass this check and use cassandra.version for bridge selection, " +
-            "set " + BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE + "=true");
+            LOGGER.debug("Skipping SSTable version validation on executor - no expected versions; "
+                         + "SSTable version-based bridge selection is disabled (set {}=true)",
+                         BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE);
+            return;
         }
 
         for (SSTable ssTable : sstables)

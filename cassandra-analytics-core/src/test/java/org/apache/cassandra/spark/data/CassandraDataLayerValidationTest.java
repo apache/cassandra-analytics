@@ -239,31 +239,17 @@ public class CassandraDataLayerValidationTest
     @Test
     void testValidateSStableVersionsListSkipsValidationWhenFeatureDisabled()
     {
-        Set<String> expectedVersions = new HashSet<>(List.of("big-na"));
-        // Create a special test instance that returns true for isSSTableVersionBasedBridgeDisabled
-        CassandraDataLayer dataLayer = new TestCassandraDataLayerWithFeatureDisabled(expectedVersions);
+        // When the feature is disabled the driver leaves sstableVersionsOnCluster empty; on the executor
+        // an empty expected set is the signal that the feature is disabled, so validation is skipped.
+        CassandraDataLayer dataLayer = createTestDataLayerWithVersions(Collections.emptySet());
 
-        // Create SSTable with unexpected version
+        // SSTable has a version that would be rejected if validation actually ran
         SSTable ssTable = createMockSSTable("big", "oa", "test-big-oa-Data.db");
         List<SSTable> sstables = Collections.singletonList(ssTable);
 
-        // Should NOT throw exception because feature is disabled
         assertThatNoException()
-        .describedAs("Validation should be skipped when feature is disabled")
+        .describedAs("Validation should be skipped when feature is disabled (empty expected versions)")
         .isThrownBy(() -> dataLayer.validateSStableVersions(sstables));
-    }
-
-    @Test
-    void testValidateSStableVersionsListWithEmptyExpectedVersionsThrowsException()
-    {
-        CassandraDataLayer dataLayer = createTestDataLayerWithVersions(Collections.emptySet());
-
-        SSTable ssTable = createMockSSTable("big", "na", "test-big-na-Data.db");
-        List<SSTable> sstables = Collections.singletonList(ssTable);
-
-        assertThatThrownBy(() -> dataLayer.validateSStableVersions(sstables))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Unable to validate SSTable versions - no expected versions available from cluster");
     }
 
     // Tests for initializeSSTableVersionsAndBridgeVersion (called from initBulkReader - lines 283-313)
@@ -297,8 +283,8 @@ public class CassandraDataLayerValidationTest
         // Should return FOURZERO bridge version (fallback to cassandra.version)
         assertThat((Object) result).isEqualTo(CassandraVersion.FOURZERO);
 
-        // Should set sstableVersionsOnCluster to null (skipped retrieval)
-        assertThat((Object) dataLayer.sstableVersionsOnCluster).isNull();
+        // Should set sstableVersionsOnCluster to an empty set (skipped retrieval, never null)
+        assertThat(dataLayer.sstableVersionsOnCluster).isEmpty();
     }
 
     @Test
@@ -419,24 +405,6 @@ public class CassandraDataLayerValidationTest
             // which would try to initialize SparkContext in unit tests
             // Always return false to test the validation logic
             return false;
-        }
-    }
-
-    /**
-     * Test subclass with feature disabled to test the skip validation path
-     */
-    private static class TestCassandraDataLayerWithFeatureDisabled extends TestCassandraDataLayer
-    {
-        TestCassandraDataLayerWithFeatureDisabled(Set<String> sstableVersions)
-        {
-            super(sstableVersions);
-        }
-
-        @Override
-        protected boolean isSSTableVersionBasedBridgeDisabled()
-        {
-            // Return true to test the feature-disabled path
-            return true;
         }
     }
 

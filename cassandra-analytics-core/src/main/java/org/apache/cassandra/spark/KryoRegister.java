@@ -92,7 +92,7 @@ public class KryoRegister implements KryoRegistrator
      *
      * @param bridgeVersion the CassandraVersion to validate
      * @param clusterCassandraVersion optional Cassandra version string for additional context in error messages
-     * @throws IllegalStateException if no Kryo registrator is configured for this version
+     * @throws IllegalStateException if no Kryo registrator is registered for this version
      */
     public static void validateKryoRegistratorExists(@NotNull CassandraVersion bridgeVersion,
                                                      String clusterCassandraVersion)
@@ -106,7 +106,7 @@ public class KryoRegister implements KryoRegistrator
                 .collect(Collectors.joining(", "));
 
             throw new IllegalStateException(
-                String.format("No Kryo registrator configured for bridge version %s (%s). " +
+                String.format("No Kryo registrator registered for bridge version %s (%s). " +
                               "Cluster Cassandra version: %s. " +
                               "Available Kryo registrators: %s. " +
                               "Cannot proceed with job as Spark serialization will fail. " +

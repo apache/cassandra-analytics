@@ -196,6 +196,21 @@ public final class SSTableVersionAnalyzer
             throw new IllegalStateException("SSTable versions set cannot be empty");
         }
 
+        // The Comparator below is never invoked for a single-element set, so an unknown version
+        // would otherwise slip through. Validate the sole element here; multi-element sets are
+        // fully validated by the Comparator (every element participates in at least one comparison).
+        if (versions.size() == 1)
+        {
+            String only = versions.iterator().next();
+            if (!CassandraVersion.fromSSTableVersion(only).isPresent())
+            {
+                throw new IllegalStateException(
+                    String.format("Unknown SSTable version: %s. Cannot determine Cassandra version. " +
+                                  "To retry the job using a fallback Cassandra version, " +
+                                  "set %s=true", only, DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
+            }
+        }
+
         Comparator<String> sstableVersionComparator = (v1, v2) -> {
             // Find which CassandraVersion each SSTable version belongs to
             Optional<CassandraVersion> v1Opt = CassandraVersion.fromSSTableVersion(v1);

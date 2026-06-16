@@ -108,6 +108,4 @@ public class CassandraClusterInfoTest
             when(cassandraContext.sidecarPort()).thenReturn(9043);
         }
     }
-
 }
-
