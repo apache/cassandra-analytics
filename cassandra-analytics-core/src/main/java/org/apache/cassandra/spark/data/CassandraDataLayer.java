@@ -369,7 +369,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
         else
         {
-            this.sstableVersionsOnCluster = retrieveSSTableVersionsFromCluster();
+            // Wrap in a HashSet: retrieveSSTableVersionsFromCluster() may return Collections.emptySet()
+            // or an unspecified Set type from Collectors.toSet(), but Kryo reads this field back via
+            // kryo.readObject(in, HashSet.class), so the concrete type must be HashSet.
+            this.sstableVersionsOnCluster = new HashSet<>(retrieveSSTableVersionsFromCluster());
         }
 
         // Determine bridge version

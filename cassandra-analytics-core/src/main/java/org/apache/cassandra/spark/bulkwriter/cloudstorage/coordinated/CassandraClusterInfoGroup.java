@@ -90,12 +90,13 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
      * Creates {@link CassandraClusterInfoGroup} with the list of {@link ClusterInfo} from {@link BulkSparkConf} and validation
      * The validation ensures non-empty list of {@link ClusterInfo}, where all objects have non-empty and unique clusterId
      * @param conf bulk write conf
-     * @param bridgeVersion bridge version (nullable for preliminary construction)
      * @return new {@link CassandraClusterInfoGroup} instance
      */
-    public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf, CassandraVersion bridgeVersion)
+    public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf)
     {
-        return fromBulkSparkConf(conf, clusterId -> new CassandraClusterInfo(conf, clusterId, bridgeVersion));
+        // bridgeVersion is null at construction time; the real version is applied later via setBridgeVersion(),
+        // once the cluster's SSTable versions have been read from the preliminary group.
+        return fromBulkSparkConf(conf, clusterId -> new CassandraClusterInfo(conf, clusterId, null));
     }
 
 
@@ -115,7 +116,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     }
 
     /**
-     * Similar to {@link #fromBulkSparkConf(BulkSparkConf, CassandraVersion)} but takes additional function to create {@link ClusterInfo}
+     * Similar to {@link #fromBulkSparkConf(BulkSparkConf)} but takes additional function to create {@link ClusterInfo}
      */
     public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf, Function<String, ClusterInfo> clusterInfoFactory)
     {

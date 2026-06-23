@@ -120,11 +120,6 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
             conf.isSSTableVersionBasedBridgeDisabled()
         );
 
-        logger.info("Selected bridge version: {}, lowest Cassandra version: {}, SSTable versions: {}",
-                    this.bridgeVersion.versionName(),
-                    lowestCassandraVersion,
-                    sstableVersionsOnCluster);
-
         // Validate that Kryo registrator exists for this bridge version
         KryoRegister.validateKryoRegistratorExists(this.bridgeVersion, lowestCassandraVersion);
 

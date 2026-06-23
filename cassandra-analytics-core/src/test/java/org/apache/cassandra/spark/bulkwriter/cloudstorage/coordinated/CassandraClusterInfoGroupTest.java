@@ -34,7 +34,6 @@ import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
@@ -215,7 +214,7 @@ class CassandraClusterInfoGroupTest
     void testCreateClusterInfoListFailsDueToAbsentConfiguration()
     {
         BulkSparkConf conf = mock(BulkSparkConf.class);
-        assertThatThrownBy(() -> fromBulkSparkConf(conf, (CassandraVersion) null))
+        assertThatThrownBy(() -> fromBulkSparkConf(conf))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessage("In order to create an instance of CassandraCoordinatedBulkWriterContext, " +
                     "you must provide the appropriate coordinated write configuration by " +
@@ -227,7 +226,7 @@ class CassandraClusterInfoGroupTest
     {
         BulkSparkConf conf = mock(BulkSparkConf.class, RETURNS_DEEP_STUBS);
         when(conf.coordinatedWriteConf().clusters()).thenReturn(Collections.emptyMap());
-        assertThatThrownBy(() -> fromBulkSparkConf(conf, (CassandraVersion) null))
+        assertThatThrownBy(() -> fromBulkSparkConf(conf))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("No cluster info is built from");
     }
@@ -238,7 +237,7 @@ class CassandraClusterInfoGroupTest
         BulkSparkConf conf = mock(BulkSparkConf.class);
         CoordinatedWriteConf.ClusterConf clusterConf = new CoordinatedWriteConf.SimpleClusterConf(Collections.singletonList("localhost:9043"), "localDc");
         when(conf.coordinatedWriteConf()).thenReturn(new CoordinatedWriteConf(Collections.singletonMap("", clusterConf)));
-        assertThatThrownBy(() -> fromBulkSparkConf(conf, (CassandraVersion) null))
+        assertThatThrownBy(() -> fromBulkSparkConf(conf))
         .isInstanceOf(IllegalStateException.class)
         .describedAs("The exception message should include the original json to help spot the wrong configuration (empty clusterId)")
         .hasMessage("Found coordinatedWriteConf with empty or null clusterId. " +

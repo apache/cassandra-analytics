@@ -82,6 +82,9 @@ public final class SSTableVersionAnalyzer
 
         if (supportsRequestedFormat)
         {
+            LOGGER.info("Determined bridge version: {} for write based on SSTable versions on the cluster: {}, "
+                        + "requested SSTable format: '{}', lowest Cassandra version on the cluster: {}",
+                        highestCassandraVersion.versionName(), sstableVersionsOnCluster, requestedFormat, cassandraVersion);
             return highestCassandraVersion;
         }
         else
@@ -121,8 +124,9 @@ public final class SSTableVersionAnalyzer
         // Find highest Cassandra version based on SSTable versions
         CassandraVersion bridgeVersion = findHighestCassandraVersion(sstableVersionsOnCluster);
 
-        LOGGER.debug("Determined bridge version {} for read based on SSTable versions on cluster: {}",
-                     bridgeVersion.versionName(), sstableVersionsOnCluster);
+        LOGGER.info("Determined bridge version: {} for read based on SSTable versions on the cluster: {}, "
+                    + "lowest Cassandra version on the cluster: {}",
+                    bridgeVersion.versionName(), sstableVersionsOnCluster, cassandraVersion);
 
         return bridgeVersion;
     }

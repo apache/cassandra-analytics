@@ -111,7 +111,7 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
     {
         if (preliminaryGroup == null)
         {
-            preliminaryGroup = CassandraClusterInfoGroup.fromBulkSparkConf(conf, (CassandraVersion) null);
+            preliminaryGroup = CassandraClusterInfoGroup.fromBulkSparkConf(conf);
         }
 
         return preliminaryGroup;

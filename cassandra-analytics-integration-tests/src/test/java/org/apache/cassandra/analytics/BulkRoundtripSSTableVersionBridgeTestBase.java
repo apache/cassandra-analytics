@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.vdurmont.semver4j.Semver;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
@@ -110,7 +111,8 @@ abstract class BulkRoundtripSSTableVersionBridgeTestBase extends SharedClusterSp
         if ("bti".equals(sstableFormat()))
         {
             // BTI (bti-da) is a Cassandra 5.0+ format; skip on older versions.
-            assumeTrue(testVersion.version().startsWith("5."),
+            Semver version = new Semver(testVersion.version(), Semver.SemverType.LOOSE);
+            assumeTrue(version.isGreaterThanOrEqualTo(new Semver("5.0", Semver.SemverType.LOOSE)),
                        "BTI format (bti-da) requires Cassandra 5.0+, but test version is " + testVersion.version());
         }
     }
