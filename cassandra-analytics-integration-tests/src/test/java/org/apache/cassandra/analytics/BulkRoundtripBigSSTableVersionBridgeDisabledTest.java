@@ -21,7 +21,7 @@ package org.apache.cassandra.analytics;
 
 /**
  * Runs the {@link BulkRoundtripSSTableVersionBridgeTestBase} roundtrip suite with the BIG (big-oa/big-nb) SSTable
- * format and SSTable version-based bridge selection DISABLED (fallback to {@code cassandra.version}).
+ * format and SSTable version-based bridge selection DISABLED (legacy {@code cassandra.version}-based bridge selection).
  */
 class BulkRoundtripBigSSTableVersionBridgeDisabledTest extends BulkRoundtripSSTableVersionBridgeTestBase
 {

@@ -26,6 +26,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
+
 /**
  * Analyzes SSTable versions on a cluster to determine the appropriate
  * Cassandra bridge to load for bulk write/read operations.
@@ -36,8 +38,6 @@ import org.slf4j.LoggerFactory;
 public final class SSTableVersionAnalyzer
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(SSTableVersionAnalyzer.class);
-    static final String DISABLE_SSTABLE_VERSION_BASED_BRIDGE =
-        "spark.cassandra_analytics.bridge.disable_sstable_version_based";
 
     private SSTableVersionAnalyzer()
     {
@@ -51,7 +51,7 @@ public final class SSTableVersionAnalyzer
      *
      * @param sstableVersionsOnCluster Set of SSTable versions found on cluster nodes
      * @param requestedFormat User's requested format, example: "big" or "bti"
-     * @param cassandraVersion Cassandra version string for fallback
+     * @param cassandraVersion Cassandra version string for legacy version based bridge selection
      * @param isSSTableVersionBasedBridgeDisabled flag to disable sstable version based bridge determination
      * @return CassandraVersion enum indicating which bridge to load
      * @throws UnsupportedOperationException if cluster doesn't support requested format
@@ -62,11 +62,11 @@ public final class SSTableVersionAnalyzer
                                                                   String cassandraVersion,
                                                                   boolean isSSTableVersionBasedBridgeDisabled)
     {
-        // Check for fallback mode
-        Optional<CassandraVersion> fallback = resolveFallbackVersion(cassandraVersion, isSSTableVersionBasedBridgeDisabled);
-        if (fallback.isPresent())
+        // Use legacy cassandra.version based bridge selection when the user has opted in via configuration
+        Optional<CassandraVersion> version = resolveLegacyVersionBasedBridge(cassandraVersion, isSSTableVersionBasedBridgeDisabled);
+        if (version.isPresent())
         {
-            return fallback.get();
+            return version.get();
         }
 
         // Validate SSTable versions are present
@@ -102,7 +102,7 @@ public final class SSTableVersionAnalyzer
      * - Highest SSTable version detected on cluster
      *
      * @param sstableVersionsOnCluster Set of SSTable versions found on cluster nodes
-     * @param cassandraVersion Cassandra version string for fallback
+     * @param cassandraVersion Cassandra version string for legacy version based bridge selection
      * @param isSSTableVersionBasedBridgeDisabled flag to disable sstable version based bridge determination
      * @return CassandraVersion enum indicating which bridge to load
      * @throws IllegalStateException if SSTable versions are empty/unknown
@@ -111,11 +111,11 @@ public final class SSTableVersionAnalyzer
                                                                  String cassandraVersion,
                                                                  boolean isSSTableVersionBasedBridgeDisabled)
     {
-        // Check for fallback mode
-        Optional<CassandraVersion> fallback = resolveFallbackVersion(cassandraVersion, isSSTableVersionBasedBridgeDisabled);
-        if (fallback.isPresent())
+        // Use legacy cassandra.version based bridge selection when the user has opted in via configuration
+        Optional<CassandraVersion> version = resolveLegacyVersionBasedBridge(cassandraVersion, isSSTableVersionBasedBridgeDisabled);
+        if (version.isPresent())
         {
-            return fallback.get();
+            return version.get();
         }
 
         // Validate SSTable versions are present
@@ -131,15 +131,15 @@ public final class SSTableVersionAnalyzer
         return bridgeVersion;
     }
 
-    private static Optional<CassandraVersion> resolveFallbackVersion(String cassandraVersion,
-                                                                      boolean isSSTableVersionBasedBridgeDisabled)
+    private static Optional<CassandraVersion> resolveLegacyVersionBasedBridge(String cassandraVersion,
+                                                                              boolean isSSTableVersionBasedBridgeDisabled)
     {
         if (!isSSTableVersionBasedBridgeDisabled)
         {
             return Optional.empty();
         }
 
-        LOGGER.info("SSTable version-based bridge selection is disabled via configuration. " +
+        LOGGER.info("SSTable version based bridge selection is disabled via configuration. " +
                     "Using cassandra.version for bridge selection: {}", cassandraVersion);
         return Optional.of(CassandraVersion.fromVersion(cassandraVersion)
                                            .orElseThrow(() -> new UnsupportedOperationException(
@@ -158,9 +158,9 @@ public final class SSTableVersionAnalyzer
         {
             throw new IllegalStateException(String.format(
                 "Unable to retrieve SSTable versions from cluster. " +
-                "This is required for SSTable version-based bridge selection. " +
+                "This is required for SSTable version based bridge selection. " +
                 "If you want to bypass this check and use cassandra.version for bridge selection, " +
-                "set %s=true", DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
+                "set %s=true", BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
         }
     }
 
@@ -178,10 +178,10 @@ public final class SSTableVersionAnalyzer
                                .orElseThrow(() -> new IllegalStateException(
                                String.format("Unknown SSTable version: %s. Cannot determine bridge version. " +
                                              "SSTable versions on cluster: %s. " +
-                                             "To retry the job using a fallback Cassandra version, " +
+                                             "To retry using cassandra.version based bridge selection, " +
                                              "set %s=true",
                                              highestSSTableVersion, sstableVersionsOnCluster,
-                                             DISABLE_SSTABLE_VERSION_BASED_BRIDGE)));
+                                             BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE)));
     }
 
     /**
@@ -210,8 +210,8 @@ public final class SSTableVersionAnalyzer
             {
                 throw new IllegalStateException(
                     String.format("Unknown SSTable version: %s. Cannot determine Cassandra version. " +
-                                  "To retry the job using a fallback Cassandra version, " +
-                                  "set %s=true", only, DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
+                                  "To retry using cassandra.version based bridge selection, " +
+                                  "set %s=true", only, BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
             }
         }
 
@@ -225,8 +225,8 @@ public final class SSTableVersionAnalyzer
                 String unknownVersion = !v1Opt.isPresent() ? v1 : v2;
                 throw new IllegalStateException(
                     String.format("Unknown SSTable version: %s. Cannot determine Cassandra version. " +
-                                  "To retry the job using a fallback Cassandra version, " +
-                                  "set %s=true", unknownVersion, DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
+                                  "To retry using cassandra.version based bridge selection, " +
+                                  "set %s=true", unknownVersion, BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
             }
 
             CassandraVersion cv1 = v1Opt.get();

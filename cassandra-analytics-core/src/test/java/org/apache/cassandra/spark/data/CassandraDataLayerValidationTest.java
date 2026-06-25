@@ -91,19 +91,19 @@ public class CassandraDataLayerValidationTest
     }
 
     @Test
-    void testValidateSStableVersionsSkipsValidationWhenFallbackEnabled()
+    void testValidateSStableVersionsSkipsValidationWhenLegacyEnabled()
     {
         CassandraDataLayer dataLayer = createTestDataLayer();
 
-        // Test with invalid versions - should not throw when fallback enabled
+        // Test with invalid versions - should not throw when legacy version-based bridge selection is enabled
         Set<String> invalidVersions = new HashSet<>(List.of("invalid-version"));
         assertThatNoException()
-        .describedAs("Validation should be skipped with invalid versions when fallback mode is enabled")
+        .describedAs("Validation should be skipped with invalid versions when legacy version-based bridge selection is enabled")
         .isThrownBy(() -> dataLayer.validateSStableVersions(invalidVersions, CassandraVersion.FOURZERO, true));
 
-        // Test with null versions - should not throw when fallback enabled
+        // Test with null versions - should not throw when legacy version-based bridge selection is enabled
         assertThatNoException()
-        .describedAs("Validation should be skipped with null versions when fallback enabled")
+        .describedAs("Validation should be skipped with null versions when legacy version-based bridge selection is enabled")
         .isThrownBy(() -> dataLayer.validateSStableVersions(null, CassandraVersion.FOURZERO, true));
     }
 
@@ -280,7 +280,7 @@ public class CassandraDataLayerValidationTest
 
         CassandraVersion result = dataLayer.initializeSSTableVersionsAndBridgeVersion("4.0.0");
 
-        // Should return FOURZERO bridge version (fallback to cassandra.version)
+        // Should return FOURZERO bridge version (legacy cassandra.version-based bridge selection)
         assertThat((Object) result).isEqualTo(CassandraVersion.FOURZERO);
 
         // Should set sstableVersionsOnCluster to an empty set (skipped retrieval, never null)

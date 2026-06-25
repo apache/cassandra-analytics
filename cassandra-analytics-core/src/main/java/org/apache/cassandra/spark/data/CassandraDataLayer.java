@@ -78,7 +78,6 @@ import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
 import o.a.c.sidecar.client.shaded.client.SimpleSidecarInstancesProvider;
 import o.a.c.sidecar.client.shaded.client.exception.RetriesExhaustedException;
-import org.apache.cassandra.spark.KryoRegister;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.common.SidecarInstanceFactory;
 import org.apache.cassandra.spark.common.SizingFactory;
@@ -383,9 +382,6 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         // Validate SSTable versions
         validateSStableVersions(this.sstableVersionsOnCluster, bridgeVersion, isSSTableVersionBasedBridgeDisabled);
-
-        // Validate that Kryo registrator exists for this bridge version
-        KryoRegister.validateKryoRegistratorExists(bridgeVersion, cassandraVersion);
 
         return bridgeVersion;
     }
@@ -948,10 +944,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                  CassandraVersion cassandraVersion,
                                  boolean isSSTableVersionBasedBridgeDisabled)
     {
-        // Skip validation when fallback mode is enabled
+        // Skip validation when legacy version-based bridge selection is enabled
         if (isSSTableVersionBasedBridgeDisabled)
         {
-            LOGGER.debug("Skipping SSTable version validation on driver - fallback mode enabled via {}=true",
+            LOGGER.debug("Skipping SSTable version validation on driver - legacy version-based bridge selection enabled via {}=true",
                          BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE);
             return;
         }
@@ -980,7 +976,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             "Detected unsupported SSTable version(s) %s for Cassandra version %s. " +
             "Supported versions: %s. " +
             "Observed SSTable versions in the cluster: %s. " +
-            "To retry the job using a fallback Cassandra version, " +
+            "To retry using cassandra.version based bridge selection, " +
             "set %s=true",
             unsupportedVersions,
             cassandraVersion,
@@ -1014,7 +1010,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         if (expectedVersions == null || expectedVersions.isEmpty())
         {
             LOGGER.debug("Skipping SSTable version validation on executor - no expected versions; "
-                         + "SSTable version-based bridge selection is disabled (set {}=true)",
+                         + "SSTable version based bridge selection is disabled (set {}=true)",
                          BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE);
             return;
         }
@@ -1030,7 +1026,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 String errorMessage = String.format(
                 "SSTable '%s' has version '%s' which was not observed in cluster gossip info. " +
                 "Expected versions from gossip: %s. " +
-                "To retry the job using a fallback Cassandra version, " +
+                "To retry using cassandra.version based bridge selection, " +
                 "set %s=true",
                 ssTableFileName,
                 ssTableVersion,

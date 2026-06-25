@@ -120,7 +120,7 @@ public class BulkSparkConf implements Serializable
     public static final String CASSANDRA_VERSION                       = SETTING_PREFIX + "cassandra.version";
     // Disable SSTable version-based bridge determination. When true, falls back to using cassandra.version for bridge selection.
     // This provides a safety fallback mechanism if SSTable version detection fails or encounters issues.
-    public static final String DISABLE_SSTABLE_VERSION_BASED_BRIDGE   = SETTING_PREFIX + "bridge.disable_sstable_version_based";
+    public static final String DISABLE_SSTABLE_VERSION_BASED_BRIDGE    = SETTING_PREFIX + "bridge.disable_sstable_version_based";
     public static final String HTTP_MAX_CONNECTIONS                    = SETTING_PREFIX + "request.max_connections";
     public static final String HTTP_RESPONSE_TIMEOUT                   = SETTING_PREFIX + "request.response_timeout";
     public static final String HTTP_CONNECTION_TIMEOUT                 = SETTING_PREFIX + "request.connection_timeout";

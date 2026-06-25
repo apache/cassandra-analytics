@@ -40,7 +40,7 @@ public class SSTableVersionAnalyzerTest
 {
     // --- determineBridgeVersionForWrite success cases (parameterized) ---
 
-    static Stream<Arguments> writeFallbackDisabledSuccessCases()
+    static Stream<Arguments> writeLegacyDisabledSuccessCases()
     {
         return Stream.of(
             Arguments.of(Collections.singleton("big-oa"), "big", "5.0.0", CassandraVersion.FIVEZERO),
@@ -50,8 +50,8 @@ public class SSTableVersionAnalyzerTest
     }
 
     @ParameterizedTest
-    @MethodSource("writeFallbackDisabledSuccessCases")
-    void testDetermineBridgeVersionForWriteFallbackDisabled(Set<String> versions,
+    @MethodSource("writeLegacyDisabledSuccessCases")
+    void testDetermineBridgeVersionForWriteLegacyDisabled(Set<String> versions,
                                                             String format,
                                                             String cassandraVersion,
                                                             CassandraVersion expected)
@@ -85,7 +85,7 @@ public class SSTableVersionAnalyzerTest
     // --- determineBridgeVersionForWrite standalone tests ---
 
     @Test
-    void testDetermineBridgeVersionForWriteFallbackEnabled()
+    void testDetermineBridgeVersionForWriteLegacyEnabled()
     {
         CassandraVersion result = SSTableVersionAnalyzer.determineBridgeVersionForWrite(
             null, "big", "5.0.0", true
@@ -106,7 +106,7 @@ public class SSTableVersionAnalyzerTest
     // --- determineBridgeVersionForRead standalone tests ---
 
     @Test
-    void testDetermineBridgeVersionForReadFallbackDisabled()
+    void testDetermineBridgeVersionForReadLegacyDisabled()
     {
         Set<String> sstableVersions = Collections.singleton("big-oa");
         CassandraVersion result = SSTableVersionAnalyzer.determineBridgeVersionForRead(
@@ -116,7 +116,7 @@ public class SSTableVersionAnalyzerTest
     }
 
     @Test
-    void testDetermineBridgeVersionForReadFallbackEnabled()
+    void testDetermineBridgeVersionForReadLegacyEnabled()
     {
         CassandraVersion result = SSTableVersionAnalyzer.determineBridgeVersionForRead(
             null, "4.0.0", true

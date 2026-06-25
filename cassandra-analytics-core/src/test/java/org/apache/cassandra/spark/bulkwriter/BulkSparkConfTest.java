@@ -401,7 +401,7 @@ class BulkSparkConfTest
         Map<String, String> options = copyDefaultOptions();
         BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
         assertThat(conf.isSSTableVersionBasedBridgeDisabled())
-        .describedAs("By default, SSTable version-based bridge should be enabled (false)")
+        .describedAs("By default, SSTable version based bridge should be enabled (false)")
         .isFalse();
     }
 
@@ -412,7 +412,7 @@ class BulkSparkConfTest
                          .set(BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE, "true");
         BulkSparkConf bulkConf = new BulkSparkConf(conf, defaultOptions);
         assertThat(bulkConf.isSSTableVersionBasedBridgeDisabled())
-        .describedAs("SSTable version-based bridge should be disabled when configured")
+        .describedAs("SSTable version based bridge should be disabled when configured")
         .isTrue();
     }
 
@@ -423,7 +423,7 @@ class BulkSparkConfTest
                          .set(BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE, "false");
         BulkSparkConf bulkConf = new BulkSparkConf(conf, defaultOptions);
         assertThat(bulkConf.isSSTableVersionBasedBridgeDisabled())
-        .describedAs("SSTable version-based bridge should be enabled")
+        .describedAs("SSTable version based bridge should be enabled")
         .isFalse();
     }
 

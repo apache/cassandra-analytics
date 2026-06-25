@@ -389,6 +389,12 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
      */
     public String getLowestCassandraVersion()
     {
+        // Single cluster: return its version directly without aggregation
+        if (clusterInfos.size() == 1)
+        {
+            return ((CassandraClusterInfo) clusterInfos.get(0)).getLowestCassandraVersion();
+        }
+
         Map<String, String> clusterVersions = new HashMap<>();
         for (ClusterInfo ci : clusterInfos)
         {

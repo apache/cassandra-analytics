@@ -465,13 +465,32 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     /**
+     * Allows a subclass to override the Cassandra version via a feature flag.
+     * Returns {@code null} by default, meaning the version is determined from the cluster.
+     *
+     * @return overridden Cassandra version, or {@code null} to determine it from the cluster
+     */
+    public String getVersionFromFeature()
+    {
+        return null;
+    }
+
+    /**
      * Retrieves the lowest Cassandra version using the already-fired allNodeSettingFutures.
      * Reuses the existing CassandraContext instead of creating a separate one.
+     * If a version override is provided via {@link #getVersionFromFeature()}, that value is used instead.
      *
      * @return lowest Cassandra version string
      */
     public String getLowestCassandraVersion()
     {
+        String versionFromFeature = getVersionFromFeature();
+        if (versionFromFeature != null)
+        {
+            // Forcing writer to use a particular version
+            return versionFromFeature;
+        }
+
         List<NodeSettings> allNodeSettings = resolveAllNodeSettings();
 
         NodeSettings ns = allNodeSettings

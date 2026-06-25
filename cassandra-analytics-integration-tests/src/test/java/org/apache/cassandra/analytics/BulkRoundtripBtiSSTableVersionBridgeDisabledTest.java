@@ -21,7 +21,7 @@ package org.apache.cassandra.analytics;
 
 /**
  * Runs the {@link BulkRoundtripSSTableVersionBridgeTestBase} roundtrip suite with the BTI (bti-da) SSTable format
- * and SSTable version-based bridge selection DISABLED (fallback to {@code cassandra.version}).
+ * and SSTable version-based bridge selection DISABLED (legacy {@code cassandra.version}-based bridge selection).
  */
 class BulkRoundtripBtiSSTableVersionBridgeDisabledTest extends BulkRoundtripSSTableVersionBridgeTestBase
 {

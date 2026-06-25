@@ -34,7 +34,6 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.SSTableVersionAnalyzer;
-import org.apache.cassandra.spark.KryoRegister;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -119,9 +118,6 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
             lowestCassandraVersion,
             conf.isSSTableVersionBasedBridgeDisabled()
         );
-
-        // Validate that Kryo registrator exists for this bridge version
-        KryoRegister.validateKryoRegistratorExists(this.bridgeVersion, lowestCassandraVersion);
 
         // Build cluster info with determined bridge version
         this.clusterInfo = buildClusterInfo(this.bridgeVersion);
