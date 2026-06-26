@@ -123,9 +123,12 @@ public class RingInstance implements CassandraInstance, Serializable
     }
 
     /**
-     * Custom equality that compares the token, fully qualified domain name, the port, the datacenter and the clusterId
+     * Custom equality that compares the token, fully qualified domain name, the rack, the port, the datacenter
+     * and the clusterId
      *
-     * Note that node state, status,  are not part of the calculation.
+     * Note that node state, status and IP address are not part of the calculation. The IP address is excluded
+     * because a node can come back with a different IP address (e.g. a pod replacement in Kubernetes) while
+     * remaining the same logical instance.
      *
      * @param other the other instance
      * @return true if both instances are equal, false otherwise
@@ -147,22 +150,22 @@ public class RingInstance implements CassandraInstance, Serializable
                && Objects.equals(ringEntry.token(), that.ringEntry.token())
                && Objects.equals(ringEntry.fqdn(), that.ringEntry.fqdn())
                && Objects.equals(ringEntry.rack(), that.ringEntry.rack())
-               && Objects.equals(ringEntry.address(), that.ringEntry.address())
                && ringEntry.port() == that.ringEntry.port()
                && Objects.equals(ringEntry.datacenter(), that.ringEntry.datacenter());
     }
 
     /**
-     * Custom hashCode that compares the token, fully qualified domain name, the port, and the datacenter
+     * Custom hashCode that hashes the token, fully qualified domain name, the rack, the port, the datacenter
+     * and the clusterId
      *
-     * Note that node state and status are not part of the calculation.
+     * Note that node state, status and IP address are not part of the calculation.
      *
      * @return The hashcode of this instance based on the important fields
      */
     @Override
     public int hashCode()
     {
-        return Objects.hash(clusterId, ringEntry.token(), ringEntry.fqdn(), ringEntry.rack(), ringEntry.port(), ringEntry.datacenter(), ringEntry.address());
+        return Objects.hash(clusterId, ringEntry.token(), ringEntry.fqdn(), ringEntry.rack(), ringEntry.port(), ringEntry.datacenter());
     }
 
     @Override
