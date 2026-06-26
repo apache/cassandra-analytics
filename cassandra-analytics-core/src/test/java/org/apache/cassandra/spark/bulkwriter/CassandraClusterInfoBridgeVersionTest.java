@@ -48,7 +48,7 @@ public class CassandraClusterInfoBridgeVersionTest
     {
         TestClusterInfo info = new TestClusterInfo(conf(false), "4.0.0", Collections.singleton("big-oa"), "5.0.0");
 
-        assertThat(info.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
+        assertThat(info.getBridgeVersion()).isEqualTo("4.0.0");
         // override short-circuits: neither SSTable versions nor the lowest version are consulted
         assertThat(info.sstableVersionsCalls).isEqualTo(0);
         assertThat(info.lowestVersionCalls).isEqualTo(0);
@@ -59,7 +59,7 @@ public class CassandraClusterInfoBridgeVersionTest
     {
         TestClusterInfo info = new TestClusterInfo(conf(true), "4.0.0", Collections.singleton("big-oa"), "5.0.0");
 
-        assertThat(info.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
+        assertThat(info.getBridgeVersion()).isEqualTo("4.0.0");
         assertThat(info.sstableVersionsCalls).isEqualTo(0);
         assertThat(info.lowestVersionCalls).isEqualTo(0);
     }
@@ -77,7 +77,7 @@ public class CassandraClusterInfoBridgeVersionTest
         CassandraVersion expected = bti ? CassandraVersion.FIVEZERO : CassandraVersion.FOURZERO;
         TestClusterInfo info = new TestClusterInfo(conf(false), null, sstableVersions, "5.0.0");
 
-        assertThat(info.getBridgeVersion()).isEqualTo(expected);
+        assertThat(info.getBridgeVersion()).isEqualTo(expected.versionName() + ".0");
         assertThat(info.sstableVersionsCalls).isEqualTo(1);
         // SSTable-based selection does not consult the legacy lowest version
         assertThat(info.lowestVersionCalls).isEqualTo(0);
@@ -88,7 +88,7 @@ public class CassandraClusterInfoBridgeVersionTest
     {
         TestClusterInfo info = new TestClusterInfo(conf(true), null, Collections.singleton("big-oa"), "5.0.0");
 
-        assertThat(info.getBridgeVersion()).isEqualTo(CassandraVersion.FIVEZERO);
+        assertThat(info.getBridgeVersion()).isEqualTo("5.0.0");
         assertThat(info.lowestVersionCalls).isEqualTo(1);
         // legacy path does not consult SSTable versions
         assertThat(info.sstableVersionsCalls).isEqualTo(0);
@@ -116,8 +116,7 @@ public class CassandraClusterInfoBridgeVersionTest
 
         TestClusterInfo(BulkSparkConf conf, String versionFromFeature, Set<String> sstableVersions, String lowestVersion)
         {
-            // bridgeVersion arg is unused by getBridgeVersion(); pass any value
-            super(conf, CassandraVersion.FIVEZERO);
+            super(conf);
             this.versionFromFeature = versionFromFeature;
             this.sstableVersions = sstableVersions;
             this.lowestVersion = lowestVersion;
@@ -143,7 +142,7 @@ public class CassandraClusterInfoBridgeVersionTest
         }
 
         @Override
-        public String getLowestCassandraVersion()
+        public String getVersionFromSidecar()
         {
             lowestVersionCalls++;
             return lowestVersion;

@@ -340,7 +340,8 @@ public final class TableSchemaTestCommon
                 dataFrameSchema = dataFrameSchema.add(timestampOption.columnName(), DataTypes.LongType);
                 updatedCqlColumns = addColumnToCqlColumns(updatedCqlColumns, timestampOption.columnName(), SqlToCqlTypeConverter.BIGINT);
             }
-            CassandraVersion bridgeVersion = CassandraVersion.fromVersion(cassandraVersion)
+            // Validate the configured version is supported; TableSchema itself takes the version string.
+            CassandraVersion.fromVersion(cassandraVersion)
                 .orElseThrow(() -> new IllegalArgumentException("Unsupported Cassandra version: " + cassandraVersion));
 
             MockTableInfoProvider tableInfoProvider = new MockTableInfoProvider(bridge,
@@ -356,7 +357,7 @@ public final class TableSchemaTestCommon
                                    writeMode,
                                    ttlOption,
                                    timestampOption,
-                                   bridgeVersion,
+                                   cassandraVersion,
                                    quoteIdentifiers,
                                    skipSecondaryIndexCheck);
         }

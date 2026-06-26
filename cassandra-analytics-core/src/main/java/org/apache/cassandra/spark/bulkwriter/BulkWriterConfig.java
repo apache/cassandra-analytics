@@ -57,8 +57,7 @@ public class BulkWriterConfig implements Serializable
     // BroadcastableClusterInfo can be either BroadcastableCluster or BroadcastableClusterInfoGroup
     private final IBroadcastableClusterInfo clusterInfo;
     private final BroadcastableSchemaInfo schemaInfo;
-    // SSTable version-based bridge loading fields
-    private final CassandraVersion bridgeVersion;
+    private final String bridgeVersion;
 
     /**
      * Creates a new immutable BulkWriterConfig with pre-computed values
@@ -75,7 +74,7 @@ public class BulkWriterConfig implements Serializable
                             @NotNull BroadcastableJobInfo jobInfo,
                             @NotNull IBroadcastableClusterInfo clusterInfo,
                             @NotNull BroadcastableSchemaInfo schemaInfo,
-                            @NotNull CassandraVersion bridgeVersion)
+                            @NotNull String bridgeVersion)
     {
         this.conf = conf;
         this.sparkDefaultParallelism = sparkDefaultParallelism;
@@ -110,7 +109,7 @@ public class BulkWriterConfig implements Serializable
         return schemaInfo;
     }
 
-    public CassandraVersion getBridgeVersion()
+    public String getBridgeVersion()
     {
         return bridgeVersion;
     }

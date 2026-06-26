@@ -28,7 +28,6 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 
@@ -82,7 +81,7 @@ public class CassandraClusterInfoTest
 
         MockClusterInfoForTimeSkew(int allowanceMinutes, Instant remoteNow)
         {
-            super((BulkSparkConf) null, CassandraVersion.FIVEZERO);
+            super((BulkSparkConf) null);
             mockCassandraContext(allowanceMinutes, remoteNow);
         }
 

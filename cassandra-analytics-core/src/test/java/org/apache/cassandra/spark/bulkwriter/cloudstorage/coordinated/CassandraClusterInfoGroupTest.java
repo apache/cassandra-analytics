@@ -34,7 +34,6 @@ import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
@@ -252,6 +251,7 @@ class CassandraClusterInfoGroupTest
         CassandraClusterInfoGroup originalGroup = mockClusterGroup(2, index -> {
             CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
             when(clusterInfo.getPartitioner()).thenReturn(Partitioner.Murmur3Partitioner);
+            when(clusterInfo.getBridgeVersion()).thenReturn("5.0.0");
             return clusterInfo;
         });
 
@@ -274,6 +274,10 @@ class CassandraClusterInfoGroupTest
         .describedAs("Partitioner should be preserved after serialization")
         .isEqualTo(Partitioner.Murmur3Partitioner);
 
+        assertThat(deserializedBroadcastable.getBridgeVersion())
+        .describedAs("Bridge version should be preserved after serialization")
+        .isEqualTo("5.0.0");
+
         assertThat(deserializedBroadcastable.size())
         .describedAs("Number of clusters should be preserved after serialization")
         .isEqualTo(2);
@@ -293,10 +297,10 @@ class CassandraClusterInfoGroupTest
     {
         CassandraClusterInfoGroup group = mockClusterGroup(1, index -> {
             CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
-            when(clusterInfo.getBridgeVersion()).thenReturn(CassandraVersion.FIVEZERO);
+            when(clusterInfo.getBridgeVersion()).thenReturn("5.0.0");
             return clusterInfo;
         });
-        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FIVEZERO);
+        assertThat(group.getBridgeVersion()).isEqualTo("5.0.0");
     }
 
     @Test
@@ -305,10 +309,10 @@ class CassandraClusterInfoGroupTest
         // All clusters resolve to the same version -> compatible; the (equal) lowest is returned
         CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
             CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
-            when(clusterInfo.getBridgeVersion()).thenReturn(CassandraVersion.FOURZERO);
+            when(clusterInfo.getBridgeVersion()).thenReturn("4.0.0");
             return clusterInfo;
         });
-        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
+        assertThat(group.getBridgeVersion()).isEqualTo("4.0.0");
     }
 
     @Test
@@ -317,10 +321,10 @@ class CassandraClusterInfoGroupTest
         // 4.0 and 5.0 clusters -> write at the lowest (4.0) so the produced SSTables are importable by both
         CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
             CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
-            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? CassandraVersion.FOURZERO : CassandraVersion.FIVEZERO);
+            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? "4.0.0" : "5.0.0");
             return clusterInfo;
         });
-        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
+        assertThat(group.getBridgeVersion()).isEqualTo("4.0.0");
     }
 
     @Test
@@ -329,10 +333,10 @@ class CassandraClusterInfoGroupTest
         // 4.0 and 4.1 clusters -> write at the lowest (4.0)
         CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
             CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
-            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? CassandraVersion.FOURZERO : CassandraVersion.FOURONE);
+            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? "4.0.0" : "4.1.0");
             return clusterInfo;
         });
-        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
+        assertThat(group.getBridgeVersion()).isEqualTo("4.0.0");
     }
 
     @Test
@@ -341,7 +345,7 @@ class CassandraClusterInfoGroupTest
         // 3.0 and 5.0 clusters -> SSTables written at 3.0 cannot be imported by 5.0, so the coordinated write fails
         CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
             CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
-            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? CassandraVersion.THREEZERO : CassandraVersion.FIVEZERO);
+            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? "3.0.0" : "5.0.0");
             return clusterInfo;
         });
         assertThatThrownBy(group::getBridgeVersion)

@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -46,6 +45,7 @@ public final class BroadcastableClusterInfo implements IBroadcastableClusterInfo
 
     // Essential fields broadcast to executors
     private final Partitioner partitioner;
+    private final String bridgeVersion;
     private final String clusterId;
     private final BulkSparkConf conf;
 
@@ -58,24 +58,29 @@ public final class BroadcastableClusterInfo implements IBroadcastableClusterInfo
      */
     public static BroadcastableClusterInfo from(@NotNull ClusterInfo source, @NotNull BulkSparkConf conf)
     {
-        return new BroadcastableClusterInfo(source.getPartitioner(),
-                                            source.clusterId(),
-                                            conf);
+        return new BroadcastableClusterInfo(source.getPartitioner(), source.getBridgeVersion(), source.clusterId(), conf);
     }
 
     private BroadcastableClusterInfo(@NotNull Partitioner partitioner,
+                                     @NotNull String bridgeVersion,
                                      @Nullable String clusterId,
                                      @NotNull BulkSparkConf conf)
     {
         this.partitioner = partitioner;
+        this.bridgeVersion = bridgeVersion;
         this.clusterId = clusterId;
         this.conf = conf;
     }
 
-    @NotNull
     public BulkSparkConf getConf()
     {
         return conf;
+    }
+
+    @Override
+    public String getBridgeVersion()
+    {
+        return bridgeVersion;
     }
 
     @Override
@@ -92,8 +97,8 @@ public final class BroadcastableClusterInfo implements IBroadcastableClusterInfo
     }
 
     @Override
-    public ClusterInfo reconstruct(CassandraVersion bridgeVersion)
+    public ClusterInfo reconstruct()
     {
-        return new CassandraClusterInfo(this, bridgeVersion);
+        return new CassandraClusterInfo(this);
     }
 }

@@ -33,7 +33,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -72,7 +72,7 @@ import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIden
  * and includes the result in the {@link BulkWriterConfig} that gets broadcast.
  * <p>
  * On executors, a new instance is reconstructed from {@link BroadcastableClusterInfo}
- * using {@link #CassandraClusterInfo(BroadcastableClusterInfo, CassandraVersion)}, reusing broadcast-safe
+ * using {@link #CassandraClusterInfo(BroadcastableClusterInfo)}, reusing broadcast-safe
  * fields and fetching other data fresh from Sidecar.
  *
  * @see BroadcastableClusterInfo for the broadcast-safe subset of fields
@@ -86,7 +86,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     // Changes here must be reflected in BroadcastableClusterInfo.
     protected final BulkSparkConf conf;
     protected final String clusterId;
-    protected volatile Partitioner partitioner;
+    protected String bridgeVersion;
+    protected Partitioner partitioner;
 
     // -- Driver-only fields (not broadcast) --
     // NOT included in BroadcastableClusterInfo. Either expensive to serialize
@@ -96,53 +97,43 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     protected volatile String keyspaceSchema;
     protected volatile ReplicationFactor replicationFactor;
     protected volatile CassandraContext cassandraContext;
-    protected volatile CassandraVersion bridgeVersion;
-    private final List<CompletableFuture<NodeSettings>> allNodeSettingFutures;
-    private List<NodeSettings> resolvedNodeSettings;
+    protected final AtomicReference<NodeSettings> nodeSettings;
+    protected final List<CompletableFuture<NodeSettings>> allNodeSettingFutures;
 
-    public CassandraClusterInfo(BulkSparkConf conf, CassandraVersion bridgeVersion)
+    public CassandraClusterInfo(BulkSparkConf conf)
     {
-        this(conf, null, bridgeVersion);
+        this(conf, null);
     }
 
-    /**
-     * Constructor with bridge version for driver-side usage.
-     *
-     * @param conf           Bulk Spark configuration
-     * @param clusterId      Optional cluster identifier
-     * @param bridgeVersion  Determined bridge version (nullable for preliminary construction)
-     */
-    public CassandraClusterInfo(BulkSparkConf conf, String clusterId, CassandraVersion bridgeVersion)
+    // Used by CassandraClusterInfoGroup
+    public CassandraClusterInfo(BulkSparkConf conf, String clusterId)
     {
         this.conf = conf;
         this.clusterId = clusterId;
-        this.bridgeVersion = bridgeVersion;
         this.cassandraContext = buildCassandraContext();
-        // Fire the node-settings requests upfront so they are in-flight while the rest of driver-side
-        // initialization proceeds.
         LOGGER.info("Getting Cassandra versions from all nodes");
+        this.nodeSettings = new AtomicReference<>(null);
         this.allNodeSettingFutures = Sidecar.allNodeSettings(cassandraContext.getSidecarClient(),
                                                              cassandraContext.getCluster());
     }
 
     /**
      * Reconstruct from BroadcastableCluster on executor.
-     * Reuses partitioner and bridge version from broadcast,
+     * Reuses bridgeVersion and partitioner from broadcast,
      * fetches other data (tokenRangeMapping, replicationFactor, keyspaceSchema, writeAvailability) fresh from Sidecar.
      *
      * @param broadcastable the broadcastable cluster info from broadcast
-     * @param bridgeVersion the bridge version from broadcast
      */
-    public CassandraClusterInfo(BroadcastableClusterInfo broadcastable, CassandraVersion bridgeVersion)
+    public CassandraClusterInfo(BroadcastableClusterInfo broadcastable)
     {
         this.conf = broadcastable.getConf();
         this.clusterId = broadcastable.clusterId();
         this.partitioner = broadcastable.getPartitioner();
-        this.bridgeVersion = bridgeVersion;
+        this.bridgeVersion = broadcastable.getBridgeVersion();
         this.cassandraContext = buildCassandraContext();
-        LOGGER.info("Reconstructing CassandraClusterInfo on executor from BroadcastableCluster. clusterId={}, bridgeVersion={}",
-                    clusterId, bridgeVersion != null ? bridgeVersion.versionName() : "null");
-        // Executors do not need to query all node settings since cassandraVersion is already set from broadcast
+        LOGGER.info("Reconstructing CassandraClusterInfo on executor from BroadcastableCluster. clusterId={}", clusterId);
+        this.nodeSettings = new AtomicReference<>(null);
+        // Executors do not need to query all node settings since the bridge version is already set from broadcast
         this.allNodeSettingFutures = null;
     }
 
@@ -219,9 +210,24 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         {
             if (partitioner == null)
             {
-                List<NodeSettings> settings = resolveAllNodeSettings();
-                String partitionerString = settings.get(0).partitioner();
-                partitioner = Partitioner.from(partitionerString);
+                try
+                {
+                    String partitionerString;
+                    NodeSettings currentNodeSettings = nodeSettings.get();
+                    if (currentNodeSettings != null)
+                    {
+                        partitionerString = currentNodeSettings.partitioner();
+                    }
+                    else
+                    {
+                        partitionerString = getCassandraContext().getSidecarClient().nodeSettings().get().partitioner();
+                    }
+                    partitioner = Partitioner.from(partitionerString);
+                }
+                catch (ExecutionException | InterruptedException exception)
+                {
+                    throw new RuntimeException("Unable to retrieve partitioner information", exception);
+                }
             }
             return partitioner;
         }
@@ -386,6 +392,68 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         }
     }
 
+    /**
+     * Returns the Cassandra bridge version for this cluster, computed lazily on first use and cached.
+     * Mirrors {@link #getVersionFromSidecar()}'s lazy pattern: it works on the driver (where the value is
+     * computed from the cluster) and on executors (where the cached value is seeded from the broadcast
+     * {@link BroadcastableClusterInfo}, so no re-query is needed). The determination itself is in
+     * {@link #determineBridgeVersion()}.
+     *
+     * @return the determined Cassandra bridge version string (e.g. "5.0.0")
+     */
+    @Override
+    public String getBridgeVersion()
+    {
+        String currentBridgeVersion = bridgeVersion;
+        if (currentBridgeVersion != null)
+        {
+            return currentBridgeVersion;
+        }
+
+        synchronized (this)
+        {
+            if (bridgeVersion == null)
+            {
+                bridgeVersion = determineBridgeVersion();
+            }
+            return bridgeVersion;
+        }
+    }
+
+    /**
+     * Determines the Cassandra bridge version for this cluster, in priority order:
+     * <ol>
+     *   <li>an explicit version override from {@link #getVersionFromFeature()} (an operator escape hatch) —
+     *       takes precedence even when SSTable-version-based selection is enabled;</li>
+     *   <li>otherwise, when SSTable version-based selection is enabled, the lowest version derived from the
+     *       SSTable versions present, so the produced SSTables remain importable by every node;</li>
+     *   <li>otherwise (feature disabled), the lowest Cassandra release version reported by the cluster.</li>
+     * </ol>
+     *
+     * @return a version string for the determined bridge (e.g. "5.0.0")
+     */
+    private String determineBridgeVersion()
+    {
+        String versionOverride = getVersionFromFeature();
+        if (versionOverride != null)
+        {
+            // Forcing writer to use a particular version; validate it is a supported version up front
+            CassandraVersion.fromVersion(versionOverride)
+                            .orElseThrow(() -> new UnsupportedOperationException(
+                                "Unsupported Cassandra version override: " + versionOverride));
+            return versionOverride;
+        }
+
+        if (!conf.isSSTableVersionBasedBridgeDisabled())
+        {
+            CassandraVersion determined = SSTableVersionAnalyzer.determineBridgeVersionForWrite(getSSTableVersionsOnCluster(),
+                                                                                                CassandraVersion.configuredSSTableFormat());
+            // Return a full major.minor.patch string so it parses via CassandraVersionFeatures downstream
+            return determined.versionName() + ".0";
+        }
+
+        return getVersionFromSidecar();
+    }
 
     @Override
     public Map<RingInstance, WriteAvailability> clusterWriteAvailability()
@@ -416,36 +484,22 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                                         metadata -> new RingInstance(metadata, clusterId()));
     }
 
-    /**
-     * Sets the bridge version after preliminary construction.
-     * This allows constructing CassandraClusterInfo with a null bridgeVersion for early
-     * context reuse, then setting the version once it has been determined.
-     *
-     * @param bridgeVersion the determined Cassandra bridge version
-     */
-    public void setBridgeVersion(CassandraVersion bridgeVersion)
+    public String getVersionFromFeature()
     {
-        this.bridgeVersion = bridgeVersion;
+        return null;
     }
 
-    /**
-     * Resolves the node settings futures on first call and caches the result.
-     *
-     * @return list of resolved NodeSettings from all nodes
-     */
-    private synchronized List<NodeSettings> resolveAllNodeSettings()
+    protected List<NodeSettings> getAllNodeSettings()
     {
-        if (resolvedNodeSettings != null)
-        {
-            return resolvedNodeSettings;
-        }
-
         if (allNodeSettingFutures == null)
         {
             throw new IllegalStateException("getAllNodeSettings should not be called on executor. "
                                             + "Cassandra version is pre-computed on driver and broadcast to executors.");
         }
 
+        // Worst-case, the http client is configured for 1 worker pool.
+        // In that case, each future can take the full retry delay * number of retries,
+        // and each instance will be processed serially.
         final long totalTimeout = conf.getSidecarRequestMaxRetryDelayMillis() *
                                   conf.getSidecarRequestRetries() *
                                   allNodeSettingFutures.size();
@@ -464,72 +518,37 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                         allNodeSettings.size(), allNodeSettingFutures.size());
         }
 
-        resolvedNodeSettings = allNodeSettings;
-        return resolvedNodeSettings;
+        return allNodeSettings;
     }
 
-    /**
-     * Allows a subclass to override the Cassandra version via a feature flag.
-     * Returns {@code null} by default, meaning the version is determined from the cluster.
-     *
-     * @return overridden Cassandra version, or {@code null} to determine it from the cluster
-     */
-    public String getVersionFromFeature()
+    public String getVersionFromSidecar()
     {
-        return null;
-    }
-
-    /**
-     * Determines the Cassandra bridge version for this cluster, in priority order:
-     * <ol>
-     *   <li>an explicit version override from {@link #getVersionFromFeature()} (an operator escape hatch) —
-     *       takes precedence even when SSTable-version-based selection is enabled;</li>
-     *   <li>otherwise, when SSTable version-based selection is enabled, the lowest version derived from the
-     *       SSTable versions present, so the produced SSTables remain importable by every node;</li>
-     *   <li>otherwise (feature disabled), the lowest Cassandra release version reported by the cluster.</li>
-     * </ol>
-     *
-     * @return the determined Cassandra bridge version
-     */
-    public CassandraVersion getBridgeVersion()
-    {
-        String versionOverride = getVersionFromFeature();
-        if (versionOverride != null)
+        NodeSettings nodeSettings = this.nodeSettings.get();
+        if (nodeSettings != null)
         {
-            return CassandraVersion.fromVersion(versionOverride)
-                                   .orElseThrow(() -> new UnsupportedOperationException(
-                                       "Unsupported Cassandra version override: " + versionOverride));
+            return nodeSettings.releaseVersion();
         }
 
-        if (!conf.isSSTableVersionBasedBridgeDisabled())
-        {
-            return SSTableVersionAnalyzer.determineBridgeVersionForWrite(getSSTableVersionsOnCluster(),
-                                                                         CassandraVersion.configuredSSTableFormat());
-        }
-
-        String lowestCassandraVersion = getLowestCassandraVersion();
-        return CassandraVersion.fromVersion(lowestCassandraVersion)
-                               .orElseThrow(() -> new UnsupportedOperationException(
-                                   "Unsupported Cassandra version: " + lowestCassandraVersion));
+        return getLowestVersion(getAllNodeSettings());
     }
 
-    /**
-     * Retrieves the lowest Cassandra version reported by the cluster, using the already-fired
-     * allNodeSettingFutures. Reuses the existing CassandraContext instead of creating a separate one.
-     *
-     * @return lowest Cassandra version string
-     */
-    public String getLowestCassandraVersion()
+    @VisibleForTesting
+    public String getLowestVersion(List<NodeSettings> allNodeSettings)
     {
-        List<NodeSettings> allNodeSettings = resolveAllNodeSettings();
+        NodeSettings ns = this.nodeSettings.get();
+        if (ns != null)
+        {
+            return ns.releaseVersion();
+        }
 
-        NodeSettings ns = allNodeSettings
-                          .stream()
-                          .filter(settings -> !settings.releaseVersion().equalsIgnoreCase("unknown"))
-                          .min(Comparator.comparing(settings ->
-                                                    CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(settings.releaseVersion())))
-                          .orElseThrow(() -> new RuntimeException("No valid Cassandra Versions were returned from Cassandra Sidecar"));
-
+        // It is possible to run the below computation multiple times. Since the computation is local-only, it is OK.
+        ns = allNodeSettings
+             .stream()
+             .filter(settings -> !settings.releaseVersion().equalsIgnoreCase("unknown"))
+             .min(Comparator.comparing(settings ->
+                                       CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(settings.releaseVersion())))
+             .orElseThrow(() -> new RuntimeException("No valid Cassandra Versions were returned from Cassandra Sidecar"));
+        nodeSettings.compareAndSet(null, ns);
         return ns.releaseVersion();
     }
 
@@ -553,15 +572,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     protected CassandraBridge bridge()
     {
-        // Use the pre-determined bridgeVersion if available
-        if (bridgeVersion != null)
-        {
-            return CassandraBridgeFactory.get(bridgeVersion);
-        }
-
-        // Bridge version must be set before accessing bridge
-        throw new IllegalStateException(
-            "Bridge version must be set during construction before using bridge().");
+        return CassandraBridgeFactory.get(getBridgeVersion());
     }
 
     // Startup Validation

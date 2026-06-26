@@ -33,6 +33,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 import org.apache.commons.lang3.StringUtils;
@@ -84,6 +85,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     private volatile TokenRangeMapping<RingInstance> consolidatedTokenRangeMapping;
     // Pre-computed values from BroadcastableClusterInfoGroup (only set when reconstructed on executors)
     private Partitioner cachedPartitioner;
+    private String cachedBridgeVersion;
 
     /**
      * Creates {@link CassandraClusterInfoGroup} with the list of {@link ClusterInfo} from {@link BulkSparkConf} and validation
@@ -93,11 +95,8 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
      */
     public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf)
     {
-        // bridgeVersion is null at construction time; the real version is applied later via setBridgeVersion(),
-        // once the cluster's SSTable versions have been read from the preliminary group.
-        return fromBulkSparkConf(conf, clusterId -> new CassandraClusterInfo(conf, clusterId, null));
+        return fromBulkSparkConf(conf, clusterId -> new CassandraClusterInfo(conf, clusterId));
     }
-
 
     /**
      * Reconstruct from BroadcastableClusterInfoGroup on executor.
@@ -108,10 +107,9 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
      * @param broadcastable the broadcastable cluster info group from broadcast
      * @return new {@link CassandraClusterInfoGroup} instance
      */
-    public static CassandraClusterInfoGroup from(BroadcastableClusterInfoGroup broadcastable,
-                                                 CassandraVersion bridgeVersion)
+    public static CassandraClusterInfoGroup from(BroadcastableClusterInfoGroup broadcastable)
     {
-        return new CassandraClusterInfoGroup(broadcastable, bridgeVersion);
+        return new CassandraClusterInfoGroup(broadcastable);
     }
 
     /**
@@ -166,18 +164,19 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
      * re-validation and re-computation on executors.
      *
      * @param broadcastable the broadcastable cluster info group from broadcast
-     * @param bridgeVersion the bridge version from broadcast
      */
-    private CassandraClusterInfoGroup(BroadcastableClusterInfoGroup broadcastable, CassandraVersion bridgeVersion)
+    private CassandraClusterInfoGroup(BroadcastableClusterInfoGroup broadcastable)
     {
         // Build list of ClusterInfo from broadcastable data
         List<ClusterInfo> clusterInfosList = new ArrayList<>();
-        broadcastable.forEach((clusterId, broadcastableInfo) -> clusterInfosList.add(
-                new CassandraClusterInfo((BroadcastableClusterInfo) broadcastableInfo, bridgeVersion)));
+        broadcastable.forEach((clusterId, broadcastableInfo) -> {
+            clusterInfosList.add(new CassandraClusterInfo((BroadcastableClusterInfo) broadcastableInfo));
+        });
         this.clusterInfos = Collections.unmodifiableList(clusterInfosList);
 
         // Extract pre-computed values from driver to avoid re-validation on executors
         this.cachedPartitioner = broadcastable.getPartitioner();
+        this.cachedBridgeVersion = broadcastable.getBridgeVersion();
         this.clusterId = broadcastable.clusterId();
         clusterInfoById();
     }
@@ -211,6 +210,44 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
         }
 
         return consolidatedTokenRangeMapping;
+    }
+
+    /**
+     * Determines the Cassandra bridge version for a coordinated write across all clusters.
+     *
+     * <p>Each cluster determines its own bridge version (see {@link CassandraClusterInfo#getBridgeVersion()}),
+     * which is the lowest mutually-compatible SSTable version present on that cluster. Across clusters the
+     * lowest of those is chosen so the produced SSTables remain importable by every cluster (a node can import
+     * its own and older SSTable versions, but not newer ones). The selection fails if the lowest version's
+     * SSTables cannot be imported by the highest version present across clusters.
+     *
+     * <p>Computed lazily and cached; on executors the value is seeded from the broadcastable.
+     *
+     * @return the determined Cassandra bridge version
+     */
+    @Override
+    public String getBridgeVersion()
+    {
+        // Return cached value if available (executor-side reconstruction)
+        if (cachedBridgeVersion != null)
+        {
+            return cachedBridgeVersion;
+        }
+
+        if (clusterInfos.size() == 1)
+        {
+            return clusterInfos.get(0).getBridgeVersion();
+        }
+
+        // Write at the lowest so every cluster can import the produced SSTables, but only after verifying the
+        // lowest version's SSTables are importable by the highest version present.
+        List<CassandraVersion> bridgeVersions = clusterInfos.stream()
+                .map(ClusterInfo::getBridgeVersion)
+                .map(version -> CassandraVersion.fromVersion(version)
+                        .orElseThrow(() -> new UnsupportedOperationException("Unsupported Cassandra version: " + version)))
+                .collect(Collectors.toList());
+        CassandraVersion lowest = SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(bridgeVersions);
+        return lowest.versionName() + ".0";
     }
 
     @Override
@@ -368,43 +405,9 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
         return new RuntimeException("Failed to perform action on cluster: " + clusterInfo.clusterId(), cause);
     }
 
-    /**
-     * Sets the bridge version on all contained CassandraClusterInfo instances.
-     *
-     * @param bridgeVersion the determined Cassandra bridge version
-     */
-    public void setBridgeVersion(CassandraVersion bridgeVersion)
+    @VisibleForTesting
+    Map<String, ClusterInfo> clusterInfoByIdUnsafe()
     {
-        for (ClusterInfo ci : clusterInfos)
-        {
-            ((CassandraClusterInfo) ci).setBridgeVersion(bridgeVersion);
-        }
-    }
-
-    /**
-     * Determines the Cassandra bridge version for a coordinated write across all clusters.
-     *
-     * <p>Each cluster determines its own bridge version (see {@link CassandraClusterInfo#getBridgeVersion()}),
-     * which is the lowest mutually-compatible SSTable version present on that cluster. Across clusters the
-     * lowest of those is chosen so the produced SSTables remain importable by every cluster (a node can import
-     * its own and older SSTable versions, but not newer ones). The selection fails if the lowest version's
-     * SSTables cannot be imported by the highest version present across clusters.
-     *
-     * @return the determined Cassandra bridge version
-     */
-    public CassandraVersion getBridgeVersion()
-    {
-        // Single cluster: use its bridge version directly without aggregation
-        if (clusterInfos.size() == 1)
-        {
-            return ((CassandraClusterInfo) clusterInfos.get(0)).getBridgeVersion();
-        }
-
-        // Write at the lowest so every cluster can import the produced SSTables, but only after verifying the
-        // lowest version's SSTables are importable by the highest version present.
-        List<CassandraVersion> bridgeVersions = clusterInfos.stream()
-                                                            .map(ci -> ((CassandraClusterInfo) ci).getBridgeVersion())
-                                                            .collect(Collectors.toList());
-        return SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(bridgeVersions);
+        return clusterInfoById;
     }
 }

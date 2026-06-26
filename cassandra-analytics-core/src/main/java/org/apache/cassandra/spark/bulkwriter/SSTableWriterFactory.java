@@ -22,14 +22,10 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.util.Set;
 
 import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.bridge.SSTableWriter;
 
-/**
- * Factory for creating SSTableWriter instances.
- *
- * @deprecated This class is deprecated. Use {@code BulkWriterContext.bridge().getSSTableWriter()} directly instead.
- */
-@Deprecated
 public final class SSTableWriterFactory
 {
     private SSTableWriterFactory()
@@ -37,13 +33,7 @@ public final class SSTableWriterFactory
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    /**
-     * Creates an SSTableWriter using the provided bridge.
-     *
-     * @deprecated Use {@code cassandraBridge.getSSTableWriter()} directly instead.
-     */
-    @Deprecated
-    public static SSTableWriter getSSTableWriter(CassandraBridge cassandraBridge,
+    public static SSTableWriter getSSTableWriter(CassandraVersionFeatures bridgeVersion,
                                                  String inDirectory,
                                                  String partitioner,
                                                  String createStatement,
@@ -51,6 +41,7 @@ public final class SSTableWriterFactory
                                                  Set<String> userDefinedTypeStatements,
                                                  int bufferSizeMB)
     {
+        CassandraBridge cassandraBridge = CassandraBridgeFactory.get(bridgeVersion);
         return cassandraBridge.getSSTableWriter(inDirectory,
                                                 partitioner,
                                                 createStatement,

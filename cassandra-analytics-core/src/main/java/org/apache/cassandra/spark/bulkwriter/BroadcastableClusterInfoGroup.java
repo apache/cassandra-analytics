@@ -24,7 +24,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
 
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterSupport;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -35,7 +34,7 @@ import org.jetbrains.annotations.Nullable;
  * Broadcastable wrapper for coordinated writes with ZERO transient fields to optimize Spark broadcasting.
  * <p>
  * This class wraps multiple BroadcastableCluster instances for multi-cluster scenarios.
- * Pre-computed values (partitioner) are extracted from CassandraClusterInfoGroup on the driver
+ * Pre-computed values (partitioner, bridgeVersion) are extracted from CassandraClusterInfoGroup on the driver
  * to avoid duplicating aggregation/validation logic on executors.
  * <p>
  * <b>Why ZERO transient fields matters:</b><br>
@@ -57,10 +56,12 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
     private final String clusterId;
     private final BulkSparkConf conf;
     private final Partitioner partitioner;
+    private final String bridgeVersion;
 
     /**
      * Creates a BroadcastableClusterInfoGroup from a source ClusterInfo group.
-     * Extracts pre-computed partitioner from the source to avoid duplicating validation logic on executors.
+     * Extracts pre-computed values (partitioner, bridgeVersion) from the source
+     * to avoid duplicating aggregation/validation logic on executors.
      *
      * @param source the source CassandraClusterInfoGroup
      * @param conf   the BulkSparkConf needed to connect to Sidecar on executors
@@ -71,22 +72,25 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
         List<BroadcastableClusterInfo> broadcastableInfos = new ArrayList<>();
         source.forEach((clusterId, clusterInfo) -> broadcastableInfos.add(BroadcastableClusterInfo.from(clusterInfo, conf)));
 
-        // Extract pre-computed value from CassandraClusterInfoGroup
+        // Extract pre-computed values from CassandraClusterInfoGroup
         // These have already been validated/computed on the driver
         Partitioner partitioner = source.getPartitioner();
+        String bridgeVersion = source.getBridgeVersion();
 
-        return new BroadcastableClusterInfoGroup(broadcastableInfos, source.clusterId(), conf, partitioner);
+        return new BroadcastableClusterInfoGroup(broadcastableInfos, source.clusterId(), conf, partitioner, bridgeVersion);
     }
 
     private BroadcastableClusterInfoGroup(List<BroadcastableClusterInfo> clusterInfos,
                                           String clusterId,
                                           BulkSparkConf conf,
-                                          Partitioner partitioner)
+                                          Partitioner partitioner,
+                                          String bridgeVersion)
     {
         this.clusterInfos = Collections.unmodifiableList(clusterInfos);
         this.conf = conf;
         this.clusterId = clusterId;
         this.partitioner = partitioner;
+        this.bridgeVersion = bridgeVersion;
     }
 
     @Override
@@ -94,6 +98,14 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
     public BulkSparkConf getConf()
     {
         return conf;
+    }
+
+    @Override
+    public String getBridgeVersion()
+    {
+        // Return pre-computed value from CassandraClusterInfoGroup
+        // No need to duplicate aggregation/validation logic
+        return bridgeVersion;
     }
 
     @Override
@@ -131,8 +143,8 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
     }
 
     @Override
-    public ClusterInfo reconstruct(CassandraVersion bridgeVersion)
+    public ClusterInfo reconstruct()
     {
-        return CassandraClusterInfoGroup.from(this, bridgeVersion);
+        return CassandraClusterInfoGroup.from(this);
     }
 }

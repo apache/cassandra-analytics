@@ -33,7 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
@@ -61,7 +60,7 @@ public class TableSchema
     final WriteMode writeMode;
     final TTLOption ttlOption;
     final TimestampOption timestampOption;
-    final CassandraVersion bridgeVersion;
+    final String bridgeVersion;
     final boolean quoteIdentifiers;
 
     public TableSchema(StructType dfSchema,
@@ -69,7 +68,7 @@ public class TableSchema
                        WriteMode writeMode,
                        TTLOption ttlOption,
                        TimestampOption timestampOption,
-                       CassandraVersion bridgeVersion,
+                       String bridgeVersion,
                        boolean quoteIdentifiers,
                        boolean skipSecondaryIndexCheck)
     {
@@ -200,6 +199,7 @@ public class TableSchema
                                       TimestampOption timestampOption)
     {
         CassandraBridge bridge = CassandraBridgeFactory.get(bridgeVersion);
+
         List<String> columnNames = Arrays.stream(dfSchema.fieldNames())
                                          .filter(fieldName -> !fieldName.equals(ttlOption.columnName()))
                                          .filter(fieldName -> !fieldName.equals(timestampOption.columnName()))
@@ -327,7 +327,7 @@ public class TableSchema
                           .collect(Collectors.toList());
     }
 
-    private static void validateUserAddedColumns(CassandraVersion bridgeVersion, boolean quoteIdentifiers,
+    private static void validateUserAddedColumns(String bridgeVersion, boolean quoteIdentifiers,
                                                  TTLOption ttlOption, TimestampOption timestampOption)
     {
         if (!quoteIdentifiers)

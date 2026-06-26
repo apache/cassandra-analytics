@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import com.google.common.collect.Range;
 
 import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.jetbrains.annotations.NotNull;
 
@@ -35,15 +36,12 @@ public class CassandraDirectDataTransportContext implements TransportContext.Dir
     @NotNull
     private final ClusterInfo clusterInfo;
     @NotNull
-    private final CassandraBridge bridge;
-    @NotNull
     private final DirectDataTransferApi dataTransferApi;
 
     public CassandraDirectDataTransportContext(@NotNull BulkWriterContext bulkWriterContext)
     {
         this.jobInfo = bulkWriterContext.job();
         this.clusterInfo = bulkWriterContext.cluster();
-        this.bridge = bulkWriterContext.bridge();  // Use bridge from context (SSTable version-based)
         this.dataTransferApi = createDirectDataTransferApi();
     }
 
@@ -73,6 +71,7 @@ public class CassandraDirectDataTransportContext implements TransportContext.Dir
     // only invoke in constructor
     protected DirectDataTransferApi createDirectDataTransferApi()
     {
+        CassandraBridge bridge = CassandraBridgeFactory.get(clusterInfo.getBridgeVersion());
         return new SidecarDataTransferApi(clusterInfo.getCassandraContext(), bridge, jobInfo);
     }
 }

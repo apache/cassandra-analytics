@@ -23,13 +23,13 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AbstractBulkWriterContextTest
 {
@@ -52,18 +52,19 @@ class AbstractBulkWriterContextTest
         // CassandraClusterInfoBridgeVersionTest.
         BulkSparkConf conf = mock(BulkSparkConf.class);
         StructType schema = mock(StructType.class);
-        TestBulkWriterContext context = TestBulkWriterContext.create(conf, schema, 1, CassandraVersion.FIVEZERO);
+        TestBulkWriterContext context = TestBulkWriterContext.create(conf, schema, 1, "5.0.0");
 
-        assertThat(context.bridgeVersion()).isEqualTo(CassandraVersion.FIVEZERO);
+        assertThat(context.bridgeVersion()).isEqualTo("5.0.0");
     }
 
     /**
      * Concrete test implementation of AbstractBulkWriterContext for testing. The bridge version is supplied
-     * directly (the real determination is exercised at the ClusterInfo level).
+     * via the (mock) ClusterInfo returned by {@link #buildClusterInfo()} (the real determination is exercised
+     * at the ClusterInfo level).
      */
     static class TestBulkWriterContext extends AbstractBulkWriterContext
     {
-        private static CassandraVersion staticBridgeVersion;
+        private static String staticBridgeVersion;
 
         private TestBulkWriterContext(@NotNull BulkSparkConf conf,
                                       @NotNull StructType structType,
@@ -75,22 +76,18 @@ class AbstractBulkWriterContextTest
         static TestBulkWriterContext create(@NotNull BulkSparkConf conf,
                                             @NotNull StructType structType,
                                             int sparkDefaultParallelism,
-                                            CassandraVersion bridgeVersion)
+                                            String bridgeVersion)
         {
             staticBridgeVersion = bridgeVersion;
             return new TestBulkWriterContext(conf, structType, sparkDefaultParallelism);
         }
 
         @Override
-        protected CassandraVersion getBridgeVersion()
+        protected ClusterInfo buildClusterInfo()
         {
-            return staticBridgeVersion;
-        }
-
-        @Override
-        protected ClusterInfo buildClusterInfo(CassandraVersion bridgeVersion)
-        {
-            return mock(ClusterInfo.class);
+            ClusterInfo clusterInfo = mock(ClusterInfo.class);
+            when(clusterInfo.getBridgeVersion()).thenReturn(staticBridgeVersion);
+            return clusterInfo;
         }
 
         @Override

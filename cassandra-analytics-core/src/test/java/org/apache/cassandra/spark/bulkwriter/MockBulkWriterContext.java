@@ -378,7 +378,8 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
                                                  BulkFeatures.BULK_WRITER));
     }
 
-    public String getLowestCassandraVersion()
+    @Override
+    public String getBridgeVersion()
     {
         return cassandraVersion;
     }
@@ -389,13 +390,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         CassandraVersion version = CassandraVersion.fromVersion(cassandraVersion)
             .orElse(CassandraVersion.FIVEZERO);
         return new HashSet<>(version.getNativeSStableVersions());
-    }
-
-    @Override
-    public CassandraVersion bridgeVersion()
-    {
-        return CassandraVersion.fromVersion(cassandraVersion)
-            .orElse(CassandraVersion.FIVEZERO);
     }
 
     private List<String> buildCompleteBatchIds(List<String> uuids)

@@ -24,7 +24,6 @@ import java.util.Map;
 
 import com.google.common.collect.Range;
 
-import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -44,13 +43,15 @@ import org.jetbrains.annotations.Nullable;
  * for broadcasting to executors via {@link BulkWriterConfig}.
  * <p>
  * On executors, ClusterInfo instances are reconstructed from the broadcastable wrappers using
- * {@link AbstractBulkWriterContext#reconstructClusterInfoOnExecutor(IBroadcastableClusterInfo, CassandraVersion)}.
+ * {@link AbstractBulkWriterContext#reconstructClusterInfoOnExecutor(IBroadcastableClusterInfo)}.
  */
 public interface ClusterInfo extends StartupValidatable
 {
     void refreshClusterInfo();
 
     TokenRangeMapping<RingInstance> getTokenRangeMapping(boolean cached);
+
+    String getBridgeVersion();
 
     /**
      * @return WriteAvailability per RingInstance in the cluster
