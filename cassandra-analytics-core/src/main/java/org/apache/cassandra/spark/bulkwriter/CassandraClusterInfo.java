@@ -86,7 +86,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     // Changes here must be reflected in BroadcastableClusterInfo.
     protected final BulkSparkConf conf;
     protected final String clusterId;
-    protected Partitioner partitioner;
+    protected volatile Partitioner partitioner;
 
     // -- Driver-only fields (not broadcast) --
     // NOT included in BroadcastableClusterInfo. Either expensive to serialize
@@ -118,6 +118,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         this.clusterId = clusterId;
         this.bridgeVersion = bridgeVersion;
         this.cassandraContext = buildCassandraContext();
+        // Fire the node-settings requests upfront so they are in-flight while the rest of driver-side
+        // initialization proceeds.
         LOGGER.info("Getting Cassandra versions from all nodes");
         this.allNodeSettingFutures = Sidecar.allNodeSettings(cassandraContext.getSidecarClient(),
                                                              cassandraContext.getCluster());
@@ -440,7 +442,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
         if (allNodeSettingFutures == null)
         {
-            throw new IllegalStateException("allNodeSettingFutures is null");
+            throw new IllegalStateException("getAllNodeSettings should not be called on executor. "
+                                            + "Cassandra version is pre-computed on driver and broadcast to executors.");
         }
 
         final long totalTimeout = conf.getSidecarRequestMaxRetryDelayMillis() *

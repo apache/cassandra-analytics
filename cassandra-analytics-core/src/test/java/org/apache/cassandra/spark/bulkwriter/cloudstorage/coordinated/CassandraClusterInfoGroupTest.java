@@ -335,6 +335,20 @@ class CassandraClusterInfoGroupTest
         assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
     }
 
+    @Test
+    void testGetBridgeVersionIncompatibleMajorsThrows()
+    {
+        // 3.0 and 5.0 clusters -> SSTables written at 3.0 cannot be imported by 5.0, so the coordinated write fails
+        CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
+            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? CassandraVersion.THREEZERO : CassandraVersion.FIVEZERO);
+            return clusterInfo;
+        });
+        assertThatThrownBy(group::getBridgeVersion)
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining("not mutually compatible");
+    }
+
     private CassandraClusterInfoGroup mockClusterGroup(int size,
                                                        Function<Integer, CassandraClusterInfo> clusterInfoCreator)
     {

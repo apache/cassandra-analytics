@@ -151,6 +151,20 @@ public enum CassandraVersion
         return Collections.unmodifiableSet(readableVersions);
     }
 
+    /**
+     * Whether this Cassandra version can read (and therefore import) SSTables natively written by {@code other}.
+     * A version can read SSTables from every version in the inclusive range
+     * [{@link #lowestCompatibleVersionNumber}, this version]. For example, Cassandra 5.0 can read 4.0/4.1/5.0
+     * SSTables but not 3.x.
+     *
+     * @param other the Cassandra version whose SSTables would be read
+     * @return {@code true} if this version can read {@code other}'s SSTables
+     */
+    public boolean canRead(CassandraVersion other)
+    {
+        return other.number >= this.lowestCompatibleVersionNumber && other.number <= this.number;
+    }
+
     private static final String configuredSSTableFormat;
     private static final CassandraVersion[] implementedVersions;
     private static final String[] supportedVersions;

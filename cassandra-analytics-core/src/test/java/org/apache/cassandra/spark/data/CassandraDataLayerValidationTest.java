@@ -28,6 +28,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.SSTableVersionAnalyzer;
 import org.apache.cassandra.clients.Sidecar;
 import org.apache.cassandra.spark.data.partitioner.ConsistencyLevel;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
@@ -60,8 +61,10 @@ public class CassandraDataLayerValidationTest
     }
 
     @Test
-    void testValidateSStableVersionsListWithUnexpectedVersion()
+    void testValidateSStableVersionsAcceptsReadableVersionNotInGossip()
     {
+        // Only big-na was observed in gossip, but the selected read bridge (4.0) can also read big-nb. A version
+        // that appears after the gossip snapshot but is still readable by the bridge must not fail validation.
         Set<String> expectedVersions = new HashSet<>(List.of("big-na"));
         CassandraDataLayer dataLayer = createTestDataLayerWithVersions(expectedVersions);
 
@@ -69,11 +72,9 @@ public class CassandraDataLayerValidationTest
         SSTable ssTable2 = createMockSSTable("big", "nb", "test2-big-nb-Data.db");
         List<SSTable> sstables = Arrays.asList(ssTable1, ssTable2);
 
-        assertThatThrownBy(() -> dataLayer.validateSStableVersions(sstables))
-        .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessageContaining("has version 'big-nb' which was not observed in cluster gossip info")
-        .hasMessageContaining("test2-big-nb-Data.db")
-        .hasMessageContaining("set spark.cassandra_analytics.bridge.disable_sstable_version_based=true");
+        assertThatNoException()
+        .describedAs("A version readable by the selected bridge but not in the gossip snapshot should be accepted")
+        .isThrownBy(() -> dataLayer.validateSStableVersions(sstables));
     }
 
     @Test
@@ -99,7 +100,7 @@ public class CassandraDataLayerValidationTest
         assertThatThrownBy(() -> dataLayer.validateSStableVersions(sstables))
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessageContaining("keyspace-table-big-oa-Data.db")
-        .hasMessageContaining("Expected versions from gossip:")
+        .hasMessageContaining("Versions observed in gossip:")
         .hasMessageContaining("set spark.cassandra_analytics.bridge.disable_sstable_version_based=true");
     }
 
@@ -119,20 +120,22 @@ public class CassandraDataLayerValidationTest
     }
 
     @Test
-    void testValidateSStableVersionsListWithUnexpectedBtiVersion()
+    void testValidateSStableVersionsRejectsUnreadableOlderVersion()
     {
+        // The selected read bridge (5.0, from big-oa) cannot read 3.x SSTables (big-mf), so it must be rejected
+        // even though both are "big" format.
         Set<String> expectedVersions = new HashSet<>(List.of("big-oa"));
         CassandraDataLayer dataLayer = createTestDataLayerWithVersions(expectedVersions);
 
         SSTable ssTable1 = createMockSSTable("big", "oa", "test1-big-oa-Data.db");
-        SSTable ssTable2 = createMockSSTable("bti", "da", "keyspace-table-bti-da-Data.db");
+        SSTable ssTable2 = createMockSSTable("big", "mf", "keyspace-table-big-mf-Data.db");
         List<SSTable> sstables = Arrays.asList(ssTable1, ssTable2);
 
         assertThatThrownBy(() -> dataLayer.validateSStableVersions(sstables))
         .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessageContaining("has version 'bti-da' which was not observed in cluster gossip info")
-        .hasMessageContaining("keyspace-table-bti-da-Data.db")
-        .hasMessageContaining("Expected versions from gossip:")
+        .hasMessageContaining("has version 'big-mf' which is not readable by the bridge")
+        .hasMessageContaining("keyspace-table-big-mf-Data.db")
+        .hasMessageContaining("Versions observed in gossip:")
         .hasMessageContaining("set spark.cassandra_analytics.bridge.disable_sstable_version_based=true");
     }
 
@@ -268,7 +271,7 @@ public class CassandraDataLayerValidationTest
                   null,                               // sslConfig
                   mock(CqlTable.class),               // cqlTable
                   mock(TokenPartitioner.class),       // tokenPartitioner
-                  CassandraVersion.FOURZERO,          // bridgeVersion
+                  bridgeVersionFor(sstableVersions),  // bridgeVersion (matches what the driver would select)
                   ConsistencyLevel.LOCAL_QUORUM,      // consistencyLevel
                   "127.0.0.1",                        // sidecarInstances
                   9043,                               // sidecarPort
@@ -284,6 +287,18 @@ public class CassandraDataLayerValidationTest
                   null,                               // sstableTimeRangeFilter
                   sstableVersions);                   // sstableVersionsOnCluster
             this.sstableVersionsOnCluster = sstableVersions;
+        }
+
+        /**
+         * Derives the bridge version the driver would select for these SSTable versions, so that
+         * {@code bridge().getVersion()} (used by validateSStableVersions) matches the scenario. Falls back to
+         * 4.0 when no versions are supplied (disabled-feature / init-only cases).
+         */
+        private static CassandraVersion bridgeVersionFor(Set<String> sstableVersions)
+        {
+            return (sstableVersions == null || sstableVersions.isEmpty())
+                   ? CassandraVersion.FOURZERO
+                   : SSTableVersionAnalyzer.determineBridgeVersionForRead(sstableVersions);
         }
 
         @Override
@@ -307,8 +322,7 @@ public class CassandraDataLayerValidationTest
         @Override
         protected boolean isSSTableVersionBasedBridgeDisabled()
         {
-            // Override to avoid calling BulkSparkConf.getDisableSSTableVersionBasedBridge()
-            // which would try to initialize SparkContext in unit tests
+            // Override to avoid reading from the active SparkSession, which is not available in unit tests.
             // Always return false to test the validation logic
             return false;
         }

@@ -33,7 +33,6 @@ import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.Coordinate
 import org.apache.cassandra.spark.bulkwriter.util.SbwKryoRegistrator;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkContext;
 import org.jetbrains.annotations.NotNull;
 
 import static org.apache.cassandra.spark.bulkwriter.BulkSparkConf.DEFAULT_SIDECAR_PORT;
@@ -425,71 +424,6 @@ class BulkSparkConfTest
         assertThat(bulkConf.isSSTableVersionBasedBridgeDisabled())
         .describedAs("SSTable version based bridge should be enabled")
         .isFalse();
-    }
-
-    @Test
-    void testGetDisableSSTableVersionBasedBridgeDefaultValue()
-    {
-        // Create a SparkContext without setting the DISABLE_SSTABLE_VERSION_BASED_BRIDGE flag
-        SparkConf conf = new SparkConf()
-                         .setMaster("local[1]")
-                         .setAppName("test-static-get-default");
-        SparkContext sc = new SparkContext(conf);
-        try
-        {
-            boolean result = BulkSparkConf.getDisableSSTableVersionBasedBridge();
-            assertThat(result)
-            .describedAs("getDisableSSTableVersionBasedBridge should return false (enabled) when flag is not set")
-            .isFalse();
-        }
-        finally
-        {
-            sc.stop();
-        }
-    }
-
-    @Test
-    void testGetDisableSSTableVersionBasedBridgeWhenDisabled()
-    {
-        // Create a SparkContext with DISABLE_SSTABLE_VERSION_BASED_BRIDGE set to true
-        SparkConf conf = new SparkConf()
-                         .setMaster("local[1]")
-                         .setAppName("test-static-get-disabled")
-                         .set(BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE, "true");
-        SparkContext sc = new SparkContext(conf);
-        try
-        {
-            boolean result = BulkSparkConf.getDisableSSTableVersionBasedBridge();
-            assertThat(result)
-            .describedAs("getDisableSSTableVersionBasedBridge should return true (disabled) when flag is set to true")
-            .isTrue();
-        }
-        finally
-        {
-            sc.stop();
-        }
-    }
-
-    @Test
-    void testGetDisableSSTableVersionBasedBridgeWhenEnabled()
-    {
-        // Create a SparkContext with DISABLE_SSTABLE_VERSION_BASED_BRIDGE explicitly set to false
-        SparkConf conf = new SparkConf()
-                         .setMaster("local[1]")
-                         .setAppName("test-static-get-enabled")
-                         .set(BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE, "false");
-        SparkContext sc = new SparkContext(conf);
-        try
-        {
-            boolean result = BulkSparkConf.getDisableSSTableVersionBasedBridge();
-            assertThat(result)
-            .describedAs("getDisableSSTableVersionBasedBridge should return false (enabled) when flag is explicitly set to false")
-            .isFalse();
-        }
-        finally
-        {
-            sc.stop();
-        }
     }
 
     private Map<String, String> copyDefaultOptions()

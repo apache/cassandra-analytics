@@ -22,7 +22,6 @@ package org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -41,6 +40,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.SSTableVersionAnalyzer;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.CassandraContext;
@@ -387,7 +387,8 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
      * <p>Each cluster determines its own bridge version (see {@link CassandraClusterInfo#getBridgeVersion()}),
      * which is the lowest mutually-compatible SSTable version present on that cluster. Across clusters the
      * lowest of those is chosen so the produced SSTables remain importable by every cluster (a node can import
-     * its own and older SSTable versions, but not newer ones).
+     * its own and older SSTable versions, but not newer ones). The selection fails if the lowest version's
+     * SSTables cannot be imported by the highest version present across clusters.
      *
      * @return the determined Cassandra bridge version
      */
@@ -399,10 +400,11 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
             return ((CassandraClusterInfo) clusterInfos.get(0)).getBridgeVersion();
         }
 
-        // Write at the lowest so every cluster can import the produced SSTables
-        return clusterInfos.stream()
-                           .map(ci -> ((CassandraClusterInfo) ci).getBridgeVersion())
-                           .min(Comparator.comparingInt(CassandraVersion::versionNumber))
-                           .orElseThrow(() -> new IllegalStateException("No cluster bridge versions available"));
+        // Write at the lowest so every cluster can import the produced SSTables, but only after verifying the
+        // lowest version's SSTables are importable by the highest version present.
+        List<CassandraVersion> bridgeVersions = clusterInfos.stream()
+                                                            .map(ci -> ((CassandraClusterInfo) ci).getBridgeVersion())
+                                                            .collect(Collectors.toList());
+        return SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(bridgeVersions);
     }
 }

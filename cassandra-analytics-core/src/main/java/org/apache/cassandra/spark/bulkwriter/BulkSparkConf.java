@@ -50,7 +50,6 @@ import org.apache.cassandra.spark.common.SidecarInstanceFactory;
 import org.apache.cassandra.spark.utils.BuildInfo;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.spark.SparkConf;
-import org.apache.spark.SparkContext;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -741,25 +740,6 @@ public class BulkSparkConf implements Serializable
     public boolean isSSTableVersionBasedBridgeDisabled()
     {
         return disableSSTableVersionBasedBridge;
-    }
-
-    /**
-     * Utility method to retrieve the disable SSTable version-based bridge flag
-     * from Spark configuration. This can be called from contexts where a BulkSparkConf
-     * instance is not available.
-     * <p>
-     * NOTE: must only be called on the driver. It relies on {@code SparkContext.getOrCreate()},
-     * which has no active context on executors and would attempt to build a new (master-less)
-     * context there. The reader propagates the resolved decision to executors via the
-     * serialized {@code sstableVersionsOnCluster} set (empty == disabled).
-     *
-     * @return true if SSTable version-based bridge selection should be disabled
-     */
-    public static boolean getDisableSSTableVersionBasedBridge()
-    {
-        return SparkContext.getOrCreate()
-                           .getConf()
-                           .getBoolean(DISABLE_SSTABLE_VERSION_BASED_BRIDGE, false);
     }
 
     public StorageClientConfig getStorageClientConfig()

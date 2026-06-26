@@ -100,6 +100,7 @@ import org.apache.cassandra.spark.validation.CassandraValidation;
 import org.apache.cassandra.spark.validation.SidecarValidation;
 import org.apache.cassandra.spark.validation.StartupValidatable;
 import org.apache.cassandra.spark.validation.StartupValidator;
+import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.types.DataType;
 import org.apache.spark.util.ShutdownHookManager;
@@ -334,15 +335,21 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     }
 
     /**
-     * Checks if SSTable version-based bridge selection is disabled.
-     * Protected to allow test overrides without SparkContext.
+     * Checks if SSTable version-based bridge selection is disabled, reading the flag from the active
+     * (driver-side) {@link SparkSession}. Protected to allow test overrides without a SparkSession.
      *
      * @return true if disabled, false if enabled
      */
     @VisibleForTesting
     protected boolean isSSTableVersionBasedBridgeDisabled()
     {
-        return BulkSparkConf.getDisableSSTableVersionBasedBridge();
+        // Read from the active SparkSession on the driver. This intentionally does not create a SparkContext:
+        // SparkSession.active() fails fast if called without an active/default session (e.g. on an executor),
+        // rather than silently building a master-less context.
+        return SparkSession.active()
+                           .sparkContext()
+                           .getConf()
+                           .getBoolean(BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE, false);
     }
 
     /**
@@ -371,21 +378,12 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
         else
         {
-            Set<String> retrieved = retrieveSSTableVersionsFromCluster();
-            // Fail fast with an actionable hint when no SSTable versions could be retrieved while the
-            // feature is enabled (in disabled mode this branch is not taken, so empty here is unexpected).
-            if (retrieved.isEmpty())
-            {
-                throw new IllegalStateException(String.format(
-                "Unable to retrieve SSTable versions from cluster. This is required for SSTable "
-                + "version-based bridge selection. To bypass this check and use cassandra.version for "
-                + "bridge selection, set %s=true", BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
-            }
             // Wrap in a HashSet: retrieveSSTableVersionsFromCluster() may return Collections.emptySet()
             // or an unspecified Set type from Collectors.toSet(), but Kryo reads this field back via
             // kryo.readObject(in, HashSet.class), so the concrete type must be HashSet.
-            this.sstableVersionsOnCluster = new HashSet<>(retrieved);
-            // Pick the highest (mutually-compatible) version present on the cluster.
+            this.sstableVersionsOnCluster = new HashSet<>(retrieveSSTableVersionsFromCluster());
+            // Pick the highest (mutually-compatible) version present on the cluster. determineBridgeVersionForRead
+            // fails fast with an actionable hint when no SSTable versions were retrieved while the feature is enabled.
             bridgeVersion = SSTableVersionAnalyzer.determineBridgeVersionForRead(sstableVersionsOnCluster);
         }
 
@@ -960,22 +958,30 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             return;
         }
 
+        // Accept any SSTable version the already-selected read bridge can read, not just the exact set observed
+        // in the driver's gossip snapshot. The bridge was determined on the driver (the highest version present)
+        // and reconstructed here; a flush/compaction producing a still-readable version between the snapshot and
+        // the read should not spuriously fail. Genuinely unreadable versions (e.g. a newer major than the bridge)
+        // are still rejected.
+        Set<String> readableVersions = bridge().getVersion().getSupportedSStableVersionsForRead();
+
         for (SSTable ssTable : sstables)
         {
             String ssTableFileName = ssTable.getDataFileName();
             // Extract full version string (e.g., "big-nb" from the filename)
             String ssTableVersion = ssTable.getFormat() + "-" + ssTable.getVersion();
 
-            if (!expectedVersions.contains(ssTableVersion))
+            if (!readableVersions.contains(ssTableVersion))
             {
                 String errorMessage = String.format(
-                "SSTable '%s' has version '%s' which was not observed in cluster gossip info. " +
-                "Expected versions from gossip: %s. " +
+                "SSTable '%s' has version '%s' which is not readable by the bridge selected from cluster gossip info. " +
+                "Versions observed in gossip: %s. Versions readable by the selected bridge: %s. " +
                 "To retry using cassandra.version based bridge selection, " +
                 "set %s=true",
                 ssTableFileName,
                 ssTableVersion,
                 expectedVersions,
+                readableVersions,
                 BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE);
                 LOGGER.error(errorMessage);
                 throw new UnsupportedOperationException(errorMessage);
@@ -984,8 +990,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
 
         if (!sstables.isEmpty())
         {
-            LOGGER.debug("Validated {} SSTable(s) against expected versions from gossip: {}",
-                         sstables.size(), expectedVersions);
+            LOGGER.debug("Validated {} SSTable(s) against versions readable by the selected bridge: {}",
+                         sstables.size(), readableVersions);
         }
     }
 

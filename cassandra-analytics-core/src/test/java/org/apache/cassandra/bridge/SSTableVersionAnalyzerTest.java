@@ -88,7 +88,9 @@ public class SSTableVersionAnalyzerTest
     void testDetermineBridgeVersionForWriteNullOrEmptyThrows(Set<String> versions)
     {
         assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(versions, "big"))
-            .isInstanceOf(IllegalStateException.class);
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Unable to retrieve SSTable versions from cluster")
+            .hasMessageContaining("disable_sstable_version_based");
     }
 
     @Test
@@ -131,6 +133,46 @@ public class SSTableVersionAnalyzerTest
     void testDetermineBridgeVersionForReadNullOrEmptyThrows(Set<String> versions)
     {
         assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForRead(versions))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Unable to retrieve SSTable versions from cluster")
+            .hasMessageContaining("disable_sstable_version_based");
+    }
+
+    // --- lowestCompatibleWriteVersionForCoordinatedWrites: coordinated multi-cluster write target ---
+
+    @Test
+    void testLowestCompatibleWriteVersionPicksLowestWhenCompatible()
+    {
+        // 4.0 + 5.0: SSTables written at 4.0 are importable by 5.0, so the lowest (4.0) is chosen
+        assertThat(SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(
+            Arrays.asList(CassandraVersion.FOURZERO, CassandraVersion.FIVEZERO)))
+            .isEqualTo(CassandraVersion.FOURZERO);
+    }
+
+    @Test
+    void testLowestCompatibleWriteVersionSameVersion()
+    {
+        assertThat(SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(
+            Arrays.asList(CassandraVersion.FIVEZERO, CassandraVersion.FIVEZERO)))
+            .isEqualTo(CassandraVersion.FIVEZERO);
+    }
+
+    @Test
+    void testLowestCompatibleWriteVersionRejectsIncompatibleMajors()
+    {
+        // 3.0 + 5.0: SSTables written at 3.0 cannot be imported by 5.0 -> reject
+        assertThatThrownBy(() -> SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(
+            Arrays.asList(CassandraVersion.THREEZERO, CassandraVersion.FIVEZERO)))
+            .isInstanceOf(UnsupportedOperationException.class)
+            .hasMessageContaining("not mutually compatible");
+    }
+
+    @Test
+    void testLowestCompatibleWriteVersionNullOrEmptyThrows()
+    {
+        assertThatThrownBy(() -> SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(Collections.emptyList()))
+            .isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(null))
             .isInstanceOf(IllegalStateException.class);
     }
 }

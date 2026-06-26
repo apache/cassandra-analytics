@@ -20,10 +20,13 @@
 package org.apache.cassandra.bridge;
 
 import java.util.Comparator;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 
 /**
  * Determines which Cassandra bridge to load from the SSTable versions present on a cluster.
@@ -48,6 +51,8 @@ public final class SSTableVersionAnalyzer
      */
     public static CassandraVersion determineBridgeVersionForWrite(Set<String> sstableVersionsOnCluster, String requestedFormat)
     {
+        requireSSTableVersionsPresent(sstableVersionsOnCluster);
+
         // Every observed version must be mutually compatible (readable by the highest version present).
         ensureMutuallyCompatibleVersions(sstableVersionsOnCluster, highestCompatibleVersion(sstableVersionsOnCluster));
 
@@ -76,9 +81,69 @@ public final class SSTableVersionAnalyzer
      */
     public static CassandraVersion determineBridgeVersionForRead(Set<String> sstableVersionsOnCluster)
     {
+        requireSSTableVersionsPresent(sstableVersionsOnCluster);
+
         CassandraVersion highest = highestCompatibleVersion(sstableVersionsOnCluster);
         ensureMutuallyCompatibleVersions(sstableVersionsOnCluster, highest);
         return highest;
+    }
+
+    /**
+     * Fails fast with an actionable hint when no SSTable versions could be retrieved while SSTable version-based
+     * bridge selection is enabled. Shared by the read and write paths.
+     *
+     * @param sstableVersionsOnCluster the observed SSTable versions
+     * @throws IllegalStateException if {@code sstableVersionsOnCluster} is null or empty
+     */
+    private static void requireSSTableVersionsPresent(Set<String> sstableVersionsOnCluster)
+    {
+        if (sstableVersionsOnCluster == null || sstableVersionsOnCluster.isEmpty())
+        {
+            throw new IllegalStateException(String.format(
+                "Unable to retrieve SSTable versions from cluster. This is required for SSTable version-based "
+                + "bridge selection. To bypass this check and use cassandra.version for bridge selection, set %s=true",
+                BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
+        }
+    }
+
+    /**
+     * Determines the bridge version for a coordinated bulk write across multiple clusters, given the per-cluster
+     * bridge versions. Writes at the <em>lowest</em> version present so the produced SSTables are importable by
+     * every cluster, but first verifies that lowest version's SSTables can actually be read (imported) by the
+     * <em>highest</em> version present; otherwise the clusters span incompatible Cassandra majors and the
+     * coordinated write cannot proceed.
+     *
+     * @param bridgeVersions the per-cluster bridge versions
+     * @return the lowest version, which is the version to write at
+     * @throws IllegalStateException         if {@code bridgeVersions} is null or empty
+     * @throws UnsupportedOperationException if the lowest version's SSTables cannot be imported by the highest
+     *                                       version present
+     */
+    public static CassandraVersion lowestCompatibleWriteVersionForCoordinatedWrites(Collection<CassandraVersion> bridgeVersions)
+    {
+        if (bridgeVersions == null || bridgeVersions.isEmpty())
+        {
+            throw new IllegalStateException("No cluster bridge versions available");
+        }
+
+        CassandraVersion highest = bridgeVersions.stream()
+                                                 .max(Comparator.comparingInt(CassandraVersion::versionNumber))
+                                                 .orElseThrow(() -> new IllegalStateException("No cluster bridge versions available"));
+        CassandraVersion lowest = bridgeVersions.stream()
+                                                .min(Comparator.comparingInt(CassandraVersion::versionNumber))
+                                                .orElseThrow(() -> new IllegalStateException("No cluster bridge versions available"));
+
+        // Writing at the lowest version is only safe if the highest version present can import those SSTables.
+        if (!highest.canRead(lowest))
+        {
+            throw new UnsupportedOperationException(String.format(
+                "Cluster bridge versions are not mutually compatible for a coordinated write: SSTables written at the "
+                + "lowest version present (%s) cannot be imported by the highest version present (%s, which reads %s). "
+                + "Per-cluster bridge versions: %s",
+                lowest.versionName(), highest.versionName(), highest.getSupportedSStableVersionsForRead(), bridgeVersions));
+        }
+
+        return lowest;
     }
 
     /**
