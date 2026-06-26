@@ -34,6 +34,7 @@ import com.google.common.collect.Range;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
@@ -285,6 +286,53 @@ class CassandraClusterInfoGroupTest
             clusterCount[0]++;
         });
         assertThat(clusterCount[0]).isEqualTo(2);
+    }
+
+    @Test
+    void testGetBridgeVersionSingleClusterDelegates()
+    {
+        CassandraClusterInfoGroup group = mockClusterGroup(1, index -> {
+            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+            when(clusterInfo.getBridgeVersion()).thenReturn(CassandraVersion.FIVEZERO);
+            return clusterInfo;
+        });
+        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FIVEZERO);
+    }
+
+    @Test
+    void testGetBridgeVersionMultiClusterSameVersionReturnsIt()
+    {
+        // All clusters resolve to the same version -> compatible; the (equal) lowest is returned
+        CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
+            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+            when(clusterInfo.getBridgeVersion()).thenReturn(CassandraVersion.FOURZERO);
+            return clusterInfo;
+        });
+        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
+    }
+
+    @Test
+    void testGetBridgeVersionMultiClusterAcrossMajorsReturnsLowest()
+    {
+        // 4.0 and 5.0 clusters -> write at the lowest (4.0) so the produced SSTables are importable by both
+        CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
+            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? CassandraVersion.FOURZERO : CassandraVersion.FIVEZERO);
+            return clusterInfo;
+        });
+        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
+    }
+
+    @Test
+    void testGetBridgeVersionFourZeroAndFourOneReturnsLowest()
+    {
+        // 4.0 and 4.1 clusters -> write at the lowest (4.0)
+        CassandraClusterInfoGroup group = mockClusterGroup(2, index -> {
+            CassandraClusterInfo clusterInfo = mockClusterInfo("cluster" + index);
+            when(clusterInfo.getBridgeVersion()).thenReturn(index == 0 ? CassandraVersion.FOURZERO : CassandraVersion.FOURONE);
+            return clusterInfo;
+        });
+        assertThat(group.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
     }
 
     private CassandraClusterInfoGroup mockClusterGroup(int size,

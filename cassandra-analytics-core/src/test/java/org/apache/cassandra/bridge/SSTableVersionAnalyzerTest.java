@@ -38,149 +38,99 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 public class SSTableVersionAnalyzerTest
 {
-    // --- determineBridgeVersionForWrite success cases (parameterized) ---
+    // --- determineBridgeVersionForWrite: picks the LOWEST mutually-compatible version ---
 
-    static Stream<Arguments> writeLegacyDisabledSuccessCases()
+    static Stream<Arguments> writeLowestVersionCases()
     {
         return Stream.of(
-            Arguments.of(Collections.singleton("big-oa"), "big", "5.0.0", CassandraVersion.FIVEZERO),
-            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-nb")), "big", "4.0.0", CassandraVersion.FOURZERO),
-            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-oa")), "big", "5.0.0", CassandraVersion.FIVEZERO)
+            Arguments.of(Collections.singleton("big-oa"), "big", CassandraVersion.FIVEZERO),
+            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-nb")), "big", CassandraVersion.FOURZERO),
+            // mixed 4.0 + 5.0 sstables: lowest that every node can import is 4.0
+            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-oa")), "big", CassandraVersion.FOURZERO),
+            Arguments.of(Collections.singleton("bti-da"), "bti", CassandraVersion.FIVEZERO)
         );
     }
 
     @ParameterizedTest
-    @MethodSource("writeLegacyDisabledSuccessCases")
-    void testDetermineBridgeVersionForWriteLegacyDisabled(Set<String> versions,
-                                                            String format,
-                                                            String cassandraVersion,
-                                                            CassandraVersion expected)
+    @MethodSource("writeLowestVersionCases")
+    void testDetermineBridgeVersionForWritePicksLowest(Set<String> versions, String format, CassandraVersion expected)
     {
-        CassandraVersion result = SSTableVersionAnalyzer.determineBridgeVersionForWrite(
-            versions, format, cassandraVersion, false
-        );
-        assertThat(result).isEqualTo(expected);
+        assertThat(SSTableVersionAnalyzer.determineBridgeVersionForWrite(versions, format)).isEqualTo(expected);
     }
 
-    // --- determineBridgeVersionForWrite null/empty exception cases (parameterized) ---
+    @Test
+    void testDetermineBridgeVersionForWriteRejectsUnsupportedFormat()
+    {
+        // lowest version is FOURZERO, which does not support bti
+        assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(
+            new HashSet<>(Arrays.asList("big-na", "big-oa")), "bti"))
+            .isInstanceOf(UnsupportedOperationException.class)
+            .hasMessageContaining("does not support requested SSTable format 'bti'");
+    }
 
-    static Stream<Arguments> writeNullOrEmptyVersionsCases()
+    @Test
+    void testDetermineBridgeVersionForWriteRejectsIncompatibleVersions()
+    {
+        // big-mf (3.0) cannot be read by the highest version present (5.0)
+        assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(
+            new HashSet<>(Arrays.asList("big-mf", "big-oa")), "big"))
+            .isInstanceOf(UnsupportedOperationException.class)
+            .hasMessageContaining("not mutually compatible");
+    }
+
+    static Stream<Arguments> nullOrEmptyCases()
+    {
+        return Stream.of(Arguments.of(Collections.emptySet()), Arguments.of((Set<String>) null));
+    }
+
+    @ParameterizedTest
+    @MethodSource("nullOrEmptyCases")
+    void testDetermineBridgeVersionForWriteNullOrEmptyThrows(Set<String> versions)
+    {
+        assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(versions, "big"))
+            .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void testDetermineBridgeVersionForWriteUnknownVersionThrows()
+    {
+        assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(Collections.singleton("unknown-xx"), "big"))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("Unknown SSTable version");
+    }
+
+    // --- determineBridgeVersionForRead: picks the HIGHEST mutually-compatible version ---
+
+    static Stream<Arguments> readHighestVersionCases()
     {
         return Stream.of(
-            Arguments.of(Collections.emptySet()),
-            Arguments.of((Set<String>) null)
+            Arguments.of(Collections.singleton("big-oa"), CassandraVersion.FIVEZERO),
+            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-nb")), CassandraVersion.FOURZERO),
+            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-oa")), CassandraVersion.FIVEZERO)
         );
     }
 
     @ParameterizedTest
-    @MethodSource("writeNullOrEmptyVersionsCases")
-    void testDetermineBridgeVersionForWriteNullOrEmptyThrowsException(Set<String> versions)
+    @MethodSource("readHighestVersionCases")
+    void testDetermineBridgeVersionForReadPicksHighest(Set<String> versions, CassandraVersion expected)
     {
-        assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(
-            versions, "big", "5.0.0", false
-        )).isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("Unable to retrieve SSTable versions from cluster");
-    }
-
-    // --- determineBridgeVersionForWrite standalone tests ---
-
-    @Test
-    void testDetermineBridgeVersionForWriteLegacyEnabled()
-    {
-        CassandraVersion result = SSTableVersionAnalyzer.determineBridgeVersionForWrite(
-            null, "big", "5.0.0", true
-        );
-        assertThat(result).isEqualTo(CassandraVersion.FIVEZERO);
+        assertThat(SSTableVersionAnalyzer.determineBridgeVersionForRead(versions)).isEqualTo(expected);
     }
 
     @Test
-    void testDetermineBridgeVersionForWriteUnsupportedFormat()
-    {
-        Set<String> sstableVersions = Collections.singleton("big-na");
-        assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(
-            sstableVersions, "bti", "4.0.0", false
-        )).isInstanceOf(UnsupportedOperationException.class)
-          .hasMessageContaining("Cluster does not support requested SSTable format 'bti'");
-    }
-
-    // --- determineBridgeVersionForRead standalone tests ---
-
-    @Test
-    void testDetermineBridgeVersionForReadLegacyDisabled()
-    {
-        Set<String> sstableVersions = Collections.singleton("big-oa");
-        CassandraVersion result = SSTableVersionAnalyzer.determineBridgeVersionForRead(
-            sstableVersions, "5.0.0", false
-        );
-        assertThat(result).isEqualTo(CassandraVersion.FIVEZERO);
-    }
-
-    @Test
-    void testDetermineBridgeVersionForReadLegacyEnabled()
-    {
-        CassandraVersion result = SSTableVersionAnalyzer.determineBridgeVersionForRead(
-            null, "4.0.0", true
-        );
-        assertThat(result).isEqualTo(CassandraVersion.FOURZERO);
-    }
-
-    @Test
-    void testDetermineBridgeVersionForReadEmptyVersionsThrowsException()
+    void testDetermineBridgeVersionForReadRejectsIncompatibleVersions()
     {
         assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForRead(
-            Collections.emptySet(), "5.0.0", false
-        )).isInstanceOf(IllegalStateException.class)
-          .hasMessageContaining("Unable to retrieve SSTable versions from cluster");
-    }
-
-    // --- findHighestSSTableVersion success cases (parameterized) ---
-
-    static Stream<Arguments> findHighestSuccessCases()
-    {
-        return Stream.of(
-            Arguments.of(Collections.singleton("big-na"), CassandraVersion.FOURZERO),
-            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-nb")), CassandraVersion.FOURZERO),
-            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-oa")), CassandraVersion.FIVEZERO),
-            Arguments.of(new HashSet<>(Arrays.asList("big-oa", "bti-da")), CassandraVersion.FIVEZERO)
-        );
+            new HashSet<>(Arrays.asList("big-mf", "big-oa"))))
+            .isInstanceOf(UnsupportedOperationException.class)
+            .hasMessageContaining("not mutually compatible");
     }
 
     @ParameterizedTest
-    @MethodSource("findHighestSuccessCases")
-    void testFindHighestSSTableVersion(Set<String> versions, CassandraVersion expectedCassandraVersion)
+    @MethodSource("nullOrEmptyCases")
+    void testDetermineBridgeVersionForReadNullOrEmptyThrows(Set<String> versions)
     {
-        String result = SSTableVersionAnalyzer.findHighestSSTableVersion(versions);
-        assertThat(CassandraVersion.fromSSTableVersion(result)).hasValue(expectedCassandraVersion);
-    }
-
-    // --- findHighestSSTableVersion null/empty exception cases (parameterized) ---
-
-    static Stream<Arguments> findHighestNullOrEmptyCases()
-    {
-        return Stream.of(
-            Arguments.of(Collections.emptySet()),
-            Arguments.of((Set<String>) null)
-        );
-    }
-
-    @ParameterizedTest
-    @MethodSource("findHighestNullOrEmptyCases")
-    void testFindHighestSSTableVersionNullOrEmptyThrowsException(Set<String> versions)
-    {
-        assertThatThrownBy(() -> SSTableVersionAnalyzer.findHighestSSTableVersion(versions))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("SSTable versions set cannot be empty");
-    }
-
-    // --- findHighestSSTableVersion standalone test ---
-
-    @Test
-    void testFindHighestSSTableVersionUnknownVersionThrowsException()
-    {
-        Set<String> versions = new HashSet<>(Arrays.asList("unknown-xx", "unknown-yy"));
-        assertThatThrownBy(() -> SSTableVersionAnalyzer.findHighestSSTableVersion(versions))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("Unknown SSTable version:")
-            .hasMessageContaining("disable_sstable_version_based=true");
+        assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForRead(versions))
+            .isInstanceOf(IllegalStateException.class);
     }
 }

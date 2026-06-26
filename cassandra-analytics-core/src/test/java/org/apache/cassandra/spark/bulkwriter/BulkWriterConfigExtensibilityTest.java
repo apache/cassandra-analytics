@@ -129,13 +129,7 @@ class BulkWriterConfigExtensibilityTest
         }
 
         @Override
-        protected String getLowestCassandraVersion(@NotNull BulkSparkConf conf)
-        {
-            throw new UnsupportedOperationException("Driver-only");
-        }
-
-        @Override
-        protected java.util.Set<String> getSSTableVersionsOnCluster(@NotNull BulkSparkConf conf)
+        protected CassandraVersion getBridgeVersion()
         {
             throw new UnsupportedOperationException("Driver-only");
         }

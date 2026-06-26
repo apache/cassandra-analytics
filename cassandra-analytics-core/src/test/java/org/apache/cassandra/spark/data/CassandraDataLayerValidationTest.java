@@ -45,106 +45,6 @@ import static org.mockito.Mockito.when;
 public class CassandraDataLayerValidationTest
 {
     @Test
-    void testValidateSStableVersionsWithAllSupportedVersions()
-    {
-        CassandraDataLayer dataLayer = createTestDataLayer();
-        Set<String> sstableVersions = new HashSet<>(Arrays.asList("big-na", "big-nb"));
-
-        assertThatNoException()
-        .describedAs("All versions are supported by FOURZERO")
-        .isThrownBy(() -> dataLayer.validateSStableVersions(sstableVersions, CassandraVersion.FOURZERO, false));
-    }
-
-    @Test
-    void testValidateSStableVersionsWithUnsupportedVersion()
-    {
-        CassandraDataLayer dataLayer = createTestDataLayer();
-        // C* 4.0 cannot read C* 5.0 SSTable versions
-        Set<String> sstableVersions = new HashSet<>(Arrays.asList("big-na", "big-oa"));
-
-        assertThatThrownBy(() -> dataLayer.validateSStableVersions(sstableVersions, CassandraVersion.FOURZERO, false))
-        .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessageContaining("Detected unsupported SSTable version(s)")
-        .hasMessageContaining("big-oa")
-        .hasMessageContaining("FOURZERO")
-        .hasMessageContaining("set spark.cassandra_analytics.bridge.disable_sstable_version_based=true");
-    }
-
-    @Test
-    void testValidateSStableVersionsWithNullVersionsThrowsException()
-    {
-        CassandraDataLayer dataLayer = createTestDataLayer();
-
-        assertThatThrownBy(() -> dataLayer.validateSStableVersions(null, CassandraVersion.FOURZERO, false))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Unable to retrieve SSTable versions from cluster");
-    }
-
-    @Test
-    void testValidateSStableVersionsWithEmptyVersionsThrowsException()
-    {
-        CassandraDataLayer dataLayer = createTestDataLayer();
-
-        assertThatThrownBy(() -> dataLayer.validateSStableVersions(Collections.emptySet(), CassandraVersion.FOURZERO, false))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("Unable to retrieve SSTable versions from cluster");
-    }
-
-    @Test
-    void testValidateSStableVersionsSkipsValidationWhenLegacyEnabled()
-    {
-        CassandraDataLayer dataLayer = createTestDataLayer();
-
-        // Test with invalid versions - should not throw when legacy version-based bridge selection is enabled
-        Set<String> invalidVersions = new HashSet<>(List.of("invalid-version"));
-        assertThatNoException()
-        .describedAs("Validation should be skipped with invalid versions when legacy version-based bridge selection is enabled")
-        .isThrownBy(() -> dataLayer.validateSStableVersions(invalidVersions, CassandraVersion.FOURZERO, true));
-
-        // Test with null versions - should not throw when legacy version-based bridge selection is enabled
-        assertThatNoException()
-        .describedAs("Validation should be skipped with null versions when legacy version-based bridge selection is enabled")
-        .isThrownBy(() -> dataLayer.validateSStableVersions(null, CassandraVersion.FOURZERO, true));
-    }
-
-    @Test
-    void testValidateSStableVersionsForFiveZeroWithBackwardCompatibility()
-    {
-        CassandraDataLayer dataLayer = createTestDataLayer();
-        // C* 5.0 should be able to read C* 4.0 SSTable versions
-        Set<String> sstableVersions = new HashSet<>(Arrays.asList("big-na", "big-nb", "big-oa"));
-
-        assertThatNoException()
-        .describedAs("FIVEZERO should support reading FOURZERO versions")
-        .isThrownBy(() -> dataLayer.validateSStableVersions(sstableVersions, CassandraVersion.FIVEZERO, false));
-    }
-
-    @Test
-    void testValidateSStableVersionsForFiveZeroWithBtiFormat()
-    {
-        CassandraDataLayer dataLayer = createTestDataLayer();
-        Set<String> sstableVersions = new HashSet<>(Arrays.asList("big-oa", "bti-da"));
-
-        assertThatNoException()
-        .describedAs("FIVEZERO should support both big and bti formats")
-        .isThrownBy(() -> dataLayer.validateSStableVersions(sstableVersions, CassandraVersion.FIVEZERO, false));
-    }
-
-    @Test
-    void testValidateSStableVersionsErrorMessageIncludesAllDetails()
-    {
-        CassandraDataLayer dataLayer = createTestDataLayer();
-        Set<String> sstableVersions = new HashSet<>(List.of("big-oa"));
-
-        assertThatThrownBy(() -> dataLayer.validateSStableVersions(sstableVersions, CassandraVersion.FOURZERO, false))
-        .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessageContaining("Detected unsupported SSTable version(s)")
-        .hasMessageContaining("Supported versions:")
-        .hasMessageContaining("Observed SSTable versions in the cluster:")
-        .hasMessageContaining("set spark.cassandra_analytics.bridge.disable_sstable_version_based=true");
-    }
-
-    @Test
     void testValidateSStableVersionsListWithValidVersions()
     {
         Set<String> expectedVersions = new HashSet<>(Arrays.asList("big-na", "big-nb"));
@@ -324,10 +224,16 @@ public class CassandraDataLayerValidationTest
             .containsExactlyInAnyOrder("big-na", "big-oa");
     }
 
-    private CassandraDataLayer createTestDataLayer()
+    @Test
+    void testInitializeSSTableVersionsAndBridgeVersionFailsFastWhenEnabledAndNoVersions()
     {
-        // Use TestCassandraDataLayer to avoid SparkContext initialization in unit tests
-        return new TestCassandraDataLayer(null);
+        // Feature enabled but the cluster returns no SSTable versions -> fail fast with an actionable hint
+        CassandraDataLayer dataLayer = new TestCassandraDataLayerForInitTests(Collections.emptySet(), false);
+
+        assertThatThrownBy(() -> dataLayer.initializeSSTableVersionsAndBridgeVersion("5.0.0"))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Unable to retrieve SSTable versions from cluster")
+        .hasMessageContaining("set spark.cassandra_analytics.bridge.disable_sstable_version_based=true");
     }
 
     private CassandraDataLayer createTestDataLayerWithVersions(Set<String> sstableVersions)

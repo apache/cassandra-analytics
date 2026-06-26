@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated;
 
-import java.util.Set;
 import java.util.UUID;
 
 import com.google.common.base.Preconditions;
@@ -86,15 +85,9 @@ public class CassandraCoordinatedBulkWriterContext extends AbstractBulkWriterCon
     }
 
     @Override
-    protected String getLowestCassandraVersion(@NotNull BulkSparkConf conf)
+    protected CassandraVersion getBridgeVersion()
     {
-        return getOrCreatePreliminaryGroup(conf).getLowestCassandraVersion();
-    }
-
-    @Override
-    protected Set<String> getSSTableVersionsOnCluster(@NotNull BulkSparkConf conf)
-    {
-        return getOrCreatePreliminaryGroup(conf).getSSTableVersionsOnCluster();
+        return getOrCreatePreliminaryGroup(bulkSparkConf()).getBridgeVersion();
     }
 
     @Override

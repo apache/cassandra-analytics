@@ -49,6 +49,7 @@ import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
+import org.apache.cassandra.bridge.SSTableVersionAnalyzer;
 import org.apache.cassandra.clients.Sidecar;
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
@@ -476,21 +477,47 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     /**
-     * Retrieves the lowest Cassandra version using the already-fired allNodeSettingFutures.
-     * Reuses the existing CassandraContext instead of creating a separate one.
-     * If a version override is provided via {@link #getVersionFromFeature()}, that value is used instead.
+     * Determines the Cassandra bridge version for this cluster, in priority order:
+     * <ol>
+     *   <li>an explicit version override from {@link #getVersionFromFeature()} (an operator escape hatch) —
+     *       takes precedence even when SSTable-version-based selection is enabled;</li>
+     *   <li>otherwise, when SSTable version-based selection is enabled, the lowest version derived from the
+     *       SSTable versions present, so the produced SSTables remain importable by every node;</li>
+     *   <li>otherwise (feature disabled), the lowest Cassandra release version reported by the cluster.</li>
+     * </ol>
+     *
+     * @return the determined Cassandra bridge version
+     */
+    public CassandraVersion getBridgeVersion()
+    {
+        String versionOverride = getVersionFromFeature();
+        if (versionOverride != null)
+        {
+            return CassandraVersion.fromVersion(versionOverride)
+                                   .orElseThrow(() -> new UnsupportedOperationException(
+                                       "Unsupported Cassandra version override: " + versionOverride));
+        }
+
+        if (!conf.isSSTableVersionBasedBridgeDisabled())
+        {
+            return SSTableVersionAnalyzer.determineBridgeVersionForWrite(getSSTableVersionsOnCluster(),
+                                                                         CassandraVersion.configuredSSTableFormat());
+        }
+
+        String lowestCassandraVersion = getLowestCassandraVersion();
+        return CassandraVersion.fromVersion(lowestCassandraVersion)
+                               .orElseThrow(() -> new UnsupportedOperationException(
+                                   "Unsupported Cassandra version: " + lowestCassandraVersion));
+    }
+
+    /**
+     * Retrieves the lowest Cassandra version reported by the cluster, using the already-fired
+     * allNodeSettingFutures. Reuses the existing CassandraContext instead of creating a separate one.
      *
      * @return lowest Cassandra version string
      */
     public String getLowestCassandraVersion()
     {
-        String versionFromFeature = getVersionFromFeature();
-        if (versionFromFeature != null)
-        {
-            // Forcing writer to use a particular version
-            return versionFromFeature;
-        }
-
         List<NodeSettings> allNodeSettings = resolveAllNodeSettings();
 
         NodeSettings ns = allNodeSettings

@@ -138,20 +138,6 @@ public class CassandraVersionTest
         assertThat(nativeVersions).isEmpty();
     }
 
-    @ParameterizedTest
-    @CsvSource({
-        "FIVEZERO, 40",
-        "FOURONE, 30",
-        "FOURZERO, 30",
-        "THREEZERO, 20"
-    })
-    void testGetPreviousMajorVersion(String versionName, int expectedPrevious)
-    {
-        CassandraVersion version = CassandraVersion.valueOf(versionName);
-        int previous = version.getPreviousMajorVersion();
-        assertThat(previous).isEqualTo(expectedPrevious);
-    }
-
     @Test
     void testConfiguredSSTableFormatDefault()
     {

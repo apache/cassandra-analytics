@@ -19,8 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.util.Collections;
-import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -32,7 +30,6 @@ import org.jetbrains.annotations.NotNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 class AbstractBulkWriterContextTest
 {
@@ -48,49 +45,25 @@ class AbstractBulkWriterContextTest
     }
 
     @Test
-    void testSSTableVersionBasedBridgeDisabled()
+    void testContextUsesDeterminedBridgeVersion()
     {
+        // The context's bridge version is whatever getBridgeVersion() resolves to. The determination logic
+        // itself (override / SSTable-version-based / legacy) lives on CassandraClusterInfo and is covered by
+        // CassandraClusterInfoBridgeVersionTest.
         BulkSparkConf conf = mock(BulkSparkConf.class);
-        when(conf.isSSTableVersionBasedBridgeDisabled()).thenReturn(true);
-
         StructType schema = mock(StructType.class);
-        TestBulkWriterContext context = TestBulkWriterContext.create(conf, schema, 1, "4.0.0", null);
+        TestBulkWriterContext context = TestBulkWriterContext.create(conf, schema, 1, CassandraVersion.FIVEZERO);
 
-        // Verify bridge version was still determined
-        assertThat(context.bridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
-
-        // Verify that SSTable versions retrieval was not called (disabled)
-        assertThat(TestBulkWriterContext.sstableVersionRetrievalCount).isEqualTo(0);
-        assertThat(TestBulkWriterContext.versionRetrievalCount).isEqualTo(1);
-    }
-
-    @Test
-    void testSSTableVersionBasedBridgeEnabled()
-    {
-        BulkSparkConf conf = mock(BulkSparkConf.class);
-        when(conf.isSSTableVersionBasedBridgeDisabled()).thenReturn(false);
-
-        Set<String> sstableVersions = Collections.singleton("big-oa");
-        StructType schema = mock(StructType.class);
-        TestBulkWriterContext context = TestBulkWriterContext.create(conf, schema, 1, "5.0.0", sstableVersions);
-
-        // Verify bridge version was determined
         assertThat(context.bridgeVersion()).isEqualTo(CassandraVersion.FIVEZERO);
-
-        // Verify that both version and SSTable versions retrieval were called
-        assertThat(TestBulkWriterContext.versionRetrievalCount).isEqualTo(1);
-        assertThat(TestBulkWriterContext.sstableVersionRetrievalCount).isEqualTo(1);
     }
 
     /**
-     * Concrete test implementation of AbstractBulkWriterContext for testing
+     * Concrete test implementation of AbstractBulkWriterContext for testing. The bridge version is supplied
+     * directly (the real determination is exercised at the ClusterInfo level).
      */
     static class TestBulkWriterContext extends AbstractBulkWriterContext
     {
-        private static String staticLowestVersion;
-        private static Set<String> staticSSTableVersions;
-        static int versionRetrievalCount = 0;
-        static int sstableVersionRetrievalCount = 0;
+        private static CassandraVersion staticBridgeVersion;
 
         private TestBulkWriterContext(@NotNull BulkSparkConf conf,
                                       @NotNull StructType structType,
@@ -102,28 +75,16 @@ class AbstractBulkWriterContextTest
         static TestBulkWriterContext create(@NotNull BulkSparkConf conf,
                                             @NotNull StructType structType,
                                             int sparkDefaultParallelism,
-                                            @NotNull String lowestVersion,
-                                            Set<String> sstableVersions)
+                                            CassandraVersion bridgeVersion)
         {
-            staticLowestVersion = lowestVersion;
-            staticSSTableVersions = sstableVersions;
-            versionRetrievalCount = 0;
-            sstableVersionRetrievalCount = 0;
+            staticBridgeVersion = bridgeVersion;
             return new TestBulkWriterContext(conf, structType, sparkDefaultParallelism);
         }
 
         @Override
-        protected String getLowestCassandraVersion(@NotNull BulkSparkConf conf)
+        protected CassandraVersion getBridgeVersion()
         {
-            versionRetrievalCount++;
-            return staticLowestVersion;
-        }
-
-        @Override
-        protected Set<String> getSSTableVersionsOnCluster(@NotNull BulkSparkConf conf)
-        {
-            sstableVersionRetrievalCount++;
-            return staticSSTableVersions;
+            return staticBridgeVersion;
         }
 
         @Override

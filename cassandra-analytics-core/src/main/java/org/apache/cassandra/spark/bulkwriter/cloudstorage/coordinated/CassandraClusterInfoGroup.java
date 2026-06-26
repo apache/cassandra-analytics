@@ -22,9 +22,9 @@ package org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.CassandraContext;
@@ -383,54 +382,27 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     }
 
     /**
-     * Retrieves the lowest Cassandra version from all contained clusters.
+     * Determines the Cassandra bridge version for a coordinated write across all clusters.
      *
-     * @return lowest Cassandra version string across all clusters
+     * <p>Each cluster determines its own bridge version (see {@link CassandraClusterInfo#getBridgeVersion()}),
+     * which is the lowest mutually-compatible SSTable version present on that cluster. Across clusters the
+     * lowest of those is chosen so the produced SSTables remain importable by every cluster (a node can import
+     * its own and older SSTable versions, but not newer ones).
+     *
+     * @return the determined Cassandra bridge version
      */
-    public String getLowestCassandraVersion()
+    public CassandraVersion getBridgeVersion()
     {
-        // Single cluster: return its version directly without aggregation
+        // Single cluster: use its bridge version directly without aggregation
         if (clusterInfos.size() == 1)
         {
-            return ((CassandraClusterInfo) clusterInfos.get(0)).getLowestCassandraVersion();
+            return ((CassandraClusterInfo) clusterInfos.get(0)).getBridgeVersion();
         }
 
-        Map<String, String> clusterVersions = new HashMap<>();
-        for (ClusterInfo ci : clusterInfos)
-        {
-            CassandraClusterInfo cci = (CassandraClusterInfo) ci;
-            clusterVersions.put(ci.clusterId(), cci.getLowestCassandraVersion());
-        }
-
-        // Find the lowest version across all clusters
-        List<CassandraVersionFeatures> versions = clusterVersions.values()
-                                                                 .stream()
-                                                                 .map(CassandraVersionFeatures::cassandraVersionFeaturesFromCassandraVersion)
-                                                                 .sorted()
-                                                                 .collect(Collectors.toList());
-
-        CassandraVersionFeatures first = versions.get(0);
-        CassandraVersionFeatures last = versions.get(versions.size() - 1);
-        Preconditions.checkState(first.getMajorVersion() == last.getMajorVersion(),
-                                 "Cluster versions are not compatible. lowest=%s and highest=%s",
-                                 first.getRawVersionString(), last.getRawVersionString());
-
-        return first.getRawVersionString();
-    }
-
-    /**
-     * Retrieves aggregated SSTable versions from all contained clusters.
-     *
-     * @return set of SSTable versions present across all clusters
-     */
-    public Set<String> getSSTableVersionsOnCluster()
-    {
-        Set<String> aggregatedSSTableVersions = new HashSet<>();
-        for (ClusterInfo ci : clusterInfos)
-        {
-            CassandraClusterInfo cci = (CassandraClusterInfo) ci;
-            aggregatedSSTableVersions.addAll(cci.getSSTableVersionsOnCluster());
-        }
-        return aggregatedSSTableVersions;
+        // Write at the lowest so every cluster can import the produced SSTables
+        return clusterInfos.stream()
+                           .map(ci -> ((CassandraClusterInfo) ci).getBridgeVersion())
+                           .min(Comparator.comparingInt(CassandraVersion::versionNumber))
+                           .orElseThrow(() -> new IllegalStateException("No cluster bridge versions available"));
     }
 }

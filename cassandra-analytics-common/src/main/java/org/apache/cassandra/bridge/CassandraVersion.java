@@ -56,38 +56,42 @@ public enum CassandraVersion
                   "big-md",
                   "big-me",
                   "big-mf"
-              }),
+              }, 30),
     FOURZERO(40, "4.0", "four-zero", new String[]{"big"},
              new String[]{
                  // Cassandra 4.0 native sstable versions
                  "big-na",
                  "big-nb",
-             }),
+             }, 30),
     FOURONE(41, "4.1", "four-zero", new String[]{"big"},
             new String[]{
                 // Cassandra 4.1 did not introduce new native SSTable versions
-            }),
+            }, 30),
     FIVEZERO(50, "5.0", "five-zero", new String[]{"big", "bti"},
              new String[]{
                  // Cassandra 5.0 native sstable versions
                  "big-oa",
                  "bti-da",
-             });
+             }, 40);
 
     private final int number;
     private final String name;
     private final String jarBaseName;  // Must match shadowJar.archiveFileName from Gradle configuration (without extension)
     private final Set<String> sstableFormats;
     private final List<String> nativeSStableVersions;
+    // Lowest Cassandra version number whose SSTables this version can read (inclusive).
+    private final int lowestCompatibleVersionNumber;
 
 
-    CassandraVersion(int number, String name, String jarBaseName, String[] sstableFormats, String[] nativeSStableVersions)
+    CassandraVersion(int number, String name, String jarBaseName, String[] sstableFormats, String[] nativeSStableVersions,
+                     int lowestCompatibleVersionNumber)
     {
         this.number = number;
         this.name = name;
         this.jarBaseName = jarBaseName;
         this.sstableFormats = new HashSet<>(Arrays.asList(sstableFormats));
         this.nativeSStableVersions = List.of(nativeSStableVersions);
+        this.lowestCompatibleVersionNumber = lowestCompatibleVersionNumber;
     }
 
     public int versionNumber()
@@ -127,58 +131,24 @@ public enum CassandraVersion
 
     /**
      * Get the set of SSTable version strings that this Cassandra version can read.
-     * This includes:
-     * - Native versions for this Cassandra version
-     * - All SSTable versions from the previous major version (including all minor versions)
-     * For example, Cassandra 5.0 can read:
-     * - 5.0 native versions (big-oa, bti-da)
-     * - 4.0 versions (big-na, big-nb)
-     * - 4.1 versions (if any)
-     * But NOT 3.0 versions
+     * This includes the native versions of every Cassandra version from {@link #lowestCompatibleVersionNumber}
+     * (inclusive) up to this version (inclusive). For example, Cassandra 5.0 can read 4.0, 4.1 and 5.0
+     * SSTables (lowestCompatible=40) but NOT 3.x.
      *
      * @return Set of full SSTable version strings that can be read
      */
     public Set<String> getSupportedSStableVersionsForRead()
     {
-        Set<String> readableVersions = new HashSet<>(this.nativeSStableVersions);
-
-        int previousMajor = getPreviousMajorVersion();
-
-        // Add all SSTable versions from the previous major version and its minors
-        // E.g., C* 5.0 (version 50) can read C* 4.0 (40) and C* 4.1 (41) SSTables, but not C* 3.x (30)
+        Set<String> readableVersions = new HashSet<>();
         for (CassandraVersion version : CassandraVersion.values())
         {
-            // Include versions from the previous major version family (e.g., 40-49 for C* 5.0)
-            if (version.versionNumber() >= previousMajor && version.versionNumber() < this.number)
+            if (version.number >= lowestCompatibleVersionNumber && version.number <= this.number)
             {
                 readableVersions.addAll(version.nativeSStableVersions);
             }
         }
 
         return Collections.unmodifiableSet(readableVersions);
-    }
-
-    /**
-     * Get the previous major version number for this Cassandra version.
-     * Calculates dynamically using: (majorVersion - 1) * 10
-     * For example:
-     * - C5.0 (50) returns 40 (C4.x)
-     * - C4.1 (41) returns 30 (C3.x)
-     * - C4.0 (40) returns 30 (C3.x)
-     * - C3.0 (30) returns 20 (C2.x - which doesn't exist)
-     * - C10.0 (100) returns 90 (C9.x)
-     *
-     * @return previous major version number
-     */
-    @VisibleForTesting
-    int getPreviousMajorVersion()
-    {
-        // Get major version: 50 -> 5, 41 -> 4, 40 -> 4, 30 -> 3
-        int majorVersion = this.number / 10;
-
-        // Calculate previous major version: (majorVersion - 1) * 10
-        // E.g., 5 -> 40, 4 -> 30, 3 -> 20
-        return (majorVersion - 1) * 10;
     }
 
     private static final String configuredSSTableFormat;

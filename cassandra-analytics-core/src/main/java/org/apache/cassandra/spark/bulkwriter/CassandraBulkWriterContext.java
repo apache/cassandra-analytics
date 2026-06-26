@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
-import java.util.Set;
 import java.util.UUID;
 
 import com.google.common.base.Preconditions;
@@ -66,15 +65,9 @@ public class CassandraBulkWriterContext extends AbstractBulkWriterContext
     }
 
     @Override
-    protected String getLowestCassandraVersion(@NotNull BulkSparkConf conf)
+    protected CassandraVersion getBridgeVersion()
     {
-        return getOrCreatePreliminaryClusterInfo(conf).getLowestCassandraVersion();
-    }
-
-    @Override
-    protected Set<String> getSSTableVersionsOnCluster(@NotNull BulkSparkConf conf)
-    {
-        return getOrCreatePreliminaryClusterInfo(conf).getSSTableVersionsOnCluster();
+        return getOrCreatePreliminaryClusterInfo(bulkSparkConf()).getBridgeVersion();
     }
 
     @Override

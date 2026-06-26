@@ -33,7 +33,6 @@ import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.bridge.SSTableVersionAnalyzer;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -100,24 +99,8 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         this.conf = conf;
         this.sparkDefaultParallelism = sparkDefaultParallelism;
 
-        // Retrieve lowest Cassandra version without building full ClusterInfo
-        String lowestCassandraVersion = getLowestCassandraVersion(conf);
-        Set<String> sstableVersionsOnCluster = null;
-
-        // Get SSTable versions from cluster only if SSTable version-based selection is enabled
-        // If disabled, skip retrieval to allow job to proceed even when SSTable version detection fails
-        if (!conf.isSSTableVersionBasedBridgeDisabled())
-        {
-            sstableVersionsOnCluster = getSSTableVersionsOnCluster(conf);
-        }
-
-        // Determine bridge version
-        this.bridgeVersion = SSTableVersionAnalyzer.determineBridgeVersionForWrite(
-            sstableVersionsOnCluster,
-            CassandraVersion.configuredSSTableFormat(),
-            lowestCassandraVersion,
-            conf.isSSTableVersionBasedBridgeDisabled()
-        );
+        // Determine the bridge version
+        this.bridgeVersion = getBridgeVersion();
 
         // Build cluster info with determined bridge version
         this.clusterInfo = buildClusterInfo(this.bridgeVersion);
@@ -178,23 +161,15 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         return bridgeVersion;
     }
 
+    /**
+     * Determines the Cassandra bridge version to use for this write. Implementations apply any version
+     * override, SSTable-version-based selection, or the legacy cassandra.version fallback as appropriate.
+     *
+     * @return the determined Cassandra bridge version
+     */
+    protected abstract CassandraVersion getBridgeVersion();
+
     /*---  Methods to build required fields   ---*/
-
-    /**
-     * Retrieves the lowest Cassandra version from the cluster(s).
-     *
-     * @param conf Bulk Spark configuration
-     * @return lowest Cassandra version string
-     */
-    protected abstract String getLowestCassandraVersion(@NotNull BulkSparkConf conf);
-
-    /**
-     * Retrieves SSTable versions from the cluster(s).
-     *
-     * @param conf Bulk Spark configuration
-     * @return set of SSTable version strings present on the cluster(s)
-     */
-    protected abstract Set<String> getSSTableVersionsOnCluster(@NotNull BulkSparkConf conf);
 
     /**
      * Builds the ClusterInfo with the determined bridge version.
