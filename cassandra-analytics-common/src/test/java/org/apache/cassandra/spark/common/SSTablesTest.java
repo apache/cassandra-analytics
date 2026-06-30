@@ -168,4 +168,36 @@ public class SSTablesTest
         assertThat(descriptorFromPath.baseFilename).isEqualTo(descriptorFromProduction.baseFilename)
                                                    .doesNotEndWith("-");
     }
+
+    @Test
+    public void testIsDataComponentMatchesPrimaryDataFile()
+    {
+        assertThat(SSTables.isDataComponent("oa-1-big-Data.db")).isTrue();
+        assertThat(SSTables.isDataComponent("da-2-bti-Data.db")).isTrue();
+        assertThat(SSTables.isDataComponent(Paths.get("/path/to/sstable/oa-1-big-Data.db"))).isTrue();
+    }
+
+    @Test
+    public void testIsDataComponentRejectsOtherComponents()
+    {
+        assertThat(SSTables.isDataComponent("oa-1-big-Index.db")).isFalse();
+        assertThat(SSTables.isDataComponent("oa-1-big-Summary.db")).isFalse();
+        assertThat(SSTables.isDataComponent(Paths.get("/path/to/sstable/oa-1-big-Filter.db"))).isFalse();
+    }
+
+    @Test
+    public void testIsDataComponentExcludesSaiIndexComponents()
+    {
+        // SAI per-index components end with "Data.db" but lack the leading '-' that marks the primary
+        // data component, so they must not be treated as a primary data file.
+        assertThat(SSTables.isDataComponent("oa-1-big-SAI+TermsData.db")).isFalse();
+        assertThat(SSTables.isDataComponent(Paths.get("/path/to/sstable/oa-1-big-SAI+TermsData.db"))).isFalse();
+    }
+
+    @Test
+    public void testIsDataComponentHandlesPathWithoutFileName()
+    {
+        // A root path has no file name (Path#getFileName returns null); it must not NPE and is not a data component.
+        assertThat(SSTables.isDataComponent(Paths.get("/"))).isFalse();
+    }
 }

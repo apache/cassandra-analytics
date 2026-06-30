@@ -30,6 +30,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -831,6 +832,68 @@ public class CqlUtilsTest extends VersionRunner
         assertThat(isTimeRangeFilterSupported(nullCompaction)).isTrue();
 
         assertThat(isTimeRangeFilterSupported("")).isFalse();
+    }
+
+    @Test
+    public void testIsSaiIndexShortClassName()
+    {
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) USING 'StorageAttachedIndex';")).isTrue();
+    }
+
+    @Test
+    public void testIsSaiIndexFullyQualifiedClassName()
+    {
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) "
+                + "USING 'org.apache.cassandra.index.sai.StorageAttachedIndex';")).isTrue();
+    }
+
+    @Test
+    public void testIsSaiIndexToleratesWhitespaceAndCase()
+    {
+        // Statement is whitespace-collapsed and upper-cased before matching, so newlines, extra spaces
+        // and a lower-case class name must all still be recognised as SAI.
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col)\n  USING  'storageattachedindex';")).isTrue();
+    }
+
+    @Test
+    public void testIsSaiIndexRejectsLegacyIndexes()
+    {
+        assertThat(CqlUtils.isSaiIndex("CREATE INDEX idx ON ks.tbl (col);")).isFalse();
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) "
+                + "USING 'org.apache.cassandra.index.sasi.SASIIndex';")).isFalse();
+    }
+
+    @Test
+    public void testIsSaiIndexRejectsNameMerelyEndingWithMarker()
+    {
+        // Regression: the marker must not match a class whose simple name merely ends with
+        // "StorageAttachedIndex" without a package separator (e.g. a hypothetical 'PrefixStorageAttachedIndex').
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) USING 'PrefixStorageAttachedIndex';")).isFalse();
+    }
+
+    @Test
+    public void testHasOnlySaiIndexes()
+    {
+        // Empty set is never "all SAI".
+        assertThat(CqlUtils.hasOnlySaiIndexes(Collections.emptySet())).isFalse();
+
+        // Single SAI / mix of short and fully-qualified SAI class names.
+        assertThat(CqlUtils.hasOnlySaiIndexes(ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';"))).isTrue();
+        assertThat(CqlUtils.hasOnlySaiIndexes(ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';",
+                "CREATE CUSTOM INDEX i2 ON ks.tbl (b) "
+                + "USING 'org.apache.cassandra.index.sai.StorageAttachedIndex';"))).isTrue();
+
+        // Any non-SAI index makes the whole set "not all SAI".
+        assertThat(CqlUtils.hasOnlySaiIndexes(ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';",
+                "CREATE INDEX i2 ON ks.tbl (b);"))).isFalse();
     }
 
     private static String loadFullSchemaSample() throws IOException

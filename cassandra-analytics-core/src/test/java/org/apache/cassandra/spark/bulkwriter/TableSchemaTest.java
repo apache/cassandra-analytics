@@ -22,9 +22,11 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Set;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
@@ -328,6 +330,94 @@ public class TableSchemaTest
         assertThat(schema).isNotNull();
         assertThat(trimUniqueTableName(schema.modificationStatement))
                 .contains("USING TIMESTAMP :\"updatedTimestamp\"");
+    }
+
+    @Test
+    public void testIsCassandra5OrLater()
+    {
+        assertThat(TableSchema.isCassandra5OrLater("5.0.5")).isTrue();
+        assertThat(TableSchema.isCassandra5OrLater("cassandra-5.0.5")).isTrue();
+
+        assertThat(TableSchema.isCassandra5OrLater("4.0.17")).isFalse();
+        assertThat(TableSchema.isCassandra5OrLater("4.1.4")).isFalse();
+        assertThat(TableSchema.isCassandra5OrLater("3.0.29")).isFalse();
+
+        // Regression: 3.11.x must not be treated as 5.0+ — its version code (311) would pass a naive ">= 50" test.
+        assertThat(TableSchema.isCassandra5OrLater("3.11.0")).isFalse();
+
+        // Null / empty / unparseable versions are treated as "not 5.0+".
+        assertThat(TableSchema.isCassandra5OrLater(null)).isFalse();
+        assertThat(TableSchema.isCassandra5OrLater("")).isFalse();
+        assertThat(TableSchema.isCassandra5OrLater("not-a-version")).isFalse();
+    }
+
+    @Test
+    public void testIsSaiWrite()
+    {
+        Set<String> saiIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
+        Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
+
+        assertThat(TableSchema.isSaiWrite(saiIndexes, "5.0.5")).isTrue();
+        assertThat(TableSchema.isSaiWrite(saiIndexes, "4.0.17")).isFalse();
+        assertThat(TableSchema.isSaiWrite(legacyIndexes, "5.0.5")).isFalse();
+        assertThat(TableSchema.isSaiWrite(Collections.emptySet(), "5.0.5")).isFalse();
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesNoIndexesIsNoOp()
+    {
+        // No exception expected when there are no index statements.
+        TableSchema.validateSecondaryIndexes(false, Collections.emptySet(), "5.0.5");
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesAllowsSaiOnCassandra5()
+    {
+        Set<String> saiIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
+        // SAI on 5.0+ is allowed without the skip flag.
+        TableSchema.validateSecondaryIndexes(false, saiIndexes, "5.0.5");
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesBlocksNonSai()
+    {
+        Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
+        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, legacyIndexes, "5.0.5"))
+                .isInstanceOf(UnsupportedAnalyticsOperationException.class)
+                .hasMessage("Bulkwriter doesn't support non-SAI indexes.");
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesBlocksMixedSaiAndNonSai()
+    {
+        // A single non-SAI index makes the whole table fail the all-SAI check and be blocked.
+        Set<String> mixedIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';",
+                "CREATE INDEX i2 ON test.test (marks);");
+        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, mixedIndexes, "5.0.5"))
+                .isInstanceOf(UnsupportedAnalyticsOperationException.class)
+                .hasMessage("Bulkwriter doesn't support non-SAI indexes.");
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesBlocksSaiOnPreCassandra5()
+    {
+        Set<String> saiIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
+        // SAI components are only generated on 5.0+, so SAI on 4.0 is blocked like any other 2i.
+        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, saiIndexes, "4.0.17"))
+                .isInstanceOf(UnsupportedAnalyticsOperationException.class)
+                .hasMessage("Bulkwriter doesn't support non-SAI indexes.");
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesAllowsNonSaiWithSkipCheck()
+    {
+        Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
+        // Explicit opt-out lets non-SAI indexes through (with an async-rebuild warning).
+        TableSchema.validateSecondaryIndexes(true, legacyIndexes, "5.0.5");
     }
 
     private TableSchemaTestCommon.MockTableSchemaBuilder getValidSchemaBuilder(String cassandraVersion)

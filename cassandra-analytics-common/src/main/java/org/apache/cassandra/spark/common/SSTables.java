@@ -65,7 +65,8 @@ public final class SSTables
      */
     public static boolean isDataComponent(Path path)
     {
-        return isDataComponent(path.getFileName().toString());
+        Path fileName = path.getFileName();
+        return fileName != null && isDataComponent(fileName.toString());
     }
 
     /**

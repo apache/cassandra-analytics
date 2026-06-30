@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
-import org.apache.cassandra.bridge.CassandraVersionFeatures;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
@@ -85,7 +85,7 @@ public class TableSchema
         this.indexStatements = tableInfo.getIndexStatements();
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
-        validateSecondaryIndexes(tableInfo, skipSecondaryIndexCheck, indexStatements, lowestCassandraVersion);
+        validateSecondaryIndexes(skipSecondaryIndexCheck, indexStatements, lowestCassandraVersion);
         validateUserAddedColumns(lowestCassandraVersion, quoteIdentifiers, ttlOption, timestampOption);
 
         this.createStatement = getCreateStatement(tableInfo);
@@ -308,17 +308,15 @@ public class TableSchema
      * <p>
      * When any index is non-SAI (legacy 2i), the write is blocked unless SKIP_SECONDARY_INDEX_CHECK is set.
      *
-     * @param tableInfo               the table info provider
      * @param skipSecondaryIndexCheck  whether the user explicitly opted out of the check
-     * @param indexStatements          the CREATE INDEX statements for the table
+     * @param indexStatements          the CREATE INDEX statements for the table (both SAI and legacy 2i)
      * @param lowestCassandraVersion   the lowest Cassandra version in the cluster
      */
-    static void validateSecondaryIndexes(TableInfoProvider tableInfo,
-                                         boolean skipSecondaryIndexCheck,
+    static void validateSecondaryIndexes(boolean skipSecondaryIndexCheck,
                                          Set<String> indexStatements,
                                          String lowestCassandraVersion)
     {
-        if (!tableInfo.hasSecondaryIndex())
+        if (indexStatements.isEmpty())
         {
             return; // No indexes — nothing to validate
         }
@@ -338,7 +336,7 @@ public class TableSchema
             return;
         }
 
-        throw new UnsupportedAnalyticsOperationException("Bulkwriter doesn't support secondary indexes");
+        throw new UnsupportedAnalyticsOperationException("Bulkwriter doesn't support non-SAI indexes.");
     }
 
     static void validateNoSecondaryIndexes(TableInfoProvider tableInfo)
@@ -364,7 +362,13 @@ public class TableSchema
 
         try
         {
-            return CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(version).getMajorVersion() >= 50;
+            // CassandraVersionFeatures#getMajorVersion concatenates the major and minor components
+            // (e.g. "3.11" -> 311), so a numeric ">= 50" test on it wrongly classifies 3.11.x as 5.0+.
+            // Resolve to the known CassandraVersion enum instead, whose curated version codes (30/40/41/50)
+            // compare correctly; unknown/unsupported versions are treated as "not 5.0+".
+            return CassandraVersion.fromVersion(version)
+                                   .map(value -> value.versionNumber() >= CassandraVersion.FIVEZERO.versionNumber())
+                                   .orElse(false);
         }
         catch (RuntimeException exception)
         {

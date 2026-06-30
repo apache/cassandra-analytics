@@ -61,7 +61,7 @@ public final class CqlUtils
     private static final Pattern COMPACTION_STRATEGY_PATTERN = Pattern.compile("compaction\\s*=\\s*\\{\\s*'class'\\s*:\\s*'([^']+)'");
 
     private static final Pattern MULTI_WHITESPACE_PATTERN = Pattern.compile("\\s+");
-    private static final Pattern SAI_USING_PATTERN = Pattern.compile("USING '[^']*STORAGEATTACHEDINDEX'");
+    private static final Pattern SAI_USING_PATTERN = Pattern.compile("USING '([^']*\\.)?STORAGEATTACHEDINDEX'");
 
     private CqlUtils()
     {
@@ -307,8 +307,9 @@ public final class CqlUtils
         String normalized = MULTI_WHITESPACE_PATTERN.matcher(createIndexStatement).replaceAll(" ").toUpperCase(Locale.ROOT);
 
         // Matches the SAI marker inside a USING '...' clause (statement already upper-cased and whitespace-collapsed).
-        // The leading [^']* tolerates the fully-qualified class form
-        // (e.g. 'org.apache.cassandra.index.sai.StorageAttachedIndex') as well as the short name.
+        // The optional ([^']*\.) prefix tolerates the fully-qualified class form
+        // (e.g. 'org.apache.cassandra.index.sai.StorageAttachedIndex') as well as the short name, while the required
+        // trailing '.' prevents false positives on names that merely end with the marker (e.g. 'PrefixStorageAttachedIndex').
         return SAI_USING_PATTERN.matcher(normalized).find();
     }
 
