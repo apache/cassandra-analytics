@@ -24,6 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.function.BiConsumer;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterSupport;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -56,7 +57,7 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
     private final String clusterId;
     private final BulkSparkConf conf;
     private final Partitioner partitioner;
-    private final String bridgeVersion;
+    private final CassandraVersion bridgeVersion;
 
     /**
      * Creates a BroadcastableClusterInfoGroup from a source ClusterInfo group.
@@ -75,7 +76,7 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
         // Extract pre-computed values from CassandraClusterInfoGroup
         // These have already been validated/computed on the driver
         Partitioner partitioner = source.getPartitioner();
-        String bridgeVersion = source.getBridgeVersion();
+        CassandraVersion bridgeVersion = source.getBridgeVersion();
 
         return new BroadcastableClusterInfoGroup(broadcastableInfos, source.clusterId(), conf, partitioner, bridgeVersion);
     }
@@ -84,7 +85,7 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
                                           String clusterId,
                                           BulkSparkConf conf,
                                           Partitioner partitioner,
-                                          String bridgeVersion)
+                                          CassandraVersion bridgeVersion)
     {
         this.clusterInfos = Collections.unmodifiableList(clusterInfos);
         this.conf = conf;
@@ -101,7 +102,7 @@ public final class BroadcastableClusterInfoGroup implements IBroadcastableCluste
     }
 
     @Override
-    public String getBridgeVersion()
+    public CassandraVersion getBridgeVersion()
     {
         // Return pre-computed value from CassandraClusterInfoGroup
         // No need to duplicate aggregation/validation logic

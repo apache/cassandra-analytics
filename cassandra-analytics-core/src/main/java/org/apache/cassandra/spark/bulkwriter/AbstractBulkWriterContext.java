@@ -32,6 +32,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CassandraClusterInfoGroup;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -76,7 +77,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     private final JobInfo jobInfo;
     private final ClusterInfo clusterInfo;
     private final SchemaInfo schemaInfo;
-    private final String bridgeVersion;
+    private final CassandraVersion bridgeVersion;
     // Note: do not declare transient fields as final; but they need to be volatile as there could be contention when recreating them after deserialization
     // For the transient field, they are assigned null once deserialized, remember to use getOrRebuildAfterDeserialization for their getters
     private transient volatile CassandraBridge bridge;
@@ -141,7 +142,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         return sparkDefaultParallelism;
     }
 
-    protected String bridgeVersion()
+    protected CassandraVersion bridgeVersion()
     {
         return bridgeVersion;
     }
@@ -229,7 +230,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
         return new LogStatsPublisher();
     }
 
-    protected String findBridgeVersion()
+    protected CassandraVersion findBridgeVersion()
     {
         return cluster().getBridgeVersion();
     }
@@ -313,7 +314,7 @@ public abstract class AbstractBulkWriterContext implements BulkWriterContext, Kr
     protected TableSchema initializeTableSchema(@NotNull BulkSparkConf conf,
                                                 @NotNull StructType dfSchema,
                                                 TableInfoProvider tableInfoProvider,
-                                                String bridgeVersion)
+                                                CassandraVersion bridgeVersion)
     {
         return new TableSchema(dfSchema,
                                tableInfoProvider,

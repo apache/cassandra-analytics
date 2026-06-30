@@ -24,6 +24,7 @@ import java.util.Map;
 
 import com.google.common.collect.Range;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -51,7 +52,7 @@ public interface ClusterInfo extends StartupValidatable
 
     TokenRangeMapping<RingInstance> getTokenRangeMapping(boolean cached);
 
-    String getBridgeVersion();
+    CassandraVersion getBridgeVersion();
 
     /**
      * @return WriteAvailability per RingInstance in the cluster

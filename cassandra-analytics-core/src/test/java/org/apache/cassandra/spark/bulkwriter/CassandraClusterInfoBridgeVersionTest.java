@@ -29,6 +29,7 @@ import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import org.apache.cassandra.bridge.CassandraVersion;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -48,7 +49,7 @@ public class CassandraClusterInfoBridgeVersionTest
     {
         TestClusterInfo info = new TestClusterInfo(conf(false), "4.0.0", Collections.singleton("big-oa"), "5.0.0");
 
-        assertThat(info.getBridgeVersion()).isEqualTo("4.0.0");
+        assertThat(info.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
         // override short-circuits: neither SSTable versions nor the lowest version are consulted
         assertThat(info.sstableVersionsCalls).isEqualTo(0);
         assertThat(info.lowestVersionCalls).isEqualTo(0);
@@ -59,7 +60,7 @@ public class CassandraClusterInfoBridgeVersionTest
     {
         TestClusterInfo info = new TestClusterInfo(conf(true), "4.0.0", Collections.singleton("big-oa"), "5.0.0");
 
-        assertThat(info.getBridgeVersion()).isEqualTo("4.0.0");
+        assertThat(info.getBridgeVersion()).isEqualTo(CassandraVersion.FOURZERO);
         assertThat(info.sstableVersionsCalls).isEqualTo(0);
         assertThat(info.lowestVersionCalls).isEqualTo(0);
     }
@@ -77,7 +78,7 @@ public class CassandraClusterInfoBridgeVersionTest
         CassandraVersion expected = bti ? CassandraVersion.FIVEZERO : CassandraVersion.FOURZERO;
         TestClusterInfo info = new TestClusterInfo(conf(false), null, sstableVersions, "5.0.0");
 
-        assertThat(info.getBridgeVersion()).isEqualTo(expected.versionName() + ".0");
+        assertThat(info.getBridgeVersion()).isEqualTo(expected);
         assertThat(info.sstableVersionsCalls).isEqualTo(1);
         // SSTable-based selection does not consult the legacy lowest version
         assertThat(info.lowestVersionCalls).isEqualTo(0);
@@ -88,9 +89,37 @@ public class CassandraClusterInfoBridgeVersionTest
     {
         TestClusterInfo info = new TestClusterInfo(conf(true), null, Collections.singleton("big-oa"), "5.0.0");
 
-        assertThat(info.getBridgeVersion()).isEqualTo("5.0.0");
+        assertThat(info.getBridgeVersion()).isEqualTo(CassandraVersion.FIVEZERO);
         assertThat(info.lowestVersionCalls).isEqualTo(1);
         // legacy path does not consult SSTable versions
+        assertThat(info.sstableVersionsCalls).isEqualTo(0);
+    }
+
+    @Test
+    void testUnsupportedOverrideVersionThrows()
+    {
+        // An override that does not map to any known CassandraVersion fails fast with an actionable message.
+        TestClusterInfo info = new TestClusterInfo(conf(false), "9.9.9", Collections.singleton("big-oa"), "5.0.0");
+
+        assertThatThrownBy(info::getBridgeVersion)
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining("Unsupported Cassandra version override: 9.9.9");
+        // override short-circuits before any SSTable-version or legacy lookup
+        assertThat(info.sstableVersionsCalls).isEqualTo(0);
+        assertThat(info.lowestVersionCalls).isEqualTo(0);
+    }
+
+    @Test
+    void testLegacyUnsupportedVersionThrows()
+    {
+        // Feature disabled, no override: the legacy cassandra.version is consulted and, when it maps to no
+        // known CassandraVersion, the determination fails fast.
+        TestClusterInfo info = new TestClusterInfo(conf(true), null, Collections.singleton("big-oa"), "9.9.9");
+
+        assertThatThrownBy(info::getBridgeVersion)
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining("Unsupported Cassandra version: 9.9.9");
+        assertThat(info.lowestVersionCalls).isEqualTo(1);
         assertThat(info.sstableVersionsCalls).isEqualTo(0);
     }
 

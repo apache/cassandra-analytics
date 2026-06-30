@@ -85,7 +85,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
     private volatile TokenRangeMapping<RingInstance> consolidatedTokenRangeMapping;
     // Pre-computed values from BroadcastableClusterInfoGroup (only set when reconstructed on executors)
     private Partitioner cachedPartitioner;
-    private String cachedBridgeVersion;
+    private CassandraVersion cachedBridgeVersion;
 
     /**
      * Creates {@link CassandraClusterInfoGroup} with the list of {@link ClusterInfo} from {@link BulkSparkConf} and validation
@@ -226,7 +226,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
      * @return the determined Cassandra bridge version
      */
     @Override
-    public String getBridgeVersion()
+    public CassandraVersion getBridgeVersion()
     {
         // Return cached value if available (executor-side reconstruction)
         if (cachedBridgeVersion != null)
@@ -243,11 +243,8 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
         // lowest version's SSTables are importable by the highest version present.
         List<CassandraVersion> bridgeVersions = clusterInfos.stream()
                 .map(ClusterInfo::getBridgeVersion)
-                .map(version -> CassandraVersion.fromVersion(version)
-                        .orElseThrow(() -> new UnsupportedOperationException("Unsupported Cassandra version: " + version)))
                 .collect(Collectors.toList());
-        CassandraVersion lowest = SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(bridgeVersions);
-        return lowest.versionName() + ".0";
+        return SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(bridgeVersions);
     }
 
     @Override

@@ -86,7 +86,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     // Changes here must be reflected in BroadcastableClusterInfo.
     protected final BulkSparkConf conf;
     protected final String clusterId;
-    protected String bridgeVersion;
+    // volatile for correct double-checked locking in getBridgeVersion() (lazy init on the driver)
+    protected volatile CassandraVersion bridgeVersion;
     protected Partitioner partitioner;
 
     // -- Driver-only fields (not broadcast) --
@@ -399,12 +400,12 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
      * {@link BroadcastableClusterInfo}, so no re-query is needed). The determination itself is in
      * {@link #determineBridgeVersion()}.
      *
-     * @return the determined Cassandra bridge version string (e.g. "5.0.0")
+     * @return the determined Cassandra bridge version (e.g. {@link CassandraVersion#FIVEZERO})
      */
     @Override
-    public String getBridgeVersion()
+    public CassandraVersion getBridgeVersion()
     {
-        String currentBridgeVersion = bridgeVersion;
+        CassandraVersion currentBridgeVersion = bridgeVersion;
         if (currentBridgeVersion != null)
         {
             return currentBridgeVersion;
@@ -430,29 +431,29 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
      *   <li>otherwise (feature disabled), the lowest Cassandra release version reported by the cluster.</li>
      * </ol>
      *
-     * @return a version string for the determined bridge (e.g. "5.0.0")
+     * @return the determined bridge version
      */
-    private String determineBridgeVersion()
+    private CassandraVersion determineBridgeVersion()
     {
         String versionOverride = getVersionFromFeature();
         if (versionOverride != null)
         {
             // Forcing writer to use a particular version; validate it is a supported version up front
-            CassandraVersion.fromVersion(versionOverride)
-                            .orElseThrow(() -> new UnsupportedOperationException(
-                                "Unsupported Cassandra version override: " + versionOverride));
-            return versionOverride;
+            return CassandraVersion.fromVersion(versionOverride)
+                                   .orElseThrow(() -> new UnsupportedOperationException(
+                                       "Unsupported Cassandra version override: " + versionOverride));
         }
 
         if (!conf.isSSTableVersionBasedBridgeDisabled())
         {
-            CassandraVersion determined = SSTableVersionAnalyzer.determineBridgeVersionForWrite(getSSTableVersionsOnCluster(),
-                                                                                                CassandraVersion.configuredSSTableFormat());
-            // Return a full major.minor.patch string so it parses via CassandraVersionFeatures downstream
-            return determined.versionName() + ".0";
+            return SSTableVersionAnalyzer.determineBridgeVersionForWrite(getSSTableVersionsOnCluster(),
+                                                                         CassandraVersion.configuredSSTableFormat());
         }
 
-        return getVersionFromSidecar();
+        String releaseVersion = getVersionFromSidecar();
+        return CassandraVersion.fromVersion(releaseVersion)
+                               .orElseThrow(() -> new UnsupportedOperationException(
+                                   "Unsupported Cassandra version: " + releaseVersion));
     }
 
     @Override

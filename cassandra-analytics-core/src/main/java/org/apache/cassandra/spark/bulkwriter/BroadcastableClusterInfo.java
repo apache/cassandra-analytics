@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.bulkwriter;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -45,7 +46,7 @@ public final class BroadcastableClusterInfo implements IBroadcastableClusterInfo
 
     // Essential fields broadcast to executors
     private final Partitioner partitioner;
-    private final String bridgeVersion;
+    private final CassandraVersion bridgeVersion;
     private final String clusterId;
     private final BulkSparkConf conf;
 
@@ -62,7 +63,7 @@ public final class BroadcastableClusterInfo implements IBroadcastableClusterInfo
     }
 
     private BroadcastableClusterInfo(@NotNull Partitioner partitioner,
-                                     @NotNull String bridgeVersion,
+                                     @NotNull CassandraVersion bridgeVersion,
                                      @Nullable String clusterId,
                                      @NotNull BulkSparkConf conf)
     {
@@ -78,7 +79,7 @@ public final class BroadcastableClusterInfo implements IBroadcastableClusterInfo
     }
 
     @Override
-    public String getBridgeVersion()
+    public CassandraVersion getBridgeVersion()
     {
         return bridgeVersion;
     }

@@ -257,7 +257,6 @@ public class SidecarClient implements AutoCloseable, SidecarClientBlobRestoreExt
                                                             .build());
     }
 
-
     /**
      * Executes the GET gossip health request using the default retry policy and configured selection policy
      * @param instance the instance where the request will be executed

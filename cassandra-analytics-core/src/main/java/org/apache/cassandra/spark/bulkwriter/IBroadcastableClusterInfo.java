@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -53,7 +54,7 @@ public interface IBroadcastableClusterInfo extends Serializable
     /**
      * @return the pre-computed Cassandra bridge version determined on the driver
      */
-    String getBridgeVersion();
+    CassandraVersion getBridgeVersion();
 
     /**
      * ID string that can uniquely identify a cluster.

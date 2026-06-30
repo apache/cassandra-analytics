@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.spark.sql.types.StructType;
 import org.jetbrains.annotations.NotNull;
@@ -52,9 +53,9 @@ class AbstractBulkWriterContextTest
         // CassandraClusterInfoBridgeVersionTest.
         BulkSparkConf conf = mock(BulkSparkConf.class);
         StructType schema = mock(StructType.class);
-        TestBulkWriterContext context = TestBulkWriterContext.create(conf, schema, 1, "5.0.0");
+        TestBulkWriterContext context = TestBulkWriterContext.create(conf, schema, 1, CassandraVersion.FIVEZERO);
 
-        assertThat(context.bridgeVersion()).isEqualTo("5.0.0");
+        assertThat(context.bridgeVersion()).isEqualTo(CassandraVersion.FIVEZERO);
     }
 
     /**
@@ -64,7 +65,7 @@ class AbstractBulkWriterContextTest
      */
     static class TestBulkWriterContext extends AbstractBulkWriterContext
     {
-        private static String staticBridgeVersion;
+        private static CassandraVersion staticBridgeVersion;
 
         private TestBulkWriterContext(@NotNull BulkSparkConf conf,
                                       @NotNull StructType structType,
@@ -76,7 +77,7 @@ class AbstractBulkWriterContextTest
         static TestBulkWriterContext create(@NotNull BulkSparkConf conf,
                                             @NotNull StructType structType,
                                             int sparkDefaultParallelism,
-                                            String bridgeVersion)
+                                            CassandraVersion bridgeVersion)
         {
             staticBridgeVersion = bridgeVersion;
             return new TestBulkWriterContext(conf, structType, sparkDefaultParallelism);

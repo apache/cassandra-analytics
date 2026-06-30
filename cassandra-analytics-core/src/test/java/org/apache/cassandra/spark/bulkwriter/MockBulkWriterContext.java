@@ -379,9 +379,9 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
     }
 
     @Override
-    public String getBridgeVersion()
+    public CassandraVersion getBridgeVersion()
     {
-        return cassandraVersion;
+        return CassandraVersion.fromVersion(cassandraVersion).orElse(CassandraVersion.FIVEZERO);
     }
 
     public Set<String> getSSTableVersionsOnCluster()
