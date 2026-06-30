@@ -153,18 +153,49 @@ public class SchemaBuilder
         this.metadata = updated.right;
     }
 
+    /**
+     * The index statements this builder was created with, exposed for use by subclasses.
+     */
+    protected Set<String> indexStatements()
+    {
+        return indexStatements;
+    }
+
+    /**
+     * Invoked with the freshly built table metadata just before it is registered, so subclasses can adjust what
+     * gets registered. Returns the table metadata to actually register. Default: unchanged.
+     *
+     * @param tableMetadata the table metadata about to be registered
+     * @param previousTable the table metadata registered before this build (may be {@code null})
+     */
+    protected TableMetadata beforeTableRegistered(TableMetadata tableMetadata, @Nullable TableMetadata previousTable)
+    {
+        return tableMetadata;
+    }
+
+    /**
+     * Invoked after the table has been registered and opened, within the same atomic schema update, so subclasses
+     * can apply further changes to the just-registered table. Default: no-op.
+     *
+     * @param schema          the schema being updated
+     * @param registeredTable the just-registered table metadata
+     */
+    protected void afterTableRegistered(Schema schema, TableMetadata registeredTable)
+    {
+    }
+
     // Update schema with the given keyspace, table and udt.
     // It creates the corresponding metadata and opens instances for keyspace and table, if needed.
     // At the end, it validates that the input keyspace and table both should have metadata exist and instance opened.
-    private static Pair<KeyspaceMetadata, TableMetadata> updateSchema(Schema schema,
-                                                                      String keyspace,
-                                                                      Set<String> udtStatements,
-                                                                      String createStatement,
-                                                                      Partitioner partitioner,
-                                                                      ReplicationFactor replicationFactor,
-                                                                      UUID tableId,
-                                                                      boolean enableCdc,
-                                                                      Consumer<ColumnMetadata> columnValidator)
+    private Pair<KeyspaceMetadata, TableMetadata> updateSchema(Schema schema,
+                                                               String keyspace,
+                                                               Set<String> udtStatements,
+                                                               String createStatement,
+                                                               Partitioner partitioner,
+                                                               ReplicationFactor replicationFactor,
+                                                               UUID tableId,
+                                                               boolean enableCdc,
+                                                               Consumer<ColumnMetadata> columnValidator)
     {
         // Set up and open keyspace if needed
         IPartitioner cassPartitioner = CassandraTypesImplementation.getPartitioner(partitioner);
@@ -225,22 +256,15 @@ public class SchemaBuilder
 
         tableMetadata.columns().forEach(columnValidator);
 
-        // This builder always produces an index-less table (indexes are applied later by the 5.0 bridge), so a
-        // rebuild never carries indexes even if the caller passed index statements. buildSchema runs repeatedly per
-        // table in a JVM; if an earlier call already registered indexes, copy them onto this rebuild so it matches
-        // the registered table.
-        if (maybeExistingTableMetadata != null
-            && !maybeExistingTableMetadata.indexes.isEmpty()
-            && tableMetadata.indexes.isEmpty())
-        {
-            tableMetadata = tableMetadata.unbuild()
-                                         .indexes(maybeExistingTableMetadata.indexes)
-                                         .build();
-        }
+        // Let a subclass adjust what gets registered. Default is a no-op, so 4.0 registers exactly what it built.
+        tableMetadata = beforeTableRegistered(tableMetadata, maybeExistingTableMetadata);
 
         setupTableAndUdt(schema, keyspace, tableMetadata, types);
+        Pair<KeyspaceMetadata, TableMetadata> result = validateKeyspaceTable(schema, keyspace, tableMetadata.name);
 
-        return validateKeyspaceTable(schema, keyspace, tableMetadata.name);
+        // Let a subclass apply further changes within this same atomic update. Default is a no-op.
+        afterTableRegistered(schema, result.right);
+        return result;
     }
 
     private void validateColumnMetaData(@NotNull ColumnMetadata column)
