@@ -196,9 +196,10 @@ public final class Sidecar
 
         List<CompletableFuture<GossipInfoResponse>> gossipInfoFutures = gossipInfoFromAllNodes(client, instances);
 
-        // Calculate total timeout. Requests are issued in parallel, so the timeout is per-request
-        // (delay * retries) and must not be multiplied by the number of instances.
-        final long totalTimeout = maxRetryDelayMillis * maxRetries;
+        // Worst-case, the http client is configured for 1 worker pool.
+        // In that case, each future can take the full retry delay * number of retries,
+        // and each instance will be processed serially. Mirrors CassandraClusterInfo#getAllNodeSettings.
+        final long totalTimeout = maxRetryDelayMillis * maxRetries * gossipInfoFutures.size();
 
         List<GossipInfoResponse> gossipInfoResponses = FutureUtils.bestEffortGet(gossipInfoFutures,
                                                                                  totalTimeout,
