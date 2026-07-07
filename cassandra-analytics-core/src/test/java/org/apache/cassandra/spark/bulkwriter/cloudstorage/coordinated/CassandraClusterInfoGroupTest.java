@@ -208,7 +208,6 @@ class CassandraClusterInfoGroupTest
             .hasMessageContaining("remoteCassandraTime=2024-09-17T20:18:09.530Z, ")
             .hasMessageContaining("clusterId=cluster" + clusterIndexWithLargeTimeSkew);
         }
-
     }
 
     @Test

@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import com.vdurmont.semver4j.Semver;
+
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
@@ -66,9 +67,9 @@ abstract class BulkRoundtripSSTableVersionBridgeTestBase extends SharedClusterSp
     static final QualifiedName TABLE_MULTIPLE = new QualifiedName(TEST_KEYSPACE, "test_multiple");
     static final QualifiedName TABLE_SNAPSHOT = new QualifiedName(TEST_KEYSPACE, "test_snapshot");
 
-    static final StructType SCHEMA = DataTypes.createStructType(new StructField[]{
-        DataTypes.createStructField("id", DataTypes.IntegerType, false),
-        DataTypes.createStructField("value", DataTypes.StringType, false)
+    static final StructType SCHEMA = DataTypes.createStructType(new StructField[] {
+    DataTypes.createStructField("id", DataTypes.IntegerType, false),
+    DataTypes.createStructField("value", DataTypes.StringType, false)
     });
 
     /**
@@ -78,7 +79,7 @@ abstract class BulkRoundtripSSTableVersionBridgeTestBase extends SharedClusterSp
 
     /**
      * @return the SSTable format the analytics bulk writer should produce ({@code big} by default;
-     *         overridden to {@code bti} by the BTI variant).
+     * overridden to {@code bti} by the BTI variant).
      */
     protected String sstableFormat()
     {
@@ -142,11 +143,11 @@ abstract class BulkRoundtripSSTableVersionBridgeTestBase extends SharedClusterSp
         SparkSession spark = getOrCreateSparkSession();
 
         List<Row> data = Arrays.asList(
-            RowFactory.create(0, "a"),
-            RowFactory.create(1, "b"),
-            RowFactory.create(2, "c"),
-            RowFactory.create(3, "d"),
-            RowFactory.create(4, "e")
+        RowFactory.create(0, "a"),
+        RowFactory.create(1, "b"),
+        RowFactory.create(2, "c"),
+        RowFactory.create(3, "d"),
+        RowFactory.create(4, "e")
         );
         Dataset<Row> dfWrite = spark.createDataFrame(data, SCHEMA);
 

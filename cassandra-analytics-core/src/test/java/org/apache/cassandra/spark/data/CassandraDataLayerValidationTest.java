@@ -46,7 +46,7 @@ import static org.mockito.Mockito.when;
 public class CassandraDataLayerValidationTest
 {
     @Test
-    void testValidateSStableVersionsListWithValidVersions()
+    void testValidateSSTableVersionsListWithValidVersions()
     {
         Set<String> expectedVersions = new HashSet<>(Arrays.asList("big-na", "big-nb"));
         CassandraDataLayer dataLayer = createTestDataLayerWithVersions(expectedVersions);
@@ -57,11 +57,11 @@ public class CassandraDataLayerValidationTest
 
         assertThatNoException()
         .describedAs("All SSTables have expected versions")
-        .isThrownBy(() -> dataLayer.validateSStableVersions(sstables));
+        .isThrownBy(() -> dataLayer.validateSSTableVersions(sstables));
     }
 
     @Test
-    void testValidateSStableVersionsAcceptsReadableVersionNotInGossip()
+    void testValidateSSTableVersionsAcceptsReadableVersionNotInGossip()
     {
         // Only big-na was observed in gossip, but the selected read bridge (4.0) can also read big-nb. A version
         // that appears after the gossip snapshot but is still readable by the bridge must not fail validation.
@@ -74,22 +74,22 @@ public class CassandraDataLayerValidationTest
 
         assertThatNoException()
         .describedAs("A version readable by the selected bridge but not in the gossip snapshot should be accepted")
-        .isThrownBy(() -> dataLayer.validateSStableVersions(sstables));
+        .isThrownBy(() -> dataLayer.validateSSTableVersions(sstables));
     }
 
     @Test
-    void testValidateSStableVersionsListWithEmptyList()
+    void testValidateSSTableVersionsListWithEmptyList()
     {
         Set<String> expectedVersions = new HashSet<>(List.of("big-na"));
         CassandraDataLayer dataLayer = createTestDataLayerWithVersions(expectedVersions);
 
         assertThatNoException()
         .describedAs("Empty SSTable list should not throw exception")
-        .isThrownBy(() -> dataLayer.validateSStableVersions(Collections.emptyList()));
+        .isThrownBy(() -> dataLayer.validateSSTableVersions(Collections.emptyList()));
     }
 
     @Test
-    void testValidateSStableVersionsListErrorMessageIncludesFileName()
+    void testValidateSSTableVersionsListErrorMessageIncludesFileName()
     {
         Set<String> expectedVersions = new HashSet<>(List.of("big-na"));
         CassandraDataLayer dataLayer = createTestDataLayerWithVersions(expectedVersions);
@@ -97,7 +97,7 @@ public class CassandraDataLayerValidationTest
         SSTable ssTable = createMockSSTable("big", "oa", "keyspace-table-big-oa-Data.db");
         List<SSTable> sstables = Collections.singletonList(ssTable);
 
-        assertThatThrownBy(() -> dataLayer.validateSStableVersions(sstables))
+        assertThatThrownBy(() -> dataLayer.validateSSTableVersions(sstables))
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessageContaining("keyspace-table-big-oa-Data.db")
         .hasMessageContaining("Versions observed in gossip:")
@@ -105,7 +105,7 @@ public class CassandraDataLayerValidationTest
     }
 
     @Test
-    void testValidateSStableVersionsListWithMixedBigAndBtiFormats()
+    void testValidateSSTableVersionsListWithMixedBigAndBtiFormats()
     {
         Set<String> expectedVersions = new HashSet<>(Arrays.asList("big-oa", "bti-da"));
         CassandraDataLayer dataLayer = createTestDataLayerWithVersions(expectedVersions);
@@ -116,11 +116,11 @@ public class CassandraDataLayerValidationTest
 
         assertThatNoException()
         .describedAs("Mixed big and bti format SSTables should be validated successfully")
-        .isThrownBy(() -> dataLayer.validateSStableVersions(sstables));
+        .isThrownBy(() -> dataLayer.validateSSTableVersions(sstables));
     }
 
     @Test
-    void testValidateSStableVersionsRejectsUnreadableOlderVersion()
+    void testValidateSSTableVersionsRejectsUnreadableOlderVersion()
     {
         // The selected read bridge (5.0, from big-oa) cannot read 3.x SSTables (big-mf), so it must be rejected
         // even though both are "big" format.
@@ -131,7 +131,7 @@ public class CassandraDataLayerValidationTest
         SSTable ssTable2 = createMockSSTable("big", "mf", "keyspace-table-big-mf-Data.db");
         List<SSTable> sstables = Arrays.asList(ssTable1, ssTable2);
 
-        assertThatThrownBy(() -> dataLayer.validateSStableVersions(sstables))
+        assertThatThrownBy(() -> dataLayer.validateSSTableVersions(sstables))
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessageContaining("has version 'big-mf' which is not readable by the bridge")
         .hasMessageContaining("keyspace-table-big-mf-Data.db")
@@ -140,7 +140,7 @@ public class CassandraDataLayerValidationTest
     }
 
     @Test
-    void testValidateSStableVersionsListSkipsValidationWhenFeatureDisabled()
+    void testValidateSSTableVersionsListSkipsValidationWhenFeatureDisabled()
     {
         // When the feature is disabled the driver leaves sstableVersionsOnCluster empty; on the executor
         // an empty expected set is the signal that the feature is disabled, so validation is skipped.
@@ -152,7 +152,7 @@ public class CassandraDataLayerValidationTest
 
         assertThatNoException()
         .describedAs("Validation should be skipped when feature is disabled (empty expected versions)")
-        .isThrownBy(() -> dataLayer.validateSStableVersions(sstables));
+        .isThrownBy(() -> dataLayer.validateSSTableVersions(sstables));
     }
 
     // Tests for initializeSSTableVersionsAndBridgeVersion (called from initBulkReader - lines 283-313)
@@ -170,9 +170,9 @@ public class CassandraDataLayerValidationTest
 
         // Should set sstableVersionsOnCluster to the retrieved versions
         assertThat((Object) dataLayer.sstableVersionsOnCluster)
-            .isNotNull();
+        .isNotNull();
         assertThat(dataLayer.sstableVersionsOnCluster)
-            .containsExactlyInAnyOrder("big-na", "big-nb");
+        .containsExactlyInAnyOrder("big-na", "big-nb");
     }
 
     @Test
@@ -203,9 +203,9 @@ public class CassandraDataLayerValidationTest
 
         // Should set sstableVersionsOnCluster to the retrieved versions
         assertThat((Object) dataLayer.sstableVersionsOnCluster)
-            .isNotNull();
+        .isNotNull();
         assertThat(dataLayer.sstableVersionsOnCluster)
-            .containsExactlyInAnyOrder("big-oa", "bti-da");
+        .containsExactlyInAnyOrder("big-oa", "bti-da");
     }
 
     @Test
@@ -222,9 +222,9 @@ public class CassandraDataLayerValidationTest
 
         // Should set sstableVersionsOnCluster to all retrieved versions
         assertThat((Object) dataLayer.sstableVersionsOnCluster)
-            .isNotNull();
+        .isNotNull();
         assertThat(dataLayer.sstableVersionsOnCluster)
-            .containsExactlyInAnyOrder("big-na", "big-oa");
+        .containsExactlyInAnyOrder("big-na", "big-oa");
     }
 
     @Test
@@ -291,7 +291,7 @@ public class CassandraDataLayerValidationTest
 
         /**
          * Derives the bridge version the driver would select for these SSTable versions, so that
-         * {@code bridge().getVersion()} (used by validateSStableVersions) matches the scenario. Falls back to
+         * {@code bridge().getVersion()} (used by validateSSTableVersions) matches the scenario. Falls back to
          * 4.0 when no versions are supplied (disabled-feature / init-only cases).
          */
         private static CassandraVersion bridgeVersionFor(Set<String> sstableVersions)

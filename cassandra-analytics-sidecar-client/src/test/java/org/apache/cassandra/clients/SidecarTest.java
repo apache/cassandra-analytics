@@ -56,13 +56,13 @@ public class SidecarTest
         response.put("localhost", info);
 
         when(client.gossipInfo(any(SidecarInstance.class)))
-            .thenReturn(CompletableFuture.completedFuture(response));
+        .thenReturn(CompletableFuture.completedFuture(response));
 
         Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
 
         assertThat(versions)
-            .describedAs("Should extract SSTable versions from gossip info")
-            .containsExactlyInAnyOrder("big-na", "big-nb");
+        .describedAs("Should extract SSTable versions from gossip info")
+        .containsExactlyInAnyOrder("big-na", "big-nb");
     }
 
     @Test
@@ -84,15 +84,15 @@ public class SidecarTest
         response2.put("node2", info2);
 
         when(client.gossipInfo(instance1))
-            .thenReturn(CompletableFuture.completedFuture(response1));
+        .thenReturn(CompletableFuture.completedFuture(response1));
         when(client.gossipInfo(instance2))
-            .thenReturn(CompletableFuture.completedFuture(response2));
+        .thenReturn(CompletableFuture.completedFuture(response2));
 
         Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
 
         assertThat(versions)
-            .describedAs("Should aggregate and deduplicate SSTable versions from multiple nodes with mixed Cassandra versions")
-            .containsExactlyInAnyOrder("big-na", "big-nb", "big-oa", "bti-da");
+        .describedAs("Should aggregate and deduplicate SSTable versions from multiple nodes with mixed Cassandra versions")
+        .containsExactlyInAnyOrder("big-na", "big-nb", "big-oa", "bti-da");
     }
 
     @Test
@@ -109,17 +109,17 @@ public class SidecarTest
         response1.put("node1", info1);
 
         when(client.gossipInfo(instance1))
-            .thenReturn(CompletableFuture.completedFuture(response1));
+        .thenReturn(CompletableFuture.completedFuture(response1));
 
         // Node2 fails
         when(client.gossipInfo(instance2))
-            .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Connection failed")));
+        .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Connection failed")));
 
         Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
 
         assertThat(versions)
-            .describedAs("Should return versions from successful nodes even when some fail")
-            .containsExactlyInAnyOrder("big-na", "big-nb");
+        .describedAs("Should return versions from successful nodes even when some fail")
+        .containsExactlyInAnyOrder("big-na", "big-nb");
     }
 
     @Test
@@ -132,13 +132,13 @@ public class SidecarTest
 
         // Both nodes fail
         when(client.gossipInfo(any(SidecarInstance.class)))
-            .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Connection failed")));
+        .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Connection failed")));
 
         Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
 
         assertThat(versions)
-            .describedAs("Should return empty set when all nodes fail")
-            .isEmpty();
+        .describedAs("Should return empty set when all nodes fail")
+        .isEmpty();
     }
 
     @Test
@@ -154,13 +154,13 @@ public class SidecarTest
         response.put("localhost", info);
 
         when(client.gossipInfo(any(SidecarInstance.class)))
-            .thenReturn(CompletableFuture.completedFuture(response));
+        .thenReturn(CompletableFuture.completedFuture(response));
 
         Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
 
         assertThat(versions)
-            .describedAs("Should return empty set when SSTable versions are null")
-            .isEmpty();
+        .describedAs("Should return empty set when SSTable versions are null")
+        .isEmpty();
     }
 
     @Test
@@ -172,8 +172,8 @@ public class SidecarTest
         Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
 
         assertThat(versions)
-            .describedAs("Should return empty set when no instances provided")
-            .isEmpty();
+        .describedAs("Should return empty set when no instances provided")
+        .isEmpty();
     }
 
     private GossipInfoResponse.GossipInfo createGossipInfo(List<String> sstableVersions)

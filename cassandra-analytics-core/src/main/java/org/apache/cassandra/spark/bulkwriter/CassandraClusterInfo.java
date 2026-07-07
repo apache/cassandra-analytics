@@ -441,7 +441,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
             // Forcing writer to use a particular version; validate it is a supported version up front
             return CassandraVersion.fromVersion(versionOverride)
                                    .orElseThrow(() -> new UnsupportedOperationException(
-                                       "Unsupported Cassandra version override: " + versionOverride));
+                                   "Unsupported Cassandra version override: " + versionOverride));
         }
 
         if (!conf.isSSTableVersionBasedBridgeDisabled())
@@ -453,7 +453,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         String releaseVersion = getVersionFromSidecar();
         return CassandraVersion.fromVersion(releaseVersion)
                                .orElseThrow(() -> new UnsupportedOperationException(
-                                   "Unsupported Cassandra version: " + releaseVersion));
+                               "Unsupported Cassandra version: " + releaseVersion));
     }
 
     @Override
@@ -564,10 +564,10 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         CassandraContext context = getCassandraContext();
 
         return Sidecar.getSSTableVersionsFromCluster(
-            context.getSidecarClient(),
-            context.getCluster(),
-            conf.getSidecarRequestMaxRetryDelayMillis(),
-            conf.getSidecarRequestRetries()
+        context.getSidecarClient(),
+        context.getCluster(),
+        conf.getSidecarRequestMaxRetryDelayMillis(),
+        conf.getSidecarRequestRetries()
         );
     }
 

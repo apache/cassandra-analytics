@@ -384,14 +384,6 @@ public class MockBulkWriterContext implements BulkWriterContext, ClusterInfo, Jo
         return CassandraVersion.fromVersion(cassandraVersion).orElse(CassandraVersion.FIVEZERO);
     }
 
-    public Set<String> getSSTableVersionsOnCluster()
-    {
-        // Return SSTable versions based on Cassandra version for testing
-        CassandraVersion version = CassandraVersion.fromVersion(cassandraVersion)
-            .orElse(CassandraVersion.FIVEZERO);
-        return new HashSet<>(version.getNativeSStableVersions());
-    }
-
     private List<String> buildCompleteBatchIds(List<String> uuids)
     {
         return uuids.stream().map(uuid -> uuid + "-" + jobId).collect(Collectors.toList());

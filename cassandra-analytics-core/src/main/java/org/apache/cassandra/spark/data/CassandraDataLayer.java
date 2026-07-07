@@ -374,7 +374,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             this.sstableVersionsOnCluster = new HashSet<>();
             bridgeVersion = CassandraVersion.fromVersion(cassandraVersion)
                                             .orElseThrow(() -> new UnsupportedOperationException(
-                                                "Unsupported Cassandra version: " + cassandraVersion));
+                                            "Unsupported Cassandra version: " + cassandraVersion));
         }
         else
         {
@@ -400,10 +400,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
     protected Set<String> retrieveSSTableVersionsFromCluster()
     {
         return Sidecar.getSSTableVersionsFromCluster(
-            sidecar,
-            clusterConfig,
-            sidecarClientConfig.maxMillisToSleep(),
-            sidecarClientConfig.maxRetries()
+        sidecar,
+        clusterConfig,
+        sidecarClientConfig.maxMillisToSleep(),
+        sidecarClientConfig.maxRetries()
         );
     }
 
@@ -721,7 +721,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                      .collect(Collectors.toList());
 
         // Validate SSTable versions against expected versions from gossip
-        validateSStableVersions(sstables);
+        validateSSTableVersions(sstables);
 
         return sstables;
     }
@@ -943,7 +943,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
      * @throws UnsupportedOperationException if any SSTable has a version not in expected sstable versions
      */
     @VisibleForTesting
-    void validateSStableVersions(List<SSTable> sstables)
+    void validateSSTableVersions(List<SSTable> sstables)
     {
         Set<String> expectedVersions = this.sstableVersionsOnCluster;
         // An empty (or null) expected set means SSTable version-based bridge selection was disabled
@@ -963,7 +963,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         // and reconstructed here; a flush/compaction producing a still-readable version between the snapshot and
         // the read should not spuriously fail. Genuinely unreadable versions (e.g. a newer major than the bridge)
         // are still rejected.
-        Set<String> readableVersions = bridge().getVersion().getSupportedSStableVersionsForRead();
+        Set<String> readableVersions = bridge().getVersion().getSupportedSSTableVersionsForRead();
 
         for (SSTable ssTable : sstables)
         {

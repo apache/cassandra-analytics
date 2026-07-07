@@ -52,7 +52,7 @@ public interface IBroadcastableClusterInfo extends Serializable
     Partitioner getPartitioner();
 
     /**
-     * @return the pre-computed Cassandra bridge version determined on the driver
+     * @return the Cassandra bridge version
      */
     CassandraVersion getBridgeVersion();
 

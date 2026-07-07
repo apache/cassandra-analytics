@@ -242,8 +242,8 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
         // Write at the lowest so every cluster can import the produced SSTables, but only after verifying the
         // lowest version's SSTables are importable by the highest version present.
         List<CassandraVersion> bridgeVersions = clusterInfos.stream()
-                .map(ClusterInfo::getBridgeVersion)
-                .collect(Collectors.toList());
+                                                            .map(ClusterInfo::getBridgeVersion)
+                                                            .collect(Collectors.toList());
         return SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(bridgeVersions);
     }
 

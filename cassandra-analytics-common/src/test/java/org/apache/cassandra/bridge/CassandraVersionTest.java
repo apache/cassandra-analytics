@@ -36,10 +36,10 @@ public class CassandraVersionTest
 {
     @ParameterizedTest
     @CsvSource({
-        "big-ma, THREEZERO", "big-mb, THREEZERO", "big-mc, THREEZERO",
-        "big-md, THREEZERO", "big-me, THREEZERO", "big-mf, THREEZERO",
-        "big-na, FOURZERO", "big-nb, FOURZERO",
-        "big-oa, FIVEZERO", "bti-da, FIVEZERO"
+    "big-ma, THREEZERO", "big-mb, THREEZERO", "big-mc, THREEZERO",
+    "big-md, THREEZERO", "big-me, THREEZERO", "big-mf, THREEZERO",
+    "big-na, FOURZERO", "big-nb, FOURZERO",
+    "big-oa, FIVEZERO", "bti-da, FIVEZERO"
     })
     void testFromSSTableVersionNativeVersions(String ssTableVersion, String expectedVersion)
     {
@@ -56,9 +56,9 @@ public class CassandraVersionTest
     }
 
     @Test
-    void testGetSupportedSStableVersionsForReadFourZero()
+    void testGetSupportedSSTableVersionsForReadFourZero()
     {
-        Set<String> supported = CassandraVersion.FOURZERO.getSupportedSStableVersionsForRead();
+        Set<String> supported = CassandraVersion.FOURZERO.getSupportedSSTableVersionsForRead();
 
         // C* 4.0 can read its own versions
         assertThat(supported).contains("big-na", "big-nb");
@@ -71,9 +71,9 @@ public class CassandraVersionTest
     }
 
     @Test
-    void testGetSupportedSStableVersionsForReadFiveZero()
+    void testGetSupportedSSTableVersionsForReadFiveZero()
     {
-        Set<String> supported = CassandraVersion.FIVEZERO.getSupportedSStableVersionsForRead();
+        Set<String> supported = CassandraVersion.FIVEZERO.getSupportedSSTableVersionsForRead();
 
         // C* 5.0 can read its own versions
         assertThat(supported).contains("big-oa", "bti-da");
@@ -86,9 +86,9 @@ public class CassandraVersionTest
     }
 
     @Test
-    void testGetSupportedSStableVersionsForReadThreeZero()
+    void testGetSupportedSSTableVersionsForReadThreeZero()
     {
-        Set<String> supported = CassandraVersion.THREEZERO.getSupportedSStableVersionsForRead();
+        Set<String> supported = CassandraVersion.THREEZERO.getSupportedSSTableVersionsForRead();
 
         // C* 3.0 can read its own versions
         assertThat(supported).contains("big-ma", "big-mb", "big-mc", "big-md", "big-me", "big-mf");
@@ -101,9 +101,9 @@ public class CassandraVersionTest
     }
 
     @Test
-    void testGetSupportedSStableVersionsForReadFourOne()
+    void testGetSupportedSSTableVersionsForReadFourOne()
     {
-        Set<String> supported = CassandraVersion.FOURONE.getSupportedSStableVersionsForRead();
+        Set<String> supported = CassandraVersion.FOURONE.getSupportedSSTableVersionsForRead();
 
         // C* 4.1 has no native SSTable versions of its own, but can read C* 4.0 and C* 3.0 versions
         // C* 4.1 can read C* 4.0 versions (same major version family)
@@ -117,24 +117,24 @@ public class CassandraVersionTest
     }
 
     @Test
-    void testGetNativeSStableVersionsFourZero()
+    void testGetNativeSSTableVersionsFourZero()
     {
-        List<String> nativeVersions = CassandraVersion.FOURZERO.getNativeSStableVersions();
+        List<String> nativeVersions = CassandraVersion.FOURZERO.getNativeSSTableVersions();
         assertThat(nativeVersions).containsExactlyInAnyOrder("big-na", "big-nb");
     }
 
     @Test
-    void testGetNativeSStableVersionsFiveZero()
+    void testGetNativeSSTableVersionsFiveZero()
     {
-        List<String> nativeVersions = CassandraVersion.FIVEZERO.getNativeSStableVersions();
+        List<String> nativeVersions = CassandraVersion.FIVEZERO.getNativeSSTableVersions();
         assertThat(nativeVersions).containsExactlyInAnyOrder("big-oa", "bti-da");
     }
 
     @Test
-    void testGetNativeSStableVersionsFourOneEmpty()
+    void testGetNativeSSTableVersionsFourOneEmpty()
     {
         // C* 4.1 did not introduce new native SSTable versions
-        List<String> nativeVersions = CassandraVersion.FOURONE.getNativeSStableVersions();
+        List<String> nativeVersions = CassandraVersion.FOURONE.getNativeSSTableVersions();
         assertThat(nativeVersions).isEmpty();
     }
 

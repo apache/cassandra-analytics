@@ -53,19 +53,26 @@ public final class SSTableVersionAnalyzer
     {
         requireSSTableVersionsPresent(sstableVersionsOnCluster);
 
-        // Every observed version must be mutually compatible (readable by the highest version present).
-        ensureMutuallyCompatibleVersions(sstableVersionsOnCluster, highestCompatibleVersion(sstableVersionsOnCluster));
+        // Convert the observed SSTable versions once and reuse for both the highest and lowest lookups.
+        List<CassandraVersion> versions = cassandraVersionsFromSSTableVersions(sstableVersionsOnCluster)
+                                          .collect(Collectors.toList());
 
-        CassandraVersion bridgeVersion = cassandraVersionsFromSSTableVersions(sstableVersionsOnCluster)
-                                         .min(Comparator.comparingInt(CassandraVersion::versionNumber))
-                                         .orElseThrow(() -> new IllegalStateException("Unable to determine the lowest SSTable version"));
+        // Every observed version must be mutually compatible (readable by the highest version present).
+        CassandraVersion highest = versions.stream()
+                                           .max(Comparator.comparingInt(CassandraVersion::versionNumber))
+                                           .orElseThrow(() -> new IllegalStateException("Unable to determine the highest SSTable version"));
+        ensureMutuallyCompatibleVersions(sstableVersionsOnCluster, highest);
+
+        CassandraVersion bridgeVersion = versions.stream()
+                                                 .min(Comparator.comparingInt(CassandraVersion::versionNumber))
+                                                 .orElseThrow(() -> new IllegalStateException("Unable to determine the lowest SSTable version"));
 
         if (!bridgeVersion.sstableFormats().contains(requestedFormat))
         {
             throw new UnsupportedOperationException(String.format(
-                "Cluster does not support requested SSTable format '%s'. Bridge version determined is %s, "
-                + "which only supports formats: %s",
-                requestedFormat, bridgeVersion.versionName(), bridgeVersion.sstableFormats()));
+            "Cluster does not support requested SSTable format '%s'. Bridge version determined is %s, "
+            + "which only supports formats: %s",
+            requestedFormat, bridgeVersion.versionName(), bridgeVersion.sstableFormats()));
         }
         return bridgeVersion;
     }
@@ -83,7 +90,9 @@ public final class SSTableVersionAnalyzer
     {
         requireSSTableVersionsPresent(sstableVersionsOnCluster);
 
-        CassandraVersion highest = highestCompatibleVersion(sstableVersionsOnCluster);
+        CassandraVersion highest = cassandraVersionsFromSSTableVersions(sstableVersionsOnCluster)
+                                   .max(Comparator.comparingInt(CassandraVersion::versionNumber))
+                                   .orElseThrow(() -> new IllegalStateException("Unable to determine the highest SSTable version"));
         ensureMutuallyCompatibleVersions(sstableVersionsOnCluster, highest);
         return highest;
     }
@@ -100,9 +109,9 @@ public final class SSTableVersionAnalyzer
         if (sstableVersionsOnCluster == null || sstableVersionsOnCluster.isEmpty())
         {
             throw new IllegalStateException(String.format(
-                "Unable to retrieve SSTable versions from cluster. This is required for SSTable version-based "
-                + "bridge selection. To bypass this check and use cassandra.version for bridge selection, set %s=true",
-                BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
+            "Unable to retrieve SSTable versions from cluster. This is required for SSTable version-based "
+            + "bridge selection. To bypass this check and use cassandra.version for bridge selection, set %s=true",
+            BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
         }
     }
 
@@ -137,10 +146,10 @@ public final class SSTableVersionAnalyzer
         if (!highest.canRead(lowest))
         {
             throw new UnsupportedOperationException(String.format(
-                "Cluster bridge versions are not mutually compatible for a coordinated write: SSTables written at the "
-                + "lowest version present (%s) cannot be imported by the highest version present (%s, which reads %s). "
-                + "Per-cluster bridge versions: %s",
-                lowest.versionName(), highest.versionName(), highest.getSupportedSStableVersionsForRead(), bridgeVersions));
+            "Cluster bridge versions are not mutually compatible for a coordinated write: SSTables written at the "
+            + "lowest version present (%s) cannot be imported by the highest version present (%s, which reads %s). "
+            + "Per-cluster bridge versions: %s",
+            lowest.versionName(), highest.versionName(), highest.getSupportedSSTableVersionsForRead(), bridgeVersions));
         }
 
         return lowest;
@@ -151,34 +160,22 @@ public final class SSTableVersionAnalyzer
      * the cluster spans incompatible Cassandra majors and the job cannot proceed.
      *
      * @param sstableVersionsOnCluster the observed SSTable versions
-     * @param highest                  the highest Cassandra version present (see {@link #highestCompatibleVersion(Set)})
+     * @param highest                  the highest Cassandra version present
      * @throws UnsupportedOperationException if any observed version cannot be read by {@code highest}
      */
     private static void ensureMutuallyCompatibleVersions(Set<String> sstableVersionsOnCluster, CassandraVersion highest)
     {
-        Set<String> readable = highest.getSupportedSStableVersionsForRead();
+        Set<String> readable = highest.getSupportedSSTableVersionsForRead();
         List<String> incompatible = sstableVersionsOnCluster.stream()
                                                             .filter(version -> !readable.contains(version))
                                                             .collect(Collectors.toList());
         if (!incompatible.isEmpty())
         {
             throw new UnsupportedOperationException(String.format(
-                "SSTable versions on the cluster are not mutually compatible: %s cannot be read by the highest "
-                + "version present (%s, which reads %s). Observed SSTable versions: %s",
-                incompatible, highest.versionName(), readable, sstableVersionsOnCluster));
+            "SSTable versions on the cluster are not mutually compatible: %s cannot be read by the highest "
+            + "version present (%s, which reads %s). Observed SSTable versions: %s",
+            incompatible, highest.versionName(), readable, sstableVersionsOnCluster));
         }
-    }
-
-    /**
-     * Returns the highest Cassandra version among the observed SSTable versions.
-     *
-     * @throws IllegalStateException if the versions are empty/null or contain an unknown version
-     */
-    private static CassandraVersion highestCompatibleVersion(Set<String> sstableVersionsOnCluster)
-    {
-        return cassandraVersionsFromSSTableVersions(sstableVersionsOnCluster)
-               .max(Comparator.comparingInt(CassandraVersion::versionNumber))
-               .orElseThrow(() -> new IllegalStateException("Unable to determine the highest SSTable version"));
     }
 
     private static Stream<CassandraVersion> cassandraVersionsFromSSTableVersions(Set<String> sstableVersionsOnCluster)

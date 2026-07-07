@@ -43,11 +43,11 @@ public class SSTableVersionAnalyzerTest
     static Stream<Arguments> writeLowestVersionCases()
     {
         return Stream.of(
-            Arguments.of(Collections.singleton("big-oa"), "big", CassandraVersion.FIVEZERO),
-            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-nb")), "big", CassandraVersion.FOURZERO),
-            // mixed 4.0 + 5.0 sstables: lowest that every node can import is 4.0
-            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-oa")), "big", CassandraVersion.FOURZERO),
-            Arguments.of(Collections.singleton("bti-da"), "bti", CassandraVersion.FIVEZERO)
+        Arguments.of(Collections.singleton("big-oa"), "big", CassandraVersion.FIVEZERO),
+        Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-nb")), "big", CassandraVersion.FOURZERO),
+        // mixed 4.0 + 5.0 sstables: lowest that every node can import is 4.0
+        Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-oa")), "big", CassandraVersion.FOURZERO),
+        Arguments.of(Collections.singleton("bti-da"), "bti", CassandraVersion.FIVEZERO)
         );
     }
 
@@ -63,9 +63,9 @@ public class SSTableVersionAnalyzerTest
     {
         // lowest version is FOURZERO, which does not support bti
         assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(
-            new HashSet<>(Arrays.asList("big-na", "big-oa")), "bti"))
-            .isInstanceOf(UnsupportedOperationException.class)
-            .hasMessageContaining("does not support requested SSTable format 'bti'");
+        new HashSet<>(Arrays.asList("big-na", "big-oa")), "bti"))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining("does not support requested SSTable format 'bti'");
     }
 
     @Test
@@ -73,9 +73,9 @@ public class SSTableVersionAnalyzerTest
     {
         // big-mf (3.0) cannot be read by the highest version present (5.0)
         assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(
-            new HashSet<>(Arrays.asList("big-mf", "big-oa")), "big"))
-            .isInstanceOf(UnsupportedOperationException.class)
-            .hasMessageContaining("not mutually compatible");
+        new HashSet<>(Arrays.asList("big-mf", "big-oa")), "big"))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining("not mutually compatible");
     }
 
     static Stream<Arguments> nullOrEmptyCases()
@@ -88,17 +88,17 @@ public class SSTableVersionAnalyzerTest
     void testDetermineBridgeVersionForWriteNullOrEmptyThrows(Set<String> versions)
     {
         assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(versions, "big"))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("Unable to retrieve SSTable versions from cluster")
-            .hasMessageContaining("disable_sstable_version_based");
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Unable to retrieve SSTable versions from cluster")
+        .hasMessageContaining("disable_sstable_version_based");
     }
 
     @Test
     void testDetermineBridgeVersionForWriteUnknownVersionThrows()
     {
         assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(Collections.singleton("unknown-xx"), "big"))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("Unknown SSTable version");
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Unknown SSTable version");
     }
 
     // --- determineBridgeVersionForRead: picks the HIGHEST mutually-compatible version ---
@@ -106,9 +106,9 @@ public class SSTableVersionAnalyzerTest
     static Stream<Arguments> readHighestVersionCases()
     {
         return Stream.of(
-            Arguments.of(Collections.singleton("big-oa"), CassandraVersion.FIVEZERO),
-            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-nb")), CassandraVersion.FOURZERO),
-            Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-oa")), CassandraVersion.FIVEZERO)
+        Arguments.of(Collections.singleton("big-oa"), CassandraVersion.FIVEZERO),
+        Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-nb")), CassandraVersion.FOURZERO),
+        Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-oa")), CassandraVersion.FIVEZERO)
         );
     }
 
@@ -123,9 +123,9 @@ public class SSTableVersionAnalyzerTest
     void testDetermineBridgeVersionForReadRejectsIncompatibleVersions()
     {
         assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForRead(
-            new HashSet<>(Arrays.asList("big-mf", "big-oa"))))
-            .isInstanceOf(UnsupportedOperationException.class)
-            .hasMessageContaining("not mutually compatible");
+        new HashSet<>(Arrays.asList("big-mf", "big-oa"))))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining("not mutually compatible");
     }
 
     @ParameterizedTest
@@ -133,9 +133,9 @@ public class SSTableVersionAnalyzerTest
     void testDetermineBridgeVersionForReadNullOrEmptyThrows(Set<String> versions)
     {
         assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForRead(versions))
-            .isInstanceOf(IllegalStateException.class)
-            .hasMessageContaining("Unable to retrieve SSTable versions from cluster")
-            .hasMessageContaining("disable_sstable_version_based");
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Unable to retrieve SSTable versions from cluster")
+        .hasMessageContaining("disable_sstable_version_based");
     }
 
     // --- lowestCompatibleWriteVersionForCoordinatedWrites: coordinated multi-cluster write target ---
@@ -145,16 +145,16 @@ public class SSTableVersionAnalyzerTest
     {
         // 4.0 + 5.0: SSTables written at 4.0 are importable by 5.0, so the lowest (4.0) is chosen
         assertThat(SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(
-            Arrays.asList(CassandraVersion.FOURZERO, CassandraVersion.FIVEZERO)))
-            .isEqualTo(CassandraVersion.FOURZERO);
+        Arrays.asList(CassandraVersion.FOURZERO, CassandraVersion.FIVEZERO)))
+        .isEqualTo(CassandraVersion.FOURZERO);
     }
 
     @Test
     void testLowestCompatibleWriteVersionSameVersion()
     {
         assertThat(SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(
-            Arrays.asList(CassandraVersion.FIVEZERO, CassandraVersion.FIVEZERO)))
-            .isEqualTo(CassandraVersion.FIVEZERO);
+        Arrays.asList(CassandraVersion.FIVEZERO, CassandraVersion.FIVEZERO)))
+        .isEqualTo(CassandraVersion.FIVEZERO);
     }
 
     @Test
@@ -162,17 +162,17 @@ public class SSTableVersionAnalyzerTest
     {
         // 3.0 + 5.0: SSTables written at 3.0 cannot be imported by 5.0 -> reject
         assertThatThrownBy(() -> SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(
-            Arrays.asList(CassandraVersion.THREEZERO, CassandraVersion.FIVEZERO)))
-            .isInstanceOf(UnsupportedOperationException.class)
-            .hasMessageContaining("not mutually compatible");
+        Arrays.asList(CassandraVersion.THREEZERO, CassandraVersion.FIVEZERO)))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining("not mutually compatible");
     }
 
     @Test
     void testLowestCompatibleWriteVersionNullOrEmptyThrows()
     {
         assertThatThrownBy(() -> SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(Collections.emptyList()))
-            .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> SSTableVersionAnalyzer.lowestCompatibleWriteVersionForCoordinatedWrites(null))
-            .isInstanceOf(IllegalStateException.class);
+        .isInstanceOf(IllegalStateException.class);
     }
 }

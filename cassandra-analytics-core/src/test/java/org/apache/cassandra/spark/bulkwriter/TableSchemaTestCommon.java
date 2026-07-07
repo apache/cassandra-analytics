@@ -342,7 +342,8 @@ public final class TableSchemaTestCommon
             }
             // Validate the configured version is supported and resolve the bridge version it maps to.
             CassandraVersion bridgeVersion = CassandraVersion.fromVersion(cassandraVersion)
-                .orElseThrow(() -> new IllegalArgumentException("Unsupported Cassandra version: " + cassandraVersion));
+                                                             .orElseThrow(
+                                                             () -> new IllegalArgumentException("Unsupported Cassandra version: " + cassandraVersion));
 
             MockTableInfoProvider tableInfoProvider = new MockTableInfoProvider(bridge,
                                                                                 updatedCqlColumns,

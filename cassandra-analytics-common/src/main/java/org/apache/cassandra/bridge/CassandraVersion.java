@@ -47,50 +47,50 @@ import com.google.common.base.Preconditions;
  */
 public enum CassandraVersion
 {
-    THREEZERO(30, "3.0", "three-zero", new String[]{"big"},
-              new String[]{
-                  // Cassandra 3.x native sstable versions
-                  "big-ma",
-                  "big-mb",
-                  "big-mc",
-                  "big-md",
-                  "big-me",
-                  "big-mf"
+    THREEZERO(30, "3.0", "three-zero", new String[] { "big" },
+              new String[] {
+              // Cassandra 3.x native sstable versions
+              "big-ma",
+              "big-mb",
+              "big-mc",
+              "big-md",
+              "big-me",
+              "big-mf"
               }, 30),
-    FOURZERO(40, "4.0", "four-zero", new String[]{"big"},
-             new String[]{
-                 // Cassandra 4.0 native sstable versions
-                 "big-na",
-                 "big-nb",
+    FOURZERO(40, "4.0", "four-zero", new String[] { "big" },
+             new String[] {
+             // Cassandra 4.0 native sstable versions
+             "big-na",
+             "big-nb",
              }, 30),
-    FOURONE(41, "4.1", "four-zero", new String[]{"big"},
-            new String[]{
-                // Cassandra 4.1 did not introduce new native SSTable versions
+    FOURONE(41, "4.1", "four-zero", new String[] { "big" },
+            new String[] {
+            // Cassandra 4.1 did not introduce new native SSTable versions
             }, 30),
-    FIVEZERO(50, "5.0", "five-zero", new String[]{"big", "bti"},
-             new String[]{
-                 // Cassandra 5.0 native sstable versions
-                 "big-oa",
-                 "bti-da",
+    FIVEZERO(50, "5.0", "five-zero", new String[] { "big", "bti" },
+             new String[] {
+             // Cassandra 5.0 native sstable versions
+             "big-oa",
+             "bti-da",
              }, 40);
 
     private final int number;
     private final String name;
     private final String jarBaseName;  // Must match shadowJar.archiveFileName from Gradle configuration (without extension)
     private final Set<String> sstableFormats;
-    private final List<String> nativeSStableVersions;
+    private final List<String> nativeSSTableVersions;
     // Lowest Cassandra version number whose SSTables this version can read (inclusive).
     private final int lowestCompatibleVersionNumber;
 
 
-    CassandraVersion(int number, String name, String jarBaseName, String[] sstableFormats, String[] nativeSStableVersions,
+    CassandraVersion(int number, String name, String jarBaseName, String[] sstableFormats, String[] nativeSSTableVersions,
                      int lowestCompatibleVersionNumber)
     {
         this.number = number;
         this.name = name;
         this.jarBaseName = jarBaseName;
         this.sstableFormats = new HashSet<>(Arrays.asList(sstableFormats));
-        this.nativeSStableVersions = List.of(nativeSStableVersions);
+        this.nativeSSTableVersions = List.of(nativeSSTableVersions);
         this.lowestCompatibleVersionNumber = lowestCompatibleVersionNumber;
     }
 
@@ -124,9 +124,9 @@ public enum CassandraVersion
      *
      * @return List of native SSTable version strings
      */
-    public List<String> getNativeSStableVersions()
+    public List<String> getNativeSSTableVersions()
     {
-        return nativeSStableVersions;
+        return nativeSSTableVersions;
     }
 
     /**
@@ -137,14 +137,14 @@ public enum CassandraVersion
      *
      * @return Set of full SSTable version strings that can be read
      */
-    public Set<String> getSupportedSStableVersionsForRead()
+    public Set<String> getSupportedSSTableVersionsForRead()
     {
         Set<String> readableVersions = new HashSet<>();
         for (CassandraVersion version : CassandraVersion.values())
         {
             if (version.number >= lowestCompatibleVersionNumber && version.number <= this.number)
             {
-                readableVersions.addAll(version.nativeSStableVersions);
+                readableVersions.addAll(version.nativeSSTableVersions);
             }
         }
 
@@ -215,12 +215,12 @@ public enum CassandraVersion
      *
      * @param sstableVersion full version string including format (e.g., "big-na", "bti-da")
      * @return Optional containing the CassandraVersion that natively writes this format,
-     *         or Optional.empty() if:
-     *         <ul>
-     *           <li>The version string is null</li>
-     *           <li>The version string is unrecognized (not in any enum's nativeSStableVersions)</li>
-     *           <li>The version format is invalid or doesn't match expected pattern</li>
-     *         </ul>
+     * or Optional.empty() if:
+     * <ul>
+     *   <li>The version string is null</li>
+     *   <li>The version string is unrecognized (not in any enum's nativeSSTableVersions)</li>
+     *   <li>The version format is invalid or doesn't match expected pattern</li>
+     * </ul>
      */
     public static Optional<CassandraVersion> fromSSTableVersion(String sstableVersion)
     {
@@ -231,7 +231,7 @@ public enum CassandraVersion
 
         for (CassandraVersion version : CassandraVersion.values())
         {
-            if (version.nativeSStableVersions.contains(sstableVersion))
+            if (version.nativeSSTableVersions.contains(sstableVersion))
             {
                 return Optional.of(version);
             }
