@@ -83,6 +83,16 @@ public interface ClusterInfo extends StartupValidatable
      */
     ReplicationFactor replicationFactor();
 
+    /**
+     * @return {@code replication_type} of the enclosing keyspace (e.g. {@code "tracked"}, {@code "untracked"}),
+     * or {@code null} if replication_type is absent
+     */
+    @Nullable
+    default String getReplicationType()
+    {
+        return null;
+    }
+
     CassandraContext getCassandraContext();
 
     /**
