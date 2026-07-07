@@ -833,6 +833,43 @@ public class CqlUtilsTest extends VersionRunner
         assertThat(isTimeRangeFilterSupported("")).isFalse();
     }
 
+    @Test
+    public void testExtractReplicationType()
+    {
+        String schemaStrTracked
+        = "CREATE KEYSPACE k WITH REPLICATION "
+          + "= { 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy', 'dc1': '3' }"
+          + " AND DURABLE_WRITES = true AND replication_type = 'tracked';";
+        assertThat(CqlUtils.extractReplicationType(schemaStrTracked, "k")).isEqualTo("tracked");
+        String schemaStrTrackedCaseInsensitive
+        = "CREATE KEYSPACE k WITH REPLICATION "
+          + "= { 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy', 'dc1': '3' }"
+          + " AND DURABLE_WRITES = true AND REPLICATION_TYPE = 'Tracked';";
+        assertThat(CqlUtils.extractReplicationType(schemaStrTrackedCaseInsensitive, "k")).isEqualTo("Tracked");
+        String schemaStrUntracked
+        = "CREATE KEYSPACE k WITH REPLICATION "
+          + "= { 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy', 'dc1': '3' }"
+          + " AND DURABLE_WRITES = true AND replication_type = 'untracked';";
+        assertThat(CqlUtils.extractReplicationType(schemaStrUntracked, "k")).isEqualTo("untracked");
+        String schemaStrNoReplicationType
+        = "CREATE KEYSPACE k WITH REPLICATION "
+          + "= { 'class' : 'org.apache.cassandra.locator.NetworkTopologyStrategy', 'dc1': '3' }"
+          + " AND DURABLE_WRITES = true;";
+        assertThat(CqlUtils.extractReplicationType(schemaStrNoReplicationType, "k")).isNull();
+    }
+
+    @Test
+    public void testIsTracked()
+    {
+        assertThat(CqlUtils.isTracked("tracked")).isTrue();
+        assertThat(CqlUtils.isTracked("TRACKED")).isTrue();
+        assertThat(CqlUtils.isTracked("Tracked")).isTrue();
+        assertThat(CqlUtils.isTracked("untracked")).isFalse();
+        assertThat(CqlUtils.isTracked("random")).isFalse();
+        assertThat(CqlUtils.isTracked(null)).isFalse();
+        assertThat(CqlUtils.isTracked("")).isFalse();
+    }
+
     private static String loadFullSchemaSample() throws IOException
     {
         Path fullSchemaSampleFile = ResourceUtils.writeResourceToPath(CqlUtilsTest.class.getClassLoader(), tempPath, "cql/fullSchema.cql");
