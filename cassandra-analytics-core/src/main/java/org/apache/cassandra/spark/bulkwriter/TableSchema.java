@@ -321,13 +321,17 @@ public class TableSchema
             return; // No indexes — nothing to validate
         }
 
-        if (isSaiWrite(indexStatements, lowestCassandraVersion))
+        // Case: all indexes are SAI and the cluster is Cassandra 5.0+ — SAI components are generated inline and
+        // are queryable right after import, so the write is allowed without any opt-out.
+        if (hasOnlySaiIndexesOnCassandra5(indexStatements, lowestCassandraVersion))
         {
             LOGGER.info("Table has SAI indexes on Cassandra 5.0+. SAI index components will be generated "
                       + "alongside SSTables. indexCount={}", indexStatements.size());
             return;
         }
 
+        // Case: not an all-SAI-on-5.0+ write (a non-SAI/legacy 2i index is present). Such indexes
+        // are rebuilt asynchronously on import, so the write is only allowed with the explicit opt-out.
         if (skipSecondaryIndexCheck)
         {
             LOGGER.warn("Bulk writing to tables with SecondaryIndexes will have an asynchronous index rebuild "
@@ -336,7 +340,11 @@ public class TableSchema
             return;
         }
 
-        throw new UnsupportedAnalyticsOperationException("Bulkwriter doesn't support non-SAI indexes.");
+        throw new UnsupportedAnalyticsOperationException(
+            "Bulkwriter doesn't support non-SAI indexes. Set the " + WriterOptions.SKIP_SECONDARY_INDEX_CHECK
+          + " writer option to true to bulk write anyway; the non-SAI indexes will be rebuilt asynchronously after "
+          + "import (reads may be stale until the rebuild completes), while SAI indexes are still generated alongside "
+          + "SSTables on Cassandra 5.0+.");
     }
 
     static void validateNoSecondaryIndexes(TableInfoProvider tableInfo)
@@ -378,18 +386,28 @@ public class TableSchema
     }
 
     /**
-     * Returns true when the bulk writer generates SAI components alongside SSTables for this table, i.e. the
-     * table's indexes are all SAI and the cluster is Cassandra 5.0+. This single predicate is shared by schema
-     * validation (to allow the write) and by the commit/restore paths (to enable SAI import options), so the
-     * "we generate SAI components" and "we validate SAI components on import" decisions can never diverge.
+     * Returns true when the write is an all-SAI write on Cassandra 5.0+, i.e. the table's indexes are all SAI and
+     * the cluster is Cassandra 5.0+.
      *
      * @param indexStatements         the CREATE INDEX statements for the table
      * @param lowestCassandraVersion  the lowest Cassandra version in the cluster
      * @return true if this is an all-SAI write on Cassandra 5.0+
      */
-    static boolean isSaiWrite(Set<String> indexStatements, String lowestCassandraVersion)
+    static boolean hasOnlySaiIndexesOnCassandra5(Set<String> indexStatements, String lowestCassandraVersion)
     {
         return CqlUtils.hasOnlySaiIndexes(indexStatements) && isCassandra5OrLater(lowestCassandraVersion);
+    }
+
+    /**
+     * Returns true when the bulk writer generates SAI index components alongside SSTables for this table, i.e. the
+     * table has at least one SAI index and the cluster is Cassandra 5.0+.
+     * @param indexStatements         the CREATE INDEX statements for the table
+     * @param lowestCassandraVersion  the lowest Cassandra version in the cluster
+     * @return true if SAI components are generated for this write (any SAI index on Cassandra 5.0+)
+     */
+    static boolean shouldGenerateSaiComponents(Set<String> indexStatements, String lowestCassandraVersion)
+    {
+        return CqlUtils.hasAnySaiIndex(indexStatements) && isCassandra5OrLater(lowestCassandraVersion);
     }
 
     private static List<Integer> getKeyFieldPositions(StructType dfSchema,

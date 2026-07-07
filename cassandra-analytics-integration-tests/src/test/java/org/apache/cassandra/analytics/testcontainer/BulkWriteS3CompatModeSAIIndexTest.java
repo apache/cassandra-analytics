@@ -42,6 +42,7 @@ import org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.S3ProxyConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
+import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.cassandra.testing.TestUtils;
 import org.apache.spark.sql.Dataset;
@@ -55,6 +56,7 @@ import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
@@ -83,6 +85,8 @@ class BulkWriteS3CompatModeSAIIndexTest extends SharedClusterSparkIntegrationTes
     public static final String BUCKET_NAME = "sbw-bucket";
     private static final QualifiedName TABLE_NAME =
         new QualifiedName(TEST_KEYSPACE, BulkWriteS3CompatModeSAIIndexTest.class.getSimpleName().toLowerCase());
+    // A table with a mix of a SAI index (course) and a legacy 2i index (marks).
+    private static final QualifiedName TABLE_MIXED = new QualifiedName(TEST_KEYSPACE, "s3_mixed_index");
     private S3MockContainer s3Mock;
 
     /**
@@ -141,6 +145,70 @@ class BulkWriteS3CompatModeSAIIndexTest extends SharedClusterSparkIntegrationTes
     }
 
     /**
+     * Mixed SAI + legacy 2i table over the S3_COMPAT path without the opt-out: the write is rejected on the driver
+     * during schema validation (before any upload), with a message that points the user at SKIP_SECONDARY_INDEX_CHECK.
+     */
+    @Test
+    void testS3CompatMixedIndexWriteWithoutSkipCheckIsRejected()
+    {
+        SparkSession spark = getOrCreateSparkSession();
+        Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
+        Map<String, String> s3CompatOptions = ImmutableMap.of(
+        "data_transport", "S3_COMPAT",
+        "data_transport_extension_class", LocalStorageTransportExtension.class.getCanonicalName(),
+        "storage_client_endpoint_override", s3Mock.getHttpEndpoint() // point to s3Mock server
+        );
+
+        assertThatThrownBy(() -> bulkWriterDataFrameWriter(df, TABLE_MIXED, s3CompatOptions).save())
+            .hasStackTraceContaining("non-SAI indexes")
+            .hasStackTraceContaining(WriterOptions.SKIP_SECONDARY_INDEX_CHECK.name());
+    }
+
+    /**
+     * Mixed SAI + legacy 2i table over the S3_COMPAT restore path. With SKIP_SECONDARY_INDEX_CHECK the write is
+     * allowed; the restore payload enables the SAI import options (failOnMissingIndex/validateIndexChecksum) because
+     * SAI components are generated, so the SAI index survives the restore/import round-trip while the legacy 2i is
+     * rebuilt asynchronously on import.
+     */
+    @Test
+    void testS3CompatBulkWriteWithMixedIndexes()
+    {
+        SparkSession spark = getOrCreateSparkSession();
+        Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
+        Map<String, String> s3CompatOptions = ImmutableMap.of(
+        "data_transport", "S3_COMPAT",
+        "data_transport_extension_class", LocalStorageTransportExtension.class.getCanonicalName(),
+        "storage_client_endpoint_override", s3Mock.getHttpEndpoint() // point to s3Mock server
+        );
+
+        bulkWriterDataFrameWriter(df, TABLE_MIXED, s3CompatOptions)
+            .option(WriterOptions.SKIP_SECONDARY_INDEX_CHECK.name(), "true")
+            .save();
+
+        // Verify all rows are present after the restore/import round-trip.
+        sparkTestUtils.validateWrites(df.collectAsList(), queryAllData(TABLE_MIXED));
+
+        // SAI components for the SAI (course) index survived the restore/import even though the table has a legacy 2i.
+        assertThat(hasSaiIndexFiles())
+            .as("SAI index files should exist on disk after S3 restore/import of a mixed-index table")
+            .isTrue();
+
+        // SAI-filtered query works immediately (SAI is inline; the legacy 2i rebuilds asynchronously, so it is not asserted here).
+        Object[][] courseResults = cluster.getFirstRunningInstance()
+                                          .coordinator()
+                                          .execute(String.format("SELECT * FROM %s WHERE course = 'course0';", TABLE_MIXED),
+                                                   ConsistencyLevel.ALL);
+        assertThat(courseResults.length)
+            .as("SAI filter on course='course0' should return the matching row")
+            .isGreaterThan(0);
+        for (Object[] row : courseResults)
+        {
+            // course is the second column (id, course, marks)
+            assertThat(row[1]).isEqualTo("course0");
+        }
+    }
+
+    /**
      * Checks whether SAI index component files exist on disk for the test keyspace on the first node.
      */
     private boolean hasSaiIndexFiles()
@@ -154,10 +222,7 @@ class BulkWriteS3CompatModeSAIIndexTest extends SharedClusterSparkIntegrationTes
         {
             return walkStream
                    .filter(Files::isRegularFile)
-                   .anyMatch(path -> {
-                       String pathStr = path.toString();
-                       return pathStr.contains("SAI") || pathStr.contains(".sai");
-                   });
+                   .anyMatch(path -> path.getFileName().toString().contains("-SAI+"));
         }
         catch (IOException e)
         {
@@ -209,6 +274,13 @@ class BulkWriteS3CompatModeSAIIndexTest extends SharedClusterSparkIntegrationTes
             String.format("CREATE INDEX ON %s(course) USING 'StorageAttachedIndex';", TABLE_NAME));
         cluster.schemaChangeIgnoringStoppedInstances(
             String.format("CREATE INDEX ON %s(marks) USING 'StorageAttachedIndex';", TABLE_NAME));
+
+        // Mixed-index table: SAI on course + legacy 2i on marks.
+        createTestTable(TABLE_MIXED, CREATE_TEST_TABLE_STATEMENT);
+        cluster.schemaChangeIgnoringStoppedInstances(
+            String.format("CREATE INDEX ON %s(course) USING 'StorageAttachedIndex';", TABLE_MIXED));
+        cluster.schemaChangeIgnoringStoppedInstances(
+            String.format("CREATE INDEX ON %s(marks);", TABLE_MIXED));
     }
 
     @Override

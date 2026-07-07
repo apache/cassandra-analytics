@@ -352,16 +352,16 @@ public class TableSchemaTest
     }
 
     @Test
-    public void testIsSaiWrite()
+    public void testHasOnlySaiIndexesOnCassandra5()
     {
         Set<String> saiIndexes = ImmutableSet.of(
                 "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
         Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
 
-        assertThat(TableSchema.isSaiWrite(saiIndexes, "5.0.5")).isTrue();
-        assertThat(TableSchema.isSaiWrite(saiIndexes, "4.0.17")).isFalse();
-        assertThat(TableSchema.isSaiWrite(legacyIndexes, "5.0.5")).isFalse();
-        assertThat(TableSchema.isSaiWrite(Collections.emptySet(), "5.0.5")).isFalse();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(saiIndexes, "5.0.5")).isTrue();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(saiIndexes, "4.0.17")).isFalse();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(legacyIndexes, "5.0.5")).isFalse();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(Collections.emptySet(), "5.0.5")).isFalse();
     }
 
     @Test
@@ -386,7 +386,8 @@ public class TableSchemaTest
         Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
         assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, legacyIndexes, "5.0.5"))
                 .isInstanceOf(UnsupportedAnalyticsOperationException.class)
-                .hasMessage("Bulkwriter doesn't support non-SAI indexes.");
+                .hasMessageContaining("doesn't support non-SAI indexes")
+                .hasMessageContaining("SKIP_SECONDARY_INDEX_CHECK");
     }
 
     @Test
@@ -398,7 +399,8 @@ public class TableSchemaTest
                 "CREATE INDEX i2 ON test.test (marks);");
         assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, mixedIndexes, "5.0.5"))
                 .isInstanceOf(UnsupportedAnalyticsOperationException.class)
-                .hasMessage("Bulkwriter doesn't support non-SAI indexes.");
+                .hasMessageContaining("doesn't support non-SAI indexes")
+                .hasMessageContaining("SKIP_SECONDARY_INDEX_CHECK");
     }
 
     @Test
@@ -409,7 +411,8 @@ public class TableSchemaTest
         // SAI components are only generated on 5.0+, so SAI on 4.0 is blocked like any other 2i.
         assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, saiIndexes, "4.0.17"))
                 .isInstanceOf(UnsupportedAnalyticsOperationException.class)
-                .hasMessage("Bulkwriter doesn't support non-SAI indexes.");
+                .hasMessageContaining("doesn't support non-SAI indexes")
+                .hasMessageContaining("SKIP_SECONDARY_INDEX_CHECK");
     }
 
     @Test
@@ -418,6 +421,44 @@ public class TableSchemaTest
         Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
         // Explicit opt-out lets non-SAI indexes through (with an async-rebuild warning).
         TableSchema.validateSecondaryIndexes(true, legacyIndexes, "5.0.5");
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesAllowsMixedWithSkipCheck()
+    {
+        // A mixed SAI + legacy 2i table is not an all-SAI write, so it is only permitted with the explicit
+        // opt-out. With the skip flag it is allowed (SAI components are generated for the SAI index, the 2i
+        // index is rebuilt asynchronously on import).
+        Set<String> mixedIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';",
+                "CREATE INDEX i2 ON test.test (marks);");
+        TableSchema.validateSecondaryIndexes(true, mixedIndexes, "5.0.5");
+    }
+
+    @Test
+    public void testShouldGenerateSaiComponents()
+    {
+        Set<String> saiIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
+        Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
+        // Mixed SAI + legacy 2i: SAI components ARE generated for the SAI index, so import options must be enabled
+        // even though this is not an all-SAI write (hasOnlySaiIndexesOnCassandra5 would be false here).
+        Set<String> mixedIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';",
+                "CREATE INDEX i2 ON test.test (marks);");
+
+        // Any SAI index on Cassandra 5.0+ produces SAI components.
+        assertThat(TableSchema.shouldGenerateSaiComponents(saiIndexes, "5.0.5")).isTrue();
+        assertThat(TableSchema.shouldGenerateSaiComponents(mixedIndexes, "5.0.5")).isTrue();
+
+        // Unlike hasOnlySaiIndexesOnCassandra5 (all-SAI only), the mixed case is true here but false for hasOnlySaiIndexesOnCassandra5.
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(mixedIndexes, "5.0.5")).isFalse();
+
+        // No SAI index, pre-5.0, or no indexes at all → no SAI components generated.
+        assertThat(TableSchema.shouldGenerateSaiComponents(legacyIndexes, "5.0.5")).isFalse();
+        assertThat(TableSchema.shouldGenerateSaiComponents(saiIndexes, "4.0.17")).isFalse();
+        assertThat(TableSchema.shouldGenerateSaiComponents(mixedIndexes, "4.0.17")).isFalse();
+        assertThat(TableSchema.shouldGenerateSaiComponents(Collections.emptySet(), "5.0.5")).isFalse();
     }
 
     private TableSchemaTestCommon.MockTableSchemaBuilder getValidSchemaBuilder(String cassandraVersion)

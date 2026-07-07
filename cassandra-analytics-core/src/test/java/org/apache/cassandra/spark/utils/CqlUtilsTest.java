@@ -896,6 +896,27 @@ public class CqlUtilsTest extends VersionRunner
                 "CREATE INDEX i2 ON ks.tbl (b);"))).isFalse();
     }
 
+    @Test
+    public void testHasAnySaiIndex()
+    {
+        // Empty set has no SAI index.
+        assertThat(CqlUtils.hasAnySaiIndex(Collections.emptySet())).isFalse();
+
+        // Legacy-only set has no SAI index.
+        assertThat(CqlUtils.hasAnySaiIndex(ImmutableSet.of("CREATE INDEX i1 ON ks.tbl (a);"))).isFalse();
+
+        // Single SAI index.
+        assertThat(CqlUtils.hasAnySaiIndex(ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';"))).isTrue();
+
+        // Mixed SAI + legacy 2i: at least one SAI index is present, unlike hasOnlySaiIndexes.
+        Set<String> mixed = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';",
+                "CREATE INDEX i2 ON ks.tbl (b);");
+        assertThat(CqlUtils.hasAnySaiIndex(mixed)).isTrue();
+        assertThat(CqlUtils.hasOnlySaiIndexes(mixed)).isFalse();
+    }
+
     private static String loadFullSchemaSample() throws IOException
     {
         Path fullSchemaSampleFile = ResourceUtils.writeResourceToPath(CqlUtilsTest.class.getClassLoader(), tempPath, "cql/fullSchema.cql");

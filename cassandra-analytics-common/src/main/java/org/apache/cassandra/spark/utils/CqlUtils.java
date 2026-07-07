@@ -315,8 +315,6 @@ public final class CqlUtils
 
     /**
      * Returns true when {@code indexStatements} is non-empty and every statement defines a Storage Attached Index.
-     * This is the single "all-SAI table" predicate shared by schema validation and the write/commit paths, so the
-     * decision to generate SAI components and the decision to enable SAI import options can never disagree.
      *
      * @param indexStatements the CREATE INDEX statements for a table
      * @return true if all indexes are SAI (and at least one exists)
@@ -324,6 +322,18 @@ public final class CqlUtils
     public static boolean hasOnlySaiIndexes(@NotNull Set<String> indexStatements)
     {
         return !indexStatements.isEmpty() && indexStatements.stream().allMatch(CqlUtils::isSaiIndex);
+    }
+
+    /**
+     * Returns true when at least one statement in {@code indexStatements} defines a Storage Attached Index.
+     * Unlike {@link #hasOnlySaiIndexes(Set)}, this tolerates a mix of SAI and legacy 2i indexes.
+     *
+     * @param indexStatements the CREATE INDEX statements for a table
+     * @return true if at least one index is SAI
+     */
+    public static boolean hasAnySaiIndex(@NotNull Set<String> indexStatements)
+    {
+        return indexStatements.stream().anyMatch(CqlUtils::isSaiIndex);
     }
 
     /**
