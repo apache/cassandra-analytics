@@ -357,6 +357,17 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     @Override
+    public String getReplicationType()
+    {
+        String keyspaceSchema = getKeyspaceSchema(true);
+        if (keyspaceSchema == null)
+        {
+            throw new RuntimeException("Could not retrieve keyspace schema information for keyspace " + conf.keyspace);
+        }
+        return CqlUtils.extractReplicationType(keyspaceSchema, conf.keyspace);
+    }
+
+    @Override
     public TokenRangeMapping<RingInstance> getTokenRangeMapping(boolean cached)
     {
         TokenRangeMapping<RingInstance> topology = this.tokenRangeReplicas;

@@ -46,13 +46,24 @@ public class CassandraDirectDataTransportContext implements TransportContext.Dir
     }
 
     @Override
-    public DirectStreamSession createStreamSession(BulkWriterContext writerContext,
-                                                   String sessionId,
-                                                   SortedSSTableWriter sstableWriter,
-                                                   Range<BigInteger> range,
-                                                   ReplicaAwareFailureHandler<RingInstance> failureHandler,
-                                                   ExecutorService executorService)
+    public StreamSession<TransportContext.DirectDataBulkWriterContext> createStreamSession(
+            BulkWriterContext writerContext,
+            String sessionId,
+            SortedSSTableWriter sstableWriter,
+            Range<BigInteger> range,
+            ReplicaAwareFailureHandler<RingInstance> failureHandler,
+            ExecutorService executorService)
     {
+        if (bridge().isTracked(clusterInfo.getReplicationType()))
+        {
+            return new TrackedDirectStreamSession(writerContext,
+                                                  sstableWriter,
+                                                  this,
+                                                  sessionId,
+                                                  range,
+                                                  failureHandler,
+                                                  executorService);
+        }
         return new DirectStreamSession(writerContext,
                                        sstableWriter,
                                        this,
@@ -71,7 +82,11 @@ public class CassandraDirectDataTransportContext implements TransportContext.Dir
     // only invoke in constructor
     protected DirectDataTransferApi createDirectDataTransferApi()
     {
-        CassandraBridge bridge = CassandraBridgeFactory.get(clusterInfo.getLowestCassandraVersion());
-        return new SidecarDataTransferApi(clusterInfo.getCassandraContext(), bridge, jobInfo);
+        return new SidecarDataTransferApi(clusterInfo.getCassandraContext(), bridge(), jobInfo);
+    }
+
+    private CassandraBridge bridge()
+    {
+        return CassandraBridgeFactory.get(clusterInfo.getLowestCassandraVersion());
     }
 }
