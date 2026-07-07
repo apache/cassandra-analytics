@@ -47,7 +47,7 @@ import com.google.common.base.Preconditions;
  */
 public enum CassandraVersion
 {
-    THREEZERO(30, "3.0", "three-zero", new String[] { "big" },
+    THREEZERO(30, "3.0", "three-zero", new String[]{"big"},
               new String[] {
               // Cassandra 3.x native sstable versions
               "big-ma",
@@ -57,17 +57,17 @@ public enum CassandraVersion
               "big-me",
               "big-mf"
               }, 30),
-    FOURZERO(40, "4.0", "four-zero", new String[] { "big" },
+    FOURZERO(40, "4.0", "four-zero", new String[]{"big"},
              new String[] {
              // Cassandra 4.0 native sstable versions
              "big-na",
              "big-nb",
              }, 30),
-    FOURONE(41, "4.1", "four-zero", new String[] { "big" },
+    FOURONE(41, "4.1", "four-zero", new String[]{"big"},
             new String[] {
             // Cassandra 4.1 did not introduce new native SSTable versions
             }, 30),
-    FIVEZERO(50, "5.0", "five-zero", new String[] { "big", "bti" },
+    FIVEZERO(50, "5.0", "five-zero", new String[]{"big", "bti"},
              new String[] {
              // Cassandra 5.0 native sstable versions
              "big-oa",
