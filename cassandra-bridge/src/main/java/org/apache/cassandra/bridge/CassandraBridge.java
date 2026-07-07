@@ -62,6 +62,7 @@ import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
+import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.util.CompressionUtil;
 import org.jetbrains.annotations.NotNull;
@@ -165,6 +166,18 @@ public abstract class CassandraBridge
     public String maybeQuoteIdentifier(String identifier)
     {
         return cassandraTypes().maybeQuoteIdentifier(identifier);
+    }
+
+    /**
+     * @return {@code true} if mutation tracking is enabled given the replication type, {@code false} otherwise
+     */
+    public boolean isTracked(String replicationType)
+    {
+        if (replicationType == null)
+        {
+            return false;
+        }
+        return CqlUtils.isTracked(replicationType);
     }
 
     // CQL Type Parsing
