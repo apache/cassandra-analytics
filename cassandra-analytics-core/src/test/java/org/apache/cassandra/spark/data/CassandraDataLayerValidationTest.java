@@ -183,7 +183,7 @@ public class CassandraDataLayerValidationTest
 
         CassandraVersion result = dataLayer.initializeSSTableVersionsAndBridgeVersion("4.0.0");
 
-        // Should return FOURZERO bridge version (legacy cassandra.version-based bridge selection)
+        // Should return FOURZERO bridge version (legacy bridge selection)
         assertThat((Object) result).isEqualTo(CassandraVersion.FOURZERO);
 
         // Should set sstableVersionsOnCluster to an empty set (skipped retrieval, never null)

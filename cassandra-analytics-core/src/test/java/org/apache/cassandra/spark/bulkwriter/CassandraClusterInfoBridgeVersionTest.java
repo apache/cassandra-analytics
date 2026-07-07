@@ -34,13 +34,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * Unit tests for {@link CassandraClusterInfo#getBridgeVersion()} — the bridge-version priority chain:
- * version override (operator escape hatch) &gt; SSTable-version-based selection &gt; legacy cassandra.version.
- *
- * <p>No mocking framework is used for the cluster connectivity (an in-memory {@link CassandraContext} with no
- * Sidecar client); only the {@link BulkSparkConf} feature flag is stubbed. The cluster-derived inputs
- * (feature override, SSTable versions, lowest version) are supplied via a test subclass that also records
- * whether each was consulted.
+ * Unit tests for {@link CassandraClusterInfo#getBridgeVersion()} — the bridge-version priority chain.
  */
 public class CassandraClusterInfoBridgeVersionTest
 {
@@ -112,7 +106,7 @@ public class CassandraClusterInfoBridgeVersionTest
     @Test
     void testLegacyUnsupportedVersionThrows()
     {
-        // Feature disabled, no override: the legacy cassandra.version is consulted and, when it maps to no
+        // Feature disabled, no override: the legacy mode is used and, when it maps to no
         // known CassandraVersion, the determination fails fast.
         TestClusterInfo info = new TestClusterInfo(conf(true), null, Collections.singleton("big-oa"), "9.9.9");
 

@@ -367,7 +367,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         CassandraVersion bridgeVersion;
         if (isSSTableVersionBasedBridgeDisabled)
         {
-            // Disabled: skip cluster SSTable-version retrieval and fall back to the configured cassandra.version.
+            // Disabled: skip cluster SSTable-version retrieval and fall back to legacy mode.
             // Use an empty set (never null) so downstream code - including executor-side validation and
             // serialization - needs no null handling; on executors an empty set signals the feature was disabled
             // on the driver. HashSet specifically, because Kryo reads this field back via kryo.readObject(in, HashSet.class).
@@ -375,6 +375,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             bridgeVersion = CassandraVersion.fromVersion(cassandraVersion)
                                             .orElseThrow(() -> new UnsupportedOperationException(
                                             "Unsupported Cassandra version: " + cassandraVersion));
+            LOGGER.info("SSTable version-based bridge selection is disabled; determined bridge version {} for read "
+                        + "from the cluster's Cassandra release version {} (legacy mode)",
+                        bridgeVersion.versionName(), cassandraVersion);
         }
         else
         {
@@ -976,7 +979,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                 String errorMessage = String.format(
                 "SSTable '%s' has version '%s' which is not readable by the bridge selected from cluster gossip info. " +
                 "Versions observed in gossip: %s. Versions readable by the selected bridge: %s. " +
-                "To retry using cassandra.version based bridge selection, " +
+                "To retry by falling back to legacy mode for bridge selection, " +
                 "set %s=true",
                 ssTableFileName,
                 ssTableVersion,

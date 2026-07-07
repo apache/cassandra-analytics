@@ -26,6 +26,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 
 /**
@@ -33,6 +36,8 @@ import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
  */
 public final class SSTableVersionAnalyzer
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(SSTableVersionAnalyzer.class);
+
     private SSTableVersionAnalyzer()
     {
         // Utility class
@@ -74,6 +79,9 @@ public final class SSTableVersionAnalyzer
             + "which only supports formats: %s",
             requestedFormat, bridgeVersion.versionName(), bridgeVersion.sstableFormats()));
         }
+
+        LOGGER.info("Determined bridge version {} for write based on SSTable versions on cluster: {}, " +
+                    "requested SSTable format: '{}'", bridgeVersion.versionName(), sstableVersionsOnCluster, requestedFormat);
         return bridgeVersion;
     }
 
@@ -94,6 +102,9 @@ public final class SSTableVersionAnalyzer
                                    .max(Comparator.comparingInt(CassandraVersion::versionNumber))
                                    .orElseThrow(() -> new IllegalStateException("Unable to determine the highest SSTable version"));
         ensureMutuallyCompatibleVersions(sstableVersionsOnCluster, highest);
+
+        LOGGER.info("Determined bridge version {} for read based on SSTable versions on cluster: {}",
+                    highest.versionName(), sstableVersionsOnCluster);
         return highest;
     }
 
@@ -110,7 +121,7 @@ public final class SSTableVersionAnalyzer
         {
             throw new IllegalStateException(String.format(
             "Unable to retrieve SSTable versions from cluster. This is required for SSTable version-based "
-            + "bridge selection. To bypass this check and use cassandra.version for bridge selection, set %s=true",
+            + "bridge selection. To bypass this check and fall back to legacy mode for bridge selection, set %s=true",
             BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
         }
     }

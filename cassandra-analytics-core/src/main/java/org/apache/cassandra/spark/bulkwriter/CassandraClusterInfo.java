@@ -451,9 +451,13 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         }
 
         String releaseVersion = getVersionFromSidecar();
-        return CassandraVersion.fromVersion(releaseVersion)
-                               .orElseThrow(() -> new UnsupportedOperationException(
-                               "Unsupported Cassandra version: " + releaseVersion));
+        CassandraVersion bridgeVersion = CassandraVersion.fromVersion(releaseVersion)
+                                                         .orElseThrow(() -> new UnsupportedOperationException(
+                                                         "Unsupported Cassandra version: " + releaseVersion));
+        LOGGER.info("SSTable version-based bridge selection is disabled; determined bridge version {} for write "
+                    + "from the cluster's Cassandra release version {} (legacy mode)",
+                    bridgeVersion.versionName(), releaseVersion);
+        return bridgeVersion;
     }
 
     @Override

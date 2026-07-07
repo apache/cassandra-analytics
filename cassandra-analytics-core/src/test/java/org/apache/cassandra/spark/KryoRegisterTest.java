@@ -29,7 +29,6 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.spark.SparkConf;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /**
  * Unit tests for KryoRegister
@@ -60,23 +59,11 @@ public class KryoRegisterTest
                                       .map(Class::getName)
                                       .collect(Collectors.toList());
 
-        // setup() must register a registrator for every implemented (bundled) bridge version,
-        // independent of spark.cassandra_analytics.cassandra.version, so serialization works for
-        // whichever bridge the SSTable-version analyzer selects at runtime.
+        // setup() must register a registrator for every implemented (bundled) bridge version, so serialization
+        // works for whichever bridge the SSTable-version analyzer selects at runtime.
         assertThat(expected).isNotEmpty();
         List<String> registrators = Arrays.asList(conf.get("spark.kryo.registrator").split(","));
         assertThat(registrators).containsAll(expected);
-    }
-
-    @Test
-    void testSetupDoesNotDependOnCassandraVersionConfig()
-    {
-        // Even with a cassandra.version that differs from the bridge that may be selected,
-        // setup() registers all implemented versions and never throws based on that config.
-        SparkConf conf = new SparkConf()
-                         .set("spark.cassandra_analytics.cassandra.version", "5.0.0");
-        assertThatNoException().isThrownBy(() -> KryoRegister.setup(conf));
-        assertThat(conf.get("spark.serializer")).isEqualTo("org.apache.spark.serializer.KryoSerializer");
     }
 
     @Test

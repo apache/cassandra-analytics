@@ -114,10 +114,7 @@ public class BulkSparkConf implements Serializable
     //       which will throw a configuration exception for each setting with that prefix it does not recognize
     public static final String SETTING_PREFIX = "spark.cassandra_analytics.";
 
-    // Cassandra version of target cluster. Configuration parameter is exposed to be able to correctly initialize static
-    // components, before cluster version is discovered via Sidecar.
-    public static final String CASSANDRA_VERSION                       = SETTING_PREFIX + "cassandra.version";
-    // Disable SSTable version-based bridge determination. When true, falls back to using cassandra.version for bridge selection.
+    // Disable SSTable version-based bridge determination. When true, falls back to legacy mode.
     // This provides a safety fallback mechanism if SSTable version detection fails or encounters issues.
     public static final String DISABLE_SSTABLE_VERSION_BASED_BRIDGE    = SETTING_PREFIX + "bridge.disable_sstable_version_based";
     public static final String HTTP_MAX_CONNECTIONS                    = SETTING_PREFIX + "request.max_connections";

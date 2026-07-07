@@ -111,10 +111,10 @@ public class KryoRegister implements KryoRegistrator
                                             .filter(string -> string != null && !string.isEmpty())
                                             .collect(Collectors.toCollection(LinkedHashSet::new));
 
-        // SSTable based bridge selection feature selects the bridge version, which may differ
-        // from cassandra.version; registering every loadable bridge's registrator ensures Spark
-        // can serialize objects for whichever bridge is chosen. Only implemented (bundled) versions
-        // are used, so we never attempt to load a bridge JAR that is not available.
+        // SSTable based bridge selection feature selects the bridge version, registering every
+        // loadable bridge's registrator ensures Spark can serialize objects for whichever bridge
+        // is chosen. Only implemented (bundled) versions are used, so we never attempt to load a
+        // bridge JAR that is not available.
         List<Class<?>> registratorClasses = Arrays.stream(CassandraVersion.implementedVersions())
                                                   .map(KRYO_REGISTRATORS::get)
                                                   .filter(Objects::nonNull)
