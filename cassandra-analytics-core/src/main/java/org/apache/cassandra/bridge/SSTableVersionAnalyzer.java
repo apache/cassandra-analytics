@@ -75,9 +75,11 @@ public final class SSTableVersionAnalyzer
         if (!bridgeVersion.sstableFormats().contains(requestedFormat))
         {
             throw new UnsupportedOperationException(String.format(
-            "Cluster does not support requested SSTable format '%s'. Bridge version determined is %s, "
-            + "which only supports formats: %s",
-            requestedFormat, bridgeVersion.versionName(), bridgeVersion.sstableFormats()));
+            "The bridge version determined from the SSTable versions on the cluster (%s) does not support the "
+            + "requested SSTable format '%s'; it only supports formats: %s. Please retry with a supported SSTable "
+            + "format, or set %s=true to fall back to legacy mode for bridge selection.",
+            bridgeVersion.versionName(), requestedFormat, bridgeVersion.sstableFormats(),
+            BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE));
         }
 
         LOGGER.info("Determined bridge version {} for write based on SSTable versions on cluster: {}, " +

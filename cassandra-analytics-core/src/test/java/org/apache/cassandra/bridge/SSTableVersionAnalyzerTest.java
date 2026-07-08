@@ -65,14 +65,18 @@ public class SSTableVersionAnalyzerTest
         assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(
         new HashSet<>(Arrays.asList("big-na", "big-oa")), "bti"))
         .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessageContaining("does not support requested SSTable format 'bti'");
+        .hasMessageContaining("does not support the requested SSTable format 'bti'")
+        .hasMessageContaining("retry with a supported SSTable format")
+        .hasMessageContaining("disable_sstable_version_based");
 
         // Freshly upgraded to C* 5.x with bti configured, but only pre-upgrade big-na SSTables are present:
         // the lowest version present is FOURZERO (4.0 bridge), which cannot write the bti format, so we reject.
         assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(
-        Collections.singleton("big-na"), "bti"))
+        new HashSet<>(Arrays.asList("big-na", "bti-da")), "bti"))
         .isInstanceOf(UnsupportedOperationException.class)
-        .hasMessageContaining("does not support requested SSTable format 'bti'");
+        .hasMessageContaining("does not support the requested SSTable format 'bti'")
+        .hasMessageContaining("retry with a supported SSTable format")
+        .hasMessageContaining("disable_sstable_version_based");
     }
 
     @Test
