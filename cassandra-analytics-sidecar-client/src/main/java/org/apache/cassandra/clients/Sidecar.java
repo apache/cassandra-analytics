@@ -184,22 +184,25 @@ public final class Sidecar
      * @param instances           all Sidecar instances in the cluster
      * @param maxRetryDelayMillis maximum delay in milliseconds between retries
      * @param maxRetries          maximum number of retry attempts
+     * @param requestTimeoutSeconds per-request timeout in seconds
      * @return a set of SSTable versions across all nodes in the cluster
      * @throws RuntimeException if unable to retrieve gossip info from any nodes
      */
     public static Set<String> getSSTableVersionsFromCluster(SidecarClient client,
                                                             Set<SidecarInstance> instances,
                                                             long maxRetryDelayMillis,
-                                                            int maxRetries)
+                                                            int maxRetries,
+                                                            int requestTimeoutSeconds)
     {
         LOGGER.debug("Retrieving SSTable versions from cluster via gossip...");
 
         List<CompletableFuture<GossipInfoResponse>> gossipInfoFutures = gossipInfoFromAllNodes(client, instances);
 
-        // Worst-case, the http client is configured for 1 worker pool.
-        // In that case, each future can take the full retry delay * number of retries,
-        // and each instance will be processed serially. Mirrors CassandraClusterInfo#getAllNodeSettings.
-        final long totalTimeout = maxRetryDelayMillis * maxRetries * gossipInfoFutures.size();
+        // Each of the maxRetries attempts can take up to the request timeout plus the max delay
+        // before the next retry. Requests to all instances run in parallel, so the cluster-wide
+        // wait is bounded by a single node's worst case rather than the sum across nodes.
+        long requestTimeoutMillis = TimeUnit.SECONDS.toMillis(requestTimeoutSeconds);
+        final long totalTimeout = (maxRetryDelayMillis + requestTimeoutMillis) * maxRetries;
 
         List<GossipInfoResponse> gossipInfoResponses = FutureUtils.bestEffortGet(gossipInfoFutures,
                                                                                  totalTimeout,

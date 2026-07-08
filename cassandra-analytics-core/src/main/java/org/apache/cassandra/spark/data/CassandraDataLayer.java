@@ -381,10 +381,10 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         }
         else
         {
-            // Wrap in a HashSet: retrieveSSTableVersionsFromCluster() may return Collections.emptySet()
+            // Wrap in a HashSet: getSSTableVersionsFromCluster() may return Collections.emptySet()
             // or an unspecified Set type from Collectors.toSet(), but Kryo reads this field back via
             // kryo.readObject(in, HashSet.class), so the concrete type must be HashSet.
-            this.sstableVersionsOnCluster = new HashSet<>(retrieveSSTableVersionsFromCluster());
+            this.sstableVersionsOnCluster = new HashSet<>(getSSTableVersionsFromCluster());
             // Pick the highest (mutually-compatible) version present on the cluster. determineBridgeVersionForRead
             // fails fast with an actionable hint when no SSTable versions were retrieved while the feature is enabled.
             bridgeVersion = SSTableVersionAnalyzer.determineBridgeVersionForRead(sstableVersionsOnCluster);
@@ -400,13 +400,13 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
      * @return set of SSTable versions from cluster
      */
     @VisibleForTesting
-    protected Set<String> retrieveSSTableVersionsFromCluster()
+    protected Set<String> getSSTableVersionsFromCluster()
     {
-        return Sidecar.getSSTableVersionsFromCluster(
-        sidecar,
-        clusterConfig,
-        sidecarClientConfig.maxMillisToSleep(),
-        sidecarClientConfig.maxRetries()
+        return Sidecar.getSSTableVersionsFromCluster(sidecar,
+                                                     clusterConfig,
+                                                     sidecarClientConfig.maxMillisToSleep(),
+                                                     sidecarClientConfig.maxRetries(),
+                                                     sidecarClientConfig.timeoutSeconds()
         );
     }
 

@@ -58,7 +58,7 @@ public class SidecarTest
         when(client.gossipInfo(any(SidecarInstance.class)))
         .thenReturn(CompletableFuture.completedFuture(response));
 
-        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
+        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3, 1);
 
         assertThat(versions)
         .describedAs("Should extract SSTable versions from gossip info")
@@ -88,7 +88,7 @@ public class SidecarTest
         when(client.gossipInfo(instance2))
         .thenReturn(CompletableFuture.completedFuture(response2));
 
-        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
+        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3, 1);
 
         assertThat(versions)
         .describedAs("Should aggregate and deduplicate SSTable versions from multiple nodes with mixed Cassandra versions")
@@ -115,7 +115,7 @@ public class SidecarTest
         when(client.gossipInfo(instance2))
         .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Connection failed")));
 
-        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
+        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3, 1);
 
         assertThat(versions)
         .describedAs("Should return versions from successful nodes even when some fail")
@@ -134,7 +134,7 @@ public class SidecarTest
         when(client.gossipInfo(any(SidecarInstance.class)))
         .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Connection failed")));
 
-        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
+        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3, 1);
 
         assertThat(versions)
         .describedAs("Should return empty set when all nodes fail")
@@ -156,7 +156,7 @@ public class SidecarTest
         when(client.gossipInfo(any(SidecarInstance.class)))
         .thenReturn(CompletableFuture.completedFuture(response));
 
-        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
+        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3, 1);
 
         assertThat(versions)
         .describedAs("Should return empty set when SSTable versions are null")
@@ -169,7 +169,7 @@ public class SidecarTest
         SidecarClient client = mock(SidecarClient.class);
         Set<SidecarInstance> instances = Collections.emptySet();
 
-        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3);
+        Set<String> versions = Sidecar.getSSTableVersionsFromCluster(client, instances, 1000L, 3, 1);
 
         assertThat(versions)
         .describedAs("Should return empty set when no instances provided")

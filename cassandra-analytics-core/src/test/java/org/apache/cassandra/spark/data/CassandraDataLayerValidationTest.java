@@ -351,7 +351,7 @@ public class CassandraDataLayerValidationTest
         }
 
         @Override
-        protected Set<String> retrieveSSTableVersionsFromCluster()
+        protected Set<String> getSSTableVersionsFromCluster()
         {
             // Mock the Sidecar call - return the mock versions instead of calling actual sidecar
             return mockSSTableVersions;

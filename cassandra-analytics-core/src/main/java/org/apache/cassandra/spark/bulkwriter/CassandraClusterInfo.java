@@ -563,15 +563,16 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
      *
      * @return set of SSTable version strings present on the cluster
      */
+    @VisibleForTesting
     public Set<String> getSSTableVersionsOnCluster()
     {
         CassandraContext context = getCassandraContext();
 
-        return Sidecar.getSSTableVersionsFromCluster(
-        context.getSidecarClient(),
-        context.getCluster(),
-        conf.getSidecarRequestMaxRetryDelayMillis(),
-        conf.getSidecarRequestRetries()
+        return Sidecar.getSSTableVersionsFromCluster(context.getSidecarClient(),
+                                                     context.getCluster(),
+                                                     conf.getSidecarRequestMaxRetryDelayMillis(),
+                                                     conf.getSidecarRequestRetries(),
+                                                     conf.getSidecarRequestTimeoutSeconds()
         );
     }
 
