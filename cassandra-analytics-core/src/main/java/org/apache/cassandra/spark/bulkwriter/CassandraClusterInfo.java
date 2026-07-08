@@ -558,7 +558,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     }
 
     /**
-     * Retrieves SSTable versions using the existing cassandraContext.
+     * Retrieves SSTable versions using the existing CassandraContext.
      * Reuses the existing CassandraContext instead of creating a separate one.
      *
      * @return set of SSTable version strings present on the cluster

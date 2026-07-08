@@ -148,14 +148,14 @@ public class CassandraVersionTest
     }
 
     @Test
-    void testSStableFormatsFourZero()
+    void testSSTableFormatsFourZero()
     {
         Set<String> formats = CassandraVersion.FOURZERO.sstableFormats();
         assertThat(formats).containsExactly("big");
     }
 
     @Test
-    void testSStableFormatsFiveZero()
+    void testSSTableFormatsFiveZero()
     {
         Set<String> formats = CassandraVersion.FIVEZERO.sstableFormats();
         assertThat(formats).containsExactly("big", "bti");

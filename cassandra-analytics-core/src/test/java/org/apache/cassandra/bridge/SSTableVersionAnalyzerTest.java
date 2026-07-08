@@ -66,6 +66,13 @@ public class SSTableVersionAnalyzerTest
         new HashSet<>(Arrays.asList("big-na", "big-oa")), "bti"))
         .isInstanceOf(UnsupportedOperationException.class)
         .hasMessageContaining("does not support requested SSTable format 'bti'");
+
+        // Freshly upgraded to C* 5.x with bti configured, but only pre-upgrade big-na SSTables are present:
+        // the lowest version present is FOURZERO (4.0 bridge), which cannot write the bti format, so we reject.
+        assertThatThrownBy(() -> SSTableVersionAnalyzer.determineBridgeVersionForWrite(
+        Collections.singleton("big-na"), "bti"))
+        .isInstanceOf(UnsupportedOperationException.class)
+        .hasMessageContaining("does not support requested SSTable format 'bti'");
     }
 
     @Test
@@ -108,6 +115,7 @@ public class SSTableVersionAnalyzerTest
         return Stream.of(
         Arguments.of(Collections.singleton("big-oa"), CassandraVersion.FIVEZERO),
         Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-nb")), CassandraVersion.FOURZERO),
+        Arguments.of(new HashSet<>(Arrays.asList("big-na", "bti-da")), CassandraVersion.FIVEZERO),
         Arguments.of(new HashSet<>(Arrays.asList("big-na", "big-oa")), CassandraVersion.FIVEZERO)
         );
     }
