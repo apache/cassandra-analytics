@@ -125,6 +125,7 @@ public class BulkSparkConf implements Serializable
     public static final String SIDECAR_REQUEST_RETRY_DELAY_MILLIS      = SETTING_PREFIX + "sidecar.request.retries.delay.milliseconds";
     public static final String SIDECAR_REQUEST_MAX_RETRY_DELAY_MILLIS  = SETTING_PREFIX + "sidecar.request.retries.max.delay.milliseconds";
     public static final String SIDECAR_REQUEST_TIMEOUT_SECONDS         = SETTING_PREFIX + "sidecar.request.timeout.seconds";
+    public static final String SIDECAR_INSTANCE_ID                     = SETTING_PREFIX + "sidecar.instance.id";
     public static final String SKIP_CLEAN                              = SETTING_PREFIX + "job.skip_clean";
     public static final String USE_OPENSSL                             = SETTING_PREFIX + "use_openssl";
     // defines the max number of consecutive retries allowed in the ring monitor
@@ -577,6 +578,21 @@ public class BulkSparkConf implements Serializable
     public int getSidecarRequestTimeoutSeconds()
     {
         return getInt(SIDECAR_REQUEST_TIMEOUT_SECONDS, DEFAULT_SIDECAR_REQUEST_TIMEOUT_SECONDS);
+    }
+
+    @Nullable
+    public Integer getSidecarInstanceId()
+    {
+        Integer value = getOptionalInt(SIDECAR_INSTANCE_ID).orElse(null);
+        // Validated here (not just in HttpClientConfig.Builder.instanceId()) to surface a
+        // Spark-conf-specific error message before any HTTP client is constructed. Keep this
+        // constraint (>= 0) in sync with that check.
+        if (value != null && value < 0)
+        {
+            throw new IllegalArgumentException("Spark conf " + SIDECAR_INSTANCE_ID
+                                               + " must be a non-negative integer; got " + value);
+        }
+        return value;
     }
 
     public int getHttpConnectionTimeoutMs()

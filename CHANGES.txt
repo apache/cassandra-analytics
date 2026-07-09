@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Add sidecar.instance.id Spark conf to append an instanceId query parameter to outbound sidecar requests, fixing 421 errors when Sidecar is behind a load balancer (CASSANALYTICS-177)
  * Upgrade sidecar version to 0.4.0
  * Exclude IP address from RingInstance equality so node replacement does not fail bulk write jobs (CASSANALYTICS-175)
  * Regenerate bloom filters for CQLSSTableWriter (CASSANALYTICS-167)

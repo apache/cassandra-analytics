@@ -22,11 +22,15 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import io.netty.handler.codec.http.HttpMethod;
 import io.vertx.core.Vertx;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.ext.web.client.HttpRequest;
 
+import org.apache.cassandra.sidecar.common.request.Request;
+
 import static org.apache.cassandra.sidecar.common.http.SidecarHttpHeaderNames.AUTH_ROLE;
+import static org.apache.cassandra.sidecar.common.http.SidecarQueryParamNames.INSTANCE_ID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -56,14 +60,59 @@ public class VertxHttpClientTest
         HttpClientConfig config = httpClientConfigBuilder().cassandraRole("custom_role").build();
         try (VertxHttpClient client = new VertxHttpClient(vertx, config))
         {
-            SidecarInstance instance = mock(SidecarInstance.class);
-            when(instance.port()).thenReturn(9043);
-            when(instance.hostname()).thenReturn("localhost");
             RequestContext context = new RequestContext.Builder().ringRequest().build();
-            HttpRequest<Buffer> request = client.vertxRequest(instance, context);
+            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(), context);
             assertThat(request.headers()).isNotEmpty();
             assertThat(request.headers().get(AUTH_ROLE)).isEqualTo("custom_role");
         }
+    }
+
+    @Test
+    public void testInstanceIdQueryParamAppended()
+    {
+        HttpClientConfig config = httpClientConfigBuilder().instanceId(42).build();
+        try (VertxHttpClient client = new VertxHttpClient(vertx, config))
+        {
+            RequestContext context = new RequestContext.Builder().ringRequest().build();
+            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(), context);
+            assertThat(request.queryParams().get(INSTANCE_ID)).isEqualTo("42");
+        }
+    }
+
+    @Test
+    public void testInstanceIdQueryParamNotAppendedWhenNull()
+    {
+        HttpClientConfig config = httpClientConfigBuilder().build();
+        try (VertxHttpClient client = new VertxHttpClient(vertx, config))
+        {
+            RequestContext context = new RequestContext.Builder().ringRequest().build();
+            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(), context);
+            assertThat(request.queryParams().contains(INSTANCE_ID)).isFalse();
+        }
+    }
+
+    @Test
+    public void testInstanceIdQueryParamAppendedWithExistingQueryParams()
+    {
+        HttpClientConfig config = httpClientConfigBuilder().instanceId(7).build();
+        try (VertxHttpClient client = new VertxHttpClient(vertx, config))
+        {
+            Request mockRequest = mock(Request.class);
+            when(mockRequest.method()).thenReturn(HttpMethod.GET);
+            when(mockRequest.requestURI()).thenReturn("/api/v1/ring?existingParam=value");
+            RequestContext context = new RequestContext.Builder().request(mockRequest).build();
+            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(), context);
+            assertThat(request.queryParams().get("existingParam")).isEqualTo("value");
+            assertThat(request.queryParams().get(INSTANCE_ID)).isEqualTo("7");
+        }
+    }
+
+    private SidecarInstance mockInstance()
+    {
+        SidecarInstance instance = mock(SidecarInstance.class);
+        when(instance.port()).thenReturn(9043);
+        when(instance.hostname()).thenReturn("localhost");
+        return instance;
     }
 
     private HttpClientConfig.Builder<?> httpClientConfigBuilder()
