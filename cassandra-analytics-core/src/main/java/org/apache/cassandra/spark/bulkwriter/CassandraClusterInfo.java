@@ -246,16 +246,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         TimeSkewResponse timeSkew;
         try
         {
-            TokenRangeMapping<RingInstance> topology = getTokenRangeMapping(true);
-            List<SidecarInstance> instances = topology.getSubRanges(range)
-                                                      .asMapOfRanges()
-                                                      .values()
-                                                      .stream()
-                                                      .flatMap(Collection::stream)
-                                                      .distinct() // remove duplications
-                                                      .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort()))
-                                                      .collect(Collectors.toList());
-            timeSkew = getCassandraContext().getSidecarClient().timeSkew(instances).get();
+            timeSkew = fetchTimeSkew(range).get();
         }
         catch (InterruptedException | ExecutionException exception)
         {
@@ -268,6 +259,26 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         {
             throw new TimeSkewTooLargeException(timeSkew.allowableSkewInMinutes, localNow, remoteNow, clusterId());
         }
+    }
+
+    /**
+     * Fetches time-skew information from Sidecar. The default implementation queries the replicas
+     * that own {@code range}. Subclasses may override to target a different endpoint set — for
+     * example, coordinated writes route through shared contact points when replica FQDNs are not
+     * reachable from Spark executors.
+     */
+    protected CompletableFuture<TimeSkewResponse> fetchTimeSkew(Range<BigInteger> range)
+    {
+        TokenRangeMapping<RingInstance> topology = getTokenRangeMapping(true);
+        List<SidecarInstance> instances = topology.getSubRanges(range)
+                                                  .asMapOfRanges()
+                                                  .values()
+                                                  .stream()
+                                                  .flatMap(Collection::stream)
+                                                  .distinct() // remove duplications
+                                                  .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort()))
+                                                  .collect(Collectors.toList());
+        return getCassandraContext().getSidecarClient().timeSkew(instances);
     }
 
     @Override

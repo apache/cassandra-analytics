@@ -146,6 +146,7 @@ public class BulkSparkConf implements Serializable
     public final double importCoordinatorTimeoutMultiplier;
     public boolean quoteIdentifiers;
     public final boolean skipSecondaryIndexCheck;
+    public final boolean sidecarBehindLoadBalancer;
     protected final String keystorePassword;
     protected final String keystorePath;
     protected final String keystoreBase64Encoded;
@@ -229,6 +230,7 @@ public class BulkSparkConf implements Serializable
         this.timestamp = MapUtils.getOrDefault(options, WriterOptions.TIMESTAMP.name(), null);
         this.quoteIdentifiers = MapUtils.getBoolean(options, WriterOptions.QUOTE_IDENTIFIERS.name(), false, "quote identifiers");
         this.skipSecondaryIndexCheck = MapUtils.getBoolean(options, WriterOptions.SKIP_SECONDARY_INDEX_CHECK.name(), false, "skip secondary index check");
+        this.sidecarBehindLoadBalancer = MapUtils.getBoolean(options, WriterOptions.SIDECAR_BEHIND_LOAD_BALANCER.name(), false, "sidecar behind load balancer");
         int storageClientConcurrency = MapUtils.getInt(options, WriterOptions.STORAGE_CLIENT_CONCURRENCY.name(),
                                                        DEFAULT_STORAGE_CLIENT_CONCURRENCY, "storage client concurrency");
         long storageClientKeepAliveSeconds = MapUtils.getLong(options, WriterOptions.STORAGE_CLIENT_THREAD_KEEP_ALIVE_SECONDS.name(),
@@ -276,6 +278,11 @@ public class BulkSparkConf implements Serializable
         this.configuredJobId = MapUtils.getOrDefault(options, WriterOptions.JOB_ID.name(), null);
         this.coordinatedWriteConfJson = MapUtils.getOrDefault(options, WriterOptions.COORDINATED_WRITE_CONFIG.name(), null);
         this.coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport(), logger);
+        if (this.sidecarBehindLoadBalancer && this.coordinatedWriteConf == null && logger != null)
+        {
+            logger.warn("{} is set but {} is not configured; the flag is only honored for coordinated writes and will be ignored on the single-cluster path.",
+                        WriterOptions.SIDECAR_BEHIND_LOAD_BALANCER, WriterOptions.COORDINATED_WRITE_CONFIG);
+        }
         this.digestAlgorithmSupplier = digestAlgorithmSupplierFromOptions(dataTransport, options);
         validateEnvironment();
     }

@@ -95,7 +95,29 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
      */
     public static CassandraClusterInfoGroup fromBulkSparkConf(BulkSparkConf conf)
     {
-        return fromBulkSparkConf(conf, clusterId -> new CassandraClusterInfo(conf, clusterId));
+        return fromBulkSparkConf(conf, clusterId -> createClusterInfo(conf, clusterId));
+    }
+
+    /**
+     * Selects the {@link CassandraClusterInfo} concrete type based on the
+     * {@link BulkSparkConf#sidecarBehindLoadBalancer} flag. Kept centralized so the
+     * driver-side factory and the executor-side broadcast reconstruction stay in lockstep.
+     */
+    private static CassandraClusterInfo createClusterInfo(BulkSparkConf conf, String clusterId)
+    {
+        if (conf.sidecarBehindLoadBalancer)
+        {
+            LOGGER.info("Using CoordinatedCassandraClusterInfo for load-balanced Sidecar. clusterId={}", clusterId);
+            return new CoordinatedCassandraClusterInfo(conf, clusterId);
+        }
+        return new CassandraClusterInfo(conf, clusterId);
+    }
+
+    private static CassandraClusterInfo createClusterInfo(BroadcastableClusterInfo bci)
+    {
+        return bci.getConf().sidecarBehindLoadBalancer
+               ? new CoordinatedCassandraClusterInfo(bci)
+               : new CassandraClusterInfo(bci);
     }
 
     /**
@@ -170,7 +192,7 @@ public class CassandraClusterInfoGroup implements ClusterInfo, MultiClusterSuppo
         // Build list of ClusterInfo from broadcastable data
         List<ClusterInfo> clusterInfosList = new ArrayList<>();
         broadcastable.forEach((clusterId, broadcastableInfo) -> {
-            clusterInfosList.add(new CassandraClusterInfo((BroadcastableClusterInfo) broadcastableInfo));
+            clusterInfosList.add(createClusterInfo((BroadcastableClusterInfo) broadcastableInfo));
         });
         this.clusterInfos = Collections.unmodifiableList(clusterInfosList);
 

@@ -27,7 +27,9 @@ import java.util.concurrent.CompletableFuture;
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
+import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
+import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 
@@ -35,8 +37,11 @@ import static org.apache.cassandra.spark.TestUtils.range;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 public class CassandraClusterInfoTest
@@ -51,6 +56,40 @@ public class CassandraClusterInfoTest
         assertThatNoException()
         .describedAs("Acceptable time skew should validate without exception")
         .isThrownBy(() -> ci.validateTimeSkewWithLocalNow(range(10, 20), localNow));
+    }
+
+    @Test
+    void testCoordinatedClusterInfoUsesSidecarClientContactPointsForTimeSkew()
+    {
+        Instant localNow = Instant.now();
+        int allowanceMinutes = 10;
+
+        SidecarClient sidecarClient = mock(SidecarClient.class);
+        CassandraContext ctx = mock(CassandraContext.class);
+        when(ctx.getSidecarClient()).thenReturn(sidecarClient);
+        TimeSkewResponse tsr = new TimeSkewResponse(localNow.toEpochMilli(), allowanceMinutes);
+        when(sidecarClient.timeSkew()).thenReturn(CompletableFuture.completedFuture(tsr));
+
+        CassandraClusterInfo ci = new CoordinatedCassandraClusterInfo((BulkSparkConf) null, null)
+        {
+            @Override
+            protected CassandraContext buildCassandraContext()
+            {
+                return ctx;
+            }
+
+            @Override
+            public TokenRangeMapping<RingInstance> getTokenRangeMapping(boolean cached)
+            {
+                return TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("dc1", 3), 5);
+            }
+        };
+
+        assertThatNoException()
+        .describedAs("Load-balanced cluster info must use timeSkew() so load balancer contact points stay reachable")
+        .isThrownBy(() -> ci.validateTimeSkewWithLocalNow(range(10, 20), localNow));
+        verify(sidecarClient).timeSkew();
+        verify(sidecarClient, never()).timeSkew(anyList());
     }
 
     @Test
