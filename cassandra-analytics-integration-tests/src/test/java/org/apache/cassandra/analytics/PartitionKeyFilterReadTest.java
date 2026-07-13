@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Verifies partition-key pushdown on the bulk reader, both single-value ({@code a = N}) and
  * multi-value ({@code a IN (...)}) forms.
  *
- * <p>The OSS bulk reader's {@code CassandraDataSource} accepts partition-key predicates as
+ * <p>The bulk reader's {@code CassandraDataSource} accepts partition-key predicates as
  * standard Spark filters; this test uses {@code Dataset#filter} to express them.
  */
 class PartitionKeyFilterReadTest extends SharedClusterSparkIntegrationTestBase

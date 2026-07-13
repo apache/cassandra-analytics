@@ -107,10 +107,13 @@ class StaticColumnSharedValueReadTest extends SharedClusterSparkIntegrationTestB
                                + "PRIMARY KEY (a, b));");
         disableAutoCompaction(table);
 
-        // Pick a fresh random static on every insert; the partition's expected static is the
-        // LAST value written (Cassandra resolves the static cell as LWW).
-        // Seeded RNG for reproducibility on failure.
+        // Fresh random static on every insert, flushing after each so a partition's competing
+        // static values land in separate SSTables the bulk reader must reconcile on read; a single
+        // end-of-loop flush would collapse them in the memtable and never exercise last-write-wins.
+        // Explicit monotonic timestamps make LWW deterministic — the expected static for a
+        // partition is the last one written (highest timestamp). Seeded RNG for reproducibility.
         Random random = new Random(0);
+        long writeTimestamp = 1;
         for (long partitionKey = 0; partitionKey < NUM_PARTITIONS; partitionKey++)
         {
             for (long clusteringKey = 0; clusteringKey < NUM_CLUSTERING_ROWS; clusteringKey++)
@@ -119,10 +122,10 @@ class StaticColumnSharedValueReadTest extends SharedClusterSparkIntegrationTestB
                 long regularValue = partitionKey * 1000 + clusteringKey;
                 expectedRegularValue.put(partitionKey + ":" + clusteringKey, regularValue);
                 expectedStaticByPartition.put(partitionKey, staticValue);
-                execute(String.format("INSERT INTO %s (a, b, c, d) VALUES (%d, %d, %d, %d);",
-                                      table, partitionKey, clusteringKey, staticValue, regularValue));
+                execute(String.format("INSERT INTO %s (a, b, c, d) VALUES (%d, %d, %d, %d) USING TIMESTAMP %d;",
+                                      table, partitionKey, clusteringKey, staticValue, regularValue, writeTimestamp++));
+                flushKeyspace(table);
             }
         }
-        flushKeyspace(table);
     }
 }
