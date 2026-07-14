@@ -23,6 +23,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -83,8 +84,8 @@ public class CachingSchemaStore implements SchemaStore
     public void initialize()
     {
         LOGGER.info("Initializing CachingSchemaStore");
-        schemaSupplier.getCdcEnabledTables()
-                      .thenAccept(refreshedCdcTables -> {
+        schemaSupplier.getTables()
+                      .thenAccept(ignored -> {
                           loadPublisher();
                           publishSchemas();
                           LOGGER.info("CachingSchemaStore initialized");
@@ -106,7 +107,10 @@ public class CachingSchemaStore implements SchemaStore
      */
     public void onSchemaChange()
     {
-        schemaSupplier.getCdcEnabledTables().thenAccept(refreshedCdcTables -> {
+        schemaSupplier.getTables().thenAccept(allTables -> {
+            Set<CqlTable> refreshedCdcTables = allTables.stream()
+                                                        .filter(CqlTable::cdc)
+                                                        .collect(Collectors.toSet());
             for (CqlTable cqlTable : refreshedCdcTables)
             {
                 TableIdentifier tableIdentifier = TableIdentifier.of(cqlTable.keyspace(), cqlTable.table());
@@ -118,11 +122,16 @@ public class CachingSchemaStore implements SchemaStore
                     }
                     return value;
                 });
+            }
+            // publishSchemas() re-fetches and republishes every CDC table's schema, so it only
+            // needs to run once after the cache has been updated for all changed tables above —
+            // calling it per-table would redundantly re-fetch the schema and republish every
+            // table N times over.
+            if (!refreshedCdcTables.isEmpty())
+            {
                 publishSchemas();
             }
-            // Remove any old schema entries for deleted tables, this operation can be done in the end as this is
-            // only for removing stale entries and no one is going to use these entries once the table is removed.
-            // This doesn't have to be an atomic operation.
+            // Remove any old schema entries for deleted tables
             List<TableIdentifier> refreshedTableIds = refreshedCdcTables
                                                       .stream()
                                                       .map(cqlTable -> TableIdentifier.of(cqlTable.keyspace(), cqlTable.table()))
@@ -160,8 +169,11 @@ public class CachingSchemaStore implements SchemaStore
     private void publishSchemas()
     {
         schemaSupplier
-        .getCdcEnabledTables()
-        .thenAccept(refreshedCdcTables -> {
+        .getTables()
+        .thenAccept(allTables -> {
+            Set<CqlTable> refreshedCdcTables = allTables.stream()
+                                                        .filter(CqlTable::cdc)
+                                                        .collect(Collectors.toSet());
             for (CqlTable cqlTable : refreshedCdcTables)
             {
                 TableIdentifier tableIdentifier = TableIdentifier.of(cqlTable.keyspace(), cqlTable.table());

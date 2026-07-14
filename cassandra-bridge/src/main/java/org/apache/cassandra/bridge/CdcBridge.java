@@ -42,6 +42,7 @@ import org.apache.cassandra.db.commitlog.PartitionUpdateWrapper;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
+import org.apache.cassandra.spark.utils.TableIdentifier;
 import org.apache.cassandra.spark.utils.TimeProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -73,6 +74,23 @@ public abstract class CdcBridge
     public abstract void updateCdcSchema(@NotNull Set<CqlTable> cdcTables,
                                          @NotNull Partitioner partitioner,
                                          @NotNull TableIdLookup tableIdLookup);
+
+    /**
+     * Removes tables from the bridge's {@code Schema.instance} that were previously registered
+     * (via {@link #updateCdcSchema}) but are no longer needed — e.g. a non-CDC table that used
+     * to share partition-key structure with a CDC-enabled table in the same keyspace, where a
+     * later schema change (the CDC table dropped, or either table's partition key altered) means
+     * it can no longer be co-located with a CDC-enabled table's update in the same commit-log
+     * {@code Mutation}.
+     *
+     * <p>Implementations must be idempotent (a no-op for a table that isn't currently
+     * registered) and must never remove a table that is currently CDC-enabled — the caller is
+     * responsible for only passing tables it has determined are safe to unregister, but this is
+     * a last-line defense against silently dropping schema for a table CDC still needs.
+     *
+     * @param tables the tables to unregister
+     */
+    public abstract void unregisterTables(@NotNull Set<TableIdentifier> tables);
 
     public abstract CommitLogReader.Result readLog(@NotNull CommitLog log,
                                                    @Nullable TokenRange tokenRange,

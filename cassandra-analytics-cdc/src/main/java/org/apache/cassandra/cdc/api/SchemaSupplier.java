@@ -25,9 +25,12 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.cassandra.spark.data.CqlTable;
 
 /**
- * Supplies all CDC enabled tables
+ * Supplies schema for all tables relevant to CDC processing.
+ * Returns ALL tables (CDC-enabled and CDC-disabled) so that the bridge's Schema.instance
+ * is complete enough to deserialize any commit log mutation without UnknownTableException.
+ * Callers use {@link org.apache.cassandra.spark.data.CqlTable#cdc()} to filter for publishing.
  */
 public interface SchemaSupplier
 {
-    CompletableFuture<Set<CqlTable>> getCdcEnabledTables();
+    CompletableFuture<Set<CqlTable>> getTables();
 }

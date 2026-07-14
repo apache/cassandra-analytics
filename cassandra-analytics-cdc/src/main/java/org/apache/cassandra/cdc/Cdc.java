@@ -415,22 +415,33 @@ public class Cdc implements Closeable
         try
         {
             schemaSupplier
-            .getCdcEnabledTables()
-            .handle((tables, throwable) -> {
+            .getTables()
+            .handle((allTables, throwable) -> {
                 if (throwable != null)
                 {
                     LOGGER.warn("Error refreshing schema", throwable);
                     return null;
                 }
-                this.cdcEnabledTables = tables;
-                if (tables == null || tables.isEmpty())
+                if (allTables == null || allTables.isEmpty())
                 {
-                    LOGGER.warn("No CQL enabled tables");
+                    LOGGER.warn("No tables returned from schema supplier");
                     return null;
                 }
 
-                // update Schema instance with latest schema
-                cdcBridge().updateCdcSchema(tables, cdcOptions.partitioner(), tableIdLookup);
+                // Filter CDC-enabled tables for publishing decisions
+                Set<CqlTable> cdcTables = allTables.stream()
+                                                   .filter(CqlTable::cdc)
+                                                   .collect(Collectors.toSet());
+                this.cdcEnabledTables = cdcTables;
+                if (cdcTables.isEmpty())
+                {
+                    LOGGER.warn("No CDC-enabled tables found");
+                }
+
+                // Update Schema.instance with ALL tables so deserialization never throws
+                // UnknownTableException for non-CDC tables co-located in batch mutations.
+                // Each table's CDC flag is set correctly from CqlTable.cdc().
+                cdcBridge().updateCdcSchema(allTables, cdcOptions.partitioner(), tableIdLookup);
                 return null;
             })
             .whenComplete((aVoid, throwable) -> {

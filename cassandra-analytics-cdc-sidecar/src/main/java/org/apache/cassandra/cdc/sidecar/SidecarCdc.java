@@ -62,7 +62,7 @@ public class SidecarCdc extends Cdc
      * @param cdcOptions             CDC processing options
      * @param clusterConfigProvider  provider for cluster configuration (e.g. datacenter, hosts)
      * @param eventConsumer          consumer that receives CDC change events
-     * @param schemaSupplier         supplier for CDC-enabled table schemas
+     * @param schemaSupplier         supplier for all table schemas (CDC-enabled and disabled); see {@link SchemaSupplier}
      * @param tokenRangeSupplier     supplier for the token ranges assigned to this partition
      * @param sidecarCdcClient       externally managed Sidecar HTTP client; <em>not</em> closed by
      *                               {@code SidecarCdc} or {@code SidecarCdcBuilder}
@@ -92,11 +92,12 @@ public class SidecarCdc extends Cdc
 
     public void initSchema()
     {
-        Set<CqlTable> tables = FutureUtils.get(schemaSupplier.getCdcEnabledTables());
-        Optional<ReplicationFactor> rfOp = tables.stream()
-                                                 .map(CqlTable::replicationFactor)
-                                                 .filter(rf -> rf.getOptions().containsKey(dc()))
-                                                 .max(Comparator.comparingInt(rf -> rf.getOptions().get(dc())));
+        Set<CqlTable> allTables = FutureUtils.get(schemaSupplier.getTables());
+        Optional<ReplicationFactor> rfOp = allTables.stream()
+                                                    .filter(CqlTable::cdc)
+                                                    .map(CqlTable::replicationFactor)
+                                                    .filter(rf -> rf.getOptions().containsKey(dc()))
+                                                    .max(Comparator.comparingInt(rf -> rf.getOptions().get(dc())));
 
         if (!rfOp.isPresent())
         {

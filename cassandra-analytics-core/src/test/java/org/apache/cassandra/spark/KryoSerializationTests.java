@@ -21,6 +21,7 @@ package org.apache.cassandra.spark;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -267,6 +268,38 @@ public class KryoSerializationTests
         CqlTable deserialized = deserialize(bridge.getVersion(), out, CqlTable.class);
         assertThat(deserialized).isNotNull();
         assertThat(deserialized).isEqualTo(table);
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlTableCdcFlagSurvivesSerialization(CassandraBridge bridge)
+    {
+        // CqlTable.equals()/hashCode() deliberately exclude the cdc field (see CqlTable.java),
+        // so a round-trip test must assert cdc() directly rather than rely on equals() — an
+        // equals()-based assertion would pass even if the Kryo serializer silently dropped or
+        // corrupted the cdc value.
+        List<CqlField> fields = ImmutableList.of(new CqlField(true, false, false, "a", bridge.bigint(), 0));
+        ReplicationFactor replicationFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
+                                                                    ImmutableMap.of("DC1", 3, "DC2", 3));
+
+        for (boolean cdc : new boolean[]{ true, false })
+        {
+            CqlTable table = new CqlTable("test_keyspace",
+                                          "test_table",
+                                          "create table test_keyspace.test_table (a bigint, primary key(a));",
+                                          replicationFactor,
+                                          fields,
+                                          Collections.emptySet(),
+                                          0,
+                                          cdc);
+
+            Output out = serialize(bridge.getVersion(), table);
+            CqlTable deserialized = deserialize(bridge.getVersion(), out, CqlTable.class);
+            assertThat(deserialized).isNotNull();
+            assertThat(deserialized.cdc())
+            .as("cdc=%s must survive Kryo serialization round-trip", cdc)
+            .isEqualTo(cdc);
+        }
     }
 
     @ParameterizedTest

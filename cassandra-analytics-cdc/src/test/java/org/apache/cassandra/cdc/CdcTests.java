@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -56,17 +57,26 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CdcBridge;
 import org.apache.cassandra.bridge.TokenRange;
+import org.apache.cassandra.cdc.api.CassandraSource;
 import org.apache.cassandra.cdc.api.CommitLog;
+import org.apache.cassandra.cdc.api.CommitLogInstance;
+import org.apache.cassandra.cdc.api.CommitLogMarkers;
 import org.apache.cassandra.cdc.api.CommitLogProvider;
+import org.apache.cassandra.cdc.api.CommitLogReader;
 import org.apache.cassandra.cdc.api.EventConsumer;
 import org.apache.cassandra.cdc.api.Marker;
+import org.apache.cassandra.cdc.api.Row;
 import org.apache.cassandra.cdc.api.SchemaSupplier;
 import org.apache.cassandra.cdc.api.StatePersister;
+import org.apache.cassandra.cdc.api.TableIdLookup;
 import org.apache.cassandra.cdc.msg.CdcEvent;
 import org.apache.cassandra.cdc.msg.Value;
+import org.apache.cassandra.cdc.scanner.CdcStreamScanner;
 import org.apache.cassandra.cdc.state.CdcState;
+import org.apache.cassandra.cdc.stats.ICdcStats;
 import org.apache.cassandra.cdc.test.CdcTestBase;
 import org.apache.cassandra.cdc.test.CdcTester;
+import org.apache.cassandra.db.commitlog.PartitionUpdateWrapper;
 import org.apache.cassandra.db.marshal.ByteBufferAccessor;
 import org.apache.cassandra.serializers.CollectionSerializer;
 import org.apache.cassandra.spark.data.CqlField;
@@ -77,6 +87,8 @@ import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.utils.AsyncExecutor;
 import org.apache.cassandra.spark.utils.ByteBufferUtils;
 import org.apache.cassandra.spark.utils.IOUtils;
+import org.apache.cassandra.spark.utils.TableIdentifier;
+import org.apache.cassandra.spark.utils.TimeProvider;
 import org.apache.cassandra.spark.utils.TimeUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.cassandra.transport.ProtocolVersion;
@@ -263,6 +275,171 @@ public class CdcTests extends CdcTestBase
         {
             CdcTester.closeQuietly(commitLog);
             IOUtils.clearDirectory(commitLogDir, path -> LOGGER.info("Clearing test output path={}", path.toString()));
+        }
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
+    public void testRefreshSchemaUpdatesBridgeWithAllTablesButFiltersCdcEnabledTables(CassandraVersion version)
+    {
+        // Regression test for the CDC batch-write bug: refreshSchema() must register EVERY
+        // table returned by the schema supplier (CDC-enabled and CDC-disabled) with the
+        // bridge's Schema.instance — not just the CDC-enabled ones — so that a commit log
+        // Mutation spanning both a CDC-enabled and a CDC-disabled table in the same keyspace
+        // (e.g. a BEGIN BATCH statement) can still be deserialized. Separately, only the
+        // CDC-enabled tables should end up in cdcEnabledTables, since that set drives
+        // publishing/replica-check decisions, not schema completeness.
+        TestSchema cdcSchema = TestSchema.builder(bridge)
+                                         .withPartitionKey("pk", bridge.uuid())
+                                         .withColumn("val", bridge.text())
+                                         .withCdc(true)
+                                         .build();
+        CqlTable cdcTable = cdcSchema.buildTable();
+
+        TestSchema nonCdcSchema = TestSchema.builder(bridge)
+                                            .withKeyspace(cdcSchema.keyspace)
+                                            .withPartitionKey("pk", bridge.uuid())
+                                            .withColumn("val", bridge.text())
+                                            .withCdc(false)
+                                            .build();
+        CqlTable nonCdcTable = nonCdcSchema.buildTable();
+
+        AtomicReference<Set<CqlTable>> tablesPassedToBridge = new AtomicReference<>();
+        SchemaSupplier schemaSupplier = () -> CompletableFuture.completedFuture(ImmutableSet.of(cdcTable, nonCdcTable));
+
+        try (RecordingCdc cdc = new RecordingCdc(Cdc.builder("test-refresh-schema", 0, event -> { }, schemaSupplier)
+                                                    .withExecutor(CdcTests.ASYNC_EXECUTOR)
+                                                    .withTableIdLookup(cdcBridge.internalTableIdLookup())
+                                                    .withCommitLogProvider(tokenRange -> Stream.empty())
+                                                    .withCdcOptions(cdcOptions),
+                                                    tablesPassedToBridge))
+        {
+            // start() flips isRunning to true and calls refreshSchema() synchronously (the
+            // schemaSupplier future is already completed, so the .handle()/.whenComplete()
+            // chain runs inline). scheduleRun()/scheduleMonitorSchema() are overridden to
+            // no-ops in RecordingCdc, so this only exercises the schema refresh path.
+            cdc.start();
+
+            assertThat(tablesPassedToBridge.get())
+            .as("Schema.instance must be updated with ALL tables (CDC and non-CDC) so a "
+              + "batch mutation spanning both can still deserialize")
+            .containsExactlyInAnyOrder(cdcTable, nonCdcTable);
+
+            assertThat(cdc.cdcEnabledTables)
+            .as("cdcEnabledTables (used for publishing/replica-check decisions) must contain "
+              + "only the CDC-enabled table, even though Schema.instance was given both")
+            .containsExactly(cdcTable);
+        }
+    }
+
+    /**
+     * Test-only {@link Cdc} subclass that intercepts {@link #cdcBridge()} to record exactly
+     * what table set gets passed to {@code CdcBridge.updateCdcSchema(...)} during
+     * {@code refreshSchema()}, while still delegating to the real bridge so Schema.instance is
+     * genuinely updated (not just observed). scheduleRun()/scheduleMonitorSchema() are
+     * overridden to no-ops so start() only exercises the schema refresh path, without kicking
+     * off an unrelated micro-batch read or a recurring schema-refresh loop.
+     */
+    private static final class RecordingCdc extends Cdc
+    {
+        private final AtomicReference<Set<CqlTable>> tablesPassedToBridge;
+
+        RecordingCdc(CdcBuilder builder, AtomicReference<Set<CqlTable>> tablesPassedToBridge)
+        {
+            super(builder);
+            this.tablesPassedToBridge = tablesPassedToBridge;
+        }
+
+        @Override
+        protected void scheduleRun(long delayMillis)
+        {
+            // no-op — this test only exercises schema refresh, not the micro-batch read loop
+        }
+
+        @Override
+        public void scheduleMonitorSchema()
+        {
+            // no-op — avoid recursively rescheduling refreshSchema() after start() calls it
+        }
+
+        @Override
+        protected CdcBridge cdcBridge()
+        {
+            CdcBridge real = super.cdcBridge();
+            return new RecordingCdcBridge(real, tablesPassedToBridge);
+        }
+    }
+
+    /**
+     * Delegates every call to the real {@link CdcBridge}, except {@code updateCdcSchema}, whose
+     * argument is captured before delegating.
+     */
+    private static final class RecordingCdcBridge extends CdcBridge
+    {
+        private final CdcBridge delegate;
+        private final AtomicReference<Set<CqlTable>> tablesPassedToBridge;
+
+        RecordingCdcBridge(CdcBridge delegate, AtomicReference<Set<CqlTable>> tablesPassedToBridge)
+        {
+            this.delegate = delegate;
+            this.tablesPassedToBridge = tablesPassedToBridge;
+        }
+
+        @Override
+        public void updateCdcSchema(@NotNull Set<CqlTable> cdcTables,
+                                    @NotNull Partitioner partitioner,
+                                    @NotNull TableIdLookup tableIdLookup)
+        {
+            tablesPassedToBridge.set(cdcTables);
+            delegate.updateCdcSchema(cdcTables, partitioner, tableIdLookup);
+        }
+
+        @Override
+        public void unregisterTables(@NotNull Set<TableIdentifier> tables)
+        {
+            delegate.unregisterTables(tables);
+        }
+
+        @Override
+        public CommitLogInstance createCommitLogInstance(Path path)
+        {
+            return delegate.createCommitLogInstance(path);
+        }
+
+        @Override
+        public TableIdLookup internalTableIdLookup()
+        {
+            return delegate.internalTableIdLookup();
+        }
+
+        @Override
+        public CommitLogReader.Result readLog(@NotNull CommitLog log,
+                                              @Nullable TokenRange tokenRange,
+                                              @NotNull CommitLogMarkers markers,
+                                              int partitionId,
+                                              @NotNull ICdcStats stats,
+                                              @Nullable AsyncExecutor executor,
+                                              @Nullable Consumer<Marker> listener,
+                                              @Nullable Long startTimestampMicros,
+                                              boolean readCommitLogHeader)
+        {
+            return delegate.readLog(log, tokenRange, markers, partitionId, stats, executor, listener, startTimestampMicros, readCommitLogHeader);
+        }
+
+        @Override
+        public CdcStreamScanner openCdcStreamScanner(Collection<PartitionUpdateWrapper> updates,
+                                                     @NotNull CdcState endState,
+                                                     Random random,
+                                                     CassandraSource cassandraSource,
+                                                     double traceSampleRate)
+        {
+            return delegate.openCdcStreamScanner(updates, endState, random, cassandraSource, traceSampleRate);
+        }
+
+        @Override
+        public void log(TimeProvider timeProvider, CqlTable cqlTable, CommitLogInstance log, Row row, long timestamp)
+        {
+            delegate.log(cqlTable, log, row, timestamp);
         }
     }
 
