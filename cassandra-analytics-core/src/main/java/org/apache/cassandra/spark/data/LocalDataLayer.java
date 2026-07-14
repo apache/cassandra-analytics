@@ -187,12 +187,12 @@ public class LocalDataLayer extends DataLayer implements Serializable
                 getOrThrow(options, lowerCaseKey("dirs")).split(","));
     }
 
-    public LocalDataLayer(@NotNull CassandraVersion version,
+    public LocalDataLayer(@NotNull CassandraVersion bridgeVersion,
                           @NotNull String keyspace,
                           @NotNull String createStatement,
                           String... paths)
     {
-        this(version,
+        this(bridgeVersion,
              Partitioner.Murmur3Partitioner,
              keyspace,
              createStatement,
@@ -204,13 +204,13 @@ public class LocalDataLayer extends DataLayer implements Serializable
              paths);
     }
 
-    public LocalDataLayer(@NotNull CassandraVersion version,
+    public LocalDataLayer(@NotNull CassandraVersion bridgeVersion,
                           @NotNull String keyspace,
                           @NotNull String createStatement,
                           @NotNull Set<String> udtStatements,
                           String... paths)
     {
-        this(version,
+        this(bridgeVersion,
              Partitioner.Murmur3Partitioner,
              keyspace,
              createStatement,
@@ -223,7 +223,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     }
 
     // CHECKSTYLE IGNORE: Constructor with many parameters
-    public LocalDataLayer(@NotNull CassandraVersion version,
+    public LocalDataLayer(@NotNull CassandraVersion bridgeVersion,
                           @NotNull Partitioner partitioner,
                           @NotNull String keyspace,
                           @NotNull String createStatement,
@@ -234,7 +234,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                           @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                           String... paths)
     {
-        this.bridge = CassandraBridgeFactory.get(version);
+        this.bridge = CassandraBridgeFactory.get(bridgeVersion);
         this.partitioner = partitioner;
         this.cqlTable = bridge().buildSchema(createStatement,
                                              keyspace,
@@ -259,7 +259,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     }
 
     // For serialization
-    private LocalDataLayer(@NotNull CassandraVersion version,
+    private LocalDataLayer(@NotNull CassandraVersion bridgeVersion,
                            @NotNull Partitioner partitioner,
                            @NotNull CqlTable cqlTable,
                            @NotNull String jobId,
@@ -269,7 +269,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                            @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                            String... paths)
     {
-        this.bridge = CassandraBridgeFactory.get(version);
+        this.bridge = CassandraBridgeFactory.get(bridgeVersion);
         this.partitioner = partitioner;
         this.cqlTable = cqlTable;
         this.jobId = jobId;

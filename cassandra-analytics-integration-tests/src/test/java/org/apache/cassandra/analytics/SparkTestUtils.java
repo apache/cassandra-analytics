@@ -200,7 +200,6 @@ public class SparkTestUtils
                               .set("spark.driver.host", "127.0.0.1")
                               .set("spark.driver.bindAddress", "127.0.0.1")
                               .set("spark.master", "local[8,4]")
-                              .set("spark.cassandra_analytics.cassandra.version", "5.0.0")
                               .set("spark.cassandra_analytics.sidecar.request.retries", "5")
                               .set("spark.cassandra_analytics.sidecar.request.retries.delay.milliseconds", "500")
                               .set("spark.cassandra_analytics.sidecar.request.retries.max.delay.milliseconds", "500")

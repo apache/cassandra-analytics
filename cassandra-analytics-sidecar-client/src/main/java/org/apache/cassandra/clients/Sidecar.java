@@ -20,14 +20,18 @@
 package org.apache.cassandra.clients;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
+import o.a.c.sidecar.client.shaded.common.response.GossipInfoResponse;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +54,7 @@ import o.a.c.sidecar.client.shaded.client.retry.RetryPolicy;
 import org.apache.cassandra.spark.common.model.CassandraInstance;
 import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.utils.BuildInfo;
+import org.apache.cassandra.spark.utils.FutureUtils;
 import org.apache.cassandra.spark.utils.MapUtils;
 import org.apache.cassandra.spark.validation.KeyStoreValidation;
 import org.apache.cassandra.spark.validation.StartupValidator;
@@ -147,6 +152,85 @@ public final class Sidecar
                                              return null;
                                          }))
                         .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieve gossip info from all nodes on the cluster
+     *
+     * @param client    Sidecar client
+     * @param instances all Sidecar instances
+     * @return completable futures with GossipInfoResponse
+     */
+    public static List<CompletableFuture<GossipInfoResponse>> gossipInfoFromAllNodes(SidecarClient client,
+                                                                                     Set<SidecarInstance> instances)
+    {
+        return instances.stream()
+                        .map(instance -> client
+                                         .gossipInfo(instance)
+                                         .exceptionally(throwable -> {
+                                             LOGGER.warn(String.format("Failed to retrieve gossipinfo from instance=%s",
+                                                                       instance), throwable);
+                                             return null;
+                                         }))
+                        .collect(Collectors.toList());
+    }
+
+    /**
+     * Retrieves SSTable versions from all nodes in the cluster via gossip info.
+     * This method fetches gossip information from all Sidecar instances and extracts
+     * the SSTable versions running on each node.
+     *
+     * @param client              Sidecar client
+     * @param instances           all Sidecar instances in the cluster
+     * @param maxRetryDelayMillis maximum delay in milliseconds between retries
+     * @param maxRetries          maximum number of retry attempts
+     * @param requestTimeoutSeconds per-request timeout in seconds
+     * @return a set of SSTable versions across all nodes in the cluster
+     * @throws RuntimeException if unable to retrieve gossip info from any nodes
+     */
+    public static Set<String> getSSTableVersionsFromCluster(SidecarClient client,
+                                                            Set<SidecarInstance> instances,
+                                                            long maxRetryDelayMillis,
+                                                            int maxRetries,
+                                                            int requestTimeoutSeconds)
+    {
+        LOGGER.debug("Retrieving SSTable versions from cluster via gossip...");
+
+        List<CompletableFuture<GossipInfoResponse>> gossipInfoFutures = gossipInfoFromAllNodes(client, instances);
+
+        // Each of the maxRetries attempts can take up to the request timeout plus the max delay
+        // before the next retry. Requests to all instances run in parallel, so the cluster-wide
+        // wait is bounded by a single node's worst case rather than the sum across nodes.
+        long requestTimeoutMillis = TimeUnit.SECONDS.toMillis(requestTimeoutSeconds);
+        final long totalTimeout = (maxRetryDelayMillis + requestTimeoutMillis) * maxRetries;
+
+        List<GossipInfoResponse> gossipInfoResponses = FutureUtils.bestEffortGet(gossipInfoFutures,
+                                                                                 totalTimeout,
+                                                                                 TimeUnit.MILLISECONDS);
+
+        if (gossipInfoResponses.isEmpty())
+        {
+            LOGGER.warn("Unable to retrieve gossip info from any nodes. 0/{} instances available.",
+                        gossipInfoFutures.size());
+            // do not fail here, bridge determination logic checks for feature flag and proceeds accordingly
+            return Collections.emptySet();
+        }
+        else if (gossipInfoResponses.size() < gossipInfoFutures.size())
+        {
+            LOGGER.warn("{}/{} instances were used to retrieve gossip info and determine SSTable versions",
+                        gossipInfoResponses.size(), gossipInfoFutures.size());
+        }
+
+        // Extract and collect SSTable versions from all gossip info responses
+        Set<String> sstableVersions = gossipInfoResponses.stream()
+                                                         .flatMap(response -> response.values().stream())
+                                                         .map(GossipInfoResponse.GossipInfo::sstableVersions)
+                                                         .filter(Objects::nonNull)
+                                                         .flatMap(List::stream)
+                                                         .collect(Collectors.toSet());
+
+        LOGGER.info("Detected SSTable versions on cluster: {}", sstableVersions);
+        return sstableVersions;
     }
 
     public static SidecarInstance toSidecarInstance(CassandraInstance instance, int sidecarPort)

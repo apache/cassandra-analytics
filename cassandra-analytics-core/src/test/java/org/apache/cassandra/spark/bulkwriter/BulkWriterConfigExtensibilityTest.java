@@ -24,6 +24,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.MultiClusterContainer;
 import org.apache.cassandra.spark.common.stats.JobStatsPublisher;
 import org.jetbrains.annotations.NotNull;
@@ -52,7 +53,7 @@ class BulkWriterConfigExtensibilityTest
         BroadcastableSchemaInfo mockSchemaInfo = mock(BroadcastableSchemaInfo.class);
 
         // A custom BulkWriterConfig subclass overriding toBulkWriterContext()
-        BulkWriterConfig customConfig = new BulkWriterConfig(mockConf, 4, mockJobInfo, mockClusterInfo, mockSchemaInfo, "4.0.0")
+        BulkWriterConfig customConfig = new BulkWriterConfig(mockConf, 4, mockJobInfo, mockClusterInfo, mockSchemaInfo, CassandraVersion.FOURZERO)
         {
             @Override
             public BulkWriterContext toBulkWriterContext()
@@ -79,7 +80,7 @@ class BulkWriterConfigExtensibilityTest
         BroadcastableJobInfo mockJobInfo = mock(BroadcastableJobInfo.class);
         BroadcastableSchemaInfo mockSchemaInfo = mock(BroadcastableSchemaInfo.class);
 
-        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mockBroadcastable, mockSchemaInfo, "4.0.0");
+        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mockBroadcastable, mockSchemaInfo, CassandraVersion.FOURZERO);
 
         TestBulkWriterContext context = new TestBulkWriterContext(config);
 
@@ -93,7 +94,8 @@ class BulkWriterConfigExtensibilityTest
         BulkSparkConf mockConf = mock(BulkSparkConf.class);
         BroadcastableJobInfo mockJobInfo = mock(BroadcastableJobInfo.class);
         BroadcastableSchemaInfo mockSchemaInfo = mock(BroadcastableSchemaInfo.class);
-        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mock(IBroadcastableClusterInfo.class), mockSchemaInfo, "4.0.0");
+        BulkWriterConfig config = new BulkWriterConfig(mockConf, 4, mockJobInfo, mock(IBroadcastableClusterInfo.class),
+                                                       mockSchemaInfo, CassandraVersion.FOURZERO);
 
         // Subclass that overrides reconstructJobInfoOnExecutor to return custom JobInfo
         TestBulkWriterContext context = new TestBulkWriterContext(config)

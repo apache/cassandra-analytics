@@ -95,6 +95,6 @@ public class CassandraBulkWriterContext extends AbstractBulkWriterContext
                                     broadcastableJobInfo,
                                     broadcastableClusterInfo,
                                     broadcastableSchemaInfo,
-                                    lowestCassandraVersion());
+                                    bridgeVersion());
     }
 }

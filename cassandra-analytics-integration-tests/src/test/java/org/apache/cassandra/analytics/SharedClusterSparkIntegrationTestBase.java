@@ -19,6 +19,10 @@
 
 package org.apache.cassandra.analytics;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -26,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
@@ -36,6 +41,7 @@ import com.vdurmont.semver4j.Semver;
 import io.vertx.junit5.VertxExtension;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.sidecar.testing.SharedClusterIntegrationTestBase;
 import org.apache.spark.SparkConf;
@@ -188,6 +194,76 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
         {
             throw new IllegalStateException("The content of the dataframes differs");
         }
+    }
+
+    /**
+     * Asserts that every on-disk SSTable data file for the given table matches the expected SSTable format and
+     * version across all running nodes. Data file names follow the pattern
+     * {@code <version>-<generation>-<format>-Data.db} (e.g. {@code oa-1-big-Data.db}). The generation component is
+     * matched loosely since it may be sequence- or UUID-based depending on cluster configuration.
+     *
+     * @param table           the table whose on-disk SSTables are inspected
+     * @param format          the expected SSTable format (e.g. {@code big})
+     * @param expectedVersion the expected SSTable version (e.g. {@code oa} or {@code nb})
+     */
+    protected void assertSSTableFormatOnDisk(QualifiedName table, String format, String expectedVersion)
+    {
+        String dataFileRegex = expectedVersion + "-[^-]+-" + format + "-Data\\.db";
+        boolean foundDataFiles = false;
+        for (int i = 1; i <= cluster.size(); i++)
+        {
+            IInstance instance = cluster.get(i);
+            if (instance.isShutdown())
+            {
+                continue;
+            }
+
+            for (String fileName : findSSTableDataFiles(instance, table))
+            {
+                foundDataFiles = true;
+                assertThat(fileName)
+                .as("SSTable data file for %s on node %d should be in %s format with version %s: %s",
+                    table, i, format, expectedVersion, fileName)
+                .matches(dataFileRegex);
+            }
+        }
+        assertThat(foundDataFiles)
+        .as("Expected to find at least one SSTable data file for %s on a running node", table)
+        .isTrue();
+    }
+
+    /**
+     * Finds the names of all SSTable {@code *-Data.db} files belonging to the given table on a single node,
+     * scanning every configured data directory and scoping to the table's own data subdirectory.
+     */
+    protected Set<String> findSSTableDataFiles(IInstance instance, QualifiedName table)
+    {
+        String[] dataDirs = (String[]) instance.config().getParams().get("data_file_directories");
+        Set<String> dataFileNames = new HashSet<>();
+        String tableDirPrefix = table.table() + "-";
+        for (String dataDir : dataDirs)
+        {
+            Path keyspacePath = Paths.get(dataDir, table.keyspace());
+            if (!Files.exists(keyspacePath))
+            {
+                continue;
+            }
+
+            try (Stream<Path> walkStream = Files.walk(keyspacePath))
+            {
+                walkStream.filter(Files::isRegularFile)
+                          .filter(path -> path.getFileName().toString().endsWith("-Data.db"))
+                          .filter(path -> path.getParent() != null
+                                          && path.getParent().getFileName().toString().startsWith(tableDirPrefix))
+                          .forEach(path -> dataFileNames.add(path.getFileName().toString()));
+            }
+            catch (IOException e)
+            {
+                throw new RuntimeException("Failed to list SSTable data files for " + table, e);
+            }
+        }
+
+        return dataFileNames;
     }
 
     public void validateWritesWithDriverResultSet(List<Row> sparkData, ResultSet driverData,

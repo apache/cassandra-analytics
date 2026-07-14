@@ -434,6 +434,38 @@ class BulkSparkConfTest
         .hasMessageContaining("Invalid value 'INVALID' for option 'STORAGE_CREDENTIAL_TYPE'");
     }
 
+    @Test
+    void testDefaultDisableSSTableVersionBasedBridge()
+    {
+        Map<String, String> options = copyDefaultOptions();
+        BulkSparkConf conf = new BulkSparkConf(sparkConf, options);
+        assertThat(conf.isSSTableVersionBasedBridgeDisabled())
+        .describedAs("By default, SSTable version based bridge should be enabled (false)")
+        .isFalse();
+    }
+
+    @Test
+    void testSSTableVersionBasedBridgeDisabledViaSparkConf()
+    {
+        SparkConf conf = new SparkConf()
+                         .set(BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE, "true");
+        BulkSparkConf bulkConf = new BulkSparkConf(conf, defaultOptions);
+        assertThat(bulkConf.isSSTableVersionBasedBridgeDisabled())
+        .describedAs("SSTable version based bridge should be disabled when configured")
+        .isTrue();
+    }
+
+    @Test
+    void testSSTableVersionBasedBridgeEnabledExplicitly()
+    {
+        SparkConf conf = new SparkConf()
+                         .set(BulkSparkConf.DISABLE_SSTABLE_VERSION_BASED_BRIDGE, "false");
+        BulkSparkConf bulkConf = new BulkSparkConf(conf, defaultOptions);
+        assertThat(bulkConf.isSSTableVersionBasedBridgeDisabled())
+        .describedAs("SSTable version based bridge should be enabled")
+        .isFalse();
+    }
+
     private Map<String, String> copyDefaultOptions()
     {
         TreeMap<String, String> map = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);

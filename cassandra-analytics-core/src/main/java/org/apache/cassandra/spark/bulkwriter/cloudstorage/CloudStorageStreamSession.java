@@ -82,7 +82,7 @@ public class CloudStorageStreamSession extends StreamSession<TransportContext.Cl
                                      ExecutorService executorService)
     {
         this(bulkWriterContext, sstableWriter, transportContext, sessionID, tokenRange,
-             CassandraBridgeFactory.get(bulkWriterContext.cluster().getLowestCassandraVersion()),
+             CassandraBridgeFactory.get(bulkWriterContext.cluster().getBridgeVersion()),
              failureHandler, executorService);
     }
 
