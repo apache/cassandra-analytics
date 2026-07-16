@@ -47,7 +47,9 @@ import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
+import org.apache.cassandra.bridge.SSTableVersionAnalyzer;
 import org.apache.cassandra.clients.Sidecar;
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
@@ -84,7 +86,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     // Changes here must be reflected in BroadcastableClusterInfo.
     protected final BulkSparkConf conf;
     protected final String clusterId;
-    protected String cassandraVersion;
+    // volatile for correct double-checked locking in getBridgeVersion() (lazy init on the driver)
+    protected volatile CassandraVersion bridgeVersion;
     protected Partitioner partitioner;
 
     // -- Driver-only fields (not broadcast) --
@@ -117,7 +120,7 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     /**
      * Reconstruct from BroadcastableCluster on executor.
-     * Reuses cassandraVersion and partitioner from broadcast,
+     * Reuses bridgeVersion and partitioner from broadcast,
      * fetches other data (tokenRangeMapping, replicationFactor, keyspaceSchema, writeAvailability) fresh from Sidecar.
      *
      * @param broadcastable the broadcastable cluster info from broadcast
@@ -126,12 +129,12 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     {
         this.conf = broadcastable.getConf();
         this.clusterId = broadcastable.clusterId();
-        this.cassandraVersion = broadcastable.getLowestCassandraVersion();
         this.partitioner = broadcastable.getPartitioner();
+        this.bridgeVersion = broadcastable.getBridgeVersion();
         this.cassandraContext = buildCassandraContext();
         LOGGER.info("Reconstructing CassandraClusterInfo on executor from BroadcastableCluster. clusterId={}", clusterId);
         this.nodeSettings = new AtomicReference<>(null);
-        // Executors do not need to query all node settings since cassandraVersion is already set from broadcast
+        // Executors do not need to query all node settings since the bridge version is already set from broadcast
         this.allNodeSettingFutures = null;
     }
 
@@ -390,32 +393,71 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         }
     }
 
+    /**
+     * Returns the Cassandra bridge version for this cluster, computed lazily on first use and cached.
+     * Mirrors {@link #getVersionFromSidecar()}'s lazy pattern: it works on the driver (where the value is
+     * computed from the cluster) and on executors (where the cached value is seeded from the broadcast
+     * {@link BroadcastableClusterInfo}, so no re-query is needed). The determination itself is in
+     * {@link #determineBridgeVersion()}.
+     *
+     * @return the determined Cassandra bridge version (e.g. {@link CassandraVersion#FIVEZERO})
+     */
     @Override
-    public String getLowestCassandraVersion()
+    public CassandraVersion getBridgeVersion()
     {
-        String currentCassandraVersion = cassandraVersion;
-        if (currentCassandraVersion != null)
+        CassandraVersion currentBridgeVersion = bridgeVersion;
+        if (currentBridgeVersion != null)
         {
-            return currentCassandraVersion;
+            return currentBridgeVersion;
         }
 
         synchronized (this)
         {
-            if (cassandraVersion == null)
+            if (bridgeVersion == null)
             {
-                String versionFromFeature = getVersionFromFeature();
-                if (versionFromFeature != null)
-                {
-                    // Forcing writer to use a particular version
-                    cassandraVersion = versionFromFeature;
-                }
-                else
-                {
-                    cassandraVersion = getVersionFromSidecar();
-                }
+                bridgeVersion = determineBridgeVersion();
             }
+            return bridgeVersion;
         }
-        return cassandraVersion;
+    }
+
+    /**
+     * Determines the Cassandra bridge version for this cluster, in priority order:
+     * <ol>
+     *   <li>an explicit version override from {@link #getVersionFromFeature()} (an operator escape hatch) —
+     *       takes precedence even when SSTable-version-based selection is enabled;</li>
+     *   <li>otherwise, when SSTable version-based selection is enabled, the lowest version derived from the
+     *       SSTable versions present, so the produced SSTables remain importable by every node;</li>
+     *   <li>otherwise (feature disabled), the lowest Cassandra release version reported by the cluster.</li>
+     * </ol>
+     *
+     * @return the determined bridge version
+     */
+    private CassandraVersion determineBridgeVersion()
+    {
+        String versionOverride = getVersionFromFeature();
+        if (versionOverride != null)
+        {
+            // Forcing writer to use a particular version; validate it is a supported version up front
+            return CassandraVersion.fromVersion(versionOverride)
+                                   .orElseThrow(() -> new UnsupportedOperationException(
+                                   "Unsupported Cassandra version override: " + versionOverride));
+        }
+
+        if (!conf.isSSTableVersionBasedBridgeDisabled())
+        {
+            return SSTableVersionAnalyzer.determineBridgeVersionForWrite(getSSTableVersionsOnCluster(),
+                                                                         CassandraVersion.configuredSSTableFormat());
+        }
+
+        String releaseVersion = getVersionFromSidecar();
+        CassandraVersion bridgeVersion = CassandraVersion.fromVersion(releaseVersion)
+                                                         .orElseThrow(() -> new UnsupportedOperationException(
+                                                         "Unsupported Cassandra version: " + releaseVersion));
+        LOGGER.info("SSTable version-based bridge selection is disabled; determined bridge version {} for write "
+                    + "from the cluster's Cassandra release version {} (legacy mode)",
+                    bridgeVersion.versionName(), releaseVersion);
+        return bridgeVersion;
     }
 
     @Override
@@ -515,9 +557,28 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         return ns.releaseVersion();
     }
 
+    /**
+     * Retrieves SSTable versions using the existing CassandraContext.
+     * Reuses the existing CassandraContext instead of creating a separate one.
+     *
+     * @return set of SSTable version strings present on the cluster
+     */
+    @VisibleForTesting
+    public Set<String> getSSTableVersionsOnCluster()
+    {
+        CassandraContext context = getCassandraContext();
+
+        return Sidecar.getSSTableVersionsFromCluster(context.getSidecarClient(),
+                                                     context.getCluster(),
+                                                     conf.getSidecarRequestMaxRetryDelayMillis(),
+                                                     conf.getSidecarRequestRetries(),
+                                                     conf.getSidecarRequestTimeoutSeconds()
+        );
+    }
+
     protected CassandraBridge bridge()
     {
-        return CassandraBridgeFactory.get(getLowestCassandraVersion());
+        return CassandraBridgeFactory.get(getBridgeVersion());
     }
 
     // Startup Validation

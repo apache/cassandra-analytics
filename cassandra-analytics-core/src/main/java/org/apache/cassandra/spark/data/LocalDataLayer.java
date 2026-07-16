@@ -188,12 +188,12 @@ public class LocalDataLayer extends DataLayer implements Serializable
                 getOrThrow(options, lowerCaseKey("dirs")).split(","));
     }
 
-    public LocalDataLayer(@NotNull CassandraVersion version,
+    public LocalDataLayer(@NotNull CassandraVersion bridgeVersion,
                           @NotNull String keyspace,
                           @NotNull String createStatement,
                           String... paths)
     {
-        this(version,
+        this(bridgeVersion,
              Partitioner.Murmur3Partitioner,
              keyspace,
              createStatement,
@@ -206,13 +206,13 @@ public class LocalDataLayer extends DataLayer implements Serializable
              paths);
     }
 
-    public LocalDataLayer(@NotNull CassandraVersion version,
+    public LocalDataLayer(@NotNull CassandraVersion bridgeVersion,
                           @NotNull String keyspace,
                           @NotNull String createStatement,
                           @NotNull Set<String> udtStatements,
                           String... paths)
     {
-        this(version,
+        this(bridgeVersion,
              Partitioner.Murmur3Partitioner,
              keyspace,
              createStatement,
@@ -226,7 +226,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     }
 
     // CHECKSTYLE IGNORE: Constructor with many parameters
-    public LocalDataLayer(@NotNull CassandraVersion version,
+    public LocalDataLayer(@NotNull CassandraVersion bridgeVersion,
                           @NotNull Partitioner partitioner,
                           @NotNull String keyspace,
                           @NotNull String createStatement,
@@ -237,7 +237,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                           @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                           String... paths)
     {
-        this(version,
+        this(bridgeVersion,
              partitioner,
              keyspace,
              createStatement,
@@ -251,7 +251,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     }
 
     // CHECKSTYLE IGNORE: Constructor with many parameters
-    public LocalDataLayer(@NotNull CassandraVersion version,
+    public LocalDataLayer(@NotNull CassandraVersion bridgeVersion,
                           @NotNull Partitioner partitioner,
                           @NotNull String keyspace,
                           @NotNull String createStatement,
@@ -263,7 +263,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                           @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                           String... paths)
     {
-        this.bridge = CassandraBridgeFactory.get(version);
+        this.bridge = CassandraBridgeFactory.get(bridgeVersion);
         this.partitioner = partitioner;
         // Pass the table's index statements so the registered table carries its SAI indexes from this first build
         // onward (rather than relying on the 5.0 bridge to patch them back on after an index-less rebuild).
@@ -293,7 +293,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
     }
 
     // For serialization
-    private LocalDataLayer(@NotNull CassandraVersion version,
+    private LocalDataLayer(@NotNull CassandraVersion bridgeVersion,
                            @NotNull Partitioner partitioner,
                            @NotNull CqlTable cqlTable,
                            @NotNull String jobId,
@@ -303,7 +303,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                            @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                            String... paths)
     {
-        this.bridge = CassandraBridgeFactory.get(version);
+        this.bridge = CassandraBridgeFactory.get(bridgeVersion);
         this.partitioner = partitioner;
         this.cqlTable = cqlTable;
         this.jobId = jobId;

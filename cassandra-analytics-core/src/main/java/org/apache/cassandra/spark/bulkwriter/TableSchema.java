@@ -63,7 +63,7 @@ public class TableSchema
     final WriteMode writeMode;
     final TTLOption ttlOption;
     final TimestampOption timestampOption;
-    final String lowestCassandraVersion;
+    final CassandraVersion bridgeVersion;
     final boolean quoteIdentifiers;
     final Set<String> indexStatements;
 
@@ -72,7 +72,7 @@ public class TableSchema
                        WriteMode writeMode,
                        TTLOption ttlOption,
                        TimestampOption timestampOption,
-                       String lowestCassandraVersion,
+                       CassandraVersion bridgeVersion,
                        boolean quoteIdentifiers,
                        boolean skipSecondaryIndexCheck)
     {
@@ -80,13 +80,13 @@ public class TableSchema
         this.ttlOption = ttlOption;
 
         this.timestampOption = timestampOption;
-        this.lowestCassandraVersion = lowestCassandraVersion;
+        this.bridgeVersion = bridgeVersion;
         this.quoteIdentifiers = quoteIdentifiers;
         this.indexStatements = tableInfo.getIndexStatements();
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
-        validateSecondaryIndexes(skipSecondaryIndexCheck, indexStatements, lowestCassandraVersion);
-        validateUserAddedColumns(lowestCassandraVersion, quoteIdentifiers, ttlOption, timestampOption);
+        validateSecondaryIndexes(skipSecondaryIndexCheck, indexStatements, bridgeVersion.versionName());
+        validateUserAddedColumns(bridgeVersion, quoteIdentifiers, ttlOption, timestampOption);
 
         this.createStatement = getCreateStatement(tableInfo);
         this.modificationStatement = getModificationStatement(dfSchema, tableInfo);
@@ -114,7 +114,7 @@ public class TableSchema
         this.writeMode = broadcastable.getWriteMode();
         this.ttlOption = broadcastable.getTtlOption();
         this.timestampOption = broadcastable.getTimestampOption();
-        this.lowestCassandraVersion = broadcastable.getLowestCassandraVersion();
+        this.bridgeVersion = broadcastable.getBridgeVersion();
         this.quoteIdentifiers = broadcastable.isQuoteIdentifiers();
         this.indexStatements = broadcastable.getIndexStatements();
     }
@@ -190,7 +190,7 @@ public class TableSchema
                                       TTLOption ttlOption,
                                       TimestampOption timestampOption)
     {
-        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+        CassandraBridge bridge = CassandraBridgeFactory.get(bridgeVersion);
 
         List<String> columnNames = Arrays.stream(dfSchema.fieldNames())
                                          .filter(fieldName -> !fieldName.equals(ttlOption.columnName()))
@@ -234,7 +234,7 @@ public class TableSchema
 
     private String getDeleteStatement(StructType dfSchema, TableInfoProvider tableInfo)
     {
-        CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+        CassandraBridge bridge = CassandraBridgeFactory.get(bridgeVersion);
         Stream<String> fieldEqualityStatements = Arrays.stream(dfSchema.fieldNames()).map(key -> maybeQuotedIdentifier(bridge, quoteIdentifiers, key) + "=?");
         String deleteStatement = String.format("DELETE FROM %s.%s where %s;",
                                                maybeQuotedIdentifier(bridge, quoteIdentifiers, tableInfo.getKeyspaceName()),
@@ -421,12 +421,12 @@ public class TableSchema
                           .collect(Collectors.toList());
     }
 
-    private static void validateUserAddedColumns(String lowestCassandraVersion, boolean quoteIdentifiers,
+    private static void validateUserAddedColumns(CassandraVersion bridgeVersion, boolean quoteIdentifiers,
                                                  TTLOption ttlOption, TimestampOption timestampOption)
     {
         if (!quoteIdentifiers)
         {
-            CassandraBridge bridge = CassandraBridgeFactory.get(lowestCassandraVersion);
+            CassandraBridge bridge = CassandraBridgeFactory.get(bridgeVersion);
             validateColumnName(bridge, ttlOption.columnName(), WriterOptions.TTL.name());
             validateColumnName(bridge, timestampOption.columnName(), WriterOptions.TIMESTAMP.name());
         }

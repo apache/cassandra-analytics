@@ -75,9 +75,9 @@ public class CassandraDirectDataTransportContext implements TransportContext.Dir
     // only invoke in constructor
     protected DirectDataTransferApi createDirectDataTransferApi()
     {
-        CassandraBridge bridge = CassandraBridgeFactory.get(clusterInfo.getLowestCassandraVersion());
+        CassandraBridge bridge = CassandraBridgeFactory.get(clusterInfo.getBridgeVersion());
         Set<String> indexStatements = schemaInfo.getTableSchema().getIndexStatements();
-        boolean hasSaiIndexes = TableSchema.shouldGenerateSaiComponents(indexStatements, clusterInfo.getLowestCassandraVersion());
+        boolean hasSaiIndexes = TableSchema.shouldGenerateSaiComponents(indexStatements, clusterInfo.getBridgeVersion().versionName());
 
         return new SidecarDataTransferApi(clusterInfo.getCassandraContext(), bridge, jobInfo, hasSaiIndexes);
     }

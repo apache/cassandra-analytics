@@ -86,7 +86,7 @@ public class SummaryDbTests
     public void testSearchSummary()
     {
         // Summary.db file is present only in BIG sstables
-        assumeThat(CassandraVersion.sstableFormat()).isEqualTo("big");
+        assumeThat(CassandraVersion.configuredSSTableFormat()).isEqualTo("big");
 
         qt().forAll(arbitrary().enumValues(Partitioner.class))
             .checkAssert(partitioner -> {
@@ -149,7 +149,7 @@ public class SummaryDbTests
     public void testSummaryBinarySearch()
     {
         // Summary.db file is present only in BIG sstables
-        assumeThat(CassandraVersion.sstableFormat()).isEqualTo("big");
+        assumeThat(CassandraVersion.configuredSSTableFormat()).isEqualTo("big");
 
         SummaryDbUtils.TokenList list = new ArrayTokenList(LongStream.range(5, 10000).boxed().toArray(Long[]::new));
         assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(154L))).isEqualTo(148);
@@ -169,7 +169,7 @@ public class SummaryDbTests
     public void testSummaryBinarySearchSparse()
     {
         // Summary.db file is present only in BIG sstables
-        assumeThat(CassandraVersion.sstableFormat()).isEqualTo("big");
+        assumeThat(CassandraVersion.configuredSSTableFormat()).isEqualTo("big");
 
         SummaryDbUtils.TokenList list = new ArrayTokenList(5L, 10L, 15L, 20L, 25L);
         assertThat(SummaryDbUtils.binarySearchSummary(list, BigInteger.valueOf(-500L))).isEqualTo(0);

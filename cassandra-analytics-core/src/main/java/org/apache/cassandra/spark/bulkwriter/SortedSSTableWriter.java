@@ -37,7 +37,6 @@ import com.google.common.collect.Range;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.bridge.CassandraVersionFeatures;
 import org.apache.cassandra.bridge.SSTableDescriptor;
@@ -119,8 +118,8 @@ public class SortedSSTableWriter
         this.digestAlgorithm = digestAlgorithm;
         this.partitionId = partitionId;
 
-        String lowestCassandraVersion = writerContext.cluster().getLowestCassandraVersion();
-        String packageVersion = getPackageVersion(lowestCassandraVersion);
+        CassandraVersion bridgeVersion = writerContext.cluster().getBridgeVersion();
+        String packageVersion = getPackageVersion(bridgeVersion);
         LOGGER.info("Running with version {}", packageVersion);
 
         SchemaInfo schema = writerContext.schema();
@@ -137,9 +136,10 @@ public class SortedSSTableWriter
     }
 
     @NotNull
-    public String getPackageVersion(String lowestCassandraVersion)
+    public String getPackageVersion(CassandraVersion bridgeVersion)
     {
-        return CASSANDRA_VERSION_PREFIX + lowestCassandraVersion;
+        // Emit a major.minor.patch string (e.g. "cassandra-5.0.0") so it parses via CassandraVersionFeatures downstream
+        return CASSANDRA_VERSION_PREFIX + bridgeVersion.versionName() + ".0";
     }
 
     /**
@@ -363,7 +363,7 @@ public class SortedSSTableWriter
 
     private LocalDataLayer buildLocalDataLayer(@NotNull BulkWriterContext writerContext, @NotNull Path outputDirectory, @Nullable Set<Path> dataFilePaths)
     {
-        CassandraVersion version = CassandraBridgeFactory.getCassandraVersion(writerContext.cluster().getLowestCassandraVersion());
+        CassandraVersion version = writerContext.cluster().getBridgeVersion();
         String keyspace = writerContext.job().qualifiedTableName().keyspace();
         String schema = writerContext.schema().getTableSchema().createStatement;
         Partitioner partitioner = writerContext.cluster().getPartitioner();

@@ -504,7 +504,7 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
     {
         CreateRestoreJobRequestPayload.Builder builder = CreateRestoreJobRequestPayload.builder(secrets, updatedLeaseTime());
         Set<String> indexStatements = writerContext.schema().getTableSchema().getIndexStatements();
-        boolean hasSaiIndexes = TableSchema.shouldGenerateSaiComponents(indexStatements, writerContext.cluster().getLowestCassandraVersion());
+        boolean hasSaiIndexes = TableSchema.shouldGenerateSaiComponents(indexStatements, writerContext.cluster().getBridgeVersion().versionName());
         builder.jobAgent(BuildInfo.APPLICATION_NAME)
                .jobId(job.getRestoreJobId(clusterId))
                .updateImportOptions(importOptions -> {
