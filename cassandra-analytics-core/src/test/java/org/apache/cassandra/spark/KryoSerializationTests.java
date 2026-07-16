@@ -261,7 +261,9 @@ public class KryoSerializationTests
                                       "create table test_keyspace.test_table"
                                       + " (a bigint, b bigint, c bigint, d bigint, e bigint, primary key((a, b), c));",
                                       replicationFactor,
-                                      fields);
+                                      fields,
+                                      java.util.Collections.emptySet(),
+                                      java.util.Collections.emptySet());
 
         Output out = serialize(bridge.getVersion(), table);
         CqlTable deserialized = deserialize(bridge.getVersion(), out, CqlTable.class);

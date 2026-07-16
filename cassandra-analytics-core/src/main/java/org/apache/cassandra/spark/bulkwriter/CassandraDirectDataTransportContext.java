@@ -77,7 +77,7 @@ public class CassandraDirectDataTransportContext implements TransportContext.Dir
     {
         CassandraBridge bridge = CassandraBridgeFactory.get(clusterInfo.getBridgeVersion());
         Set<String> indexStatements = schemaInfo.getTableSchema().getIndexStatements();
-        boolean hasSaiIndexes = TableSchema.shouldGenerateSaiComponents(indexStatements, clusterInfo.getBridgeVersion().versionName());
+        boolean hasSaiIndexes = TableSchema.shouldGenerateSaiComponents(indexStatements, clusterInfo.getBridgeVersion());
 
         return new SidecarDataTransferApi(clusterInfo.getCassandraContext(), bridge, jobInfo, hasSaiIndexes);
     }

@@ -63,15 +63,6 @@ public class CqlTable implements Serializable
                     @NotNull String table,
                     @NotNull String createStatement,
                     @NotNull ReplicationFactor replicationFactor,
-                    @NotNull List<CqlField> fields)
-    {
-        this(keyspace, table, createStatement, replicationFactor, fields, Collections.emptySet(), Collections.emptySet());
-    }
-
-    public CqlTable(@NotNull String keyspace,
-                    @NotNull String table,
-                    @NotNull String createStatement,
-                    @NotNull ReplicationFactor replicationFactor,
                     @NotNull List<CqlField> fields,
                     @NotNull Set<CqlField.CqlUdt> udts,
                     @NotNull Set<String> indexStatements)

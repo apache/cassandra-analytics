@@ -113,7 +113,9 @@ public class JDKSerializationTests extends VersionRunner
     {
         CassandraRing ring = TestUtils.createRing(Partitioner.Murmur3Partitioner, 1024);
         TestSchema schema = TestSchema.basic(bridge);
-        CqlTable cqlTable = new CqlTable(schema.keyspace, schema.table, schema.createStatement, ring.replicationFactor(), Collections.emptyList());
+        CqlTable cqlTable = new CqlTable(schema.keyspace, schema.table, schema.createStatement,
+                                         ring.replicationFactor(), Collections.emptyList(), Collections.emptySet(),
+                                         Collections.emptySet());
         DataLayer partitionedDataLayer = new TestPartitionedDataLayer(bridge, 4, 16, null, ring, cqlTable);
         byte[] bytes = bridge.javaSerialize(partitionedDataLayer);
         TestPartitionedDataLayer deserialized = bridge.javaDeserialize(bytes, TestPartitionedDataLayer.class);

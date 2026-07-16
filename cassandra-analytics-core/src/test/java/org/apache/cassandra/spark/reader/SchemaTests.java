@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.reader;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.regex.Matcher;
 
@@ -212,7 +213,8 @@ public class SchemaTests extends VersionRunner
         ReplicationFactor replicationFactor = new ReplicationFactor(
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
         assertThatThrownBy(() -> bridge.buildSchema(createStatement, "backup_test", replicationFactor, Partitioner.Murmur3Partitioner,
-                                              ImmutableSet.of("CREATE TYPE backup_test.testudt(birthday timestamp, count bigint, length counter);")))
+                                                    ImmutableSet.of("CREATE TYPE backup_test.testudt(birthday timestamp, count bigint, length counter);"),
+                                                    null, Collections.emptySet(), false))
                 .isInstanceOf(UnsupportedOperationException.class);
     }
 
@@ -376,7 +378,7 @@ public class SchemaTests extends VersionRunner
                                                             + "  nationality text,\n"
                                                             + "  weight float,\n"
                                                             + "  height int\n"
-                                                            + ");"));
+                                                            + ");"), null, Collections.emptySet(), false);
         assertThat(table.udts()).hasSize(1);
         CqlField.CqlUdt udt = table.udts().stream().findFirst().get();
         assertThat(udt.name()).isEqualTo(udtName);
@@ -422,7 +424,7 @@ public class SchemaTests extends VersionRunner
                                                             + "  nationality text,\n"
                                                             + "  weight float,\n"
                                                             + "  height int\n"
-                                                            + ");"));
+                                                            + ");"), null, Collections.emptySet(), false);
         List<CqlField> fields = table.fields();
         assertThat(fields.get(0).type()).isEqualTo(bridge.uuid());
         assertThat(fields.get(1).type()).isEqualTo(bridge.bigint());
@@ -446,7 +448,8 @@ public class SchemaTests extends VersionRunner
         ReplicationFactor replicationFactor = new ReplicationFactor(
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
         CqlTable table = bridge.buildSchema(SCHEMA, "backup_test", replicationFactor, Partitioner.Murmur3Partitioner,
-                                            ImmutableSet.of("CREATE TYPE backup_test.tuple_test (a int, b bigint, c blob, d text)"));
+                                            ImmutableSet.of("CREATE TYPE backup_test.tuple_test (a int, b bigint, c blob, d text)"),
+                                            null, Collections.emptySet(), false);
         assertThat(table.udts()).hasSize(1);
         CqlField.CqlUdt udt = table.udts().stream().findFirst().get();
         assertThat(udt.name()).isEqualTo("tuple_test");
@@ -528,7 +531,8 @@ public class SchemaTests extends VersionRunner
         ReplicationFactor replicationFactor = new ReplicationFactor(
         ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy, ImmutableMap.of("DC1", 3, "DC2", 3));
         CqlTable table = bridge.buildSchema(tableStr, keyspace, replicationFactor, Partitioner.Murmur3Partitioner,
-                                            ImmutableSet.of(type1, type2, type3, type4));
+                                            ImmutableSet.of(type1, type2, type3, type4),
+                                            null, Collections.emptySet(), false);
         assertThat(table.table()).isEqualTo("books_ltd_v3");
         assertThat(table.keyspace()).isEqualTo(keyspace);
         assertThat(table.fields()).hasSize(7);
@@ -596,7 +600,8 @@ public class SchemaTests extends VersionRunner
                                             + "    PRIMARY KEY(a));", keyspace, replicationFactor, Partitioner.Murmur3Partitioner,
                                             ImmutableSet.of("CREATE TYPE " + keyspace + ".a_udt (col1 bigint, col2 text, col3 frozen<map<uuid, b_udt>>);",
                                                             "CREATE TYPE " + keyspace + ".b_udt (col1 timeuuid, col2 text, col3 frozen<set<c_udt>>);",
-                                                            "CREATE TYPE " + keyspace + ".c_udt (col1 float, col2 uuid, col3 int);"));
+                                                            "CREATE TYPE " + keyspace + ".c_udt (col1 float, col2 uuid, col3 int);"),
+                                            null, Collections.emptySet(), false);
         assertThat(table.udts()).hasSize(3);
     }
 

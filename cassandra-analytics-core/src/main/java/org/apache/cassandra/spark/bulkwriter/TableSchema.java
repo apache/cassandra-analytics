@@ -85,7 +85,7 @@ public class TableSchema
         this.indexStatements = tableInfo.getIndexStatements();
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
-        validateSecondaryIndexes(skipSecondaryIndexCheck, indexStatements, bridgeVersion.versionName());
+        validateSecondaryIndexes(skipSecondaryIndexCheck, indexStatements, bridgeVersion);
         validateUserAddedColumns(bridgeVersion, quoteIdentifiers, ttlOption, timestampOption);
 
         this.createStatement = getCreateStatement(tableInfo);
@@ -310,11 +310,11 @@ public class TableSchema
      *
      * @param skipSecondaryIndexCheck  whether the user explicitly opted out of the check
      * @param indexStatements          the CREATE INDEX statements for the table (both SAI and legacy 2i)
-     * @param lowestCassandraVersion   the lowest Cassandra version in the cluster
+     * @param bridgeVersion            the Cassandra bridge version in use
      */
     static void validateSecondaryIndexes(boolean skipSecondaryIndexCheck,
                                          Set<String> indexStatements,
-                                         String lowestCassandraVersion)
+                                         CassandraVersion bridgeVersion)
     {
         if (indexStatements.isEmpty())
         {
@@ -323,7 +323,7 @@ public class TableSchema
 
         // Case: all indexes are SAI and the cluster is Cassandra 5.0+ — SAI components are generated inline and
         // are queryable right after import, so the write is allowed without any opt-out.
-        if (hasOnlySaiIndexesOnCassandra5(indexStatements, lowestCassandraVersion))
+        if (hasOnlySaiIndexesOnCassandra5(indexStatements, bridgeVersion))
         {
             LOGGER.info("Table has SAI indexes on Cassandra 5.0+. SAI index components will be generated "
                       + "alongside SSTables. indexCount={}", indexStatements.size());
@@ -361,53 +361,35 @@ public class TableSchema
     }
 
     @VisibleForTesting
-    static boolean isCassandra5OrLater(String version)
+    static boolean isCassandra5OrLater(CassandraVersion bridgeVersion)
     {
-        if (version == null || version.isEmpty())
-        {
-            return false;
-        }
-
-        try
-        {
-            // CassandraVersionFeatures#getMajorVersion concatenates the major and minor components
-            // (e.g. "3.11" -> 311), so a numeric ">= 50" test on it wrongly classifies 3.11.x as 5.0+.
-            // Resolve to the known CassandraVersion enum instead, whose curated version codes (30/40/41/50)
-            // compare correctly; unknown/unsupported versions are treated as "not 5.0+".
-            return CassandraVersion.fromVersion(version)
-                                   .map(value -> value.versionNumber() >= CassandraVersion.FIVEZERO.versionNumber())
-                                   .orElse(false);
-        }
-        catch (RuntimeException exception)
-        {
-            // Unparseable version string — treat as "not 5.0+".
-            return false;
-        }
+        // The curated CassandraVersion codes (30/40/41/50) compare correctly for the "5.0+" gate.
+        return bridgeVersion != null && bridgeVersion.versionNumber() >= CassandraVersion.FIVEZERO.versionNumber();
     }
 
     /**
      * Returns true when the write is an all-SAI write on Cassandra 5.0+, i.e. the table's indexes are all SAI and
      * the cluster is Cassandra 5.0+.
      *
-     * @param indexStatements         the CREATE INDEX statements for the table
-     * @param lowestCassandraVersion  the lowest Cassandra version in the cluster
+     * @param indexStatements  the CREATE INDEX statements for the table
+     * @param bridgeVersion    the Cassandra bridge version in use
      * @return true if this is an all-SAI write on Cassandra 5.0+
      */
-    static boolean hasOnlySaiIndexesOnCassandra5(Set<String> indexStatements, String lowestCassandraVersion)
+    static boolean hasOnlySaiIndexesOnCassandra5(Set<String> indexStatements, CassandraVersion bridgeVersion)
     {
-        return CqlUtils.hasOnlySaiIndexes(indexStatements) && isCassandra5OrLater(lowestCassandraVersion);
+        return CqlUtils.hasOnlySaiIndexes(indexStatements) && isCassandra5OrLater(bridgeVersion);
     }
 
     /**
      * Returns true when the bulk writer generates SAI index components alongside SSTables for this table, i.e. the
      * table has at least one SAI index and the cluster is Cassandra 5.0+.
-     * @param indexStatements         the CREATE INDEX statements for the table
-     * @param lowestCassandraVersion  the lowest Cassandra version in the cluster
+     * @param indexStatements  the CREATE INDEX statements for the table
+     * @param bridgeVersion    the Cassandra bridge version in use
      * @return true if SAI components are generated for this write (any SAI index on Cassandra 5.0+)
      */
-    static boolean shouldGenerateSaiComponents(Set<String> indexStatements, String lowestCassandraVersion)
+    static boolean shouldGenerateSaiComponents(Set<String> indexStatements, CassandraVersion bridgeVersion)
     {
-        return CqlUtils.hasAnySaiIndex(indexStatements) && isCassandra5OrLater(lowestCassandraVersion);
+        return CqlUtils.hasAnySaiIndex(indexStatements) && isCassandra5OrLater(bridgeVersion);
     }
 
     private static List<Integer> getKeyFieldPositions(StructType dfSchema,

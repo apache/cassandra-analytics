@@ -133,17 +133,8 @@ public abstract class CassandraBridge
                                 ReplicationFactor replicationFactor,
                                 Partitioner partitioner)
     {
-        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, Collections.emptySet());
-    }
-
-    @VisibleForTesting
-    public CqlTable buildSchema(String createStatement,
-                                String keyspace,
-                                ReplicationFactor replicationFactor,
-                                Partitioner partitioner,
-                                Set<String> udts)
-    {
-        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, udts, null, Collections.emptySet(), false);
+        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, Collections.emptySet(),
+                           null, Collections.emptySet(), false);
     }
 
     public abstract CqlTable buildSchema(String createStatement,

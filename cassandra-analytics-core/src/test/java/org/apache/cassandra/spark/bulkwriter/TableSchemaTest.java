@@ -35,6 +35,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.data.CqlField;
@@ -335,20 +336,14 @@ public class TableSchemaTest
     @Test
     public void testIsCassandra5OrLater()
     {
-        assertThat(TableSchema.isCassandra5OrLater("5.0.5")).isTrue();
-        assertThat(TableSchema.isCassandra5OrLater("cassandra-5.0.5")).isTrue();
+        assertThat(TableSchema.isCassandra5OrLater(CassandraVersion.FIVEZERO)).isTrue();
 
-        assertThat(TableSchema.isCassandra5OrLater("4.0.17")).isFalse();
-        assertThat(TableSchema.isCassandra5OrLater("4.1.4")).isFalse();
-        assertThat(TableSchema.isCassandra5OrLater("3.0.29")).isFalse();
+        assertThat(TableSchema.isCassandra5OrLater(CassandraVersion.FOURZERO)).isFalse();
+        assertThat(TableSchema.isCassandra5OrLater(CassandraVersion.FOURONE)).isFalse();
+        assertThat(TableSchema.isCassandra5OrLater(CassandraVersion.THREEZERO)).isFalse();
 
-        // Regression: 3.11.x must not be treated as 5.0+ — its version code (311) would pass a naive ">= 50" test.
-        assertThat(TableSchema.isCassandra5OrLater("3.11.0")).isFalse();
-
-        // Null / empty / unparseable versions are treated as "not 5.0+".
+        // A null bridge version is treated as "not 5.0+".
         assertThat(TableSchema.isCassandra5OrLater(null)).isFalse();
-        assertThat(TableSchema.isCassandra5OrLater("")).isFalse();
-        assertThat(TableSchema.isCassandra5OrLater("not-a-version")).isFalse();
     }
 
     @Test
@@ -358,17 +353,17 @@ public class TableSchemaTest
                 "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
         Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
 
-        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(saiIndexes, "5.0.5")).isTrue();
-        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(saiIndexes, "4.0.17")).isFalse();
-        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(legacyIndexes, "5.0.5")).isFalse();
-        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(Collections.emptySet(), "5.0.5")).isFalse();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(saiIndexes, CassandraVersion.FIVEZERO)).isTrue();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(saiIndexes, CassandraVersion.FOURZERO)).isFalse();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(legacyIndexes, CassandraVersion.FIVEZERO)).isFalse();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(Collections.emptySet(), CassandraVersion.FIVEZERO)).isFalse();
     }
 
     @Test
     public void testValidateSecondaryIndexesNoIndexesIsNoOp()
     {
         // No exception expected when there are no index statements.
-        TableSchema.validateSecondaryIndexes(false, Collections.emptySet(), "5.0.5");
+        TableSchema.validateSecondaryIndexes(false, Collections.emptySet(), CassandraVersion.FIVEZERO);
     }
 
     @Test
@@ -377,14 +372,14 @@ public class TableSchemaTest
         Set<String> saiIndexes = ImmutableSet.of(
                 "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
         // SAI on 5.0+ is allowed without the skip flag.
-        TableSchema.validateSecondaryIndexes(false, saiIndexes, "5.0.5");
+        TableSchema.validateSecondaryIndexes(false, saiIndexes, CassandraVersion.FIVEZERO);
     }
 
     @Test
     public void testValidateSecondaryIndexesBlocksNonSai()
     {
         Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
-        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, legacyIndexes, "5.0.5"))
+        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, legacyIndexes, CassandraVersion.FIVEZERO))
                 .isInstanceOf(UnsupportedAnalyticsOperationException.class)
                 .hasMessageContaining("doesn't support non-SAI indexes")
                 .hasMessageContaining("SKIP_SECONDARY_INDEX_CHECK");
@@ -397,7 +392,7 @@ public class TableSchemaTest
         Set<String> mixedIndexes = ImmutableSet.of(
                 "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';",
                 "CREATE INDEX i2 ON test.test (marks);");
-        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, mixedIndexes, "5.0.5"))
+        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, mixedIndexes, CassandraVersion.FIVEZERO))
                 .isInstanceOf(UnsupportedAnalyticsOperationException.class)
                 .hasMessageContaining("doesn't support non-SAI indexes")
                 .hasMessageContaining("SKIP_SECONDARY_INDEX_CHECK");
@@ -409,7 +404,7 @@ public class TableSchemaTest
         Set<String> saiIndexes = ImmutableSet.of(
                 "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
         // SAI components are only generated on 5.0+, so SAI on 4.0 is blocked like any other 2i.
-        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, saiIndexes, "4.0.17"))
+        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, saiIndexes, CassandraVersion.FOURZERO))
                 .isInstanceOf(UnsupportedAnalyticsOperationException.class)
                 .hasMessageContaining("doesn't support non-SAI indexes")
                 .hasMessageContaining("SKIP_SECONDARY_INDEX_CHECK");
@@ -420,7 +415,7 @@ public class TableSchemaTest
     {
         Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
         // Explicit opt-out lets non-SAI indexes through (with an async-rebuild warning).
-        TableSchema.validateSecondaryIndexes(true, legacyIndexes, "5.0.5");
+        TableSchema.validateSecondaryIndexes(true, legacyIndexes, CassandraVersion.FIVEZERO);
     }
 
     @Test
@@ -432,7 +427,7 @@ public class TableSchemaTest
         Set<String> mixedIndexes = ImmutableSet.of(
                 "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';",
                 "CREATE INDEX i2 ON test.test (marks);");
-        TableSchema.validateSecondaryIndexes(true, mixedIndexes, "5.0.5");
+        TableSchema.validateSecondaryIndexes(true, mixedIndexes, CassandraVersion.FIVEZERO);
     }
 
     @Test
@@ -448,17 +443,17 @@ public class TableSchemaTest
                 "CREATE INDEX i2 ON test.test (marks);");
 
         // Any SAI index on Cassandra 5.0+ produces SAI components.
-        assertThat(TableSchema.shouldGenerateSaiComponents(saiIndexes, "5.0.5")).isTrue();
-        assertThat(TableSchema.shouldGenerateSaiComponents(mixedIndexes, "5.0.5")).isTrue();
+        assertThat(TableSchema.shouldGenerateSaiComponents(saiIndexes, CassandraVersion.FIVEZERO)).isTrue();
+        assertThat(TableSchema.shouldGenerateSaiComponents(mixedIndexes, CassandraVersion.FIVEZERO)).isTrue();
 
         // Unlike hasOnlySaiIndexesOnCassandra5 (all-SAI only), the mixed case is true here but false for hasOnlySaiIndexesOnCassandra5.
-        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(mixedIndexes, "5.0.5")).isFalse();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(mixedIndexes, CassandraVersion.FIVEZERO)).isFalse();
 
         // No SAI index, pre-5.0, or no indexes at all → no SAI components generated.
-        assertThat(TableSchema.shouldGenerateSaiComponents(legacyIndexes, "5.0.5")).isFalse();
-        assertThat(TableSchema.shouldGenerateSaiComponents(saiIndexes, "4.0.17")).isFalse();
-        assertThat(TableSchema.shouldGenerateSaiComponents(mixedIndexes, "4.0.17")).isFalse();
-        assertThat(TableSchema.shouldGenerateSaiComponents(Collections.emptySet(), "5.0.5")).isFalse();
+        assertThat(TableSchema.shouldGenerateSaiComponents(legacyIndexes, CassandraVersion.FIVEZERO)).isFalse();
+        assertThat(TableSchema.shouldGenerateSaiComponents(saiIndexes, CassandraVersion.FOURZERO)).isFalse();
+        assertThat(TableSchema.shouldGenerateSaiComponents(mixedIndexes, CassandraVersion.FOURZERO)).isFalse();
+        assertThat(TableSchema.shouldGenerateSaiComponents(Collections.emptySet(), CassandraVersion.FIVEZERO)).isFalse();
     }
 
     private TableSchemaTestCommon.MockTableSchemaBuilder getValidSchemaBuilder(String cassandraVersion)

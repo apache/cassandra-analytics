@@ -151,6 +151,36 @@ public class StorageAttachedIndexApplierTest
         assertThat(Schema.instance.getTableMetadata(keyspace, "tbl").indexes.get("tbl_b_idx")).isPresent();
     }
 
+    @Test
+    public void testRepeatedIndexLessRebuildsPreservePreviouslyRegisteredIndexes()
+    {
+        // Mirrors production: within one JVM the same table is rebuilt index-less many times (per-partition
+        // RecordWriter, SSTable read-back validation, read-path scanners). Each rebuild must keep the SAI index
+        // and must not throw (AlreadyExistsException) — the pre-registration guard carries the index forward.
+        CassandraBridgeImplementation.setup();
+        CassandraBridgeImplementation bridge = new CassandraBridgeImplementation();
+        String keyspace = uniqueKeyspace("repeated");
+        String create = "CREATE TABLE " + keyspace + ".tbl (a int PRIMARY KEY, b int)";
+        ReplicationFactor rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
+                                                     ImmutableMap.of("replication_factor", 1));
+        Set<String> sai = ImmutableSet.of("CREATE CUSTOM INDEX tbl_b_idx ON " + keyspace
+                                          + ".tbl (b) USING 'StorageAttachedIndex';");
+
+        bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), null, sai, false);
+        for (int rebuild = 1; rebuild <= 3; rebuild++)
+        {
+            bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), null, emptySet(), false);
+            assertThat(Schema.instance.getTableMetadata(keyspace, "tbl").indexes.get("tbl_b_idx"))
+            .as("SAI index must survive index-less rebuild #%s", rebuild)
+            .isPresent();
+        }
+
+        bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), null, sai, false);
+        assertThat(Schema.instance.getTableMetadata(keyspace, "tbl").indexes.get("tbl_b_idx"))
+        .as("SAI index must survive duplicate rebuild")
+        .isPresent();
+    }
+
     private static String uniqueKeyspace(String suffix)
     {
         return "sai_applier_" + suffix;
