@@ -104,7 +104,7 @@ public class SchemaBuilder
              partitioner,
              table::udtCreateStmts,
              tableId,
-             Collections.emptySet(),
+             table.indexStatements(),
              enableCdc);
     }
 

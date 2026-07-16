@@ -116,12 +116,17 @@ public class RecordWriter
                                                                taskContextSupplier.get());
 
         writerContext.cluster().startupValidate();
+        // Pass the table's index statements so the registered table carries its SAI indexes from this first build
+        // onward (rather than relying on the 5.0 bridge to patch them back on after an index-less rebuild).
         cqlTable = writerContext.bridge()
                                 .buildSchema(writerContext.schema().getTableSchema().createStatement,
                                              writerContext.job().qualifiedTableName().keyspace(),
                                              IGNORED_REPLICATION_FACTOR,
                                              writerContext.cluster().getPartitioner(),
-                                             writerContext.schema().getUserDefinedTypeStatements());
+                                             writerContext.schema().getUserDefinedTypeStatements(),
+                                             null,
+                                             writerContext.schema().getTableSchema().getIndexStatements(),
+                                             false);
     }
 
     /**

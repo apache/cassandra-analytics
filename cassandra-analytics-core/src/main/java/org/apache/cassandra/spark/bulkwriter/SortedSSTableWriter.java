@@ -368,11 +368,13 @@ public class SortedSSTableWriter
         String schema = writerContext.schema().getTableSchema().createStatement;
         Partitioner partitioner = writerContext.cluster().getPartitioner();
         Set<String> udtStatements = writerContext.schema().getUserDefinedTypeStatements();
+        Set<String> indexStatements = writerContext.schema().getTableSchema().getIndexStatements();
         LocalDataLayer layer = new LocalDataLayer(version,
                                                   partitioner,
                                                   keyspace,
                                                   schema,
                                                   udtStatements,
+                                                  indexStatements,
                                                   Collections.emptyList() /* requestedFeatures */,
                                                   false /* useSSTableInputStream */,
                                                   null /* statsClass */,

@@ -69,9 +69,13 @@ public class FiveZeroSchemaBuilder extends SchemaBuilder
     @Override
     protected TableMetadata beforeTableRegistered(TableMetadata tableMetadata, @Nullable TableMetadata previousTable)
     {
-        // buildSchema runs repeatedly per table within a JVM — the per-partition RecordWriter, the bloom-filter
-        // rebuild, and read-path scanners all build the table index-less. If a previous build already registered
-        // indexes and this build carries none, carry the previous indexes forward so they are not dropped.
+        // Every rebuild parses a fresh CREATE TABLE statement, which is always index-less (SAI indexes are attached
+        // separately, in afterTableRegistered, via a CREATE INDEX statement). Callers of buildSchema now always
+        // supply their real index statements, so afterTableRegistered would correctly reapply them here regardless.
+        // But pre-populating the previously-registered indexes lets StorageAttachedIndexApplier.applyTo's
+        // idempotency check short-circuit into a cheap no-op instead of re-parsing and re-applying the CREATE INDEX
+        // statement (and mutating the schema) on every repeated buildSchema call for the same table within a JVM
+        // (e.g. per-partition compaction scans, partition-size checks, bloom-filter rebuilds).
         if (previousTable != null && !previousTable.indexes.isEmpty() && tableMetadata.indexes.isEmpty())
         {
             return tableMetadata.unbuild()

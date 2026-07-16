@@ -198,6 +198,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
              keyspace,
              createStatement,
              Collections.emptySet(),
+             Collections.emptySet(),
              Collections.emptyList(),
              false,
              null,
@@ -216,6 +217,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
              keyspace,
              createStatement,
              udtStatements,
+             Collections.emptySet(),
              Collections.emptyList(),
              false,
              null,
@@ -235,14 +237,45 @@ public class LocalDataLayer extends DataLayer implements Serializable
                           @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                           String... paths)
     {
+        this(version,
+             partitioner,
+             keyspace,
+             createStatement,
+             udts,
+             Collections.emptySet(),
+             requestedFeatures,
+             useBufferingInputStream,
+             statsClass,
+             sstableTimeRangeFilter,
+             paths);
+    }
+
+    // CHECKSTYLE IGNORE: Constructor with many parameters
+    public LocalDataLayer(@NotNull CassandraVersion version,
+                          @NotNull Partitioner partitioner,
+                          @NotNull String keyspace,
+                          @NotNull String createStatement,
+                          @NotNull Set<String> udts,
+                          @NotNull Set<String> indexStatements,
+                          @NotNull List<SchemaFeature> requestedFeatures,
+                          boolean useBufferingInputStream,
+                          @Nullable String statsClass,
+                          @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
+                          String... paths)
+    {
         this.bridge = CassandraBridgeFactory.get(version);
         this.partitioner = partitioner;
+        // Pass the table's index statements so the registered table carries its SAI indexes from this first build
+        // onward (rather than relying on the 5.0 bridge to patch them back on after an index-less rebuild).
         this.cqlTable = bridge().buildSchema(createStatement,
                                              keyspace,
                                              new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
                                                                    ImmutableMap.of("replication_factor", 1)),
                                              partitioner,
-                                             udts);
+                                             udts,
+                                             null,
+                                             indexStatements,
+                                             false);
         this.jobId = UUID.randomUUID().toString();
         this.requestedFeatures = requestedFeatures;
         this.useBufferingInputStream = useBufferingInputStream;
