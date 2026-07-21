@@ -20,6 +20,7 @@
 package org.apache.cassandra.bridge;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -279,7 +280,7 @@ public final class CassandraSchema
                 return;
             }
 
-            LOGGER.info("Schema change detected, updating new table schema keyspace={} table={}", keyspace, cqlTable.table());
+            LOGGER.info("Schema change detected, updating table schema keyspace={} table={} cdc={}", keyspace, cqlTable.table(), enableCdc);
             SchemaUpdater.updateTable(s, ks.get(), updatedTable);
         });
     }
@@ -297,55 +298,78 @@ public final class CassandraSchema
                              .collect(Collectors.joining(",")));
         }
 
-        Map<String, Set<String>> cdcEnabledTables = CassandraSchema.cdcEnabledTables(schema);
+        Set<TableIdentifier> currentlyCdcEnabled = currentlyCdcEnabledTables(schema);
+
         for (CqlTable table : cdcTables)
         {
             table.udts().forEach(udt -> CassandraTypesImplementation.INSTANCE.updateUDTs(table.keyspace(), udt));
 
             UUID tableId = tableIdLookup.lookup(table.keyspace(), table.table());
-            if (cdcEnabledTables.containsKey(table.keyspace()) && cdcEnabledTables.get(table.keyspace()).contains(table.table()))
+            boolean previouslyCdcEnabled = currentlyCdcEnabled.contains(TableIdentifier.of(table.keyspace(), table.table()));
+            if (previouslyCdcEnabled)
             {
-                // table already registered in Schema.instance — update if schema changed
-                LOGGER.debug("Table already in Schema.instance, updating if changed keyspace={} table={}", table.keyspace(), table.table());
-                cdcEnabledTables.get(table.keyspace()).remove(table.table());
+                // maybeUpdateSchema logs on its own when it actually performs an update.
                 CassandraSchema.maybeUpdateSchema(schema, partitioner, table, tableId, table.cdc());
-                continue;
             }
-
-            if (CassandraSchema.has(schema, table))
+            else if (CassandraSchema.has(schema, table))
             {
-                // table exists but not in cdcEnabledTables tracking — update schema if changed
-                LOGGER.debug("Updating existing table keyspace={} table={} cdc={}", table.keyspace(), table.table(), table.cdc());
+                // table exists but wasn't tracked as cdc-enabled (e.g. a non-CDC table the
+                // caller included in cdcTables anyway) — update if schema changed.
                 CassandraSchema.maybeUpdateSchema(schema, partitioner, table, tableId, table.cdc());
-                continue;
             }
-
-            // new table — register with the CDC flag from the create statement
-            LOGGER.info("Registering new table keyspace={} table={} cdc={}", table.keyspace(), table.table(), table.cdc());
-            new SchemaBuilder(table, partitioner, tableId, table.cdc());
-            if (tableId != null && table.cdc())
+            else
             {
-                // verify CDC-enabled tables are correctly initialized
-                TableId tableIdAfter = TableId.fromUUID(tableId);
-                Preconditions.checkNotNull(schema.getTableMetadata(tableIdAfter), "Table not initialized in the schema");
-                Preconditions.checkArgument(Objects.requireNonNull(schema.getKeyspaceInstance(table.keyspace())).hasColumnFamilyStore(tableIdAfter),
-                                            "ColumnFamilyStore not initialized in the schema");
-                Preconditions.checkArgument(CassandraSchema.isCdcEnabled(schema, table),
-                                            "CDC not enabled for table: " + table.keyspace() + "." + table.table());
+                // new table — register with the CDC flag from the create statement
+                LOGGER.info("Registering new table keyspace={} table={} cdc={}", table.keyspace(), table.table(), table.cdc());
+                new SchemaBuilder(table, partitioner, tableId, table.cdc());
+                if (tableId != null && table.cdc())
+                {
+                    // verify CDC-enabled tables are correctly initialized
+                    TableId tableIdAfter = TableId.fromUUID(tableId);
+                    Preconditions.checkNotNull(schema.getTableMetadata(tableIdAfter), "Table not initialized in the schema");
+                    Preconditions.checkArgument(Objects.requireNonNull(schema.getKeyspaceInstance(table.keyspace())).hasColumnFamilyStore(tableIdAfter),
+                                                "ColumnFamilyStore not initialized in the schema");
+                    Preconditions.checkArgument(CassandraSchema.isCdcEnabled(schema, table),
+                                                "CDC not enabled for table: " + table.keyspace() + "." + table.table());
+                }
             }
         }
-        // tables previously with cdc=true that are no longer present → disable CDC
-        cdcEnabledTables.forEach((ks, tables) -> tables.forEach(table -> {
-            LOGGER.warn("Disabling CDC on table keyspace={} table={}", ks, table);
-            CassandraSchema.disableCdc(schema, ks, table);
-        }));
+        disableCdcOnStaleTables(schema, currentlyCdcEnabled, cdcTables);
+    }
+
+    private static Set<TableIdentifier> currentlyCdcEnabledTables(Schema schema)
+    {
+        return CassandraSchema.cdcEnabledTables(schema)
+                              .entrySet()
+                              .stream()
+                              .flatMap(e -> e.getValue().stream().map(table -> TableIdentifier.of(e.getKey(), table)))
+                              .collect(Collectors.toSet());
+    }
+
+    /**
+     * Disables CDC on every table in {@code currentlyCdcEnabled} that is not CDC-enabled in
+     * {@code cdcTables} (dropped, or CDC disabled in its CREATE TABLE).
+     */
+    private static void disableCdcOnStaleTables(Schema schema, Set<TableIdentifier> currentlyCdcEnabled, Set<CqlTable> cdcTables)
+    {
+        Set<TableIdentifier> stillCdcEnabled = cdcTables.stream()
+                                                        .filter(CqlTable::cdc)
+                                                        .map(t -> TableIdentifier.of(t.keyspace(), t.table()))
+                                                        .collect(Collectors.toSet());
+        Set<TableIdentifier> stale = new HashSet<>(currentlyCdcEnabled);
+        stale.removeAll(stillCdcEnabled);
+
+        stale.forEach(id -> {
+            LOGGER.warn("Disabling CDC on table keyspace={} table={}", id.keyspace(), id.table());
+            CassandraSchema.disableCdc(schema, id.keyspace(), id.table());
+        });
     }
 
     /**
      * Removes tables from {@code Schema.instance} that were previously registered via
      * {@link #updateCdcSchema} but are no longer needed — e.g. a non-CDC table that no longer
      * shares partition-key structure with any CDC-enabled table in its keyspace after a schema
-     * change. See {@code CdcBridge#unregisterTables} for the full rationale.
+     * change. See {@code CdcBridge#unregisterNonCdcTables} for the full rationale.
      *
      * <p>Idempotent: a table not currently registered is silently skipped. Refuses (skips, with
      * a warning) to unregister any table that is currently CDC-enabled — the caller is
@@ -354,12 +378,12 @@ public final class CassandraSchema
      *
      * @param tables the tables to unregister
      */
-    public static void unregisterTables(@NotNull Set<TableIdentifier> tables)
+    public static void unregisterNonCdcTables(@NotNull Set<TableIdentifier> tables)
     {
-        unregisterTables(Schema.instance, tables);
+        unregisterNonCdcTables(Schema.instance, tables);
     }
 
-    public static void unregisterTables(@NotNull Schema schema, @NotNull Set<TableIdentifier> tables)
+    public static void unregisterNonCdcTables(@NotNull Schema schema, @NotNull Set<TableIdentifier> tables)
     {
         for (TableIdentifier id : tables)
         {
@@ -367,20 +391,17 @@ public final class CassandraSchema
             String table = id.table();
             try
             {
-                unregisterTable(schema, keyspace, table);
+                unregisterNonCdcTable(schema, keyspace, table);
             }
             catch (RuntimeException e)
             {
-                // Never let one misbehaving table abort unregistration of the rest of the
-                // batch — the caller (CassandraClusterSchemaMonitor) treats this call as
-                // all-or-nothing for bookkeeping purposes, so a partial failure here must not
-                // prevent the other (unrelated) tables in the same batch from being cleaned up.
+                // Don't let one bad table abort unregistration of the rest of the batch.
                 LOGGER.warn("Failed to unregister table keyspace={} table={}", keyspace, table, e);
             }
         }
     }
 
-    private static void unregisterTable(@NotNull Schema schema, @NotNull String keyspace, @NotNull String table)
+    private static void unregisterNonCdcTable(@NotNull Schema schema, @NotNull String keyspace, @NotNull String table)
     {
         Optional<TableMetadata> tableMetadata = getTable(schema, keyspace, table);
         if (!tableMetadata.isPresent())

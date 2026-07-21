@@ -321,14 +321,14 @@ public class CdcTests extends CdcTestBase
             cdc.start();
 
             assertThat(tablesPassedToBridge.get())
-            .as("Schema.instance must be updated with ALL tables (CDC and non-CDC) so a "
-              + "batch mutation spanning both can still deserialize")
-            .containsExactlyInAnyOrder(cdcTable, nonCdcTable);
+                .as("Schema.instance must be updated with ALL tables (CDC and non-CDC) so a "
+                  + "batch mutation spanning both can still deserialize")
+                .containsExactlyInAnyOrder(cdcTable, nonCdcTable);
 
             assertThat(cdc.cdcEnabledTables)
-            .as("cdcEnabledTables (used for publishing/replica-check decisions) must contain "
-              + "only the CDC-enabled table, even though Schema.instance was given both")
-            .containsExactly(cdcTable);
+                .as("cdcEnabledTables (used for publishing/replica-check decisions) must contain "
+                  + "only the CDC-enabled table, even though Schema.instance was given both")
+                .containsExactly(cdcTable);
         }
     }
 
@@ -395,9 +395,9 @@ public class CdcTests extends CdcTestBase
         }
 
         @Override
-        public void unregisterTables(@NotNull Set<TableIdentifier> tables)
+        public void unregisterNonCdcTables(@NotNull Set<TableIdentifier> tables)
         {
-            delegate.unregisterTables(tables);
+            delegate.unregisterNonCdcTables(tables);
         }
 
         @Override

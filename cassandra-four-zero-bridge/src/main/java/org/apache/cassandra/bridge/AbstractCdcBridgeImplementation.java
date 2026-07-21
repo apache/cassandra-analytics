@@ -109,9 +109,9 @@ public abstract class AbstractCdcBridgeImplementation extends CdcBridge
         CassandraSchema.updateCdcSchema(cdcTables, partitioner, tableIdLookup);
     }
 
-    public void unregisterTables(@NotNull Set<TableIdentifier> tables)
+    public void unregisterNonCdcTables(@NotNull Set<TableIdentifier> tables)
     {
-        CassandraSchema.unregisterTables(tables);
+        CassandraSchema.unregisterNonCdcTables(tables);
     }
 
     public CommitLogReader.Result readLog(@NotNull CommitLog log,

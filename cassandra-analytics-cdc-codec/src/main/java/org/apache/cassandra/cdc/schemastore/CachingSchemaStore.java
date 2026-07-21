@@ -23,7 +23,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -107,10 +106,7 @@ public class CachingSchemaStore implements SchemaStore
      */
     public void onSchemaChange()
     {
-        schemaSupplier.getTables().thenAccept(allTables -> {
-            Set<CqlTable> refreshedCdcTables = allTables.stream()
-                                                        .filter(CqlTable::cdc)
-                                                        .collect(Collectors.toSet());
+        schemaSupplier.getCDCEnabledTables().thenAccept(refreshedCdcTables -> {
             for (CqlTable cqlTable : refreshedCdcTables)
             {
                 TableIdentifier tableIdentifier = TableIdentifier.of(cqlTable.keyspace(), cqlTable.table());
@@ -130,6 +126,10 @@ public class CachingSchemaStore implements SchemaStore
             if (!refreshedCdcTables.isEmpty())
             {
                 publishSchemas();
+            }
+            else
+            {
+                LOGGER.warn("No CDC-enabled tables found; no schemas will be published until CDC is enabled on a table");
             }
             // Remove any old schema entries for deleted tables
             List<TableIdentifier> refreshedTableIds = refreshedCdcTables
@@ -169,11 +169,8 @@ public class CachingSchemaStore implements SchemaStore
     private void publishSchemas()
     {
         schemaSupplier
-        .getTables()
-        .thenAccept(allTables -> {
-            Set<CqlTable> refreshedCdcTables = allTables.stream()
-                                                        .filter(CqlTable::cdc)
-                                                        .collect(Collectors.toSet());
+        .getCDCEnabledTables()
+        .thenAccept(refreshedCdcTables -> {
             for (CqlTable cqlTable : refreshedCdcTables)
             {
                 TableIdentifier tableIdentifier = TableIdentifier.of(cqlTable.keyspace(), cqlTable.table());

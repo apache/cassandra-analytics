@@ -351,7 +351,7 @@ public class CqlTable implements Serializable
     @Override
     public int hashCode()
     {
-        return Objects.hash(keyspace, table, createStatement, fields, udts);
+        return Objects.hash(keyspace, table, createStatement, fields, udts, cdc);
     }
 
     @Override
@@ -375,7 +375,8 @@ public class CqlTable implements Serializable
                && Objects.equals(this.table, that.table)
                && Objects.equals(this.createStatement, that.createStatement)
                && Objects.equals(this.fields, that.fields)
-               && Objects.equals(this.udts, that.udts);
+               && Objects.equals(this.udts, that.udts)
+               && this.cdc == that.cdc;
     }
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CqlTable>

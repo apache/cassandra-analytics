@@ -86,11 +86,13 @@ public abstract class CdcBridge
      * <p>Implementations must be idempotent (a no-op for a table that isn't currently
      * registered) and must never remove a table that is currently CDC-enabled — the caller is
      * responsible for only passing tables it has determined are safe to unregister, but this is
-     * a last-line defense against silently dropping schema for a table CDC still needs.
+     * a last-line defense against silently dropping schema for a table CDC still needs. (Named
+     * to make that CDC-enabled-table refusal unsurprising at the call site, rather than
+     * implying unconditional removal of whatever is passed in.)
      *
      * @param tables the tables to unregister
      */
-    public abstract void unregisterTables(@NotNull Set<TableIdentifier> tables);
+    public abstract void unregisterNonCdcTables(@NotNull Set<TableIdentifier> tables);
 
     public abstract CommitLogReader.Result readLog(@NotNull CommitLog log,
                                                    @Nullable TokenRange tokenRange,

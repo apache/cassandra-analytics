@@ -424,7 +424,9 @@ public class Cdc implements Closeable
                 }
                 if (allTables == null || allTables.isEmpty())
                 {
-                    LOGGER.warn("No tables returned from schema supplier");
+                    // A brand-new cluster with no user tables yet is expected,
+                    // not a failure — refreshSchema() retries on its next scheduled run.
+                    LOGGER.warn("No CDC-enabled tables found; no cdc updates will be processed until CDC is enabled on a table's schema");
                     return null;
                 }
 
@@ -435,7 +437,11 @@ public class Cdc implements Closeable
                 this.cdcEnabledTables = cdcTables;
                 if (cdcTables.isEmpty())
                 {
-                    LOGGER.warn("No CDC-enabled tables found");
+                    // Schema.instance is still updated below with allTables (which is non-empty
+                    // here), so this doesn't fast-fail — it just means no CDC updates will be
+                    // processed until CDC is enabled on at least one table's schema.
+                    LOGGER.warn("No CDC-enabled tables found; no cdc updates will be processed "
+                              + "until CDC is enabled on a table's schema");
                 }
 
                 // Update Schema.instance with ALL tables so deserialization never throws

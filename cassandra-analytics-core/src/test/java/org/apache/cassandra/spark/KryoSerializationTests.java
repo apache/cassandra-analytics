@@ -274,10 +274,6 @@ public class KryoSerializationTests
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testCqlTableCdcFlagSurvivesSerialization(CassandraBridge bridge)
     {
-        // CqlTable.equals()/hashCode() deliberately exclude the cdc field (see CqlTable.java),
-        // so a round-trip test must assert cdc() directly rather than rely on equals() — an
-        // equals()-based assertion would pass even if the Kryo serializer silently dropped or
-        // corrupted the cdc value.
         List<CqlField> fields = ImmutableList.of(new CqlField(true, false, false, "a", bridge.bigint(), 0));
         ReplicationFactor replicationFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
                                                                     ImmutableMap.of("DC1", 3, "DC2", 3));
@@ -296,6 +292,7 @@ public class KryoSerializationTests
             Output out = serialize(bridge.getVersion(), table);
             CqlTable deserialized = deserialize(bridge.getVersion(), out, CqlTable.class);
             assertThat(deserialized).isNotNull();
+            assertThat(deserialized).isEqualTo(table);
             assertThat(deserialized.cdc())
             .as("cdc=%s must survive Kryo serialization round-trip", cdc)
             .isEqualTo(cdc);

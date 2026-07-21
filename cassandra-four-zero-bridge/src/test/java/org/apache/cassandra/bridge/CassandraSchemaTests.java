@@ -93,7 +93,7 @@ public class CassandraSchemaTests
     }
 
     @Test
-    public void testUnregisterTables()
+    public void testUnregisterNonCdcTables()
     {
         Schema schema = Schema.instance;
 
@@ -119,22 +119,22 @@ public class CassandraSchemaTests
         assertThat(CassandraSchema.has(schema, cdcTable.keyspace(), cdcTable.table())).isTrue();
 
         // a later refresh determines nonCdcTable is no longer at risk — unregister it
-        CassandraSchema.unregisterTables(schema, ImmutableSet.of(nonCdcId));
+        CassandraSchema.unregisterNonCdcTables(schema, ImmutableSet.of(nonCdcId));
         assertThat(CassandraSchema.has(schema, nonCdcTable.keyspace(), nonCdcTable.table())).isFalse();
         // the CDC-enabled table must be completely unaffected
         assertThat(CassandraSchema.has(schema, cdcTable.keyspace(), cdcTable.table())).isTrue();
         assertThat(CassandraSchema.isCdcEnabled(schema, cdcTable)).isTrue();
 
         // idempotent: unregistering an already-unregistered table is a no-op, not an error
-        CassandraSchema.unregisterTables(schema, ImmutableSet.of(nonCdcId));
+        CassandraSchema.unregisterNonCdcTables(schema, ImmutableSet.of(nonCdcId));
         assertThat(CassandraSchema.has(schema, nonCdcTable.keyspace(), nonCdcTable.table())).isFalse();
 
         // refuses to unregister a table that is currently CDC-enabled
-        CassandraSchema.unregisterTables(schema, ImmutableSet.of(cdcId));
+        CassandraSchema.unregisterNonCdcTables(schema, ImmutableSet.of(cdcId));
         assertThat(CassandraSchema.has(schema, cdcTable.keyspace(), cdcTable.table())).isTrue();
         assertThat(CassandraSchema.isCdcEnabled(schema, cdcTable)).isTrue();
 
         // unregistering an unknown table (never registered) is a no-op, not an error
-        CassandraSchema.unregisterTables(schema, ImmutableSet.of(TableIdentifier.of("unknown_ks", "unknown_table")));
+        CassandraSchema.unregisterNonCdcTables(schema, ImmutableSet.of(TableIdentifier.of("unknown_ks", "unknown_table")));
     }
 }
