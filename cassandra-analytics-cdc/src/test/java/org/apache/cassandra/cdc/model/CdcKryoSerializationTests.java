@@ -20,6 +20,8 @@
 package org.apache.cassandra.cdc.model;
 
 import java.math.BigInteger;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
@@ -109,5 +111,49 @@ public class CdcKryoSerializationTests
         CdcState deserialized = deserialize(kryo(), ar, CdcState.class);
         assertThat(deserialized).isNotNull();
         assertThat(deserialized).isEqualTo(expected);
+    }
+
+    /**
+     * Regression test for the {@code ReplicaCountSerializer} short-overflow bug: the replica-count
+     * map size used to be written/read as a signed short (max 32767), so a watermarker larger than
+     * that (reachable via {@code CdcOptions.maxCdcStateSize()}/{@code maxWatermarkerSize()}, both
+     * configurable well above 32767) would silently overflow on write and deserialize with a
+     * corrupted (potentially negative) size, observed in production as a permanent
+     * restart-crash-loop ({@code IllegalArgumentException: Illegal initial capacity}). The map size
+     * is now a signed int, so this must round-trip correctly for a map with more than 32767 entries.
+     */
+    @Test
+    public void testCdcStateReplicaCountMapLargerThanShortOverflows()
+    {
+        int size = Short.MAX_VALUE + 1000; // comfortably past the old 32767 short limit
+        Map<PartitionUpdateWrapper.Digest, Integer> replicaCount = new HashMap<>(size);
+        for (int i = 0; i < size; i++)
+        {
+            PartitionUpdateWrapper.Digest digest = new PartitionUpdateWrapper.Digest("ks1",
+                                                                                      "tb1",
+                                                                                      TimeUtils.nowMicros(),
+                                                                                      intToBytes(i),
+                                                                                      500,
+                                                                                      BigInteger.ONE);
+            replicaCount.put(digest, i % 128); // replica count is serialized as a single byte
+        }
+
+        CdcState expected = CdcState.of(1L,
+                                        TokenRange.openClosed(BigInteger.ONE, BigInteger.TEN),
+                                        CommitLogMarkers.EMPTY,
+                                        replicaCount);
+        assertThat(expected.size()).isEqualTo(size);
+
+        testCdcStateSerialization(expected);
+    }
+
+    private static byte[] intToBytes(int value)
+    {
+        return new byte[]{
+        (byte) (value >>> 24),
+        (byte) (value >>> 16),
+        (byte) (value >>> 8),
+        (byte) value
+        };
     }
 }
