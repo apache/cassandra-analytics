@@ -282,7 +282,7 @@ public class KryoSerializationTests
         ReplicationFactor replicationFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
                                                                     ImmutableMap.of("DC1", 3, "DC2", 3));
 
-        for (boolean cdc : new boolean[]{ true, false })
+        for (boolean cdc : new boolean[]{true, false})
         {
             CqlTable table = new CqlTable("test_keyspace",
                                           "test_table",
