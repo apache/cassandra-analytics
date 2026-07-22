@@ -178,7 +178,12 @@ public class CdcTests extends CdcTestBase
             final int maxRows = 5000;
             final int batchSize = 500;
             final int numBatches = maxRows / batchSize;
-            TestSchema testSchema = TestSchema.basicBuilder(bridge).build();
+            // withCdc(true) is required so table.cdc() is true — SchemaSupplier.getTables() now
+            // returns all tables, and Cdc.refreshSchema() filters to CDC-enabled ones via
+            // CqlTable#cdc(), not via any pre-filtering by the supplier itself. Without this,
+            // cdcEnabledTables ends up empty, keyspaceSupplier() watches no keyspaces, and the
+            // CDC scanner never sees the mutations this test writes.
+            TestSchema testSchema = TestSchema.basicBuilder(bridge).withCdc(true).build();
 
             CqlTable table = testSchema.buildTable();
             bridge.buildSchema(table.createStatement(),
