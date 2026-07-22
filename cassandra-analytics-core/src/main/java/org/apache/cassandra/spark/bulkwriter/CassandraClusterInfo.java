@@ -289,11 +289,12 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
     private TokenRangeReplicasResponse getTokenRangesAndReplicaSets()
     {
         CassandraContext context = getCassandraContext();
+        String quotedKeyspace = maybeQuotedIdentifier(bridge(), conf.quoteIdentifiers, conf.keyspace);
         try
         {
             long start = System.nanoTime();
             TokenRangeReplicasResponse response = context.getSidecarClient()
-                                                         .tokenRangeReplicas(new ArrayList<>(context.getCluster()), conf.keyspace)
+                                                         .tokenRangeReplicas(new ArrayList<>(context.getCluster()), quotedKeyspace)
                                                          .get();
             long elapsedTimeNanos = System.nanoTime() - start;
             LOGGER.info("Retrieved token ranges for {} instances in {} milliseconds",
@@ -303,8 +304,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         }
         catch (ExecutionException | InterruptedException exception)
         {
-            LOGGER.error("Failed to get token ranges for keyspace {}", conf.keyspace, exception);
-            throw new SidecarApiCallException("Failed to get token ranges for keyspace" + conf.keyspace, exception);
+            LOGGER.error("Failed to get token ranges for keyspace {}", quotedKeyspace, exception);
+            throw new SidecarApiCallException("Failed to get token ranges for keyspace " + quotedKeyspace, exception);
         }
     }
 

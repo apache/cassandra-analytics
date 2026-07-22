@@ -66,11 +66,27 @@ public class QualifiedTableName
     }
 
     /**
+     * @return the keyspace name, quoted with double quotes when {@code quoteIdentifiers} is set
+     */
+    public String maybeQuotedKeyspace()
+    {
+        return maybeQuote(keyspace);
+    }
+
+    /**
      * @return the table name in Cassandra
      */
     public String table()
     {
         return table;
+    }
+
+    /**
+     * @return the table name, quoted with double quotes when {@code quoteIdentifiers} is set
+     */
+    public String maybeQuotedTable()
+    {
+        return maybeQuote(table);
     }
 
     /**

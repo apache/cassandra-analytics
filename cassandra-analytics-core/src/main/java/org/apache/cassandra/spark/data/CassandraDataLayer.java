@@ -1189,7 +1189,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                ReplicationFactor replicationFactor,
                                ClientConfig options)
     {
-        return SizingFactory.create(replicationFactor, options, consistencyLevel, keyspace, table, datacenter, sidecar, sidecarPort, ringFuture);
+        return SizingFactory.create(replicationFactor, options, consistencyLevel, maybeQuotedKeyspace, maybeQuotedTable, datacenter, sidecar, sidecarPort, ringFuture);
     }
 
     protected void await(CountDownLatch latch)
