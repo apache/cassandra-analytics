@@ -426,7 +426,7 @@ public class Cdc implements Closeable
                 {
                     // A brand-new cluster with no user tables yet is expected,
                     // not a failure — refreshSchema() retries on its next scheduled run.
-                    LOGGER.warn("No CDC-enabled tables found; no cdc updates will be processed until CDC is enabled on a table's schema");
+                    LOGGER.warn("No tables returned from schema supplier; will retry on next scheduled schema refresh");
                     return null;
                 }
 

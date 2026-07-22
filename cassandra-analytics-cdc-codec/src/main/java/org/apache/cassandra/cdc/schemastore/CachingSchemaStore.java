@@ -119,10 +119,9 @@ public class CachingSchemaStore implements SchemaStore
                     return value;
                 });
             }
-            // publishSchemas() re-fetches and republishes every CDC table's schema, so it only
-            // needs to run once after the cache has been updated for all changed tables above —
-            // calling it per-table would redundantly re-fetch the schema and republish every
-            // table N times over.
+            // We call publishSchemas() out here, after the loop, because it re-fetches and
+            // republishes every CDC table's schema in one pass — calling it inside the loop
+            // would redundantly re-fetch and republish every table N times over.
             if (!refreshedCdcTables.isEmpty())
             {
                 publishSchemas();
