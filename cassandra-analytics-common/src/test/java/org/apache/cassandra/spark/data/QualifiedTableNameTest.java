@@ -38,24 +38,24 @@ class QualifiedTableNameTest
     @Test
     void testQuotedIdentifiersWrappedInDoubleQuotes()
     {
-        QualifiedTableName name = new QualifiedTableName("AAMBackend", "UserBackend", true);
-        assertThat(name.maybeQuotedKeyspace()).isEqualTo("\"AAMBackend\"");
-        assertThat(name.maybeQuotedTable()).isEqualTo("\"UserBackend\"");
+        QualifiedTableName name = new QualifiedTableName("MyKeyspace", "MyTable", true);
+        assertThat(name.maybeQuotedKeyspace()).isEqualTo("\"MyKeyspace\"");
+        assertThat(name.maybeQuotedTable()).isEqualTo("\"MyTable\"");
     }
 
     @Test
     void testRawAccessorsUnaffectedByQuoteFlag()
     {
-        QualifiedTableName name = new QualifiedTableName("AAMBackend", "UserBackend", true);
-        assertThat(name.keyspace()).isEqualTo("AAMBackend");
-        assertThat(name.table()).isEqualTo("UserBackend");
+        QualifiedTableName name = new QualifiedTableName("MyKeyspace", "MyTable", true);
+        assertThat(name.keyspace()).isEqualTo("MyKeyspace");
+        assertThat(name.table()).isEqualTo("MyTable");
     }
 
     @Test
     void testToStringQuotesBothWhenFlagSet()
     {
-        QualifiedTableName name = new QualifiedTableName("AAMBackend", "UserBackend", true);
-        assertThat(name.toString()).isEqualTo("\"AAMBackend\".\"UserBackend\"");
+        QualifiedTableName name = new QualifiedTableName("MyKeyspace", "MyTable", true);
+        assertThat(name.toString()).isEqualTo("\"MyKeyspace\".\"MyTable\"");
     }
 
     @Test
@@ -68,10 +68,10 @@ class QualifiedTableNameTest
     @Test
     void testDefaultConstructorDoesNotQuote()
     {
-        QualifiedTableName name = new QualifiedTableName("AAMBackend", "UserBackend");
+        QualifiedTableName name = new QualifiedTableName("MyKeyspace", "MyTable");
         assertThat(name.quoteIdentifiers()).isFalse();
-        assertThat(name.maybeQuotedKeyspace()).isEqualTo("AAMBackend");
-        assertThat(name.maybeQuotedTable()).isEqualTo("UserBackend");
+        assertThat(name.maybeQuotedKeyspace()).isEqualTo("MyKeyspace");
+        assertThat(name.maybeQuotedTable()).isEqualTo("MyTable");
     }
 
     @Test

@@ -41,8 +41,8 @@ import static org.mockito.Mockito.when;
 
 class CloudStorageDataTransferApiImplTest
 {
-    private static final String QUOTED_KEYSPACE = "\"AAMBackend\"";
-    private static final String QUOTED_TABLE = "\"UserBackend\"";
+    private static final String QUOTED_KEYSPACE = "\"MyKeyspace\"";
+    private static final String QUOTED_TABLE = "\"MyTable\"";
     private static final UUID JOB_ID = UUID.randomUUID();
 
     private SidecarClient sidecarClient;
@@ -54,7 +54,7 @@ class CloudStorageDataTransferApiImplTest
     {
         sidecarClient = mock(SidecarClient.class);
         jobInfo = mock(JobInfo.class);
-        when(jobInfo.qualifiedTableName()).thenReturn(new QualifiedTableName("AAMBackend", "UserBackend", true));
+        when(jobInfo.qualifiedTableName()).thenReturn(new QualifiedTableName("MyKeyspace", "MyTable", true));
         when(jobInfo.getRestoreJobId()).thenReturn(JOB_ID);
         when(jobInfo.getRestoreJobId(null)).thenReturn(JOB_ID);
         api = new CloudStorageDataTransferApiImpl(jobInfo, sidecarClient, mock(StorageClient.class), null);
@@ -109,12 +109,12 @@ class CloudStorageDataTransferApiImplTest
     @Test
     void testUnquotedIdentifiersPassedAsIsWhenFlagNotSet() throws Exception
     {
-        when(jobInfo.qualifiedTableName()).thenReturn(new QualifiedTableName("aambackend", "userbackend", false));
-        when(sidecarClient.createRestoreJob(eq("aambackend"), eq("userbackend"), any()))
+        when(jobInfo.qualifiedTableName()).thenReturn(new QualifiedTableName("mykeyspace", "mytable", false));
+        when(sidecarClient.createRestoreJob(eq("mykeyspace"), eq("mytable"), any()))
             .thenReturn(CompletableFuture.completedFuture(null));
 
         api.createRestoreJob(mock(CreateRestoreJobRequestPayload.class));
 
-        verify(sidecarClient).createRestoreJob(eq("aambackend"), eq("userbackend"), any());
+        verify(sidecarClient).createRestoreJob(eq("mykeyspace"), eq("mytable"), any());
     }
 }
