@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Mixed-case keyspace restore fails with keyspace does not exist when quoteIdentifiers is set (CASSANALYTICS-183)
  * CdcState.ReplicaCountSerializer map-size overflow corrupts persisted CDC state (CASSANALYTICS-184)
  * SSTable-version-based bridge determination (CASSANALYTICS-24)
  * Upgrade sidecar version to 0.4.0 (CASSANALYTICS-176)
