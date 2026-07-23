@@ -85,6 +85,7 @@ public class SchemaBuilder
     private final ReplicationFactor replicationFactor;
     private final CassandraTypes cassandraTypes;
     private final int indexCount;
+    private final boolean enableCdc;
 
     public SchemaBuilder(CqlTable table, Partitioner partitioner, boolean enableCdc)
     {
@@ -93,7 +94,7 @@ public class SchemaBuilder
 
     public SchemaBuilder(CqlTable table, Partitioner partitioner)
     {
-        this(table, partitioner, null, false);
+        this(table, partitioner, null, table.cdc());
     }
 
     public SchemaBuilder(CqlTable table, Partitioner partitioner, UUID tableId, boolean enableCdc)
@@ -137,6 +138,7 @@ public class SchemaBuilder
         this.replicationFactor = replicationFactor;
         this.cassandraTypes = new CassandraTypesImplementation();
         this.indexCount = indexCount;
+        this.enableCdc = enableCdc;
 
         Pair<KeyspaceMetadata, TableMetadata> updated = CassandraSchema.apply(schema ->
                 updateSchema(schema,
@@ -477,7 +479,8 @@ public class SchemaBuilder
                             replicationFactor,
                             fields,
                             new HashSet<>(udts.values()),
-                            indexCount);
+                            indexCount,
+                            enableCdc);
     }
 
     private Map<String, CqlField.CqlUdt> buildsUdts(KeyspaceMetadata keyspaceMetadata)

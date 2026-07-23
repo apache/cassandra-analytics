@@ -415,22 +415,39 @@ public class Cdc implements Closeable
         try
         {
             schemaSupplier
-            .getCdcEnabledTables()
-            .handle((tables, throwable) -> {
+            .getTables()
+            .handle((allTables, throwable) -> {
                 if (throwable != null)
                 {
                     LOGGER.warn("Error refreshing schema", throwable);
                     return null;
                 }
-                this.cdcEnabledTables = tables;
-                if (tables == null || tables.isEmpty())
+                if (allTables == null || allTables.isEmpty())
                 {
-                    LOGGER.warn("No CQL enabled tables");
+                    // A brand-new cluster with no user tables yet is expected,
+                    // not a failure — refreshSchema() retries on its next scheduled run.
+                    LOGGER.warn("No tables returned from schema supplier; will retry on next scheduled schema refresh");
                     return null;
                 }
 
-                // update Schema instance with latest schema
-                cdcBridge().updateCdcSchema(tables, cdcOptions.partitioner(), tableIdLookup);
+                // Filter CDC-enabled tables for publishing decisions
+                Set<CqlTable> cdcTables = allTables.stream()
+                                                   .filter(CqlTable::cdc)
+                                                   .collect(Collectors.toSet());
+                this.cdcEnabledTables = cdcTables;
+                if (cdcTables.isEmpty())
+                {
+                    // Schema.instance is still updated below with allTables (which is non-empty
+                    // here), so this doesn't fast-fail — it just means no CDC updates will be
+                    // processed until CDC is enabled on at least one table's schema.
+                    LOGGER.warn("No CDC-enabled tables found; no cdc updates will be processed "
+                              + "until CDC is enabled on a table's schema");
+                }
+
+                // Update Schema.instance with ALL tables so deserialization never throws
+                // UnknownTableException for non-CDC tables co-located in batch mutations.
+                // Each table's CDC flag is set correctly from CqlTable.cdc().
+                cdcBridge().updateCdcSchema(allTables, cdcOptions.partitioner(), tableIdLookup);
                 return null;
             })
             .whenComplete((aVoid, throwable) -> {
