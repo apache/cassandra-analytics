@@ -263,14 +263,16 @@ public class SSTableReader implements SparkSSTableReader, Scannable
         Descriptor descriptor = ReaderUtils.constructDescriptor(metadata.keyspace, metadata.name, ssTable);
         this.version = descriptor.version;
 
-        SummaryDbUtils.Summary summary = null;
+        IndexSummaryComponent summary = null;
         Pair<DecoratedKey, DecoratedKey> keys = null;
+        IndexSummary indexSummary = null; // indexSummary is only assigned when readIndexOffset is enabled
         try
         {
             now = System.nanoTime();
             summary = SSTableCache.INSTANCE.keysFromSummary(metadata, ssTable);
             stats.readSummaryDb(ssTable, System.nanoTime() - now);
             keys = Pair.of(summary.first(), summary.last());
+            indexSummary = readIndexOffset ? summary.summarySharedCopy() : null;
         }
         catch (IOException exception)
         {
@@ -424,11 +426,13 @@ public class SSTableReader implements SparkSSTableReader, Scannable
                                                 buildColumnFilter(metadata, columnFilter));
         this.metadata = metadata;
 
-        if (readIndexOffset && summary != null)
+        if (indexSummary != null)
         {
-            SummaryDbUtils.Summary finalSummary = summary;
-            extractRange(sparkRangeFilter, partitionKeyFilters)
-                    .ifPresent(range -> readOffsets(finalSummary.summary(), range));
+            try (IndexSummary indexSummaryCopy = indexSummary)
+            {
+                extractRange(sparkRangeFilter, partitionKeyFilters)
+                .ifPresent(range -> readOffsets(indexSummaryCopy, range));
+            }
         }
         else
         {

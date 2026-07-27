@@ -392,10 +392,10 @@ public class SSTableReaderTests
                         Path summaryFile = TestSSTable.firstIn(directory.path(), FileType.SUMMARY);
                         try (InputStream in = new BufferedInputStream(Files.newInputStream(summaryFile)))
                         {
-                            SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(in,
-                                                                                        metadata.partitioner,
-                                                                                        metadata.params.minIndexInterval,
-                                                                                        metadata.params.maxIndexInterval);
+                            IndexSummaryComponent summary = IndexSummaryComponent.readSummary(in,
+                                                                                              metadata.partitioner,
+                                                                                              metadata.params.minIndexInterval,
+                                                                                              metadata.params.maxIndexInterval);
                             first = summary.first();
                             last = summary.last();
                         }

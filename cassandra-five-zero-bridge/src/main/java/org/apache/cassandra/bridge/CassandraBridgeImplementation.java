@@ -97,6 +97,7 @@ import org.apache.cassandra.spark.reader.BtiIndexReader;
 import org.apache.cassandra.spark.reader.CompactionStreamScanner;
 import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.BigIndexReader;
+import org.apache.cassandra.spark.reader.IndexSummaryComponent;
 import org.apache.cassandra.spark.reader.ReaderUtils;
 import org.apache.cassandra.spark.reader.RowData;
 import org.apache.cassandra.spark.reader.SchemaBuilder;
@@ -655,7 +656,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     {
         try
         {
-            SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(ssTable, partitioner, minIndexInterval, maxIndexInterval);
+            IndexSummaryComponent summary = SummaryDbUtils.readSummary(ssTable, partitioner, minIndexInterval, maxIndexInterval);
             Pair<DecoratedKey, DecoratedKey> keys = summary == null ? null : Pair.of(summary.first(), summary.last());
             if (summary == null)
             {

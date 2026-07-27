@@ -161,10 +161,10 @@ public class ReaderUtilsTests
 
                     // Read Summary.db file for first and last partition keys from Summary.db
                     Path summaryFile = TestSSTable.firstIn(directory.path(), FileType.SUMMARY);
-                    SummaryDbUtils.Summary summaryKeys;
+                    IndexSummaryComponent summaryKeys;
                     try (InputStream in = new BufferedInputStream(Files.newInputStream(summaryFile)))
                     {
-                        summaryKeys = SummaryDbUtils.readSummary(in, Murmur3Partitioner.instance, 128, 2048);
+                        summaryKeys = IndexSummaryComponent.readSummary(in, Murmur3Partitioner.instance, 128, 2048);
                     }
                     assertThat(summaryKeys).isNotNull();
                     assertThat(summaryKeys.first()).isNotNull();

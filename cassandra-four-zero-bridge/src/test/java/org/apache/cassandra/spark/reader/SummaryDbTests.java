@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
 import org.apache.cassandra.dht.IPartitioner;
+import org.apache.cassandra.io.sstable.IndexSummary;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.spark.data.FileType;
@@ -114,20 +115,22 @@ public class SummaryDbTests
                     assertThat(ssTable).as("Could not find SSTable").isNotNull();
 
                     // Binary search Summary.db file in token order and verify offsets are ordered
-                    SummaryDbUtils.Summary summary = SummaryDbUtils.readSummary(metadata, ssTable);
-                    long previous = -1;
-                    for (BigInteger token : tokens)
+                    try (IndexSummary indexSummary = SummaryDbUtils.readSummary(metadata, ssTable).summarySharedCopy())
                     {
-                        long offset = SummaryDbUtils.findIndexOffsetInSummary(summary.summary(), iPartitioner, token);
-                        if (previous < 0)
+                        long previous = -1;
+                        for (BigInteger token : tokens)
                         {
-                            assertThat(offset).isEqualTo(0);
+                            long offset = IndexDbUtils.findIndexOffsetInSummary(indexSummary, iPartitioner, token);
+                            if (previous < 0)
+                            {
+                                assertThat(offset).isEqualTo(0);
+                            }
+                            else
+                            {
+                                assertThat(previous).isLessThanOrEqualTo(offset);
+                            }
+                            previous = offset;
                         }
-                        else
-                        {
-                            assertThat(previous).isLessThanOrEqualTo(offset);
-                        }
-                        previous = offset;
                     }
                 }
                 catch (IOException exception)

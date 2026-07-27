@@ -374,13 +374,13 @@ public class SSTableReaderTests
                     SSTable dataFile = TestSSTable.firstIn(directory.path());
                     Path summaryFile = TestSSTable.firstIn(directory.path(), FileType.SUMMARY);
                     TableMetadata metadata = tableMetadata(schema, partitioner);
-                    SummaryDbUtils.Summary summary;
+                    IndexSummaryComponent summary;
                     try (InputStream in = new BufferedInputStream(Files.newInputStream(summaryFile)))
                     {
-                        summary = SummaryDbUtils.readSummary(in,
-                                                             metadata.partitioner,
-                                                             metadata.params.minIndexInterval,
-                                                             metadata.params.maxIndexInterval);
+                        summary = IndexSummaryComponent.readSummary(in,
+                                                                    metadata.partitioner,
+                                                                    metadata.params.minIndexInterval,
+                                                                    metadata.params.maxIndexInterval);
                     }
                     // Set Spark token range equal to SSTable token range
                     TokenRange sparkTokenRange = TokenRange.closed(ReaderUtils.tokenToBigInteger(summary.first().getToken()),
