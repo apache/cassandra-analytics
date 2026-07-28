@@ -479,7 +479,8 @@ public abstract class AbstractSchemaBuilder
                             replicationFactor,
                             fields,
                             new HashSet<>(udts.values()),
-                            indexCount);
+                            indexCount,
+                            enableCdc);
     }
 
     private Map<String, CqlField.CqlUdt> buildsUdts(KeyspaceMetadata keyspaceMetadata)
