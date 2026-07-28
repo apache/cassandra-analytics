@@ -61,7 +61,8 @@ public final class CqlUtils
     private static final Pattern COMPACTION_STRATEGY_PATTERN = Pattern.compile("compaction\\s*=\\s*\\{\\s*'class'\\s*:\\s*'([^']+)'");
 
     private static final Pattern MULTI_WHITESPACE_PATTERN = Pattern.compile("\\s+");
-    private static final Pattern SAI_USING_PATTERN = Pattern.compile("USING '(SAI|([^']*\\.)?STORAGEATTACHEDINDEX)'");
+    private static final Pattern SAI_USING_PATTERN =
+        Pattern.compile("USING '(SAI|(ORG\\.APACHE\\.CASSANDRA\\.INDEX\\.SAI\\.)?STORAGEATTACHEDINDEX)'");
 
     private CqlUtils()
     {
@@ -311,10 +312,13 @@ public final class CqlUtils
         String normalized = MULTI_WHITESPACE_PATTERN.matcher(createIndexStatement).replaceAll(" ").toUpperCase(Locale.ROOT);
 
         // Matches the SAI marker inside a USING '...' clause (statement already upper-cased and whitespace-collapsed).
-        // The 'SAI' alternative matches Cassandra's short alias (USING 'sai'). The optional ([^']*\.) prefix tolerates
-        // the fully-qualified class form (e.g. 'org.apache.cassandra.index.sai.StorageAttachedIndex') as well as the
-        // short class name, while the required trailing '.' prevents false positives on names that merely end with the
-        // marker (e.g. 'PrefixStorageAttachedIndex').
+        // The 'SAI' alternative matches Cassandra's short alias (USING 'sai').
+        // The optional canonical-package prefix (org.apache.cassandra.index.sai.) matches the fully-qualified class form,
+        // and the bare STORAGEATTACHEDINDEX matches the short class name.
+        // Restricting the prefix to the canonical SAI package (rather than any package) avoids false positives on a
+        // foreign class that merely shares the simple name (e.g. 'foo.StorageAttachedIndex'), and the boundaries reject
+        // names that merely end with the marker (e.g. 'PrefixStorageAttachedIndex'). These three forms are exactly what
+        // Cassandra accepts and preserves in the schema.
         return SAI_USING_PATTERN.matcher(normalized).find();
     }
 

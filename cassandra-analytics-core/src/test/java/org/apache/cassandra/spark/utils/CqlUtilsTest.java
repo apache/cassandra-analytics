@@ -891,6 +891,42 @@ public class CqlUtilsTest extends VersionRunner
     }
 
     @Test
+    public void testIsSaiIndexRecognisesAllCassandraAcceptedForms()
+    {
+        // Every USING '...' spelling Cassandra accepts for SAI and preserves verbatim in the schema, as
+        // demonstrated in the reviewer's DESC TABLE output on CASSANALYTICS-31. All must be recognised as SAI.
+        String[] saiForms = {
+                "USING 'STORAGEATTACHEDINDEX'",                                       // upper-case short name
+                "USING 'storageattachedindex'",                                       // lower-case short name
+                "USING 'sai'",                                                        // short alias
+                "USING 'StorageAttachedIndex'",                                       // canonical short name
+                "USING 'org.apache.cassandra.index.sai.StorageAttachedIndex'"         // fully-qualified class name
+        };
+        for (String using : saiForms)
+        {
+            assertThat(CqlUtils.isSaiIndex("CREATE CUSTOM INDEX idx ON ks.tbl (col) " + using + ';'))
+                    .as("expected SAI for %s", using)
+                    .isTrue();
+        }
+    }
+
+    @Test
+    public void testIsSaiIndexRejectsForeignPackageWithSameSimpleName()
+    {
+        // A class in any package other than the canonical org.apache.cassandra.index.sai is NOT SAI, even if its
+        // simple name is StorageAttachedIndex. Cassandra would reject such an unloadable class at CREATE time, so it
+        // never appears in a real schema, but the classifier must not treat it as SAI defensively.
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) USING 'foo.StorageAttachedIndex';")).isFalse();
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) USING 'com.bar.StorageAttachedIndex';")).isFalse();
+        // A superstring of the canonical FQCN is a different class and must not match either.
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) "
+                + "USING 'x.org.apache.cassandra.index.sai.StorageAttachedIndex';")).isFalse();
+    }
+
+    @Test
     public void testHasOnlySaiIndexes()
     {
         // Empty set is never "all SAI".

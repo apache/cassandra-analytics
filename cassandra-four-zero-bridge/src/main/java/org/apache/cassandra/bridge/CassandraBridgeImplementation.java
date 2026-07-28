@@ -328,6 +328,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
+    @Deprecated
     public List<ByteBuffer> encodePartitionKeys(Partitioner partitioner, String keyspace, String createTableStmt, List<List<String>> keys)
     {
         CqlTable table = new SchemaBuilder(createTableStmt, keyspace, ReplicationFactor.simpleStrategy(1), partitioner).build();
@@ -483,6 +484,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
+    @Deprecated
     public void readPartitionKeys(Partitioner partitioner,
                                   String keyspace,
                                   String createStmt,

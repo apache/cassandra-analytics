@@ -477,7 +477,9 @@ public abstract class CassandraBridge
      * @param createTableStmt CQL table create statement
      * @param partitionKeys   list of
      * @return list of tokens corresponding to each input `partitionKeys`
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
      */
+    @Deprecated
     public List<BigInteger> toTokens(@NotNull Partitioner partitioner,
                                      @NotNull String keyspace,
                                      @NotNull String createTableStmt,
@@ -513,7 +515,9 @@ public abstract class CassandraBridge
      * @param createTableStmt CQL create table statement
      * @param partitionKey    partition key
      * @return encoded ByteBuffer for the input `partitionKey`
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
      */
+    @Deprecated
     public ByteBuffer encodePartitionKey(@NotNull Partitioner partitioner,
                                          @NotNull String keyspace,
                                          @NotNull String createTableStmt,
@@ -528,7 +532,9 @@ public abstract class CassandraBridge
      * @param createTableStmt CQL create table statement
      * @param partitionKeys   list of partition keys
      * @return a list encoded ByteBuffers corresponding to the partition keys input in `partitionKeys`
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
      */
+    @Deprecated
     public abstract List<ByteBuffer> encodePartitionKeys(@NotNull Partitioner partitioner,
                                                          @NotNull String keyspace,
                                                          @NotNull String createTableStmt,
@@ -588,7 +594,9 @@ public abstract class CassandraBridge
      * @param sstableTimeRangeFilter    SSTable time range filter for filtering out SSTable based on min and max timestamp
      * @param rowConsumer               Consumer interface to consume rows as they are read to avoid buffering all rows in memory for consumption.
      * @throws IOException
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
      */
+    @Deprecated
     public void readStringPartitionKeys(@NotNull Partitioner partitioner,
                                         @NotNull String keyspace,
                                         @NotNull String createStmt,
@@ -613,7 +621,9 @@ public abstract class CassandraBridge
      * @param sstableTimeRangeFilter    SSTable time range filter, filters out SSTables not overlapping given time ranges
      * @param rowConsumer               Consumer interface to consume rows as they are read to avoid buffering all rows in memory for consumption.
      * @throws IOException
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
      */
+    @Deprecated
     public void readStringPartitionKeys(@NotNull Partitioner partitioner,
                                         @NotNull String keyspace,
                                         @NotNull String createStmt,
@@ -635,6 +645,10 @@ public abstract class CassandraBridge
                           rowConsumer);
     }
 
+    /**
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
+     */
+    @Deprecated
     public void readPartitionKeys(@NotNull Partitioner partitioner,
                                   @NotNull String keyspace,
                                   @NotNull String createStmt,
@@ -645,6 +659,10 @@ public abstract class CassandraBridge
         readPartitionKeys(partitioner, keyspace, createStmt, ssTables, null, null, null, sstableTimeRangeFilter, rowConsumer);
     }
 
+    /**
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
+     */
+    @Deprecated
     public void readPartitionKeys(@NotNull Partitioner partitioner,
                                   @NotNull String keyspace,
                                   @NotNull String createStmt,
@@ -659,6 +677,10 @@ public abstract class CassandraBridge
                           pruneColumnFilter, sstableTimeRangeFilter, rowConsumer);
     }
 
+    /**
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
+     */
+    @Deprecated
     public abstract void readPartitionKeys(@NotNull Partitioner partitioner,
                                            @NotNull String keyspace,
                                            @NotNull String createStmt,
