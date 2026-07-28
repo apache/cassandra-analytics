@@ -498,7 +498,8 @@ public final class TestSchema
                             rf,
                             allFields,
                             udts,
-                            Collections.emptySet());
+                            Collections.emptySet(),
+                            withCdc);
     }
 
     public void writeSSTable(TemporaryDirectory directory,

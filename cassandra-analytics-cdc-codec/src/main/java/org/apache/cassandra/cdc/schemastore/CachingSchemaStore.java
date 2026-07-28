@@ -83,8 +83,8 @@ public class CachingSchemaStore implements SchemaStore
     public void initialize()
     {
         LOGGER.info("Initializing CachingSchemaStore");
-        schemaSupplier.getCdcEnabledTables()
-                      .thenAccept(refreshedCdcTables -> {
+        schemaSupplier.getTables()
+                      .thenAccept(ignored -> {
                           loadPublisher();
                           publishSchemas();
                           LOGGER.info("CachingSchemaStore initialized");
@@ -106,7 +106,7 @@ public class CachingSchemaStore implements SchemaStore
      */
     public void onSchemaChange()
     {
-        schemaSupplier.getCdcEnabledTables().thenAccept(refreshedCdcTables -> {
+        schemaSupplier.getCDCEnabledTables().thenAccept(refreshedCdcTables -> {
             for (CqlTable cqlTable : refreshedCdcTables)
             {
                 TableIdentifier tableIdentifier = TableIdentifier.of(cqlTable.keyspace(), cqlTable.table());
@@ -118,11 +118,19 @@ public class CachingSchemaStore implements SchemaStore
                     }
                     return value;
                 });
+            }
+            // We call publishSchemas() out here, after the loop, because it re-fetches and
+            // republishes every CDC table's schema in one pass — calling it inside the loop
+            // would redundantly re-fetch and republish every table N times over.
+            if (!refreshedCdcTables.isEmpty())
+            {
                 publishSchemas();
             }
-            // Remove any old schema entries for deleted tables, this operation can be done in the end as this is
-            // only for removing stale entries and no one is going to use these entries once the table is removed.
-            // This doesn't have to be an atomic operation.
+            else
+            {
+                LOGGER.warn("No CDC-enabled tables found; no schemas will be published until CDC is enabled on a table");
+            }
+            // Remove any old schema entries for deleted tables
             List<TableIdentifier> refreshedTableIds = refreshedCdcTables
                                                       .stream()
                                                       .map(cqlTable -> TableIdentifier.of(cqlTable.keyspace(), cqlTable.table()))
@@ -160,7 +168,7 @@ public class CachingSchemaStore implements SchemaStore
     private void publishSchemas()
     {
         schemaSupplier
-        .getCdcEnabledTables()
+        .getCDCEnabledTables()
         .thenAccept(refreshedCdcTables -> {
             for (CqlTable cqlTable : refreshedCdcTables)
             {

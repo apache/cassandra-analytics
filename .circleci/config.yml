@@ -374,7 +374,7 @@ workflows:
               spark: ["3"]
               scala: ["2.13"]
               jdk: ["11"]
-              cassandra: ["5.0.5"]
+              cassandra: ["5.0.7"]
 
       # Cassandra 5.0 on Spark 4 / Scala 2.13 / JDK 17
       - int-test:
@@ -386,4 +386,4 @@ workflows:
               spark: ["4"]
               scala: ["2.13"]
               jdk: ["17"]
-              cassandra: ["5.0.5"]
+              cassandra: ["5.0.7"]

@@ -166,6 +166,10 @@ public class SparkSqlTypeConverterImplementation implements SparkSqlTypeConverte
             {
                 return new SparkSet(INSTANCE, (CqlField.CqlSet) cqlType);
             }
+            else if (cqlType instanceof CqlField.CqlVector)
+            {
+                return new SparkList(INSTANCE, (CqlField.CqlVector) cqlType);
+            }
             else if (cqlType instanceof CqlField.CqlList)
             {
                 return new SparkList(INSTANCE, (CqlField.CqlList) cqlType);

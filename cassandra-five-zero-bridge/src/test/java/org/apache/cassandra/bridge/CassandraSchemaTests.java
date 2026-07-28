@@ -45,6 +45,7 @@ public class CassandraSchemaTests
                                                  .withPartitionKey("a", BRIDGE.bigint())
                                                  .withClusteringKey("b", BRIDGE.text())
                                                  .withColumn("c", BRIDGE.timeuuid())
+                                                 .withCdc(true)
                                                  .build();
         final CqlTable cqlTable1 = testSchema1.buildTable();
 
@@ -52,6 +53,7 @@ public class CassandraSchemaTests
                                                  .withPartitionKey("pk", BRIDGE.uuid())
                                                  .withClusteringKey("ck", BRIDGE.aInt())
                                                  .withColumn("val", BRIDGE.blob())
+                                                 .withCdc(true)
                                                  .build();
         final CqlTable cqlTable2 = testSchema2.buildTable();
 
