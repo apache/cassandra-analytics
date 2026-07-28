@@ -390,8 +390,6 @@ public class SortedSSTableWriter
     private DirectoryStream<Path> getDataFileStream(DirectoryStream.Filter<Path> filter) throws IOException
     {
         // Combine the data file filter with the provided filter.
-        // Match only the primary SSTable data component ("<descriptor>-Data.db"); the leading '-' excludes
-        // SAI per-index components such as "...+TermsData.db" which also end with "Data.db".
         DirectoryStream.Filter<Path> combinedFilter = path -> SSTables.isDataComponent(path) && filter.accept(path);
         return Files.newDirectoryStream(getOutDir(), combinedFilter);
     }

@@ -21,6 +21,7 @@ package org.apache.cassandra.spark;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -262,8 +263,8 @@ public class KryoSerializationTests
                                       + " (a bigint, b bigint, c bigint, d bigint, e bigint, primary key((a, b), c));",
                                       replicationFactor,
                                       fields,
-                                      java.util.Collections.emptySet(),
-                                      java.util.Collections.emptySet());
+                                      Collections.emptySet(),
+                                      Collections.emptySet());
 
         Output out = serialize(bridge.getVersion(), table);
         CqlTable deserialized = deserialize(bridge.getVersion(), out, CqlTable.class);

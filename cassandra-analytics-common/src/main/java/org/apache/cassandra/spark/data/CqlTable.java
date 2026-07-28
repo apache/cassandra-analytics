@@ -237,11 +237,6 @@ public class CqlTable implements Serializable
         return indexStatements;
     }
 
-    public int indexCount()
-    {
-        return indexStatements.size();
-    }
-
     /**
      * Check each column of the table for UDT type somewhere nested inside it and
      * create set of columns containing UDT types

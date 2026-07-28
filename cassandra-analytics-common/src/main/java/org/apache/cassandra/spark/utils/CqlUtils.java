@@ -61,7 +61,7 @@ public final class CqlUtils
     private static final Pattern COMPACTION_STRATEGY_PATTERN = Pattern.compile("compaction\\s*=\\s*\\{\\s*'class'\\s*:\\s*'([^']+)'");
 
     private static final Pattern MULTI_WHITESPACE_PATTERN = Pattern.compile("\\s+");
-    private static final Pattern SAI_USING_PATTERN = Pattern.compile("USING '([^']*\\.)?STORAGEATTACHEDINDEX'");
+    private static final Pattern SAI_USING_PATTERN = Pattern.compile("USING '(SAI|([^']*\\.)?STORAGEATTACHEDINDEX)'");
 
     private CqlUtils()
     {
@@ -285,7 +285,10 @@ public final class CqlUtils
         Set<String> statements = new HashSet<>();
         while (matcher.find())
         {
-            statements.add(matcher.group());
+            // cleanCql strips newlines without substituting whitespace,
+            // so collapse any resulting run of whitespace to a single space (and trim)
+            // to keep the statement well-formed for the CQL parser.
+            statements.add(MULTI_WHITESPACE_PATTERN.matcher(matcher.group()).replaceAll(" ").trim());
         }
         return statements;
     }
@@ -293,8 +296,9 @@ public final class CqlUtils
     /**
      * Returns true if the given CREATE INDEX statement defines a Storage Attached Index (SAI).
      * <p>
-     * SAI class may appear either as the short name ("StorageAttachedIndex") or fully qualified
-     * ("org.apache.cassandra.index.sai.StorageAttachedIndex").
+     * SAI class may appear as the short alias ("sai"), the short class name ("StorageAttachedIndex") or
+     * fully qualified ("org.apache.cassandra.index.sai.StorageAttachedIndex"). All forms are case-insensitive,
+     * matching Cassandra's own alias resolution (see {@code IndexMetadata.getIndexClassName}).
      *
      * @param createIndexStatement a CREATE INDEX CQL statement
      * @return true if the index uses SAI
@@ -307,9 +311,10 @@ public final class CqlUtils
         String normalized = MULTI_WHITESPACE_PATTERN.matcher(createIndexStatement).replaceAll(" ").toUpperCase(Locale.ROOT);
 
         // Matches the SAI marker inside a USING '...' clause (statement already upper-cased and whitespace-collapsed).
-        // The optional ([^']*\.) prefix tolerates the fully-qualified class form
-        // (e.g. 'org.apache.cassandra.index.sai.StorageAttachedIndex') as well as the short name, while the required
-        // trailing '.' prevents false positives on names that merely end with the marker (e.g. 'PrefixStorageAttachedIndex').
+        // The 'SAI' alternative matches Cassandra's short alias (USING 'sai'). The optional ([^']*\.) prefix tolerates
+        // the fully-qualified class form (e.g. 'org.apache.cassandra.index.sai.StorageAttachedIndex') as well as the
+        // short class name, while the required trailing '.' prevents false positives on names that merely end with the
+        // marker (e.g. 'PrefixStorageAttachedIndex').
         return SAI_USING_PATTERN.matcher(normalized).find();
     }
 

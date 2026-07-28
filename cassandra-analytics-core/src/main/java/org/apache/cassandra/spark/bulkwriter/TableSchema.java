@@ -349,7 +349,7 @@ public class TableSchema
 
     static void validateNoSecondaryIndexes(TableInfoProvider tableInfo)
     {
-        if (tableInfo.hasSecondaryIndex())
+        if (tableInfo.hasIndexes())
         {
             throw new UnsupportedAnalyticsOperationException("Bulkwriter doesn't support secondary indexes");
         }

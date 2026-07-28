@@ -158,7 +158,8 @@ public class ImportSSTableRequest extends JsonRequest<SSTableImportResponse>
 
         /**
          * Sets the {@code failOnMissingIndex} and returns a reference to this ImportOptions enabling method chaining.
-         * When enabled, Cassandra validates SAI index components during import.
+         * When enabled, SSTable import fails if a SAI table is missing its index components instead of silently
+         * rebuilding them.
          *
          * @param failOnMissingIndex the {@code failOnMissingIndex} to set
          * @return a reference to this ImportOptions

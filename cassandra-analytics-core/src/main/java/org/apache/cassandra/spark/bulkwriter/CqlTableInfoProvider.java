@@ -156,7 +156,7 @@ public class CqlTableInfoProvider implements TableInfoProvider
     }
 
     @Override
-    public boolean hasSecondaryIndex()
+    public boolean hasIndexes()
     {
         return !cqlTable.indexStatements().isEmpty();
     }

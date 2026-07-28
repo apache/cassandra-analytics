@@ -498,7 +498,7 @@ public final class TableSchemaTestCommon
         }
 
         @Override
-        public boolean hasSecondaryIndex()
+        public boolean hasIndexes()
         {
             return hasSecondaryIndex;
         }

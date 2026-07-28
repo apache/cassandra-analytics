@@ -225,8 +225,8 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
         {
             for (Path componentFile : componentFileStream)
             {
-                // send the primary data component ("<descriptor>-Data.db") last; SAI per-index components
-                // such as "...+TermsData.db" are still streamed here rather than skipped
+                // Skip the primary data component in this loop; it is streamed last (below).
+                // All other components, including SAI per-index files, are streamed here.
                 if (SSTables.isDataComponent(componentFile))
                 {
                     continue;

@@ -43,7 +43,7 @@ public interface TableInfoProvider
 
     String getKeyspaceName();
 
-    boolean hasSecondaryIndex();
+    boolean hasIndexes();
 
     List<String> getColumnNames();
 
