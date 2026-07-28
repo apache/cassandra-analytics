@@ -281,7 +281,10 @@ public final class CqlUtils
                                                      @NotNull String table)
     {
         String cleaned = cleanCql(schemaStr);
-        Pattern pattern = Pattern.compile(String.format("CREATE (CUSTOM )?INDEX \"?[^ ]* ON ?\"?%s?\"?\\.{1}\"?%s\"?[^;]*;", keyspace, table));
+        // The (?!\w) after the table name is required: without it the table name matches as a prefix, so extracting
+        // the indexes of "orders" would also pick up the CREATE INDEX statements of "orders_archive".
+        Pattern pattern = Pattern.compile(String.format("CREATE (CUSTOM )?INDEX \"?[^ ]* ON ?\"?%s?\"?\\.{1}\"?%s\"?(?!\\w)[^;]*;",
+                                                        keyspace, table));
         Matcher matcher = pattern.matcher(cleaned);
         Set<String> statements = new HashSet<>();
         while (matcher.find())

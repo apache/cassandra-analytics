@@ -1021,6 +1021,33 @@ public class CqlUtilsTest extends VersionRunner
                         "CREATE INDEX i2 ON ks.tbl (b);");
     }
 
+    @Test
+    public void testExtractIndexStatementsDoesNotMatchTableNamePrefix()
+    {
+        // A table whose name is a prefix of another table's name must not pick up the other table's indexes:
+        // building the schema for "tbl" with an index statement that targets "tbl_archive" would fail with
+        // "Table 'tbl_archive' doesn't exist" when the index is applied.
+        String schema = "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';\n"
+                      + "CREATE CUSTOM INDEX i2 ON ks.tbl_archive (a) USING 'StorageAttachedIndex';\n"
+                      + "CREATE INDEX i3 ON ks.tblx (b);";
+
+        assertThat(CqlUtils.extractIndexStatements(schema, "ks", "tbl"))
+                .containsExactly("CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';");
+        assertThat(CqlUtils.extractIndexStatements(schema, "ks", "tbl_archive"))
+                .containsExactly("CREATE CUSTOM INDEX i2 ON ks.tbl_archive (a) USING 'StorageAttachedIndex';");
+    }
+
+    @Test
+    public void testExtractIndexStatementsMatchesQuotedTableName()
+    {
+        // The boundary check must still allow the quoted form, where the closing quote follows the table name.
+        String schema = "CREATE CUSTOM INDEX i1 ON ks.\"tbl\" (a) USING 'StorageAttachedIndex';\n"
+                      + "CREATE CUSTOM INDEX i2 ON ks.\"tbl_archive\" (a) USING 'StorageAttachedIndex';";
+
+        assertThat(CqlUtils.extractIndexStatements(schema, "ks", "tbl"))
+                .containsExactly("CREATE CUSTOM INDEX i1 ON ks.\"tbl\" (a) USING 'StorageAttachedIndex';");
+    }
+
     private static String loadFullSchemaSample() throws IOException
     {
         Path fullSchemaSampleFile = ResourceUtils.writeResourceToPath(CqlUtilsTest.class.getClassLoader(), tempPath, "cql/fullSchema.cql");
