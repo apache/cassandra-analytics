@@ -74,6 +74,11 @@ import org.apache.cassandra.utils.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Base builder that parses a CREATE TABLE statement (plus its keyspace, replication and any associated schema
+ * components) and registers the resulting metadata in the in-JVM Cassandra schema, opening keyspace and table
+ * instances. Version-specific subclasses extend it to add support for their own column types and schema components.
+ */
 public abstract class AbstractSchemaBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSchemaBuilder.class);
@@ -178,6 +183,11 @@ public abstract class AbstractSchemaBuilder
     /**
      * Invoked after the table has been registered and opened, within the same atomic schema update, so subclasses
      * can apply further changes to the just-registered table. Default: no-op.
+     *
+     * <p>Because these changes share the table's schema update, the table and every component attached here (e.g.
+     * Storage Attached Index definitions) become visible together, so no reader ever observes the table without them.
+     * Legacy secondary (2i) indexes are the one exception — they are not attached atomically and so are disabled by
+     * default. Subclasses adding further components should attach them here to preserve this guarantee.
      *
      * @param schema          the schema being updated
      * @param registeredTable the just-registered table metadata
