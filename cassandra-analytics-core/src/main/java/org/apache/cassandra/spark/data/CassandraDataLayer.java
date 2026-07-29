@@ -326,7 +326,7 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         validateReplicationFactor(replicationFactor);
         udts.forEach(udt -> LOGGER.info("Adding schema UDT: '{}'", udt));
 
-        cqlTable = bridge().buildSchema(createStmt, keyspace, replicationFactor, partitioner, udts, null, indexStatements, false);
+        cqlTable = bridge().buildSchema(createStmt, keyspace, replicationFactor, partitioner, udts, indexStatements);
         CassandraRing ring = createCassandraRingFromRing(partitioner, replicationFactor, ringFuture.get());
 
         int effectiveNumberOfCores = sizingFuture.get();

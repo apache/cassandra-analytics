@@ -99,7 +99,6 @@ import org.apache.cassandra.spark.reader.IndexEntry;
 import org.apache.cassandra.spark.reader.BigIndexReader;
 import org.apache.cassandra.spark.reader.ReaderUtils;
 import org.apache.cassandra.spark.reader.RowData;
-import org.apache.cassandra.spark.reader.FiveZeroSchemaBuilder;
 import org.apache.cassandra.spark.reader.SchemaBuilder;
 import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.reader.SummaryDbUtils;
@@ -212,7 +211,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                                        @NotNull Stats stats)
     {
         // NOTE: Need to use SchemaBuilder to init keyspace if not already set in Cassandra Schema instance
-        SchemaBuilder schemaBuilder = new FiveZeroSchemaBuilder(table, partitioner);
+        SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
         TableMetadata metadata = schemaBuilder.tableMetaData();
         return new CompactionStreamScanner(metadata, partitioner, timeProvider, ssTables.openAll((ssTable, isRepairPrimary) -> {
             return org.apache.cassandra.spark.reader.SSTableReader.builder(metadata, ssTable)
@@ -238,7 +237,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                                               @NotNull ExecutorService executor)
     {
         //NOTE: need to use SchemaBuilder to init keyspace if not already set in C* Schema instance
-        SchemaBuilder schemaBuilder = new FiveZeroSchemaBuilder(table, partitioner);
+        SchemaBuilder schemaBuilder = new SchemaBuilder(table, partitioner);
         TableMetadata metadata = schemaBuilder.tableMetaData();
         return new IndexIterator<>(ssTables, stats, ((ssTable, isRepairPrimary, consumer) -> {
             if (ssTable.isBigFormat())
@@ -285,11 +284,8 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                 Set<String> indexStatements,
                                 boolean enableCdc)
     {
-        // FiveZeroSchemaBuilder attaches SAI definitions (and preserves them across index-less rebuilds) within the
-        // same atomic schema update that registers the table, so the registered schema is never momentarily visible
-        // without its SAI indexes. All SAI-specific schema logic lives in that 5.0 builder.
-        CqlTable cqlTable = new FiveZeroSchemaBuilder(createStatement, keyspace, replicationFactor, partitioner,
-                                                      cassandraTypes -> udts, tableId, indexStatements, enableCdc).build();
+        CqlTable cqlTable = new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner,
+                                              cassandraTypes -> udts, tableId, indexStatements, enableCdc).build();
         return cqlTable;
     }
 
@@ -339,7 +335,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     @Deprecated
     public List<ByteBuffer> encodePartitionKeys(Partitioner partitioner, String keyspace, String createTableStmt, List<List<String>> keys)
     {
-        CqlTable table = new FiveZeroSchemaBuilder(createTableStmt, keyspace, ReplicationFactor.simpleStrategy(1), partitioner).build();
+        CqlTable table = new SchemaBuilder(createTableStmt, keyspace, ReplicationFactor.simpleStrategy(1), partitioner).build();
         return keys.stream().map(key -> buildPartitionKey(table, key)).collect(Collectors.toList());
     }
 
@@ -368,7 +364,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
         String keyspace = cqltable.keyspace();
         String table = cqltable.table();
         IPartitioner iPartitioner = getPartitioner(partitioner);
-        SchemaBuilder schemaBuilder = new FiveZeroSchemaBuilder(cqltable, partitioner);
+        SchemaBuilder schemaBuilder = new SchemaBuilder(cqltable, partitioner);
         TableMetadata tableMetadata = schemaBuilder.tableMetaData();
 
         if (tableMetadata.params.bloomFilterFpChance == 1.0)
@@ -520,7 +516,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                   Consumer<Map<String, Object>> rowConsumer) throws IOException
     {
         IPartitioner iPartitioner = getPartitioner(partitioner);
-        SchemaBuilder schemaBuilder = new FiveZeroSchemaBuilder(createStmt, keyspace, ReplicationFactor.simpleStrategy(1), partitioner);
+        SchemaBuilder schemaBuilder = new SchemaBuilder(createStmt, keyspace, ReplicationFactor.simpleStrategy(1), partitioner);
         TableMetadata metadata = schemaBuilder.tableMetaData();
         CqlTable table = schemaBuilder.build();
         List<BigInteger> tokens = partitionKeys == null ? Collections.emptyList() : toTokens(partitioner, partitionKeys);

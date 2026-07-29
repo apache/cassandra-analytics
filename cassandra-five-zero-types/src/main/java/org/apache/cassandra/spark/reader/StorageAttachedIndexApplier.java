@@ -40,11 +40,6 @@ import org.apache.cassandra.spark.utils.CqlUtils;
 
 /**
  * Registers Storage Attached Index (SAI) definitions onto a table's metadata in the in-JVM Cassandra schema.
- * <p>
- * SAI is a Cassandra 5.0+ feature, so this is invoked only by the 5.0 bridge. {@link #applyTo} runs within the same
- * atomic schema update that registers the (index-less) table, so the registered schema is never momentarily visible
- * without its SAI indexes. Idempotent: a no-op if the registered table already carries indexes (the shared builder
- * preserves previously-registered indexes across repeated index-less rebuilds within a JVM).
  */
 public final class StorageAttachedIndexApplier
 {
@@ -56,10 +51,9 @@ public final class StorageAttachedIndexApplier
 
     /**
      * Applies any SAI definitions in {@code indexStatements} to {@code table} within the supplied {@code schema}.
-     * Operates on a caller-provided schema so it runs inside an existing atomic schema update (the same update that
-     * registers the table in the 5.0 bridge), avoiding a window in which the registered table is visible without its
-     * SAI indexes. Non-SAI (legacy 2i) and empty/null index sets are ignored; idempotent if the table already
-     * carries indexes.
+     * Must be invoked while an atomic schema update is in progress with the (index-less) table already registered in
+     * {@code schema}, so there is no window in which the registered table is visible without its SAI indexes. Non-SAI
+     * (legacy 2i) and empty/null index sets are ignored; idempotent if the table already carries indexes.
      *
      * @param schema          the schema being updated
      * @param keyspace        the keyspace of the table

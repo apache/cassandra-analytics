@@ -116,20 +116,13 @@ public class RecordWriter
                                                                taskContextSupplier.get());
 
         writerContext.cluster().startupValidate();
-        // Pass the table's index statements so the registered table carries its SAI indexes from this first build
-        // onward (rather than relying on the 5.0 bridge to patch them back on after an index-less rebuild).
-        // The two remaining args are intentional: tableId is null because the writer does not pin a fixed table
-        // UUID here (the bridge derives one from the schema), and enableCdc is false because the bulk-writer builds
-        // SSTables offline and never produces CDC for this schema build.
         cqlTable = writerContext.bridge()
                                 .buildSchema(writerContext.schema().getTableSchema().createStatement,
                                              writerContext.job().qualifiedTableName().keyspace(),
                                              IGNORED_REPLICATION_FACTOR,
                                              writerContext.cluster().getPartitioner(),
                                              writerContext.schema().getUserDefinedTypeStatements(),
-                                             null,  // tableId: no fixed UUID needed on the write path
-                                             writerContext.schema().getTableSchema().getIndexStatements(),
-                                             false);  // enableCdc: bulk write never emits CDC
+                                             writerContext.schema().getTableSchema().getIndexStatements());
     }
 
     /**

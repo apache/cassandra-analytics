@@ -168,9 +168,9 @@ public abstract class AbstractSchemaBuilder
      * gets registered. Returns the table metadata to actually register. Default: unchanged.
      *
      * @param tableMetadata the table metadata about to be registered
-     * @param previousTable the table metadata registered before this build (may be {@code null})
+     * @param existingTableMetadata the table metadata registered before this build (may be {@code null})
      */
-    protected TableMetadata beforeTableRegistered(TableMetadata tableMetadata, @Nullable TableMetadata previousTable)
+    protected TableMetadata beforeTableRegistered(TableMetadata tableMetadata, @Nullable TableMetadata existingTableMetadata)
     {
         return tableMetadata;
     }

@@ -51,18 +51,14 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
  */
 class BulkWriteSAIIndexTest extends SharedClusterSparkIntegrationTestBase
 {
-    private static final QualifiedName TABLE_SAI =
-        new QualifiedName(TEST_KEYSPACE, "test_sai");
+    private static final QualifiedName TABLE_SAI = new QualifiedName(TEST_KEYSPACE, "test_sai");
     // A table with a mix of a SAI index (course) and a legacy 2i index (marks).
-    private static final QualifiedName TABLE_MIXED =
-        new QualifiedName(TEST_KEYSPACE, "test_mixed_index");
+    private static final QualifiedName TABLE_MIXED = new QualifiedName(TEST_KEYSPACE, "test_mixed_index");
     // An all-SAI table whose indexes are declared using different (but equivalent) SAI class-name spellings
     // Cassandra accepts: the 'sai' alias and the fully-qualified class name.
-    private static final QualifiedName TABLE_SAI_FORMS =
-        new QualifiedName(TEST_KEYSPACE, "test_sai_forms");
+    private static final QualifiedName TABLE_SAI_FORMS = new QualifiedName(TEST_KEYSPACE, "test_sai_forms");
     // A table indexed exclusively with legacy 2i indexes (no SAI at all).
-    private static final QualifiedName TABLE_LEGACY_ONLY =
-        new QualifiedName(TEST_KEYSPACE, "test_legacy_only_index");
+    private static final QualifiedName TABLE_LEGACY_ONLY = new QualifiedName(TEST_KEYSPACE, "test_legacy_only_index");
 
     @Test
     void testBulkWriteAndReadWithMultipleSaiIndexes()
@@ -76,16 +72,14 @@ class BulkWriteSAIIndexTest extends SharedClusterSparkIntegrationTestBase
         // 2. Flush to ensure SSTable components (including SAI) are written to disk
         cluster.getFirstRunningInstance().flush(TEST_KEYSPACE);
 
-        // 3. Verify SAI index SSTable components exist on the filesystem
         assertThat(hasSaiIndexFiles())
             .as("SAI index files should exist on disk after bulk write and flush")
             .isTrue();
 
-        // 4. Bulk read the data back and verify equality
         Dataset<Row> dfRead = bulkReaderDataFrame(TABLE_SAI).load();
         checkSmallDataFrameEquality(dfWrite, dfRead);
 
-        // 5. Verify SAI index filtering works on the course column
+        // 3. Verify SAI index filtering works on the course column
         Object[][] courseResults = cluster.getFirstRunningInstance()
                                           .coordinator()
                                           .execute(String.format("SELECT * FROM %s WHERE course = 'course0';",
@@ -99,7 +93,7 @@ class BulkWriteSAIIndexTest extends SharedClusterSparkIntegrationTestBase
             assertThat(row[1]).isEqualTo("course0");
         }
 
-        // 6. Verify SAI index filtering works on the marks column
+        // 4. Verify SAI index filtering works on the marks column
         Object[][] marksResults = cluster.getFirstRunningInstance()
                                           .coordinator()
                                           .execute(String.format("SELECT * FROM %s WHERE marks = 50;",

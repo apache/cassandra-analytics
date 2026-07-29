@@ -147,6 +147,29 @@ public abstract class CassandraBridge
                                          boolean enableCdc);
 
     /**
+     * Builds the table schema and registers the supplied secondary-index (e.g. SAI) definitions with it, so the
+     * registered table carries its indexes from its first build. Defaults to no fixed table id and CDC disabled;
+     * callers that need to pin a table id or enable CDC use the full {@code tableId}/{@code enableCdc} overload.
+     *
+     * @param createStatement   the CREATE TABLE statement
+     * @param keyspace          the keyspace name
+     * @param replicationFactor the replication factor
+     * @param partitioner       the partitioner
+     * @param udts              the user-defined type CREATE statements for the keyspace
+     * @param indexStatements   the CREATE INDEX statements for the table (may be empty)
+     * @return the built {@link CqlTable}
+     */
+    public CqlTable buildSchema(String createStatement,
+                                String keyspace,
+                                ReplicationFactor replicationFactor,
+                                Partitioner partitioner,
+                                Set<String> udts,
+                                Set<String> indexStatements)
+    {
+        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, udts, null, indexStatements, false);
+    }
+
+    /**
      * Returns the quoted identifier, if the {@code identifier} has mixed case or if the {@code identifier}
      * is a reserved word.
      *

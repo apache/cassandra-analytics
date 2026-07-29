@@ -265,17 +265,13 @@ public class LocalDataLayer extends DataLayer implements Serializable
     {
         this.bridge = CassandraBridgeFactory.get(bridgeVersion);
         this.partitioner = partitioner;
-        // Pass the table's index statements so the registered table carries its SAI indexes from this first build
-        // onward (rather than relying on the 5.0 bridge to patch them back on after an index-less rebuild).
         this.cqlTable = bridge().buildSchema(createStatement,
                                              keyspace,
                                              new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
                                                                    ImmutableMap.of("replication_factor", 1)),
                                              partitioner,
                                              udts,
-                                             null,
-                                             indexStatements,
-                                             false);
+                                             indexStatements);
         this.jobId = UUID.randomUUID().toString();
         this.requestedFeatures = requestedFeatures;
         this.useBufferingInputStream = useBufferingInputStream;
