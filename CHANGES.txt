@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * AbstractSchemaBuilder.build() drops the cdc flag, silently disabling CDC on all tables (CASSANALYTICS-186)
  * Fix total timeout calculation for getAllNodeSettings (CASSANALYTICS-179)
  * Support vector data type (CASSANALYTICS-26)
  * CDC batch-write mixing a CDC-enabled and CDC-disabled table drops the CDC table's mutation (CASSANALYTICS-182)
