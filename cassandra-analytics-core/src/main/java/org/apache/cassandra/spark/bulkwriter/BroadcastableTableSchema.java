@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -173,7 +174,7 @@ public final class BroadcastableTableSchema implements Serializable
 
     public Set<String> getIndexStatements()
     {
-        return indexStatements;
+        return Collections.unmodifiableSet(indexStatements);
     }
 
     /**

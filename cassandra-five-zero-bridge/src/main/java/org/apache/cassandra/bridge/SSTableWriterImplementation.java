@@ -162,8 +162,8 @@ public class SSTableWriterImplementation implements SSTableWriter
                .forTable(createStatement)
                .withPartitioner(cassPartitioner)
                .using(insertStatement)
-               // The data frame to write is always sorted,
-               // see org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation.insert
+               // Input rows are pre-sorted in partition-key (token) order; see the ordering contract documented on
+               // org.apache.cassandra.spark.bulkwriter.CassandraBulkSourceRelation#insert.
                .sorted()
                .withSSTableProducedListener(producedSSTablesListener)
                .openSSTableOnProduced()

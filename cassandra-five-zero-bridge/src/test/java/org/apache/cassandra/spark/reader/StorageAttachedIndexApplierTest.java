@@ -122,10 +122,8 @@ public class StorageAttachedIndexApplierTest
                                                  ImmutableMap.of("replication_factor", 1)),
                            Partitioner.Murmur3Partitioner,
                            emptySet(),
-                           null,
                            ImmutableSet.of("CREATE CUSTOM INDEX tbl_b_idx ON " + keyspace
-                                           + ".tbl (b) USING 'StorageAttachedIndex';"),
-                           false);
+                                           + ".tbl (b) USING 'StorageAttachedIndex';"));
 
         assertThat(Schema.instance.getTableMetadata(keyspace, "tbl").indexes.get("tbl_b_idx")).isPresent();
     }
@@ -140,14 +138,13 @@ public class StorageAttachedIndexApplierTest
         ReplicationFactor rf = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
                                                      ImmutableMap.of("replication_factor", 1));
 
-        bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), null,
+        bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(),
                            ImmutableSet.of("CREATE CUSTOM INDEX tbl_b_idx ON " + keyspace
-                                           + ".tbl (b) USING 'StorageAttachedIndex';"),
-                           false);
+                                           + ".tbl (b) USING 'StorageAttachedIndex';"));
         assertThat(Schema.instance.getTableMetadata(keyspace, "tbl").indexes.get("tbl_b_idx")).isPresent();
 
         // Rebuild with no index statements — must still carry the SAI index afterwards.
-        bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), null, emptySet(), false);
+        bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), emptySet());
         assertThat(Schema.instance.getTableMetadata(keyspace, "tbl").indexes.get("tbl_b_idx")).isPresent();
     }
 
@@ -166,16 +163,16 @@ public class StorageAttachedIndexApplierTest
         Set<String> sai = ImmutableSet.of("CREATE CUSTOM INDEX tbl_b_idx ON " + keyspace
                                           + ".tbl (b) USING 'StorageAttachedIndex';");
 
-        bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), null, sai, false);
+        bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), sai);
         for (int rebuild = 1; rebuild <= 3; rebuild++)
         {
-            bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), null, emptySet(), false);
+            bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), emptySet());
             assertThat(Schema.instance.getTableMetadata(keyspace, "tbl").indexes.get("tbl_b_idx"))
             .as("SAI index must survive index-less rebuild #%s", rebuild)
             .isPresent();
         }
 
-        bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), null, sai, false);
+        bridge.buildSchema(create, keyspace, rf, Partitioner.Murmur3Partitioner, emptySet(), sai);
         assertThat(Schema.instance.getTableMetadata(keyspace, "tbl").indexes.get("tbl_b_idx"))
         .as("SAI index must survive duplicate rebuild")
         .isPresent();

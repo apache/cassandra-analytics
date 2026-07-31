@@ -127,6 +127,17 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         return 0L;
     }
 
+    /**
+     * Writes the supplied rows into Cassandra as bulk-generated SSTables.
+     * <p>
+     * Every row is normalized and keyed by its {@link DecoratedKey}, then repartitioned with the job's token
+     * partitioner and sorted within each partition (via Spark's {@code repartitionAndSortWithinPartitions}). The
+     * rows of each resulting partition are therefore emitted in partition-key (token) order. This ordering is part
+     * of the method's contract: bulk SSTable generation runs the writer in sorted mode and depends on it.
+     *
+     * @param data      the rows to write
+     * @param overwrite must be {@code false}; overwriting existing data requires TRUNCATE, which is not supported
+     */
     @Override
     public void insert(@NotNull Dataset<Row> data, boolean overwrite)
     {
