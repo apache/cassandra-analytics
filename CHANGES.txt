@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Fix FastByteOperations Silently Falling Back to Pure-Java Comparator (CASSANALYTICS-187)
  * AbstractSchemaBuilder.build() drops the cdc flag, silently disabling CDC on all tables (CASSANALYTICS-186)
  * Fix total timeout calculation for getAllNodeSettings (CASSANALYTICS-179)
  * Support vector data type (CASSANALYTICS-26)
