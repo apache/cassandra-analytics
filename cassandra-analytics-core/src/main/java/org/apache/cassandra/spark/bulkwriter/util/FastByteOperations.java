@@ -81,7 +81,13 @@ public final class FastByteOperations
         static ByteOperations getBest()
         {
             String arch = System.getProperty("os.arch");
-            boolean unaligned = arch.equals("i386") || arch.equals("x86") || arch.equals("x86_64") || arch.equals("amd64");
+            boolean unaligned = arch.equals("i386")
+                                || arch.equals("x86")
+                                || arch.equals("x86_64")
+                                || arch.equals("amd64")
+                                || arch.equals("s390x")
+                                || arch.equals("aarch64")
+                                || arch.equals("ppc64le");
             if (!unaligned)
             {
                 return new PureJavaOperations();
