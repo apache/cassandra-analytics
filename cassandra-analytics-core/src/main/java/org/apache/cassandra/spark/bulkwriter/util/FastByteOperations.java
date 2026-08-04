@@ -81,7 +81,15 @@ public final class FastByteOperations
         static ByteOperations getBest()
         {
             String arch = System.getProperty("os.arch");
-            boolean unaligned = arch.equals("i386") || arch.equals("x86") || arch.equals("x86_64") || arch.equals("amd64");
+            // Note that s390x, aarch64, & ppc64le architectures are not officially supported and adding them here is only done out
+            // of convenience for those that want to run C* on these architectures at their own risk (see #11214, #13326, & #13615)
+            boolean unaligned = arch.equals("i386")
+                                || arch.equals("x86")
+                                || arch.equals("x86_64")
+                                || arch.equals("amd64")
+                                || arch.equals("s390x")
+                                || arch.equals("aarch64")
+                                || arch.equals("ppc64le");
             if (!unaligned)
             {
                 return new PureJavaOperations();
