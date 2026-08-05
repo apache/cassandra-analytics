@@ -79,7 +79,6 @@ import org.apache.cassandra.io.sstable.metadata.MetadataType;
 import org.apache.cassandra.io.sstable.metadata.StatsMetadata;
 import org.apache.cassandra.io.util.File;
 import org.apache.cassandra.io.util.FileOutputStreamPlus;
-import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.TableMetadataRef;
 import org.apache.cassandra.spark.data.CassandraTypes;
@@ -111,7 +110,6 @@ import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.Pair;
 import org.apache.cassandra.spark.utils.SparkClassLoaderOverride;
 import org.apache.cassandra.spark.utils.TimeProvider;
-import org.apache.cassandra.tools.JsonTransformer;
 import org.apache.cassandra.tools.Util;
 import org.apache.cassandra.util.CompressionUtil;
 import org.apache.cassandra.util.IntWrapper;
@@ -631,7 +629,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                             @NotNull String table,
                                             @NotNull SSTable ssTable)
     {
-        TableMetadata metadata = Schema.instance.getTableMetadata(keyspace, table);
+        TableMetadata metadata = SchemaVersionApi.schemaInstance().getTableMetadata(keyspace, table);
         if (metadata == null)
         {
             throw new RuntimeException("Could not create table metadata needed for reading SSTable summaries for keyspace: " + keyspace);
@@ -739,7 +737,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
             SSTableReader ssTable = SSTableReader.openNoValidation(null, desc, metadata);
             ISSTableScanner currentScanner = ssTable.getScanner();
             Stream<UnfilteredRowIterator> partitions = Util.iterToStream(currentScanner);
-            JsonTransformer.toJson(currentScanner, partitions, false, metadata.get(), output);
+            SchemaVersionApi.writeSSTableJson(currentScanner, partitions, metadata, output);
         }
         catch (IOException exception)
         {

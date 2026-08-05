@@ -19,19 +19,14 @@
 
 package org.apache.cassandra.bridge;
 
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.UUID;
+import java.util.ServiceLoader;
 
 import com.esotericsoftware.kryo.io.Input;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DataStorageSpec;
 import org.apache.cassandra.config.DatabaseDescriptor;
-import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.db.commitlog.CommitLogSegmentManagerStandard;
-import org.apache.cassandra.dht.Murmur3Partitioner;
-import org.apache.cassandra.locator.SimpleSnitch;
 import org.apache.cassandra.security.EncryptionContext;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.complex.CqlVector;
@@ -44,36 +39,20 @@ public class CassandraTypesImplementation extends AbstractCassandraTypes
     {
         if (!CassandraTypesImplementation.setup)
         {
-            // We never want to enable mbean registration in the Cassandra code we use so disable it here
-            System.setProperty("org.apache.cassandra.disable_mbean_registration", "true");
-            System.setProperty("cassandra.schema.force_load_local_keyspaces", "true");
-            Config.setClientMode(true);
-            // When we create a TableStreamScanner, we will set the partitioner directly on the table metadata
-            // using the supplied IIndexStreamScanner.Partitioner. CFMetaData::compile requires a partitioner to
-            // be set in DatabaseDescriptor before we can do that though, so we set one here in preparation.
-            DatabaseDescriptor.setPartitionerUnsafe(Murmur3Partitioner.instance);
-            Config config = new Config();
-            config.memtable_flush_writers = 8;
-            config.diagnostic_events_enabled = false;
-            config.max_mutation_size = new DataStorageSpec.IntKibibytesBound(config.commitlog_segment_size.toKibibytes() / 2);
-            config.concurrent_compactors = 4;
-            config.sstable.selected_format = params.getConfiguredSSTableFormat();
-            Path tempDirectory;
-            try
-            {
-                tempDirectory = Files.createTempDirectory(UUID.randomUUID().toString());
-            }
-            catch (IOException exception)
-            {
-                throw new RuntimeException(exception);
-            }
-            config.data_file_directories = new String[]{tempDirectory.toString()};
-            DatabaseDescriptor.clientInitialization(true, () -> config);
-            setupCommitLogConfigs(tempDirectory);
-            DatabaseDescriptor.setEndpointSnitch(new SimpleSnitch());
-            Keyspace.setInitialized();
+            // Client-mode engine initialization is version-specific (a distribution may change the snitch
+            // mechanism, the partitioner ordering, or add cluster-metadata bootstrap), so it is delegated to a
+            // BridgeClientInitializer discovered via ServiceLoader; absent a registered one, the stock Apache
+            // default is used. The synchronized one-time guard stays here.
+            resolveClientInitializer().initialize(params);
             setup = true;
         }
+    }
+
+    private static BridgeClientInitializer resolveClientInitializer()
+    {
+        return ServiceLoader.load(BridgeClientInitializer.class, BridgeClientInitializer.class.getClassLoader())
+                            .findFirst()
+                            .orElseGet(BridgeClientInitializer::new);
     }
 
     protected static void setupCommitLogConfigs(Path path)

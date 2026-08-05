@@ -41,6 +41,7 @@ import org.antlr.runtime.RecognitionException;
 import org.apache.cassandra.bridge.CassandraSchema;
 import org.apache.cassandra.bridge.CassandraTypesImplementation;
 import org.apache.cassandra.bridge.SchemaUpdater;
+import org.apache.cassandra.bridge.SchemaVersionApi;
 import org.apache.cassandra.cql3.CQL3Type;
 import org.apache.cassandra.cql3.CQLFragmentParser;
 import org.apache.cassandra.cql3.CqlParser;
@@ -61,7 +62,6 @@ import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableId;
 import org.apache.cassandra.schema.TableMetadata;
-import org.apache.cassandra.schema.TableMetadataRef;
 import org.apache.cassandra.schema.Types;
 import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlField;
@@ -201,10 +201,7 @@ public abstract class AbstractSchemaBuilder
             tableId = maybeExistingTableMetadata.id.asUUID();
         }
 
-        TableMetadata.Builder builder = createTable
-                                        .keyspace(keyspace)
-                                        .prepare(null)
-                                        .builder(types)
+        TableMetadata.Builder builder = SchemaVersionApi.tableMetadataBuilder(createTable, keyspace, types)
                                         .partitioner(cassPartitioner);
 
         if (tableId != null)
@@ -226,6 +223,8 @@ public abstract class AbstractSchemaBuilder
         tableMetadata.columns().forEach(columnValidator);
         setupTableAndUdt(schema, keyspace, tableMetadata, types);
 
+        // Re-assert the keyspace instance before post-build validation (no-op by default).
+        SchemaVersionApi.reopenKeyspaceInstance(keyspace);
         return validateKeyspaceTable(schema, keyspace, tableMetadata.name);
     }
 
@@ -363,7 +362,7 @@ public abstract class AbstractSchemaBuilder
             LOGGER.info("Setting up keyspace instance in schema keyspace={} rfStrategy={} partitioner={}",
                         keyspaceName, replicationFactor.getReplicationStrategy().name(), partitioner);
             // Create keyspace instance and also initCf (cfs) for the table
-            Keyspace.openWithoutSSTables(keyspaceName);
+            SchemaVersionApi.openKeyspaceInstance(keyspaceName);
         }
     }
 
@@ -409,13 +408,12 @@ public abstract class AbstractSchemaBuilder
             if (keyspaceInstanceExists(schema, keyspaceName))
             {
                 // initCf (cfs) in the opened keyspace
-                schema.getKeyspaceInstance(keyspaceName)
-                      .initCf(TableMetadataRef.forOfflineTools(currentTable), false);
+                SchemaVersionApi.initColumnFamily(schema, keyspaceName, currentTable);
             }
             else
             {
                 // The keyspace has not yet opened, create/open keyspace instance and also initCf (cfs) for the table
-                Keyspace.openWithoutSSTables(keyspaceName);
+                SchemaVersionApi.openKeyspaceInstance(keyspaceName);
             }
         }
 

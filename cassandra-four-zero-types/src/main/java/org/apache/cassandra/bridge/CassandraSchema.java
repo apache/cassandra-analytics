@@ -39,6 +39,7 @@ import org.antlr.runtime.RecognitionException;
 import org.apache.cassandra.cdc.api.TableIdLookup;
 import org.apache.cassandra.cql3.CQLFragmentParser;
 import org.apache.cassandra.cql3.CqlParser;
+import org.apache.cassandra.cql3.statements.schema.CreateTableStatement;
 import org.apache.cassandra.cql3.statements.schema.CreateTypeStatement;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.schema.KeyspaceMetadata;
@@ -70,9 +71,10 @@ public final class CassandraSchema
      */
     public static void update(Consumer<Schema> updater)
     {
-        synchronized (Schema.instance)
+        Schema schema = SchemaVersionApi.schemaInstance();
+        synchronized (schema)
         {
-            updater.accept(Schema.instance);
+            updater.accept(schema);
         }
     }
 
@@ -85,9 +87,10 @@ public final class CassandraSchema
      */
     public static <T> T apply(Function<Schema, T> updater)
     {
-        synchronized (Schema.instance)
+        Schema schema = SchemaVersionApi.schemaInstance();
+        synchronized (schema)
         {
-            return updater.apply(Schema.instance);
+            return updater.apply(schema);
         }
     }
 
@@ -122,11 +125,9 @@ public final class CassandraSchema
                                                    @Nullable UUID tableId,
                                                    boolean enableCdc)
     {
-        TableMetadata.Builder builder = CQLFragmentParser.parseAny(CqlParser::createTableStatement, createStmt, "CREATE TABLE")
-                                                         .keyspace(keyspace)
-                                                         .prepare(null)
-                                                         .builder(types)
-                                                         .partitioner(CassandraTypesImplementation.getPartitioner(partitioner));
+        CreateTableStatement.Raw createTable = CQLFragmentParser.parseAny(CqlParser::createTableStatement, createStmt, "CREATE TABLE");
+        TableMetadata.Builder builder = SchemaVersionApi.tableMetadataBuilder(createTable, keyspace, types)
+                                                        .partitioner(CassandraTypesImplementation.getPartitioner(partitioner));
 
         if (tableId != null)
         {
@@ -170,7 +171,7 @@ public final class CassandraSchema
 
     public static Optional<TableMetadata> getTable(String keyspace, String table)
     {
-        return getTable(Schema.instance, keyspace, table);
+        return getTable(SchemaVersionApi.schemaInstance(), keyspace, table);
     }
 
     public static Optional<TableMetadata> getTable(Schema schema, String keyspace, String table)
@@ -197,7 +198,7 @@ public final class CassandraSchema
 
     public static boolean isCdcEnabled(String keyspace, String table)
     {
-        return isCdcEnabled(Schema.instance, keyspace, table);
+        return isCdcEnabled(SchemaVersionApi.schemaInstance(), keyspace, table);
     }
 
     public static boolean isCdcEnabled(Schema schema, String keyspace, String table)
@@ -234,7 +235,7 @@ public final class CassandraSchema
                                        @NotNull Partitioner partitioner,
                                        @NotNull TableIdLookup tableIdLookup)
     {
-        updateCdcSchema(Schema.instance, cdcTables, partitioner, tableIdLookup);
+        updateCdcSchema(SchemaVersionApi.schemaInstance(), cdcTables, partitioner, tableIdLookup);
     }
 
     public static void maybeUpdateSchema(Schema schema,
@@ -380,7 +381,7 @@ public final class CassandraSchema
      */
     public static void unregisterNonCdcTables(@NotNull Set<TableIdentifier> tables)
     {
-        unregisterNonCdcTables(Schema.instance, tables);
+        unregisterNonCdcTables(SchemaVersionApi.schemaInstance(), tables);
     }
 
     public static void unregisterNonCdcTables(@NotNull Schema schema, @NotNull Set<TableIdentifier> tables)

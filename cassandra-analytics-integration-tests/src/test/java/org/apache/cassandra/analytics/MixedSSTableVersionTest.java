@@ -125,8 +125,8 @@ public class MixedSSTableVersionTest extends SharedClusterSparkIntegrationTestBa
 
         Set<String> dataFiles = findSSTableDataFiles(cluster.get(1), table1);
         // check that we produced data files in two different BIG versions
-        assertThat(dataFiles.stream().filter(name -> name.startsWith("nb-"))).isNotEmpty();
-        assertThat(dataFiles.stream().filter(name -> name.startsWith("oa-"))).isNotEmpty();
+        assertThat(dataFiles.stream().filter(name -> hasSSTableVersion(name, "nb"))).isNotEmpty();
+        assertThat(dataFiles.stream().filter(name -> hasSSTableVersion(name, "oa"))).isNotEmpty();
 
         // read the data back through the bulk reader
         // FIVEZERO bridge should be used
@@ -148,7 +148,7 @@ public class MixedSSTableVersionTest extends SharedClusterSparkIntegrationTestBa
         .isNotEmpty();
         assertThat(newFiles)
         .as("writer must pick the lowest mutually-compatible version present (4.0 -> big-nb): %s", newFiles)
-        .allMatch(name -> name.startsWith("nb-"));
+        .allMatch(name -> hasSSTableVersion(name, "nb"));
 
         // The bulk reader still returns every row across all three writes.
         Dataset<Row> dfReadAll = bulkReaderDataFrame(table1).load();
