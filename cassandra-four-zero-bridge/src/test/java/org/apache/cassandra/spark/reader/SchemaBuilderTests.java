@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.reader;
 
+import java.util.Collections;
 import java.util.HashMap;
 
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,9 @@ import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.TableMetadata;
 import org.apache.cassandra.schema.Types;
+import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.utils.FBUtilities;
 
 import static org.apache.cassandra.spark.reader.SchemaBuilder.rfToMap;
@@ -113,5 +116,52 @@ public class SchemaBuilderTests
         Schema.instance.load(keyspace.withSwapped(keyspace.tables.with(tableMetadata)));
 
         new SchemaBuilder(createTableStatement, keyspaceName, replicationFactor);
+    }
+
+    @Test
+    public void testBuildPreservesCdcFlag()
+    {
+        CassandraBridgeImplementation.setup();
+        String keyspaceName = "cdc" + getClass().getSimpleName();
+        ReplicationFactor replicationFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.LocalStrategy, new HashMap<>());
+        KeyspaceMetadata keyspaceMetadata = KeyspaceMetadata.create(keyspaceName, KeyspaceParams.create(true, rfToMap(replicationFactor)));
+        Schema.instance.load(keyspaceMetadata);
+        Keyspace.openWithoutSSTables(keyspaceName);
+
+        String createTableStatement = "CREATE TABLE " + keyspaceName + ".bar (a int PRIMARY KEY) WITH cdc = true";
+        TableMetadata tableMetadata = CQLFragmentParser
+                .parseAny(CqlParser::createTableStatement, createTableStatement, "CREATE TABLE")
+                .keyspace(keyspaceName)
+                .prepare(null)
+                .builder(Types.none())
+                .build();
+        KeyspaceMetadata keyspace = Schema.instance.getKeyspaceMetadata(keyspaceName);
+        Schema.instance.load(keyspace.withSwapped(keyspace.tables.with(tableMetadata)));
+
+        SchemaBuilder cdcEnabledBuilder = new SchemaBuilder(createTableStatement,
+                                                            keyspaceName,
+                                                            replicationFactor,
+                                                            Partitioner.Murmur3Partitioner,
+                                                            bridge -> Collections.emptySet(),
+                                                            null,
+                                                            0,
+                                                            true);
+        CqlTable cdcEnabledTable = cdcEnabledBuilder.build();
+        assertThat(cdcEnabledTable.cdc())
+                .as("build() must preserve enableCdc=true through to the returned CqlTable")
+                .isTrue();
+
+        SchemaBuilder cdcDisabledBuilder = new SchemaBuilder(createTableStatement,
+                                                              keyspaceName,
+                                                              replicationFactor,
+                                                              Partitioner.Murmur3Partitioner,
+                                                              bridge -> Collections.emptySet(),
+                                                              null,
+                                                              0,
+                                                              false);
+        CqlTable cdcDisabledTable = cdcDisabledBuilder.build();
+        assertThat(cdcDisabledTable.cdc())
+                .as("build() must preserve enableCdc=false through to the returned CqlTable")
+                .isFalse();
     }
 }
