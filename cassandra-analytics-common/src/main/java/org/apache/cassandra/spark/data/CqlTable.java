@@ -58,15 +58,17 @@ public class CqlTable implements Serializable
     private final List<CqlField> staticColumns;
     private final List<CqlField> valueColumns;
     private final transient Map<String, CqlField> columns;
-    private final int indexCount;
+    private final Set<String> indexStatements;
 
     public CqlTable(@NotNull String keyspace,
                     @NotNull String table,
                     @NotNull String createStatement,
                     @NotNull ReplicationFactor replicationFactor,
-                    @NotNull List<CqlField> fields)
+                    @NotNull List<CqlField> fields,
+                    @NotNull Set<CqlField.CqlUdt> udts,
+                    @NotNull Set<String> indexStatements)
     {
-        this(keyspace, table, createStatement, replicationFactor, fields, Collections.emptySet(), 0);
+        this(keyspace, table, createStatement, replicationFactor, fields, udts, indexStatements, false);
     }
 
     public CqlTable(@NotNull String keyspace,
@@ -75,18 +77,7 @@ public class CqlTable implements Serializable
                     @NotNull ReplicationFactor replicationFactor,
                     @NotNull List<CqlField> fields,
                     @NotNull Set<CqlField.CqlUdt> udts,
-                    int indexCount)
-    {
-        this(keyspace, table, createStatement, replicationFactor, fields, udts, indexCount, false);
-    }
-
-    public CqlTable(@NotNull String keyspace,
-                    @NotNull String table,
-                    @NotNull String createStatement,
-                    @NotNull ReplicationFactor replicationFactor,
-                    @NotNull List<CqlField> fields,
-                    @NotNull Set<CqlField.CqlUdt> udts,
-                    int indexCount,
+                    @NotNull Set<String> indexStatements,
                     boolean cdc)
     {
         this.keyspace = keyspace;
@@ -101,7 +92,7 @@ public class CqlTable implements Serializable
         this.staticColumns = this.fields.stream().filter(CqlField::isStaticColumn).sorted().collect(Collectors.toList());
         this.valueColumns = this.fields.stream().filter(CqlField::isValueColumn).sorted().collect(Collectors.toList());
         this.udts = Collections.unmodifiableSet(udts);
-        this.indexCount = indexCount;
+        this.indexStatements = Collections.unmodifiableSet(indexStatements);
 
         // We use a linked hashmap to guarantee ordering of a 'SELECT * FROM ...'
         this.columns = new LinkedHashMap<>();
@@ -265,9 +256,9 @@ public class CqlTable implements Serializable
         return cdc;
     }
 
-    public int indexCount()
+    public Set<String> indexStatements()
     {
-        return indexCount;
+        return indexStatements;
     }
 
     /**
@@ -407,9 +398,16 @@ public class CqlTable implements Serializable
             {
                 udts.add((CqlField.CqlUdt) CqlField.CqlType.read(input, cassandraTypes));
             }
-            int indexCount = input.readInt();
+
+            int numIndexStatements = input.readInt();
+            Set<String> indexStatements = new LinkedHashSet<>(numIndexStatements);
+            for (int idx = 0; idx < numIndexStatements; idx++)
+            {
+                indexStatements.add(input.readString());
+            }
+
             boolean cdc = input.readBoolean();
-            return new CqlTable(keyspace, table, createStatement, replicationFactor, fields, udts, indexCount, cdc);
+            return new CqlTable(keyspace, table, createStatement, replicationFactor, fields, udts, indexStatements, cdc);
         }
 
         @Override
@@ -431,7 +429,13 @@ public class CqlTable implements Serializable
             {
                 udt.write(output);
             }
-            output.writeInt(table.indexCount());
+
+            Set<String> indexStatements = table.indexStatements();
+            output.writeInt(indexStatements.size());
+            for (String stmt : indexStatements)
+            {
+                output.writeString(stmt);
+            }
             output.writeBoolean(table.cdc());
         }
     }

@@ -52,13 +52,16 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
     private final CassandraBridge bridge;
     private final int sidecarPort;
     private final JobInfo job;
+    private final boolean hasSaiIndexes;
 
-    public SidecarDataTransferApi(CassandraContext cassandraContext, CassandraBridge bridge, JobInfo job)
+    public SidecarDataTransferApi(CassandraContext cassandraContext, CassandraBridge bridge, JobInfo job,
+                                  boolean hasSaiIndexes)
     {
         this.sidecarClient = cassandraContext.getSidecarClient();
         this.sidecarPort = cassandraContext.sidecarPort();
         this.bridge = bridge;
         this.job = job;
+        this.hasSaiIndexes = hasSaiIndexes;
     }
 
     @Override
@@ -106,6 +109,14 @@ public class SidecarDataTransferApi implements DirectDataTransferApi
 
         // Always verify SSTables on import
         importOptions.verifySSTables(true).extendedVerify(!job.skipExtendedVerify());
+
+        // When SAI index components were generated alongside SSTables, enable SAI validation on import.
+        // failOnMissingIndex makes the import fail (instead of silently rebuilding) when the uploaded
+        // SSTables are missing their SAI components, and validateIndexChecksum verifies their checksums.
+        if (hasSaiIndexes)
+        {
+            importOptions.failOnMissingIndex(true).validateIndexChecksum(true);
+        }
 
         try
         {

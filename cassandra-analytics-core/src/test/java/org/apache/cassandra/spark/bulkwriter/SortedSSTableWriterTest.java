@@ -176,6 +176,7 @@ public class SortedSSTableWriterTest
                                                new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
                                                                      ImmutableMap.of("replication_factor", 1)),
                                                partitioner,
+                                               Collections.emptySet(),
                                                Collections.emptySet());
         SortedMap<BigInteger, List<String>> sortedKeys = new TreeMap<>();
         for (int i = 0; i < rowCount; ++i)

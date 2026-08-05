@@ -33,6 +33,8 @@ public class SSTableImportOptions extends HashMap<String, String>
     private static final String INVALIDATE_CACHES = "invalidateCaches";
     private static final String EXTENDED_VERIFY = "extendedVerify";
     private static final String COPY_DATA = "copyData";
+    private static final String FAIL_ON_MISSING_INDEX = "failOnMissingIndex";
+    private static final String VALIDATE_INDEX_CHECKSUM = "validateIndexChecksum";
 
     public static SSTableImportOptions defaults()
     {
@@ -125,5 +127,35 @@ public class SSTableImportOptions extends HashMap<String, String>
     public boolean copyData()
     {
         return Boolean.parseBoolean(get(COPY_DATA));
+    }
+
+    /**
+     * When enabled, SSTable import fails if a table with Storage Attached Indexes (SAI) is missing its index
+     * components, instead of silently rebuilding them. Only meaningful for SAI tables (Cassandra 5.0+).
+     */
+    public SSTableImportOptions failOnMissingIndex(boolean enabled)
+    {
+        put(FAIL_ON_MISSING_INDEX, Boolean.toString(enabled));
+        return this;
+    }
+
+    public boolean failOnMissingIndex()
+    {
+        return Boolean.parseBoolean(get(FAIL_ON_MISSING_INDEX));
+    }
+
+    /**
+     * When enabled, SSTable import validates the checksums of Storage Attached Index (SAI) components.
+     * Only meaningful for SAI tables (Cassandra 5.0+).
+     */
+    public SSTableImportOptions validateIndexChecksum(boolean enabled)
+    {
+        put(VALIDATE_INDEX_CHECKSUM, Boolean.toString(enabled));
+        return this;
+    }
+
+    public boolean validateIndexChecksum()
+    {
+        return Boolean.parseBoolean(get(VALIDATE_INDEX_CHECKSUM));
     }
 }

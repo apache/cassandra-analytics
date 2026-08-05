@@ -133,17 +133,8 @@ public abstract class CassandraBridge
                                 ReplicationFactor replicationFactor,
                                 Partitioner partitioner)
     {
-        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, Collections.emptySet());
-    }
-
-    @VisibleForTesting
-    public CqlTable buildSchema(String createStatement,
-                                String keyspace,
-                                ReplicationFactor replicationFactor,
-                                Partitioner partitioner,
-                                Set<String> udts)
-    {
-        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, udts, null, 0, false);
+        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, Collections.emptySet(),
+                           null, Collections.emptySet(), false);
     }
 
     public abstract CqlTable buildSchema(String createStatement,
@@ -152,8 +143,31 @@ public abstract class CassandraBridge
                                          Partitioner partitioner,
                                          Set<String> udts,
                                          @Nullable UUID tableId,
-                                         int indexCount,
+                                         Set<String> indexStatements,
                                          boolean enableCdc);
+
+    /**
+     * Builds the table schema and registers the supplied secondary-index (e.g. SAI) definitions with it, so the
+     * registered table carries its indexes from its first build. Defaults to no fixed table id and CDC disabled;
+     * callers that need to pin a table id or enable CDC use the full {@code tableId}/{@code enableCdc} overload.
+     *
+     * @param createStatement   the CREATE TABLE statement
+     * @param keyspace          the keyspace name
+     * @param replicationFactor the replication factor
+     * @param partitioner       the partitioner
+     * @param udts              the user-defined type CREATE statements for the keyspace
+     * @param indexStatements   the CREATE INDEX statements for the table (may be empty)
+     * @return the built {@link CqlTable}
+     */
+    public CqlTable buildSchema(String createStatement,
+                                String keyspace,
+                                ReplicationFactor replicationFactor,
+                                Partitioner partitioner,
+                                Set<String> udts,
+                                Set<String> indexStatements)
+    {
+        return buildSchema(createStatement, keyspace, replicationFactor, partitioner, udts, null, indexStatements, false);
+    }
 
     /**
      * Returns the quoted identifier, if the {@code identifier} has mixed case or if the {@code identifier}
@@ -403,6 +417,7 @@ public abstract class CassandraBridge
                                                    String createStatement,
                                                    String insertStatement,
                                                    Set<String> userDefinedTypeStatements,
+                                                   Set<String> indexCreateStatements,
                                                    int bufferSizeMB);
 
     public abstract SSTableSummary getSSTableSummary(@NotNull String keyspace,
@@ -490,7 +505,9 @@ public abstract class CassandraBridge
      * @param createTableStmt CQL table create statement
      * @param partitionKeys   list of
      * @return list of tokens corresponding to each input `partitionKeys`
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
      */
+    @Deprecated
     public List<BigInteger> toTokens(@NotNull Partitioner partitioner,
                                      @NotNull String keyspace,
                                      @NotNull String createTableStmt,
@@ -526,7 +543,9 @@ public abstract class CassandraBridge
      * @param createTableStmt CQL create table statement
      * @param partitionKey    partition key
      * @return encoded ByteBuffer for the input `partitionKey`
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
      */
+    @Deprecated
     public ByteBuffer encodePartitionKey(@NotNull Partitioner partitioner,
                                          @NotNull String keyspace,
                                          @NotNull String createTableStmt,
@@ -541,7 +560,9 @@ public abstract class CassandraBridge
      * @param createTableStmt CQL create table statement
      * @param partitionKeys   list of partition keys
      * @return a list encoded ByteBuffers corresponding to the partition keys input in `partitionKeys`
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
      */
+    @Deprecated
     public abstract List<ByteBuffer> encodePartitionKeys(@NotNull Partitioner partitioner,
                                                          @NotNull String keyspace,
                                                          @NotNull String createTableStmt,
@@ -601,7 +622,9 @@ public abstract class CassandraBridge
      * @param sstableTimeRangeFilter    SSTable time range filter for filtering out SSTable based on min and max timestamp
      * @param rowConsumer               Consumer interface to consume rows as they are read to avoid buffering all rows in memory for consumption.
      * @throws IOException
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
      */
+    @Deprecated
     public void readStringPartitionKeys(@NotNull Partitioner partitioner,
                                         @NotNull String keyspace,
                                         @NotNull String createStmt,
@@ -626,7 +649,9 @@ public abstract class CassandraBridge
      * @param sstableTimeRangeFilter    SSTable time range filter, filters out SSTables not overlapping given time ranges
      * @param rowConsumer               Consumer interface to consume rows as they are read to avoid buffering all rows in memory for consumption.
      * @throws IOException
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
      */
+    @Deprecated
     public void readStringPartitionKeys(@NotNull Partitioner partitioner,
                                         @NotNull String keyspace,
                                         @NotNull String createStmt,
@@ -648,6 +673,10 @@ public abstract class CassandraBridge
                           rowConsumer);
     }
 
+    /**
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
+     */
+    @Deprecated
     public void readPartitionKeys(@NotNull Partitioner partitioner,
                                   @NotNull String keyspace,
                                   @NotNull String createStmt,
@@ -658,6 +687,10 @@ public abstract class CassandraBridge
         readPartitionKeys(partitioner, keyspace, createStmt, ssTables, null, null, null, sstableTimeRangeFilter, rowConsumer);
     }
 
+    /**
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
+     */
+    @Deprecated
     public void readPartitionKeys(@NotNull Partitioner partitioner,
                                   @NotNull String keyspace,
                                   @NotNull String createStmt,
@@ -672,6 +705,10 @@ public abstract class CassandraBridge
                           pruneColumnFilter, sstableTimeRangeFilter, rowConsumer);
     }
 
+    /**
+     * @deprecated not used by production code; retained for tests only and scheduled for removal.
+     */
+    @Deprecated
     public abstract void readPartitionKeys(@NotNull Partitioner partitioner,
                                            @NotNull String keyspace,
                                            @NotNull String createStmt,

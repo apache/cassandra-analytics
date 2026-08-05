@@ -20,7 +20,9 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import com.google.common.base.Preconditions;
 
@@ -61,6 +63,7 @@ public final class BroadcastableTableSchema implements Serializable
     private final TimestampOption timestampOption;
     private final CassandraVersion bridgeVersion;
     private final boolean quoteIdentifiers;
+    private final Set<String> indexStatements;
 
     /**
      * Creates a BroadcastableTableSchema from a source TableSchema.
@@ -82,7 +85,8 @@ public final class BroadcastableTableSchema implements Serializable
             source.ttlOption,
             source.timestampOption,
             source.bridgeVersion,
-            source.quoteIdentifiers
+            source.quoteIdentifiers,
+            source.indexStatements
         );
     }
 
@@ -96,7 +100,8 @@ public final class BroadcastableTableSchema implements Serializable
                                      TTLOption ttlOption,
                                      TimestampOption timestampOption,
                                      CassandraVersion bridgeVersion,
-                                     boolean quoteIdentifiers)
+                                     boolean quoteIdentifiers,
+                                     Set<String> indexStatements)
     {
         this.createStatement = createStatement;
         this.modificationStatement = modificationStatement;
@@ -109,6 +114,7 @@ public final class BroadcastableTableSchema implements Serializable
         this.timestampOption = timestampOption;
         this.bridgeVersion = bridgeVersion;
         this.quoteIdentifiers = quoteIdentifiers;
+        this.indexStatements = indexStatements;
     }
 
     public String getCreateStatement()
@@ -164,6 +170,11 @@ public final class BroadcastableTableSchema implements Serializable
     public boolean isQuoteIdentifiers()
     {
         return quoteIdentifiers;
+    }
+
+    public Set<String> getIndexStatements()
+    {
+        return Collections.unmodifiableSet(indexStatements);
     }
 
     /**

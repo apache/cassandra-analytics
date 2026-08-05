@@ -281,10 +281,12 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                 Partitioner partitioner,
                                 Set<String> udts,
                                 @Nullable UUID tableId,
-                                int indexCount,
+                                Set<String> indexStatements,
                                 boolean enableCdc)
     {
-        return new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner, cassandraTypes -> udts, tableId, indexCount, enableCdc).build();
+        CqlTable cqlTable = new SchemaBuilder(createStatement, keyspace, replicationFactor, partitioner,
+                                              cassandraTypes -> udts, tableId, indexStatements, enableCdc).build();
+        return cqlTable;
     }
 
     @Override
@@ -330,6 +332,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
+    @Deprecated
     public List<ByteBuffer> encodePartitionKeys(Partitioner partitioner, String keyspace, String createTableStmt, List<List<String>> keys)
     {
         CqlTable table = new SchemaBuilder(createTableStmt, keyspace, ReplicationFactor.simpleStrategy(1), partitioner).build();
@@ -501,6 +504,7 @@ public class CassandraBridgeImplementation extends CassandraBridge
     }
 
     @Override
+    @Deprecated
     public void readPartitionKeys(Partitioner partitioner,
                                   String keyspace,
                                   String createStmt,
@@ -619,11 +623,12 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                           String partitioner,
                                           String createStatement,
                                           String insertStatement,
-                                          @NotNull Set<String> userDefinedTypeStatements,
+                                          Set<String> userDefinedTypeStatements,
+                                          Set<String> indexCreateStatements,
                                           int bufferSizeMB)
     {
         return new SSTableWriterImplementation(inDirectory, partitioner, createStatement, insertStatement,
-                                               userDefinedTypeStatements, bufferSizeMB);
+                                               userDefinedTypeStatements, indexCreateStatements, bufferSizeMB);
     }
 
     @Override

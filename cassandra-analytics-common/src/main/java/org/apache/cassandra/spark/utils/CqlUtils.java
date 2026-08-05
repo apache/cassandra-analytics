@@ -25,6 +25,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -58,6 +59,10 @@ public final class CqlUtils
     private static final Pattern NEWLINE_PATTERN = Pattern.compile("\n");
     private static final Pattern ESCAPED_DOUBLE_BACKSLASH = Pattern.compile("\\\\");
     private static final Pattern COMPACTION_STRATEGY_PATTERN = Pattern.compile("compaction\\s*=\\s*\\{\\s*'class'\\s*:\\s*'([^']+)'");
+
+    private static final Pattern MULTI_WHITESPACE_PATTERN = Pattern.compile("\\s+");
+    private static final Pattern SAI_USING_PATTERN =
+        Pattern.compile("USING '(SAI|(ORG\\.APACHE\\.CASSANDRA\\.INDEX\\.SAI\\.)?STORAGEATTACHEDINDEX)'");
 
     private CqlUtils()
     {
@@ -260,15 +265,87 @@ public final class CqlUtils
 
     public static int extractIndexCount(@NotNull String schemaStr, @NotNull String keyspace, @NotNull String table)
     {
+        return extractIndexStatements(schemaStr, keyspace, table).size();
+    }
+
+    /**
+     * Extracts CREATE INDEX statements for the given table from the schema string.
+     *
+     * @param schemaStr full cluster schema text
+     * @param keyspace  the keyspace name
+     * @param table     the table name
+     * @return set of CREATE INDEX statements for the table
+     */
+    public static Set<String> extractIndexStatements(@NotNull String schemaStr,
+                                                     @NotNull String keyspace,
+                                                     @NotNull String table)
+    {
         String cleaned = cleanCql(schemaStr);
-        Pattern pattern = Pattern.compile(String.format("CREATE (CUSTOM )?INDEX \"?[^ ]* ON ?\"?%s?\"?\\.{1}\"?%s\"?[^;]*;", keyspace, table));
+        // The (?!\w) after the table name is required: without it the table name matches as a prefix, so extracting
+        // the indexes of "orders" would also pick up the CREATE INDEX statements of "orders_archive".
+        Pattern pattern = Pattern.compile(String.format("CREATE (CUSTOM )?INDEX \"?[^ ]* ON ?\"?%s\"?\\.\"?%s\"?(?!\\w)[^;]*;",
+                                                        Pattern.quote(keyspace), Pattern.quote(table)));
         Matcher matcher = pattern.matcher(cleaned);
-        int indexCount = 0;
+        Set<String> statements = new HashSet<>();
         while (matcher.find())
         {
-            indexCount++;
+            // cleanCql strips newlines without substituting whitespace,
+            // so collapse any resulting run of whitespace to a single space (and trim)
+            // to keep the statement well-formed for the CQL parser.
+            statements.add(MULTI_WHITESPACE_PATTERN.matcher(matcher.group()).replaceAll(" ").trim());
         }
-        return indexCount;
+        return statements;
+    }
+
+    /**
+     * Returns true if the given CREATE INDEX statement defines a Storage Attached Index (SAI).
+     * <p>
+     * SAI class may appear as the short alias ("sai"), the short class name ("StorageAttachedIndex") or
+     * fully qualified ("org.apache.cassandra.index.sai.StorageAttachedIndex"). All forms are case-insensitive,
+     * matching Cassandra's own alias resolution (see {@code IndexMetadata.getIndexClassName}).
+     *
+     * @param createIndexStatement a CREATE INDEX CQL statement
+     * @return true if the index uses SAI
+     */
+    public static boolean isSaiIndex(@NotNull String createIndexStatement)
+    {
+        // Matches any run of whitespace (spaces, tabs, newlines). Used to collapse a CREATE INDEX statement to
+        // single-spaced text so the SAI marker can be matched regardless of how the schema text was formatted
+        // (e.g. "USING  'StorageAttachedIndex'", a newline before USING, or a tab all normalize to one space).
+        String normalized = MULTI_WHITESPACE_PATTERN.matcher(createIndexStatement).replaceAll(" ").toUpperCase(Locale.ROOT);
+
+        // Matches the SAI marker inside a USING '...' clause (statement already upper-cased and whitespace-collapsed).
+        // The 'SAI' alternative matches Cassandra's short alias (USING 'sai').
+        // The optional canonical-package prefix (org.apache.cassandra.index.sai.) matches the fully-qualified class form,
+        // and the bare STORAGEATTACHEDINDEX matches the short class name.
+        // Restricting the prefix to the canonical SAI package (rather than any package) avoids false positives on a
+        // foreign class that merely shares the simple name (e.g. 'foo.StorageAttachedIndex'), and the boundaries reject
+        // names that merely end with the marker (e.g. 'PrefixStorageAttachedIndex'). These three forms are exactly what
+        // Cassandra accepts and preserves in the schema.
+        return SAI_USING_PATTERN.matcher(normalized).find();
+    }
+
+    /**
+     * Returns true when {@code indexStatements} is non-empty and every statement defines a Storage Attached Index.
+     *
+     * @param indexStatements the CREATE INDEX statements for a table
+     * @return true if all indexes are SAI (and at least one exists)
+     */
+    public static boolean hasOnlySaiIndexes(@NotNull Set<String> indexStatements)
+    {
+        return !indexStatements.isEmpty() && indexStatements.stream().allMatch(CqlUtils::isSaiIndex);
+    }
+
+    /**
+     * Returns true when at least one statement in {@code indexStatements} defines a Storage Attached Index.
+     * Unlike {@link #hasOnlySaiIndexes(Set)}, this tolerates a mix of SAI and legacy 2i indexes.
+     *
+     * @param indexStatements the CREATE INDEX statements for a table
+     * @return true if at least one index is SAI
+     */
+    public static boolean hasAnySaiIndex(@NotNull Set<String> indexStatements)
+    {
+        return indexStatements.stream().anyMatch(CqlUtils::isSaiIndex);
     }
 
     /**

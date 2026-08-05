@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.exception.UnsupportedAnalyticsOperationException;
+import org.apache.cassandra.spark.utils.CqlUtils;
 import org.apache.spark.sql.types.StructType;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.maybeQuotedIdentifier;
@@ -63,6 +65,7 @@ public class TableSchema
     final TimestampOption timestampOption;
     final CassandraVersion bridgeVersion;
     final boolean quoteIdentifiers;
+    final Set<String> indexStatements;
 
     public TableSchema(StructType dfSchema,
                        TableInfoProvider tableInfo,
@@ -79,23 +82,10 @@ public class TableSchema
         this.timestampOption = timestampOption;
         this.bridgeVersion = bridgeVersion;
         this.quoteIdentifiers = quoteIdentifiers;
+        this.indexStatements = tableInfo.getIndexStatements();
 
         validateDataFrameCompatibility(dfSchema, tableInfo);
-        // If a table has indexes on it, some external process (application, DB, etc.) is responsible for rebuilding
-        // indexes on the table after the bulk write completes; cassandra does this as part of the SSTable import
-        // process today. 2i and SAI have different ergonomics here regarding if stale data is served during index build;
-        // ultimately we want the bulk writer to also write native SAI index files alongside sstables but until
-        // then, this is allowable and fine for users who Know What They're Doing.
-        if (!skipSecondaryIndexCheck)
-        {
-            validateNoSecondaryIndexes(tableInfo);
-        }
-        else if (tableInfo.hasSecondaryIndex())
-        {
-            LOGGER.warn("Bulk writing to tables with SecondaryIndexes will have an asynchronous index rebuild "
-                      + "take place automatically after writing. Reads against the index during this time "
-                      + "window will produce inconsistent or stale results until index rebuild is complete.");
-        }
+        validateSecondaryIndexes(skipSecondaryIndexCheck, indexStatements, bridgeVersion);
         validateUserAddedColumns(bridgeVersion, quoteIdentifiers, ttlOption, timestampOption);
 
         this.createStatement = getCreateStatement(tableInfo);
@@ -126,6 +116,7 @@ public class TableSchema
         this.timestampOption = broadcastable.getTimestampOption();
         this.bridgeVersion = broadcastable.getBridgeVersion();
         this.quoteIdentifiers = broadcastable.isQuoteIdentifiers();
+        this.indexStatements = broadcastable.getIndexStatements();
     }
 
     private List<String> getRequiredKeyColumns(TableInfoProvider tableInfo)
@@ -309,12 +300,96 @@ public class TableSchema
         Preconditions.checkArgument(unknownFields.isEmpty(), "Unknown fields in data frame => " + unknownFields);
     }
 
+    /**
+     * Validates secondary index constraints for bulk write operations.
+     * <p>
+     * When the cluster is Cassandra 5.0+ and ALL indexes are SAI, the write is allowed because
+     * SAI index components are generated alongside SSTables and are immediately queryable after import.
+     * <p>
+     * When any index is non-SAI (legacy 2i), the write is blocked unless SKIP_SECONDARY_INDEX_CHECK is set.
+     *
+     * @param skipSecondaryIndexCheck  whether the user explicitly opted out of the check
+     * @param indexStatements          the CREATE INDEX statements for the table (both SAI and legacy 2i)
+     * @param bridgeVersion            the Cassandra bridge version in use
+     */
+    static void validateSecondaryIndexes(boolean skipSecondaryIndexCheck,
+                                         Set<String> indexStatements,
+                                         CassandraVersion bridgeVersion)
+    {
+        if (indexStatements.isEmpty())
+        {
+            return; // No indexes — nothing to validate
+        }
+
+        // Case: all indexes are SAI and the cluster is Cassandra 5.0+ — SAI components are generated inline and
+        // are queryable right after import, so the write is allowed without any opt-out.
+        if (hasOnlySaiIndexesOnCassandra5(indexStatements, bridgeVersion))
+        {
+            LOGGER.info("Table has SAI indexes on Cassandra 5.0+. SAI index components will be generated "
+                      + "alongside SSTables. indexCount={}", indexStatements.size());
+            return;
+        }
+
+        // Case: not an all-SAI-on-5.0+ write (a non-SAI/legacy 2i index is present). Such indexes
+        // are rebuilt asynchronously on import, so the write is only allowed with the explicit opt-out.
+        if (skipSecondaryIndexCheck)
+        {
+            LOGGER.warn("Bulk writing to tables with SecondaryIndexes will have an asynchronous index rebuild "
+                      + "take place automatically after writing. Reads against the index during this time "
+                      + "window will produce inconsistent or stale results until index rebuild is complete.");
+            return;
+        }
+
+        throw new UnsupportedAnalyticsOperationException(
+            "Bulkwriter doesn't support non-SAI indexes. Set the " + WriterOptions.SKIP_SECONDARY_INDEX_CHECK
+          + " writer option to true to bulk write anyway; the non-SAI indexes will be rebuilt asynchronously after "
+          + "import (reads may be stale until the rebuild completes), while SAI indexes are still generated alongside "
+          + "SSTables on Cassandra 5.0+.");
+    }
+
     static void validateNoSecondaryIndexes(TableInfoProvider tableInfo)
     {
-        if (tableInfo.hasSecondaryIndex())
+        if (tableInfo.hasIndexes())
         {
             throw new UnsupportedAnalyticsOperationException("Bulkwriter doesn't support secondary indexes");
         }
+    }
+
+    public Set<String> getIndexStatements()
+    {
+        return indexStatements;
+    }
+
+    @VisibleForTesting
+    static boolean isCassandra5OrLater(CassandraVersion bridgeVersion)
+    {
+        // The curated CassandraVersion codes (30/40/41/50) compare correctly for the "5.0+" gate.
+        return bridgeVersion != null && bridgeVersion.versionNumber() >= CassandraVersion.FIVEZERO.versionNumber();
+    }
+
+    /**
+     * Returns true when the write is an all-SAI write on Cassandra 5.0+, i.e. the table's indexes are all SAI and
+     * the cluster is Cassandra 5.0+.
+     *
+     * @param indexStatements  the CREATE INDEX statements for the table
+     * @param bridgeVersion    the Cassandra bridge version in use
+     * @return true if this is an all-SAI write on Cassandra 5.0+
+     */
+    static boolean hasOnlySaiIndexesOnCassandra5(Set<String> indexStatements, CassandraVersion bridgeVersion)
+    {
+        return CqlUtils.hasOnlySaiIndexes(indexStatements) && isCassandra5OrLater(bridgeVersion);
+    }
+
+    /**
+     * Returns true when the bulk writer generates SAI index components alongside SSTables for this table, i.e. the
+     * table has at least one SAI index and the cluster is Cassandra 5.0+.
+     * @param indexStatements  the CREATE INDEX statements for the table
+     * @param bridgeVersion    the Cassandra bridge version in use
+     * @return true if SAI components are generated for this write (any SAI index on Cassandra 5.0+)
+     */
+    static boolean shouldGenerateSaiComponents(Set<String> indexStatements, CassandraVersion bridgeVersion)
+    {
+        return CqlUtils.hasAnySaiIndex(indexStatements) && isCassandra5OrLater(bridgeVersion);
     }
 
     private static List<Integer> getKeyFieldPositions(StructType dfSchema,

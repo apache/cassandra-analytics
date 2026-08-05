@@ -43,7 +43,6 @@ import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.common.Digest;
 import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.data.FileSystemSSTable;
-import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.reader.RowData;
@@ -126,13 +125,14 @@ public class SortedSSTableWriter
         SchemaInfo schema = writerContext.schema();
         TableSchema tableSchema = schema.getTableSchema();
         this.cqlSSTableWriter = SSTableWriterFactory.getSSTableWriter(
-        CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(packageVersion),
-        this.outDir.toString(),
-        writerContext.cluster().getPartitioner().toString(),
-        tableSchema.createStatement,
-        tableSchema.modificationStatement,
-        schema.getUserDefinedTypeStatements(),
-        writerContext.job().sstableDataSizeInMiB());
+            CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(packageVersion),
+            this.outDir.toString(),
+            writerContext.cluster().getPartitioner().toString(),
+            tableSchema.createStatement,
+            tableSchema.modificationStatement,
+            schema.getUserDefinedTypeStatements(),
+            tableSchema.getIndexStatements(),
+            writerContext.job().sstableDataSizeInMiB());
     }
 
     @NotNull
@@ -236,7 +236,7 @@ public class SortedSSTableWriter
         {
             for (Path path : stream)
             {
-                if (path.getFileName().toString().endsWith("-" + FileType.DATA.getFileSuffix()))
+                if (SSTables.isDataComponent(path))
                 {
                     dataFilePaths.add(path);
                     sstableCount += 1;
@@ -368,11 +368,13 @@ public class SortedSSTableWriter
         String schema = writerContext.schema().getTableSchema().createStatement;
         Partitioner partitioner = writerContext.cluster().getPartitioner();
         Set<String> udtStatements = writerContext.schema().getUserDefinedTypeStatements();
+        Set<String> indexStatements = writerContext.schema().getTableSchema().getIndexStatements();
         LocalDataLayer layer = new LocalDataLayer(version,
                                                   partitioner,
                                                   keyspace,
                                                   schema,
                                                   udtStatements,
+                                                  indexStatements,
                                                   Collections.emptyList() /* requestedFeatures */,
                                                   false /* useSSTableInputStream */,
                                                   null /* statsClass */,
@@ -387,11 +389,8 @@ public class SortedSSTableWriter
 
     private DirectoryStream<Path> getDataFileStream(DirectoryStream.Filter<Path> filter) throws IOException
     {
-        // Combine the data file filter with the provided filter
-        DirectoryStream.Filter<Path> combinedFilter = path -> {
-            String fileName = path.getFileName().toString();
-            return fileName.endsWith("Data.db") && filter.accept(path);
-        };
+        // Combine the data file filter with the provided filter.
+        DirectoryStream.Filter<Path> combinedFilter = path -> SSTables.isDataComponent(path) && filter.accept(path);
         return Files.newDirectoryStream(getOutDir(), combinedFilter);
     }
 

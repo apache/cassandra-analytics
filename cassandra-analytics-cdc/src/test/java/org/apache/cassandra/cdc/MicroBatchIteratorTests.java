@@ -390,7 +390,7 @@ public class MicroBatchIteratorTests extends CdcTestBase
                            ReplicationFactor.simpleStrategy(1),
                            Partitioner.Murmur3Partitioner,
                            Collections.emptySet(),
-                           null, 0, schema.withCdc);
+                           null, Collections.emptySet(), schema.withCdc);
         schema.setCassandraVersion(bridge.getVersion());
 
         try

@@ -21,6 +21,8 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.util.Set;
 
+import org.jetbrains.annotations.NotNull;
+
 public class CassandraSchemaInfo implements SchemaInfo
 {
     private final TableSchema tableSchema;
@@ -51,6 +53,7 @@ public class CassandraSchemaInfo implements SchemaInfo
     }
 
     @Override
+    @NotNull
     public Set<String> getUserDefinedTypeStatements()
     {
         return userDefinedTypeStatements;

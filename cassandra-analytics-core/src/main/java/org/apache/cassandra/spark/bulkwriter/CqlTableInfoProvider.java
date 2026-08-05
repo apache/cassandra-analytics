@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -155,9 +156,15 @@ public class CqlTableInfoProvider implements TableInfoProvider
     }
 
     @Override
-    public boolean hasSecondaryIndex()
+    public boolean hasIndexes()
     {
-        return cqlTable.indexCount() > 0;
+        return !cqlTable.indexStatements().isEmpty();
+    }
+
+    @Override
+    public Set<String> getIndexStatements()
+    {
+        return cqlTable.indexStatements();
     }
 
     @Override

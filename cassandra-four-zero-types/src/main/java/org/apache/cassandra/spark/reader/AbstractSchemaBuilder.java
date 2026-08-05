@@ -74,6 +74,11 @@ import org.apache.cassandra.utils.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+/**
+ * Base builder that parses a CREATE TABLE statement (plus its keyspace, replication and any associated schema
+ * components) and registers the resulting metadata in the in-JVM Cassandra schema, opening keyspace and table
+ * instances. Version-specific subclasses extend it to add support for their own column types and schema components.
+ */
 public abstract class AbstractSchemaBuilder
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractSchemaBuilder.class);
@@ -84,7 +89,7 @@ public abstract class AbstractSchemaBuilder
     protected final String keyspace;
     protected final ReplicationFactor replicationFactor;
     protected final CassandraTypes cassandraTypes;
-    protected final int indexCount;
+    protected final Set<String> indexStatements;
     protected final boolean enableCdc;
 
     public AbstractSchemaBuilder(CqlTable table, Partitioner partitioner, boolean enableCdc)
@@ -105,14 +110,15 @@ public abstract class AbstractSchemaBuilder
              partitioner,
              table::udtCreateStmts,
              tableId,
-             0,
+             table.indexStatements(),
              enableCdc);
     }
 
     @VisibleForTesting
     public AbstractSchemaBuilder(String createStmt, String keyspace, ReplicationFactor replicationFactor)
     {
-        this(createStmt, keyspace, replicationFactor, Partitioner.Murmur3Partitioner, bridge -> Collections.emptySet(), null, 0, false);
+        this(createStmt, keyspace, replicationFactor, Partitioner.Murmur3Partitioner, bridge -> Collections.emptySet(),
+             null, Collections.emptySet(), false);
     }
 
     @VisibleForTesting
@@ -121,7 +127,8 @@ public abstract class AbstractSchemaBuilder
                                  ReplicationFactor replicationFactor,
                                  Partitioner partitioner)
     {
-        this(createStmt, keyspace, replicationFactor, partitioner, bridge -> Collections.emptySet(), null, 0, false);
+        this(createStmt, keyspace, replicationFactor, partitioner, bridge -> Collections.emptySet(), null,
+             Collections.emptySet(), false);
     }
 
     public AbstractSchemaBuilder(String createStmt,
@@ -130,14 +137,14 @@ public abstract class AbstractSchemaBuilder
                                  Partitioner partitioner,
                                  Function<CassandraTypes, Set<String>> udtStatementsProvider,
                                  @Nullable UUID tableId,
-                                 int indexCount,
+                                 Set<String> indexStatements,
                                  boolean enableCdc)
     {
         this.createStmt = createStmt;
         this.keyspace = keyspace;
         this.replicationFactor = replicationFactor;
         this.cassandraTypes = new CassandraTypesImplementation();
-        this.indexCount = indexCount;
+        this.indexStatements = indexStatements;
         this.enableCdc = enableCdc;
 
         Pair<KeyspaceMetadata, TableMetadata> updated = CassandraSchema.apply(schema ->
@@ -153,18 +160,54 @@ public abstract class AbstractSchemaBuilder
         this.metadata = updated.right;
     }
 
+    /**
+     * The index statements this builder was created with, exposed for use by subclasses.
+     */
+    protected Set<String> indexStatements()
+    {
+        return indexStatements;
+    }
+
+    /**
+     * Invoked with the freshly built table metadata just before it is registered, so subclasses can adjust what
+     * gets registered. Returns the table metadata to actually register. Default: unchanged.
+     *
+     * @param tableMetadata the table metadata about to be registered
+     * @param existingTableMetadata the table metadata registered before this build (may be {@code null})
+     */
+    protected TableMetadata beforeTableRegistered(TableMetadata tableMetadata, @Nullable TableMetadata existingTableMetadata)
+    {
+        return tableMetadata;
+    }
+
+    /**
+     * Invoked after the table has been registered and opened, within the same atomic schema update, so subclasses
+     * can apply further changes to the just-registered table. Default: no-op.
+     *
+     * <p>Because these changes share the table's schema update, the table and every component attached here (e.g.
+     * Storage Attached Index definitions) become visible together, so no reader ever observes the table without them.
+     * Legacy secondary (2i) indexes are the one exception — they are not attached atomically and so are disabled by
+     * default. Subclasses adding further components should attach them here to preserve this guarantee.
+     *
+     * @param schema          the schema being updated
+     * @param registeredTable the just-registered table metadata
+     */
+    protected void afterTableRegistered(Schema schema, TableMetadata registeredTable)
+    {
+    }
+
     // Update schema with the given keyspace, table and udt.
     // It creates the corresponding metadata and opens instances for keyspace and table, if needed.
     // At the end, it validates that the input keyspace and table both should have metadata exist and instance opened.
-    private static Pair<KeyspaceMetadata, TableMetadata> updateSchema(Schema schema,
-                                                                      String keyspace,
-                                                                      Set<String> udtStatements,
-                                                                      String createStatement,
-                                                                      Partitioner partitioner,
-                                                                      ReplicationFactor replicationFactor,
-                                                                      UUID tableId,
-                                                                      boolean enableCdc,
-                                                                      Consumer<ColumnMetadata> columnValidator)
+    private Pair<KeyspaceMetadata, TableMetadata> updateSchema(Schema schema,
+                                                               String keyspace,
+                                                               Set<String> udtStatements,
+                                                               String createStatement,
+                                                               Partitioner partitioner,
+                                                               ReplicationFactor replicationFactor,
+                                                               UUID tableId,
+                                                               boolean enableCdc,
+                                                               Consumer<ColumnMetadata> columnValidator)
     {
         // Set up and open keyspace if needed
         IPartitioner cassPartitioner = CassandraTypesImplementation.getPartitioner(partitioner);
@@ -224,9 +267,16 @@ public abstract class AbstractSchemaBuilder
         }
 
         tableMetadata.columns().forEach(columnValidator);
-        setupTableAndUdt(schema, keyspace, tableMetadata, types);
 
-        return validateKeyspaceTable(schema, keyspace, tableMetadata.name);
+        // Let a subclass adjust what gets registered. Default is a no-op, so 4.0 registers exactly what it built.
+        tableMetadata = beforeTableRegistered(tableMetadata, maybeExistingTableMetadata);
+
+        setupTableAndUdt(schema, keyspace, tableMetadata, types);
+        Pair<KeyspaceMetadata, TableMetadata> result = validateKeyspaceTable(schema, keyspace, tableMetadata.name);
+
+        // Let a subclass apply further changes within this same atomic update. Default is a no-op.
+        afterTableRegistered(schema, result.right);
+        return result;
     }
 
     private void validateColumnMetaData(@NotNull ColumnMetadata column)
@@ -479,7 +529,7 @@ public abstract class AbstractSchemaBuilder
                             replicationFactor,
                             fields,
                             new HashSet<>(udts.values()),
-                            indexCount,
+                            indexStatements,
                             enableCdc);
     }
 

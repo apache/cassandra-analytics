@@ -30,6 +30,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -321,7 +322,7 @@ public class CqlUtilsTest extends VersionRunner
                                                                   ImmutableMap.of("datacenter1", 3)),
                                             Partitioner.Murmur3Partitioner,
                                             Collections.emptySet(),
-                                            null, 0, false);
+                                            Collections.emptySet());
         assertThat(table.keyspace()).isEqualTo("ks");
         assertThat(table.table()).isEqualTo("tb");
         assertThat(table.getField("key").name()).isEqualTo("key");
@@ -552,7 +553,7 @@ public class CqlUtilsTest extends VersionRunner
                            new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
                                                  ImmutableMap.of("datacenter1", 3)),
                            Partitioner.Murmur3Partitioner,
-                           Collections.emptySet(), null, 0, false);
+                           Collections.emptySet(), Collections.emptySet());
     }
 
     @ParameterizedTest
@@ -831,6 +832,220 @@ public class CqlUtilsTest extends VersionRunner
         assertThat(isTimeRangeFilterSupported(nullCompaction)).isTrue();
 
         assertThat(isTimeRangeFilterSupported("")).isFalse();
+    }
+
+    @Test
+    public void testIsSaiIndexShortClassName()
+    {
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) USING 'StorageAttachedIndex';")).isTrue();
+    }
+
+    @Test
+    public void testIsSaiIndexFullyQualifiedClassName()
+    {
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) "
+                + "USING 'org.apache.cassandra.index.sai.StorageAttachedIndex';")).isTrue();
+    }
+
+    @Test
+    public void testIsSaiIndexToleratesWhitespaceAndCase()
+    {
+        // Statement is whitespace-collapsed and upper-cased before matching, so newlines, extra spaces
+        // and a lower-case class name must all still be recognised as SAI.
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col)\n  USING  'storageattachedindex';")).isTrue();
+    }
+
+    @Test
+    public void testIsSaiIndexShortAlias()
+    {
+        // Cassandra resolves the case-insensitive alias 'sai' to StorageAttachedIndex
+        // (IndexMetadata.getIndexClassName), so USING 'sai' must be recognised as SAI.
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) USING 'sai';")).isTrue();
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) USING 'SAI';")).isTrue();
+    }
+
+    @Test
+    public void testIsSaiIndexRejectsLegacyIndexes()
+    {
+        assertThat(CqlUtils.isSaiIndex("CREATE INDEX idx ON ks.tbl (col);")).isFalse();
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) "
+                + "USING 'org.apache.cassandra.index.sasi.SASIIndex';")).isFalse();
+        // The 'sai' alias must not be over-eagerly matched inside the SASI short name.
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) USING 'SASIIndex';")).isFalse();
+    }
+
+    @Test
+    public void testIsSaiIndexRejectsNameMerelyEndingWithMarker()
+    {
+        // Regression: the marker must not match a class whose simple name merely ends with
+        // "StorageAttachedIndex" without a package separator (e.g. a hypothetical 'PrefixStorageAttachedIndex').
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) USING 'PrefixStorageAttachedIndex';")).isFalse();
+    }
+
+    @Test
+    public void testIsSaiIndexRecognisesAllCassandraAcceptedForms()
+    {
+        // Every USING '...' spelling Cassandra accepts for SAI and preserves verbatim in the schema, as
+        // demonstrated in the reviewer's DESC TABLE output on CASSANALYTICS-31. All must be recognised as SAI.
+        String[] saiForms = {
+                "USING 'STORAGEATTACHEDINDEX'",                                       // upper-case short name
+                "USING 'storageattachedindex'",                                       // lower-case short name
+                "USING 'sai'",                                                        // short alias
+                "USING 'StorageAttachedIndex'",                                       // canonical short name
+                "USING 'org.apache.cassandra.index.sai.StorageAttachedIndex'"         // fully-qualified class name
+        };
+        for (String using : saiForms)
+        {
+            assertThat(CqlUtils.isSaiIndex("CREATE CUSTOM INDEX idx ON ks.tbl (col) " + using + ';'))
+                    .as("expected SAI for %s", using)
+                    .isTrue();
+        }
+    }
+
+    @Test
+    public void testIsSaiIndexRejectsForeignPackageWithSameSimpleName()
+    {
+        // A class in any package other than the canonical org.apache.cassandra.index.sai is NOT SAI, even if its
+        // simple name is StorageAttachedIndex. Cassandra would reject such an unloadable class at CREATE time, so it
+        // never appears in a real schema, but the classifier must not treat it as SAI defensively.
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) USING 'foo.StorageAttachedIndex';")).isFalse();
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) USING 'com.bar.StorageAttachedIndex';")).isFalse();
+        // A superstring of the canonical FQCN is a different class and must not match either.
+        assertThat(CqlUtils.isSaiIndex(
+                "CREATE CUSTOM INDEX idx ON ks.tbl (col) "
+                + "USING 'x.org.apache.cassandra.index.sai.StorageAttachedIndex';")).isFalse();
+    }
+
+    @Test
+    public void testHasOnlySaiIndexes()
+    {
+        // Empty set is never "all SAI".
+        assertThat(CqlUtils.hasOnlySaiIndexes(Collections.emptySet())).isFalse();
+
+        // Single SAI / mix of short and fully-qualified SAI class names.
+        assertThat(CqlUtils.hasOnlySaiIndexes(ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';"))).isTrue();
+        assertThat(CqlUtils.hasOnlySaiIndexes(ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';",
+                "CREATE CUSTOM INDEX i2 ON ks.tbl (b) "
+                + "USING 'org.apache.cassandra.index.sai.StorageAttachedIndex';"))).isTrue();
+
+        // Any non-SAI index makes the whole set "not all SAI".
+        assertThat(CqlUtils.hasOnlySaiIndexes(ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';",
+                "CREATE INDEX i2 ON ks.tbl (b);"))).isFalse();
+    }
+
+    @Test
+    public void testHasAnySaiIndex()
+    {
+        // Empty set has no SAI index.
+        assertThat(CqlUtils.hasAnySaiIndex(Collections.emptySet())).isFalse();
+
+        // Legacy-only set has no SAI index.
+        assertThat(CqlUtils.hasAnySaiIndex(ImmutableSet.of("CREATE INDEX i1 ON ks.tbl (a);"))).isFalse();
+
+        // Single SAI index.
+        assertThat(CqlUtils.hasAnySaiIndex(ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';"))).isTrue();
+
+        // Mixed SAI + legacy 2i: at least one SAI index is present, unlike hasOnlySaiIndexes.
+        Set<String> mixed = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';",
+                "CREATE INDEX i2 ON ks.tbl (b);");
+        assertThat(CqlUtils.hasAnySaiIndex(mixed)).isTrue();
+        assertThat(CqlUtils.hasOnlySaiIndexes(mixed)).isFalse();
+    }
+
+    @Test
+    public void testExtractIndexStatementsLeavesCleanStatementUnchanged()
+    {
+        // An already single-spaced statement must survive extraction verbatim (normalization is a no-op here).
+        String schema = "CREATE CUSTOM INDEX idx ON ks.tbl (b) USING 'StorageAttachedIndex';";
+        assertThat(CqlUtils.extractIndexStatements(schema, "ks", "tbl"))
+                .containsExactly("CREATE CUSTOM INDEX idx ON ks.tbl (b) USING 'StorageAttachedIndex';");
+    }
+
+    @Test
+    public void testExtractIndexStatementsNormalizesWhitespaceFromStrippedNewline()
+    {
+        // cleanCql removes the newline before USING but keeps the next line's indentation, leaving a run of spaces
+        // in the captured statement. extractIndexStatements must collapse it to a single space (and trim) so the
+        // statement stays well-formed for the CQL parser / CQLSSTableWriter.withIndexes on the 5.0 write path.
+        String schema = "CREATE TABLE ks.tbl (a int PRIMARY KEY, b text);\n"
+                      + "CREATE CUSTOM INDEX idx ON ks.tbl (b)\n"
+                      + "    USING 'StorageAttachedIndex';";
+
+        Set<String> statements = CqlUtils.extractIndexStatements(schema, "ks", "tbl");
+
+        assertThat(statements)
+                .containsExactly("CREATE CUSTOM INDEX idx ON ks.tbl (b) USING 'StorageAttachedIndex';");
+        // No element retains a collapsed-away run of whitespace, and the normalized statement is still SAI.
+        assertThat(statements.iterator().next()).doesNotContain("  ");
+        assertThat(CqlUtils.hasOnlySaiIndexes(statements)).isTrue();
+    }
+
+    @Test
+    public void testExtractIndexStatementsNormalizesWithOptionsClause()
+    {
+        // A multi-line WITH OPTIONS clause: the stripped newline leaves a run of spaces before WITH, which must be
+        // collapsed while the options map (and its single internal spaces) is preserved.
+        String schema = "CREATE CUSTOM INDEX idx ON ks.tbl (b) USING 'StorageAttachedIndex'\n"
+                      + "    WITH OPTIONS = {'case_sensitive': 'false'};";
+
+        assertThat(CqlUtils.extractIndexStatements(schema, "ks", "tbl"))
+                .containsExactly("CREATE CUSTOM INDEX idx ON ks.tbl (b) USING 'StorageAttachedIndex' "
+                               + "WITH OPTIONS = {'case_sensitive': 'false'};");
+    }
+
+    @Test
+    public void testExtractIndexStatementsNormalizesEachOfMultipleIndexes()
+    {
+        // Multiple indexes on the same table are each extracted and independently normalized.
+        String schema = "CREATE CUSTOM INDEX i1 ON ks.tbl (a)\n    USING 'StorageAttachedIndex';\n"
+                      + "CREATE INDEX i2 ON ks.tbl (b);";
+
+        assertThat(CqlUtils.extractIndexStatements(schema, "ks", "tbl"))
+                .containsExactlyInAnyOrder(
+                        "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';",
+                        "CREATE INDEX i2 ON ks.tbl (b);");
+    }
+
+    @Test
+    public void testExtractIndexStatementsDoesNotMatchTableNamePrefix()
+    {
+        // A table whose name is a prefix of another table's name must not pick up the other table's indexes:
+        // building the schema for "tbl" with an index statement that targets "tbl_archive" would fail with
+        // "Table 'tbl_archive' doesn't exist" when the index is applied.
+        String schema = "CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';\n"
+                      + "CREATE CUSTOM INDEX i2 ON ks.tbl_archive (a) USING 'StorageAttachedIndex';\n"
+                      + "CREATE INDEX i3 ON ks.tblx (b);";
+
+        assertThat(CqlUtils.extractIndexStatements(schema, "ks", "tbl"))
+                .containsExactly("CREATE CUSTOM INDEX i1 ON ks.tbl (a) USING 'StorageAttachedIndex';");
+        assertThat(CqlUtils.extractIndexStatements(schema, "ks", "tbl_archive"))
+                .containsExactly("CREATE CUSTOM INDEX i2 ON ks.tbl_archive (a) USING 'StorageAttachedIndex';");
+    }
+
+    @Test
+    public void testExtractIndexStatementsMatchesQuotedTableName()
+    {
+        // The boundary check must still allow the quoted form, where the closing quote follows the table name.
+        String schema = "CREATE CUSTOM INDEX i1 ON ks.\"tbl\" (a) USING 'StorageAttachedIndex';\n"
+                      + "CREATE CUSTOM INDEX i2 ON ks.\"tbl_archive\" (a) USING 'StorageAttachedIndex';";
+
+        assertThat(CqlUtils.extractIndexStatements(schema, "ks", "tbl"))
+                .containsExactly("CREATE CUSTOM INDEX i1 ON ks.\"tbl\" (a) USING 'StorageAttachedIndex';");
     }
 
     private static String loadFullSchemaSample() throws IOException

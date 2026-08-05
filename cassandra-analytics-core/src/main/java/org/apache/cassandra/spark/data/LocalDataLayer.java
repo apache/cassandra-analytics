@@ -51,6 +51,7 @@ import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.spark.common.SSTables;
 import org.apache.cassandra.spark.config.SchemaFeature;
 import org.apache.cassandra.spark.config.SchemaFeatureSet;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
@@ -197,6 +198,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
              keyspace,
              createStatement,
              Collections.emptySet(),
+             Collections.emptySet(),
              Collections.emptyList(),
              false,
              null,
@@ -215,6 +217,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
              keyspace,
              createStatement,
              udtStatements,
+             Collections.emptySet(),
              Collections.emptyList(),
              false,
              null,
@@ -234,6 +237,32 @@ public class LocalDataLayer extends DataLayer implements Serializable
                           @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
                           String... paths)
     {
+        this(bridgeVersion,
+             partitioner,
+             keyspace,
+             createStatement,
+             udts,
+             Collections.emptySet(),
+             requestedFeatures,
+             useBufferingInputStream,
+             statsClass,
+             sstableTimeRangeFilter,
+             paths);
+    }
+
+    // CHECKSTYLE IGNORE: Constructor with many parameters
+    public LocalDataLayer(@NotNull CassandraVersion bridgeVersion,
+                          @NotNull Partitioner partitioner,
+                          @NotNull String keyspace,
+                          @NotNull String createStatement,
+                          @NotNull Set<String> udts,
+                          @NotNull Set<String> indexStatements,
+                          @NotNull List<SchemaFeature> requestedFeatures,
+                          boolean useBufferingInputStream,
+                          @Nullable String statsClass,
+                          @NotNull SSTableTimeRangeFilter sstableTimeRangeFilter,
+                          String... paths)
+    {
         this.bridge = CassandraBridgeFactory.get(bridgeVersion);
         this.partitioner = partitioner;
         this.cqlTable = bridge().buildSchema(createStatement,
@@ -241,7 +270,8 @@ public class LocalDataLayer extends DataLayer implements Serializable
                                              new ReplicationFactor(ReplicationFactor.ReplicationStrategy.SimpleStrategy,
                                                                    ImmutableMap.of("replication_factor", 1)),
                                              partitioner,
-                                             udts);
+                                             udts,
+                                             indexStatements);
         this.jobId = UUID.randomUUID().toString();
         this.requestedFeatures = requestedFeatures;
         this.useBufferingInputStream = useBufferingInputStream;
@@ -365,7 +395,7 @@ public class LocalDataLayer extends DataLayer implements Serializable
                                   .stream(paths)
                                   .map(Paths::get)
                                   .flatMap(Throwing.function(Files::list))
-                                  .filter(path -> path.getFileName().toString().endsWith("-" + FileType.DATA.getFileSuffix()));
+                                  .filter(SSTables::isDataComponent);
         }
 
         return new BasicSupplier(dataFilePathsStream

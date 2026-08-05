@@ -65,6 +65,8 @@ public class ImportSSTableRequest extends JsonRequest<SSTableImportResponse>
         private Boolean invalidateCaches;
         private Boolean extendedVerify;
         private Boolean copyData;
+        private Boolean failOnMissingIndex;
+        private Boolean validateIndexChecksum;
 
         public ImportOptions()
         {
@@ -153,6 +155,33 @@ public class ImportSSTableRequest extends JsonRequest<SSTableImportResponse>
             this.copyData = copyData;
             return this;
         }
+
+        /**
+         * Sets the {@code failOnMissingIndex} and returns a reference to this ImportOptions enabling method chaining.
+         * When enabled, SSTable import fails if a SAI table is missing its index components instead of silently
+         * rebuilding them.
+         *
+         * @param failOnMissingIndex the {@code failOnMissingIndex} to set
+         * @return a reference to this ImportOptions
+         */
+        public ImportOptions failOnMissingIndex(boolean failOnMissingIndex)
+        {
+            this.failOnMissingIndex = failOnMissingIndex;
+            return this;
+        }
+
+        /**
+         * Sets the {@code validateIndexChecksum} and returns a reference to this ImportOptions enabling method chaining.
+         * When enabled, Cassandra verifies SAI index component checksums during import.
+         *
+         * @param validateIndexChecksum the {@code validateIndexChecksum} to set
+         * @return a reference to this ImportOptions
+         */
+        public ImportOptions validateIndexChecksum(boolean validateIndexChecksum)
+        {
+            this.validateIndexChecksum = validateIndexChecksum;
+            return this;
+        }
     }
 
     static String requestURI(String keyspace, String tableName, String uploadId, ImportOptions importOptions)
@@ -204,6 +233,14 @@ public class ImportSSTableRequest extends JsonRequest<SSTableImportResponse>
         if (importOptions.copyData != null)
         {
             options.add("copyData=" + importOptions.copyData);
+        }
+        if (importOptions.failOnMissingIndex != null)
+        {
+            options.add("failOnMissingIndex=" + importOptions.failOnMissingIndex);
+        }
+        if (importOptions.validateIndexChecksum != null)
+        {
+            options.add("validateIndexChecksum=" + importOptions.validateIndexChecksum);
         }
 
         return options;

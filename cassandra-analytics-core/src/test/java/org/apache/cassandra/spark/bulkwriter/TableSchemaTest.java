@@ -22,8 +22,11 @@ package org.apache.cassandra.spark.bulkwriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Set;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.junit.jupiter.api.Test;
@@ -32,6 +35,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.common.schema.ColumnType;
 import org.apache.cassandra.spark.common.schema.ColumnTypes;
 import org.apache.cassandra.spark.data.CqlField;
@@ -260,10 +264,10 @@ public class TableSchemaTest
     {
         Path fullSchemaSampleFile = ResourceUtils.writeResourceToPath(CqlUtilsTest.class.getClassLoader(), tempPath, "cql/fullSchema.cql");
         String fullSchemaSample = FileUtils.readFileToString(fullSchemaSampleFile.toFile(), StandardCharsets.UTF_8);
-        int indexCount = CqlUtils.extractIndexCount(fullSchemaSample, "cycling", "rank_by_year_and_name");
-        assertThat(indexCount).isEqualTo(3);
+        Set<String> indexStatements = CqlUtils.extractIndexStatements(fullSchemaSample, "cycling", "rank_by_year_and_name");
+        assertThat(indexStatements).hasSize(3);
         CqlTable table = mock(CqlTable.class);
-        when(table.indexCount()).thenReturn(indexCount);
+        when(table.indexStatements()).thenReturn(indexStatements);
         TableInfoProvider tableInfoProvider = new CqlTableInfoProvider("", table);
         assertThatThrownBy(() -> TableSchema.validateNoSecondaryIndexes(tableInfoProvider))
                 .isInstanceOf(UnsupportedAnalyticsOperationException.class)
@@ -327,6 +331,129 @@ public class TableSchemaTest
         assertThat(schema).isNotNull();
         assertThat(trimUniqueTableName(schema.modificationStatement))
                 .contains("USING TIMESTAMP :\"updatedTimestamp\"");
+    }
+
+    @Test
+    public void testIsCassandra5OrLater()
+    {
+        assertThat(TableSchema.isCassandra5OrLater(CassandraVersion.FIVEZERO)).isTrue();
+
+        assertThat(TableSchema.isCassandra5OrLater(CassandraVersion.FOURZERO)).isFalse();
+        assertThat(TableSchema.isCassandra5OrLater(CassandraVersion.FOURONE)).isFalse();
+        assertThat(TableSchema.isCassandra5OrLater(CassandraVersion.THREEZERO)).isFalse();
+
+        // A null bridge version is treated as "not 5.0+".
+        assertThat(TableSchema.isCassandra5OrLater(null)).isFalse();
+    }
+
+    @Test
+    public void testHasOnlySaiIndexesOnCassandra5()
+    {
+        Set<String> saiIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
+        Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
+
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(saiIndexes, CassandraVersion.FIVEZERO)).isTrue();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(saiIndexes, CassandraVersion.FOURZERO)).isFalse();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(legacyIndexes, CassandraVersion.FIVEZERO)).isFalse();
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(Collections.emptySet(), CassandraVersion.FIVEZERO)).isFalse();
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesNoIndexesIsNoOp()
+    {
+        // No exception expected when there are no index statements.
+        TableSchema.validateSecondaryIndexes(false, Collections.emptySet(), CassandraVersion.FIVEZERO);
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesAllowsSaiOnCassandra5()
+    {
+        Set<String> saiIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
+        // SAI on 5.0+ is allowed without the skip flag.
+        TableSchema.validateSecondaryIndexes(false, saiIndexes, CassandraVersion.FIVEZERO);
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesBlocksNonSai()
+    {
+        Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
+        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, legacyIndexes, CassandraVersion.FIVEZERO))
+                .isInstanceOf(UnsupportedAnalyticsOperationException.class)
+                .hasMessageContaining("doesn't support non-SAI indexes")
+                .hasMessageContaining("SKIP_SECONDARY_INDEX_CHECK");
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesBlocksMixedSaiAndNonSai()
+    {
+        // A single non-SAI index makes the whole table fail the all-SAI check and be blocked.
+        Set<String> mixedIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';",
+                "CREATE INDEX i2 ON test.test (marks);");
+        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, mixedIndexes, CassandraVersion.FIVEZERO))
+                .isInstanceOf(UnsupportedAnalyticsOperationException.class)
+                .hasMessageContaining("doesn't support non-SAI indexes")
+                .hasMessageContaining("SKIP_SECONDARY_INDEX_CHECK");
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesBlocksSaiOnPreCassandra5()
+    {
+        Set<String> saiIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
+        // SAI components are only generated on 5.0+, so SAI on 4.0 is blocked like any other 2i.
+        assertThatThrownBy(() -> TableSchema.validateSecondaryIndexes(false, saiIndexes, CassandraVersion.FOURZERO))
+                .isInstanceOf(UnsupportedAnalyticsOperationException.class)
+                .hasMessageContaining("doesn't support non-SAI indexes")
+                .hasMessageContaining("SKIP_SECONDARY_INDEX_CHECK");
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesAllowsNonSaiWithSkipCheck()
+    {
+        Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
+        // Explicit opt-out lets non-SAI indexes through (with an async-rebuild warning).
+        TableSchema.validateSecondaryIndexes(true, legacyIndexes, CassandraVersion.FIVEZERO);
+    }
+
+    @Test
+    public void testValidateSecondaryIndexesAllowsMixedWithSkipCheck()
+    {
+        // A mixed SAI + legacy 2i table is not an all-SAI write, so it is only permitted with the explicit
+        // opt-out. With the skip flag it is allowed (SAI components are generated for the SAI index, the 2i
+        // index is rebuilt asynchronously on import).
+        Set<String> mixedIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';",
+                "CREATE INDEX i2 ON test.test (marks);");
+        TableSchema.validateSecondaryIndexes(true, mixedIndexes, CassandraVersion.FIVEZERO);
+    }
+
+    @Test
+    public void testShouldGenerateSaiComponents()
+    {
+        Set<String> saiIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';");
+        Set<String> legacyIndexes = ImmutableSet.of("CREATE INDEX i1 ON test.test (course);");
+        // Mixed SAI + legacy 2i: SAI components ARE generated for the SAI index, so import options must be enabled
+        // even though this is not an all-SAI write (hasOnlySaiIndexesOnCassandra5 would be false here).
+        Set<String> mixedIndexes = ImmutableSet.of(
+                "CREATE CUSTOM INDEX i1 ON test.test (course) USING 'StorageAttachedIndex';",
+                "CREATE INDEX i2 ON test.test (marks);");
+
+        // Any SAI index on Cassandra 5.0+ produces SAI components.
+        assertThat(TableSchema.shouldGenerateSaiComponents(saiIndexes, CassandraVersion.FIVEZERO)).isTrue();
+        assertThat(TableSchema.shouldGenerateSaiComponents(mixedIndexes, CassandraVersion.FIVEZERO)).isTrue();
+
+        // Unlike hasOnlySaiIndexesOnCassandra5 (all-SAI only), the mixed case is true here but false for hasOnlySaiIndexesOnCassandra5.
+        assertThat(TableSchema.hasOnlySaiIndexesOnCassandra5(mixedIndexes, CassandraVersion.FIVEZERO)).isFalse();
+
+        // No SAI index, pre-5.0, or no indexes at all → no SAI components generated.
+        assertThat(TableSchema.shouldGenerateSaiComponents(legacyIndexes, CassandraVersion.FIVEZERO)).isFalse();
+        assertThat(TableSchema.shouldGenerateSaiComponents(saiIndexes, CassandraVersion.FOURZERO)).isFalse();
+        assertThat(TableSchema.shouldGenerateSaiComponents(mixedIndexes, CassandraVersion.FOURZERO)).isFalse();
+        assertThat(TableSchema.shouldGenerateSaiComponents(Collections.emptySet(), CassandraVersion.FIVEZERO)).isFalse();
     }
 
     private TableSchemaTestCommon.MockTableSchemaBuilder getValidSchemaBuilder(String cassandraVersion)

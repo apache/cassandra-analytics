@@ -52,14 +52,15 @@ public class SchemaBuilder extends AbstractSchemaBuilder
              partitioner,
              table::udtCreateStmts,
              tableId,
-             0,
+             table.indexStatements(),
              enableCdc);
     }
 
     @VisibleForTesting
     public SchemaBuilder(String createStmt, String keyspace, ReplicationFactor replicationFactor)
     {
-        this(createStmt, keyspace, replicationFactor, Partitioner.Murmur3Partitioner, bridge -> Collections.emptySet(), null, 0, false);
+        this(createStmt, keyspace, replicationFactor, Partitioner.Murmur3Partitioner, bridge -> Collections.emptySet(),
+             null, Collections.emptySet(), false);
     }
 
     @VisibleForTesting
@@ -68,7 +69,8 @@ public class SchemaBuilder extends AbstractSchemaBuilder
                          ReplicationFactor replicationFactor,
                          Partitioner partitioner)
     {
-        this(createStmt, keyspace, replicationFactor, partitioner, bridge -> Collections.emptySet(), null, 0, false);
+        this(createStmt, keyspace, replicationFactor, partitioner, bridge -> Collections.emptySet(), null,
+             Collections.emptySet(), false);
     }
 
     public SchemaBuilder(String createStmt,
@@ -77,10 +79,10 @@ public class SchemaBuilder extends AbstractSchemaBuilder
                          Partitioner partitioner,
                          Function<CassandraTypes, Set<String>> udtStatementsProvider,
                          @Nullable UUID tableId,
-                         int indexCount,
+                         Set<String> indexStatements,
                          boolean enableCdc)
     {
         super(createStmt, keyspace, replicationFactor, partitioner, udtStatementsProvider,
-              tableId, indexCount, enableCdc);
+              tableId, indexStatements, enableCdc);
     }
 }

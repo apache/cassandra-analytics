@@ -39,6 +39,7 @@ public final class SSTableWriterFactory
                                                  String createStatement,
                                                  String insertStatement,
                                                  Set<String> userDefinedTypeStatements,
+                                                 Set<String> indexCreateStatements,
                                                  int bufferSizeMB)
     {
         CassandraBridge cassandraBridge = CassandraBridgeFactory.get(bridgeVersion);
@@ -47,6 +48,7 @@ public final class SSTableWriterFactory
                                                 createStatement,
                                                 insertStatement,
                                                 userDefinedTypeStatements,
+                                                indexCreateStatements,
                                                 bufferSizeMB);
     }
 }

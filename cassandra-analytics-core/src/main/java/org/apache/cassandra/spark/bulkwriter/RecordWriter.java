@@ -121,7 +121,8 @@ public class RecordWriter
                                              writerContext.job().qualifiedTableName().keyspace(),
                                              IGNORED_REPLICATION_FACTOR,
                                              writerContext.cluster().getPartitioner(),
-                                             writerContext.schema().getUserDefinedTypeStatements());
+                                             writerContext.schema().getUserDefinedTypeStatements(),
+                                             writerContext.schema().getTableSchema().getIndexStatements());
     }
 
     /**

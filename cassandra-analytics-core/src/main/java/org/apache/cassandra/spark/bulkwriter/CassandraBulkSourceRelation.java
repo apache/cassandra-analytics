@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -126,6 +127,17 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         return 0L;
     }
 
+    /**
+     * Writes the supplied rows into Cassandra as bulk-generated SSTables.
+     * <p>
+     * Every row is normalized and keyed by its {@link DecoratedKey}, then repartitioned with the job's token
+     * partitioner and sorted within each partition (via Spark's {@code repartitionAndSortWithinPartitions}). The
+     * rows of each resulting partition are therefore emitted in partition-key (token) order. This ordering is part
+     * of the method's contract: bulk SSTable generation runs the writer in sorted mode and depends on it.
+     *
+     * @param data      the rows to write
+     * @param overwrite must be {@code false}; overwriting existing data requires TRUNCATE, which is not supported
+     */
     @Override
     public void insert(@NotNull Dataset<Row> data, boolean overwrite)
     {
@@ -502,11 +514,21 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
                                                                             @org.jetbrains.annotations.Nullable String credentialTypeName)
     {
         CreateRestoreJobRequestPayload.Builder builder = CreateRestoreJobRequestPayload.builder(secrets, updatedLeaseTime());
+        Set<String> indexStatements = writerContext.schema().getTableSchema().getIndexStatements();
+        boolean hasSaiIndexes = TableSchema.shouldGenerateSaiComponents(indexStatements, writerContext.cluster().getBridgeVersion());
         builder.jobAgent(BuildInfo.APPLICATION_NAME)
                .jobId(job.getRestoreJobId(clusterId))
                .updateImportOptions(importOptions -> {
                    importOptions.verifySSTables(true) // we disallow the end-user to bypass the non-extended verify anymore
                                 .extendedVerify(false); // always turn off
+
+                   // When the table has SAI indexes, the bulk writer generates SAI components alongside the
+                   // SSTables (Cassandra 5.0+). Enable SAI validation on import so that a slice missing its
+                   // index components fails instead of silently rebuilding, mirroring the direct write path.
+                   if (hasSaiIndexes)
+                   {
+                       importOptions.failOnMissingIndex(true).validateIndexChecksum(true);
+                   }
                });
         if (credentialTypeName != null)
         {

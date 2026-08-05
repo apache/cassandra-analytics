@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
 import com.google.common.collect.Range;
@@ -36,12 +37,15 @@ public class CassandraDirectDataTransportContext implements TransportContext.Dir
     @NotNull
     private final ClusterInfo clusterInfo;
     @NotNull
+    private final SchemaInfo schemaInfo;
+    @NotNull
     private final DirectDataTransferApi dataTransferApi;
 
     public CassandraDirectDataTransportContext(@NotNull BulkWriterContext bulkWriterContext)
     {
         this.jobInfo = bulkWriterContext.job();
         this.clusterInfo = bulkWriterContext.cluster();
+        this.schemaInfo = bulkWriterContext.schema();
         this.dataTransferApi = createDirectDataTransferApi();
     }
 
@@ -72,6 +76,9 @@ public class CassandraDirectDataTransportContext implements TransportContext.Dir
     protected DirectDataTransferApi createDirectDataTransferApi()
     {
         CassandraBridge bridge = CassandraBridgeFactory.get(clusterInfo.getBridgeVersion());
-        return new SidecarDataTransferApi(clusterInfo.getCassandraContext(), bridge, jobInfo);
+        Set<String> indexStatements = schemaInfo.getTableSchema().getIndexStatements();
+        boolean hasSaiIndexes = TableSchema.shouldGenerateSaiComponents(indexStatements, clusterInfo.getBridgeVersion());
+
+        return new SidecarDataTransferApi(clusterInfo.getCassandraContext(), bridge, jobInfo, hasSaiIndexes);
     }
 }
