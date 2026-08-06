@@ -42,8 +42,7 @@ import org.apache.cassandra.schema.Types;
  * </ul>
  *
  * <p>This class is the default (Apache C* 5.0) implementation, mutating through {@code Schema.transform(...)}.
- * A distribution whose mutation path differs (e.g. one that replaced {@code transform} with a
- * {@code ClusterMetadata}-based submit) registers a subclass via {@link #setInstance(SchemaUpdater)} that
+ * A distribution whose mutation path differs registers a subclass via {@link #setInstance(SchemaUpdater)} that
  * overrides the two {@code do*} primitives.
  */
 public class SchemaUpdater
