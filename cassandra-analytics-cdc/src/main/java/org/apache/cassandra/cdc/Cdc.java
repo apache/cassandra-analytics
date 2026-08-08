@@ -36,6 +36,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.esotericsoftware.kryo.io.Output;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CdcBridge;
 import org.apache.cassandra.bridge.CdcBridgeFactory;
@@ -108,6 +109,17 @@ public class Cdc implements Closeable
                                      SchemaSupplier schemaSupplier)
     {
         return new CdcBuilder(jobId, partitionId, eventConsumer, schemaSupplier);
+    }
+
+    /**
+     * @return the {@link ICdcStats} this {@link Cdc} instance was built with. Exposed so tests can assert
+     * the stats implementation supplied to the builder is actually the instance in use, and not the
+     * {@link ICdcStats#STUB} default silently falling through.
+     */
+    @VisibleForTesting
+    public ICdcStats stats()
+    {
+        return stats;
     }
 
     public String jobId()
