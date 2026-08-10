@@ -55,6 +55,7 @@ public class SidecarCdcBuilder extends CdcBuilder
         super(jobId, partitionId, eventConsumer, schemaSupplier);
         this.clusterConfigProvider = clusterConfigProvider;
         this.sidecarCdcClient = sidecarCdcClient;
+        withStats(cdcStats);
         withCdcOptions(cdcOptions);
         withTokenRangeSupplier(tokenRangeSupplier);
     }
