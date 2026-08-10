@@ -105,7 +105,10 @@ public class SchemaVersionApi
     // Overridable defaults (Apache C* behavior).
     // ------------------------------------------------------------------------------------------------------
 
-    /** Returns the active schema. */
+    /**
+     * Returns the active schema. Always return the same instance on every call: callers lock on this object,
+     * so handing back a new one each time would break that locking.
+     */
     protected Schema doSchemaInstance()
     {
         return Schema.instance;
