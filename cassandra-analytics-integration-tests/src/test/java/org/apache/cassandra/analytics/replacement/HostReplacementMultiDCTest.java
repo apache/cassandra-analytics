@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -56,6 +57,7 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
  * Integration tests that verify bulk writes during a host replacement operation in a multi-datacenter
  * Cassandra cluster where the replacement operation is expected to succeed
  */
+@Disabled("CASSANDRA-19902 needs to be ported for StorageService MBean to be available before bootstrap completes")
 class HostReplacementMultiDCTest extends HostReplacementTestBase
 {
     @ParameterizedTest(name = "{index} => {0}")

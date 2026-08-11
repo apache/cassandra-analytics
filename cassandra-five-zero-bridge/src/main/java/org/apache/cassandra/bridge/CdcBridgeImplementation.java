@@ -72,4 +72,10 @@ public class CdcBridgeImplementation extends AbstractCdcBridgeImplementation
         DatabaseDescriptor.setCommitLogSegmentMgrProvider((commitLog -> new CommitLogSegmentManagerCDC(commitLog, commitLogPath.toString())));
         setup = true;
     }
+
+    @Override
+    public String toString()
+    {
+        return "FIVEZERO";
+    }
 }

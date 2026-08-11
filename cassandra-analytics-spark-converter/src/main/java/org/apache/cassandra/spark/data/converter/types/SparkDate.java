@@ -43,7 +43,7 @@ public class SparkDate implements SparkType
     }
 
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen, boolean isInnerType)
     {
         // SparkSQL date type is an int incrementing from day 0 on 1970-01-01
         // Cassandra stores date as "days since 1970-01-01 plus Integer.MIN_VALUE"

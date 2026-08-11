@@ -36,7 +36,7 @@ public class DirectWriteAndReadJob extends AbstractCassandraJob
     {
         System.setProperty("SKIP_STARTUP_VALIDATIONS", "true");
         // Optionally select BTI sstable format:
-        // System.setProperty("cassandra.analytics.bridges.sstable_format", "bti");
+        System.setProperty("cassandra.analytics.bridges.sstable_format", "bti");
         new DirectWriteAndReadJob().start(args);
     }
 

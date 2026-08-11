@@ -28,7 +28,7 @@ public final class JobSelector
 
     public static void main(String[] args)
     {
-        String jobClassName = "DirectCassandraWriteJob";
+        String jobClassName = "DirectWriteAndReadJob";
         if (args.length != 1)
         {
             System.out.println("Invalid number of arguments supplied. Fall back to run " + jobClassName);

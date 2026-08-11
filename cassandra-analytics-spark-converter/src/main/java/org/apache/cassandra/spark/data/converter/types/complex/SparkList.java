@@ -57,11 +57,11 @@ public class SparkList implements CollectionFeatures
 
     @SuppressWarnings("unchecked")
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen, boolean isInnerType)
     {
         return ArrayData.toArrayData(((Collection<Object>) value)
                                      .stream()
-                                     .map(element -> sparkType().toSparkSqlType(element, isFrozen))
+                                     .map(element -> sparkType().toSparkSqlType(element, isFrozen, isInnerType))
                                      .toArray());
     }
 

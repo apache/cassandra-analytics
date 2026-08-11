@@ -35,7 +35,7 @@ import org.apache.cassandra.analytics.SparkTestUtils;
 import org.apache.cassandra.analytics.SparkTestUtilsProvider;
 import org.apache.cassandra.sidecar.common.server.dns.DnsResolver;
 import org.apache.cassandra.sidecar.server.Server;
-import org.apache.cassandra.sidecar.testing.LocalhostResolver;
+import org.apache.cassandra.sidecar.testing.LocalhostMultiSubnetResolver;
 import org.apache.cassandra.sidecar.testing.MtlsTestHelper;
 import org.apache.cassandra.testing.IsolatedDTestClassLoaderWrapper;
 import org.apache.cassandra.testing.TestVersion;
@@ -56,7 +56,8 @@ public abstract class CoordinatedWriteTestBase
     static Path secretsPath;
     protected MtlsTestHelper mtlsTestHelper;
     protected IsolatedDTestClassLoaderWrapper classLoaderWrapper;
-    protected DnsResolver dnsResolver = new LocalhostResolver();;
+    protected DnsResolver dnsResolver1 = new LocalhostMultiSubnetResolver(0);
+    protected DnsResolver dnsResolver2 = new LocalhostMultiSubnetResolver(1);
     protected Injector sidecarServerInjector;
     protected SparkTestUtils sparkTestUtils = SparkTestUtilsProvider.utils();
     protected TestVersion testVersion;
@@ -64,6 +65,7 @@ public abstract class CoordinatedWriteTestBase
     @BeforeAll
     protected void setup() throws Exception
     {
+        System.setProperty("cassandra.analytics.bridges.sstable_format", "bti");
         Optional<TestVersion> maybeTestVersion = TestVersionSupplier.testVersions().findFirst();
         assertThat(maybeTestVersion).isPresent();
         this.testVersion = maybeTestVersion.get();
@@ -71,7 +73,7 @@ public abstract class CoordinatedWriteTestBase
 
         classLoaderWrapper = new IsolatedDTestClassLoaderWrapper();
         classLoaderWrapper.initializeDTestJarClassLoader(testVersion, TestVersion.class);
-        mtlsTestHelper = new MtlsTestHelper(secretsPath);
+        mtlsTestHelper = new MtlsTestHelper(secretsPath, false);
         sparkTestUtils.setMtlsTestHelper(mtlsTestHelper);
     }
 

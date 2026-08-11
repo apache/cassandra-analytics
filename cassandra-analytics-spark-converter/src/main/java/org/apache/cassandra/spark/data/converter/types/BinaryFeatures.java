@@ -33,7 +33,7 @@ import org.jetbrains.annotations.NotNull;
 interface BinaryFeatures extends SparkType
 {
     @Override
-    default Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    default Object toSparkSqlType(@NotNull Object value, boolean isFrozen, boolean isInnerType)
     {
         return ByteBufferUtils.getArray((ByteBuffer) value); // byte[]
     }

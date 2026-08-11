@@ -32,7 +32,7 @@ public final class TestVersionSupplier
 
     public static Stream<CassandraVersion> testVersions()
     {
-        String versions = System.getProperty("cassandra.sidecar.versions_to_test", "4.0.17,5.0.7");
+        String versions = System.getProperty("cassandra.sidecar.versions_to_test", "5.0.4.0");
         return Arrays.stream(versions.split(","))
                      .map(String::trim)
                      .map(v -> CassandraVersion.fromVersion(v).orElseThrow(() -> new IllegalArgumentException("Unsupported version: " + v)));

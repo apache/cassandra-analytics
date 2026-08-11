@@ -23,6 +23,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.jupiter.api.Disabled;
+
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -42,6 +44,7 @@ import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
+@Disabled("CASSANDRA-19902 needs to be ported for StorageService MBean to be available before bootstrap completes")
 class JoiningMultiDCSingleReplicatedTest extends JoiningMultiDCTest
 {
     @Override

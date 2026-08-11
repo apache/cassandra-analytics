@@ -55,20 +55,20 @@ public class SparkMap implements MapFeatures
 
     @SuppressWarnings("unchecked")
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen, boolean isInnerType)
     {
-        return mapToSparkSqlType((java.util.Map<Object, Object>) value, isFrozen);
+        return mapToSparkSqlType((java.util.Map<Object, Object>) value, isFrozen, isInnerType);
     }
 
-    private ArrayBasedMapData mapToSparkSqlType(final java.util.Map<Object, Object> map, boolean isFrozen)
+    private ArrayBasedMapData mapToSparkSqlType(final java.util.Map<Object, Object> map, boolean isFrozen, boolean isInnerType)
     {
         Object[] keys = new Object[map.size()];
         Object[] values = new Object[map.size()];
         int position = 0;
         for (java.util.Map.Entry<Object, Object> entry : map.entrySet())
         {
-            keys[position] = keyType().toSparkSqlType(entry.getKey(), isFrozen);
-            values[position] = valueType().toSparkSqlType(entry.getValue(), isFrozen);
+            keys[position] = keyType().toSparkSqlType(entry.getKey(), isFrozen, isInnerType);
+            values[position] = valueType().toSparkSqlType(entry.getValue(), isFrozen, isInnerType);
             position++;
         }
         return new ArrayBasedMapData(ArrayData.toArrayData(keys), ArrayData.toArrayData(values));

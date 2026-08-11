@@ -41,7 +41,7 @@ public class SparkTimestamp implements LongFeatures
     }
 
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen, boolean isInnerType)
     {
         return ((java.util.Date) value).getTime() * 1000L; // long
     }

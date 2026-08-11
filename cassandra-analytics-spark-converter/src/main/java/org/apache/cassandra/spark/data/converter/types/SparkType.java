@@ -50,11 +50,12 @@ public interface SparkType extends Comparator<Object>
     DataType dataType(BigNumberConfig bigNumberConfig);
 
     /**
-     * @param value    the Cassandra value.
-     * @param isFrozen true if the type is frozen.
+     * @param value       the Cassandra value.
+     * @param isFrozen    true if the type is frozen.
+     * @param isInnerType true if the type is declared within complex type.
      * @return the value mapped to the Spark equivalent data type.
      */
-    default Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    default Object toSparkSqlType(@NotNull Object value, boolean isFrozen, boolean isInnerType)
     {
         // All other non-overridden data types work as ordinary Java data types
         return value;

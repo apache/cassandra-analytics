@@ -86,8 +86,15 @@ public class BaseCassandraBridgeFactory
     public static CassandraVersion getCassandraVersion(@NotNull CassandraVersionFeatures features)
     {
         Optional<CassandraVersion> version = Arrays.stream(CassandraVersion.values())
-                                                   .filter(value -> value.versionNumber() == features.getMajorVersion())
+                                                   .filter(value -> value.versionName().startsWith(features.getRawVersion()))
                                                    .findAny();
+        if (version.isPresent())
+        {
+            return version.get();
+        }
+        version = Arrays.stream(CassandraVersion.values())
+                        .filter(value -> value.versionNumber() == features.getMajorVersion())
+                        .findAny();
         Preconditions.checkArgument(version.isPresent(), "Cassandra features " + features + " are not supported");
         return version.get();
     }
@@ -142,7 +149,7 @@ public class BaseCassandraBridgeFactory
                                }
                            }).toArray(URL[]::new);
 
-        return new PostDelegationClassLoader(urls, Thread.currentThread().getContextClassLoader(), tempFiles);
+        return new PostDelegationClassLoader(urls, Thread.currentThread().getContextClassLoader(), tempFiles, resourceNames);
     }
 
     public static File copyClassResourceToFile(String resource)

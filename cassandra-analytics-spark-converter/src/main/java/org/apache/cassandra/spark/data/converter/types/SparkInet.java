@@ -34,7 +34,7 @@ public class SparkInet implements BinaryFeatures
     }
 
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen, boolean isInnerType)
     {
         return ((InetAddress) value).getAddress(); // byte[]
     }

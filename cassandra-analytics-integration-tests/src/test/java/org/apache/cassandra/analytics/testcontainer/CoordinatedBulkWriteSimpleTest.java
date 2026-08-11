@@ -40,6 +40,7 @@ import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.testcontainer.BulkWriteS3CompatModeSimpleTest.S3MockProxyConfigurationImpl;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.IInstance;
+import org.apache.cassandra.sidecar.common.server.dns.DnsResolver;
 import org.apache.cassandra.sidecar.config.S3ClientConfiguration;
 import org.apache.cassandra.sidecar.config.yaml.S3ClientConfigurationImpl;
 import org.apache.cassandra.sidecar.config.yaml.SidecarConfigurationImpl.Builder;
@@ -50,6 +51,7 @@ import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.sidecar.testing.SharedClusterIntegrationTestBase.IntegrationTestModule;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.cassandra.testing.IClusterExtension;
+import org.apache.spark.SparkConf;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -72,8 +74,8 @@ public class CoordinatedBulkWriteSimpleTest extends CoordinatedWriteTestBase
     @Test
     void testCoordinatedWriteToTwoClusters() throws Exception
     {
-        try (IClusterExtension<? extends IInstance> cluster1 = classLoaderWrapper.loadCluster(testVersion.version(), clusterConfiguration());
-             IClusterExtension<? extends IInstance> cluster2 = classLoaderWrapper.loadCluster(testVersion.version(), clusterConfiguration());
+        try (IClusterExtension<? extends IInstance> cluster1 = classLoaderWrapper.loadCluster(testVersion.version(), clusterConfiguration(0));
+             IClusterExtension<? extends IInstance> cluster2 = classLoaderWrapper.loadCluster(testVersion.version(), clusterConfiguration(1));
              S3MockContainer s3 = new S3MockContainer("2.17.0").withInitialBuckets(BUCKET_NAME))
         {
             LOGGER.info("Both Cassandra clusters are up");
@@ -86,14 +88,16 @@ public class CoordinatedBulkWriteSimpleTest extends CoordinatedWriteTestBase
             createSchema(tableName, cluster1, cluster2);
             LOGGER.info("Test schema created on both clusters");
 
-            Server sidecar1 = startSidecarWithInstances(cluster1, s3);
-            Server sidecar2 = startSidecarWithInstances(cluster2, s3);
+            Server sidecar1 = startSidecarWithInstances(cluster1, s3, dnsResolver1);
+            Server sidecar2 = startSidecarWithInstances(cluster2, s3, dnsResolver2);
             Uninterruptibles.sleepUninterruptibly(10, TimeUnit.SECONDS); // wait additional time
             LOGGER.info("Both Sidecars are up. sidecar1 port1: {}, sidecar2 port1: {}", sidecar1.actualPort(), sidecar2.actualPort());
 
+            SparkConf sparkConf = sparkTestUtils.defaultSparkConf();
+            // sparkConf.set("spark.cassandra_analytics.bridge.disable_sstable_version_based", "true");
             SparkSession spark = SparkSession
                                  .builder()
-                                 .config(sparkTestUtils.defaultSparkConf())
+                                 .config(sparkConf)
                                  .getOrCreate();
             Dataset<Row> df = DataGenerationUtils.generateCourseData(spark, ROW_COUNT);
             String coordinatedConf = coordinatedWriteConfiguration(cluster1, sidecar1, cluster2, sidecar2);
@@ -127,7 +131,7 @@ public class CoordinatedBulkWriteSimpleTest extends CoordinatedWriteTestBase
         }
     }
 
-    private Server startSidecarWithInstances(Iterable<? extends IInstance> instances, S3MockContainer s3Mock)
+    private Server startSidecarWithInstances(Iterable<? extends IInstance> instances, S3MockContainer s3Mock, DnsResolver dnsResolver)
     {
         VertxTestContext context = new VertxTestContext();
         Function<Builder, Builder> sidecarConfigurator = builder -> {
@@ -161,22 +165,23 @@ public class CoordinatedBulkWriteSimpleTest extends CoordinatedWriteTestBase
         throw new AssertionError("Sidecar server failed to init schema");
     }
 
-    private ClusterBuilderConfiguration clusterConfiguration()
+    private ClusterBuilderConfiguration clusterConfiguration(int subnet)
     {
         ClusterBuilderConfiguration conf = new ClusterBuilderConfiguration();
         conf.additionalInstanceConfig(Map.of("storage_compatibility_mode", "NONE"));
         conf.nodesPerDc(3);
         conf.dcCount(1);
+        conf.subnet(subnet);
         return conf;
     }
 
     private String coordinatedWriteConfiguration(IClusterExtension<? extends IInstance> cluster1, Server sidecar1,
                                                  IClusterExtension<? extends IInstance> cluster2, Server sidecar2)
     {
-        String cluster1Instances = sidecarInstancesOptionStream(cluster1, dnsResolver)
+        String cluster1Instances = sidecarInstancesOptionStream(cluster1, dnsResolver1)
                                    .map(hostname -> hostname + ':' + sidecar1.actualPort())
                                    .collect(Collectors.joining("\", \"", "\"", "\""));
-        String cluster2Instances = sidecarInstancesOptionStream(cluster2, dnsResolver)
+        String cluster2Instances = sidecarInstancesOptionStream(cluster2, dnsResolver2)
                                    .map(hostname -> hostname + ':' + sidecar2.actualPort())
                                    .collect(Collectors.joining("\",\"", "\"", "\""));
 

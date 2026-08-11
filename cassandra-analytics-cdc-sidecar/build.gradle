@@ -59,6 +59,16 @@ configurations {
     fivezeroTypes {
         description = 'Cassandra 5.0 Data Types'
     }
+
+    hcdtwozero {
+        description = 'DataStax HCD 2.0 dependency'
+    }
+    hcdtwozeroBridge {
+        description = 'Bridge to DataStax HCD 2.0'
+    }
+    hcdtwozeroTypes {
+        description = 'DataStax HCD 2.0 Data Types'
+    }
 }
 
 dependencies {
@@ -71,6 +81,10 @@ dependencies {
     fivezero(project(path: ':cassandra-five-zero', configuration: 'shadow'))
     fivezeroBridge(project(path: ':cassandra-five-zero-bridge'))
     fivezeroTypes(project(path: ':cassandra-five-zero-types'))
+
+    hcdtwozero(project(path: ':hcd-two-zero', configuration: 'shadow'))
+    hcdtwozeroBridge(project(path: ':hcd-two-zero-bridge'))
+    hcdtwozeroTypes(project(path: ':hcd-two-zero-types'))
 
     implementation project(":cassandra-analytics-common")
     implementation project(':cassandra-analytics-cdc')
@@ -118,6 +132,10 @@ jar {
     dependsOn(configurations.fivezeroBridge)
     dependsOn(configurations.fivezeroTypes)
 
+    dependsOn(configurations.hcdtwozero)
+    dependsOn(configurations.hcdtwozeroBridge)
+    dependsOn(configurations.hcdtwozeroTypes)
+
     exclude('META-INF/*')
     into('bridges') {
         from(configurations.fourzero.singleFile)
@@ -127,6 +145,10 @@ jar {
         from(configurations.fivezero.singleFile)
         from(configurations.fivezeroBridge.singleFile)
         from(configurations.fivezeroTypes.singleFile)
+
+        from(configurations.hcdtwozero.singleFile)
+        from(configurations.hcdtwozeroBridge.singleFile)
+        from(configurations.hcdtwozeroTypes.singleFile)
     }
 }
 

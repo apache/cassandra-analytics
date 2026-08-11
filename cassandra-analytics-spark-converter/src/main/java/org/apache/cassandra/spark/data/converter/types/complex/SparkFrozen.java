@@ -37,9 +37,9 @@ public class SparkFrozen implements SparkType
         this.inner = converter.toSparkType(inner);
     }
 
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen, boolean isInnerType)
     {
-        return inner.toSparkSqlType(value, true);
+        return inner.toSparkSqlType(value, true, isInnerType);
     }
 
     public Object sparkSqlRowValue(GenericInternalRow row, int position)

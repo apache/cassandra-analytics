@@ -103,10 +103,12 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
 
         UpgradeableCluster.Builder clusterBuilder = UpgradeableCluster.build(originalNodeCount);
         clusterBuilder.withVersion(requestedVersion)
-                      .withDynamicPortAllocation(configuration.dynamicPortAllocation) // to allow parallel test runs
+                      // TODO(DataStax): withDynamicPortAllocation() is not present in HCD 1.x.
+                      // .withDynamicPortAllocation(configuration.dynamicPortAllocation) // to allow parallel test runs
                       .withSharedClasses(EXTRA.or(clusterBuilder.getSharedClasses()))
                       .withDCs(dcCount)
                       .withTokenCount(configuration.tokenCount)
+                      .withSubnet(configuration.subnet)
                       .withDataDirCount(configuration.numDataDirsPerInstance);
 
         if (configuration.tokenCount > 1)

@@ -838,6 +838,12 @@ public class CassandraBridgeImplementation extends CassandraBridge
         }
     }
 
+    @Override
+    public String toString()
+    {
+        return "FIVEZERO";
+    }
+
     public static String baseFilename(Descriptor descriptor)
     {
         // note that descriptor.baseFilename() contains the directory portion in the string. We do not include the directory portion

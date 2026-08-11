@@ -506,7 +506,7 @@ public class DataTypeSerializationTests
                     Map<String, Object> expected = (Map<String, Object>) udt.randomValue();
                     assert expected != null;
                     ByteBuffer buffer = udt.serializeUdt(expected);
-                    Map<String, Object> actual = udt.deserializeUdt(getSparkSql(bridge), buffer, false);
+                    Map<String, Object> actual = udt.deserializeUdt(getSparkSql(bridge), buffer, false, false);
                     assertThat(actual.size()).isEqualTo(expected.size());
                     for (Map.Entry<String, Object> entry : expected.entrySet())
                     {
@@ -530,7 +530,7 @@ public class DataTypeSerializationTests
                     Object[] expected = (Object[]) tuple.randomValue();
                     assert expected != null;
                     ByteBuffer buffer = tuple.serializeTuple(expected);
-                    GenericInternalRow row = (GenericInternalRow) getSparkSql(bridge).convert(tuple, tuple.deserializeTuple(buffer, false), false);
+                    GenericInternalRow row = (GenericInternalRow) getSparkSql(bridge).convert(tuple, tuple.deserializeTuple(buffer, false), false, true);
                     Object[] actual = row.values();
                     assertThat(actual.length).isEqualTo(expected.length);
                     for (int index = 0; index < expected.length; index++)

@@ -900,4 +900,3 @@ public class BufferingCommitLogReader implements CommitLogReadHandler,
         return partitionUpdate.metadata().name;
     }
 }
-

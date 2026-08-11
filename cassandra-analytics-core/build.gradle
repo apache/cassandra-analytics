@@ -67,6 +67,19 @@ configurations {
     fivezeroSparkSql {
         description = 'Cassandra 5.0 SparkSQL Converter'
     }
+
+    hcdtwozero {
+        description = 'DataStax HCD 2.0 dependency'
+    }
+    hcdtwozeroBridge {
+        description = 'Bridge to DataStax HCD 2.0'
+    }
+    hcdtwozeroTypes {
+        description = 'DataStax HCD 2.0 Data Types'
+    }
+    hcdtwozeroSparkSql {
+        description = 'DataStax HCD 2.0 SparkSQL Converter'
+    }
 }
 
 dependencies {
@@ -84,6 +97,11 @@ dependencies {
     fivezeroBridge(project(path: ':cassandra-five-zero-bridge'))
     fivezeroTypes(project(path: ':cassandra-five-zero-types'))
     fivezeroSparkSql(project(path: ':cassandra-analytics-spark-five-zero-converter'))
+
+    hcdtwozero(project(path: ':hcd-two-zero', configuration: 'shadow'))
+    hcdtwozeroBridge(project(path: ':hcd-two-zero-bridge'))
+    hcdtwozeroTypes(project(path: ':hcd-two-zero-types'))
+    hcdtwozeroSparkSql(project(path: ':cassandra-analytics-spark-hcd-two-zero-converter'))
 
     api(project(':cassandra-analytics-spark-converter'))
 
@@ -139,6 +157,11 @@ jar {
     dependsOn(configurations.fivezeroSparkSql)
     dependsOn(configurations.fivezeroTypes)
 
+    dependsOn(configurations.hcdtwozero)
+    dependsOn(configurations.hcdtwozeroBridge)
+    dependsOn(configurations.hcdtwozeroSparkSql)
+    dependsOn(configurations.hcdtwozeroTypes)
+
     writeBuildVersion(version, project.projectDir)
 
     exclude('META-INF/*')
@@ -152,6 +175,11 @@ jar {
         from(configurations.fivezeroBridge.singleFile)
         from(configurations.fivezeroTypes.singleFile)
         from(configurations.fivezeroSparkSql.singleFile)
+
+        from(configurations.hcdtwozero.singleFile)
+        from(configurations.hcdtwozeroBridge.singleFile)
+        from(configurations.hcdtwozeroTypes.singleFile)
+        from(configurations.hcdtwozeroSparkSql.singleFile)
     }
 }
 

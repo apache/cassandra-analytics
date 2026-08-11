@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -53,6 +54,7 @@ import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3_DC2_RF3;
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 
+@Disabled("CASSANDRA-19902 needs to be ported for StorageService MBean to be available before bootstrap completes")
 class JoiningMultiDCTest extends JoiningTestBase
 {
     @ParameterizedTest(name = "{index} => {0}")

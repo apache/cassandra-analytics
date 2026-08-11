@@ -34,6 +34,7 @@ import java.util.function.Consumer;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,7 +140,9 @@ public class SortedSSTableWriter
     public String getPackageVersion(CassandraVersion bridgeVersion)
     {
         // Emit a major.minor.patch string (e.g. "cassandra-5.0.0") so it parses via CassandraVersionFeatures downstream
-        return CASSANDRA_VERSION_PREFIX + bridgeVersion.versionName() + ".0";
+        // DataStax Cassandra version does not need additional suffix, e.g. cassandra-5.0.4.0
+        String suffix = StringUtils.countMatches(bridgeVersion.versionName(), ".") <= 1 ? ".0" : "";
+        return CASSANDRA_VERSION_PREFIX + bridgeVersion.versionName() + suffix;
     }
 
     /**

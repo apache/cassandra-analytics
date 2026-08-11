@@ -197,14 +197,14 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    public Object deserializeToType(TypeConverter converter, ByteBuffer buffer, boolean isFrozen)
+    public Object deserializeToType(TypeConverter converter, ByteBuffer buffer, boolean isFrozen, boolean isInnerType)
     {
-        Object value = deserializeUdt(converter, buffer, isFrozen);
-        return value != null ? converter.convert(this, value, isFrozen) : null;
+        Object value = deserializeUdt(converter, buffer, isFrozen, isInnerType);
+        return value != null ? converter.convert(this, value, isFrozen, isInnerType) : null;
     }
 
     @Override
-    public Map<String, Object> deserializeUdt(TypeConverter typeConverter, ByteBuffer buffer, boolean isFrozen)
+    public Map<String, Object> deserializeUdt(TypeConverter typeConverter, ByteBuffer buffer, boolean isFrozen, boolean isInnerType)
     {
         if (!isFrozen)
         {
@@ -222,7 +222,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
                 break;
             }
             int length = buffer.getInt();
-            result.put(field.name(), length > 0 ? field.deserializeToType(typeConverter, ByteBufferUtils.readBytes(buffer, length), isFrozen) : null);
+            result.put(field.name(), length > 0 ? field.deserializeToType(typeConverter, ByteBufferUtils.readBytes(buffer, length), isFrozen, true) : null);
         }
 
         return result;

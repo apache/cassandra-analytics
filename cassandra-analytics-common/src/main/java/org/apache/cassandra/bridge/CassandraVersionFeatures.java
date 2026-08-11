@@ -154,6 +154,13 @@ public class CassandraVersionFeatures implements Comparable<CassandraVersionFeat
         return rawVersionString;
     }
 
+    public String getRawVersion()
+    {
+        return rawVersionString
+               .replace("cassandra-", "")
+               .replace("-SNAPSHOT", "");
+    }
+
     @Override
     public int compareTo(@NotNull CassandraVersionFeatures that)
     {

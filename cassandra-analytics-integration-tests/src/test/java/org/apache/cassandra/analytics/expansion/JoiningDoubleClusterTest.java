@@ -23,6 +23,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.jupiter.api.Disabled;
+
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -42,6 +44,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
  * Integration tests to validate bulk writes when the Cassandra cluster doubles in size and the instances
  * are in joining state
  */
+@Disabled("CASSANDRA-19902 needs to be ported for StorageService MBean to be available before bootstrap completes")
 class JoiningDoubleClusterTest extends JoiningSingleNodeTest
 {
     @Override

@@ -34,6 +34,11 @@ echo "${DTEST_ARTIFACT_ID}"
 
 ant realclean
 ant dtest-jar -Dno-checkstyle=true
+# DataStax Cassandra artefacts are not published to public Maven repositories
+ant mvn-install
+
+# Remove signatures and multi-release classes from dtest JAR
+ant -f ${SCRIPT_DIR}/repackage-dtest-jar.xml -Dbasedir=. -DsourceFile="./build/dtest-${CASSANDRA_VERSION}.jar"
 
 # Install the version that will be shaded
 "${SCRIPT_DIR}/mvnw" install:install-file                            \

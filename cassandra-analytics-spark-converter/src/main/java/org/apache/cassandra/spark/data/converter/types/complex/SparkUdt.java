@@ -142,18 +142,18 @@ public class SparkUdt implements SparkType
     }
 
     @Override
-    public Object toSparkSqlType(Object value, boolean isFrozen)
+    public Object toSparkSqlType(Object value, boolean isFrozen, boolean isInnerType)
     {
-        return udtToSparkSqlType(value, isFrozen);
+        return udtToSparkSqlType(value, isFrozen, isInnerType);
     }
 
     @SuppressWarnings("unchecked")
-    private GenericInternalRow udtToSparkSqlType(Object value, boolean isFrozen)
+    private GenericInternalRow udtToSparkSqlType(Object value, boolean isFrozen, boolean isInnerType)
     {
         if (value instanceof ByteBuffer)
         {
             // Need to deserialize first, e.g. if UDT is frozen inside collections
-            return udtToSparkSqlType(udt.deserializeUdt(converter, (ByteBuffer) value, isFrozen));
+            return udtToSparkSqlType(udt.deserializeUdt(converter, (ByteBuffer) value, isFrozen, isInnerType));
         }
         else
         {

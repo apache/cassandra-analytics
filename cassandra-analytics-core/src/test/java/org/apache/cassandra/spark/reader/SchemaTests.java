@@ -431,8 +431,8 @@ public class SchemaTests extends VersionRunner
 
         CqlField.CqlMap mapField = (CqlField.CqlMap) ((CqlField.CqlFrozen) fields.get(2).type()).inner();
         assertThat(mapField.keyType()).isEqualTo(bridge.text());
-        CqlField.CqlFrozen valueType = (CqlField.CqlFrozen) mapField.valueType();
-        CqlField.CqlUdt udtField = (CqlField.CqlUdt) valueType.inner();
+        // CqlField.CqlFrozen valueType = (CqlField.CqlFrozen) mapField.valueType();
+        CqlField.CqlUdt udtField = (CqlField.CqlUdt) mapField.valueType();
         assertThat(udtField.field(0).type()).isEqualTo(bridge.timestamp());
         assertThat(udtField.field(1).type()).isEqualTo(bridge.text());
         assertThat(udtField.field(2).type()).isEqualTo(bridge.aFloat());
@@ -476,8 +476,8 @@ public class SchemaTests extends VersionRunner
         assertThat(fields.get(1).type()).isEqualTo(bridge.bigint());
         assertThat(fields.get(3).type()).isEqualTo(bridge.text());
 
-        assertThat(fields.get(2).type().internalType()).isEqualTo(CqlField.CqlType.InternalType.Frozen);
-        CqlField.CqlTuple tuple = (CqlField.CqlTuple) ((CqlField.CqlFrozen) fields.get(2).type()).inner();
+        assertThat(fields.get(2).type().internalType()).isEqualTo(CqlField.CqlType.InternalType.Tuple);
+        CqlField.CqlTuple tuple = (CqlField.CqlTuple) fields.get(2).type();
         assertThat(tuple.type(0)).isEqualTo(bridge.bigint());
         assertThat(tuple.type(1)).isEqualTo(bridge.text());
         assertThat(tuple.type(2)).isEqualTo(bridge.aFloat());
@@ -579,7 +579,7 @@ public class SchemaTests extends VersionRunner
         assertThat(((CqlField.CqlMap) ((CqlField.CqlFrozen) fieldsUDT.field(9).type()).inner()).keyType())
                 .isEqualTo(bridge.bigint());
         assertThat(((CqlField.CqlMap) ((CqlField.CqlFrozen) fieldsUDT.field(9).type()).inner()).valueType().internalType())
-                .isEqualTo(CqlField.CqlType.InternalType.Frozen);
+                .isEqualTo(CqlField.CqlType.InternalType.Map);
     }
 
     @ParameterizedTest

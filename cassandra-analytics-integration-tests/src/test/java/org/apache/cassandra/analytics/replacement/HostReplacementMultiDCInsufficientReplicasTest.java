@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.Uninterruptibles;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import net.bytebuddy.ByteBuddy;
@@ -54,6 +55,7 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
  * bringing down a node in addition to the replacement failure resulting in too few replicas to satisfy the
  * replication factor requirements.
  */
+@Disabled("CASSANDRA-19902 needs to be ported for StorageService MBean to be available before bootstrap completes")
 class HostReplacementMultiDCInsufficientReplicasTest extends HostReplacementTestBase
 {
     static final QualifiedName QUALIFIED_NAME = TestUtils.uniqueTestTableFullName(TEST_KEYSPACE);

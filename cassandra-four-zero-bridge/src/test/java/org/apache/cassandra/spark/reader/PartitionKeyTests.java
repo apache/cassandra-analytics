@@ -67,7 +67,7 @@ public class PartitionKeyTests
                 assertThat(ComparisonUtils.equals(value, cassandraValue)).isTrue();
 
                 // convert SparkSQL types back into test row types to compare
-                Object sparkSqlValue = TYPE_CONVERTER.convert(partitionKeyType, cassandraValue, false);
+                Object sparkSqlValue = TYPE_CONVERTER.convert(partitionKeyType, cassandraValue, false, false);
                 assertThat(ComparisonUtils.equals(value, TYPE_CONVERTER.toTestRowType(partitionKeyType, sparkSqlValue))).isTrue();
         });
     }

@@ -68,12 +68,12 @@ public class SparkTuple implements CollectionFeatures
     }
 
     @Override
-    public Object toSparkSqlType(Object value, boolean isFrozen)
+    public Object toSparkSqlType(Object value, boolean isFrozen, boolean isInnerType)
     {
         if (value instanceof ByteBuffer)
         {
             // Need to deserialize first, e.g. if tuple is frozen inside collections
-            return toSparkSqlType(tuple.deserializeToJavaType((ByteBuffer) value), isFrozen);
+            return toSparkSqlType(tuple.deserializeToJavaType((ByteBuffer) value), isFrozen, isInnerType);
         }
         else
         {
@@ -84,7 +84,7 @@ public class SparkTuple implements CollectionFeatures
             Object[] array = (Object[]) value;
             for (int index = 0; index < array.length; index++)
             {
-                array[index] = array[index] == null ? null : sparkType(index).toSparkSqlType(array[index], isFrozen);
+                array[index] = array[index] == null ? null : sparkType(index).toSparkSqlType(array[index], isFrozen, true);
             }
             return new GenericInternalRow(array);
         }

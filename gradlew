@@ -210,6 +210,13 @@ fi
 # Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
 DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
 
+# We want to increase the file descriptor limit to the MaxFDLimit in MacOS, which,
+# by default, is set to a lower limit than the actual system maximum. This line is modified manually, if
+# producing a new gradle wrapper, remember to add the change back.
+if $darwin; then
+    GRADLE_OPTS="$GRADLE_OPTS \"-XX:-MaxFDLimit\" \"-Dorg.gradle.jvmargs=-XX:-MaxFDLimit\""
+fi
+
 # Collect all arguments for the java command:
 #   * DEFAULT_JVM_OPTS, JAVA_OPTS, and optsEnvironmentVar are not allowed to contain shell fragments,
 #     and any embedded shellness will be escaped.

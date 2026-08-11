@@ -44,7 +44,7 @@ public class SparkDecimal implements DecimalFeatures
     }
 
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen, boolean isInnerType)
     {
         return org.apache.spark.sql.types.Decimal.apply((BigDecimal) value);
     }

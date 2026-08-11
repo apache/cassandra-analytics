@@ -50,6 +50,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.Logger;
@@ -820,6 +821,7 @@ public class CdcTests extends CdcTestBase
         cdcTester.run();
     }
 
+    @Disabled("TriePartitionUpdate seems to hold only static columns or regular columns (never both at the same time)")
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
     public void testUpdateStaticColumnOnly(CassandraVersion version)

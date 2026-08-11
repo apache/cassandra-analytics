@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.Arguments;
 
@@ -54,6 +55,7 @@ import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
  * Cassandra cluster where the replacement operation is expected to fail. Additionally, it validates that the
  * node intended to be replaced is 'Down' and the replacement node is in 'Normal' state.
  */
+@Disabled("CASSANDRA-19902 needs to be ported for StorageService MBean to be available before bootstrap completes")
 class HostReplacementMultiDCFailureTest extends HostReplacementTestBase
 {
     static final QualifiedName QUALIFIED_NAME = uniqueTestTableFullName(TEST_KEYSPACE, LOCAL_QUORUM, LOCAL_QUORUM);

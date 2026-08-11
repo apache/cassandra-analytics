@@ -23,6 +23,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.junit.jupiter.api.Disabled;
+
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -41,6 +43,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 /**
  * Integration tests to validate bulk writes during multiple Cassandra instances joining the ring
  */
+@Disabled("CASSANDRA-19902 needs to be ported for StorageService MBean to be available before bootstrap completes")
 class JoiningMultipleNodesTest extends JoiningSingleNodeTest
 {
     @Override

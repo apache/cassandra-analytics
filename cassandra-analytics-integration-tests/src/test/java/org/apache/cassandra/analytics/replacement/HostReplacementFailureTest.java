@@ -25,6 +25,8 @@ import java.util.concurrent.TimeUnit;
 
 import com.google.common.util.concurrent.Uninterruptibles;
 
+import org.junit.jupiter.api.Disabled;
+
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -42,6 +44,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
  * Integration tests that verify bulk writes during a host replacement operation in the Cassandra cluster where
  * the operation is expected to fail
  */
+@Disabled("CASSANDRA-19902 needs to be ported for StorageService MBean to be available before bootstrap completes")
 class HostReplacementFailureTest extends HostReplacementTest
 {
     @Override

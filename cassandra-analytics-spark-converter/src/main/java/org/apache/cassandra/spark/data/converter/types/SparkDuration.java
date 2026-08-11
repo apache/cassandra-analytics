@@ -56,7 +56,7 @@ public class SparkDuration implements SparkType
     }
 
     @Override
-    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    public Object toSparkSqlType(@NotNull Object value, boolean isFrozen, boolean isInnerType)
     {
         InternalDuration duration = (InternalDuration) value;
         return SparkTypeUtils.convertDuration(duration);

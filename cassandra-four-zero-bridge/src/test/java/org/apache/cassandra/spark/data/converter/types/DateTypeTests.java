@@ -39,7 +39,7 @@ public class DateTypeTests
         int cassandraDate = SimpleDateSerializer.dateStringToDays("2021-07-16");
         assertThat(cassandraDate).isLessThan(0);
         assertThat(SimpleDateSerializer.instance.toString(cassandraDate)).isEqualTo("2021-07-16");
-        Object sparkSqlDate = SparkDate.INSTANCE.toSparkSqlType(cassandraDate, false);
+        Object sparkSqlDate = SparkDate.INSTANCE.toSparkSqlType(cassandraDate, false, false);
         assertThat(sparkSqlDate).isInstanceOf(Integer.class);
         int numDays = (int) sparkSqlDate;
         assertThat(numDays).isGreaterThan(0);

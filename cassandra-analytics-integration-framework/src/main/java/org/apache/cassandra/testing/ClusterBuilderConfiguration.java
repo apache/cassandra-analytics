@@ -37,6 +37,7 @@ public class ClusterBuilderConfiguration
     public int nodesPerDc = 1;
     public int dcCount = 1;
     public int newNodesPerDc = 0;
+    public int subnet = 0;
     public int numDataDirsPerInstance = 1;
     public boolean dynamicPortAllocation = true;
     public final EnumSet<Feature> features = EnumSet.of(Feature.GOSSIP, Feature.JMX, Feature.NATIVE_PROTOCOL);
@@ -105,6 +106,20 @@ public class ClusterBuilderConfiguration
         Preconditions.checkArgument(newNodesPerDc >= 0,
                                     "newNodesPerDc cannot be a negative number");
         this.newNodesPerDc = newNodesPerDc;
+        return this;
+    }
+
+    /**
+     * Sets the {@code subnet} and returns a reference to this Builder enabling method chaining.
+     *
+     * @param subnet the {@code subnet} to set
+     * @return a reference to this Builder
+     */
+    public ClusterBuilderConfiguration subnet(int subnet)
+    {
+        Preconditions.checkArgument(subnet >= 0,
+                                    "subnet cannot be a negative number");
+        this.subnet = subnet;
         return this;
     }
 

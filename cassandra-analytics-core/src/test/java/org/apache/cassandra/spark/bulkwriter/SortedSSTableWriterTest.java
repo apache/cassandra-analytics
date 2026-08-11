@@ -127,17 +127,17 @@ public class SortedSSTableWriterTest
             case 40:
             case 41:
                 // Format is "nb-<generation>-big"
-                assertThat(baseFileName).matches("nb-\\d+-big");
+                assertThat(baseFileName).matches("nb-.+-big");
                 break;
             case 50:
                 // Format is "oa-<generation>-big" or "da-<generation>-bti"
                 if ("big".equals(CassandraVersion.configuredSSTableFormat()))
                 {
-                    assertThat(baseFileName).matches("oa-\\d+-big");
+                    assertThat(baseFileName).matches("oa-.+-big");
                 }
                 else
                 {
-                    assertThat(baseFileName).matches("da-\\d+-bti");
+                    assertThat(baseFileName).matches("(da|cc)-.+-bti");
                 }
                 break;
             default:

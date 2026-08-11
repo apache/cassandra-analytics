@@ -24,6 +24,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -42,11 +43,14 @@ public class PostDelegationClassLoader extends URLClassLoader
 {
     private static final Logger LOGGER = LoggerFactory.getLogger(PostDelegationClassLoader.class);
     private final List<Path> tempFiles;
+    private final String[] resourceNames;
 
-    public PostDelegationClassLoader(@NotNull URL[] urls, @Nullable ClassLoader parent, @NotNull List<Path> tempFiles)
+    public PostDelegationClassLoader(@NotNull URL[] urls, @Nullable ClassLoader parent, @NotNull List<Path> tempFiles,
+                                     @NotNull String... resourceNames)
     {
         super(urls, parent);
         this.tempFiles = tempFiles;
+        this.resourceNames = resourceNames;
     }
 
     @Override
@@ -102,5 +106,11 @@ public class PostDelegationClassLoader extends URLClassLoader
                 }
             }
         }
+    }
+
+    @Override
+    public String toString()
+    {
+        return super.toString() + "{resources=" + Arrays.asList(resourceNames) + "}";
     }
 }

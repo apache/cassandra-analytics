@@ -32,7 +32,7 @@ import static org.apache.cassandra.spark.data.CqlField.STRING_COMPARATOR;
 interface StringFeatures extends SparkType
 {
     @Override
-    default Object toSparkSqlType(@NotNull Object value, boolean isFrozen)
+    default Object toSparkSqlType(@NotNull Object value, boolean isFrozen, boolean isInnerType)
     {
         return UTF8String.fromString(value.toString()); // UTF8String
     }

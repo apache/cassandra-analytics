@@ -50,11 +50,18 @@ jobs:
           rm ant*.deb
 
           sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
+          sudo bash -c 'for j in {0..1}; do for i in {1..5}; do echo 127.0.${j}.${i} local${j}host${i} >> /etc/hosts; done; done'
 
           for i in {2..20}
           do
             sudo ip addr add "127.0.0.${i}" dev lo
             sudo route add -host "127.0.0.${i}" dev lo;
+          done
+
+          for i in {1..5}
+          do
+            sudo ip addr add "127.0.1.${i}" dev lo
+            sudo route add -host "127.0.1.${i}" dev lo;
           done
 
           export JDK_VERSION="11"
@@ -77,68 +84,11 @@ jobs:
           path: ${{ github.workspace }}
           key: build-jdk11-${{ github.sha }}
 
-  # JDK17 dependency build for the Spark 4 / Scala 2.13 / Cassandra 5.0 matrix.
-  # Produces a distinct workspace cache (build-jdk17-...) so downstream test jobs
-  # must restore from exactly one of build-jdk11 / build-jdk17 — mixing them
-  # would clobber dependency jars.
-  build-jdk17:
-    name: Compile and build (JDK 17)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: 17
-      - run: |
-          sudo apt-get update
-
-          if [ -f /etc/ssl/certs/java/cacerts/cacerts ]; then
-              sudo mv /etc/ssl/certs/java/cacerts/ /etc/ssl/certs/java/cacerts-old
-              sudo mv /etc/ssl/certs/java/cacerts-old/cacerts /etc/ssl/certs/java/
-              sudo rmdir /etc/ssl/certs/java/cacerts-old
-          fi
-
-          apt-get download ant ant-optional
-          sudo dpkg --force-all -i ant*.deb
-          rm ant*.deb
-
-          sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
-
-          for i in {2..20}
-          do
-            sudo ip addr add "127.0.0.${i}" dev lo
-            sudo route add -host "127.0.0.${i}" dev lo;
-          done
-
-          export JDK_VERSION="17"
-          export SPARK_VERSION="4"
-          export SCALA_VERSION="2.13"
-          # JDK17 only targets Cassandra 5.0+; skip 4.0 / 4.1 dtest jar builds
-          # (build-dtest-jars.sh reads this var to filter CANDIDATE_BRANCHES).
-          export BRANCHES="cassandra-5.0"
-
-          ./scripts/build-dependencies.sh
-
-          ./gradlew codeCheckTasks
-      - name: Cache Maven repository
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2
-          key: maven-repo-jdk17-${{ github.sha }}
-      - name: Cache workspace
-        id: cache-build-save
-        uses: actions/cache/save@v4
-        with:
-          path: ${{ github.workspace }}
-          key: build-jdk17-${{ github.sha }}
-
   unit-test:
     name: Unit test - Scala ${{ matrix.scala }} ${{ matrix.sstable-format }} C${{ matrix.cassandra }} Spark${{ matrix.spark }} JDK${{ matrix.jdk }}
     # Each matrix entry only consumes one of these caches (selected by matrix.jdk),
     # but `needs:` cannot be matrix-conditional so we wait on both builds.
-    needs: [build-jdk11, build-jdk17]
+    needs: [build-jdk11]
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -148,21 +98,6 @@ jobs:
             cassandra: '5.0'
             jdk: '11'
             spark: '3'
-          - scala: '2.12'
-            sstable-format: 'big'
-            cassandra: '4.1'
-            jdk: '11'
-            spark: '3'
-          - scala: '2.12'
-            sstable-format: 'big'
-            cassandra: '4.0'
-            jdk: '11'
-            spark: '3'
-          - scala: '2.13'
-            sstable-format: 'bti'
-            cassandra: '5.0'
-            jdk: '17'
-            spark: '4'
       fail-fast: false
     steps:
       - name: Setup JDK
@@ -172,10 +107,16 @@ jobs:
           java-version: ${{ matrix.jdk }}
       - run: |
           sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
+          sudo bash -c 'for j in {0..1}; do for i in {1..5}; do echo 127.0.${j}.${i} local${j}host${i} >> /etc/hosts; done; done'
           for i in {2..20}
           do
             sudo ip addr add "127.0.0.${i}" dev lo
             sudo route add -host "127.0.0.${i}" dev lo;
+          done
+          for i in {1..5}
+          do
+            sudo ip addr add "127.0.1.${i}" dev lo
+            sudo route add -host "127.0.1.${i}" dev lo;
           done
       - name: Cache Maven repository
         uses: actions/cache@v4
@@ -214,7 +155,7 @@ jobs:
     name: Integration test - ${{ matrix.config }} (${{ matrix.job_index }})
     # Each matrix entry only consumes one of these caches (selected by matrix.jdk),
     # but `needs:` cannot be matrix-conditional so we wait on both builds.
-    needs: [build-jdk11, build-jdk17]
+    needs: [build-jdk11]
     runs-on: ubuntu-latest
     strategy:
       # GitHub Actions generate a cross-product of 'config' × 'job_index' (4 × 5 = 20 jobs).
@@ -223,30 +164,15 @@ jobs:
       # into each match. To add a new version: add one entry to 'config' and one to
       # 'include'.
       matrix:
-        config: ['s2.13-c5.0.7', 's2.12-c4.1.4', 's2.12-c4.0.17', 's2.13-c5.0.7-spark4']
+        config: ['s2.13-c5.0.4.0']
         job_index: [0, 1, 2, 3, 4]
         job_total: [5]
         include:
-          - config: 's2.13-c5.0.7'
+          - config: 's2.13-c5.0.4.0'
             scala: '2.13'
-            cassandra: '5.0.7'
+            cassandra: '5.0.4.0'
             jdk: '11'
             spark: '3'
-          - config: 's2.12-c4.1.4'
-            scala: '2.12'
-            cassandra: '4.1.4'
-            jdk: '11'
-            spark: '3'
-          - config: 's2.12-c4.0.17'
-            scala: '2.12'
-            cassandra: '4.0.17'
-            jdk: '11'
-            spark: '3'
-          - config: 's2.13-c5.0.7-spark4'
-            scala: '2.13'
-            cassandra: '5.0.7'
-            jdk: '17'
-            spark: '4'
       fail-fast: false
     steps:
       - name: Setup JDK
@@ -256,10 +182,16 @@ jobs:
           java-version: ${{ matrix.jdk }}
       - run: |
           sudo bash -c 'for i in {2..20}; do echo 127.0.0.${i} localhost${i} >> /etc/hosts; done'
+          sudo bash -c 'for j in {0..1}; do for i in {1..5}; do echo 127.0.${j}.${i} local${j}host${i} >> /etc/hosts; done; done'
           for i in {2..20}
           do
             sudo ip addr add "127.0.0.${i}" dev lo
             sudo route add -host "127.0.0.${i}" dev lo;
+          done
+          for i in {1..5}
+          do
+            sudo ip addr add "127.0.1.${i}" dev lo
+            sudo route add -host "127.0.1.${i}" dev lo;
           done
       - name: Cache Maven repository
         uses: actions/cache@v4

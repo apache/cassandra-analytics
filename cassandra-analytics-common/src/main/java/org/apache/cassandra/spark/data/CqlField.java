@@ -137,13 +137,13 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
         default Object deserializeToType(TypeConverter converter, ByteBuffer buffer)
         {
-            return deserializeToType(converter, buffer, isFrozen());
+            return deserializeToType(converter, buffer, isFrozen(), isComplex());
         }
 
-        default Object deserializeToType(TypeConverter converter, ByteBuffer buffer, boolean isFrozen)
+        default Object deserializeToType(TypeConverter converter, ByteBuffer buffer, boolean isFrozen, boolean isInnerType)
         {
             Object value = deserializeToJavaType(buffer, isFrozen);
-            return value != null ? converter.convert(this, value, isFrozen) : null;
+            return value != null ? converter.convert(this, value, isFrozen, isInnerType) : null;
         }
 
         default Object deserializeToJavaType(ByteBuffer buffer)
@@ -276,7 +276,7 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
         ByteBuffer serializeUdt(Map<String, Object> values);
 
-        Map<String, Object> deserializeUdt(TypeConverter typeConverter, ByteBuffer buffer, boolean isFrozen);
+        Map<String, Object> deserializeUdt(TypeConverter typeConverter, ByteBuffer buffer, boolean isFrozen, boolean isInnerType);
 
         @Override
         default boolean isComplex()
@@ -368,20 +368,21 @@ public class CqlField implements Serializable, Comparable<CqlField>
 
     public Object deserializeToType(TypeConverter converter, ByteBuffer buffer)
     {
-        return deserializeToType(converter, buffer, false);
+        return deserializeToType(converter, buffer, false, false);
     }
 
     /**
      * Deserialize raw ByteBuffer from Cassandra type and convert to a new type using the TypeConverter.
      *
-     * @param converter custom TypeConverter that maps Cassandra type to some other type.
-     * @param buffer    raw ByteBuffer
-     * @param isFrozen  true if the Cassandra type is frozen
+     * @param converter   custom TypeConverter that maps Cassandra type to some other type.
+     * @param buffer      raw ByteBuffer
+     * @param isFrozen    true if the Cassandra type is frozen
+     * @param isInnerType true if the Cassandra type is inside complex type
      * @return deserialized object converted to custom type.
      */
-    public Object deserializeToType(TypeConverter converter, ByteBuffer buffer, boolean isFrozen)
+    public Object deserializeToType(TypeConverter converter, ByteBuffer buffer, boolean isFrozen, boolean isInnerType)
     {
-        return type().deserializeToType(converter, buffer, isFrozen);
+        return type().deserializeToType(converter, buffer, isFrozen, isInnerType);
     }
 
     public Object deserializeToJavaType(ByteBuffer buffer)

@@ -247,7 +247,7 @@ abstract class BulkRoundtripSSTableVersionBridgeTestBase extends SharedClusterSp
     {
         if ("bti".equals(sstableFormat()))
         {
-            assertSSTableFormatOnDisk(table, "bti", "da");
+            assertSSTableFormatOnDisk(table, "bti", "cc");
         }
         else
         {

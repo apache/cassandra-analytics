@@ -72,7 +72,13 @@ public enum CassandraVersion
              // Cassandra 5.0 native sstable versions
              "big-oa",
              "bti-da",
-             }, 40);
+             }, 40),
+    // DataStax HCD 1.x and 2.x shall produce bti-cc sstables.
+    HCDTWOZERO(50, "5.0.4.0", "hcd-two-zero", new String[]{"big", "bti"},
+               new String[]{
+               "big-oa",
+               "bti-cc",
+               }, 40);
 
     private final int number;
     private final String name;
@@ -177,7 +183,7 @@ public enum CassandraVersion
         // FOURONE is intentionally excluded from local-dev defaults to keep iteration fast;
         // CI covers 4.1 via explicit CASSANDRA_VERSION env var or per-version Gradle tasks (e.g. testCassandra41).
         String providedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.implemented_versions",
-                                                              String.join(",", FOURZERO.name(), FIVEZERO.name()));
+                                                              String.join(",", HCDTWOZERO.name()));
         implementedVersions = Arrays.stream(providedVersionsOrDefault.split(","))
                                     .map(CassandraVersion::valueOf)
                                     .filter(v -> v.sstableFormats().contains(configuredSSTableFormat))
@@ -185,7 +191,7 @@ public enum CassandraVersion
 
         // NOTE: These default versions must stay in sync with cassandraFullVersionMap in build.gradle.
         String providedSupportedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.supported_versions",
-                                                                       "cassandra-4.0.17,cassandra-5.0.7");
+                                                                       "cassandra-5.0.4.0");
         supportedVersions = Arrays.stream(providedSupportedVersionsOrDefault.split(","))
                                   .filter(version -> CassandraVersion.fromVersion(version)
                                                                      .filter(v -> v.sstableFormats().contains(configuredSSTableFormat))
@@ -204,6 +210,13 @@ public enum CassandraVersion
     public static Optional<CassandraVersion> fromVersion(String cassandraVersion)
     {
         CassandraVersionFeatures features = CassandraVersionFeatures.cassandraVersionFeaturesFromCassandraVersion(cassandraVersion);
+        Optional<CassandraVersion> ver = Arrays.stream(CassandraVersion.values())
+                                               .filter(value -> value.name.startsWith(features.getRawVersion()))
+                                               .findAny();
+        if (ver.isPresent())
+        {
+            return ver;
+        }
         return Arrays.stream(CassandraVersion.values())
                      .filter(value -> value.versionNumber() == features.getMajorVersion())
                      .findAny();
