@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.clients;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +30,7 @@ import o.a.c.sidecar.client.shaded.client.HttpClientConfig;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import o.a.c.sidecar.client.shaded.client.SidecarClientConfig;
 import o.a.c.sidecar.client.shaded.client.SidecarClientConfigImpl;
+import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import o.a.c.sidecar.client.shaded.client.SidecarInstancesProvider;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.DataTransport;
@@ -51,11 +54,7 @@ public class AnalyticsSidecarClient
                                                     .setWorkerPoolSize(conf.getMaxHttpConnections()));
 
         HttpClientConfig httpClientConfig = buildHttpClientConfig(conf);
-        if (httpClientConfig.instanceId() != null)
-        {
-            LOGGER.info("Sidecar HTTP client configured with instanceId={} (applied to every outbound sidecar request)",
-                        httpClientConfig.instanceId());
-        }
+        warnIfGlobalInstanceIdIsAmbiguous(httpClientConfig, sidecarInstancesProvider);
 
         StartupValidator.instance().register(new SslValidation(conf));
         StartupValidator.instance().register(new BulkWriterKeyStoreValidation(conf));
@@ -69,6 +68,41 @@ public class AnalyticsSidecarClient
                                .build();
 
         return Sidecar.buildClient(sidecarConfig, vertx, httpClientConfig, sidecarInstancesProvider);
+    }
+
+    /**
+     * Warns when a single job-level {@code instanceId} would be stamped uniformly onto requests fanned out
+     * across more than one sidecar instance, none of which carry their own per-instance id. That is only correct
+     * when every instance resolves the same id (for example a 1:1 Cassandra-to-Sidecar deployment where each local
+     * instance is id {@code 1}); otherwise requests are misrouted. Operators should instead assign a per-instance id
+     * to each sidecar contact point (see {@link org.apache.cassandra.spark.common.SidecarInstanceFactory}).
+     */
+    static void warnIfGlobalInstanceIdIsAmbiguous(HttpClientConfig httpClientConfig,
+                                                  SidecarInstancesProvider sidecarInstancesProvider)
+    {
+        Integer globalInstanceId = httpClientConfig.instanceId();
+        if (globalInstanceId == null)
+        {
+            return;
+        }
+
+        List<SidecarInstance> instances = sidecarInstancesProvider.instances();
+        boolean anyPerInstanceId = instances.stream().anyMatch(instance -> instance.instanceId() != null);
+        if (instances.size() > 1 && !anyPerInstanceId)
+        {
+            LOGGER.warn("Spark conf {}={} will be applied uniformly to every request across {} sidecar instances, "
+                        + "none of which declare their own instanceId. This is only correct when every instance "
+                        + "resolves the same id (for example a 1:1 Cassandra-to-Sidecar deployment where each local "
+                        + "instance is id {}). If the instances have distinct ids this misroutes requests; assign a "
+                        + "per-instance id to each sidecar contact point (host:port={}) instead.",
+                        BulkSparkConf.SIDECAR_INSTANCE_ID, globalInstanceId, instances.size(),
+                        globalInstanceId, globalInstanceId);
+        }
+        else
+        {
+            LOGGER.info("Sidecar HTTP client configured with job-level instanceId={} (used only for requests to "
+                        + "instances without their own instanceId)", globalInstanceId);
+        }
     }
 
     static HttpClientConfig buildHttpClientConfig(BulkSparkConf conf)

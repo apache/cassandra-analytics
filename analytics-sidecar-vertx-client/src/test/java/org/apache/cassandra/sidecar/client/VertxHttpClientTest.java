@@ -107,11 +107,42 @@ public class VertxHttpClientTest
         }
     }
 
+    @Test
+    public void testPerInstanceIdOverridesGlobalInstanceId()
+    {
+        HttpClientConfig config = httpClientConfigBuilder().instanceId(1).build();
+        try (VertxHttpClient client = new VertxHttpClient(vertx, config))
+        {
+            RequestContext context = new RequestContext.Builder().ringRequest().build();
+            // The instance carries its own id (3), which must win over the job-level id (1).
+            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(3), context);
+            assertThat(request.queryParams().get(INSTANCE_ID)).isEqualTo("3");
+        }
+    }
+
+    @Test
+    public void testPerInstanceIdUsedWhenGlobalInstanceIdIsNull()
+    {
+        HttpClientConfig config = httpClientConfigBuilder().build();
+        try (VertxHttpClient client = new VertxHttpClient(vertx, config))
+        {
+            RequestContext context = new RequestContext.Builder().ringRequest().build();
+            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(5), context);
+            assertThat(request.queryParams().get(INSTANCE_ID)).isEqualTo("5");
+        }
+    }
+
     private SidecarInstance mockInstance()
+    {
+        return mockInstance(null);
+    }
+
+    private SidecarInstance mockInstance(Integer instanceId)
     {
         SidecarInstance instance = mock(SidecarInstance.class);
         when(instance.port()).thenReturn(9043);
         when(instance.hostname()).thenReturn("localhost");
+        when(instance.instanceId()).thenReturn(instanceId);
         return instance;
     }
 

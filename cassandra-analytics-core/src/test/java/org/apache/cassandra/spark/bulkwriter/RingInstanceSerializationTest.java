@@ -75,4 +75,28 @@ public class RingInstanceSerializationTest
         RingInstance deserialized = deserialize(bytes, RingInstance.class);
         assertThat(deserialized).isEqualTo(ring);
     }
+
+    @Test
+    public void testSidecarInstanceIdSurvivesSerialization()
+    {
+        int dcOffset = 0;
+        String dataCenter = "DC1";
+        int index = 0;
+        ReplicaMetadata metadata = new ReplicaMetadata("NORMAL",
+                                                       "UP",
+                                                       dataCenter + "-i" + index,
+                                                       "127.0." + dcOffset + "." + index,
+                                                       7000,
+                                                       dataCenter);
+
+        RingInstance ring = new RingInstance(metadata, "test-cluster", 2);
+
+        byte[] bytes = serialize(ring);
+        RingInstance deserialized = deserialize(bytes, RingInstance.class);
+        // sidecarInstanceId is excluded from equals/hashCode, so it must be checked explicitly:
+        // this is exactly the field that would silently revert to null if serialization dropped it,
+        // which would reintroduce the misrouting bug once the instance travels to an executor.
+        assertThat(deserialized).isEqualTo(ring);
+        assertThat(deserialized.sidecarInstanceId()).isEqualTo(2);
+    }
 }

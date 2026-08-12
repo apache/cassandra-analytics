@@ -253,7 +253,8 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                                                       .stream()
                                                       .flatMap(Collection::stream)
                                                       .distinct() // remove duplications
-                                                      .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort()))
+                                                      .map(replica -> new SidecarInstanceImpl(replica.nodeName(), getCassandraContext().sidecarPort(),
+                                                                                              replica.sidecarInstanceId()))
                                                       .collect(Collectors.toList());
             timeSkew = getCassandraContext().getSidecarClient().timeSkew(instances).get();
         }
@@ -484,9 +485,70 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     private TokenRangeMapping<RingInstance> getTokenRangeReplicasFromSidecar()
     {
-        return TokenRangeMapping.create(this::getTokenRangesAndReplicaSets,
-                                        this::getPartitioner,
-                                        metadata -> new RingInstance(metadata, clusterId()));
+        // Resolve per-instance ids from the contact points actually in effect for this cluster (getCluster()
+        // already picks the right source: conf.sidecarContactPoints() for a plain job, or
+        // conf.coordinatedWriteConf().cluster(clusterId).sidecarContactPoints() for a coordinated-write job).
+        // Deriving this from conf.sidecarContactPoints() directly would silently miss (or NPE on) coordinated
+        // writes, since their contact points don't live there.
+        Map<String, Integer> instanceIdsByHostname = sidecarInstanceIdsByHostname(getCassandraContext().getCluster());
+        TokenRangeMapping<RingInstance> topology =
+        TokenRangeMapping.create(this::getTokenRangesAndReplicaSets,
+                                 this::getPartitioner,
+                                 metadata -> new RingInstance(metadata, clusterId(),
+                                                              instanceIdsByHostname.get(metadata.fqdn())));
+        validateSidecarInstanceIdCoverage(topology.allInstances());
+        return topology;
+    }
+
+    /**
+     * Builds a hostname (nodeName/fqdn) to per-instance Sidecar routing id lookup from the given contact points,
+     * e.g. ones declared as {@code "host:port=<id>"} (see {@link SidecarInstanceFactory#createFromString}).
+     *
+     * @param contactPoints the Sidecar contact points in effect for this cluster
+     * @return a map of hostname to configured Sidecar instance id; entries with no configured id are omitted
+     */
+    @VisibleForTesting
+    static Map<String, Integer> sidecarInstanceIdsByHostname(Set<SidecarInstance> contactPoints)
+    {
+        return contactPoints.stream()
+                            .filter(instance -> instance.instanceId() != null)
+                            .collect(Collectors.toMap(SidecarInstance::hostname, SidecarInstance::instanceId));
+    }
+
+    /**
+     * Guards against the data-correctness risk of a single job-level {@code instanceId} (see
+     * {@link BulkSparkConf#SIDECAR_INSTANCE_ID}) being stamped uniformly onto requests fanned out across more than
+     * one real Cassandra instance. That is only correct when every instance in the ring resolves its own id (see
+     * {@link #sidecarInstanceIdsByHostname}); otherwise requests to the unresolved instances would be silently
+     * misrouted to whichever instance the global id happens to identify.
+     *
+     * @param instances the distinct instances discovered from the live ring
+     */
+    @VisibleForTesting
+    void validateSidecarInstanceIdCoverage(Set<RingInstance> instances)
+    {
+        Integer globalInstanceId = conf.getSidecarInstanceId();
+        if (globalInstanceId == null || instances.size() <= 1)
+        {
+            return;
+        }
+
+        List<String> unresolvedInstances = instances.stream()
+                                                     .filter(instance -> instance.sidecarInstanceId() == null)
+                                                     .map(RingInstance::nodeName)
+                                                     .sorted()
+                                                     .collect(Collectors.toList());
+        if (!unresolvedInstances.isEmpty())
+        {
+            throw new IllegalStateException(
+            String.format("Ambiguous Sidecar instanceId configuration: Spark conf %s=%d would be applied uniformly "
+                          + "to %d/%d ring instances that have no per-instance id configured (%s). This misroutes "
+                          + "requests whenever a single Sidecar endpoint fronts more than one of these instances "
+                          + "(for example, behind a load balancer). Configure a per-instance id for each affected "
+                          + "instance instead, using the host[:port]=<id> syntax in %s.",
+                          BulkSparkConf.SIDECAR_INSTANCE_ID, globalInstanceId, unresolvedInstances.size(), instances.size(),
+                          unresolvedInstances, WriterOptions.SIDECAR_CONTACT_POINTS.name()));
+        }
     }
 
     public String getVersionFromFeature()

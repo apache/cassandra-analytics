@@ -39,10 +39,22 @@ public class RingInstance implements CassandraInstance, Serializable
     private static final long serialVersionUID = 4399143234683369652L;
     private RingEntry ringEntry;
     private @Nullable String clusterId;
+    private @Nullable Integer sidecarInstanceId;
 
     public RingInstance(ReplicaMetadata replica, @Nullable String clusterId)
     {
+        this(replica, clusterId, null);
+    }
+
+    /**
+     * @param sidecarInstanceId the id of the Cassandra instance that a shared Sidecar endpoint fronting this
+     *                          instance should route requests to, or {@code null} when not configured for this
+     *                          instance (see {@link CassandraInstance#sidecarInstanceId()})
+     */
+    public RingInstance(ReplicaMetadata replica, @Nullable String clusterId, @Nullable Integer sidecarInstanceId)
+    {
         this.clusterId = clusterId;
+        this.sidecarInstanceId = sidecarInstanceId;
         this.ringEntry = new RingEntry.Builder()
                          .fqdn(replica.fqdn())
                          .address(replica.address())
@@ -62,7 +74,14 @@ public class RingInstance implements CassandraInstance, Serializable
     @VisibleForTesting
     public RingInstance(RingEntry ringEntry, @Nullable String clusterId)
     {
+        this(ringEntry, clusterId, null);
+    }
+
+    @VisibleForTesting
+    public RingInstance(RingEntry ringEntry, @Nullable String clusterId, @Nullable Integer sidecarInstanceId)
+    {
         this.clusterId = clusterId;
+        this.sidecarInstanceId = sidecarInstanceId;
         this.ringEntry = ringEntry;
     }
 
@@ -122,13 +141,21 @@ public class RingInstance implements CassandraInstance, Serializable
         return NodeStatus.fromNameIgnoreCase(ringEntry.status());
     }
 
+    @Override
+    @Nullable
+    public Integer sidecarInstanceId()
+    {
+        return sidecarInstanceId;
+    }
+
     /**
      * Custom equality that compares the token, fully qualified domain name, the rack, the port, the datacenter
      * and the clusterId
      *
-     * Note that node state, status and IP address are not part of the calculation. The IP address is excluded
-     * because a node can come back with a different IP address (e.g. a pod replacement in Kubernetes) while
-     * remaining the same logical instance.
+     * Note that node state, status, IP address and sidecarInstanceId are not part of the calculation. The IP
+     * address is excluded because a node can come back with a different IP address (e.g. a pod replacement in
+     * Kubernetes) while remaining the same logical instance. sidecarInstanceId is excluded because it is routing
+     * metadata derived from configuration, not part of the instance's identity.
      *
      * @param other the other instance
      * @return true if both instances are equal, false otherwise
@@ -171,7 +198,7 @@ public class RingInstance implements CassandraInstance, Serializable
     @Override
     public String toString()
     {
-        return "RingInstance{cluster='" + clusterId + "', " + ringEntry.toString() + '}';
+        return "RingInstance{cluster='" + clusterId + "', sidecarInstanceId=" + sidecarInstanceId + ", " + ringEntry.toString() + '}';
     }
 
     public RingEntry ringEntry()
@@ -194,6 +221,7 @@ public class RingInstance implements CassandraInstance, Serializable
         out.writeObject(ringEntry.load());
         out.writeObject(ringEntry.owns());
         out.writeObject(clusterId);
+        out.writeObject(sidecarInstanceId);
     }
 
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
@@ -211,6 +239,7 @@ public class RingInstance implements CassandraInstance, Serializable
         String load = (String) in.readObject();
         String owns = (String) in.readObject();
         String clusterId = (String) in.readObject();
+        Integer sidecarInstanceId = (Integer) in.readObject();
         ringEntry = new RingEntry.Builder().datacenter(datacenter)
                                            .address(address)
                                            .port(port)
@@ -224,5 +253,6 @@ public class RingInstance implements CassandraInstance, Serializable
                                            .owns(owns)
                                            .build();
         this.clusterId = clusterId;
+        this.sidecarInstanceId = sidecarInstanceId;
     }
 }

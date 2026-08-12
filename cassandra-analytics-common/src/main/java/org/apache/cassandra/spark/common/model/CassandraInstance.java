@@ -55,4 +55,20 @@ public interface CassandraInstance extends TokenOwner
      * @return status of the node
      */
     NodeStatus nodeStatus();
+
+    /**
+     * Returns the identifier of the specific Cassandra instance that a shared Sidecar endpoint should route
+     * requests to, or {@code null} when not configured.
+     *
+     * <p>This is only meaningful when a single Sidecar endpoint (for example, one fronted by a load balancer)
+     * fronts more than one Cassandra instance: the id disambiguates which local instance a request targets,
+     * since the endpoint alone (hostname/Host header) cannot. When {@code null}, callers fall back to a
+     * job-level default, if any.
+     *
+     * @return the per-instance Sidecar routing id, or {@code null} when not set
+     */
+    default Integer sidecarInstanceId()
+    {
+        return null;
+    }
 }
