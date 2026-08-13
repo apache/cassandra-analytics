@@ -21,18 +21,28 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
+import java.util.Set;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
+import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
@@ -79,6 +89,41 @@ public class CassandraClusterInfoTest
                     "localTime=2024-09-17T20:18:09.530Z, " +
                     "remoteCassandraTime=2024-09-17T20:29:09.530Z, " +
                     "clusterId=null");
+    }
+
+    static Stream<Arguments> sidecarResponseDelays()
+    {
+        return Stream.of(
+        Arguments.of((Object) new int[] {100, 200, 300}), // all responses within deadline
+        Arguments.of((Object) new int[] {500, 3000}) // single timeout
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("sidecarResponseDelays")
+    @Timeout(value = 2300, unit = TimeUnit.MILLISECONDS) // set timeout slightly higher than deadline of (1000 + 100) * 2
+    void testSuccessfulGetAllNodeSettings(int[] responseDelayMillis)
+    {
+        BulkSparkConf conf = mockBulkSparkWithSidecarConf(1, 100, 2);
+        try (CassandraClusterInfo ci = new MockClusterInfoForNodeSettings(conf, responseDelayMillis))
+        {
+            assertThatNoException()
+            .describedAs("Accept when at least one node responds within total timeout")
+            .isThrownBy(ci::getAllNodeSettings);
+        }
+    }
+
+    @Test
+    void testTimeoutGetAllNodeSettings()
+    {
+        BulkSparkConf conf = mockBulkSparkWithSidecarConf(1, 100, 2);
+        try (CassandraClusterInfo ci = new MockClusterInfoForNodeSettings(conf, 3000, 3300))
+        {
+            assertThatThrownBy(ci::getAllNodeSettings)
+            .describedAs("Raise error when no responses received within timeout")
+            .isExactlyInstanceOf(RuntimeException.class)
+            .hasMessage("Unable to determine the node settings. 0/2 instances available.");
+        }
     }
 
     public static CassandraClusterInfo mockClusterInfoForTimeSkewTest(int allowanceMinutes, Instant remoteNow)
@@ -232,6 +277,14 @@ public class CassandraClusterInfoTest
             when(context.getCluster()).thenReturn(Collections.emptySet());
             return context;
         }
+
+    private BulkSparkConf mockBulkSparkWithSidecarConf(int requestTimeoutSeconds, long maxRetryDelayMillis, int retryCount)
+    {
+        BulkSparkConf conf = mock(BulkSparkConf.class);
+        when(conf.getSidecarRequestTimeoutSeconds()).thenReturn(requestTimeoutSeconds);
+        when(conf.getSidecarRequestMaxRetryDelayMillis()).thenReturn(maxRetryDelayMillis);
+        when(conf.getSidecarRequestRetries()).thenReturn(retryCount);
+        return conf;
     }
 
     private static class MockClusterInfoForTimeSkew extends CassandraClusterInfo
@@ -264,6 +317,32 @@ public class CassandraClusterInfoTest
             when(cassandraContext.getSidecarClient().timeSkew(any()))
             .thenReturn(CompletableFuture.completedFuture(tsr));
             when(cassandraContext.sidecarPort()).thenReturn(9043);
+        }
+    }
+
+    private static class MockClusterInfoForNodeSettings extends CassandraClusterInfo
+    {
+        MockClusterInfoForNodeSettings(BulkSparkConf conf, int... responseDelayMillis)
+        {
+            super(conf);
+
+            allNodeSettingFutures.clear();
+            List<CompletableFuture<NodeSettings>> futures = new ArrayList<>(responseDelayMillis.length);
+            for (int delay : responseDelayMillis)
+            {
+                CompletableFuture<NodeSettings> future = CompletableFuture.supplyAsync(() -> {
+                    Uninterruptibles.sleepUninterruptibly(delay, TimeUnit.MILLISECONDS);
+                    return mock(NodeSettings.class);
+                });
+                futures.add(future);
+            }
+            allNodeSettingFutures.addAll(futures);
+        }
+
+        @Override
+        protected CassandraContext buildCassandraContext()
+        {
+            return mock(CassandraContext.class);
         }
     }
 }

@@ -26,6 +26,9 @@ import java.util.function.Function;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import org.apache.cassandra.cql3.CQL3Type;
+import org.apache.cassandra.db.marshal.AbstractType;
+import org.apache.cassandra.db.marshal.VectorType;
 import org.apache.cassandra.spark.data.CassandraTypes;
 import org.apache.cassandra.spark.data.CqlTable;
 import org.apache.cassandra.spark.data.ReplicationFactor;
@@ -41,7 +44,7 @@ public class SchemaBuilder extends AbstractSchemaBuilder
 
     public SchemaBuilder(CqlTable table, Partitioner partitioner)
     {
-        this(table, partitioner, null, table.cdc());
+        this(table, partitioner, null, false);
     }
 
     public SchemaBuilder(CqlTable table, Partitioner partitioner, UUID tableId, boolean enableCdc)
@@ -82,5 +85,30 @@ public class SchemaBuilder extends AbstractSchemaBuilder
     {
         super(createStmt, keyspace, replicationFactor, partitioner, udtStatementsProvider,
               tableId, indexCount, enableCdc);
+    }
+
+    @Override
+    protected void validateType(CQL3Type cqlType)
+    {
+        if (!(cqlType instanceof CQL3Type.Native)
+            && !(cqlType instanceof CQL3Type.Collection)
+            && !(cqlType instanceof CQL3Type.UserDefined)
+            && !(cqlType instanceof CQL3Type.Tuple)
+            && !(cqlType instanceof CQL3Type.Vector))
+        {
+            throw new UnsupportedOperationException("Only native, collection, tuples, vectors or UDT data types are supported, "
+                                                    + "unsupported data type: " + cqlType.toString());
+        }
+        if (cqlType instanceof CQL3Type.Vector)
+        {
+            CQL3Type.Vector vector = (CQL3Type.Vector) cqlType;
+            VectorType<?> vectorType = vector.getType();
+            for (AbstractType<?> subType : vectorType.subTypes())
+            {
+                validateType(subType);
+            }
+            return;
+        }
+        super.validateType(cqlType);
     }
 }

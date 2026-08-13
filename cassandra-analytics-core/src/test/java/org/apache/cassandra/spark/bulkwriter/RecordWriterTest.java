@@ -309,7 +309,7 @@ class RecordWriterTest
     @MethodSource("data")
     void testWriteWithDataInMultipleSubRanges(String version)
     {
-        version = "cassandra-5.0.5";
+        version = "cassandra-5.0.7";
         setUp(version);
         MockBulkWriterContext m = Mockito.spy(writerContext);
         TokenPartitioner mtp = Mockito.mock(TokenPartitioner.class);

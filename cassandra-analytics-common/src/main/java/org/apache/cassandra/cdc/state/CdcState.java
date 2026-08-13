@@ -395,12 +395,28 @@ public class CdcState
         }
     }
 
+    /**
+     * Serializes the replica-count map for late/un-acked mutations awaiting sufficient replicas.
+     * Map key = mutation digest; value = replica count seen so far for that mutation (always small,
+     * bounded by replication factor, so kept as a single byte -- unrelated to the bug below).
+     *
+     * <p><b>Wire format note:</b> the map <em>size</em> (entry count, i.e. number of distinct
+     * mutations tracked) is written as a signed int -- previously a signed short (max 32767
+     * entries), which silently overflowed and corrupted persisted state once
+     * {@code CdcOptions.maxCdcStateSize()}/{@code maxWatermarkerSize()} configured a larger value
+     * (both default well above 32767), observed in production as a permanent restart-crash-loop.
+     * {@code int} is sufficient since the configured max size is always far below
+     * {@code Integer.MAX_VALUE}; {@code long} would be unwarranted here. This is a wire-format
+     * change: state persisted by the old (short) format cannot be read by this version and vice
+     * versa. Rolling upgrades should account for this (e.g. purge/rebuild persisted CDC state
+     * rather than carry it across the upgrade boundary).
+     */
     public static class ReplicaCountSerializer extends com.esotericsoftware.kryo.Serializer<Map<PartitionUpdateWrapper.Digest, Integer>>
     {
         public Map<PartitionUpdateWrapper.Digest, Integer> read(Kryo kryo, Input in, Class type)
         {
-            // read replica counts
-            int numUpdates = in.readShort();
+            // numUpdates = number of distinct mutation digests tracked (map size), not a replica count
+            int numUpdates = in.readInt();
             Map<PartitionUpdateWrapper.Digest, Integer> replicaCounts = new HashMap<>(numUpdates);
             for (int i = 0; i < numUpdates; i++)
             {
@@ -413,7 +429,7 @@ public class CdcState
         public void write(Kryo kryo, Output out, Map<PartitionUpdateWrapper.Digest, Integer> o)
         {
             // write replica counts for late mutations
-            out.writeShort(o.size());
+            out.writeInt(o.size());
             for (Map.Entry<PartitionUpdateWrapper.Digest, Integer> entry : o.entrySet())
             {
                 PartitionUpdateWrapper.Digest digest = entry.getKey();

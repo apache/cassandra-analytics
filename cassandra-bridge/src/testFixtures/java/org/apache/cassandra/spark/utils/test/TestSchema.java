@@ -498,7 +498,8 @@ public final class TestSchema
                             rf,
                             allFields,
                             udts,
-                            0);
+                            0,
+                            withCdc);
     }
 
     public void writeSSTable(TemporaryDirectory directory,

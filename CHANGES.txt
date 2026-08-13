@@ -1,6 +1,15 @@
 0.5.0
 -----
  * Add sidecar.instance.id Spark conf to append an instanceId query parameter to outbound sidecar requests, fixing 421 errors when Sidecar is behind a load balancer (CASSANALYTICS-177)
+ * CDC reader stats silently dropped in SidecarCdcBuilder (CASSANALYTICS-191)
+ * Add CapturePublishedSchema metric to SidecarCdcStats (CASSANALYTICS-189)
+ * Expand list of architecture that supports unaligned access in FastByteOperations (CASSANALYTICS-188)
+ * Fix FastByteOperations Silently Falling Back to Pure-Java Comparator (CASSANALYTICS-187)
+ * AbstractSchemaBuilder.build() drops the cdc flag, silently disabling CDC on all tables (CASSANALYTICS-186)
+ * Fix total timeout calculation for getAllNodeSettings (CASSANALYTICS-179)
+ * Support vector data type (CASSANALYTICS-26)
+ * CDC batch-write mixing a CDC-enabled and CDC-disabled table drops the CDC table's mutation (CASSANALYTICS-182)
+ * CdcState.ReplicaCountSerializer map-size overflow corrupts persisted CDC state (CASSANALYTICS-184)
  * SSTable-version-based bridge determination (CASSANALYTICS-24)
  * Upgrade sidecar version to 0.4.0 (CASSANALYTICS-176)
  * Exclude IP address from RingInstance equality so node replacement does not fail bulk write jobs (CASSANALYTICS-175)
