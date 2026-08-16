@@ -204,13 +204,14 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
 
             long rowCount = streamResults.stream().mapToLong(res -> res.rowCount).sum();
             long totalBytesWritten = streamResults.stream().mapToLong(res -> res.bytesWritten).sum();
+            long rowsViolatedConstraints = streamResults.stream().mapToLong(res -> res.rowsViolatedConstraints).sum();
             boolean hasClusterTopologyChanged = writeResults.stream().anyMatch(WriteResult::isClusterResizeDetected);
 
             onCloudStorageTransport(context -> waitForImportCompletion(context, rowCount, totalBytesWritten, hasClusterTopologyChanged, streamResults));
 
             LOGGER.info("Bulk writer job complete. rowCount={} totalBytes={} hasClusterTopologyChanged={}",
                         rowCount, totalBytesWritten, hasClusterTopologyChanged);
-            publishSuccessfulJobStats(rowCount, totalBytesWritten, hasClusterTopologyChanged);
+            publishSuccessfulJobStats(rowCount, totalBytesWritten, rowsViolatedConstraints, hasClusterTopologyChanged);
         }
         catch (Throwable throwable)
         {
@@ -309,13 +310,14 @@ public class CassandraBulkSourceRelation extends BaseRelation implements Inserta
         importCoordinator.await();
     }
 
-    private void publishSuccessfulJobStats(long rowCount, long totalBytesWritten, boolean hasClusterTopologyChanged)
+    private void publishSuccessfulJobStats(long rowCount, long rowsViolatingConstraints, long totalBytesWritten, boolean hasClusterTopologyChanged)
     {
         writerContext.jobStats().publish(new HashMap<String, String>() // type declaration required to compile with java8
         {{
                 put("jobId", writerContext.job().getId().toString());
                 put("transportInfo", writerContext.job().transportInfo().toString());
                 put("rowsWritten", Long.toString(rowCount));
+                put("rowsViolatingConstraints", Long.toString(rowsViolatingConstraints));
                 put("bytesWritten", Long.toString(totalBytesWritten));
                 put("jobStatus", "Succeeded");
                 put("clusterResizeDetected", String.valueOf(hasClusterTopologyChanged));

@@ -232,7 +232,7 @@ class CommitCoordinatorTest
             DirectStreamResult sr = new DirectStreamResult(UUID.randomUUID().toString(),
                                                            TEST_RANGE,
                                                            buildFailures(),
-                                                           buildPassed(), 0, 0);
+                                                           buildPassed(), 0, 0, 0);
             if (successfulCommits > 0 || failedCommits > 0)
             {
                 List<CommitResult> commitResults = new ArrayList<>();

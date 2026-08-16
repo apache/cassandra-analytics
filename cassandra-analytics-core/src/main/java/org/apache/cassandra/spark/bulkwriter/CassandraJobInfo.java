@@ -96,6 +96,12 @@ public class CassandraJobInfo implements JobInfo
     }
 
     @Override
+    public boolean skipRowsViolatingConstraints()
+    {
+        return conf.skipRowsViolatingConstraints;
+    }
+
+    @Override
     public boolean getSkipClean()
     {
         return conf.getSkipClean();

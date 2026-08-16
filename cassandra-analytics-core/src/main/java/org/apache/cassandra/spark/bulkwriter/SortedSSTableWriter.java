@@ -91,6 +91,7 @@ public class SortedSSTableWriter
     private final org.apache.cassandra.bridge.SSTableWriter cqlSSTableWriter;
     private final int partitionId;
     private final DigestAlgorithm digestAlgorithm;
+    private final boolean skipRowsViolatingConstraints;
 
     // Fields accessed only from the RecordWriter thread (addRow/close caller)
     private BigInteger minToken = null;
@@ -102,6 +103,7 @@ public class SortedSSTableWriter
     private boolean isClosed = false;
     private int sstableCount = 0;
     private long bytesWritten = 0;
+    private long rowsViolatedConstraints = 0;
 
     public SortedSSTableWriter(org.apache.cassandra.bridge.SSTableWriter tableWriter, Path outDir,
                                DigestAlgorithm digestAlgorithm,
@@ -111,6 +113,7 @@ public class SortedSSTableWriter
         this.outDir = outDir;
         this.digestAlgorithm = digestAlgorithm;
         this.partitionId = partitionId;
+        this.skipRowsViolatingConstraints = false;
     }
 
     public SortedSSTableWriter(BulkWriterContext writerContext, Path outDir, DigestAlgorithm digestAlgorithm, int partitionId)
@@ -118,6 +121,7 @@ public class SortedSSTableWriter
         this.outDir = outDir;
         this.digestAlgorithm = digestAlgorithm;
         this.partitionId = partitionId;
+        this.skipRowsViolatingConstraints = writerContext.job().skipRowsViolatingConstraints();
 
         CassandraVersion bridgeVersion = writerContext.cluster().getBridgeVersion();
         String packageVersion = getPackageVersion(bridgeVersion);
@@ -162,8 +166,24 @@ public class SortedSSTableWriter
         }
         // rows are sorted. Therefore, only update the maxToken
         maxToken = token;
-        cqlSSTableWriter.addRow(boundValues);
-        rowCount += 1;
+        try
+        {
+            cqlSSTableWriter.addRow(boundValues);
+            rowCount += 1;
+        }
+        catch (Throwable t)
+        {
+            if (t.getCause() != null && "org.apache.cassandra.cql3.constraints.ConstraintViolationException".equals(t.getCause().getClass().getName()))
+            {
+                rowsViolatedConstraints += 1;
+                if (!skipRowsViolatingConstraints)
+                    throw t;
+            }
+            else
+            {
+                throw t;
+            }
+        }
     }
 
     public void setSSTablesProducedListener(Consumer<Set<SSTableDescriptor>> listener)
@@ -437,5 +457,10 @@ public class SortedSSTableWriter
     public Map<Path, Digest> fileDigestMap()
     {
         return Collections.unmodifiableMap(overallFileDigests);
+    }
+
+    public long rowsViolatedConstraints()
+    {
+        return rowsViolatedConstraints;
     }
 }

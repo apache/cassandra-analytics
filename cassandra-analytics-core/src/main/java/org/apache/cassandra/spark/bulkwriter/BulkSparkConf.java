@@ -141,6 +141,7 @@ public class BulkSparkConf implements Serializable
     public final Integer sstableDataSizeInMiB;
     public final int commitBatchSize;
     public final boolean skipExtendedVerify;
+    public final boolean skipRowsViolatingConstraints;
     public final WriteMode writeMode;
     public final int commitThreadsPerInstance;
     public final double importCoordinatorTimeoutMultiplier;
@@ -194,6 +195,8 @@ public class BulkSparkConf implements Serializable
         this.table = MapUtils.getOrThrow(options, WriterOptions.TABLE.name());
         this.skipExtendedVerify = MapUtils.getBoolean(options, WriterOptions.SKIP_EXTENDED_VERIFY.name(), true,
                                                       "skip extended verification of SSTables by Cassandra");
+        this.skipRowsViolatingConstraints = MapUtils.getBoolean(options, WriterOptions.SKIP_ROWS_VIOLATING_CONSTRAINTS.name(), false,
+                                                                "skip rows which failed to be written because of violated constraints");
         this.consistencyLevel = ConsistencyLevel.CL.valueOf(MapUtils.getOrDefault(options, WriterOptions.BULK_WRITER_CL.name(), "EACH_QUORUM"));
         String dc = MapUtils.getOrDefault(options, WriterOptions.LOCAL_DC.name(), null);
         if (!consistencyLevel.isLocal() && dc != null)

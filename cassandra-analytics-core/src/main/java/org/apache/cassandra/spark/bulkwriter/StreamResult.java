@@ -34,13 +34,15 @@ public abstract class StreamResult implements Serializable
     public final List<RingInstance> passed;
     public final long rowCount;
     public final long bytesWritten;
+    public final long rowsViolatedConstraints;
 
     protected StreamResult(String sessionID,
                            Range<BigInteger> tokenRange,
                            List<StreamError> failures,
                            List<RingInstance> passed,
                            long rowCount,
-                           long bytesWritten)
+                           long bytesWritten,
+                           long rowsViolatedConstraints)
     {
         this.sessionID = sessionID;
         this.tokenRange = tokenRange;
@@ -48,5 +50,6 @@ public abstract class StreamResult implements Serializable
         this.passed = passed;
         this.rowCount = rowCount;
         this.bytesWritten = bytesWritten;
+        this.rowsViolatedConstraints = rowsViolatedConstraints;
     }
 }
