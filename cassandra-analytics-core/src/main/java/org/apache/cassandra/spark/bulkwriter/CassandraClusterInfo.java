@@ -504,6 +504,13 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
      * Builds a hostname (nodeName/fqdn) to per-instance Sidecar routing id lookup from the given contact points,
      * e.g. ones declared as {@code "host:port=<id>"} (see {@link SidecarInstanceFactory#createFromString}).
      *
+     * <p><b>Limitation:</b> this lookup is keyed on the literal contact-point address string, so it can only
+     * represent a 1:1 Sidecar-to-instance topology, where every instance has its own distinct address. If two
+     * or more instances share the same address with different ids configured, building this map throws
+     * {@code IllegalStateException: Duplicate key} — it cannot express that topology at all. The address must
+     * also match exactly (IP vs hostname, case) what the ring reports for that instance ({@code
+     * ReplicaMetadata#fqdn()}); a mismatch silently drops the configured id rather than resolving it.
+     *
      * @param contactPoints the Sidecar contact points in effect for this cluster
      * @return a map of hostname to configured Sidecar instance id; entries with no configured id are omitted
      */
@@ -521,6 +528,20 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
      * one real Cassandra instance. That is only correct when every instance in the ring resolves its own id (see
      * {@link #sidecarInstanceIdsByHostname}); otherwise requests to the unresolved instances would be silently
      * misrouted to whichever instance the global id happens to identify.
+     *
+     * <p><b>Scope:</b> this check — and the whole per-instance-id resolution mechanism above it — assumes a
+     * <b>1:1 Sidecar-to-Cassandra-instance deployment where every instance is reachable at its own distinct
+     * address</b> (directly, or via {@code host[:port]=<id>} contact points). In that shape a single job-level
+     * id is always correct, since every Sidecar answering has exactly one local instance to route to.
+     *
+     * <p>It does <b>not</b> cover multiple distinct Cassandra instances reachable only through a
+     * <b>shared</b> address (several instances behind the same load-balancer endpoint, or one Sidecar managing
+     * more than one local instance on the same host:port). That topology cannot be expressed by the current
+     * hostname-keyed lookup — configuring it crashes {@link #sidecarInstanceIdsByHostname} with a
+     * "Duplicate key" error instead of resolving. Supporting it safely requires the Sidecar server to report
+     * each replica's own instance id in the ring/token-range-replicas response, so the client resolves coverage
+     * from the ring itself rather than from static, address-keyed config. Tracked as a follow-up in
+     * apache/cassandra-sidecar.
      *
      * @param instances the distinct instances discovered from the live ring
      */
@@ -544,8 +565,11 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
             String.format("Ambiguous Sidecar instanceId configuration: Spark conf %s=%d would be applied uniformly "
                           + "to %d/%d ring instances that have no per-instance id configured (%s). This misroutes "
                           + "requests whenever a single Sidecar endpoint fronts more than one of these instances "
-                          + "(for example, behind a load balancer). Configure a per-instance id for each affected "
-                          + "instance instead, using the host[:port]=<id> syntax in %s.",
+                          + "(for example, behind a load balancer). If every instance is reachable at its own "
+                          + "distinct address, configure a per-instance id for each one using the host[:port]=<id> "
+                          + "syntax in %s. If instead multiple instances share the same address (e.g. behind one "
+                          + "load-balancer endpoint), per-instance ids cannot currently be expressed this way — "
+                          + "that requires a Sidecar-side fix to report each instance's id in the ring response.",
                           BulkSparkConf.SIDECAR_INSTANCE_ID, globalInstanceId, unresolvedInstances.size(), instances.size(),
                           unresolvedInstances, WriterOptions.SIDECAR_CONTACT_POINTS.name()));
         }

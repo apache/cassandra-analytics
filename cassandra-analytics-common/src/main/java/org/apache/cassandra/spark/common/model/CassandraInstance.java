@@ -67,7 +67,7 @@ public interface CassandraInstance extends TokenOwner
      *
      * @return the per-instance Sidecar routing id, or {@code null} when not set
      */
-    default Integer sidecarInstanceId()
+    default @Nullable Integer sidecarInstanceId()
     {
         return null;
     }

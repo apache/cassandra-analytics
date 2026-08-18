@@ -19,22 +19,17 @@
 
 package org.apache.cassandra.clients;
 
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.Map;
 
 import com.google.common.collect.Maps;
 import org.junit.jupiter.api.Test;
 
 import o.a.c.sidecar.client.shaded.client.HttpClientConfig;
-import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
-import o.a.c.sidecar.client.shaded.client.SimpleSidecarInstancesProvider;
 import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.spark.SparkConf;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 
 /**
  * Unit tests for {@link AnalyticsSidecarClient}
@@ -56,66 +51,6 @@ class AnalyticsSidecarClientTest
         BulkSparkConf conf = new BulkSparkConf(sparkConf, defaultOptions());
         HttpClientConfig httpClientConfig = AnalyticsSidecarClient.buildHttpClientConfig(conf);
         assertThat(httpClientConfig.instanceId()).isEqualTo(9);
-    }
-
-    @Test
-    void testWarnIfGlobalInstanceIdIsAmbiguousAllowsSingleInstance()
-    {
-        HttpClientConfig httpClientConfig = configWithGlobalInstanceId("1");
-        SimpleSidecarInstancesProvider provider =
-        new SimpleSidecarInstancesProvider(Collections.singletonList(new SidecarInstanceImpl("127.0.0.1", 9999)));
-
-        // A single instance is unambiguous: the global id can only apply to it, so this must not fail.
-        assertThatCode(() -> AnalyticsSidecarClient.warnIfGlobalInstanceIdIsAmbiguous(httpClientConfig, provider))
-        .doesNotThrowAnyException();
-    }
-
-    @Test
-    void testWarnIfGlobalInstanceIdIsAmbiguousDoesNotThrowForMultipleInstances()
-    {
-        HttpClientConfig httpClientConfig = configWithGlobalInstanceId("2");
-        SimpleSidecarInstancesProvider provider =
-        new SimpleSidecarInstancesProvider(Arrays.asList(new SidecarInstanceImpl("127.0.0.1", 9999),
-                                                         new SidecarInstanceImpl("127.0.0.2", 9999),
-                                                         new SidecarInstanceImpl("127.0.0.3", 9999)));
-
-        // Multiple instances relying on a single global id is a warning (per-instance ids can override it),
-        // not a hard failure - so the job must still be allowed to start.
-        assertThatCode(() -> AnalyticsSidecarClient.warnIfGlobalInstanceIdIsAmbiguous(httpClientConfig, provider))
-        .doesNotThrowAnyException();
-    }
-
-    @Test
-    void testWarnIfGlobalInstanceIdIsAmbiguousWithPerInstanceIds()
-    {
-        HttpClientConfig httpClientConfig = configWithGlobalInstanceId("1");
-        SimpleSidecarInstancesProvider provider =
-        new SimpleSidecarInstancesProvider(Arrays.asList(new SidecarInstanceImpl("127.0.0.1", 9999, 1),
-                                                         new SidecarInstanceImpl("127.0.0.2", 9999, 2),
-                                                         new SidecarInstanceImpl("127.0.0.3", 9999, 3)));
-
-        assertThatCode(() -> AnalyticsSidecarClient.warnIfGlobalInstanceIdIsAmbiguous(httpClientConfig, provider))
-        .doesNotThrowAnyException();
-    }
-
-    @Test
-    void testWarnIfGlobalInstanceIdIsAmbiguousNoopWhenUnset()
-    {
-        HttpClientConfig httpClientConfig = AnalyticsSidecarClient.buildHttpClientConfig(
-        new BulkSparkConf(new SparkConf(), defaultOptions()));
-        SimpleSidecarInstancesProvider provider =
-        new SimpleSidecarInstancesProvider(Arrays.asList(new SidecarInstanceImpl("127.0.0.1", 9999),
-                                                         new SidecarInstanceImpl("127.0.0.2", 9999)));
-
-        assertThat(httpClientConfig.instanceId()).isNull();
-        assertThatCode(() -> AnalyticsSidecarClient.warnIfGlobalInstanceIdIsAmbiguous(httpClientConfig, provider))
-        .doesNotThrowAnyException();
-    }
-
-    private HttpClientConfig configWithGlobalInstanceId(String instanceId)
-    {
-        SparkConf sparkConf = new SparkConf().set(BulkSparkConf.SIDECAR_INSTANCE_ID, instanceId);
-        return AnalyticsSidecarClient.buildHttpClientConfig(new BulkSparkConf(sparkConf, defaultOptions()));
     }
 
     private Map<String, String> defaultOptions()

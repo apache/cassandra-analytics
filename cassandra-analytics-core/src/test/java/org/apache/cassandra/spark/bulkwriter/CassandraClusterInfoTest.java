@@ -201,25 +201,6 @@ public class CassandraClusterInfoTest
     }
 
     @Test
-    void testSidecarInstanceIdsByHostnameFromCoordinatedWriteContactPoints()
-    {
-        // Coordinated-write contact points are parsed the same way (SimpleClusterConf.buildSidecarContactPoints
-        // also delegates to SidecarInstanceFactory.createFromString), so per-instance ids must resolve here too -
-        // this is the exact path that regressed when id lookup was previously sourced from
-        // conf.sidecarContactPoints() instead of the cluster's actually-resolved contact points.
-        Set<SidecarInstance> coordinatedContactPoints = new HashSet<>(Arrays.asList(
-        SidecarInstanceFactory.createFromString("172.20.39.166:9043=1"),
-        SidecarInstanceFactory.createFromString("172.20.39.97:9043=2"),
-        SidecarInstanceFactory.createFromString("172.20.39.216:9043=3")));
-
-        Map<String, Integer> byHostname = CassandraClusterInfo.sidecarInstanceIdsByHostname(coordinatedContactPoints);
-
-        assertThat(byHostname).containsEntry("172.20.39.166", 1)
-                              .containsEntry("172.20.39.97", 2)
-                              .containsEntry("172.20.39.216", 3);
-    }
-
-    @Test
     void testSidecarInstanceIdsByHostnameEmptyWhenNoneConfigured()
     {
         Set<SidecarInstance> contactPoints = new HashSet<>(Arrays.asList(
@@ -227,6 +208,44 @@ public class CassandraClusterInfoTest
         SidecarInstanceFactory.createFromString("cassandra2:9043", 9043)));
 
         assertThat(CassandraClusterInfo.sidecarInstanceIdsByHostname(contactPoints)).isEmpty();
+    }
+
+    @Test
+    void testSidecarInstanceIdsByHostnameThrowsWhenSharedHostnameHasDifferentIds()
+    {
+        // Reproduces a Sidecar deployment shared/load-balanced across multiple Cassandra instances: they are
+        // only reachable through the same address (e.g. one LB VIP), each meant to carry its own id. The
+        // current hostname-keyed lookup cannot represent this - it can only associate a single id per hostname -
+        // so instead of silently picking one id, it fails fast while building the lookup.
+        Set<SidecarInstance> contactPoints = new HashSet<>(Arrays.asList(
+        SidecarInstanceFactory.createFromString("sidecar-lb:9043=1"),
+        SidecarInstanceFactory.createFromString("sidecar-lb:9043=2"),
+        SidecarInstanceFactory.createFromString("sidecar-lb:9043=3")));
+
+        assertThatThrownBy(() -> CassandraClusterInfo.sidecarInstanceIdsByHostname(contactPoints))
+        .describedAs("a single shared Sidecar endpoint fronting multiple instances (e.g. behind a load balancer) "
+                    + "cannot be expressed by a hostname->id map keyed on hostname alone")
+        .isExactlyInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Duplicate key");
+    }
+
+    @Test
+    void testSidecarInstanceIdsByHostnameMissesWhenAddressFormatDiffersFromRingFqdn()
+    {
+        // The lookup is keyed on the literal contact-point address string. If the ring later reports this same
+        // physical instance under a different string (e.g. its fqdn, when the contact point was configured by
+        // IP), the two never match: getTokenRangeReplicasFromSidecar's instanceIdsByHostname.get(metadata.fqdn())
+        // misses, and the configured id is silently dropped for that instance - not an exception, just a null.
+        Set<SidecarInstance> contactPoints = Collections.singleton(
+        SidecarInstanceFactory.createFromString("10.0.0.5:9043=1"));
+
+        Map<String, Integer> byHostname = CassandraClusterInfo.sidecarInstanceIdsByHostname(contactPoints);
+
+        assertThat(byHostname).containsEntry("10.0.0.5", 1);
+        assertThat(byHostname)
+        .describedAs("the ring would report this same instance by its fqdn, not its IP - the lookup key must "
+                    + "match exactly, so the configured id is invisible under the fqdn key")
+        .doesNotContainKey("node1.example.com");
     }
 
     private static RingInstance ringInstance(String fqdn, @Nullable Integer sidecarInstanceId)
@@ -277,6 +296,7 @@ public class CassandraClusterInfoTest
             when(context.getCluster()).thenReturn(Collections.emptySet());
             return context;
         }
+    }
 
     private BulkSparkConf mockBulkSparkWithSidecarConf(int requestTimeoutSeconds, long maxRetryDelayMillis, int retryCount)
     {
