@@ -230,6 +230,110 @@ class RangeUtilsTest
         assertThat(RangeUtils.split(range, nrSplits)).isEqualTo(expectedResult);
     }
 
+    @Test
+    void testFindUncoveredRangesWithCompleteCoverage()
+    {
+        Range<BigInteger> fullRange = Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(30));
+        List<Range<BigInteger>> covering = Arrays.asList(
+        Range.openClosed(BigInteger.ZERO, BigInteger.TEN),
+        Range.openClosed(BigInteger.TEN, BigInteger.valueOf(20)),
+        Range.openClosed(BigInteger.valueOf(20), BigInteger.valueOf(30))
+        );
+        assertThat(RangeUtils.findUncoveredRanges(fullRange, covering)).isEmpty();
+    }
+
+    @Test
+    void testFindUncoveredRangesDetectsGap()
+    {
+        // leaves (10, 20] uncovered -- a real, non-empty gap
+        Range<BigInteger> fullRange = Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(30));
+        List<Range<BigInteger>> covering = Arrays.asList(
+        Range.openClosed(BigInteger.ZERO, BigInteger.TEN),
+        Range.openClosed(BigInteger.valueOf(20), BigInteger.valueOf(30))
+        );
+        assertThat(RangeUtils.findUncoveredRanges(fullRange, covering))
+        .containsExactly(Range.openClosed(BigInteger.TEN, BigInteger.valueOf(20)));
+    }
+
+    @Test
+    void testFindUncoveredRangesDetectsMultipleGapsInAscendingOrder()
+    {
+        Range<BigInteger> fullRange = Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(40));
+        List<Range<BigInteger>> covering = Arrays.asList(
+        Range.openClosed(BigInteger.valueOf(20), BigInteger.valueOf(30)),
+        Range.openClosed(BigInteger.ZERO, BigInteger.TEN)
+        );
+        assertThat(RangeUtils.findUncoveredRanges(fullRange, covering))
+        .containsExactly(Range.openClosed(BigInteger.TEN, BigInteger.valueOf(20)),
+                         Range.openClosed(BigInteger.valueOf(30), BigInteger.valueOf(40)));
+    }
+
+    @Test
+    void testFindUncoveredRangesToleratesOverlappingAndUnsortedInput()
+    {
+        Range<BigInteger> fullRange = Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(30));
+        List<Range<BigInteger>> covering = Arrays.asList(
+        Range.openClosed(BigInteger.valueOf(15), BigInteger.valueOf(30)),
+        Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(20))
+        );
+        assertThat(RangeUtils.findUncoveredRanges(fullRange, covering)).isEmpty();
+    }
+
+    @Test
+    void testFindUncoveredRangesToleratesEmptyCoveringRanges()
+    {
+        // (5, 5] is degenerate: it covers no token, so removing it is a no-op and the ranges either side still cover
+        Range<BigInteger> fullRange = Range.openClosed(BigInteger.ZERO, BigInteger.TEN);
+        List<Range<BigInteger>> covering = Arrays.asList(
+        Range.openClosed(BigInteger.ZERO, BigInteger.valueOf(5)),
+        Range.openClosed(BigInteger.valueOf(5), BigInteger.valueOf(5)),
+        Range.openClosed(BigInteger.valueOf(5), BigInteger.TEN)
+        );
+        assertThat(RangeUtils.findUncoveredRanges(fullRange, covering)).isEmpty();
+    }
+
+    @Test
+    void testFindUncoveredRangesRejectsEmptyFullRange()
+    {
+        // Nothing can cover an empty range, so reporting it as fully covered would be a false negative
+        Range<BigInteger> emptyRange = Range.openClosed(BigInteger.TEN, BigInteger.TEN);
+        assertThatThrownBy(() -> RangeUtils.findUncoveredRanges(emptyRange, Collections.emptyList()))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("fullRange must not be empty");
+    }
+
+    @Test
+    void testFindUncoveredRingRangesDetectsGap()
+    {
+        for (Partitioner partitioner : Partitioner.values())
+        {
+            Range<BigInteger> wholeRing = Range.openClosed(partitioner.minToken(), partitioner.maxToken());
+            List<Range<BigInteger>> ringWithGap = new ArrayList<>(RangeUtils.split(wholeRing, 4));
+            Range<BigInteger> third = ringWithGap.get(2);
+            BigInteger gapEnd = third.lowerEndpoint().add(BigInteger.TEN);
+            ringWithGap.set(2, Range.openClosed(gapEnd, third.upperEndpoint()));
+
+            assertThat(RangeUtils.findUncoveredRingRanges(partitioner, ringWithGap))
+            .as("A gap in the %s ring should be reported", partitioner)
+            .containsExactly(Range.openClosed(third.lowerEndpoint(), gapEnd));
+        }
+    }
+
+    @Test
+    void testFindUncoveredRingRangesOverWholeRingIsGapFree()
+    {
+        // A gap-free split of the whole ring leaves minToken uncovered, because the sub-ranges are open-closed.
+        // findUncoveredRingRanges owns that bound-type decision, so no caller can get it wrong: it must not
+        // report [minToken, minToken] as a gap.
+        for (Partitioner partitioner : Partitioner.values())
+        {
+            Range<BigInteger> wholeRing = Range.openClosed(partitioner.minToken(), partitioner.maxToken());
+            assertThat(RangeUtils.findUncoveredRingRanges(partitioner, RangeUtils.split(wholeRing, 16)))
+            .as("Splitting the whole %s ring should leave no gap", partitioner)
+            .isEmpty();
+        }
+    }
+
     private static void assertTokenRanges(int nodes, int replicationFactor, String[]... ranges)
     {
         assertThat(nodes).isEqualTo(ranges.length);

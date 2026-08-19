@@ -32,9 +32,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeMap;
-import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeMap;
-import com.google.common.collect.TreeRangeSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -229,18 +227,10 @@ public class TokenPartitioner extends Partitioner
 
     private void validateCompleteRangeCoverage()
     {
-        RangeSet<BigInteger> missingRangeSet = TreeRangeSet.create();
-        missingRangeSet.add(Range.closed(tokenRangeMapping.partitioner().minToken(),
-                                         tokenRangeMapping.partitioner().maxToken()));
-
-        partitionMap.asMapOfRanges().keySet().forEach(missingRangeSet::remove);
-
-        List<Range<BigInteger>> missingRanges = missingRangeSet.asRanges().stream()
-                                                               .filter(Range::isEmpty)
-                                                               .collect(Collectors.toList());
-        // noinspection unchecked
+        List<Range<BigInteger>> missingRanges = RangeUtils.findUncoveredRingRanges(tokenRangeMapping.partitioner(),
+                                                                                  partitionMap.asMapOfRanges().keySet());
         Preconditions.checkState(missingRanges.isEmpty(),
-                                 "There should be no missing ranges, but found " + missingRanges.toString());
+                                 "There should be no missing ranges, but found %s", missingRanges);
     }
 
     private void validateMapSizes()

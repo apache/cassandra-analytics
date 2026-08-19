@@ -21,14 +21,26 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Range;
+import com.google.common.collect.RangeMap;
+import com.google.common.collect.TreeRangeMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.utils.RangeUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TokenPartitionerTest
 {
@@ -170,6 +182,49 @@ public class TokenPartitionerTest
         partitioner = new TokenPartitioner(tokenRangeMapping, -1, 1, 750, false);
         assertThat(partitioner.numSplits()).isEqualTo(10);
         assertThat(partitioner.numPartitions()).isGreaterThanOrEqualTo(200);
+    }
+
+    // Range coverage validation must reject a partition map that leaves a token uncovered. The gap has to be
+    // injected through a mocked mapping: TokenRangeMapping seeds its range map with the whole ring, so a mapping
+    // built the normal way is always gap-free and cannot exercise the check.
+    @Test
+    public void testValidationDetectsRangeGap()
+    {
+        Partitioner ringPartitioner = Partitioner.Murmur3Partitioner;
+        Range<BigInteger> wholeRing = Range.openClosed(ringPartitioner.minToken(), ringPartitioner.maxToken());
+        // Take a gap-free split of the ring and punch a real, non-empty gap into the third sub-range by moving
+        // its lower endpoint up, leaving (lowerEndpoint, lowerEndpoint + 10] uncovered
+        List<Range<BigInteger>> rangesWithGap = new ArrayList<>(RangeUtils.split(wholeRing, 4));
+        Range<BigInteger> third = rangesWithGap.get(2);
+        BigInteger gapEnd = third.lowerEndpoint().add(BigInteger.TEN);
+        rangesWithGap.set(2, Range.openClosed(gapEnd, third.upperEndpoint()));
+
+        RangeMap<BigInteger, List<RingInstance>> gappedRangeMap = TreeRangeMap.create();
+        rangesWithGap.forEach(range -> gappedRangeMap.put(range, Collections.emptyList()));
+
+        @SuppressWarnings("unchecked")
+        TokenRangeMapping<RingInstance> tokenRangeMapping = mock(TokenRangeMapping.class);
+        when(tokenRangeMapping.partitioner()).thenReturn(ringPartitioner);
+        when(tokenRangeMapping.getRangeMap()).thenReturn(gappedRangeMap);
+        when(tokenRangeMapping.getTokenRanges()).thenReturn(ArrayListMultimap.create());
+
+        // numberSplits of 1 leaves the ranges above untouched, so they reach the partition map as-is
+        assertThatThrownBy(() -> new TokenPartitioner(tokenRangeMapping, 1, 2, 1, false))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("There should be no missing ranges")
+        .hasMessageContaining(String.format("(%s..%s]", third.lowerEndpoint(), gapEnd));
+    }
+
+    // Guards against over-correcting the fix for the above: the partition map is built from open-closed sub-ranges,
+    // so minToken belongs to none of them. Validation that expected [minToken, maxToken] to be covered would report
+    // a spurious [minToken, minToken] gap and fail every bulk write on a perfectly healthy ring.
+    @Test
+    public void testValidationAcceptsRingNotCoveringMinToken()
+    {
+        TokenRangeMapping<RingInstance> tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), 3);
+        partitioner = new TokenPartitioner(tokenRangeMapping, 2, 2, 1, false);
+        BigInteger minToken = Partitioner.Murmur3Partitioner.minToken();
+        assertThat(partitioner.getTokenRange(0).contains(minToken)).isFalse();
     }
 
     private int partitionForToken(int token)
