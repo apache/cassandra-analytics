@@ -41,17 +41,27 @@ public class TokenPartitionerValidationTest
     @Test
     public void testValidationDetectsRangeGap()
     {
-        // Take a gap-free split of the ring and punch a real, non-empty gap into the third sub-range by
-        // moving its lower endpoint up, leaving (lowerEndpoint, lowerEndpoint + 10] uncovered
-        List<Range<BigInteger>> subRangesWithGap = new ArrayList<>(RangeUtils.split(wholeRing(), 4));
-        Range<BigInteger> third = subRangesWithGap.get(2);
-        BigInteger gapEnd = third.lowerEndpoint().add(BigInteger.TEN);
-        subRangesWithGap.set(2, Range.openClosed(gapEnd, third.upperEndpoint()));
+        List<Range<BigInteger>> subRanges = RangeUtils.split(wholeRing(), 4);
 
-        assertThatThrownBy(() -> new TokenPartitioner(subRangesWithGap, ring()))
+        assertThatThrownBy(() -> new TokenPartitioner(withGapAt(subRanges, 2), ring()))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("There should be no missing ranges")
-        .hasMessageContaining(String.format("(%s..%s]", third.lowerEndpoint(), gapEnd));
+        .hasMessageContaining(gapPunchedInto(subRanges.get(2)).toString());
+    }
+
+    @Test
+    public void testValidationDetectsRangeGapAtRingLowerEdge()
+    {
+        // Guards the bound type at minToken from both sides: minToken itself is owned by no sub-range and must not
+        // be reported, yet a gap starting immediately above it must still be caught. The gap is punched into the
+        // first sub-range rather than dropping it, so that the partition count stays put and validateMapSizes
+        // cannot fail first with an unrelated message.
+        List<Range<BigInteger>> subRanges = RangeUtils.split(wholeRing(), 4);
+
+        assertThatThrownBy(() -> new TokenPartitioner(withGapAt(subRanges, 0), ring()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("There should be no missing ranges")
+        .hasMessageContaining(gapPunchedInto(subRanges.get(0)).toString());
     }
 
     @Test
@@ -66,6 +76,26 @@ public class TokenPartitionerValidationTest
     private static Range<BigInteger> wholeRing()
     {
         return Range.openClosed(PARTITIONER.minToken(), PARTITIONER.maxToken());
+    }
+
+    /**
+     * Punches a real, non-empty gap into the sub-range at {@code gapIndex} by moving its lower endpoint up, so that
+     * the returned ranges leave exactly {@link #gapPunchedInto} uncovered.
+     */
+    private static List<Range<BigInteger>> withGapAt(List<Range<BigInteger>> gapFreeRanges, int gapIndex)
+    {
+        List<Range<BigInteger>> ranges = new ArrayList<>(gapFreeRanges);
+        Range<BigInteger> covered = ranges.get(gapIndex);
+        ranges.set(gapIndex, Range.openClosed(gapPunchedInto(covered).upperEndpoint(), covered.upperEndpoint()));
+        return ranges;
+    }
+
+    /**
+     * @return the sub-range that {@link #withGapAt} leaves uncovered when it punches a gap into {@code range}
+     */
+    private static Range<BigInteger> gapPunchedInto(Range<BigInteger> range)
+    {
+        return Range.openClosed(range.lowerEndpoint(), range.lowerEndpoint().add(BigInteger.TEN));
     }
 
     private static CassandraRing ring()

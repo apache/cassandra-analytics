@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.BoundType;
@@ -76,7 +77,7 @@ public final class RangeUtils
     /**
      * Finds the sub-ranges of the whole token ring that none of the {@code coveringRanges} covers, i.e. the gaps in
      * the ring coverage. An empty result means the ring is covered in its entirety.
-     *
+     * <p>
      * The ring is expressed as {@code (minToken, maxToken]}, matching the open-closed notation used for token
      * ranges everywhere else. Expressing it as {@code [minToken, maxToken]} instead would report minToken as a
      * spurious single-token gap, because open-closed ranges never cover their own lower endpoint.
@@ -94,18 +95,20 @@ public final class RangeUtils
     /**
      * Finds the sub-ranges of {@code fullRange} that none of the {@code coveringRanges} covers, i.e. the gaps in
      * the coverage. An empty result means {@code coveringRanges} covers {@code fullRange} in its entirety.
-     *
-     * Both the input and the output honor Guava's bound types, so {@code fullRange} should be expressed using the
-     * same notation as the covering ranges. Prefer {@link #findUncoveredRingRanges} when the range to cover is a
-     * whole token ring, so that the notation is not decided at each call site. Empty ranges are never reported,
-     * as a range that contains no token cannot be a gap.
+     * <p>
+     * Both the input and the output honor Guava's bound types, so {@code fullRange} must be expressed using the
+     * same notation as the covering ranges. That makes the method easy to misuse, which is why it is not exposed
+     * beyond this class: callers go through {@link #findUncoveredRingRanges}, which owns the notation so that the
+     * bound types are not decided at each call site. Empty ranges are never reported, as a range that contains no
+     * token cannot be a gap.
      *
      * @param fullRange the non-empty range expected to be fully covered
      * @param coveringRanges the ranges expected to cover {@code fullRange}; they may overlap and need not be sorted
      * @return the uncovered sub-ranges of {@code fullRange}, in ascending order
      */
-    public static List<Range<BigInteger>> findUncoveredRanges(Range<BigInteger> fullRange,
-                                                              Collection<Range<BigInteger>> coveringRanges)
+    @VisibleForTesting
+    static List<Range<BigInteger>> findUncoveredRanges(Range<BigInteger> fullRange,
+                                                       Collection<Range<BigInteger>> coveringRanges)
     {
         // An empty fullRange has nothing to cover, so every input would trivially look fully covered.
         // Reject it rather than report a false "no gaps".

@@ -307,15 +307,50 @@ class RangeUtilsTest
     {
         for (Partitioner partitioner : Partitioner.values())
         {
-            Range<BigInteger> wholeRing = Range.openClosed(partitioner.minToken(), partitioner.maxToken());
-            List<Range<BigInteger>> ringWithGap = new ArrayList<>(RangeUtils.split(wholeRing, 4));
-            Range<BigInteger> third = ringWithGap.get(2);
-            BigInteger gapEnd = third.lowerEndpoint().add(BigInteger.TEN);
-            ringWithGap.set(2, Range.openClosed(gapEnd, third.upperEndpoint()));
-
-            assertThat(RangeUtils.findUncoveredRingRanges(partitioner, ringWithGap))
+            List<Range<BigInteger>> ring = RangeUtils.split(wholeRing(partitioner), 4);
+            assertThat(RangeUtils.findUncoveredRingRanges(partitioner, withGapAt(ring, 2)))
             .as("A gap in the %s ring should be reported", partitioner)
-            .containsExactly(Range.openClosed(third.lowerEndpoint(), gapEnd));
+            .containsExactly(gapPunchedInto(ring.get(2)));
+        }
+    }
+
+    @Test
+    void testFindUncoveredRingRangesDetectsGapAtRingLowerEdge()
+    {
+        // The bound type at minToken is the whole subtlety of findUncoveredRingRanges: it must not report minToken
+        // itself as a gap, yet it must still report a gap that starts immediately above minToken
+        for (Partitioner partitioner : Partitioner.values())
+        {
+            List<Range<BigInteger>> ring = RangeUtils.split(wholeRing(partitioner), 4);
+            assertThat(RangeUtils.findUncoveredRingRanges(partitioner, withGapAt(ring, 0)))
+            .as("A gap at the lower edge of the %s ring should be reported", partitioner)
+            .containsExactly(gapPunchedInto(ring.get(0)));
+        }
+    }
+
+    @Test
+    void testFindUncoveredRingRangesDetectsMissingFirstSubRange()
+    {
+        // Dropping the first sub-range leaves everything above minToken up to its upper endpoint uncovered
+        for (Partitioner partitioner : Partitioner.values())
+        {
+            List<Range<BigInteger>> ring = RangeUtils.split(wholeRing(partitioner), 4);
+            assertThat(RangeUtils.findUncoveredRingRanges(partitioner, ring.subList(1, ring.size())))
+            .as("A missing first sub-range of the %s ring should be reported", partitioner)
+            .containsExactly(Range.openClosed(partitioner.minToken(), ring.get(0).upperEndpoint()));
+        }
+    }
+
+    @Test
+    void testFindUncoveredRingRangesDetectsMissingLastSubRange()
+    {
+        // The counterpart of the above at the other end of the ring, where maxToken is inclusive
+        for (Partitioner partitioner : Partitioner.values())
+        {
+            List<Range<BigInteger>> ring = RangeUtils.split(wholeRing(partitioner), 4);
+            assertThat(RangeUtils.findUncoveredRingRanges(partitioner, ring.subList(0, ring.size() - 1)))
+            .as("A missing last sub-range of the %s ring should be reported", partitioner)
+            .containsExactly(ring.get(ring.size() - 1));
         }
     }
 
@@ -327,11 +362,35 @@ class RangeUtilsTest
         // report [minToken, minToken] as a gap.
         for (Partitioner partitioner : Partitioner.values())
         {
-            Range<BigInteger> wholeRing = Range.openClosed(partitioner.minToken(), partitioner.maxToken());
-            assertThat(RangeUtils.findUncoveredRingRanges(partitioner, RangeUtils.split(wholeRing, 16)))
+            assertThat(RangeUtils.findUncoveredRingRanges(partitioner, RangeUtils.split(wholeRing(partitioner), 16)))
             .as("Splitting the whole %s ring should leave no gap", partitioner)
             .isEmpty();
         }
+    }
+
+    private static Range<BigInteger> wholeRing(Partitioner partitioner)
+    {
+        return Range.openClosed(partitioner.minToken(), partitioner.maxToken());
+    }
+
+    /**
+     * Punches a real, non-empty gap into the sub-range at {@code gapIndex} by moving its lower endpoint up, so that
+     * the returned ranges leave exactly {@link #gapPunchedInto} uncovered.
+     */
+    private static List<Range<BigInteger>> withGapAt(List<Range<BigInteger>> gapFreeRanges, int gapIndex)
+    {
+        List<Range<BigInteger>> ranges = new ArrayList<>(gapFreeRanges);
+        Range<BigInteger> covered = ranges.get(gapIndex);
+        ranges.set(gapIndex, Range.openClosed(gapPunchedInto(covered).upperEndpoint(), covered.upperEndpoint()));
+        return ranges;
+    }
+
+    /**
+     * @return the sub-range that {@link #withGapAt} leaves uncovered when it punches a gap into {@code range}
+     */
+    private static Range<BigInteger> gapPunchedInto(Range<BigInteger> range)
+    {
+        return Range.openClosed(range.lowerEndpoint(), range.lowerEndpoint().add(BigInteger.TEN));
     }
 
     private static void assertTokenRanges(int nodes, int replicationFactor, String[]... ranges)
