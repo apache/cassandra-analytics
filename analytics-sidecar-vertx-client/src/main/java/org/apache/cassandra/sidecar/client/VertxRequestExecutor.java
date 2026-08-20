@@ -33,9 +33,9 @@ public class VertxRequestExecutor extends RequestExecutor
 {
     private final Vertx vertx;
 
-    public VertxRequestExecutor(VertxHttpClient httpClient)
+    public VertxRequestExecutor(VertxHttpClient httpClient, SidecarIdentityProvider identityProvider)
     {
-        super(httpClient);
+        super(httpClient, identityProvider);
         this.vertx = requireNonNull(httpClient.vertx(), "The vertx instance is required");
     }
 

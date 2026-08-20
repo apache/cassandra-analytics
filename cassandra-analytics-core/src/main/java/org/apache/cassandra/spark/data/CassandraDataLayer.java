@@ -834,7 +834,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                                                in.readInt(),
                                                                readNullable(in),
                                                                (Map<FileType, Long>) in.readObject(),
-                                                               (Map<FileType, Long>) in.readObject());
+                                                               (Map<FileType, Long>) in.readObject(),
+                                                               readNullable(in),
+                                                               (Map<String, String>) in.readObject());
         this.sslConfig = (SslConfig) in.readObject();
 
         this.cqlTable = bridge.javaDeserialize(in, CqlTable.class);  // Delegate (de-)serialization of version-specific objects to the Cassandra Bridge
@@ -890,6 +892,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         writeNullable(out, this.sidecarClientConfig.cassandraRole());
         out.writeObject(this.sidecarClientConfig.maxBufferOverride());
         out.writeObject(this.sidecarClientConfig.chunkBufferOverride());
+        writeNullable(out, this.sidecarClientConfig.identityProviderClass());
+        out.writeObject(this.sidecarClientConfig.identityProviderParameters());
         out.writeObject(this.sslConfig);
         bridge.javaSerialize(out, this.cqlTable);  // Delegate (de-)serialization of version-specific objects to the Cassandra Bridge
         out.writeObject(this.tokenPartitioner);
@@ -1022,6 +1026,8 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             out.writeString(dataLayer.sidecarClientConfig.cassandraRole());
             kryo.writeObject(out, dataLayer.sidecarClientConfig.maxBufferOverride());
             kryo.writeObject(out, dataLayer.sidecarClientConfig.chunkBufferOverride());
+            kryo.writeObjectOrNull(out, dataLayer.sidecarClientConfig.identityProviderClass(), String.class);
+            kryo.writeObject(out, dataLayer.sidecarClientConfig.identityProviderParameters());
             kryo.writeObjectOrNull(out, dataLayer.sslConfig, SslConfig.class);
             kryo.writeObject(out, dataLayer.cqlTable);
             kryo.writeObject(out, dataLayer.tokenPartitioner);
@@ -1074,7 +1080,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                         in.readInt(),
                                         in.readString(),
                                         (Map<FileType, Long>) kryo.readObject(in, HashMap.class),
-                                        (Map<FileType, Long>) kryo.readObject(in, HashMap.class)),
+                                        (Map<FileType, Long>) kryo.readObject(in, HashMap.class),
+                                        in.readString(),
+                                        (Map<String, String>) kryo.readObject(in, HashMap.class)),
             kryo.readObjectOrNull(in, SslConfig.class),
             kryo.readObject(in, CqlTable.class),
             kryo.readObject(in, TokenPartitioner.class),

@@ -20,6 +20,9 @@
 package org.apache.cassandra.sidecar.client;
 
 import java.time.Duration;
+import java.util.Map;
+
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Encapsulates configurations for the {@link SidecarClient}
@@ -50,4 +53,12 @@ public interface SidecarClientConfig
      * @return the maximum amount of time to wait before retrying a failed health check
      */
      Duration maximumHealthRetryDelay();
+
+    /**
+     * @return implementation class of custom identity provider
+     */
+     @Nullable
+     String identityProviderClass();
+
+     Map<String, String> identityProviderParameters();
 }

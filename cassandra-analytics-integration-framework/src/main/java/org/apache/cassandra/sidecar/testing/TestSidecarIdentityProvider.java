@@ -16,32 +16,17 @@
  * limitations under the License.
  */
 
-package org.apache.cassandra.sidecar.client;
+package org.apache.cassandra.sidecar.testing;
 
-import io.vertx.core.Vertx;
+import o.a.c.sidecar.client.shaded.client.RequestContext;
+import o.a.c.sidecar.client.shaded.client.SidecarIdentityProvider;
 
-import static java.util.Objects.requireNonNull;
-
-/**
- * A {@link RequestExecutor} implementation that uses vertx primitives
- */
-public class SidecarClientVertxRequestExecutor extends VertxRequestExecutor
+public class TestSidecarIdentityProvider implements SidecarIdentityProvider
 {
-    private final Vertx vertx;
-
-    public SidecarClientVertxRequestExecutor(VertxHttpClient httpClient, SidecarIdentityProvider identityProvider)
-    {
-        super(httpClient, identityProvider);
-        this.vertx = requireNonNull(httpClient.vertx(), "The vertx instance is required");
-    }
-
-    /**
-     * @throws Exception Closing the client vertx should not close general Vertx, that's why we are overriding
-     * the close method from the VertxRequestExecutor class.
-     */
     @Override
-    public void close() throws Exception
+    public void injectCredentials(RequestContext.Builder builder)
     {
-        httpClient.close();
+        builder.addCustomHeader(TestAuthenticationHandlerFactory.TestAuthHandler.USERNAME_HTTP_HEADER, "cassandra");
+        builder.addCustomHeader(TestAuthenticationHandlerFactory.TestAuthHandler.PASSWORD_HTTP_HEADER, "secret");
     }
 }

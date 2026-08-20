@@ -91,4 +91,6 @@ dependencies {
         exclude(group: 'io.confluent')
     }
     api(group: 'org.apache.cassandra', name: 'sidecar-server-common', version: "${sidecarVersion}")
+
+    api(project(":cassandra-analytics-sidecar-client"))
 }
