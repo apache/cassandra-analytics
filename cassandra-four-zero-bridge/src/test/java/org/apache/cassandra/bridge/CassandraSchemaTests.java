@@ -138,5 +138,11 @@ public class CassandraSchemaTests
 
         // unregistering an unknown table (never registered) is a no-op, not an error
         CassandraSchema.unregisterNonCdcTables(schema, ImmutableSet.of(TableIdentifier.of("unknown_ks", "unknown_table")));
+
+        // the table comes back at risk: registering it again reuses the column family store that the
+        // metadata-only removal left with the keyspace instance
+        CassandraSchema.updateCdcSchema(schema, ImmutableSet.of(nonCdcTable, cdcTable), Partitioner.Murmur3Partitioner, (keyspace, table) -> null);
+        assertThat(CassandraSchema.has(schema, nonCdcTable.keyspace(), nonCdcTable.table())).isTrue();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cdcTable)).isTrue();
     }
 }

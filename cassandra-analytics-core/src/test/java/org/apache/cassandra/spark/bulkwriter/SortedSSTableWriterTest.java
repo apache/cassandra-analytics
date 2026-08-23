@@ -140,6 +140,17 @@ public class SortedSSTableWriterTest
                     assertThat(baseFileName).matches("da-\\d+-bti");
                 }
                 break;
+            case 60:
+                // Format is "pa-<generation>-big" or "ea-<generation>-bti"
+                if ("big".equals(CassandraVersion.configuredSSTableFormat()))
+                {
+                    assertThat(baseFileName).matches("pa-\\d+-big");
+                }
+                else
+                {
+                    assertThat(baseFileName).matches("ea-\\d+-bti");
+                }
+                break;
             default:
                 throw new UnsupportedOperationException("Unsupported version: " + version);
         }
