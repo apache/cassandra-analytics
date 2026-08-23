@@ -250,6 +250,13 @@ public abstract class SharedClusterIntegrationTestBase
     {
         try
         {
+            // An assumption in beforeClusterProvisioning() aborts setup() before it provisions the cluster, and
+            // every hook below would then throw a NullPointerException
+            if (cluster == null)
+            {
+                logger.info("Skipping tear down; the cluster was never provisioned");
+                return;
+            }
             beforeSidecarStop();
             stopSidecar();
             beforeClusterShutdown();

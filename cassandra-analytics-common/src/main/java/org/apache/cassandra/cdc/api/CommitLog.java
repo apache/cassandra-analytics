@@ -54,12 +54,8 @@ public interface CommitLog extends Closeable, CassandraFile, Comparable<CommitLo
             try
             {
                 int version = matcher.group(2) == null ? 6 : Integer.parseInt(matcher.group(2));
-                // versions are present in C* code-base in CommitLogDescriptor
-                if (version != 6 && version != 7 && version != 8)
-                {
-                    throw new IllegalStateException("Unknown commitlog version " + version);
-                }
-                // logic taken from org.apache.cassandra.db.commitlog.CommitLogDescriptor.getMessagingVersion()
+                // logic taken from org.apache.cassandra.db.commitlog.CommitLogDescriptor.getMessagingVersion().
+                // The commit log versions are in CommitLogDescriptor, the messaging versions in MessagingService.
                 int messagingVersion;
                 switch (version)
                 {
@@ -69,8 +65,14 @@ public interface CommitLog extends Closeable, CassandraFile, Comparable<CommitLo
                     case 7:
                         messagingVersion = 12;
                         break;
-                    default:
+                    case 8:
                         messagingVersion = 13;
+                        break;
+                    case 9:
+                        messagingVersion = 14;
+                        break;
+                    default:
+                        throw new IllegalStateException("Unknown commitlog version " + version);
                 }
                 return Optional.of(Pair.of(messagingVersion, Long.parseLong(matcher.group(3))));
             }

@@ -59,6 +59,16 @@ configurations {
     fivezeroTypes {
         description = 'Cassandra 5.0 Data Types'
     }
+
+    sixzero {
+        description = 'Cassandra 6.0 dependency'
+    }
+    sixzeroBridge {
+        description = 'Bridge to Cassandra 6.0'
+    }
+    sixzeroTypes {
+        description = 'Cassandra 6.0 Data Types'
+    }
 }
 
 dependencies {
@@ -71,6 +81,10 @@ dependencies {
     fivezero(project(path: ':cassandra-five-zero', configuration: 'shadow'))
     fivezeroBridge(project(path: ':cassandra-five-zero-bridge'))
     fivezeroTypes(project(path: ':cassandra-five-zero-types'))
+
+    sixzero(project(path: ':cassandra-six-zero', configuration: 'shadow'))
+    sixzeroBridge(project(path: ':cassandra-six-zero-bridge'))
+    sixzeroTypes(project(path: ':cassandra-six-zero-types'))
 
     implementation project(":cassandra-analytics-common")
     implementation project(':cassandra-analytics-cdc')
@@ -118,6 +132,10 @@ jar {
     dependsOn(configurations.fivezeroBridge)
     dependsOn(configurations.fivezeroTypes)
 
+    dependsOn(configurations.sixzero)
+    dependsOn(configurations.sixzeroBridge)
+    dependsOn(configurations.sixzeroTypes)
+
     exclude('META-INF/*')
     into('bridges') {
         from(configurations.fourzero.singleFile)
@@ -127,6 +145,10 @@ jar {
         from(configurations.fivezero.singleFile)
         from(configurations.fivezeroBridge.singleFile)
         from(configurations.fivezeroTypes.singleFile)
+
+        from(configurations.sixzero.singleFile)
+        from(configurations.sixzeroBridge.singleFile)
+        from(configurations.sixzeroTypes.singleFile)
     }
 }
 

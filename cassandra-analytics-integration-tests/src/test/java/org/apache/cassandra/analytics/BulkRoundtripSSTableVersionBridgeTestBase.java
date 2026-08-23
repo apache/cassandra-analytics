@@ -30,6 +30,7 @@ import com.vdurmont.semver4j.Semver;
 
 import org.junit.jupiter.api.Test;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
@@ -111,10 +112,10 @@ abstract class BulkRoundtripSSTableVersionBridgeTestBase extends SharedClusterSp
         System.setProperty("cassandra.analytics.bridges.sstable_format", sstableFormat());
         if ("bti".equals(sstableFormat()))
         {
-            // BTI (bti-da) is a Cassandra 5.0+ format; skip on older versions.
+            // BTI is a Cassandra 5.0+ format; skip on older versions.
             Semver version = new Semver(testVersion.version(), Semver.SemverType.LOOSE);
             assumeTrue(version.isGreaterThanOrEqualTo(new Semver("5.0", Semver.SemverType.LOOSE)),
-                       "BTI format (bti-da) requires Cassandra 5.0+, but test version is " + testVersion.version());
+                       "BTI format requires Cassandra 5.0+, but test version is " + testVersion.version());
         }
     }
 
@@ -238,34 +239,33 @@ abstract class BulkRoundtripSSTableVersionBridgeTestBase extends SharedClusterSp
         cluster.stream().forEach(instance -> instance.nodetool("flush", TEST_KEYSPACE));
     }
 
-    /**
-     * Asserts the on-disk SSTables for the given table match the format produced by this test class:
-     * {@code bti-da} for the BTI variant (5.x only), otherwise {@code big} with the version expected for the
-     * Cassandra version under test ({@code oa} for 5.x, {@code nb} for 4.x).
-     */
     private void assertExpectedSSTableFormat(QualifiedName table)
     {
-        if ("bti".equals(sstableFormat()))
-        {
-            assertSSTableFormatOnDisk(table, "bti", "da");
-        }
-        else
-        {
-            String version = testVersion.version();
-            String expectedSSTableVersion;
-            if (version.startsWith("5."))
-            {
-                expectedSSTableVersion = "oa";
-            }
-            else if (version.startsWith("4."))
-            {
-                expectedSSTableVersion = "nb";
-            }
-            else
-            {
-                throw new IllegalStateException("Unsupported Cassandra version for SSTable format assertion: " + version);
-            }
-            assertSSTableFormatOnDisk(table, "big", expectedSSTableVersion);
-        }
+        String format = sstableFormat();
+        assertSSTableFormatOnDisk(table, format, expectedSSTableVersion(format));
+    }
+
+    /**
+     * @return the newest version in {@code format} that the Cassandra version under test writes natively, without
+     * the format prefix
+     */
+    private String expectedSSTableVersion(String format)
+    {
+        String version = testVersion.version();
+        CassandraVersion underTest = CassandraVersion.fromVersion(version)
+                                                     .orElseThrow(() -> new IllegalStateException(
+                                                     "Unsupported Cassandra version for SSTable format assertion: " + version));
+        String prefix = format + '-';
+        // A version can introduce no new SSTable version, as Cassandra 4.1 did, so take the newest version at or
+        // below the version under test
+        return Arrays.stream(CassandraVersion.values())
+                     .filter(candidate -> candidate.versionNumber() <= underTest.versionNumber())
+                     .sorted(Comparator.comparingInt(CassandraVersion::versionNumber))
+                     .flatMap(candidate -> candidate.getNativeSSTableVersions().stream())
+                     .filter(sstableVersion -> sstableVersion.startsWith(prefix))
+                     .reduce((earlier, later) -> later)
+                     .map(sstableVersion -> sstableVersion.substring(prefix.length()))
+                     .orElseThrow(() -> new IllegalStateException(
+                     "Cassandra " + version + " writes no native " + format + " SSTable version"));
     }
 }

@@ -34,6 +34,7 @@ import java.util.stream.IntStream;
 
 import com.google.common.collect.Range;
 
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.distributed.api.ConsistencyLevel;
 import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
@@ -51,6 +52,7 @@ import scala.Tuple2;
 
 import static org.apache.cassandra.testing.TestUtils.TEST_KEYSPACE;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
  * Base class for resiliency tests. Contains helper methods for data generation and validation
@@ -58,6 +60,33 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTestBase
 {
     public static final String QUERY_ALL_ROWS = "SELECT * FROM %s";
+
+    /**
+     * Skips the test class when the version under test declares none of the internals that the ByteBuddy hooks of a
+     * topology-change test intercept: {@code StorageService.bootstrap(Collection, long)},
+     * {@code StorageService.unbootstrap()} and {@code RangeRelocator.stream()}. CEP-21 Transactional Cluster Metadata
+     * removed all three in Cassandra 6.0, in favour of {@code org.apache.cassandra.tcm.sequences}. A hook that fails
+     * to install is silent, so the test would instead wait on a latch that never counts down.
+     *
+     * <p>Call this from {@link #beforeClusterProvisioning()}, which runs before the cluster starts.</p>
+     */
+    protected void assumeTopologyChangeHooksSupported()
+    {
+        String version = testVersion.version();
+        CassandraVersion underTest = CassandraVersion.fromVersion(version)
+                                                     .orElseThrow(() -> new IllegalStateException(
+                                                     "Unsupported Cassandra version for topology-change tests: " + version));
+        boolean supported = underTest.versionNumber() < CassandraVersion.SIXZERO.versionNumber();
+        if (!supported)
+        {
+            // An aborted @BeforeAll produces no test event, so Gradle reports nothing
+            logger.warn("Skipping {}: a topology-change test intercepts Cassandra internals that CEP-21 removed "
+                        + "in 6.0, and the test version is {}", getClass().getSimpleName(), version);
+        }
+        assumeTrue(supported,
+                   "A topology-change test intercepts Cassandra internals that CEP-21 removed in 6.0, "
+                   + "but the test version is " + version);
+    }
 
     public Set<String> getDataForRange(Range<BigInteger> range, int rowCount)
     {

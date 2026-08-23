@@ -81,9 +81,11 @@ public class SSTableWriterImplementation implements SSTableWriter
 
     private static IPartitioner determineSupportedPartitioner(String partitioner)
     {
+        // Take the singleton rather than a new instance: Cassandra 6.0 makes the constructors non-public, and
+        // this class is the one every bridge from 4.0 on shares
         return partitioner.toLowerCase().contains("random")
-               ? new RandomPartitioner()
-               : new Murmur3Partitioner();
+               ? RandomPartitioner.instance
+               : Murmur3Partitioner.instance;
     }
 
     private void onSSTablesProduced(Collection<SSTableReader> sstables)

@@ -38,6 +38,20 @@ public class CassandraVersionFeaturesTest
         testCassandraVersion("cassandra-4.0-SNAPSHOT", 40, 0, "SNAPSHOT");
         testCassandraVersion("cassandra-2.0.9-loadtest-SNAPSHOT", 20, 9, "-loadtest-SNAPSHOT");
 
+        testCassandraVersion("6.0-alpha2", 60, 0, "alpha2");
+        testCassandraVersion("cassandra-6.0-alpha2", 60, 0, "alpha2");
+        testCassandraVersion("cassandra-6.0-rc1", 60, 0, "rc1");
+        testCassandraVersion("cassandra-6.0.0", 60, 0, "");
+
+        // A node built from the pre-release branch reports the release version with a -SNAPSHOT tail
+        testCassandraVersion("6.0-alpha2-SNAPSHOT", 60, 0, "alpha2");
+        testCassandraVersion("cassandra-6.0-alpha2-SNAPSHOT", 60, 0, "alpha2");
+
+        // A caller can name a major version alone, as the integration tests do
+        testCassandraVersion("5.0", 50, 0, null);
+        testCassandraVersion("6.0", 60, 0, null);
+        testCassandraVersion("cassandra-6.0", 60, 0, null);
+
         testCassandraVersion("qwerty-cassandra-1.2.11-v1", 12, 11, "-v1");
         testCassandraVersion("qwerty-cassandra-1.2.11.2-tag", 12, 11, "2");
         testCassandraVersion("qwerty-cassandra-4.0-SNAPSHOT", 40, 0, "SNAPSHOT");
