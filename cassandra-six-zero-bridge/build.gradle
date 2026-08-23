@@ -1,0 +1,151 @@
+import java.nio.file.Paths
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+plugins {
+    id('java-library')
+}
+
+apply from: "${project.rootDir}/gradle/common/javaOptions.gradle"
+
+// The jar task copies the Cassandra 5.0 main classes forward, but it does not copy test classes. Name the
+// Cassandra 5.0 bridge test directory as a second test source directory, so that the same tests run against
+// Cassandra 6.0.
+def fiveZeroTestDir = project(':cassandra-five-zero-bridge').file('src/test/java')
+
+// Every test below needs a Cassandra 6.0 change, and this module holds its own copy of each one. Unlike the
+// jar copy-forward, a source directory does not override, so name each Cassandra 5.0 copy here to keep the
+// compiler from seeing two classes of the same name.
+def overriddenTests = [
+        'org/apache/cassandra/bridge/CassandraSchemaTests.java',
+        'org/apache/cassandra/bridge/SSTableWriterImplementationTest.java',
+        'org/apache/cassandra/spark/reader/SchemaBuilderTests.java',
+].collect { new File(fiveZeroTestDir, it).absolutePath }
+
+sourceSets {
+    test {
+        java {
+            srcDir fiveZeroTestDir
+        }
+    }
+}
+
+// Both copies share the same relative path, so an exclude pattern on the source set would drop both.
+// Filter by absolute path instead.
+tasks.named('compileTestJava') {
+    exclude { element -> element.file.absolutePath in overriddenTests }
+}
+
+configurations {
+    all*.exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
+    all*.exclude(group: 'log4j', module: 'log4j')
+    implCassV5
+}
+
+dependencies {
+    // base this module on the Cassandra 5.x bridge, whose jar already carries the 4.x classes forward
+    implCassV5 project(':cassandra-five-zero-bridge')
+    compileOnly project(':cassandra-five-zero-bridge')
+    compileOnly project(':cassandra-four-zero-bridge')
+    // test runtime dependencies are needed to make V4 and V5 main classes visible during unit test execution.
+    // Declare every version-specific module here, newest first, and keep them all in testCompileOnly.
+    // Gradle builds testCompileClasspath from testCompileOnly before testImplementation, and preserves
+    // declaration order within a configuration. The first entry on the compile classpath wins, and each of
+    // these modules holds a class of the same name for every class that a later version overrides. V4 first
+    // resolves CassandraSchema, ReaderUtils and SummaryDbUtils to the V4 bodies, which take different
+    // arguments and name the pre-5.0 package of IndexSummary.
+    testCompileOnly project(':cassandra-six-zero-types')
+    testCompileOnly project(':cassandra-five-zero-types')
+    testCompileOnly project(':cassandra-five-zero-bridge')
+    testRuntimeOnly project(':cassandra-five-zero-bridge')
+    testCompileOnly project(':cassandra-four-zero-bridge')
+    testRuntimeOnly project(':cassandra-four-zero-bridge')
+    testCompileOnly project(':cassandra-four-zero-types')
+    testRuntimeOnly project(':cassandra-four-zero-types')
+
+    compileOnly project(":cassandra-analytics-common")
+    compileOnly project(":cassandra-six-zero-types")
+    // some classes from cassandra-six-zero-types will be present in the V4 and V5 types modules
+    compileOnly project(":cassandra-five-zero-types")
+    compileOnly project(":cassandra-four-zero-types")
+    compileOnly(project(':cassandra-bridge'))
+    compileOnly project(":cassandra-analytics-spark-converter")
+
+    compileOnly(project(path: ':cassandra-six-zero', configuration: 'shadow'))
+
+    compileOnly(group: 'org.slf4j', name: 'slf4j-api', version: "${project.slf4jApiVersion}")
+    compileOnly(group: 'com.esotericsoftware', name: 'kryo-shaded', version: "${project.kryoVersion}")
+    compileOnly(group: 'com.google.guava', name: 'guava', version: "${project.guavaVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: "${project.jacksonVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: "${project.jacksonVersion}")
+    compileOnly(group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: "${project.jacksonVersion}")
+
+    testImplementation(testFixtures(project(':cassandra-bridge')))
+    testImplementation project(":cassandra-analytics-common")
+    testImplementation project(":cassandra-six-zero-types")
+    testImplementation project(":cassandra-five-zero-types")
+    testImplementation(project(':cassandra-bridge'))
+    testImplementation project(":cassandra-analytics-spark-converter")
+    testImplementation project(":cassandra-analytics-spark-six-zero-converter")
+    testImplementation(project(path: ':cassandra-six-zero', configuration: 'shadow'))
+    testImplementation("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:${project.junitVersion}")
+    testImplementation("org.junit.jupiter:junit-jupiter-engine:${project.junitVersion}")
+    testImplementation("org.assertj:assertj-core:${assertjCoreVersion}")
+    testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
+    testImplementation("org.mockito:mockito-core:${project.rootProject.mockitoVersion}")
+    testImplementation(group: "${sparkGroupId}", name: "spark-core_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+    testImplementation(group: "${sparkGroupId}", name: "spark-sql_${scalaMajorVersion}", version: "${project.rootProject.sparkVersion}")
+    testImplementation(group: 'com.github.luben', name: 'zstd-jni', version: '1.5.0-4')
+
+    testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna', version: "${jnaVersion}")
+    testRuntimeOnly(group: 'net.java.dev.jna', name: 'jna-platform', version: "${jnaVersion}")
+}
+
+jar {
+    archiveFileName = "six-zero-bridge.jar"
+    // trigger types testClasses and/or jar, so that dependent classes will be visible
+    // note that it should not depend on 'build', which depends on 'test'
+    dependsOn ':cassandra-six-zero-types:testClasses'
+    dependsOn ':cassandra-five-zero-bridge:jar'
+    // copy classes from the V5 implementation and exclude duplicates that we override
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from { configurations.implCassV5.collect { it.isDirectory() ? it : zipTree(it) } }
+}
+
+test {
+    systemProperty "cassandra.analytics.bridges.sstable_format", System.getProperty("cassandra.analytics.bridges.sstable_format", "big")
+    useJUnitPlatform()
+}
+
+// automatically run BIG and BTI tests for the Cassandra 6.x bridge
+tasks.register('testBti', Test) {
+    doFirst {
+        jvmArgs(project.ext.JDK_OPTIONS)
+        println("JVM arguments for $project.name are $allJvmArgs")
+    }
+
+    systemProperty "cassandra.analytics.bridges.sstable_format", "bti"
+    useJUnitPlatform()
+}
+
+check {
+    dependsOn(tasks.testBti)
+}

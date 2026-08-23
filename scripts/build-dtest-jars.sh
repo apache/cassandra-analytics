@@ -39,15 +39,16 @@ else
   # Due to MacOS being stuck on Bash < 4, we don't use associative arrays here.
   #
   # NOTE: The following branches need to stay in sync with the values in build.gradle:
-  #   ext.cassandraVersionEnumMap = ["4.0": "FOURZERO", "4.1": "FOURONE", "5.0": "FIVEZERO"]
-  #   ext.cassandraFullVersionMap = ["4.0": "4.0.17", "4.1": "4.1.4", "5.0": "5.0.7"]
+  #   ext.cassandraVersionEnumMap = ["4.0": "FOURZERO", "4.1": "FOURONE", "5.0": "FIVEZERO", "6.0": "SIXZERO"]
+  #   ext.cassandraFullVersionMap = ["4.0": "4.0.17", "4.1": "4.1.4", "5.0": "5.0.7", "6.0": "6.0-alpha2"]
   # NOTE: The following branches also need to remain in sync with CassandraVersion.java
   CANDIDATE_BRANCHES=(
     "cassandra-4.0:cassandra-4.0.17"
     "cassandra-4.1:99d9faeef57c9cf5240d11eac9db5b283e45a4f9"
     "cassandra-5.0:cassandra-5.0.7"
+    "cassandra-6.0:cassandra-6.0-alpha2"
   )
-  BRANCHES=( ${BRANCHES:-cassandra-4.0 cassandra-4.1 cassandra-5.0} )
+  BRANCHES=( ${BRANCHES:-cassandra-4.0 cassandra-4.1 cassandra-5.0 cassandra-6.0} )
   echo ${BRANCHES[*]}
   REPO=${REPO:-"https://github.com/apache/cassandra.git"}
   SCRIPT_DIR=$( dirname -- "$( readlink -f -- "$0"; )"; )

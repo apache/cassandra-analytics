@@ -45,6 +45,14 @@ public class SchemaUpdater
         schema.load(keyspaceMetadata);
     }
 
+    /**
+     * Replaces the metadata of an existing keyspace with metadata that holds fewer tables
+     */
+    public static void removeTables(Schema schema, KeyspaceMetadata keyspaceMetadata)
+    {
+        schema.load(keyspaceMetadata);
+    }
+
     public static void updateTable(Schema schema, KeyspaceMetadata keyspaceMetadata, TableMetadata tableMetadata)
     {
         schema.load(keyspaceMetadata.withSwapped(keyspaceMetadata.tables.withSwapped(tableMetadata)));

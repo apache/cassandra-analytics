@@ -77,6 +77,12 @@ abstract class NodeMovementTestBase extends ResiliencyTestBase
     }
 
     @Override
+    protected void beforeClusterProvisioning()
+    {
+        assumeTopologyChangeHooksSupported();
+    }
+
+    @Override
     protected void afterClusterProvisioned()
     {
         ClusterBuilderConfiguration configuration = testClusterConfiguration();

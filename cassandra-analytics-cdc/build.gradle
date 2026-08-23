@@ -60,6 +60,19 @@ configurations {
     fivezeroAvroConverter {
         description = 'Avro converter for Cassandra 5.0 Data Types'
     }
+
+    sixzero {
+        description = 'Cassandra 6.0 dependency'
+    }
+    sixzeroBridge {
+        description = 'Bridge to Cassandra 6.0'
+    }
+    sixzeroTypes {
+        description = 'Cassandra 6.0 Data Types'
+    }
+    sixzeroAvroConverter {
+        description = 'Avro converter for Cassandra 6.0 Data Types'
+    }
 }
 
 dependencies {
@@ -77,6 +90,11 @@ dependencies {
     fivezeroBridge(project(path: ':cassandra-five-zero-bridge'))
     fivezeroTypes(project(path: ':cassandra-five-zero-types'))
     fivezeroAvroConverter(project(":cassandra-five-zero-avro-converter"))
+
+    sixzero(project(path: ':cassandra-six-zero', configuration: 'shadow'))
+    sixzeroBridge(project(path: ':cassandra-six-zero-bridge'))
+    sixzeroTypes(project(path: ':cassandra-six-zero-types'))
+    sixzeroAvroConverter(project(":cassandra-six-zero-avro-converter"))
 
     implementation "com.google.guava:guava:${guavaVersion}"
 
@@ -127,6 +145,11 @@ jar {
     dependsOn(configurations.fivezeroTypes)
     dependsOn(configurations.fivezeroAvroConverter)
 
+    dependsOn(configurations.sixzero)
+    dependsOn(configurations.sixzeroBridge)
+    dependsOn(configurations.sixzeroTypes)
+    dependsOn(configurations.sixzeroAvroConverter)
+
     exclude('META-INF/*')
     into('bridges') {
         from(configurations.fourzero.singleFile)
@@ -138,6 +161,11 @@ jar {
         from(configurations.fivezeroBridge.singleFile)
         from(configurations.fivezeroTypes.singleFile)
         from(configurations.fivezeroAvroConverter.singleFile)
+
+        from(configurations.sixzero.singleFile)
+        from(configurations.sixzeroBridge.singleFile)
+        from(configurations.sixzeroTypes.singleFile)
+        from(configurations.sixzeroAvroConverter.singleFile)
     }
 }
 
@@ -159,7 +187,7 @@ def configureCdcTestTask = { Test task, String majorMinor = null ->
         // Full version format to match CDC's TestVersionSupplier; tests both versions for backward compat.
         // 4.1 intentionally excluded from gradlew defaults to keep local iteration fast;
         // use testCassandra41 for targeted 4.1 runs. CI covers 4.1 via CASSANDRA_VERSION env var.
-        task.systemProperty "cassandra.sidecar.versions_to_test", "4.0.17,5.0.7"
+        task.systemProperty "cassandra.sidecar.versions_to_test", "4.0.17,5.0.7,6.0-alpha2"
     }
 
     task.minHeapSize = '1024m'

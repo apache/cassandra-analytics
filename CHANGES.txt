@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Add Cassandra 6.0 support (CASSANALYTICS-37)
  * CDC reader stats silently dropped in SidecarCdcBuilder (CASSANALYTICS-191)
  * Add CapturePublishedSchema metric to SidecarCdcStats (CASSANALYTICS-189)
  * Expand list of architecture that supports unaligned access in FastByteOperations (CASSANALYTICS-188)
