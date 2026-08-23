@@ -19,11 +19,13 @@
 
 package org.apache.cassandra.bridge;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.ImmutableList;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -32,7 +34,14 @@ public class CassandraVersionFeatures implements Comparable<CassandraVersionFeat
 {
     private static final Pattern VERSION_PATTERN_3        = Pattern.compile("(?:.+-)?([0-9]+)\\.([0-9]+)\\.([0-9]+)([a-zA-Z0-9-]*)");
     private static final Pattern VERSION_PATTERN_4        = Pattern.compile("(?:.+-)?([0-9]+)\\.([0-9]+)\\.([0-9]+)\\.([0-9]+)[a-zA-Z0-9-]*");
-    private static final Pattern VERSION_PATTERN_SNAPSHOT = Pattern.compile("(?:.+-)?([0-9]+)\\.([0-9]+)-(SNAPSHOT)$");
+    // A major version carries no patch number until its first release: cassandra-4.0-SNAPSHOT, cassandra-6.0-alpha2,
+    // 6.0-alpha2-SNAPSHOT for a node built from the pre-release branch, and a bare 6.0 where a caller names the
+    // major version alone. Group 3 is the suffix, absent for a bare version
+    private static final Pattern VERSION_PATTERN_NO_PATCH  = Pattern.compile("(?:.+-)?([0-9]+)\\.([0-9]+)(?:-([a-zA-Z][a-zA-Z0-9]*))?(?:-SNAPSHOT)?$");
+    // Ordered most specific first; matchVersion returns the first that matches
+    private static final List<Pattern> VERSION_PATTERNS = ImmutableList.of(VERSION_PATTERN_4,
+                                                                          VERSION_PATTERN_3,
+                                                                          VERSION_PATTERN_NO_PATCH);
 
     protected final int majorVersion;
     protected final int minorVersion;
@@ -80,10 +89,11 @@ public class CassandraVersionFeatures implements Comparable<CassandraVersionFeat
 
     // E.g if cassandra version = cassandra-1.2.11-v1, we return 11;
     //  or if cassandra version = cassandra-4.0-SNAPSHOT, we return 0
+    //  or if cassandra version = cassandra-6.0-alpha2, we return 0
     private static String getCassandraMinorVersionCode(String cassandraVersion)
     {
         Matcher matcher = matchVersion(cassandraVersion);
-        if (matchesSnapshot(matcher.group(3)))
+        if (!hasPatchNumber(matcher))
         {
             return "0";
         }
@@ -94,15 +104,27 @@ public class CassandraVersionFeatures implements Comparable<CassandraVersionFeat
     // E.g if cassandra version = cassandra-1.2.11-v1, we return -v1;
     //  or if cassandra version = cassandra-1.2.11.2-tag, we return 2;
     //  or if cassandra version = cassandra-4.0-SNAPSHOT, we return SNAPSHOT
+    //  or if cassandra version = cassandra-6.0-alpha2, we return alpha2
+    //  or if cassandra version = 6.0, we return null
     private static String getCassandraVersionSuffix(String cassandraVersion)
     {
         Matcher matcher = matchVersion(cassandraVersion);
-        if (matchesSnapshot(matcher.group(3)) || matchesSnapshot(matcher.group(4)))
+        if (!hasPatchNumber(matcher))
+        {
+            return matcher.group(3);
+        }
+        if (matchesSnapshot(matcher.group(4)))
         {
             return "SNAPSHOT";
         }
 
         return matcher.group(4);
+    }
+
+    // True when group 3 is the patch number and group 4 the suffix; false when group 3 is the suffix
+    private static boolean hasPatchNumber(Matcher matcher)
+    {
+        return matcher.groupCount() > 3;
     }
 
     private static boolean matchesSnapshot(String snapshot)
@@ -111,27 +133,20 @@ public class CassandraVersionFeatures implements Comparable<CassandraVersionFeat
     }
 
     /**
-     * Returns a matched matcher using VERSION_PATTERN; throws if no match
+     * Returns a matched matcher using the first of {@link #VERSION_PATTERNS} that matches; throws if none match
      */
     private static Matcher matchVersion(String cassandraVersion)
     {
-        Matcher matcher = VERSION_PATTERN_4.matcher(cassandraVersion);
-
-        if (!matcher.find())
+        for (Pattern pattern : VERSION_PATTERNS)
         {
-            matcher = VERSION_PATTERN_3.matcher(cassandraVersion);
-
-            if (!matcher.find())
+            Matcher matcher = pattern.matcher(cassandraVersion);
+            if (matcher.find())
             {
-                matcher = VERSION_PATTERN_SNAPSHOT.matcher(cassandraVersion);
-                if (!matcher.find())
-                {
-                    throw new RuntimeException("cassandraVersion does not match version pattern, pattern=" + VERSION_PATTERN_3
-                                                                                            + ", version=" + cassandraVersion);
-                }
+                return matcher;
             }
         }
-        return matcher;
+        throw new RuntimeException("cassandraVersion does not match any version pattern, patterns=" + VERSION_PATTERNS
+                                                                              + ", version=" + cassandraVersion);
     }
 
     public int getMajorVersion()

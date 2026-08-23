@@ -437,7 +437,9 @@ public final class CassandraSchema
             // writes/compactions on the tables it mirrors, so a full Keyspace.dropCf() would
             // pull in unrelated production machinery (e.g. lazily initializing
             // CompactionManager's thread pools) with no corresponding benefit here.
-            SchemaUpdater.load(s, ks.get().withSwapped(ks.get().tables.without(table)));
+            // Replacing the keyspace metadata needs removeTables, not load: load only adds from
+            // Cassandra 5.0 on, and throws AlreadyExistsException for a keyspace that exists.
+            SchemaUpdater.removeTables(s, ks.get().withSwapped(ks.get().tables.without(table)));
         });
     }
 
