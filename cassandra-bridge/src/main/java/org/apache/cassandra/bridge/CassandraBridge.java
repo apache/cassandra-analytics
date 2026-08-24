@@ -318,6 +318,11 @@ public abstract class CassandraBridge
         return cassandraTypes().list(type);
     }
 
+    public CqlField.CqlVector vector(CqlField.CqlType type, int dimensions)
+    {
+        return cassandraTypes().vector(type, dimensions);
+    }
+
     public CqlField.CqlSet set(CqlField.CqlType type)
     {
         return cassandraTypes().set(type);

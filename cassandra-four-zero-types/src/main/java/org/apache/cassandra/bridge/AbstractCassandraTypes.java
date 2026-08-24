@@ -254,6 +254,12 @@ public abstract class AbstractCassandraTypes extends CassandraTypes
     }
 
     @Override
+    public CqlField.CqlVector vector(CqlField.CqlType type, int dimensions)
+    {
+        throw new UnsupportedOperationException("Vector data type is available in C* 5.x.");
+    }
+
+    @Override
     public CqlField.CqlSet set(CqlField.CqlType type)
     {
         return CqlCollection.set(type);

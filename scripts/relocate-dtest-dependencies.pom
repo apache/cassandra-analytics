@@ -153,6 +153,7 @@
                                     <artifact>*:*</artifact>
                                     <excludes>
                                         <exclude>**/Log4j2Plugins.dat</exclude>
+                                        <exclude>META-INF/versions/21/</exclude>
                                     </excludes>
                                 </filter>
 

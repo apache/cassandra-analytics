@@ -33,17 +33,21 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.Tester;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.Row;
+import org.quicktheories.core.Gen;
 import scala.collection.mutable.AbstractSeq;
 
 import static org.apache.cassandra.spark.utils.ScalaConversionUtils.mutableSeqAsJavaList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.quicktheories.QuickTheory.qt;
+import static org.quicktheories.generators.SourceDSL.arbitrary;
 
 @Tag("Sequential")
 public class DataTypeTests
@@ -101,6 +105,103 @@ public class DataTypeTests
                                .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
                                .run(bridge.getVersion())
             );
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testVector(CassandraBridge bridge)
+    {
+        assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
+        qt().forAll(supportedVectorTypes(bridge))
+            .checkAssert(type ->
+                         Tester.builder(TestSchema.builder(bridge)
+                                                  .withPartitionKey("pk", bridge.uuid())
+                                                  .withColumn("a", bridge.vector(type, 10)))
+                               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
+                               .run(bridge.getVersion())
+            );
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testVectorVector(CassandraBridge bridge)
+    {
+        assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
+        qt().forAll(supportedVectorTypes(bridge))
+            .checkAssert(type ->
+                         Tester.builder(TestSchema.builder(bridge)
+                                                  .withPartitionKey("pk", bridge.uuid())
+                                                  .withColumn("a", bridge.vector(bridge.vector(type, 2), 5)))
+                               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
+                               .run(bridge.getVersion())
+            );
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testVectorList(CassandraBridge bridge)
+    {
+        assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
+        qt().forAll(supportedVectorTypes(bridge))
+            .checkAssert(type ->
+                         Tester.builder(TestSchema.builder(bridge)
+                                                  .withPartitionKey("pk", bridge.uuid())
+                                                  .withColumn("a", bridge.vector(bridge.list(type), 3)))
+                               .withExpectedRowCountPerSSTable(Tester.DEFAULT_NUM_ROWS)
+                               .run(bridge.getVersion())
+            );
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testVectorUDT(CassandraBridge bridge)
+    {
+        // pk -> a vector<frozen<nested_udt<x int, y type, z int>>, 10>
+        // Test vector of UDTs
+        assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
+        qt().withExamples(10)
+            .forAll(supportedVectorTypes(bridge))
+            .checkAssert(type ->
+                         Tester.builder(TestSchema.builder(bridge)
+                                                  .withPartitionKey("pk", bridge.uuid())
+                                                  .withColumn("a", bridge.vector(
+                                                                                bridge.udt("keyspace", "nested_udt")
+                                                                                      .withField("x", bridge.aInt())
+                                                                                      .withField("y", type)
+                                                                                      .withField("z", bridge.aInt())
+                                                                                      .build().frozen(),
+                                                                                10)))
+                               .run(bridge.getVersion())
+            );
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testVectorTuple(CassandraBridge bridge)
+    {
+        // pk -> a vector<frozen<tuple<type, float, text>>, 7>
+        // Test tuple nested within vector
+        assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
+        qt().withExamples(10)
+            .forAll(supportedVectorTypes(bridge))
+            .checkAssert(type ->
+                         Tester.builder(TestSchema.builder(bridge)
+                                                  .withPartitionKey("pk", bridge.uuid())
+                                                  .withColumn("a", bridge.vector(bridge.tuple(type,
+                                                                                              bridge.aFloat(),
+                                                                                              bridge.text()).frozen(), 7)))
+                               .run(bridge.getVersion())
+            );
+    }
+
+    private static Gen<CqlField.NativeType> supportedVectorTypes(CassandraBridge bridge)
+    {
+        // TODO: Vector of list of durations fail, because we cannot replace DurationSerializer with
+        //  AnalyticsDurationSerializer across all serializers used by VectorType.
+        List<CqlField.NativeType> supportedTypes = bridge.supportedTypes().stream()
+                                                         .filter(t -> !t.equals(bridge.duration()))
+                                                         .collect(Collectors.toList());
+        return arbitrary().pick(supportedTypes);
     }
 
     @ParameterizedTest

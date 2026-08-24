@@ -84,6 +84,7 @@ public final class SqlToCqlTypeConverter implements Serializable
     public static final String UDT = "udt";
     public static final String VARCHAR = "varchar";
     public static final String VARINT = "varint";
+    public static final String VECTOR = "vector";
     private static final Logger LOGGER = LoggerFactory.getLogger(SqlToCqlTypeConverter.class);
     private static final NoOp<Object> NO_OP_CONVERTER = new NoOp<>();
     private static final LongConverter LONG_CONVERTER = new LongConverter();
@@ -165,6 +166,7 @@ public final class SqlToCqlTypeConverter implements Serializable
             case TINYINT:
                 return NO_OP_CONVERTER;
             case LIST:
+            case VECTOR:
                 return new ListConverter<>((CqlField.CqlCollection) cqlType);
             case MAP:
                 assert cqlType instanceof CqlField.CqlMap;

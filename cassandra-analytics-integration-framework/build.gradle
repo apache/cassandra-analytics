@@ -32,7 +32,7 @@ if (propertyWithDefault("artifactType", null) == "spark")
     apply from: "$rootDir/gradle/common/publishing.gradle"
 }
 
-ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-5.0.5.jar" // latest supported Cassandra build is 5.0
+ext.dtestJar = System.getenv("DTEST_JAR") ?: "dtest-5.0.7.jar" // latest supported Cassandra build is 5.0
 def dtestJarFullPath = "${dependencyLocation}${ext.dtestJar}"
 
 test {
@@ -50,7 +50,7 @@ dependencies {
     // classpath while running integration tests. Instead, a dedicated classloader will load the
     // dtest jar while provisioning the in-jvm dtest Cassandra cluster
     compileOnly(files("${dtestJarFullPath}"))
-    api("org.apache.cassandra:dtest-api:0.0.16")
+    api("org.apache.cassandra:dtest-api:0.0.18")
     // Needed by the Cassandra dtest framework
     // JUnit
     api("org.junit.jupiter:junit-jupiter-api:${project.junitVersion}")

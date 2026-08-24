@@ -213,6 +213,11 @@ public class CassandraCluster<I extends IInstance> implements IClusterExtension<
         return delegate.newInstanceConfig();
     }
 
+    public IInstanceConfig createInstanceConfig(int i)
+    {
+        throw new UnsupportedOperationException();
+    }
+
     @Override
     public ICluster<I> delegate()
     {

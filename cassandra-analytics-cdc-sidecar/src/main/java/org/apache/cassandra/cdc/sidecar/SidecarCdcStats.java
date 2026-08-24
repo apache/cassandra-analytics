@@ -267,4 +267,11 @@ public interface SidecarCdcStats
     default void captureCdcOnRepairEnabled()
     {
     }
+
+    /**
+     * Schema has been published.
+     */
+    default void capturePublishedSchema()
+    {
+    }
 }
