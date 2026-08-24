@@ -116,6 +116,8 @@ public final class RangeUtils
 
         RangeSet<BigInteger> uncovered = TreeRangeSet.create();
         uncovered.add(fullRange);
+        // Not removeAll: on Guava 16.0.1 it only accepts a RangeSet, not a Collection, and it is itself just this
+        // loop of remove() calls, so there is nothing to gain by wrapping the input in a second range set
         coveringRanges.forEach(uncovered::remove);
         // TreeRangeSet coalesces connected ranges and never retains empty ones,
         // so everything left is a real, non-empty gap
