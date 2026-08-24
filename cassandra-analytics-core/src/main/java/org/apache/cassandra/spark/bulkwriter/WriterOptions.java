@@ -160,7 +160,7 @@ public enum WriterOptions implements WriterOption
      * requests that would otherwise fan out to per-replica Sidecar addresses are routed through
      * the configured contact points instead. Defaults to {@code false}.
      * <p>
-     * Today this affects time-skew validation under coordinated write.
+     * Today this affects time-skew validation, and is honored for both single-cluster and coordinated writes.
      */
     SIDECAR_BEHIND_LOAD_BALANCER,
 }

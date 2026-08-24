@@ -1,6 +1,6 @@
 0.5.0
 -----
- * Support Sidecar behind a load balancer for time-skew validation in coordinated writes (CASSANALYTICS-181)
+ * Support Sidecar behind a load balancer for time-skew validation in single-cluster and coordinated writes (CASSANALYTICS-181)
  * CDC reader stats silently dropped in SidecarCdcBuilder (CASSANALYTICS-191)
  * Add CapturePublishedSchema metric to SidecarCdcStats (CASSANALYTICS-189)
  * Expand list of architecture that supports unaligned access in FastByteOperations (CASSANALYTICS-188)

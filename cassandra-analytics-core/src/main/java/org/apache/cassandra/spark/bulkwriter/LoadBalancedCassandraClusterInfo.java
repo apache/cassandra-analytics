@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated;
+package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
 import java.util.concurrent.CompletableFuture;
@@ -25,26 +25,27 @@ import java.util.concurrent.CompletableFuture;
 import com.google.common.collect.Range;
 
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
-import org.apache.cassandra.spark.bulkwriter.BroadcastableClusterInfo;
-import org.apache.cassandra.spark.bulkwriter.BulkSparkConf;
-import org.apache.cassandra.spark.bulkwriter.CassandraClusterInfo;
 
 /**
  * Variant of {@link CassandraClusterInfo} used when Sidecars are fronted by a load balancer.
  * Replica FQDNs from the token map are not routable from Spark executors in that topology,
- * so time-skew validation must query the configured contact points (load balancer endpoints)
- * rather than per-range replicas. Selected when
+ * so requests that would otherwise fan out to per-replica Sidecar addresses are routed through
+ * the configured contact points (load balancer endpoints) instead.
+ * <p>
+ * This applies to both single-cluster and coordinated writes. It is selected by
+ * {@link CassandraClusterInfo#create(BulkSparkConf, String)} and
+ * {@link CassandraClusterInfo#create(BroadcastableClusterInfo)} when
  * {@link org.apache.cassandra.spark.bulkwriter.WriterOptions#SIDECAR_BEHIND_LOAD_BALANCER}
  * is set.
  */
-public class CoordinatedCassandraClusterInfo extends CassandraClusterInfo
+public class LoadBalancedCassandraClusterInfo extends CassandraClusterInfo
 {
-    public CoordinatedCassandraClusterInfo(BulkSparkConf conf, String clusterId)
+    public LoadBalancedCassandraClusterInfo(BulkSparkConf conf, String clusterId)
     {
         super(conf, clusterId);
     }
 
-    public CoordinatedCassandraClusterInfo(BroadcastableClusterInfo broadcastable)
+    public LoadBalancedCassandraClusterInfo(BroadcastableClusterInfo broadcastable)
     {
         super(broadcastable);
     }
@@ -52,6 +53,8 @@ public class CoordinatedCassandraClusterInfo extends CassandraClusterInfo
     @Override
     protected CompletableFuture<TimeSkewResponse> fetchTimeSkew(Range<BigInteger> range)
     {
+        // range is irrelevant; the load balancer contact points are queried directly rather
+        // than the per-range replicas, whose FQDNs are not routable from Spark executors.
         return getCassandraContext().getSidecarClient().timeSkew();
     }
 }

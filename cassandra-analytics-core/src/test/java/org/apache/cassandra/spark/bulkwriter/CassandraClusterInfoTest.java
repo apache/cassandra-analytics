@@ -24,11 +24,13 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -39,11 +41,12 @@ import org.junit.jupiter.params.provider.MethodSource;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
-import org.apache.cassandra.spark.bulkwriter.cloudstorage.coordinated.CoordinatedCassandraClusterInfo;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
+import org.apache.spark.SparkConf;
 
 import static org.apache.cassandra.spark.TestUtils.range;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -69,7 +72,7 @@ public class CassandraClusterInfoTest
     }
 
     @Test
-    void testCoordinatedClusterInfoUsesSidecarClientContactPointsForTimeSkew()
+    void testLoadBalancedClusterInfoUsesSidecarClientContactPointsForTimeSkew()
     {
         Instant localNow = Instant.now();
         int allowanceMinutes = 10;
@@ -80,7 +83,7 @@ public class CassandraClusterInfoTest
         TimeSkewResponse tsr = new TimeSkewResponse(localNow.toEpochMilli(), allowanceMinutes);
         when(sidecarClient.timeSkew()).thenReturn(CompletableFuture.completedFuture(tsr));
 
-        CassandraClusterInfo ci = new CoordinatedCassandraClusterInfo((BulkSparkConf) null, null)
+        CassandraClusterInfo ci = new LoadBalancedCassandraClusterInfo((BulkSparkConf) null, null)
         {
             @Override
             protected CassandraContext buildCassandraContext()
@@ -100,6 +103,41 @@ public class CassandraClusterInfoTest
         .isThrownBy(() -> ci.validateTimeSkewWithLocalNow(range(10, 20), localNow));
         verify(sidecarClient).timeSkew();
         verify(sidecarClient, never()).timeSkew(anyList());
+    }
+
+    @Test
+    void testCreateSelectsLoadBalancedClusterInfoWhenSidecarBehindLoadBalancer()
+    {
+        // Single-cluster path: the SIDECAR_BEHIND_LOAD_BALANCER flag must be honored, not just for coordinated writes
+        try (CassandraClusterInfo ci = CassandraClusterInfo.create(bulkSparkConf(true)))
+        {
+            assertThat(ci)
+            .describedAs("Sidecar behind a load balancer must select the load-balanced variant on the single-cluster path")
+            .isExactlyInstanceOf(LoadBalancedCassandraClusterInfo.class);
+        }
+    }
+
+    @Test
+    void testCreateSelectsPlainClusterInfoByDefault()
+    {
+        try (CassandraClusterInfo ci = CassandraClusterInfo.create(bulkSparkConf(false)))
+        {
+            assertThat(ci)
+            .describedAs("Without the load balancer flag, the plain per-replica variant must be selected")
+            .isExactlyInstanceOf(CassandraClusterInfo.class);
+        }
+    }
+
+    private static BulkSparkConf bulkSparkConf(boolean sidecarBehindLoadBalancer)
+    {
+        // No keystore options: this keeps SSL disabled so create() can build a real (non-TLS) Sidecar client
+        // offline. We only assert on the concrete type create() selects, never issuing a request.
+        Map<String, String> options = Maps.newTreeMap(String.CASE_INSENSITIVE_ORDER);
+        options.put(WriterOptions.SIDECAR_CONTACT_POINTS.name(), "127.0.0.1");
+        options.put(WriterOptions.KEYSPACE.name(), "ks");
+        options.put(WriterOptions.TABLE.name(), "table");
+        options.put(WriterOptions.SIDECAR_BEHIND_LOAD_BALANCER.name(), String.valueOf(sidecarBehindLoadBalancer));
+        return new BulkSparkConf(new SparkConf(), options);
     }
 
     @Test

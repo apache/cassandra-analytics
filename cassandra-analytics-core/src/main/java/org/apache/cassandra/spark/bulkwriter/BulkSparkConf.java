@@ -278,11 +278,6 @@ public class BulkSparkConf implements Serializable
         this.configuredJobId = MapUtils.getOrDefault(options, WriterOptions.JOB_ID.name(), null);
         this.coordinatedWriteConfJson = MapUtils.getOrDefault(options, WriterOptions.COORDINATED_WRITE_CONFIG.name(), null);
         this.coordinatedWriteConf = buildCoordinatedWriteConf(dataTransportInfo.getTransport(), logger);
-        if (this.sidecarBehindLoadBalancer && this.coordinatedWriteConf == null && logger != null)
-        {
-            logger.warn("{} is set but {} is not configured; the flag is only honored for coordinated writes and will be ignored on the single-cluster path.",
-                        WriterOptions.SIDECAR_BEHIND_LOAD_BALANCER, WriterOptions.COORDINATED_WRITE_CONFIG);
-        }
         this.digestAlgorithmSupplier = digestAlgorithmSupplierFromOptions(dataTransport, options);
         validateEnvironment();
     }
