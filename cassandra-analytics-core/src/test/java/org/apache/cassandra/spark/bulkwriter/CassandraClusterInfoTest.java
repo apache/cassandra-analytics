@@ -44,6 +44,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
 import o.a.c.sidecar.client.shaded.common.response.data.RingEntry;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.common.SidecarInstanceFactory;
@@ -246,6 +247,51 @@ public class CassandraClusterInfoTest
         .describedAs("the ring would report this same instance by its fqdn, not its IP - the lookup key must "
                     + "match exactly, so the configured id is invisible under the fqdn key")
         .doesNotContainKey("node1.example.com");
+    }
+
+    @Test
+    void testResolveSidecarInstanceIdPrefersDynamicIdFromSidecar()
+    {
+        ReplicaMetadata metadata = new ReplicaMetadata("NORMAL", "UP", "dc1-i0", "10.0.0.5", 9042, "dc1", 7);
+        Map<String, Integer> instanceIdsByHostname = Collections.singletonMap("dc1-i0", 99);
+
+        assertThat(CassandraClusterInfo.resolveSidecarInstanceId(metadata, instanceIdsByHostname))
+        .describedAs("the id Sidecar resolves for the replica itself must win over the static contact-point fallback")
+        .isEqualTo(7);
+    }
+
+    @Test
+    void testResolveSidecarInstanceIdFallsBackToStaticMapWhenSidecarDoesNotReportOne()
+    {
+        ReplicaMetadata metadata = new ReplicaMetadata("NORMAL", "UP", "dc1-i0", "10.0.0.5", 9042, "dc1", null);
+        Map<String, Integer> instanceIdsByHostname = Collections.singletonMap("dc1-i0", 99);
+
+        assertThat(CassandraClusterInfo.resolveSidecarInstanceId(metadata, instanceIdsByHostname))
+        .describedAs("an older Sidecar that doesn't populate sidecarInstanceId falls back to the static, "
+                    + "operator-configured contact-point lookup")
+        .isEqualTo(99);
+    }
+
+    @Test
+    void testResolveSidecarInstanceIdNullWhenNeitherSourceResolves()
+    {
+        ReplicaMetadata metadata = new ReplicaMetadata("NORMAL", "UP", "dc1-i0", "10.0.0.5", 9042, "dc1", null);
+
+        assertThat(CassandraClusterInfo.resolveSidecarInstanceId(metadata, Collections.emptyMap())).isNull();
+    }
+
+    @Test
+    void testResolveSidecarInstanceIdDoesNotDependOnAddressKeyMatching()
+    {
+        // Two replicas reported under the same address string - the static, hostname-keyed fallback cannot
+        // express two different ids for one key (see testSidecarInstanceIdsByHostnameThrowsWhenSharedHostnameHasDifferentIds).
+        // Resolution here doesn't go through that lookup at all when Sidecar reports the id itself, so it isn't
+        // subject to that limitation.
+        ReplicaMetadata replicaManagedByInstance1 = new ReplicaMetadata("NORMAL", "UP", "shared-lb", "10.0.0.5", 9042, "dc1", 1);
+        ReplicaMetadata replicaManagedByInstance2 = new ReplicaMetadata("NORMAL", "UP", "shared-lb", "10.0.0.5", 9042, "dc1", 2);
+
+        assertThat(CassandraClusterInfo.resolveSidecarInstanceId(replicaManagedByInstance1, Collections.emptyMap())).isEqualTo(1);
+        assertThat(CassandraClusterInfo.resolveSidecarInstanceId(replicaManagedByInstance2, Collections.emptyMap())).isEqualTo(2);
     }
 
     private static RingInstance ringInstance(String fqdn, @Nullable Integer sidecarInstanceId)

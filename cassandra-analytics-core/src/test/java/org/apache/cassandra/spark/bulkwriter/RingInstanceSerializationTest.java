@@ -67,7 +67,8 @@ public class RingInstanceSerializationTest
                                                        dataCenter + "-i" + index,
                                                        "127.0." + dcOffset + "." + index,
                                                        7000,
-                                                       dataCenter);
+                                                       dataCenter,
+                                                       null);
 
         RingInstance ring = new RingInstance(metadata, "test-cluster");
 
@@ -87,7 +88,8 @@ public class RingInstanceSerializationTest
                                                        dataCenter + "-i" + index,
                                                        "127.0." + dcOffset + "." + index,
                                                        7000,
-                                                       dataCenter);
+                                                       dataCenter,
+                                                       null);
 
         RingInstance ring = new RingInstance(metadata, "test-cluster", 2);
 

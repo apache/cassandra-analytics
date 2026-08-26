@@ -45,6 +45,7 @@ import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.common.response.SchemaResponse;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
 import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse.ReplicaMetadata;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.bridge.CassandraBridgeFactory;
 import org.apache.cassandra.bridge.CassandraVersion;
@@ -485,8 +486,9 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
 
     private TokenRangeMapping<RingInstance> getTokenRangeReplicasFromSidecar()
     {
-        // Resolve per-instance ids from the contact points actually in effect for this cluster (getCluster()
-        // already picks the right source: conf.sidecarContactPoints() for a plain job, or
+        // Fallback for Sidecar versions that don't yet report a per-replica id in the ring/token-range-replicas
+        // response (see resolveSidecarInstanceId). Resolved from the contact points actually in effect for this
+        // cluster (getCluster() already picks the right source: conf.sidecarContactPoints() for a plain job, or
         // conf.coordinatedWriteConf().cluster(clusterId).sidecarContactPoints() for a coordinated-write job).
         // Deriving this from conf.sidecarContactPoints() directly would silently miss (or NPE on) coordinated
         // writes, since their contact points don't live there.
@@ -495,21 +497,41 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         TokenRangeMapping.create(this::getTokenRangesAndReplicaSets,
                                  this::getPartitioner,
                                  metadata -> new RingInstance(metadata, clusterId(),
-                                                              instanceIdsByHostname.get(metadata.fqdn())));
+                                                              resolveSidecarInstanceId(metadata, instanceIdsByHostname)));
         validateSidecarInstanceIdCoverage(topology.allInstances());
         return topology;
+    }
+
+    /**
+     * Resolves the Sidecar instance id to associate with a ring replica, preferring the id that Sidecar itself
+     * reports for that replica ({@link ReplicaMetadata#sidecarInstanceId()}), since Sidecar resolves it from its
+     * own local instance configuration keyed by the replica's address. Falls back to the statically-configured
+     * {@code host[:port]=<id>} contact-point lookup only when talking to an older Sidecar that does not yet
+     * populate the field, in which case the {@link #sidecarInstanceIdsByHostname} limitations apply (see below).
+     *
+     * @param metadata the replica metadata returned by Sidecar for a ring entry
+     * @param instanceIdsByHostname the static fallback lookup built by {@link #sidecarInstanceIdsByHostname}
+     * @return the resolved Sidecar instance id, or {@code null} when neither source resolves one
+     */
+    @VisibleForTesting
+    static Integer resolveSidecarInstanceId(ReplicaMetadata metadata, Map<String, Integer> instanceIdsByHostname)
+    {
+        Integer dynamicId = metadata.sidecarInstanceId();
+        return dynamicId != null ? dynamicId : instanceIdsByHostname.get(metadata.fqdn());
     }
 
     /**
      * Builds a hostname (nodeName/fqdn) to per-instance Sidecar routing id lookup from the given contact points,
      * e.g. ones declared as {@code "host:port=<id>"} (see {@link SidecarInstanceFactory#createFromString}).
      *
-     * <p><b>Limitation:</b> this lookup is keyed on the literal contact-point address string, so it can only
-     * represent a 1:1 Sidecar-to-instance topology, where every instance has its own distinct address. If two
-     * or more instances share the same address with different ids configured, building this map throws
+     * <p>This is only used as a fallback (see {@link #resolveSidecarInstanceId}) when Sidecar does not report a
+     * per-replica id itself. As a static, address-keyed lookup it has real limitations: it can only represent a
+     * 1:1 Sidecar-to-instance topology, where every instance has its own distinct address. If two or more
+     * instances share the same address with different ids configured, building this map throws
      * {@code IllegalStateException: Duplicate key} — it cannot express that topology at all. The address must
      * also match exactly (IP vs hostname, case) what the ring reports for that instance ({@code
-     * ReplicaMetadata#fqdn()}); a mismatch silently drops the configured id rather than resolving it.
+     * ReplicaMetadata#fqdn()}); a mismatch silently drops the configured id rather than resolving it. None of
+     * this applies when Sidecar reports the id dynamically, since that is resolved server-side per instance.
      *
      * @param contactPoints the Sidecar contact points in effect for this cluster
      * @return a map of hostname to configured Sidecar instance id; entries with no configured id are omitted
@@ -526,22 +548,14 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
      * Guards against the data-correctness risk of a single job-level {@code instanceId} (see
      * {@link BulkSparkConf#SIDECAR_INSTANCE_ID}) being stamped uniformly onto requests fanned out across more than
      * one real Cassandra instance. That is only correct when every instance in the ring resolves its own id (see
-     * {@link #sidecarInstanceIdsByHostname}); otherwise requests to the unresolved instances would be silently
+     * {@link #resolveSidecarInstanceId}); otherwise requests to the unresolved instances would be silently
      * misrouted to whichever instance the global id happens to identify.
      *
-     * <p><b>Scope:</b> this check — and the whole per-instance-id resolution mechanism above it — assumes a
-     * <b>1:1 Sidecar-to-Cassandra-instance deployment where every instance is reachable at its own distinct
-     * address</b> (directly, or via {@code host[:port]=<id>} contact points). In that shape a single job-level
-     * id is always correct, since every Sidecar answering has exactly one local instance to route to.
-     *
-     * <p>It does <b>not</b> cover multiple distinct Cassandra instances reachable only through a
-     * <b>shared</b> address (several instances behind the same load-balancer endpoint, or one Sidecar managing
-     * more than one local instance on the same host:port). That topology cannot be expressed by the current
-     * hostname-keyed lookup — configuring it crashes {@link #sidecarInstanceIdsByHostname} with a
-     * "Duplicate key" error instead of resolving. Supporting it safely requires the Sidecar server to report
-     * each replica's own instance id in the ring/token-range-replicas response, so the client resolves coverage
-     * from the ring itself rather than from static, address-keyed config. Tracked as a follow-up in
-     * apache/cassandra-sidecar.
+     * <p>Since {@link #resolveSidecarInstanceId} prefers the id Sidecar reports per replica, this also covers
+     * multiple distinct Cassandra instances reachable only through a shared address (several instances behind
+     * the same load-balancer endpoint, or one Sidecar managing more than one local instance on the same host),
+     * as long as Sidecar populates {@link ReplicaMetadata#sidecarInstanceId()}. Only when falling back to the
+     * static {@link #sidecarInstanceIdsByHostname} lookup (older Sidecar) does that topology remain unresolvable.
      *
      * @param instances the distinct instances discovered from the live ring
      */
