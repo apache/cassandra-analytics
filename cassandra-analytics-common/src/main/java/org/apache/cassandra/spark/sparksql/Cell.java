@@ -23,14 +23,18 @@ public class Cell
 {
     public final Object[] values;
     public final int position;
+    public final boolean isPkCkOnly;
     public final boolean isNewRow;
     public final long timestamp;
+    public final int ttl;
 
-    Cell(Object[] values, int position, boolean isNewRow, long timestamp)
+    Cell(Object[] values, int position, boolean isPkCkOnly, boolean isNewRow, long timestamp, int ttl)
     {
         this.values = values;
         this.position = position;
+        this.isPkCkOnly = isPkCkOnly;
         this.isNewRow = isNewRow;
         this.timestamp = timestamp;
+        this.ttl = ttl;
     }
 }
