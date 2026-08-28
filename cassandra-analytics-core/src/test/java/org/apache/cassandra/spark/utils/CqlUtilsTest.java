@@ -142,6 +142,84 @@ public class CqlUtilsTest extends VersionRunner
         assertThat(systemSchemaRf.getOptions()).isEqualTo(ImmutableMap.of());
     }
 
+    @Test
+    public void testExtractReplicationFactorWithWitnessReplicas()
+    {
+        // Witness-enabled keyspace as created by Cassandra's WitnessAlwaysReadsFullReplicaTest on the
+        // cep-45-mutation-tracking branch: the <replicas>/<transient> form plus replication_type = 'tracked'
+        String schema = "CREATE KEYSPACE witnessks WITH REPLICATION = {'class': 'NetworkTopologyStrategy', "
+                        + "'datacenter1': '3/1', 'datacenter2': '3/1'} AND replication_type = 'tracked' "
+                        + "AND durable_writes = true;\n";
+
+        ReplicationFactor rf = CqlUtils.extractReplicationFactor(schema, "witnessks");
+        assertThat(rf).isNotNull();
+        assertThat(rf.getReplicationStrategy()).isEqualTo(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy);
+        // total keeps its original meaning: all replicas, witnesses included
+        assertThat(rf.getOptions()).isEqualTo(ImmutableMap.of("datacenter1", 3, "datacenter2", 3));
+        assertThat(rf.getTotalReplicationFactor()).isEqualTo(6);
+        assertThat(rf.getFullReplicationFactor()).isEqualTo(4);
+        assertThat(rf.getTransientReplicationFactor()).isEqualTo(2);
+        assertThat(rf.hasTransientReplicas()).isTrue();
+        assertThat(rf.getFullReplicas("datacenter1")).isEqualTo(2);
+        assertThat(rf.getTransientReplicas("datacenter1")).isEqualTo(1);
+
+        assertThat(CqlUtils.isTracked(CqlUtils.extractReplicationType(schema, "witnessks"))).isTrue();
+    }
+
+    @Test
+    public void testExtractReplicationFactorMixedWitnessAndFullDatacenters()
+    {
+        String schema = "CREATE KEYSPACE mixedks WITH REPLICATION = {'class': 'NetworkTopologyStrategy', "
+                        + "'datacenter1': '3/1', 'datacenter2': '3'} AND replication_type = 'tracked';\n";
+
+        ReplicationFactor rf = CqlUtils.extractReplicationFactor(schema, "mixedks");
+        assertThat(rf.getTotalReplicationFactor()).isEqualTo(6);
+        assertThat(rf.getFullReplicationFactor()).isEqualTo(5);
+        assertThat(rf.getTransientReplicas("datacenter1")).isEqualTo(1);
+        assertThat(rf.getTransientReplicas("datacenter2")).isEqualTo(0);
+    }
+
+    @Test
+    public void testExtractReplicationFactorUntrackedKeyspaceUnaffected()
+    {
+        String schema = "CREATE KEYSPACE plainks WITH REPLICATION = {'class': 'NetworkTopologyStrategy', "
+                        + "'datacenter1': '3'} AND durable_writes = true;\n";
+
+        ReplicationFactor rf = CqlUtils.extractReplicationFactor(schema, "plainks");
+        assertThat(rf.getTotalReplicationFactor()).isEqualTo(3);
+        assertThat(rf.getFullReplicationFactor()).isEqualTo(3);
+        assertThat(rf.hasTransientReplicas()).isFalse();
+        assertThat(rf.getTransientOptions()).isEmpty();
+    }
+
+    @Test
+    public void testExtractReplicationFactorFailsLoudlyOnUnparseableValue()
+    {
+        // An unparseable value must be reported here rather than silently dropping the datacenter, which
+        // would surface later as a confusing "DC not found in replication factor" error
+        for (String malformed : new String[]{ "xyz", "3/", "3/1/1", "3/x", "3/3" })
+        {
+            String schema = "CREATE KEYSPACE badks WITH REPLICATION = {'class': 'NetworkTopologyStrategy', "
+                            + "'datacenter1': '" + malformed + "'} AND durable_writes = true;\n";
+            assertThatThrownBy(() -> CqlUtils.extractReplicationFactor(schema, "badks"))
+            .as("malformed replication value '%s' should raise", malformed)
+            .isInstanceOf(RuntimeException.class)
+            .hasMessageContaining("Unable to parse replication factor for keyspace: badks");
+        }
+    }
+
+    @Test
+    public void testExtractReplicationFactorFailsLoudlyOnMissingDatacenterEntries()
+    {
+        // A NetworkTopologyStrategy keyspace with no datacenter entries is not usable. It must fail here
+        // rather than yielding an empty replication factor that fails later with "DC not found"
+        String schema = "CREATE KEYSPACE emptyks WITH REPLICATION = {'class': 'NetworkTopologyStrategy'} "
+                        + "AND durable_writes = true;\n";
+        assertThatThrownBy(() -> CqlUtils.extractReplicationFactor(schema, "emptyks"))
+        .isInstanceOf(RuntimeException.class)
+        .hasMessageContaining("Unable to parse replication factor for keyspace: emptyks");
+    }
+
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.spark.data.VersionRunner#bridges")
     public void testEscapedColumnNames(CassandraBridge bridge)

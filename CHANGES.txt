@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Parse <replicas>/<transient> replication factor for witness-enabled keyspaces (CASSANALYTICS-194)
  * Determine whether mutation tracking is enabled for keyspace for bulk writes (CASSANALYTICS-160)
  * Upgrade sidecar version to 0.4.0
  * Exclude IP address from RingInstance equality so node replacement does not fail bulk write jobs (CASSANALYTICS-175)

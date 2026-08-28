@@ -19,6 +19,11 @@
 
 package org.apache.cassandra.spark.data.partitioner;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collection;
@@ -34,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.spark.data.ReplicationFactor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SuppressWarnings("UnstableApiUsage")
 public class CassandraRingTests
@@ -446,5 +452,103 @@ public class CassandraRingTests
                                      BigInteger.valueOf(202L),
                                      Partitioner.Murmur3Partitioner.minToken(),
                                      Partitioner.Murmur3Partitioner.maxToken()));
+    }
+
+    @Test
+    public void testJdkSerializationPreservesTransientReplicas() throws Exception
+    {
+        // CassandraRing hand-rolls readObject/writeObject and rebuilds ReplicationFactor from strategy plus
+        // options, so a transient (witness) count could silently vanish on the way to a Spark executor
+        CassandraRing ring = new CassandraRing(
+        Partitioner.Murmur3Partitioner,
+        "test",
+        new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                              "DC1", "3/1",
+                                              "DC2", "3")),
+        Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
+                      new CassandraInstance("100", "local0-i2", "DC1"),
+                      new CassandraInstance("200", "local0-i3", "DC1"),
+                      new CassandraInstance("1", "local1-i1", "DC2"),
+                      new CassandraInstance("101", "local1-i2", "DC2"),
+                      new CassandraInstance("201", "local1-i3", "DC2")));
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
+        {
+            out.writeObject(ring);
+        }
+        CassandraRing deserialized;
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            deserialized = (CassandraRing) in.readObject();
+        }
+
+        ReplicationFactor rf = deserialized.replicationFactor();
+        assertThat(rf.getTransientReplicas("DC1")).isEqualTo(1);
+        assertThat(rf.getTransientReplicas("DC2")).isEqualTo(0);
+        assertThat(rf.getTotalReplicationFactor()).isEqualTo(6);
+        assertThat(rf.getFullReplicationFactor()).isEqualTo(5);
+        assertThat(rf).isEqualTo(ring.replicationFactor());
+        // Deliberately not asserting deserialized.equals(ring): CassandraRing#equals compares the derived
+        // replicas and tokenRangeMap fields, and does not hold across a JDK round trip even without transient
+        // replicas. Pre-existing behaviour, unrelated to replica types.
+    }
+
+    @Test
+    public void testJdkDeserializationRejectsUnknownFormatVersion() throws Exception
+    {
+        // The hand-rolled format gained a transient-replica section, but the class signature did not change, so the
+        // computed serialVersionUID would still match an older stream. A leading format-version byte makes a stale
+        // stream fail loudly instead of being misread.
+        CassandraRing ring = new CassandraRing(
+        Partitioner.Murmur3Partitioner,
+        "test",
+        new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                              "DC1", "3")),
+        Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
+                      new CassandraInstance("100", "local0-i2", "DC1"),
+                      new CassandraInstance("200", "local0-i3", "DC1")));
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
+        {
+            out.writeObject(ring);
+        }
+
+        // Locate the format-version byte deterministically: the format is
+        // [version][partitioner] then writeUTF(keyspace), so it sits two bytes before the "test" UTF header
+        byte[] raw = bytes.toByteArray();
+        byte[] keyspaceUtf = new byte[]{ 0, 4, 't', 'e', 's', 't' };
+        int keyspaceIndex = indexOf(raw, keyspaceUtf);
+        assertThat(keyspaceIndex).as("keyspace UTF header should be locatable").isGreaterThan(1);
+        int versionIndex = keyspaceIndex - 2;
+        assertThat(raw[versionIndex]).as("format version byte").isEqualTo((byte) 1);
+
+        // Simulate a stream written before the transient-replica section existed
+        raw[versionIndex] = 0;
+
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(raw)))
+        {
+            assertThatThrownBy(in::readObject)
+            .isInstanceOf(IOException.class)
+            .hasMessageContaining("Unsupported CassandraRing serialization format version");
+        }
+    }
+
+    private static int indexOf(byte[] haystack, byte[] needle)
+    {
+        outer:
+        for (int i = 0; i <= haystack.length - needle.length; i++)
+        {
+            for (int j = 0; j < needle.length; j++)
+            {
+                if (haystack[i + j] != needle[j])
+                {
+                    continue outer;
+                }
+            }
+            return i;
+        }
+        return -1;
     }
 }
