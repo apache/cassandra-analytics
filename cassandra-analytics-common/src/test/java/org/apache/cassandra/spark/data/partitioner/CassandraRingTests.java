@@ -19,6 +19,10 @@
 
 package org.apache.cassandra.spark.data.partitioner;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collection;
@@ -446,5 +450,45 @@ public class CassandraRingTests
                                      BigInteger.valueOf(202L),
                                      Partitioner.Murmur3Partitioner.minToken(),
                                      Partitioner.Murmur3Partitioner.maxToken()));
+    }
+
+    @Test
+    public void testJdkSerializationPreservesTransientReplicas() throws Exception
+    {
+        // CassandraRing hand-rolls readObject/writeObject and rebuilds ReplicationFactor from strategy plus
+        // options, so a transient (witness) count could silently vanish on the way to a Spark executor
+        CassandraRing ring = new CassandraRing(
+        Partitioner.Murmur3Partitioner,
+        "test",
+        new ReplicationFactor(ImmutableMap.of("class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+                                              "DC1", "3/1",
+                                              "DC2", "3")),
+        Arrays.asList(new CassandraInstance("0", "local0-i1", "DC1"),
+                      new CassandraInstance("100", "local0-i2", "DC1"),
+                      new CassandraInstance("200", "local0-i3", "DC1"),
+                      new CassandraInstance("1", "local1-i1", "DC2"),
+                      new CassandraInstance("101", "local1-i2", "DC2"),
+                      new CassandraInstance("201", "local1-i3", "DC2")));
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
+        {
+            out.writeObject(ring);
+        }
+        CassandraRing deserialized;
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            deserialized = (CassandraRing) in.readObject();
+        }
+
+        ReplicationFactor rf = deserialized.replicationFactor();
+        assertThat(rf.getTransientReplicas("DC1")).isEqualTo(1);
+        assertThat(rf.getTransientReplicas("DC2")).isEqualTo(0);
+        assertThat(rf.getTotalReplicationFactor()).isEqualTo(6);
+        assertThat(rf.getFullReplicationFactor()).isEqualTo(5);
+        assertThat(rf).isEqualTo(ring.replicationFactor());
+        // Deliberately not asserting deserialized.equals(ring): CassandraRing#equals compares the derived
+        // replicas and tokenRangeMap fields, and does not hold across a JDK round trip even without transient
+        // replicas. Pre-existing behaviour, unrelated to replica types.
     }
 }
