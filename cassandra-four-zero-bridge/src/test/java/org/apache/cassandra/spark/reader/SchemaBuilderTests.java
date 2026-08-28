@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.reader;
 
 import java.util.HashMap;
 
+import com.google.common.collect.ImmutableMap;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.bridge.CassandraBridgeImplementation;
@@ -113,5 +114,21 @@ public class SchemaBuilderTests
         Schema.instance.load(keyspace.withSwapped(keyspace.tables.with(tableMetadata)));
 
         new SchemaBuilder(createTableStatement, keyspaceName, replicationFactor);
+    }
+
+    @Test
+    public void testRfToMapOmitsTransientReplicas()
+    {
+        // rfToMap must emit only the total, never the <replicas>/<transient> form. The embedded Cassandra runs with
+        // transient_replication_enabled=false, so a transient value makes Keyspace.openWithoutSSTables throw
+        // "Transient replication is not enabled on this node" for exactly the witness-enabled keyspaces the bulk
+        // reader needs to read. Dropping it is safe because replica placement comes from CassandraRing.
+        ReplicationFactor withTransient = new ReplicationFactor(ImmutableMap.of(
+        "class", "org.apache.cassandra.locator.NetworkTopologyStrategy",
+        "datacenter1", "3/1",
+        "datacenter2", "3"));
+        assertThat(rfToMap(withTransient))
+        .containsEntry("datacenter1", "3")
+        .containsEntry("datacenter2", "3");
     }
 }

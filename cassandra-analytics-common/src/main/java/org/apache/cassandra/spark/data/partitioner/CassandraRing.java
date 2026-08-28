@@ -270,7 +270,13 @@ public class CassandraRing implements Serializable
         {
             options.put(in.readUTF(), (int) in.readByte());
         }
-        this.replicationFactor = new ReplicationFactor(strategy, options);
+        int transientOptionCount = in.readByte();
+        Map<String, Integer> transientOptions = new HashMap<>(transientOptionCount);
+        for (int option = 0; option < transientOptionCount; option++)
+        {
+            transientOptions.put(in.readUTF(), (int) in.readByte());
+        }
+        this.replicationFactor = new ReplicationFactor(strategy, options, transientOptions);
 
         int numInstances = in.readShort();
         this.instances = new ArrayList<>(numInstances);
@@ -291,6 +297,13 @@ public class CassandraRing implements Serializable
         Map<String, Integer> options = this.replicationFactor.getOptions();
         out.writeByte(options.size());
         for (Map.Entry<String, Integer> option : options.entrySet())
+        {
+            out.writeUTF(option.getKey());
+            out.writeByte(option.getValue());
+        }
+        Map<String, Integer> transientOptions = this.replicationFactor.getTransientOptions();
+        out.writeByte(transientOptions.size());
+        for (Map.Entry<String, Integer> option : transientOptions.entrySet())
         {
             out.writeUTF(option.getKey());
             out.writeByte(option.getValue());
