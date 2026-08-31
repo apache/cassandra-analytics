@@ -21,18 +21,14 @@ package org.apache.cassandra.spark.utils;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
-import com.google.common.collect.RangeSet;
-import com.google.common.collect.TreeRangeSet;
 
 import org.apache.cassandra.bridge.TokenRange;
 import org.apache.cassandra.spark.data.model.TokenOwner;
@@ -72,56 +68,6 @@ public final class RangeUtils
     public static boolean isOpenClosedRange(Range<?> range)
     {
         return range.lowerBoundType() == BoundType.OPEN && range.upperBoundType() == BoundType.CLOSED;
-    }
-
-    /**
-     * Finds the sub-ranges of the whole token ring that none of the {@code coveringRanges} covers, i.e. the gaps in
-     * the ring coverage. An empty result means the ring is covered in its entirety.
-     * <p>
-     * The ring is expressed as {@code (minToken, maxToken]}, matching the open-closed notation used for token
-     * ranges everywhere else. Expressing it as {@code [minToken, maxToken]} instead would report minToken as a
-     * spurious single-token gap, because open-closed ranges never cover their own lower endpoint.
-     *
-     * @param partitioner the partitioner whose ring bounds are expected to be covered
-     * @param coveringRanges the ranges expected to cover the ring; they may overlap and need not be sorted
-     * @return the uncovered sub-ranges of the ring, in ascending order
-     */
-    public static List<Range<BigInteger>> findUncoveredRingRanges(Partitioner partitioner,
-                                                                  Collection<Range<BigInteger>> coveringRanges)
-    {
-        return findUncoveredRanges(Range.openClosed(partitioner.minToken(), partitioner.maxToken()), coveringRanges);
-    }
-
-    /**
-     * Finds the sub-ranges of {@code fullRange} that none of the {@code coveringRanges} covers, i.e. the gaps in
-     * the coverage. An empty result means {@code coveringRanges} covers {@code fullRange} in its entirety.
-     * <p>
-     * Both the input and the output honor Guava's bound types, so {@code fullRange} must be expressed using the
-     * same notation as the covering ranges. That makes the method easy to misuse, which is why it is not exposed
-     * beyond this class: callers go through {@link #findUncoveredRingRanges}, which owns the notation so that the
-     * bound types are not decided at each call site. Empty ranges are never reported, as a range that contains no
-     * token cannot be a gap.
-     *
-     * @param fullRange the non-empty range expected to be fully covered
-     * @param coveringRanges the ranges expected to cover {@code fullRange}; they may overlap and need not be sorted
-     * @return the uncovered sub-ranges of {@code fullRange}, in ascending order
-     */
-    @VisibleForTesting
-    static List<Range<BigInteger>> findUncoveredRanges(Range<BigInteger> fullRange,
-                                                       Collection<Range<BigInteger>> coveringRanges)
-    {
-        // An empty fullRange has nothing to cover, so every input would trivially look fully covered.
-        // Reject it rather than report a false "no gaps".
-        Preconditions.checkArgument(!fullRange.isEmpty(), "fullRange must not be empty");
-
-        RangeSet<BigInteger> uncovered = TreeRangeSet.create();
-        uncovered.add(fullRange);
-        // Not removeAll: on Guava 16.0.1 it only accepts a RangeSet, not a Collection, and it is itself just this
-        // loop of remove() calls, so there is nothing to gain by wrapping the input in a second range set
-        coveringRanges.forEach(uncovered::remove);
-        // TreeRangeSet coalesces connected ranges and never retains empty ones,
-        // so everything left is a real, non-empty gap
-        return new ArrayList<>(uncovered.asRanges());
     }
 
     /**
