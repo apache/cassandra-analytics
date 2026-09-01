@@ -19,6 +19,7 @@
 
 package org.apache.cassandra.spark.utils;
 
+import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -33,17 +34,19 @@ public class RandomUtilsTest
                                                                                                   .mapToObj(e -> (char) e)
                                                                                                   .collect(Collectors.toSet());
 
+    private final Random random = new Random();
+
     @Test
     public void testNextInt()
     {
         for (int i = 0; i < 1000; i++)
         {
-            assertThat(RandomUtils.nextInt(4, 5)).isEqualTo(4);
+            assertThat(RandomUtils.nextInt(random, 4, 5)).isEqualTo(4);
         }
 
         for (int i = 0; i < 1000; i++)
         {
-            int r = RandomUtils.nextInt(4, 7);
+            int r = RandomUtils.nextInt(random, 4, 7);
             assertThat(r >= 4).isTrue();
             assertThat(r < 7).isTrue();
         }
@@ -52,10 +55,10 @@ public class RandomUtilsTest
     @Test
     public void testNextIntThrows()
     {
-        assertThatThrownBy(() -> RandomUtils.nextInt(-1, 5)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> RandomUtils.nextInt(-5, -2)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> RandomUtils.nextInt(5, 5)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> RandomUtils.nextInt(10, 5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> RandomUtils.nextInt(random, -1, 5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> RandomUtils.nextInt(random, -5, -2)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> RandomUtils.nextInt(random, 5, 5)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> RandomUtils.nextInt(random, 10, 5)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -63,7 +66,7 @@ public class RandomUtilsTest
     {
         for (int i = 0; i < 1000000; i++)
         {
-            assertThat(ALPHANUMERIC_CHARS.contains(RandomUtils.randomAsciiAlphanumeric())).isTrue();
+            assertThat(ALPHANUMERIC_CHARS.contains(RandomUtils.randomAsciiAlphanumeric(random))).isTrue();
         }
     }
 
@@ -72,8 +75,8 @@ public class RandomUtilsTest
     {
         for (int i = 0; i < 1000; i++)
         {
-            int len = RandomUtils.nextInt(20, 100);
-            String str = RandomUtils.randomAlphanumeric(len);
+            int len = RandomUtils.nextInt(random, 20, 100);
+            String str = RandomUtils.randomAlphanumeric(random, len);
             assertThat(str.length()).isEqualTo(len);
             for (int j = 0; j < str.length(); j++)
             {

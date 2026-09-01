@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Random;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
@@ -39,7 +40,7 @@ public class TestUtils
 
     public static byte[] randomLowEntropyData()
     {
-        return randomLowEntropyData(RandomUtils.randomPositiveInt(16384 - 512) + 512);
+        return randomLowEntropyData(RandomUtils.randomPositiveInt(new Random(), 16384 - 512) + 512);
     }
 
     public static byte[] randomLowEntropyData(int size)

@@ -21,6 +21,7 @@ package org.apache.cassandra.cdc;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -107,14 +108,16 @@ public class AvroByteRecordTransformerTest extends CdcTestBase
                                                      .withColumn("c2", bridge.text());
 
         AtomicReference<CqlTable> tableRef = new AtomicReference<>();
+        Random random = new Random();
         testWith(bridge, cdcBridge, commitLogDir, schemaBuilder)
         .withNumRows(NUM_ROWS)
+        .withRandom(random)
         .clearWriters()
         .withWriter((tester, rows, writer) -> {
             tableRef.set(tester.cqlTable);
             for (int i = 0; i < tester.numRows; i++)
             {
-                TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows);
+                TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                 testRow.setTTL(ttlSeconds);
                 writer.accept(testRow, TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
             }

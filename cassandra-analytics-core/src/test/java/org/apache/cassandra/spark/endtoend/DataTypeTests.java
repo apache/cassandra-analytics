@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -37,7 +38,6 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.Tester;
 import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.Row;
 import org.quicktheories.core.Gen;
@@ -838,6 +838,7 @@ public class DataTypeTests
 
         int numRows = 50;
         int midPoint = numRows / 2;
+        Random random = new Random();
         Map<UUID, Set<Map<String, Object>>> udtSetValues = new LinkedHashMap<>(numRows);
         Map<UUID, Object[]> tupleValues = new LinkedHashMap<>(numRows);
         for (int tupleIndex = 0; tupleIndex < numRows; tupleIndex++)
@@ -851,9 +852,9 @@ public class DataTypeTests
                 udt.put("b", udtIndex < midPoint ? UUID.randomUUID().toString() : null);
                 udtSet.add(udt);
             }
-            Object[] tuple = new Object[]{RandomUtils.RANDOM.nextLong(),
+            Object[] tuple = new Object[]{random.nextLong(),
                                           tupleIndex < midPoint ? UUID.randomUUID().toString() : null,
-                                          RandomUtils.RANDOM.nextInt()};
+                                          random.nextInt()};
 
             udtSetValues.put(pk, udtSet);
             tupleValues.put(pk, tuple);

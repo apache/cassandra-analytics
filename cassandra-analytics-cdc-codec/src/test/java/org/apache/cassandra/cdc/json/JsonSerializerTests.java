@@ -24,6 +24,7 @@ import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.Iterator;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -109,7 +110,7 @@ public class JsonSerializerTests
     {
         CdcEventBuilder eventBuilder = CdcEventBuilder.of(CdcEvent.Kind.INSERT, TEST_KS, TEST_TBL_BINARY);
         eventBuilder.setPartitionKeys(listOf(Value.of(TEST_KS, "a", "int", TYPES.aInt().serialize(1))));
-        ByteBuffer randomBytes = ByteBuffer.wrap(RandomUtils.randomBytes(128));
+        ByteBuffer randomBytes = ByteBuffer.wrap(RandomUtils.randomBytes(new Random(), 128));
         eventBuilder.setValueColumns(listOf(
         Value.of(TEST_KS, "b", "blob", TYPES.blob().serialize(randomBytes)),
         Value.of(TEST_KS, "c", "inet", TYPES.inet().serialize(InetAddress.getByName("127.0.0.1")))

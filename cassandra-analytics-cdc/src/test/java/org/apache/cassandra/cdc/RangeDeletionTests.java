@@ -23,7 +23,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -45,6 +45,7 @@ import org.apache.cassandra.spark.utils.test.TestSchema;
 
 import static org.apache.cassandra.cdc.test.CdcTester.testWith;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
+import static org.apache.cassandra.spark.CommonTestUtils.qtRandom;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
@@ -118,15 +119,16 @@ public class RangeDeletionTests extends CdcTestBase
         Map<Integer, TestSchema.TestRow> rangeTombstones = new HashMap<>();
         long minTimestamp = System.currentTimeMillis();
         int numRows = 1000;
-        qt().forAll(cql3Type(bridge))
-            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
+        qt().forAll(cql3Type(bridge), qtRandom())
+            .assuming((type, random) -> type.supportedAsPrimaryKeyColumn())
             .checkAssert(
-            type ->
+            (type, random) ->
             testWith(bridge, cdcBridge, commitLogDir, schemaBuilder.apply(type))
             .withAddLastModificationTime(true)
+            .withRandom(random)
             .clearWriters()
             .withNumRows(numRows)
-            .withWriter(rangeDeletionWriter(rangeTombstones, numOfPartitionKeys, numOfClusteringKeys, withOpenEnd, minTimestamp))
+            .withWriter(rangeDeletionWriter(rangeTombstones, numOfPartitionKeys, numOfClusteringKeys, withOpenEnd, minTimestamp, random))
             .withCdcEventChecker((testRows, events) -> {
                 for (int i = 0; i < events.size(); i++)
                 {
@@ -201,7 +203,8 @@ public class RangeDeletionTests extends CdcTestBase
                                                 int numOfPartitionKeys,
                                                 int numOfClusteringKeys,
                                                 boolean withOpenEnd,
-                                                long minTimestamp)
+                                                long minTimestamp,
+                                                Random random)
     {
         return (tester, rows, writer) -> {
             long timestamp = minTimestamp;
@@ -209,14 +212,14 @@ public class RangeDeletionTests extends CdcTestBase
             for (int i = 0; i < tester.numRows; i++)
             {
                 TestSchema.TestRow testRow;
-                if (ThreadLocalRandom.current().nextDouble() < 0.5)
+                if (random.nextDouble() < 0.5)
                 {
-                    testRow = CdcTester.newUniqueRow(tester.schema, rows);
+                    testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                     Object[] baseBound = testRow.rawValues(numOfPartitionKeys, numOfPartitionKeys + numOfClusteringKeys);
                     // create a new bound that has the last CK value different from the base bound
                     Object[] newBound = new Object[baseBound.length];
                     System.arraycopy(baseBound, 0, newBound, 0, baseBound.length);
-                    TestSchema.TestRow newRow = CdcTester.newUniqueRow(tester.schema, rows);
+                    TestSchema.TestRow newRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                     int lastCK = newBound.length - 1;
                     newBound[lastCK] = newRow.get(numOfPartitionKeys + numOfClusteringKeys - 1);
                     Object[] open;
@@ -242,7 +245,7 @@ public class RangeDeletionTests extends CdcTestBase
                 }
                 else
                 {
-                    testRow = CdcTester.newUniqueRow(tester.schema, rows);
+                    testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                 }
                 timestamp += 1;
                 writer.accept(testRow, TimeUnit.MILLISECONDS.toMicros(timestamp));

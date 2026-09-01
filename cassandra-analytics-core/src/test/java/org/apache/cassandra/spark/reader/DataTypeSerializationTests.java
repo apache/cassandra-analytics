@@ -54,6 +54,7 @@ import org.apache.spark.unsafe.types.CalendarInterval;
 import org.apache.spark.unsafe.types.UTF8String;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
+import static org.apache.cassandra.spark.CommonTestUtils.qtRandom;
 import static org.apache.cassandra.spark.TestUtils.runTest;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
@@ -114,11 +115,11 @@ public class DataTypeSerializationTests
     @Test
     public void testTimeUUID()
     {
-        qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertThat(toTimeUUID(bridge, RandomUtils.getRandomTimeUUIDForTesting())).isInstanceOf(UTF8String.class);
+        qt().forAll(TestUtils.bridges(), qtRandom()).checkAssert((bridge, random) -> {
+            assertThat(toTimeUUID(bridge, RandomUtils.getRandomTimeUUIDForTesting(random))).isInstanceOf(UTF8String.class);
             for (int test = 0; test < MAX_TESTS; test++)
             {
-                UUID expected = RandomUtils.getRandomTimeUUIDForTesting();
+                UUID expected = RandomUtils.getRandomTimeUUIDForTesting(random);
                 assertThat(toTimeUUID(bridge, expected).toString()).isEqualTo(expected.toString());
             }
         });
@@ -257,11 +258,11 @@ public class DataTypeSerializationTests
     @Test
     public void testInet()
     {
-        qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertThat(toInet(bridge, RandomUtils.randomInet())).isInstanceOf(byte[].class);
+        qt().forAll(TestUtils.bridges(), qtRandom()).checkAssert((bridge, random) -> {
+            assertThat(toInet(bridge, RandomUtils.randomInet(random))).isInstanceOf(byte[].class);
             for (int test = 0; test < MAX_TESTS; test++)
             {
-                InetAddress expected = RandomUtils.randomInet();
+                InetAddress expected = RandomUtils.randomInet(random);
                 assertThat((byte[]) toInet(bridge, expected)).isEqualTo(expected.getAddress());
             }
         });
@@ -320,12 +321,12 @@ public class DataTypeSerializationTests
     @Test
     public void testBlob()
     {
-        qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertThat(toBlob(bridge, ByteBuffer.wrap(RandomUtils.randomBytes(5)))).isInstanceOf(byte[].class);
+        qt().forAll(TestUtils.bridges(), qtRandom()).checkAssert((bridge, random) -> {
+            assertThat(toBlob(bridge, ByteBuffer.wrap(RandomUtils.randomBytes(random, 5)))).isInstanceOf(byte[].class);
             for (int test = 0; test < MAX_TESTS; test++)
             {
-                int size = RandomUtils.RANDOM.nextInt(1024);
-                byte[] expected = RandomUtils.randomBytes(size);
+                int size = random.nextInt(1024);
+                byte[] expected = RandomUtils.randomBytes(random, size);
                 assertThat((byte[]) toBlob(bridge, ByteBuffer.wrap(expected))).isEqualTo(expected);
             }
         });
@@ -355,11 +356,11 @@ public class DataTypeSerializationTests
     @Test
     public void testTinyInt()
     {
-        qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
-            assertThat(toTinyInt(bridge, RandomUtils.randomByte())).isInstanceOf(Byte.class);
+        qt().forAll(TestUtils.bridges(), qtRandom()).checkAssert((bridge, random) -> {
+            assertThat(toTinyInt(bridge, RandomUtils.randomByte(random))).isInstanceOf(Byte.class);
             for (int test = 0; test < MAX_TESTS; test++)
             {
-                byte expected = RandomUtils.randomByte();
+                byte expected = RandomUtils.randomByte(random);
                 assertThat(toTinyInt(bridge, expected)).isEqualTo(expected);
             }
         });
@@ -369,7 +370,7 @@ public class DataTypeSerializationTests
     public void testSerialization()
     {
         // CassandraBridge.serialize is mostly used for unit tests
-        qt().forAll(TestUtils.bridges()).checkAssert(bridge -> {
+        qt().forAll(TestUtils.bridges(), qtRandom()).checkAssert((bridge, random) -> {
             // BLOB,  VARINT
             assertThat(toAscii(bridge, "ABC").toString()).isEqualTo("ABC");
             assertThat(toBigInt(bridge, 500L)).isEqualTo(500L);
@@ -401,7 +402,7 @@ public class DataTypeSerializationTests
             assertThat(toTime(bridge, 5002839L)).isEqualTo(5002839L);
             Date now = new Date();
             assertThat(toTimestamp(bridge, now)).isEqualTo(now.getTime() * 1000L);
-            UUID timeUuid = RandomUtils.getRandomTimeUUIDForTesting();
+            UUID timeUuid = RandomUtils.getRandomTimeUUIDForTesting(random);
             assertThat(UUID.fromString(toTimeUUID(bridge, timeUuid).toString())).isEqualTo(timeUuid);
             assertThat(toTinyInt(bridge, (byte) 100)).isEqualTo((byte) 100);
             UUID uuid = UUID.randomUUID();
@@ -415,11 +416,11 @@ public class DataTypeSerializationTests
     public void testList()
     {
         runTest((partitioner, directory, bridge) ->
-                qt().forAll(TestUtils.cql3Type(bridge)).checkAssert(type -> {
+                qt().forAll(TestUtils.cql3Type(bridge), qtRandom()).checkAssert((type, random) -> {
                     CqlField.CqlList list = bridge.list(type);
                     SparkType sparkType = getSparkSql(bridge).toSparkType(type);
                     List<Object> expected = IntStream.range(0, 128)
-                                                     .mapToObj(index -> type.randomValue())
+                                                     .mapToObj(index -> type.randomValue(random))
                                                      .collect(Collectors.toList());
                     ByteBuffer buffer = list.serialize(expected);
                     List<Object> actual = Arrays.asList(((ArrayData) list.deserializeToType(getSparkSql(bridge), buffer)).array());
@@ -435,11 +436,11 @@ public class DataTypeSerializationTests
     public void testSet()
     {
         runTest((partitioner, directory, bridge) ->
-                qt().forAll(TestUtils.cql3Type(bridge)).assuming(CqlField.CqlType::supportedAsSetElement).checkAssert(type -> {
+                qt().forAll(TestUtils.cql3Type(bridge), qtRandom()).assuming((type, random) -> type.supportedAsSetElement()).checkAssert((type, random) -> {
                     CqlField.CqlSet set = bridge.set(type);
                     SparkType sparkType = getSparkSql(bridge).toSparkType(type);
                     Set<Object> expected = IntStream.range(0, 128)
-                                                    .mapToObj(integer -> type.randomValue())
+                                                    .mapToObj(integer -> type.randomValue(random))
                                                     .collect(Collectors.toSet());
                     ByteBuffer buffer = set.serialize(expected);
                     Set<Object> actual = new HashSet<>(Arrays.asList(((ArrayData) set.deserializeToType(getSparkSql(bridge), buffer)).array()));
@@ -455,9 +456,9 @@ public class DataTypeSerializationTests
     public void testMap()
     {
         runTest((partitioner, directory, bridge) ->
-                qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge))
-                    .assuming((keyType, valueType) -> keyType.supportedAsMapKey())
-                    .checkAssert((keyType, valueType) -> {
+                qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), qtRandom())
+                    .assuming((keyType, valueType, random) -> keyType.supportedAsMapKey())
+                    .checkAssert((keyType, valueType, random) -> {
                         CqlField.CqlMap map = bridge.map(keyType, valueType);
                         SparkType keySparkType = getSparkSql(bridge).toSparkType(keyType);
                         SparkType valueSparkType = getSparkSql(bridge).toSparkType(valueType);
@@ -469,9 +470,9 @@ public class DataTypeSerializationTests
                             Object key = null;
                             while (key == null || expected.containsKey(key))
                             {
-                                key = keyType.randomValue();
+                                key = keyType.randomValue(random);
                             }
-                            expected.put(key, valueType.randomValue());
+                            expected.put(key, valueType.randomValue(random));
                         }
                         ByteBuffer buffer = map.serialize(expected);
                         ArrayBasedMapData mapData = ((ArrayBasedMapData) map.deserializeToType(getSparkSql(bridge), buffer));
@@ -497,13 +498,13 @@ public class DataTypeSerializationTests
     public void testUdts()
     {
         runTest((partitioner, directory, bridge) ->
-                qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((firstType, secondType) -> {
+                qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), qtRandom()).checkAssert((firstType, secondType, random) -> {
                     CqlField.CqlUdt udt = bridge.udt("keyspace", "testudt")
                                                 .withField("a", firstType)
                                                 .withField("b", bridge.ascii())
                                                 .withField("c", secondType)
                                                 .build();
-                    Map<String, Object> expected = (Map<String, Object>) udt.randomValue();
+                    Map<String, Object> expected = (Map<String, Object>) udt.randomValue(random);
                     assert expected != null;
                     ByteBuffer buffer = udt.serializeUdt(expected);
                     Map<String, Object> actual = udt.deserializeUdt(getSparkSql(bridge), buffer, false);
@@ -520,14 +521,14 @@ public class DataTypeSerializationTests
     public void testTuples()
     {
         runTest((partitioner, directory, bridge) ->
-                qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge)).checkAssert((firstType, secondType) -> {
+                qt().forAll(TestUtils.cql3Type(bridge), TestUtils.cql3Type(bridge), qtRandom()).checkAssert((firstType, secondType, random) -> {
                     CqlField.CqlTuple tuple = bridge.tuple(firstType,
                                                            bridge.ascii(),
                                                            secondType,
                                                            bridge.timestamp(),
                                                            bridge.uuid(),
                                                            bridge.varchar());
-                    Object[] expected = (Object[]) tuple.randomValue();
+                    Object[] expected = (Object[]) tuple.randomValue(random);
                     assert expected != null;
                     ByteBuffer buffer = tuple.serializeTuple(expected);
                     GenericInternalRow row = (GenericInternalRow) getSparkSql(bridge).convert(tuple, tuple.deserializeTuple(buffer, false), false);

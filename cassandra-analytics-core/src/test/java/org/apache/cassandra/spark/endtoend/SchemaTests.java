@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.endtoend;
 import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -41,7 +42,6 @@ import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.Tester;
 import org.apache.cassandra.spark.data.CqlField;
-import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.functions;
@@ -292,6 +292,7 @@ public class SchemaTests
         // In earlier versions of Spark the long value would just overflow and the aggregated
         // value was incorrect.
         AtomicReference<BigInteger> total = new AtomicReference<>(BigInteger.ZERO);
+        Random random = new Random();
         Map<UUID, TestSchema.TestRow> rows = new HashMap<>(Tester.DEFAULT_NUM_ROWS);
         Tester.builder(schemaBuilder)
               // Don't write random data
@@ -302,7 +303,7 @@ public class SchemaTests
                   {
                       TestSchema schema = schemaBuilder.build();
                       schema.setCassandraVersion(version);
-                      TestSchema.TestRow testRow = schema.randomRow();
+                      TestSchema.TestRow testRow = schema.randomRow(random);
                       rows.put(testRow.getUUID("a"), testRow);
                       writer.write(testRow.allValues());
                   }
@@ -313,7 +314,7 @@ public class SchemaTests
                   for (TestSchema.TestRow testRow : ImmutableSet.copyOf(rows.values()))
                   {
                       // Update rows with new values
-                      TestSchema.TestRow newTestRow = testRow.copy("e", RandomUtils.RANDOM.nextLong())
+                      TestSchema.TestRow newTestRow = testRow.copy("e", random.nextLong())
                                                              .copy("d", UUID.randomUUID().toString().substring(0, 10));
                       rows.put(testRow.getUUID("a"), newTestRow);
                       writer.write(newTestRow.allValues());
@@ -323,7 +324,7 @@ public class SchemaTests
                   for (TestSchema.TestRow testRow : ImmutableSet.copyOf(rows.values()))
                   {
                       // Update rows with new values - this should be the final values seen by Spark
-                      TestSchema.TestRow newTestRow = testRow.copy("e", RandomUtils.RANDOM.nextLong())
+                      TestSchema.TestRow newTestRow = testRow.copy("e", random.nextLong())
                                                              .copy("d", UUID.randomUUID().toString().substring(0, 10));
                       rows.put(testRow.getUUID("a"), newTestRow);
                       total.updateAndGet(t -> t.add(BigInteger.valueOf(newTestRow.getLong("e"))));
@@ -363,6 +364,7 @@ public class SchemaTests
                                      .withField("c", bridge.text())
                                      .build();
         Map<Long, Map<String, Object>> values = new HashMap<>(Tester.DEFAULT_NUM_ROWS);
+        Random random = new Random();
 
         Tester.builder(keyspace -> TestSchema.builder(bridge)
                                              .withKeyspace(keyspace)
@@ -377,13 +379,13 @@ public class SchemaTests
                   for (long pk = 0; pk < Tester.DEFAULT_NUM_ROWS; pk++)
                   {
                       Map<String, Object> value = ImmutableMap.of(
-                      pk < midPoint ? "a" : "b", bridge.text().randomValue().toString(),
-                      "c", bridge.text().randomValue().toString());
+                      pk < midPoint ? "a" : "b", bridge.text().randomValue(random).toString(),
+                      "c", bridge.text().randomValue(random).toString());
                       values.put(pk, value);
                       writer.write(pk, bridge.toUserTypeValue(type, value),
-                                   bridge.text().randomValue(),
-                                   bridge.timestamp().randomValue(),
-                                   bridge.aInt().randomValue());
+                                   bridge.text().randomValue(random),
+                                   bridge.timestamp().randomValue(random),
+                                   bridge.aInt().randomValue(random));
                   }
               })
               .withCheck(dataset -> {

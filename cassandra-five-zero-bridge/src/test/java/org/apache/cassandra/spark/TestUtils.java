@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Stream;
 
 import org.apache.commons.lang3.StringUtils;
@@ -49,7 +50,7 @@ public class TestUtils
 
     public static byte[] randomLowEntropyData()
     {
-        return randomLowEntropyData(RandomUtils.randomPositiveInt(16384 - 512) + 512);
+        return randomLowEntropyData(RandomUtils.randomPositiveInt(new Random(), 16384 - 512) + 512);
     }
 
     public static byte[] randomLowEntropyData(int size)

@@ -20,6 +20,7 @@
 package org.apache.cassandra.cdc;
 
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -99,14 +100,16 @@ public class AvroGenericRecordTransformerTest extends CdcTestBase
 
         // Capture CqlTable from the tester via the writer callback
         AtomicReference<CqlTable> tableRef = new AtomicReference<>();
+        Random random = new Random();
         testWith(bridge, cdcBridge, commitLogDir, schemaBuilder)
         .withNumRows(NUM_ROWS)
+        .withRandom(random)
         .clearWriters()
         .withWriter((tester, rows, writer) -> {
             tableRef.set(tester.cqlTable);
             long timestampMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
             IntStream.range(0, tester.numRows)
-                     .forEach(i -> writer.accept(CdcTester.newUniqueRow(tester.schema, rows), timestampMicros));
+                     .forEach(i -> writer.accept(CdcTester.newUniqueRow(tester.schema, rows, random), timestampMicros));
         })
         .withCdcEventChecker((testRows, events) -> {
             assertThat(events).hasSize(NUM_ROWS);
@@ -158,14 +161,16 @@ public class AvroGenericRecordTransformerTest extends CdcTestBase
                                                      .withColumn("l", bridge.list(bridge.text()));
 
         AtomicReference<CqlTable> tableRef = new AtomicReference<>();
+        Random random = new Random();
         testWith(bridge, cdcBridge, commitLogDir, schemaBuilder)
         .withNumRows(NUM_ROWS)
+        .withRandom(random)
         .clearWriters()
         .withWriter((tester, rows, writer) -> {
             tableRef.set(tester.cqlTable);
             long timestampMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
             IntStream.range(0, tester.numRows)
-                     .forEach(i -> writer.accept(CdcTester.newUniqueRow(tester.schema, rows), timestampMicros));
+                     .forEach(i -> writer.accept(CdcTester.newUniqueRow(tester.schema, rows, random), timestampMicros));
         })
         .withCdcEventChecker((testRows, events) -> {
             assertThat(events).hasSize(NUM_ROWS);
@@ -199,14 +204,16 @@ public class AvroGenericRecordTransformerTest extends CdcTestBase
                                                      .withColumn("c2", bridge.text());
 
         AtomicReference<CqlTable> tableRef = new AtomicReference<>();
+        Random random = new Random();
         testWith(bridge, cdcBridge, commitLogDir, schemaBuilder)
         .withNumRows(NUM_ROWS)
+        .withRandom(random)
         .clearWriters()
         .withWriter((tester, rows, writer) -> {
             tableRef.set(tester.cqlTable);
             long timestampMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
             IntStream.range(0, tester.numRows)
-                     .forEach(i -> writer.accept(CdcTester.newUniqueRow(tester.schema, rows), timestampMicros));
+                     .forEach(i -> writer.accept(CdcTester.newUniqueRow(tester.schema, rows, random), timestampMicros));
         })
         .withCdcEventChecker((testRows, events) -> {
             assertThat(events).hasSize(NUM_ROWS);
@@ -263,14 +270,16 @@ public class AvroGenericRecordTransformerTest extends CdcTestBase
                                                      .withColumn("c2", bridge.text());
 
         AtomicReference<CqlTable> tableRef = new AtomicReference<>();
+        Random random = new Random();
         testWith(bridge, cdcBridge, commitLogDir, schemaBuilder)
         .withNumRows(NUM_ROWS)
+        .withRandom(random)
         .clearWriters()
         .withWriter((tester, rows, writer) -> {
             tableRef.set(tester.cqlTable);
             for (int i = 0; i < tester.numRows; i++)
             {
-                TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows);
+                TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                 testRow = testRow.copy("c1", org.apache.cassandra.bridge.CdcBridge.UNSET_MARKER);
                 testRow = testRow.copy("c2", null);
                 writer.accept(testRow, TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
@@ -318,14 +327,16 @@ public class AvroGenericRecordTransformerTest extends CdcTestBase
                                                      .withColumn("c1", bridge.aInt());
 
         AtomicReference<CqlTable> tableRef = new AtomicReference<>();
+        Random random = new Random();
         testWith(bridge, cdcBridge, commitLogDir, schemaBuilder)
         .withNumRows(NUM_ROWS)
+        .withRandom(random)
         .clearWriters()
         .withWriter((tester, rows, writer) -> {
             tableRef.set(tester.cqlTable);
             for (int i = 0; i < tester.numRows; i++)
             {
-                TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows);
+                TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                 testRow.setTTL(largeTtl);
                 writer.accept(testRow, TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
             }
@@ -387,14 +398,16 @@ public class AvroGenericRecordTransformerTest extends CdcTestBase
                                                      .withColumn("c1", bridge.aInt());
 
         AtomicReference<CqlTable> tableRef = new AtomicReference<>();
+        Random random = new Random();
         testWith(bridge, cdcBridge, commitLogDir, schemaBuilder)
         .withNumRows(NUM_ROWS)
+        .withRandom(random)
         .clearWriters()
         .withWriter((tester, rows, writer) -> {
             tableRef.set(tester.cqlTable);
             for (int i = 0; i < tester.numRows; i++)
             {
-                TestSchema.TestRow testRow = newUniquePartitionDeletion(tester.schema, rows);
+                TestSchema.TestRow testRow = newUniquePartitionDeletion(tester.schema, rows, random);
                 writer.accept(testRow, TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
             }
         })
@@ -438,14 +451,16 @@ public class AvroGenericRecordTransformerTest extends CdcTestBase
                                                      .withColumn("c1", bridge.aInt());
 
         AtomicReference<CqlTable> tableRef = new AtomicReference<>();
+        Random random = new Random();
         testWith(bridge, cdcBridge, commitLogDir, schemaBuilder)
         .withNumRows(NUM_ROWS)
+        .withRandom(random)
         .clearWriters()
         .withWriter((tester, rows, writer) -> {
             tableRef.set(tester.cqlTable);
             for (int i = 0; i < tester.numRows; i++)
             {
-                TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows);
+                TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                 if (i % 2 == 0)
                 {
                     testRow.setTTL(ttlSeconds);

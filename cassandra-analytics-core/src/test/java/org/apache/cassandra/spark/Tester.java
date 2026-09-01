@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -52,6 +53,7 @@ import org.jetbrains.annotations.Nullable;
 import org.quicktheories.core.Gen;
 
 import static org.apache.cassandra.bridge.CassandraBridgeFactory.getSparkSql;
+import static org.apache.cassandra.spark.CommonTestUtils.qtRandom;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
@@ -342,13 +344,13 @@ public final class Tester
 
     private void run()
     {
-        qt().forAll(versions(), numSSTables())
+        qt().forAll(versions(), numSSTables(), qtRandom())
             .checkAssert(this::run);
     }
 
     private void run(CassandraVersion... versions)
     {
-        qt().forAll(arbitrary().pick(Arrays.asList(versions)), numSSTables())
+        qt().forAll(arbitrary().pick(Arrays.asList(versions)), numSSTables(), qtRandom())
             .checkAssert(this::run);
     }
 
@@ -363,7 +365,7 @@ public final class Tester
     }
 
     // CHECKSTYLE IGNORE: Long method
-    private void run(CassandraVersion version, int numSSTables)
+    private void run(CassandraVersion version, int numSSTables, Random random)
     {
         TestUtils.runTest(version, (partitioner, directory, bridge) -> {
             String keyspace = "keyspace_" + UUID.randomUUID().toString().replaceAll("-", "");
@@ -381,7 +383,7 @@ public final class Tester
                     TestSchema.TestRow testRow;
                     do
                     {
-                        testRow = schema.randomRow(nullifyValueColumn);
+                        testRow = schema.randomRow(nullifyValueColumn, random);
                     }
                     while (rows.containsKey(testRow.getPrimaryHexKey()));  // Don't write duplicate rows
 
@@ -508,9 +510,9 @@ public final class Tester
         });
     }
 
-    public static TestSchema.TestRow newUniqueRow(TestSchema schema, Map<String, TestSchema.TestRow> rows)
+    public static TestSchema.TestRow newUniqueRow(TestSchema schema, Map<String, TestSchema.TestRow> rows, Random random)
     {
-        return newUniqueRow(schema::randomRow, rows);
+        return newUniqueRow(() -> schema.randomRow(random), rows);
     }
 
     private static TestSchema.TestRow newUniqueRow(Supplier<TestSchema.TestRow> rowProvider,

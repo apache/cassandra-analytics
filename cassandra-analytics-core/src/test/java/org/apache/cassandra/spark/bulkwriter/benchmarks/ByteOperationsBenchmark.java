@@ -33,6 +33,7 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
 import java.nio.ByteBuffer;
+import java.util.Random;
 
 @Warmup(iterations = 2)
 @Measurement(iterations = 3)
@@ -51,7 +52,7 @@ public class ByteOperationsBenchmark
     @Setup(Level.Trial)
     public void setup()
     {
-        byte[] bytes = RandomUtils.randomBytes(numBytes);
+        byte[] bytes = RandomUtils.randomBytes(new Random(), numBytes);
         bytes1 = ByteBuffer.wrap(bytes.clone());
         bytes2 = ByteBuffer.wrap(bytes.clone());
     }

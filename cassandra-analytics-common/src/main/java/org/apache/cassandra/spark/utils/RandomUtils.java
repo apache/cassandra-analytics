@@ -35,36 +35,34 @@ public final class RandomUtils
 {
     public static final int MIN_COLLECTION_SIZE = 16;
 
-    public static final Random RANDOM = new Random();
-
     private RandomUtils()
     {
         throw new IllegalStateException(getClass() + " is static utility class and shall not be instantiated");
     }
 
-    public static byte randomByte()
+    public static byte randomByte(Random random)
     {
-        return randomBytes(1)[0];
+        return randomBytes(random, 1)[0];
     }
 
-    public static byte[] randomBytes(int size)
+    public static byte[] randomBytes(Random random, int size)
     {
         byte[] bytes = new byte[size];
-        RANDOM.nextBytes(bytes);
+        random.nextBytes(bytes);
         return bytes;
     }
 
-    public static ByteBuffer randomByteBuffer(int length)
+    public static ByteBuffer randomByteBuffer(Random random, int length)
     {
-        return ByteBuffer.wrap(randomBytes(length));
+        return ByteBuffer.wrap(randomBytes(random, length));
     }
 
-    public static int randomPositiveInt(int bound)
+    public static int randomPositiveInt(Random random, int bound)
     {
-        return RANDOM.nextInt(bound - 1) + 1;
+        return random.nextInt(bound - 1) + 1;
     }
 
-    public static int nextInt(int startInclusive, int endExclusive)
+    public static int nextInt(Random random, int startInclusive, int endExclusive)
     {
         if (endExclusive <= startInclusive)
         {
@@ -75,14 +73,14 @@ public final class RandomUtils
             throw new IllegalArgumentException("Both range values must be non-negative.");
         }
 
-        return startInclusive + RANDOM.nextInt(endExclusive - startInclusive);
+        return startInclusive + random.nextInt(endExclusive - startInclusive);
     }
 
-    public static BigInteger randomBigInteger(Partitioner partitioner)
+    public static BigInteger randomBigInteger(Random random, Partitioner partitioner)
     {
         BigInteger range = partitioner.maxToken().subtract(partitioner.minToken());
         int length = partitioner.maxToken().bitLength();
-        BigInteger result = new BigInteger(length, RandomUtils.RANDOM);
+        BigInteger result = new BigInteger(length, random);
         if (result.compareTo(partitioner.minToken()) < 0)
         {
             result = result.add(partitioner.minToken());
@@ -95,6 +93,31 @@ public final class RandomUtils
     }
 
     /**
+     * Returns a random Type 4 (random) UUID, built from the given {@link Random} so it is reproducible from a
+     * fixed seed - unlike {@link UUID#randomUUID()}, which always draws from the JVM-wide {@link java.security.SecureRandom}.
+     */
+    public static UUID randomUuid(Random random)
+    {
+        byte[] randomBytes = new byte[16];
+        random.nextBytes(randomBytes);
+        randomBytes[6] &= 0x0f;  /* clear version        */
+        randomBytes[6] |= 0x40;  /* set to version 4     */
+        randomBytes[8] &= 0x3f;  /* clear variant        */
+        randomBytes[8] |= (byte) 0x80;  /* set to IETF variant  */
+        long mostSigBits = 0;
+        for (int i = 0; i < 8; i++)
+        {
+            mostSigBits = (mostSigBits << 8) | (randomBytes[i] & 0xff);
+        }
+        long leastSigBits = 0;
+        for (int i = 8; i < 16; i++)
+        {
+            leastSigBits = (leastSigBits << 8) | (randomBytes[i] & 0xff);
+        }
+        return new UUID(mostSigBits, leastSigBits);
+    }
+
+    /**
      * Returns a random Type 1 (time-based) UUID.
      * <p>
      * Since Java does not natively support creation of Type 1 (time-based) UUIDs, and in order to avoid introducing
@@ -102,49 +125,49 @@ public final class RandomUtils
      *
      * @return a random Type 1 (time-based) UUID
      */
-    public static UUID getRandomTimeUUIDForTesting()
+    public static UUID getRandomTimeUUIDForTesting(Random random)
     {
-        UUID uuid = UUID.randomUUID();
+        UUID uuid = randomUuid(random);
         return new UUID(uuid.getMostSignificantBits() ^ 0x0000000000005000L,   // Change UUID version from 4 to 1
                         uuid.getLeastSignificantBits() | 0x0000010000000000L);  // Always set multicast bit to 1
     }
 
     @SuppressWarnings("UnstableApiUsage")
-    public static InetAddress randomInet()
+    public static InetAddress randomInet(Random random)
     {
-        return InetAddresses.fromInteger(RANDOM.nextInt());
+        return InetAddresses.fromInteger(random.nextInt());
     }
 
-    public static String randomAlphanumeric(int minLengthInclusive, int maxLengthExclusive)
+    public static String randomAlphanumeric(Random random, int minLengthInclusive, int maxLengthExclusive)
     {
-        return randomAlphanumeric(RandomUtils.nextInt(minLengthInclusive, maxLengthExclusive));
+        return randomAlphanumeric(random, RandomUtils.nextInt(random, minLengthInclusive, maxLengthExclusive));
     }
 
-    public static String randomAlphanumeric(Set<String> alreadyExist)
+    public static String randomAlphanumeric(Random random, Set<String> alreadyExist)
     {
-        return randomAlphanumeric(alreadyExist, 32);
+        return randomAlphanumeric(random, alreadyExist, 32);
     }
 
-    public static String randomAlphanumeric(Set<String> alreadyExist, int length)
+    public static String randomAlphanumeric(Random random, Set<String> alreadyExist, int length)
     {
-        String str = randomAlphanumeric(length);
+        String str = randomAlphanumeric(random, length);
         while (alreadyExist.contains(str))
         {
-            str = randomAlphanumeric(length);
+            str = randomAlphanumeric(random, length);
         }
         return str;
     }
 
-    public static String randomAlphanumeric()
+    public static String randomAlphanumeric(Random random)
     {
-        return randomAlphanumeric(32);
+        return randomAlphanumeric(random, 32);
     }
 
-    public static String randomAlphanumeric(int length)
+    public static String randomAlphanumeric(Random random, int length)
     {
         StringBuilder sb = new StringBuilder(length);
         IntStream.range(0, length)
-                 .mapToObj(i -> randomAsciiAlphanumeric())
+                 .mapToObj(i -> randomAsciiAlphanumeric(random))
                  .forEach(sb::append);
         return sb.toString();
     }
@@ -152,9 +175,9 @@ public final class RandomUtils
     /**
      * @return random ascii character between 0x30...0x39 for numbers and 0x41...0x5A for uppercase letters
      */
-    public static char randomAsciiAlphanumeric()
+    public static char randomAsciiAlphanumeric(Random random)
     {
-        int c = RANDOM.nextInt(36);
+        int c = random.nextInt(36);
         if (c < 10)
         {
             // return ascii number

@@ -22,7 +22,6 @@ package org.apache.cassandra.cdc;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -43,6 +42,7 @@ import org.apache.cassandra.spark.utils.test.TestSchema;
 
 import static org.apache.cassandra.cdc.test.CdcTester.testWith;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
+import static org.apache.cassandra.spark.CommonTestUtils.qtRandom;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
@@ -110,14 +110,14 @@ public class PartitionDeletionTests extends CdcTestBase
         // This kind of output means the entire partition is deleted
         final Set<Integer> partitionDeletionIndices = new HashSet<>();
         final List<List<Object>> validationPk = new ArrayList<>(); // pk of the partition deletions
-        final Random rnd = new Random(1);
         final long minTimestamp = System.currentTimeMillis();
         final int numRows = 1000;
-        qt().forAll(cql3Type(bridge))
-            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
-            .checkAssert(type -> {
+        qt().forAll(cql3Type(bridge), qtRandom())
+            .assuming((type, random) -> type.supportedAsPrimaryKeyColumn())
+            .checkAssert((type, random) -> {
                 testWith(bridge, cdcBridge, commitLogDir, schemaBuilder.apply(type))
                 .withAddLastModificationTime(true)
+                .withRandom(random)
                 .clearWriters()
                 .withNumRows(numRows)
                 .withWriter((tester, rows, writer) -> {
@@ -127,9 +127,9 @@ public class PartitionDeletionTests extends CdcTestBase
                     for (int i = 0; i < tester.numRows; i++)
                     {
                         TestSchema.TestRow testRow;
-                        if (rnd.nextDouble() < 0.5)
+                        if (random.nextDouble() < 0.5)
                         {
-                            testRow = CdcTester.newUniquePartitionDeletion(tester.schema, rows);
+                            testRow = CdcTester.newUniquePartitionDeletion(tester.schema, rows, random);
                             List<Object> pk = new ArrayList<>(partitionKeys);
                             for (int j = 0; j < partitionKeys; j++)
                             {
@@ -140,7 +140,7 @@ public class PartitionDeletionTests extends CdcTestBase
                         }
                         else
                         {
-                            testRow = CdcTester.newUniqueRow(tester.schema, rows);
+                            testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                         }
                         timestamp += 1;
                         writer.accept(testRow, TimeUnit.MILLISECONDS.toMicros(timestamp));

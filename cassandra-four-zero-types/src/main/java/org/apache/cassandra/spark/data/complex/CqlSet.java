@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.data.complex;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -74,9 +75,9 @@ public class CqlSet extends CqlList implements CqlField.CqlSet
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
-        return new HashSet<>(((List<Object>) super.randomValue(minCollectionSize)));
+        return new HashSet<>(((List<Object>) super.randomValue(minCollectionSize, random)));
     }
 
     @Override

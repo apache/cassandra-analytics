@@ -22,6 +22,7 @@ package org.apache.cassandra.analytics;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 
@@ -167,7 +168,7 @@ public class MixedSSTableVersionTest extends SharedClusterSparkIntegrationTestBa
 
     private List<Row> generateRandomData()
     {
-        int rowCount = RandomUtils.nextInt(3, 10);
+        int rowCount = RandomUtils.nextInt(new Random(), 3, 10);
         List<Row> data = new ArrayList<>(rowCount);
         for (int i = 0; i < rowCount; i++)
         {

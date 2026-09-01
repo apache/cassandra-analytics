@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.data.types;
 
 import java.nio.ByteBuffer;
+import java.util.Random;
 
 import org.apache.cassandra.cql3.functions.types.DataType;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
@@ -44,9 +45,9 @@ public class Blob extends BinaryBased
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
-        return RandomUtils.randomByteBuffer(RandomUtils.randomPositiveInt(256));
+        return RandomUtils.randomByteBuffer(random, RandomUtils.randomPositiveInt(random, 256));
     }
 
     @Override

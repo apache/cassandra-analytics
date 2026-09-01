@@ -22,6 +22,7 @@ package org.apache.cassandra.spark.data.complex;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -138,9 +139,9 @@ public abstract class AbstractCqlTuple extends CqlCollection implements CqlField
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
-        return types().stream().map(type -> type.randomValue(minCollectionSize)).toArray();
+        return types().stream().map(type -> type.randomValue(minCollectionSize, random)).toArray();
     }
 
     @Override

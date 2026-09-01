@@ -24,6 +24,7 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -57,6 +58,7 @@ import static org.assertj.core.api.Assertions.fail;
  */
 public class BufferingInputStreamTests
 {
+    private static final Random RANDOM = new Random();
     private static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(1);
     private static final ExecutorService EXECUTOR =
     Executors.newFixedThreadPool(4, new ThreadFactoryBuilder().setNameFormat("sstable-tests-%d")
@@ -360,7 +362,7 @@ public class BufferingInputStreamTests
             @Override
             public void request(long start, long end, StreamConsumer consumer)
             {
-                byte[] bytes = RandomUtils.randomBytes((int) (end - start + 1));
+                byte[] bytes = RandomUtils.randomBytes(RANDOM, (int) (end - start + 1));
                 StreamBuffer buffer = StreamBuffer.wrap(bytes);
                 returnedBuffers.add(bytes);
                 consumer.onRead(buffer);
@@ -435,7 +437,7 @@ public class BufferingInputStreamTests
 
     private static StreamBuffer randomBuffer(int size)
     {
-        return StreamBuffer.wrap(RandomUtils.randomBytes(size));
+        return StreamBuffer.wrap(RandomUtils.randomBytes(RANDOM, size));
     }
 
     @SuppressWarnings("StatementWithEmptyBody")
@@ -465,6 +467,6 @@ public class BufferingInputStreamTests
                 consumer.onRead(buffers.get(0));
                 writeBuffers(consumer, buffers.subList(1, buffers.size()));
             });
-        }, RandomUtils.RANDOM.nextInt(50), TimeUnit.MICROSECONDS);  // Inject random latency
+        }, RANDOM.nextInt(50), TimeUnit.MICROSECONDS);  // Inject random latency
     }
 }

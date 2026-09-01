@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.data.complex;
 
 import java.util.Map;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -32,7 +33,6 @@ import org.apache.cassandra.serializers.MapSerializer;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
-import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.utils.Pair;
 import org.apache.cassandra.db.rows.BufferCell;
 import org.apache.cassandra.db.rows.CellPath;
@@ -84,11 +84,11 @@ public class CqlMap extends CqlCollection implements CqlField.CqlMap
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
-        return IntStream.range(0, RandomUtils.RANDOM.nextInt(16) + minCollectionSize)
-                        .mapToObj(entry -> Pair.create(keyType().randomValue(minCollectionSize),
-                                                       valueType().randomValue(minCollectionSize)))
+        return IntStream.range(0, random.nextInt(16) + minCollectionSize)
+                        .mapToObj(entry -> Pair.create(keyType().randomValue(minCollectionSize, random),
+                                                       valueType().randomValue(minCollectionSize, random)))
                         .collect(Collectors.toMap(Pair::left, Pair::right, (first, second) -> first));
     }
 

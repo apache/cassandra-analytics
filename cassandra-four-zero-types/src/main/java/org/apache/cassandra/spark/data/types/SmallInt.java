@@ -19,11 +19,12 @@
 
 package org.apache.cassandra.spark.data.types;
 
+import java.util.Random;
+
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.ShortType;
 import org.apache.cassandra.spark.data.NativeType;
-import org.apache.cassandra.spark.utils.RandomUtils;
 
 public class SmallInt extends NativeType
 {
@@ -42,9 +43,9 @@ public class SmallInt extends NativeType
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
-        return (short) RandomUtils.RANDOM.nextInt(Short.MAX_VALUE + 1);
+        return (short) random.nextInt(Short.MAX_VALUE + 1);
     }
 
     @Override

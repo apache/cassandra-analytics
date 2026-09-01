@@ -19,6 +19,8 @@
 
 package org.apache.cassandra.spark.data.types;
 
+import java.util.Random;
+
 import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.cql3.functions.types.LocalDate;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
@@ -44,9 +46,9 @@ public class Date extends NativeType
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
-        return RandomUtils.randomPositiveInt(30_000);
+        return RandomUtils.randomPositiveInt(random, 30_000);
     }
 
     @Override

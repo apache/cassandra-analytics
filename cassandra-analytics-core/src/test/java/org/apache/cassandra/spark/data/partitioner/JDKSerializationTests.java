@@ -25,6 +25,7 @@ import java.io.ObjectOutputStream;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -129,7 +130,7 @@ public class JDKSerializationTests extends VersionRunner
     public void testCqlFieldSet(CassandraBridge bridge)
     {
         CqlField.CqlSet setType = bridge.set(bridge.text());
-        CqlField field = new CqlField(true, false, false, RandomUtils.randomAlphanumeric(5, 20), setType, 10);
+        CqlField field = new CqlField(true, false, false, RandomUtils.randomAlphanumeric(new Random(), 5, 20), setType, 10);
         byte[] bytes = bridge.javaSerialize(field);
         CqlField deserialized = bridge.javaDeserialize(bytes, CqlField.class);
         assertThat(deserialized).isEqualTo(field);

@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -86,10 +87,10 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
         return fields().stream()
-                       .collect(Collectors.toMap(CqlField::name, field -> Objects.requireNonNull(field.type().randomValue(minCollectionSize))));
+                       .collect(Collectors.toMap(CqlField::name, field -> Objects.requireNonNull(field.type().randomValue(minCollectionSize, random))));
     }
 
     @Override

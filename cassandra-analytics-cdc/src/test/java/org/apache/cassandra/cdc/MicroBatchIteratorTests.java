@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -63,6 +64,7 @@ import static org.apache.cassandra.cdc.test.CdcTester.testWith;
 import static org.apache.cassandra.cdc.CdcTests.ASYNC_EXECUTOR;
 import static org.apache.cassandra.cdc.CdcTests.logProvider;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
+import static org.apache.cassandra.spark.CommonTestUtils.qtRandom;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
@@ -79,9 +81,9 @@ public class MicroBatchIteratorTests extends CdcTestBase
         TestSchema.builder(bridge)
                   .withPartitionKey("a", bridge.uuid())
                   .withColumn("b", bridge.set(bridge.text())),
-        (schema, i, rows) -> {
-            TestSchema.TestRow testRow = CdcTester.newUniqueRow(schema, rows);
-            String deletedValue = (String) bridge.text().randomValue(4);
+        (schema, i, rows, random) -> {
+            TestSchema.TestRow testRow = CdcTester.newUniqueRow(schema, rows, random);
+            String deletedValue = (String) bridge.text().randomValue(4, random);
             ByteBuffer key = bridge.text().serialize(deletedValue);
             testRow = testRow.copy("b", TestUtils.collectionDeleteMutation(version, key));
             deletedValues.put(testRow.get(0).toString(), deletedValue);
@@ -106,9 +108,9 @@ public class MicroBatchIteratorTests extends CdcTestBase
                 TestSchema.builder(bridge)
                           .withPartitionKey("a", bridge.uuid())
                           .withColumn("b", bridge.map(bridge.text(), bridge.aInt())),
-                (schema, i, rows) -> {
-                    TestSchema.TestRow testRow = CdcTester.newUniqueRow(schema, rows);
-                    String deletedValue = (String) bridge.text().randomValue(4);
+                (schema, i, rows, random) -> {
+                    TestSchema.TestRow testRow = CdcTester.newUniqueRow(schema, rows, random);
+                    String deletedValue = (String) bridge.text().randomValue(4, random);
                     ByteBuffer key = bridge.text().serialize(deletedValue);
                     testRow = testRow.copy("b", TestUtils.collectionDeleteMutation(version, key));
                     deletedValues.put(testRow.get(0).toString(), deletedValue);
@@ -134,14 +136,14 @@ public class MicroBatchIteratorTests extends CdcTestBase
                           .withClusteringKey("b", bridge.aInt())
                           .withClusteringKey("c", bridge.aInt())
                           .withColumn("d", bridge.text()),
-                (schema, i, rows) -> {
-                    TestSchema.TestRow testRow = CdcTester.newUniqueRow(schema, rows);
-                    int start = RandomUtils.randomPositiveInt(1024);
-                    int end = start + RandomUtils.randomPositiveInt(100000);
+                (schema, i, rows, random) -> {
+                    TestSchema.TestRow testRow = CdcTester.newUniqueRow(schema, rows, random);
+                    int start = RandomUtils.randomPositiveInt(random, 1024);
+                    int end = start + RandomUtils.randomPositiveInt(random, 100000);
                     testRow.setRangeTombstones(ImmutableList.of(
                                                new RangeTombstoneData(
-                                               new RangeTombstoneData.Bound(new Integer[]{start, start + RandomUtils.randomPositiveInt(100)}, true),
-                                               new RangeTombstoneData.Bound(new Integer[]{end, end + RandomUtils.randomPositiveInt(100)}, true)))
+                                               new RangeTombstoneData.Bound(new Integer[]{start, start + RandomUtils.randomPositiveInt(random, 100)}, true),
+                                               new RangeTombstoneData.Bound(new Integer[]{end, end + RandomUtils.randomPositiveInt(random, 100)}, true)))
                     );
                     rows.put(testRow.get(0).toString(), testRow);
                     return testRow;
@@ -182,8 +184,8 @@ public class MicroBatchIteratorTests extends CdcTestBase
                           .withPartitionKey("b", bridge.aInt())
                           .withClusteringKey("c", bridge.bigint())
                           .withColumn("d", bridge.text()),
-                (schema, i, rows) -> {
-                    TestSchema.TestRow row = schema.randomRow();
+                (schema, i, rows, random) -> {
+                    TestSchema.TestRow row = schema.randomRow(random);
                     row.delete();
                     rows.put(row.getPrimaryHexKey(), row);
                     return row;
@@ -212,8 +214,8 @@ public class MicroBatchIteratorTests extends CdcTestBase
                           .withPartitionKey("b", bridge.text())
                           .withClusteringKey("c", bridge.timestamp())
                           .withColumn("d", bridge.map(bridge.text(), bridge.aInt())),
-                (schema, i, rows) -> {
-                    TestSchema.TestRow row = schema.randomRow();
+                (schema, i, rows, random) -> {
+                    TestSchema.TestRow row = schema.randomRow(random);
                     rows.put(row.getPrimaryHexKey(), row);
                     return row;
                 },
@@ -243,8 +245,8 @@ public class MicroBatchIteratorTests extends CdcTestBase
                           .withPartitionKey("b", bridge.aInt())
                           .withClusteringKey("c", bridge.bigint())
                           .withColumn("d", bridge.text()),
-                (schema, i, rows) -> {
-                    TestSchema.TestRow row = schema.randomPartitionDelete();
+                (schema, i, rows, random) -> {
+                    TestSchema.TestRow row = schema.randomPartitionDelete(random);
                     rows.put(row.getPartitionHexKey(), row); // partition delete so just the partition keys
                     return row;
                 },
@@ -265,8 +267,8 @@ public class MicroBatchIteratorTests extends CdcTestBase
     @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
     public void testUpdateStaticColumnAndValueColumns(CassandraVersion version)
     {
-        qt().forAll(cql3Type(bridge).zip(arbitrary().enumValues(OperationType.class), Pair::of))
-            .checkAssert(cql3TypeAndInsertFlag -> {
+        qt().forAll(cql3Type(bridge).zip(arbitrary().enumValues(OperationType.class), Pair::of), qtRandom())
+            .checkAssert((cql3TypeAndInsertFlag, random) -> {
                 CqlField.NativeType cqlType = cql3TypeAndInsertFlag._1;
                 OperationType insertOrUpdate = cql3TypeAndInsertFlag._2;
                 testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
@@ -274,12 +276,13 @@ public class MicroBatchIteratorTests extends CdcTestBase
                                                                     .withClusteringKey("ck", bridge.uuid())
                                                                     .withStaticColumn("sc", cqlType)
                                                                     .withColumn("c1", cqlType))
+                .withRandom(random)
                 .clearWriters()
                 .withWriter(((tester, rows, writer) -> {
                     long timestampMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
                     IntStream.range(0, tester.numRows)
                              .forEach(i -> {
-                                 TestSchema.TestRow row = CdcTester.newUniqueRow(tester.schema, rows);
+                                 TestSchema.TestRow row = CdcTester.newUniqueRow(tester.schema, rows, random);
                                  insertOrUpdate.accept(row);
                                  writer.accept(row, timestampMicros);
                              });
@@ -321,8 +324,8 @@ public class MicroBatchIteratorTests extends CdcTestBase
                           .withPartitionKey("b", bridge.aInt())
                           .withClusteringKey("c", bridge.bigint())
                           .withColumn("d", bridge.text()),
-                (schema, i, rows) -> {
-                    TestSchema.TestRow row = schema.randomRow();
+                (schema, i, rows, random) -> {
+                    TestSchema.TestRow row = schema.randomRow(random);
                     row.fromUpdate();
                     rows.put(row.getPrimaryHexKey(), row);
                     return row;
@@ -364,7 +367,7 @@ public class MicroBatchIteratorTests extends CdcTestBase
 
     public interface RowGenerator
     {
-        TestSchema.TestRow newRow(TestSchema schema, int i, Map<String, TestSchema.TestRow> rows);
+        TestSchema.TestRow newRow(TestSchema schema, int i, Map<String, TestSchema.TestRow> rows, Random random);
     }
 
     public interface TestVerifier
@@ -396,9 +399,10 @@ public class MicroBatchIteratorTests extends CdcTestBase
         try
         {
             Map<String, TestSchema.TestRow> rows = new HashMap<>(numRows);
+            Random random = new Random();
             for (int i = 0; i < numRows; i++)
             {
-                TestSchema.TestRow row = rowGenerator.newRow(schema, i, rows);
+                TestSchema.TestRow row = rowGenerator.newRow(schema, i, rows, random);
                 cdcBridge.log(TimeProvider.DEFAULT, cqlTable, commitLog, row, nowMicros);
             }
             commitLog.sync();

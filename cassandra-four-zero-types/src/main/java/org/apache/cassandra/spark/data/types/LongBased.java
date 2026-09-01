@@ -19,14 +19,16 @@
 
 package org.apache.cassandra.spark.data.types;
 
+import java.util.Random;
+
 import org.apache.cassandra.spark.data.NativeType;
 import org.apache.cassandra.spark.utils.RandomUtils;
 
 public abstract class LongBased extends NativeType
 {
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
-        return (long) RandomUtils.randomPositiveInt(5_000_000);  // Keep within bound to avoid overflows
+        return (long) RandomUtils.randomPositiveInt(random, 5_000_000);  // Keep within bound to avoid overflows
     }
 }

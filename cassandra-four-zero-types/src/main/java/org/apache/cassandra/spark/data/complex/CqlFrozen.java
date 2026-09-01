@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.data.complex;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 
 import com.esotericsoftware.kryo.io.Output;
@@ -117,9 +118,9 @@ public class CqlFrozen extends CqlType implements CqlField.CqlFrozen
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
-        return inner.randomValue(minCollectionSize);
+        return inner.randomValue(minCollectionSize, random);
     }
 
     @Override

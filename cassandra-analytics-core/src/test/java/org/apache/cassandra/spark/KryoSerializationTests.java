@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 import com.google.common.collect.ImmutableList;
@@ -110,7 +111,7 @@ public class KryoSerializationTests
                 CqlField field = new CqlField(isPartitionKey,
                                               isClusteringKey && !isPartitionKey,
                                               false,
-                                              RandomUtils.randomAlphanumeric(5, 20),
+                                              RandomUtils.randomAlphanumeric(new Random(), 5, 20),
                                               cqlType,
                                               position);
                 Output out = serialize(bridge.getVersion(), field);
@@ -135,7 +136,7 @@ public class KryoSerializationTests
                 CqlField field = new CqlField(isPartitionKey,
                                               isClusteringKey && !isPartitionKey,
                                               false,
-                                              RandomUtils.randomAlphanumeric(5, 20),
+                                              RandomUtils.randomAlphanumeric(new Random(), 5, 20),
                                               setType,
                                               position);
                 Output out = serialize(bridge.getVersion(), field);
@@ -160,7 +161,7 @@ public class KryoSerializationTests
                 CqlField field = new CqlField(isPartitionKey,
                                               isClusteringKey && !isPartitionKey,
                                               false,
-                                              RandomUtils.randomAlphanumeric(5, 20),
+                                              RandomUtils.randomAlphanumeric(new Random(), 5, 20),
                                               listType,
                                               position);
                 Output out = serialize(bridge.getVersion(), field);
@@ -186,7 +187,7 @@ public class KryoSerializationTests
                 CqlField field = new CqlField(isPartitionKey,
                                               isClusteringKey && !isPartitionKey,
                                               false,
-                                              RandomUtils.randomAlphanumeric(5, 20),
+                                              RandomUtils.randomAlphanumeric(new Random(), 5, 20),
                                               vectorType,
                                               position);
                 Output out = serialize(bridge.getVersion(), field);
@@ -211,7 +212,7 @@ public class KryoSerializationTests
                 CqlField field = new CqlField(isPartitionKey,
                                               isClusteringKey && !isPartitionKey,
                                               false,
-                                              RandomUtils.randomAlphanumeric(5, 20),
+                                              RandomUtils.randomAlphanumeric(new Random(), 5, 20),
                                               mapType,
                                               2);
                 Output out = serialize(bridge.getVersion(), field);
@@ -236,7 +237,7 @@ public class KryoSerializationTests
                                             .withField("a", type1)
                                             .withField("b", type2)
                                             .build();
-                CqlField field = new CqlField(false, false, false, RandomUtils.randomAlphanumeric(5, 20), udt, 2);
+                CqlField field = new CqlField(false, false, false, RandomUtils.randomAlphanumeric(new Random(), 5, 20), udt, 2);
                 Output out = serialize(bridge.getVersion(), field);
                 CqlField deserialized = deserialize(bridge.getVersion(), out, CqlField.class);
                 assertThat(deserialized).isEqualTo(field);
@@ -261,7 +262,7 @@ public class KryoSerializationTests
                                                        bridge.set(bridge.text()),
                                                        bridge.bigint(),
                                                        bridge.map(type2, bridge.timeuuid()));
-                CqlField field = new CqlField(false, false, false, RandomUtils.randomAlphanumeric(5, 20), tuple, 2);
+                CqlField field = new CqlField(false, false, false, RandomUtils.randomAlphanumeric(new Random(), 5, 20), tuple, 2);
                 Output out = serialize(bridge.getVersion(), field);
                 CqlField deserialized = deserialize(bridge.getVersion(), out, CqlField.class);
                 assertThat(deserialized).isEqualTo(field);
