@@ -21,17 +21,31 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Range;
+import com.google.common.collect.RangeMap;
+import com.google.common.collect.TreeRangeMap;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
+import org.apache.cassandra.spark.utils.RangeUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TokenPartitionerTest
 {
+    private static final Partitioner RING_PARTITIONER = Partitioner.Murmur3Partitioner;
+
     private TokenPartitioner partitioner;
 
     @BeforeEach
@@ -170,6 +184,92 @@ public class TokenPartitionerTest
         partitioner = new TokenPartitioner(tokenRangeMapping, -1, 1, 750, false);
         assertThat(partitioner.numSplits()).isEqualTo(10);
         assertThat(partitioner.numPartitions()).isGreaterThanOrEqualTo(200);
+    }
+
+    // Range coverage validation must reject a partition map that leaves a token uncovered.
+    @Test
+    public void testValidationDetectsRangeGap()
+    {
+        List<Range<BigInteger>> subRanges = RangeUtils.split(wholeRing(), 4);
+
+        // numberSplits of 1 leaves the ranges untouched, so they reach the partition map as-is
+        assertThatThrownBy(() -> new TokenPartitioner(mappingCovering(withGapAt(subRanges, 2)), 1, 2, 1, false))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("There should be no missing ranges")
+        .hasMessageContaining(gapPunchedInto(subRanges.get(2)).toString());
+    }
+
+    @Test
+    public void testValidationDetectsRangeGapAtRingLowerEdge()
+    {
+        // Guards the bound type at minToken from both sides: minToken itself is owned by no sub-range and must not
+        // be reported, yet a gap starting immediately above it must still be caught. The gap is punched into the
+        // first sub-range rather than dropping it, so that the partition count stays put and validateMapSizes
+        // cannot fail first with an unrelated message.
+        List<Range<BigInteger>> subRanges = RangeUtils.split(wholeRing(), 4);
+
+        assertThatThrownBy(() -> new TokenPartitioner(mappingCovering(withGapAt(subRanges, 0)), 1, 2, 1, false))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("There should be no missing ranges")
+        .hasMessageContaining(gapPunchedInto(subRanges.get(0)).toString());
+    }
+
+    // Guards against over-correcting the fix for the above: the partition map is built from open-closed sub-ranges,
+    // so minToken belongs to none of them. Validation that expected [minToken, maxToken] to be covered would report
+    // a spurious [minToken, minToken] gap and fail every bulk write on a perfectly healthy ring.
+    @Test
+    public void testValidationAcceptsRingNotCoveringMinToken()
+    {
+        TokenRangeMapping<RingInstance> tokenRangeMapping = TokenRangeMappingUtils.buildTokenRangeMapping(0, ImmutableMap.of("DC1", 3), 3);
+        // Validation runs in the driver as part of construction, so not throwing here is the assertion
+        TokenPartitioner tokenPartitioner = new TokenPartitioner(tokenRangeMapping, 2, 2, 1, false);
+        // ... and the premise of the test holds: no partition owns minToken, as the sub-ranges are open-closed
+        assertThat(tokenPartitioner.getTokenRange(0).contains(RING_PARTITIONER.minToken())).isFalse();
+    }
+
+    private static Range<BigInteger> wholeRing()
+    {
+        return Range.openClosed(RING_PARTITIONER.minToken(), RING_PARTITIONER.maxToken());
+    }
+
+    /**
+     * Mocking is the only way to feed a gapped range map to the partitioner: {@link TokenRangeMapping} seeds its
+     * range map with the whole ring, so a mapping built the normal way is always gap-free and cannot exercise the
+     * coverage check.
+     *
+     * @return a mapping whose range map covers exactly {@code ranges}
+     */
+    private static TokenRangeMapping<RingInstance> mappingCovering(List<Range<BigInteger>> ranges)
+    {
+        RangeMap<BigInteger, List<RingInstance>> rangeMap = TreeRangeMap.create();
+        ranges.forEach(range -> rangeMap.put(range, Collections.emptyList()));
+
+        @SuppressWarnings("unchecked")
+        TokenRangeMapping<RingInstance> tokenRangeMapping = mock(TokenRangeMapping.class);
+        when(tokenRangeMapping.partitioner()).thenReturn(RING_PARTITIONER);
+        when(tokenRangeMapping.getRangeMap()).thenReturn(rangeMap);
+        when(tokenRangeMapping.getTokenRanges()).thenReturn(ArrayListMultimap.create());
+        return tokenRangeMapping;
+    }
+
+    /**
+     * Punches a real, non-empty gap into the sub-range at {@code gapIndex} by moving its lower endpoint up, so that
+     * the returned ranges leave exactly {@link #gapPunchedInto} uncovered.
+     */
+    private static List<Range<BigInteger>> withGapAt(List<Range<BigInteger>> gapFreeRanges, int gapIndex)
+    {
+        List<Range<BigInteger>> ranges = new ArrayList<>(gapFreeRanges);
+        Range<BigInteger> covered = ranges.get(gapIndex);
+        ranges.set(gapIndex, Range.openClosed(gapPunchedInto(covered).upperEndpoint(), covered.upperEndpoint()));
+        return ranges;
+    }
+
+    /**
+     * @return the sub-range that {@link #withGapAt} leaves uncovered when it punches a gap into {@code range}
+     */
+    private static Range<BigInteger> gapPunchedInto(Range<BigInteger> range)
+    {
+        return Range.openClosed(range.lowerEndpoint(), range.lowerEndpoint().add(BigInteger.TEN));
     }
 
     private int partitionForToken(int token)
