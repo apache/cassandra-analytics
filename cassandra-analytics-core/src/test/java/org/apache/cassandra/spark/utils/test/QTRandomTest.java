@@ -34,43 +34,48 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class QTRandomTest
 {
     @Test
-    public void sameUnderlyingDrawsProduceSameOutput()
+    public void sameSeedDrawProducesSameOutput()
     {
-        long[] draws = {42L, 1337L, -7L, 999999L, 0L};
-        Random first = new QTRandom(new FixedSequenceSource(draws));
-        Random second = new QTRandom(new FixedSequenceSource(draws));
+        Random first = new QTRandom(new FixedSequenceSource(42L));
+        Random second = new QTRandom(new FixedSequenceSource(42L));
 
-        for (int i = 0; i < draws.length; i++)
+        for (int i = 0; i < 100; i++)
         {
-            assertThat(second.nextInt()).isEqualTo(first.nextInt());
+            assertThat(second.nextLong()).isEqualTo(first.nextLong());
         }
     }
 
     @Test
-    public void differentUnderlyingDrawsProduceDifferentOutput()
+    public void differentSeedDrawsProduceDifferentOutput()
     {
-        Random first = new QTRandom(new FixedSequenceSource(1L, 2L, 3L, 4L));
-        Random second = new QTRandom(new FixedSequenceSource(5L, 6L, 7L, 8L));
+        Random first = new QTRandom(new FixedSequenceSource(1L));
+        Random second = new QTRandom(new FixedSequenceSource(2L));
 
-        assertThat(first.nextInt()).isNotEqualTo(second.nextInt());
+        assertThat(first.nextLong()).isNotEqualTo(second.nextLong());
     }
 
     @Test
-    public void delegatesEveryDrawToTheUnderlyingSource()
+    public void onlyDrawsFromTheSourceOnceRegardlessOfSubsequentUsage()
     {
-        // java.util.Random#nextLong() draws exactly two 32-bit values via next(int)
-        FixedSequenceSource source = new FixedSequenceSource(0L, 1L);
+        // exactly one value is consumed to seed the Random, however much randomness is drawn afterwards
+        FixedSequenceSource source = new FixedSequenceSource(7L);
         Random random = new QTRandom(source);
 
-        random.nextLong();
+        assertThat(source.remaining()).isEqualTo(0);
+
+        for (int i = 0; i < 10_000; i++)
+        {
+            random.nextInt();
+        }
 
         assertThat(source.remaining()).isEqualTo(0);
     }
 
     /**
-     * A {@link RandomnessSource} that replays a fixed sequence of longs, one per {@code next(bits)} call
-     * made by {@link QTRandom}. Used to prove {@link QTRandom} is a pure function of the underlying
-     * QuickTheories {@link RandomnessSource} - the same sequence in always produces the same output out.
+     * A {@link RandomnessSource} that replays a fixed sequence of longs. Used to prove {@link QTRandom}
+     * draws exactly one value from the underlying QuickTheories {@link RandomnessSource} to seed itself,
+     * and never touches the source again - the property that keeps QT's shrink bookkeeping bounded no
+     * matter how much randomness the test subsequently draws from the returned {@link Random}.
      */
     private static final class FixedSequenceSource implements RandomnessSource
     {

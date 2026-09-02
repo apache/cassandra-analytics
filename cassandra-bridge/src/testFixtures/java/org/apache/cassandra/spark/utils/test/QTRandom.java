@@ -25,24 +25,16 @@ import org.quicktheories.core.RandomnessSource;
 import org.quicktheories.impl.Constraint;
 
 /**
- * Bridges QuickTheories' seeded {@link RandomnessSource} into the standard {@link Random} API so that
- * existing {@code Random}-based test helpers (e.g. {@code RandomUtils}, {@code CqlType.randomValue}) draw
- * their entropy from QT's PRNG. Must only be used while the wrapped {@link RandomnessSource} is still live,
- * i.e. from within a {@code Gen#generate(RandomnessSource)} call - drawing from it afterwards is not safe
- * for QuickTheories' shrinking to replay.
+ * A {@link Random} seeded from QuickTheories' PRNG, so tests using it are reproducible from QT's seed.
+ * Draws one seed value from the {@link RandomnessSource} and behaves as an ordinary {@link Random}
+ * afterwards - QT records every draw from a {@link RandomnessSource} for shrinking, so forwarding all
+ * calls to it would grow unbounded on data-heavy tests.
  */
 public final class QTRandom extends Random
 {
-    private final RandomnessSource source;
-
     public QTRandom(RandomnessSource source)
     {
-        this.source = source;
-    }
-
-    @Override
-    protected int next(int bits)
-    {
-        return (int) source.next(Constraint.between(0, (1L << bits) - 1));
+        super(source.next(Constraint.between(Long.MIN_VALUE, Long.MAX_VALUE)));
     }
 }
+
