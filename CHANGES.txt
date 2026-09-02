@@ -1,6 +1,7 @@
 0.5.0
 -----
  * Add sidecar.instance.id Spark conf to append an instanceId query parameter to outbound sidecar requests, fixing 421 errors when Sidecar is behind a load balancer; contact points can also declare their own per-instance id via a "host[:port]=<id>" suffix (CASSANALYTICS-177)
+ * TokenPartitioner fails to detect range gap in reader (CASSANALYTICS-180)
  * CDC reader stats silently dropped in SidecarCdcBuilder (CASSANALYTICS-191)
  * Add CapturePublishedSchema metric to SidecarCdcStats (CASSANALYTICS-189)
  * Expand list of architecture that supports unaligned access in FastByteOperations (CASSANALYTICS-188)
