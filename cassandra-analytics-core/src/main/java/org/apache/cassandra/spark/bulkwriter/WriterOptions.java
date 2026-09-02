@@ -154,4 +154,13 @@ public enum WriterOptions implements WriterOption
      * </ul>
      */
     STORAGE_CREDENTIAL_TYPE,
+    /**
+     * Option declaring that the Sidecar cluster is fronted by a load balancer, so replica FQDNs
+     * from the token map are not directly routable from Spark executors. When {@code true},
+     * requests that would otherwise fan out to per-replica Sidecar addresses are routed through
+     * the configured contact points instead. Defaults to {@code false}.
+     * <p>
+     * Today this affects time-skew validation, and is honored for both single-cluster and coordinated writes.
+     */
+    SIDECAR_BEHIND_LOAD_BALANCER,
 }
