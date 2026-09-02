@@ -21,6 +21,7 @@ package org.apache.cassandra.spark;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,7 @@ import org.apache.cassandra.spark.transports.storage.extensions.StorageTransport
 import org.apache.cassandra.spark.utils.RandomUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
 import static org.quicktheories.generators.SourceDSL.booleans;
@@ -174,6 +176,32 @@ public class KryoSerializationTests
 
     @ParameterizedTest
     @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlFieldVector(CassandraBridge bridge)
+    {
+        assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
+        qt().withExamples(25)
+            .forAll(booleans().all(), booleans().all(), TestUtils.cql3Type(bridge), integers().all())
+            .checkAssert((isPartitionKey, isClusteringKey, cqlType, position) -> {
+                CqlField.CqlVector vectorType = bridge.vector(cqlType, 5);
+                CqlField field = new CqlField(isPartitionKey,
+                                              isClusteringKey && !isPartitionKey,
+                                              false,
+                                              RandomUtils.randomAlphanumeric(5, 20),
+                                              vectorType,
+                                              position);
+                Output out = serialize(bridge.getVersion(), field);
+                CqlField deserialized = deserialize(bridge.getVersion(), out, CqlField.class);
+                assertThat(deserialized).isEqualTo(field);
+                assertThat(deserialized.name()).isEqualTo(field.name());
+                assertThat(deserialized.type()).isEqualTo(field.type());
+                assertThat(deserialized.position()).isEqualTo(field.position());
+                assertThat(deserialized.isPartitionKey()).isEqualTo(field.isPartitionKey());
+                assertThat(deserialized.isClusteringColumn()).isEqualTo(field.isClusteringColumn());
+            });
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
     public void testCqlFieldMap(CassandraBridge bridge)
     {
         qt().withExamples(25)
@@ -267,6 +295,35 @@ public class KryoSerializationTests
         CqlTable deserialized = deserialize(bridge.getVersion(), out, CqlTable.class);
         assertThat(deserialized).isNotNull();
         assertThat(deserialized).isEqualTo(table);
+    }
+
+    @ParameterizedTest
+    @MethodSource("org.apache.cassandra.bridge.VersionRunner#bridges")
+    public void testCqlTableCdcFlagSurvivesSerialization(CassandraBridge bridge)
+    {
+        List<CqlField> fields = ImmutableList.of(new CqlField(true, false, false, "a", bridge.bigint(), 0));
+        ReplicationFactor replicationFactor = new ReplicationFactor(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy,
+                                                                    ImmutableMap.of("DC1", 3, "DC2", 3));
+
+        for (boolean cdc : new boolean[]{true, false})
+        {
+            CqlTable table = new CqlTable("test_keyspace",
+                                          "test_table",
+                                          "create table test_keyspace.test_table (a bigint, primary key(a));",
+                                          replicationFactor,
+                                          fields,
+                                          Collections.emptySet(),
+                                          0,
+                                          cdc);
+
+            Output out = serialize(bridge.getVersion(), table);
+            CqlTable deserialized = deserialize(bridge.getVersion(), out, CqlTable.class);
+            assertThat(deserialized).isNotNull();
+            assertThat(deserialized).isEqualTo(table);
+            assertThat(deserialized.cdc())
+            .as("cdc=%s must survive Kryo serialization round-trip", cdc)
+            .isEqualTo(cdc);
+        }
     }
 
     @ParameterizedTest

@@ -38,12 +38,12 @@ import com.google.common.base.Preconditions;
  * NOTE: The following values need to stay in sync with:
  * - build.gradle:
  *   - ext.cassandraVersionEnumMap = ["4.0": "FOURZERO", "4.1": "FOURONE", "5.0": "FIVEZERO"]
- *   - ext.cassandraFullVersionMap = ["4.0": "4.0.17", "4.1": "4.1.4", "5.0": "5.0.5"]
+ *   - ext.cassandraFullVersionMap = ["4.0": "4.0.17", "4.1": "4.1.4", "5.0": "5.0.7"]
  * - build-dtest-jars.sh:
  *   - CANDIDATE_BRANCHES=(
  *      "cassandra-4.0:cassandra-4.0.17"
  *      "cassandra-4.1:99d9faeef57c9cf5240d11eac9db5b283e45a4f9"
- *      "cassandra-5.0:cassandra-5.0.5"
+ *      "cassandra-5.0:cassandra-5.0.7"
  */
 public enum CassandraVersion
 {
@@ -185,7 +185,7 @@ public enum CassandraVersion
 
         // NOTE: These default versions must stay in sync with cassandraFullVersionMap in build.gradle.
         String providedSupportedVersionsOrDefault = System.getProperty("cassandra.analytics.bridges.supported_versions",
-                                                                       "cassandra-4.0.17,cassandra-5.0.5");
+                                                                       "cassandra-4.0.17,cassandra-5.0.7");
         supportedVersions = Arrays.stream(providedSupportedVersionsOrDefault.split(","))
                                   .filter(version -> CassandraVersion.fromVersion(version)
                                                                      .filter(v -> v.sstableFormats().contains(configuredSSTableFormat))

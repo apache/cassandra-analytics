@@ -503,12 +503,11 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                                             + "Cassandra version is pre-computed on driver and broadcast to executors.");
         }
 
-        // Worst-case, the http client is configured for 1 worker pool.
-        // In that case, each future can take the full retry delay * number of retries,
-        // and each instance will be processed serially.
-        final long totalTimeout = conf.getSidecarRequestMaxRetryDelayMillis() *
-                                  conf.getSidecarRequestRetries() *
-                                  allNodeSettingFutures.size();
+        // Each of the retry attempts can take up to the request timeout plus the max delay
+        // before the next retry. Requests to all instances run in parallel, so the cluster-wide
+        // wait is bounded by a single node's worst case.
+        final long totalTimeout = (TimeUnit.SECONDS.toMillis(conf.getSidecarRequestTimeoutSeconds()) + conf.getSidecarRequestMaxRetryDelayMillis())
+                                  * conf.getSidecarRequestRetries();
         List<NodeSettings> allNodeSettings = FutureUtils.bestEffortGet(allNodeSettingFutures,
                                                                        totalTimeout,
                                                                        TimeUnit.MILLISECONDS);

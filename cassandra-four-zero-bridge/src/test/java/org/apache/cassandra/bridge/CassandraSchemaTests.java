@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.spark.data.CqlTable;
+import org.apache.cassandra.spark.utils.TableIdentifier;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.cassandra.spark.data.partitioner.Partitioner;
 
@@ -45,6 +46,7 @@ public class CassandraSchemaTests
                                                  .withPartitionKey("a", BRIDGE.bigint())
                                                  .withClusteringKey("b", BRIDGE.text())
                                                  .withColumn("c", BRIDGE.timeuuid())
+                                                 .withCdc(true)
                                                  .build();
         final CqlTable cqlTable1 = testSchema1.buildTable();
 
@@ -52,6 +54,7 @@ public class CassandraSchemaTests
                                                  .withPartitionKey("pk", BRIDGE.uuid())
                                                  .withClusteringKey("ck", BRIDGE.aInt())
                                                  .withColumn("val", BRIDGE.blob())
+                                                 .withCdc(true)
                                                  .build();
         final CqlTable cqlTable2 = testSchema2.buildTable();
 
@@ -89,5 +92,51 @@ public class CassandraSchemaTests
         CassandraSchema.updateCdcSchema(schema, ImmutableSet.of(), Partitioner.Murmur3Partitioner, (keyspace, table) -> null);
         assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable1)).isFalse();
         assertThat(CassandraSchema.isCdcEnabled(schema, cqlTable2)).isFalse();
+    }
+
+    @Test
+    public void testUnregisterNonCdcTables()
+    {
+        Schema schema = Schema.instance;
+
+        TestSchema nonCdcSchema = TestSchema.builder(BRIDGE)
+                                            .withPartitionKey("a", BRIDGE.uuid())
+                                            .withColumn("b", BRIDGE.text())
+                                            .build();
+        CqlTable nonCdcTable = nonCdcSchema.buildTable();
+        TableIdentifier nonCdcId = TableIdentifier.of(nonCdcTable.keyspace(), nonCdcTable.table());
+
+        TestSchema cdcSchema = TestSchema.builder(BRIDGE)
+                                         .withKeyspace(nonCdcTable.keyspace())
+                                         .withPartitionKey("a", BRIDGE.uuid())
+                                         .withColumn("b", BRIDGE.text())
+                                         .withCdc(true)
+                                         .build();
+        CqlTable cdcTable = cdcSchema.buildTable();
+        TableIdentifier cdcId = TableIdentifier.of(cdcTable.keyspace(), cdcTable.table());
+
+        // register both tables (as if they'd been found to share partition-key structure)
+        CassandraSchema.updateCdcSchema(schema, ImmutableSet.of(nonCdcTable, cdcTable), Partitioner.Murmur3Partitioner, (keyspace, table) -> null);
+        assertThat(CassandraSchema.has(schema, nonCdcTable.keyspace(), nonCdcTable.table())).isTrue();
+        assertThat(CassandraSchema.has(schema, cdcTable.keyspace(), cdcTable.table())).isTrue();
+
+        // a later refresh determines nonCdcTable is no longer at risk — unregister it
+        CassandraSchema.unregisterNonCdcTables(schema, ImmutableSet.of(nonCdcId));
+        assertThat(CassandraSchema.has(schema, nonCdcTable.keyspace(), nonCdcTable.table())).isFalse();
+        // the CDC-enabled table must be completely unaffected
+        assertThat(CassandraSchema.has(schema, cdcTable.keyspace(), cdcTable.table())).isTrue();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cdcTable)).isTrue();
+
+        // idempotent: unregistering an already-unregistered table is a no-op, not an error
+        CassandraSchema.unregisterNonCdcTables(schema, ImmutableSet.of(nonCdcId));
+        assertThat(CassandraSchema.has(schema, nonCdcTable.keyspace(), nonCdcTable.table())).isFalse();
+
+        // refuses to unregister a table that is currently CDC-enabled
+        CassandraSchema.unregisterNonCdcTables(schema, ImmutableSet.of(cdcId));
+        assertThat(CassandraSchema.has(schema, cdcTable.keyspace(), cdcTable.table())).isTrue();
+        assertThat(CassandraSchema.isCdcEnabled(schema, cdcTable)).isTrue();
+
+        // unregistering an unknown table (never registered) is a no-op, not an error
+        CassandraSchema.unregisterNonCdcTables(schema, ImmutableSet.of(TableIdentifier.of("unknown_ks", "unknown_table")));
     }
 }

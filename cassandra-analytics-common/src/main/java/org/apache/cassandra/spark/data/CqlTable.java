@@ -49,6 +49,7 @@ public class CqlTable implements Serializable
     private final String createStatement;
     private final List<CqlField> fields;
     private final Set<CqlField.CqlUdt> udts;
+    private final boolean cdc;
 
     private final Map<String, CqlField> fieldsMap;
     private final Set<String> columnsWithUdts;
@@ -76,10 +77,23 @@ public class CqlTable implements Serializable
                     @NotNull Set<CqlField.CqlUdt> udts,
                     int indexCount)
     {
+        this(keyspace, table, createStatement, replicationFactor, fields, udts, indexCount, false);
+    }
+
+    public CqlTable(@NotNull String keyspace,
+                    @NotNull String table,
+                    @NotNull String createStatement,
+                    @NotNull ReplicationFactor replicationFactor,
+                    @NotNull List<CqlField> fields,
+                    @NotNull Set<CqlField.CqlUdt> udts,
+                    int indexCount,
+                    boolean cdc)
+    {
         this.keyspace = keyspace;
         this.table = table;
         this.createStatement = createStatement;
         this.replicationFactor = replicationFactor;
+        this.cdc = cdc;
         this.fields = fields.stream().sorted().collect(Collectors.toList());
         this.fieldsMap = this.fields.stream().collect(Collectors.toMap(CqlField::name, Function.identity()));
         this.partitionKeys = this.fields.stream().filter(CqlField::isPartitionKey).sorted().collect(Collectors.toList());
@@ -241,6 +255,16 @@ public class CqlTable implements Serializable
         return createStatement;
     }
 
+    /**
+     * Returns true if CDC is enabled on this table.
+     * This flag is explicitly set at construction time (e.g. from the CREATE TABLE statement)
+     * and stored as a field — it is not derived from createStatement at runtime.
+     */
+    public boolean cdc()
+    {
+        return cdc;
+    }
+
     public int indexCount()
     {
         return indexCount;
@@ -327,7 +351,7 @@ public class CqlTable implements Serializable
     @Override
     public int hashCode()
     {
-        return Objects.hash(keyspace, table, createStatement, fields, udts);
+        return Objects.hash(keyspace, table, createStatement, fields, udts, cdc);
     }
 
     @Override
@@ -351,7 +375,8 @@ public class CqlTable implements Serializable
                && Objects.equals(this.table, that.table)
                && Objects.equals(this.createStatement, that.createStatement)
                && Objects.equals(this.fields, that.fields)
-               && Objects.equals(this.udts, that.udts);
+               && Objects.equals(this.udts, that.udts)
+               && this.cdc == that.cdc;
     }
 
     public static class Serializer extends com.esotericsoftware.kryo.Serializer<CqlTable>
@@ -383,7 +408,8 @@ public class CqlTable implements Serializable
                 udts.add((CqlField.CqlUdt) CqlField.CqlType.read(input, cassandraTypes));
             }
             int indexCount = input.readInt();
-            return new CqlTable(keyspace, table, createStatement, replicationFactor, fields, udts, indexCount);
+            boolean cdc = input.readBoolean();
+            return new CqlTable(keyspace, table, createStatement, replicationFactor, fields, udts, indexCount, cdc);
         }
 
         @Override
@@ -406,6 +432,7 @@ public class CqlTable implements Serializable
                 udt.write(output);
             }
             output.writeInt(table.indexCount());
+            output.writeBoolean(table.cdc());
         }
     }
 }
