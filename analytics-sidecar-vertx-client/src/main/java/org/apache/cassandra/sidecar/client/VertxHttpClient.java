@@ -58,6 +58,7 @@ import org.apache.cassandra.sidecar.common.request.Request;
 import org.apache.cassandra.sidecar.common.request.UploadableRequest;
 
 import static org.apache.cassandra.sidecar.common.http.SidecarHttpHeaderNames.AUTH_ROLE;
+import static org.apache.cassandra.sidecar.common.http.SidecarQueryParamNames.INSTANCE_ID;
 import static org.apache.cassandra.sidecar.common.utils.StringUtils.isNullOrEmpty;
 
 /**
@@ -251,6 +252,18 @@ public class VertxHttpClient implements HttpClient
                                                              sidecarInstance.port(),
                                                              sidecarInstance.hostname(),
                                                              request.requestURI());
+
+        // Prefer the id carried by the specific instance this request is being sent to, so requests
+        // fanned out across multiple instances each get the correct id. Fall back to the job-level
+        // id from the HTTP client config only when the instance does not carry its own.
+        Integer instanceId = sidecarInstance.instanceId() != null ? sidecarInstance.instanceId() : config.instanceId();
+        if (instanceId != null)
+        {
+            vertxRequest = vertxRequest.addQueryParam(INSTANCE_ID, String.valueOf(instanceId));
+            LOGGER.debug("Appended {}={} to request uri. instance={}:{}, originalUri={}, finalUri={}",
+                         INSTANCE_ID, instanceId, sidecarInstance.hostname(), sidecarInstance.port(),
+                         request.requestURI(), vertxRequest.uri());
+        }
 
         vertxRequest = applyHeaders(vertxRequest, request.headers());
 

@@ -93,7 +93,8 @@ class TokenRangeMappingTest
                                                                   metadata.fqdn(),
                                                                   metadata.address(),
                                                                   metadata.port(),
-                                                                  metadata.datacenter());
+                                                                  metadata.datacenter(),
+                                                                  metadata.sidecarInstanceId());
             response.replicaMetadata().put(key, updatedMetadata);
             if (state.isPending)
             {
