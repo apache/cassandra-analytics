@@ -20,6 +20,7 @@
 package org.apache.cassandra.analytics;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -34,6 +35,7 @@ import org.apache.cassandra.distributed.api.ICoordinator;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.TimestampOption;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
+import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -45,14 +47,30 @@ import static org.apache.cassandra.testing.TestUtils.uniqueTestTableFullName;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration test for the Cassandra timestamps
+ * Integration test for the Cassandra timestamps and TTLs
  */
-class TimestampIntegrationTest extends SharedClusterSparkIntegrationTestBase
+class TimestampTtlIntegrationTest extends SharedClusterSparkIntegrationTestBase
 {
     static final List<String> DATASET = Arrays.asList("a", "b", "c", "d", "e", "f", "g");
+
+    // table contains rows with custom TIMESTAMP and TTL
     static final QualifiedName SOURCE_TABLE = uniqueTestTableFullName(TEST_KEYSPACE, "source_tbl");
+
+    // table contains rows with custom TIMESTAMP only
+    static final QualifiedName NO_TTL_TABLE = uniqueTestTableFullName(TEST_KEYSPACE, "no_ttl_tbl");
+
+    // table contains rows whose cells contain different TTL value
+    static final QualifiedName VARIABLE_TTL_TABLE = uniqueTestTableFullName(TEST_KEYSPACE, "variable_ttl_tbl");
+
     static final QualifiedName TARGET_TABLE = uniqueTestTableFullName(TEST_KEYSPACE, "target_tbl");
-    static final List<QualifiedName> TABLE_NAMES = Arrays.asList(SOURCE_TABLE, TARGET_TABLE);
+
+    static final List<QualifiedName> TABLE_NAMES = Arrays.asList(SOURCE_TABLE,
+                                                                 TARGET_TABLE,
+                                                                 NO_TTL_TABLE,
+                                                                 VARIABLE_TTL_TABLE);
+
+    static final long desiredTimestamp = 1432815430948567L;
+    static final int desiredTtl = 600;
 
     /**
      * Reads from source table with timestamps, and then persist the read data to the target
@@ -73,15 +91,93 @@ class TimestampIntegrationTest extends SharedClusterSparkIntegrationTestBase
         validateWrites(TARGET_TABLE, rowList);
     }
 
+    @Test
+    void testReadingCellTimestampAndTtl() throws Exception
+    {
+        Thread.sleep(2000); // elapse two seconds so that TTL differs
+
+        Dataset<Row> data = bulkReaderDataFrame(SOURCE_TABLE).option("lastModifiedTimestamp_course", "courseTimestamp")
+                                                             .option("ttl_course", "courseTtl")
+                                                             .option("lastModifiedTimestamp_marks", "marksTimestamp")
+                                                             .option("ttl_marks", "marksTtl")
+                                                             .load()
+                                                             .select("id", "courseTimestamp", "courseTtl", "marksTimestamp", "marksTtl");
+
+        List<Row> rows = data.collectAsList();
+
+        assertThat(rows).hasSize(DATASET.size());
+
+        rows.forEach(row -> {
+            Instant timestamp = row.getTimestamp(1).toInstant();
+            assertThat(timestamp.getEpochSecond()).isEqualTo(1432815430L);
+            assertThat(timestamp.getNano()).isEqualTo(948567000L);
+
+            int ttl = row.getInt(2);
+            assertThat(ttl).isBetween(1, 599);
+
+            assertThat(row.getTimestamp(3)).isNotNull();
+            assertThat(row.getInt(4)).isNotNull();
+        });
+    }
+
+    @Test
+    void testReadingCellWithoutTtl() throws Exception
+    {
+        populateTable(NO_TTL_TABLE, DATASET, desiredTimestamp, CqlField.NO_TTL);
+        Dataset<Row> data = bulkReaderDataFrame(NO_TTL_TABLE).option("ttl_course", "courseTtl")
+                                                             .option("ttl_marks", "marksTtl")
+                                                             .load()
+                                                             .select("id", "courseTtl", "marksTtl");
+
+        List<Row> rows = data.collectAsList();
+
+        assertThat(rows).hasSize(DATASET.size());
+
+        rows.forEach(row -> {
+            assertThat(row.isNullAt(1)).isTrue();
+            assertThat(row.isNullAt(2)).isTrue();
+        });
+    }
+
+    @Test
+    void testReadingRowWithVariableTtlAndTimestamp() throws Exception
+    {
+        ICoordinator coordinator = cluster.getFirstRunningInstance().coordinator();
+        String query = String.format("INSERT INTO %s (id, course, marks) VALUES (%d,'%s',%d) USING TTL %d",
+                                     VARIABLE_TTL_TABLE, 1, "course_a", 2, desiredTtl);
+        coordinator.execute(query, ConsistencyLevel.ALL);
+
+        // update TTL of "marks" column for TTL to differ
+        query = String.format("UPDATE %s USING TTL %d SET marks = %d WHERE id = %d",
+                              VARIABLE_TTL_TABLE, desiredTtl / 2, 3, 1);
+        Thread.sleep(2000);
+        coordinator.execute(query, ConsistencyLevel.ALL);
+
+        Dataset<Row> data = bulkReaderDataFrame(VARIABLE_TTL_TABLE).option("lastModifiedTimestamp_course", "courseTimestamp")
+                                                                   .option("ttl_course", "courseTtl")
+                                                                   .option("lastModifiedTimestamp_marks", "marksTimestamp")
+                                                                   .option("ttl_marks", "marksTtl")
+                                                                   .load()
+                                                                   .select("id", "courseTimestamp", "courseTtl", "marksTimestamp", "marksTtl");
+
+        List<Row> rows = data.collectAsList();
+
+        assertThat(rows).hasSize(1);
+        Row row = rows.get(0);
+        // write timestamp of "course" should be earlier than "marks"
+        assertThat(row.getTimestamp(1).toInstant()).isBefore(row.getTimestamp(3).toInstant());
+        // TTL of "marks" column has been decreased with UPDATE statement
+        assertThat(row.getInt(2)).isGreaterThan(row.getInt(4));
+    }
+
     @Override
     protected void initializeSchemaForTest()
     {
-        long desiredTimestamp = 1432815430948567L;
         TABLE_NAMES.forEach(name -> {
             createTestKeyspace(name, DC1_RF1);
             createTestTable(name, CREATE_TEST_TABLE_STATEMENT);
         });
-        populateTable(SOURCE_TABLE, DATASET, desiredTimestamp);
+        populateTable(SOURCE_TABLE, DATASET, desiredTimestamp, desiredTtl);
     }
 
     @Override
@@ -127,14 +223,20 @@ class TimestampIntegrationTest extends SharedClusterSparkIntegrationTestBase
                                  .isEmpty();
     }
 
-    void populateTable(QualifiedName tableName, List<String> values, long desiredTimestamp)
+    void populateTable(QualifiedName tableName, List<String> values, long desiredTimestamp, int desiredTtl)
     {
         ICoordinator coordinator = cluster.getFirstRunningInstance().coordinator();
         for (int i = 0; i < values.size(); i++)
         {
             String value = values.get(i);
-            String query = String.format("INSERT INTO %s (id, course, marks) VALUES (%d,'%s',%d) USING TIMESTAMP %d",
-                                         tableName, i, "course_" + value, 80 + i, desiredTimestamp);
+            String query = "INSERT INTO %s (id, course, marks) VALUES (%d,'%s',%d) USING TIMESTAMP %d";
+            List<Object> variables = new ArrayList<>(Arrays.asList(tableName, i, "course_" + value, 80 + i, desiredTimestamp));
+            if (desiredTtl != CqlField.NO_TTL)
+            {
+                query += " AND TTL %d";
+                variables.add(desiredTtl);
+            }
+            query = String.format(query, variables.toArray());
             coordinator.execute(query, ConsistencyLevel.ALL);
         }
     }
