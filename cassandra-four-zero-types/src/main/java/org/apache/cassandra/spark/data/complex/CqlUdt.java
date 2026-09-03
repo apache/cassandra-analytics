@@ -38,12 +38,12 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraVersion;
+import org.apache.cassandra.bridge.SchemaVersionApi;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.cql3.functions.types.UDTValue;
 import org.apache.cassandra.cql3.functions.types.UserType;
 import org.apache.cassandra.cql3.functions.types.UserTypeHelper;
 import org.apache.cassandra.db.marshal.AbstractType;
-import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.serializers.UTF8Serializer;
 import org.apache.cassandra.spark.data.CassandraTypes;
@@ -180,7 +180,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     public AbstractType<?> dataType(boolean isMultiCell)
     {
         // Get UserTypeSerializer from Schema instance to ensure fields are deserialized in correct order
-        return Schema.instance.getKeyspaceMetadata(keyspace()).types
+        return SchemaVersionApi.schemaInstance().getKeyspaceMetadata(keyspace()).types
                .get(UTF8Serializer.instance.serialize(name()))
                .orElseThrow(() -> new RuntimeException(String.format("UDT '%s' not initialized", name())));
     }
@@ -190,7 +190,7 @@ public class CqlUdt extends CqlType implements CqlField.CqlUdt
     public <T> TypeSerializer<T> serializer()
     {
         // Get UserTypeSerializer from Schema instance to ensure fields are deserialized in correct order
-        return (TypeSerializer<T>) Schema.instance.getKeyspaceMetadata(keyspace()).types
+        return (TypeSerializer<T>) SchemaVersionApi.schemaInstance().getKeyspaceMetadata(keyspace()).types
                 .get(UTF8Serializer.instance.serialize(name()))
                 .orElseThrow(() -> new RuntimeException(String.format("UDT '%s' not initialized", name())))
                 .getSerializer();

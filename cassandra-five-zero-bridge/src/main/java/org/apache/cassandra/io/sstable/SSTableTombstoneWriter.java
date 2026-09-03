@@ -34,6 +34,7 @@ import java.util.stream.Collectors;
 import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.cassandra.bridge.CassandraSchema;
+import org.apache.cassandra.bridge.SchemaUpdater;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.cql3.ColumnSpecification;
 import org.apache.cassandra.cql3.QueryOptions;
@@ -416,7 +417,7 @@ public final class SSTableTombstoneWriter implements Closeable
             TableMetadata tableMetadata = CassandraSchema.apply(schema -> {
                 if (schema.getKeyspaceMetadata(SchemaConstants.SYSTEM_KEYSPACE_NAME) == null)
                 {
-                    schema.transform(SchemaTransformations.addKeyspace(SystemKeyspace.metadata(), false));
+                    SchemaUpdater.apply(schema, SchemaTransformations.addKeyspace(SystemKeyspace.metadata(), false));
                 }
 
                 String keyspaceName = schemaStatement.keyspace();
@@ -429,7 +430,7 @@ public final class SSTableTombstoneWriter implements Closeable
                                                                    Views.none(),
                                                                    Types.none(),
                                                                    UserFunctions.none());
-                    schema.transform(SchemaTransformations.addKeyspace(ksm, false));
+                    SchemaUpdater.apply(schema, SchemaTransformations.addKeyspace(ksm, false));
                 }
 
                 KeyspaceMetadata ksm = schema.getKeyspaceMetadata(keyspaceName);
@@ -440,7 +441,7 @@ public final class SSTableTombstoneWriter implements Closeable
                     Types types = createTypes(keyspaceName);
                     table = createTable(types);
                     TableMetadata finalTable = table;
-                    schema.transform(st -> st.withAddedOrUpdated(ksm.withSwapped(ksm.tables.with(finalTable)).withSwapped(types)));
+                    SchemaUpdater.applyKeyspacesOp(schema, st -> st.withAddedOrUpdated(ksm.withSwapped(ksm.tables.with(finalTable)).withSwapped(types)));
                 }
                 return table;
             });

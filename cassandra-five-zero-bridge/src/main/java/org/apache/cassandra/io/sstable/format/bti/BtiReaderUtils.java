@@ -140,6 +140,13 @@ public class BtiReaderUtils
                 BtiTableReader btiTableReader = new BtiTableReader.Builder(descriptor)
                                                 .setDataFile(dataFileHandle)
                                                 .setPartitionIndex(partitionIndex)
+                                                // Populate first/last from the partition index. This offline
+                                                // Builder.build() bypasses the online BtiTableReaderLoadingBuilder
+                                                // that normally sets them; leaving them null makes
+                                                // getPositionsForRanges dereference null on engines that read
+                                                // first/last directly (e.g. pre-CASSANDRA-20092). No-op on stock 5.x.
+                                                .setFirst(partitionIndex.firstKey())
+                                                .setLast(partitionIndex.lastKey())
                                                 .setRowIndexFile(rowFileHandle)
                                                 .setComponents(indexComponents)
                                                 .setTableMetadataRef(metadataRef)

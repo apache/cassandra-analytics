@@ -279,7 +279,10 @@ public abstract class SharedClusterIntegrationTestBase
     {
         ClusterBuilderConfiguration conf = new ClusterBuilderConfiguration();
         // TODO: Shall we read requested compatibility from sidecar (CASSANALYTICS-24)?
-        conf.additionalInstanceConfig(Map.of("storage_compatibility_mode", "NONE"));
+        // Defaults to "NONE"; subclasses or distributions can override the mode as needed.
+        String storageCompatibilityMode =
+            System.getProperty("cassandra.analytics.test.storageCompatibilityMode", "NONE");
+        conf.additionalInstanceConfig(Map.of("storage_compatibility_mode", storageCompatibilityMode));
         return conf;
     }
 

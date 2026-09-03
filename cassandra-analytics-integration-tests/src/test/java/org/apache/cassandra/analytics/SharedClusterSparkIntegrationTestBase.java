@@ -199,8 +199,7 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
     /**
      * Asserts that every on-disk SSTable data file for the given table matches the expected SSTable format and
      * version across all running nodes. Data file names follow the pattern
-     * {@code <version>-<generation>-<format>-Data.db} (e.g. {@code oa-1-big-Data.db}). The generation component is
-     * matched loosely since it may be sequence- or UUID-based depending on cluster configuration.
+     * {@code <version>-<generation>-<format>-Data.db} (e.g. {@code oa-1-big-Data.db}).
      *
      * @param table           the table whose on-disk SSTables are inspected
      * @param format          the expected SSTable format (e.g. {@code big})
@@ -208,7 +207,6 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
      */
     protected void assertSSTableFormatOnDisk(QualifiedName table, String format, String expectedVersion)
     {
-        String dataFileRegex = expectedVersion + "-[^-]+-" + format + "-Data\\.db";
         boolean foundDataFiles = false;
         for (int i = 1; i <= cluster.size(); i++)
         {
@@ -221,15 +219,32 @@ public abstract class SharedClusterSparkIntegrationTestBase extends SharedCluste
             for (String fileName : findSSTableDataFiles(instance, table))
             {
                 foundDataFiles = true;
-                assertThat(fileName)
+                assertThat(hasSSTableVersionAndFormat(fileName, expectedVersion, format))
                 .as("SSTable data file for %s on node %d should be in %s format with version %s: %s",
                     table, i, format, expectedVersion, fileName)
-                .matches(dataFileRegex);
+                .isTrue();
             }
         }
         assertThat(foundDataFiles)
         .as("Expected to find at least one SSTable data file for %s on a running node", table)
         .isTrue();
+    }
+
+    /**
+     * Whether the given SSTable data-file name carries the given version token (e.g. {@code nb}, {@code oa}).
+     */
+    protected static boolean hasSSTableVersion(String dataFileName, String version)
+    {
+        return dataFileName.startsWith(version + "-") || dataFileName.contains("-" + version + "-");
+    }
+
+    /**
+     * Whether the given SSTable data-file name carries the expected {@code <version>-<generation>-<format>-Data.db}
+     * tail. The generation is matched loosely (it may be sequence- or UUID-based).
+     */
+    protected static boolean hasSSTableVersionAndFormat(String dataFileName, String version, String format)
+    {
+        return dataFileName.matches("(?:.*-)?" + version + "-[^-]+-" + format + "-Data\\.db");
     }
 
     /**
