@@ -26,6 +26,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -36,7 +37,6 @@ import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import org.apache.cassandra.bridge.CassandraVersion;
-import org.apache.cassandra.spark.utils.RandomUtils;
 import org.jetbrains.annotations.NotNull;
 
 @SuppressWarnings({ "WeakerAccess", "unused" })
@@ -170,13 +170,14 @@ public class CqlField implements Serializable, Comparable<CqlField>
         @VisibleForTesting
         int cardinality(int orElse);
 
-        default Object randomValue()
+        @VisibleForTesting
+        default Object randomValue(Random random)
         {
-            return randomValue(RandomUtils.MIN_COLLECTION_SIZE);
+            return randomValue(16, random);
         }
 
         @VisibleForTesting
-        Object randomValue(int minCollectionSize);
+        Object randomValue(int minCollectionSize, Random random);
 
         @VisibleForTesting
         Object convertForCqlWriter(Object value, CassandraVersion version, boolean isCollectionElement);

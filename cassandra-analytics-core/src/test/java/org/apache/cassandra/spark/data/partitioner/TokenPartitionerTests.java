@@ -23,6 +23,7 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Random;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -33,6 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.utils.RandomUtils;
 
+import static org.apache.cassandra.spark.CommonTestUtils.qtRandom;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
@@ -46,11 +48,12 @@ public class TokenPartitionerTests
     {
         qt().forAll(TestUtils.partitioners(),
                     arbitrary().pick(Arrays.asList(1, 3, 6, 12, 104, 208, 416)),
-                    arbitrary().pick(Arrays.asList(1, 2, 4, 16, 128, 1024)))
+                    arbitrary().pick(Arrays.asList(1, 2, 4, 16, 128, 1024)),
+                    qtRandom())
             .checkAssert(this::runTest);
     }
 
-    private void runTest(Partitioner partitioner, int numInstances, int numCores)
+    private void runTest(Partitioner partitioner, int numInstances, int numCores, Random random)
     {
         TokenPartitioner tokenPartitioner = new TokenPartitioner(TestUtils.createRing(partitioner, numInstances), 1, numCores);
         if (numInstances == 1 && numCores == 1)
@@ -64,7 +67,7 @@ public class TokenPartitionerTests
 
         // Generate some random tokens and verify they only exist in a single token partition
         Map<BigInteger, Integer> tokens = IntStream.range(0, NUM_TOKEN_TESTS)
-                                                         .mapToObj(token -> RandomUtils.randomBigInteger(partitioner))
+                                                         .mapToObj(token -> RandomUtils.randomBigInteger(random, partitioner))
                                                          .collect(Collectors.toMap(Function.identity(), token -> 0));
 
         for (int partition = 0; partition < tokenPartitioner.numPartitions(); partition++)

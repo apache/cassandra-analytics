@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.data;
 
 import java.nio.ByteBuffer;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -72,7 +73,7 @@ public abstract class AbstractCqlType implements CqlField.CqlType
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
         throw CqlField.notImplemented(this);
     }

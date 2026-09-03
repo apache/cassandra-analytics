@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -102,6 +103,7 @@ public class CdcTester
     Partitioner partitioner = Partitioner.Murmur3Partitioner;
     CdcOptions cdcOptions;
     CassandraSource cassandraSource;
+    public final Random random;
 
     CdcTester(CassandraBridge bridge,
               CdcBridge cdcBridge,
@@ -114,7 +116,8 @@ public class CdcTester
               BiConsumer<Map<String, TestSchema.TestRow>, List<CdcEvent>> eventsChecker,
               boolean shouldCdcEventWriterFailOnProcessing,
               CdcOptions cdcOptions,
-              CassandraSource cassandraSource)
+              CassandraSource cassandraSource,
+              Random random)
     {
         this.bridge = bridge;
         this.cdcBridge = cdcBridge;
@@ -132,6 +135,7 @@ public class CdcTester
         this.cqlTable = schema.buildTable();
         this.cdcOptions = cdcOptions;
         this.cassandraSource = cassandraSource;
+        this.random = random;
     }
 
     public static Builder builder(CassandraBridge bridge, CdcBridge cdcBridge, TestSchema.Builder schemaBuilder, Path testDir)
@@ -153,6 +157,7 @@ public class CdcTester
         private boolean shouldCdcEventWriterFailOnProcessing = false;
         private CdcOptions cdcOptions;
         private CassandraSource cassandraSource = CassandraSource.DEFAULT;
+        private Random random = new Random();
 
         Builder(CassandraBridge bridge, CdcBridge cdcBridge, TestSchema.Builder schemaBuilder, Path testDir)
         {
@@ -165,8 +170,14 @@ public class CdcTester
             this.writers.add((tester, rows, writer) -> {
                 long timestampMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
                 IntStream.range(0, tester.numRows)
-                         .forEach(i -> writer.accept(newUniqueRow(tester.schema, rows), timestampMicros));
+                         .forEach(i -> writer.accept(newUniqueRow(tester.schema, rows, tester.random), timestampMicros));
             });
+        }
+
+        public Builder withRandom(Random random)
+        {
+            this.random = random;
+            return this;
         }
 
         public Builder clearWriters()
@@ -237,7 +248,7 @@ public class CdcTester
             }
             return new CdcTester(bridge, cdcBridge, schemaBuilder.build(), testDir, writers, numRows, expectedNumRows,
                                  addLastModificationTime, eventChecker, shouldCdcEventWriterFailOnProcessing,
-                                 options, cassandraSource);
+                                 options, cassandraSource, random);
         }
 
         public void run()
@@ -356,14 +367,14 @@ public class CdcTester
         return new Builder(bridge, cdcBridge, schemaBuilder, testDir);
     }
 
-    public static TestSchema.TestRow newUniqueRow(TestSchema schema, Map<String, TestSchema.TestRow> rows)
+    public static TestSchema.TestRow newUniqueRow(TestSchema schema, Map<String, TestSchema.TestRow> rows, Random random)
     {
-        return newUniqueRow(schema::randomRow, rows);
+        return newUniqueRow(() -> schema.randomRow(random), rows);
     }
 
-    public static TestSchema.TestRow newUniquePartitionDeletion(TestSchema schema, Map<String, TestSchema.TestRow> rows)
+    public static TestSchema.TestRow newUniquePartitionDeletion(TestSchema schema, Map<String, TestSchema.TestRow> rows, Random random)
     {
-        return newUniqueRow(schema::randomPartitionDelete, rows);
+        return newUniqueRow(() -> schema.randomPartitionDelete(random), rows);
     }
 
     private static TestSchema.TestRow newUniqueRow(Supplier<TestSchema.TestRow> rowProvider,

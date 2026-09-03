@@ -17,18 +17,24 @@
  * under the License.
  */
 
-package org.apache.cassandra.spark.data.types;
+package org.apache.cassandra.spark.utils.test;
 
 import java.util.Random;
 
-import org.apache.cassandra.spark.data.NativeType;
-import org.apache.cassandra.spark.utils.RandomUtils;
+import org.quicktheories.core.RandomnessSource;
+import org.quicktheories.impl.Constraint;
 
-public abstract class LongBased extends NativeType
+/**
+ * A {@link Random} seeded from QuickTheories' PRNG, so tests using it are reproducible from QT's seed.
+ * Draws one seed value from the {@link RandomnessSource} and behaves as an ordinary {@link Random}
+ * afterwards - QT records every draw from a {@link RandomnessSource} for shrinking, so forwarding all
+ * calls to it would grow unbounded on data-heavy tests.
+ */
+public final class QTRandom extends Random
 {
-    @Override
-    public Object randomValue(int minCollectionSize, Random random)
+    public QTRandom(RandomnessSource source)
     {
-        return (long) RandomUtils.randomPositiveInt(random, 5_000_000);  // Keep within bound to avoid overflows
+        super(source.next(Constraint.between(Long.MIN_VALUE, Long.MAX_VALUE)));
     }
 }
+

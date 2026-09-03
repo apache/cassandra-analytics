@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -147,7 +148,7 @@ public class SparkRowIteratorTests
 
     private static void runTest(CassandraVersion version, TestSchema schema)
     {
-        runTest(version, schema, schema.randomRows(NUM_ROWS));
+        runTest(version, schema, schema.randomRows(NUM_ROWS, new Random()));
     }
 
     private static void runTest(CassandraVersion version, TestSchema schema, TestSchema.TestRow[] testRows)

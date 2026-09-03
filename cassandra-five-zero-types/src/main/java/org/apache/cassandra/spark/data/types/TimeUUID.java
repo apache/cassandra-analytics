@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.data.types;
 
 import java.nio.ByteBuffer;
+import java.util.Random;
 import java.util.function.Function;
 
 import org.apache.cassandra.db.marshal.ValueAccessor;
@@ -31,8 +32,10 @@ public class TimeUUID extends AbstractTimeUUID
     public static final TimeUUID INSTANCE = new TimeUUID();
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
+        // Cassandra's own monotonic time-based generator is not pluggable with an external Random source,
+        // so this remains unseeded; see the "explicitly out of scope" note for QT reproducibility.
         return org.apache.cassandra.utils.TimeUUID.Generator.nextTimeUUID().asUUID();
     }
 

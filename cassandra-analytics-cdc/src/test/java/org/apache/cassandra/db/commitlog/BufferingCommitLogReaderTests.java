@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -93,13 +94,14 @@ public class BufferingCommitLogReaderTests
         int numRows = 1000;
 
         // write some rows to a CommitLog
+        Random random = new Random();
         Set<Long> keys = new HashSet<>(numRows);
         for (int i = 0; i < numRows; i++)
         {
-            TestSchema.TestRow row = schema.randomRow();
+            TestSchema.TestRow row = schema.randomRow(random);
             while (keys.contains(row.getLong("pk")))
             {
-                row = schema.randomRow();
+                row = schema.randomRow(random);
             }
             keys.add(row.getLong("pk"));
             cdcBridge.log(TimeProvider.DEFAULT, cqlTable, commitLog, row, TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));

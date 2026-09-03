@@ -105,6 +105,7 @@ import static org.apache.cassandra.cdc.test.CdcTester.assertCqlTypeEquals;
 import static org.apache.cassandra.cdc.test.CdcTester.newUniqueRow;
 import static org.apache.cassandra.cdc.test.CdcTester.testWith;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
+import static org.apache.cassandra.spark.CommonTestUtils.qtRandom;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -222,10 +223,11 @@ public class CdcTests extends CdcTestBase
             };
 
             Map<String, TestSchema.TestRow> writtenRows = new HashMap<>();
+            Random random = new Random();
             Runnable writer = () -> {
                 IntStream.range(0, batchSize)
                          .forEach(i -> {
-                             TestSchema.TestRow testRow = CdcTester.newUniqueRow(testSchema, writtenRows);
+                             TestSchema.TestRow testRow = CdcTester.newUniqueRow(testSchema, writtenRows, random);
                              cdcBridge.log(table, commitLog, testRow, TimeUtils.nowMicros());
                              writtenRows.put(testRow.getPrimaryHexKey(), testRow);
                          });
@@ -456,12 +458,13 @@ public class CdcTests extends CdcTestBase
     @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
     public void testSinglePartitionKey(CassandraVersion version)
     {
-        qt().forAll(cql3Type(bridge))
-            .checkAssert(type ->
+        qt().forAll(cql3Type(bridge), qtRandom())
+            .checkAssert((type, random) ->
                          testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                              .withPartitionKey("pk", bridge.uuid())
                                                                              .withColumn("c1", bridge.bigint())
                                                                              .withColumn("c2", type))
+                         .withRandom(random)
                          .withCdcEventChecker((testRows, events) -> {
                              assertThat(events.isEmpty()).isFalse();
                              for (CdcEvent event : events)
@@ -483,14 +486,15 @@ public class CdcTests extends CdcTestBase
     @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
     public void testClusteringKey(CassandraVersion version)
     {
-        qt().forAll(cql3Type(bridge))
-            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
-            .checkAssert(type ->
+        qt().forAll(cql3Type(bridge), qtRandom())
+            .assuming((type, random) -> type.supportedAsPrimaryKeyColumn())
+            .checkAssert((type, random) ->
                          testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                              .withPartitionKey("pk", bridge.uuid())
                                                                              .withClusteringKey("ck", type)
                                                                              .withColumn("c1", bridge.bigint())
                                                                              .withColumn("c2", bridge.text()))
+                         .withRandom(random)
                          .withCdcEventChecker((testRows, events) -> {
                              for (CdcEvent event : events)
                              {
@@ -513,12 +517,12 @@ public class CdcTests extends CdcTestBase
     @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
     public void testMultipleClusteringKeys(CassandraVersion version)
     {
-        qt().withExamples(50).forAll(cql3Type(bridge), cql3Type(bridge), cql3Type(bridge))
-            .assuming((t1, t2, t3) -> t1.supportedAsPrimaryKeyColumn()
+        qt().withExamples(50).forAll(cql3Type(bridge), cql3Type(bridge), cql3Type(bridge), qtRandom())
+            .assuming((t1, t2, t3, random) -> t1.supportedAsPrimaryKeyColumn()
                                       && t2.supportedAsPrimaryKeyColumn()
                                       && t3.supportedAsPrimaryKeyColumn())
             .checkAssert(
-            (t1, t2, t3) ->
+            (t1, t2, t3, random) ->
             testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                 .withPartitionKey("pk", bridge.uuid())
                                                                 .withClusteringKey("ck1", t1)
@@ -526,6 +530,7 @@ public class CdcTests extends CdcTestBase
                                                                 .withClusteringKey("ck3", t3)
                                                                 .withColumn("c1", bridge.bigint())
                                                                 .withColumn("c2", bridge.text()))
+            .withRandom(random)
             .withCdcEventChecker((testRows, events) -> {
                 for (CdcEvent event : events)
                 {
@@ -551,13 +556,14 @@ public class CdcTests extends CdcTestBase
     @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
     public void testSet(CassandraVersion version)
     {
-        qt().forAll(cql3Type(bridge))
-            .assuming(CqlField.CqlType::supportedAsSetElement)
+        qt().forAll(cql3Type(bridge), qtRandom())
+            .assuming((t, random) -> t.supportedAsSetElement())
             .checkAssert(
-            t -> testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
+            (t, random) -> testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                      .withPartitionKey("pk", bridge.uuid())
                                                                      .withColumn("c1", bridge.bigint())
                                                                      .withColumn("c2", bridge.set(t)))
+                 .withRandom(random)
                  .withCdcEventChecker((testRows, events) -> {
                      for (CdcEvent event : events)
                      {
@@ -587,13 +593,14 @@ public class CdcTests extends CdcTestBase
     @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
     public void testList(CassandraVersion version)
     {
-        qt().forAll(cql3Type(bridge))
+        qt().forAll(cql3Type(bridge), qtRandom())
             .checkAssert(
-            t ->
+            (t, random) ->
             testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                 .withPartitionKey("pk", bridge.uuid())
                                                                 .withColumn("c1", bridge.bigint())
                                                                 .withColumn("c2", bridge.list(bridge.aInt())))
+            .withRandom(random)
             .withCassandraSource((keyspace, table, columnsToFetch, primaryKeyColumns) -> {
                 // mutations to unfrozen lists require reading the full list from Cassandra
                 List<ByteBuffer> byteBuffers = new ArrayList<>();
@@ -633,16 +640,17 @@ public class CdcTests extends CdcTestBase
     public void testVector(CassandraVersion version)
     {
         assumeThat(bridge.getVersion().versionNumber()).isGreaterThanOrEqualTo(CassandraVersion.FIVEZERO.versionNumber());
-        qt().forAll(cql3Type(bridge))
+        qt().forAll(cql3Type(bridge), qtRandom())
             // Cassandra VectorType does not support swapping custom subtype serializer,
             // so we cannot use AnalyticsTimeUUIDSerializer or AnalyticsDurationSerializer.
-            .assuming(t -> !t.cqlName().equals(Duration.INSTANCE.name()) && !t.cqlName().equals(TimeUUID.INSTANCE.name()))
+            .assuming((t, random) -> !t.cqlName().equals(Duration.INSTANCE.name()) && !t.cqlName().equals(TimeUUID.INSTANCE.name()))
             .checkAssert(
-            t ->
+            (t, random) ->
             testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                 .withPartitionKey("pk", bridge.uuid())
                                                                 .withColumn("c1", bridge.bigint())
                                                                 .withColumn("c2", bridge.vector(t, 5)))
+            .withRandom(random)
             .withCdcEventChecker((testRows, events) -> {
                 for (CdcEvent event : events)
                 {
@@ -676,13 +684,14 @@ public class CdcTests extends CdcTestBase
     @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
     public void testMap(CassandraVersion version)
     {
-        qt().withExamples(50).forAll(cql3Type(bridge), cql3Type(bridge))
-            .assuming((t1, t2) -> t1.supportedAsMapKey() && t2.supportedAsMapKey())
+        qt().withExamples(50).forAll(cql3Type(bridge), cql3Type(bridge), qtRandom())
+            .assuming((t1, t2, random) -> t1.supportedAsMapKey() && t2.supportedAsMapKey())
             .checkAssert(
-            (t1, t2) -> testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
+            (t1, t2, random) -> testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                             .withPartitionKey("pk", bridge.uuid())
                                                                             .withColumn("c1", bridge.bigint())
                                                                             .withColumn("c2", bridge.map(t1, t2)))
+                        .withRandom(random)
                         .withCdcEventChecker((testRows, events) -> {
                             for (CdcEvent event : events)
                             {
@@ -752,14 +761,16 @@ public class CdcTests extends CdcTestBase
                            Collections.emptySet(),
                            null, 0, schema3.withCdc);
         int numRows = DEFAULT_NUM_ROWS;
+        Random random = new Random();
 
         AtomicReference<TestSchema> schema1Holder = new AtomicReference<>();
         CdcTester.Builder testBuilder = CdcTester.builder(bridge, cdcBridge, tableBuilder1, commitLogDir)
+                                                 .withRandom(random)
                                                  .clearWriters()
                                                  .withWriter((tester, rows, writer) -> {
                                                      for (int i = 0; i < numRows; i++)
                                                      {
-                                                         writer.accept(CdcTester.newUniqueRow(tester.schema, rows),
+                                                         writer.accept(CdcTester.newUniqueRow(tester.schema, rows, random),
                                                                        TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
                                                      }
                                                  })
@@ -772,7 +783,7 @@ public class CdcTests extends CdcTestBase
                                                          Map<String, TestSchema.TestRow> prevRows = new HashMap<>(numRows);
                                                          for (int i = 0; i < numRows; i++)
                                                          {
-                                                             writer.accept(CdcTester.newUniqueRow(schema2, prevRows),
+                                                             writer.accept(CdcTester.newUniqueRow(schema2, prevRows, random),
                                                                            TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
                                                          }
                                                      }
@@ -791,7 +802,7 @@ public class CdcTests extends CdcTestBase
                                                          Map<String, TestSchema.TestRow> prevRows = new HashMap<>(numRows);
                                                          for (int i = 0; i < numRows; i++)
                                                          {
-                                                             writer.accept(CdcTester.newUniqueRow(schema3, prevRows),
+                                                             writer.accept(CdcTester.newUniqueRow(schema3, prevRows, random),
                                                                            TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()));
                                                          }
                                                      }
@@ -824,20 +835,21 @@ public class CdcTests extends CdcTestBase
     @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
     public void testUpdateStaticColumnOnly(CassandraVersion version)
     {
-        qt().forAll(cql3Type(bridge).zip(arbitrary().enumValues(OperationType.class), Pair::of))
-            .checkAssert(cql3TypeAndInsertFlag -> {
+        qt().forAll(cql3Type(bridge).zip(arbitrary().enumValues(OperationType.class), Pair::of), qtRandom())
+            .checkAssert((cql3TypeAndInsertFlag, random) -> {
                 CqlField.NativeType cqlType = cql3TypeAndInsertFlag._1;
                 OperationType insertOrUpdate = cql3TypeAndInsertFlag._2;
                 testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                     .withPartitionKey("pk", bridge.uuid())
                                                                     .withClusteringKey("ck", bridge.uuid())
                                                                     .withStaticColumn("sc", cqlType))
+                .withRandom(random)
                 .clearWriters()
                 .withWriter(((tester, rows, writer) -> {
                     long timestampMicros = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
                     IntStream.range(0, tester.numRows)
                              .forEach(i -> {
-                                 TestSchema.TestRow row = newUniqueRow(tester.schema, rows);
+                                 TestSchema.TestRow row = newUniqueRow(tester.schema, rows, random);
                                  row = row.copy(1, null);
                                  insertOrUpdate.accept(row);
                                  writer.accept(row, timestampMicros);
@@ -868,24 +880,24 @@ public class CdcTests extends CdcTestBase
     public void testUpdatePartialColumns(CassandraVersion version)
     {
         Set<UUID> ttlRowIdx = new HashSet<>();
-        Random rnd = new Random(1);
-        qt().forAll(cql3Type(bridge))
-            .checkAssert(type -> {
+        qt().forAll(cql3Type(bridge), qtRandom())
+            .checkAssert((type, random) -> {
                 ttlRowIdx.clear();
                 testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                     .withPartitionKey("pk", bridge.uuid())
                                                                     .withColumn("c1", bridge.bigint())
                                                                     .withColumn("c2", type))
+                .withRandom(random)
                 .clearWriters()
                 .withAddLastModificationTime(true)
                 .withWriter((tester, rows, writer) -> {
                     long time = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
                     for (int i = 0; i < tester.numRows; i++)
                     {
-                        TestSchema.TestRow testRow = newUniqueRow(tester.schema, rows);
+                        TestSchema.TestRow testRow = newUniqueRow(tester.schema, rows, random);
                         // mark c1 as not updated / unset
                         testRow = testRow.copy("c1", CdcBridge.UNSET_MARKER);
-                        if (rnd.nextDouble() > 0.5)
+                        if (random.nextDouble() > 0.5)
                         {
                             testRow.setTTL(TTL);
                             ttlRowIdx.add(testRow.getUUID("pk"));
@@ -926,19 +938,20 @@ public class CdcTests extends CdcTestBase
     {
         // The test write cell-level tombstones,
         // i.e. deleting one or more columns in a row, for cdc job to aggregate.
-        qt().forAll(cql3Type(bridge))
+        qt().forAll(cql3Type(bridge), qtRandom())
             .checkAssert(
-            type ->
+            (type, random) ->
             testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                 .withPartitionKey("pk", bridge.uuid())
                                                                 .withColumn("c1", bridge.bigint())
                                                                 .withColumn("c2", type)
                                                                 .withColumn("c3", bridge.list(type)))
+            .withRandom(random)
             .clearWriters()
             .withWriter((tester, rows, writer) -> {
                 for (int i = 0; i < tester.numRows; i++)
                 {
-                    TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows);
+                    TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                     testRow = testRow.copy("c1", CdcBridge.UNSET_MARKER); // mark c1 as not updated / unset
                     testRow = testRow.copy("c2", null); // delete c2
                     testRow = testRow.copy("c3", null); // delete c3
@@ -968,16 +981,17 @@ public class CdcTests extends CdcTestBase
     @MethodSource("org.apache.cassandra.cdc.test.TestVersionSupplier#testVersions")
     public void testCompositePartitionKey(CassandraVersion version)
     {
-        qt().forAll(cql3Type(bridge))
-            .assuming(CqlField.CqlType::supportedAsPrimaryKeyColumn)
+        qt().forAll(cql3Type(bridge), qtRandom())
+            .assuming((type, random) -> type.supportedAsPrimaryKeyColumn())
             .checkAssert(
-            type ->
+            (type, random) ->
             testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                 .withPartitionKey("pk1", bridge.uuid())
                                                                 .withPartitionKey("pk2", type)
                                                                 .withPartitionKey("pk3", bridge.timestamp())
                                                                 .withColumn("c1", bridge.bigint())
                                                                 .withColumn("c2", bridge.text()))
+            .withRandom(random)
             .withCdcEventChecker((testRows, events) -> {
                 for (CdcEvent event : events)
                 {
@@ -1001,19 +1015,20 @@ public class CdcTests extends CdcTestBase
     public void testUpdateFlag(CassandraVersion version)
     {
         qt().withExamples(10)
-            .forAll(cql3Type(bridge))
-            .checkAssert(type -> {
+            .forAll(cql3Type(bridge), qtRandom())
+            .checkAssert((type, random) -> {
                 testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                     .withPartitionKey("pk", bridge.uuid())
                                                                     .withColumn("c1", bridge.aInt())
                                                                     .withColumn("c2", type))
+                .withRandom(random)
                 .clearWriters()
                 .withNumRows(1000)
                 .withWriter((tester, rows, writer) -> {
                     int halfway = tester.numRows / 2;
                     for (int i = 0; i < tester.numRows; i++)
                     {
-                        TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows);
+                        TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                         testRow = testRow.copy("c1", i);
                         if (i >= halfway)
                         {
@@ -1054,12 +1069,13 @@ public class CdcTests extends CdcTestBase
         // The test writes different groups of mutations.
         // Each group of mutations write to the same key with the different timestamp.
         // For CDC, it only deduplicate and emit the replicated mutations, i.e. they have the same writetime.
-        qt().forAll(cql3Type(bridge))
-            .checkAssert(type -> {
+        qt().forAll(cql3Type(bridge), qtRandom())
+            .checkAssert((type, random) -> {
                 testWith(bridge, cdcBridge, commitLogDir, TestSchema.builder(bridge)
                                                                     .withPartitionKey("pk", bridge.uuid())
                                                                     .withColumn("c1", bridge.bigint())
                                                                     .withColumn("c2", type))
+                .withRandom(random)
                 .clearWriters()
                 .withNumRows(1000)
                 .withExpectedNumRows(2000)
@@ -1069,13 +1085,13 @@ public class CdcTests extends CdcTestBase
                     long timestamp = TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis());
                     for (int i = 0; i < tester.numRows; i++)
                     {
-                        writer.accept(CdcTester.newUniqueRow(tester.schema, rows), timestamp++);
+                        writer.accept(CdcTester.newUniqueRow(tester.schema, rows, random), timestamp++);
                     }
 
                     // overwrite with new mutations at later timestamp
                     for (TestSchema.TestRow row : rows.values())
                     {
-                        TestSchema.TestRow newUniqueRow = CdcTester.newUniqueRow(tester.schema, rows);
+                        TestSchema.TestRow newUniqueRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                         for (CqlField field : tester.cqlTable.valueColumns())
                         {
                             // update value columns

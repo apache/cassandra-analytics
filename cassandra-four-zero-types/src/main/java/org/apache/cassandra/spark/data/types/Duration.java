@@ -20,6 +20,7 @@
 package org.apache.cassandra.spark.data.types;
 
 import java.nio.ByteBuffer;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -110,11 +111,11 @@ public class Duration extends NativeType
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
-        return new InternalDuration(RandomUtils.randomPositiveInt(100),
-                                    RandomUtils.randomPositiveInt(100),
-                                    TimeUnit.MICROSECONDS.toNanos(RandomUtils.randomPositiveInt(1000000)));
+        return new InternalDuration(RandomUtils.randomPositiveInt(random, 100),
+                                    RandomUtils.randomPositiveInt(random, 100),
+                                    TimeUnit.MICROSECONDS.toNanos(RandomUtils.randomPositiveInt(random, 1000000)));
     }
 
     /**

@@ -19,8 +19,11 @@
 
 package org.apache.cassandra.spark;
 
+import java.util.Random;
+
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.data.CqlField;
+import org.apache.cassandra.spark.utils.test.QTRandom;
 import org.quicktheories.core.Gen;
 
 import static org.quicktheories.generators.SourceDSL.arbitrary;
@@ -36,5 +39,14 @@ public class CommonTestUtils
     public static Gen<CqlField.NativeType> cql3Type(CassandraBridge bridge)
     {
         return arbitrary().pick(bridge.supportedTypes());
+    }
+
+    /**
+     * A {@link Random} whose entropy is drawn from QuickTheories' own seeded PRNG, so that any randomness
+     * consumed via the returned instance is reproducible from the same QT seed as the rest of the property.
+     */
+    public static Gen<Random> qtRandom()
+    {
+        return QTRandom::new;
     }
 }

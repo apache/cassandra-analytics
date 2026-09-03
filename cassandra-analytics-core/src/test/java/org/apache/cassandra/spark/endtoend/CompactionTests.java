@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.endtoend;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -34,7 +35,6 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.Tester;
-import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.Row;
 
@@ -49,6 +49,7 @@ public class CompactionTests
     {
         AtomicLong startTotal = new AtomicLong(0);
         AtomicLong newTotal = new AtomicLong(0);
+        Random random = new Random();
         Map<UUID, Long> column1 = new HashMap<>(Tester.DEFAULT_NUM_ROWS);
         Map<UUID, String> column2 = new HashMap<>(Tester.DEFAULT_NUM_ROWS);
         Tester.builder(TestSchema.builder(bridge)
@@ -60,7 +61,7 @@ public class CompactionTests
                   for (int row = 0; row < Tester.DEFAULT_NUM_ROWS; row++)
                   {
                       UUID pk = UUID.randomUUID();
-                      long c1 = RandomUtils.RANDOM.nextInt(10_000_000);
+                      long c1 = random.nextInt(10_000_000);
                       String c2 = UUID.randomUUID().toString();
                       startTotal.addAndGet(c1);
                       column1.put(pk, c1);
@@ -72,7 +73,7 @@ public class CompactionTests
               .withSSTableWriter(writer -> {
                   for (UUID pk : column1.keySet())
                   {
-                      long newBalance = (long) RandomUtils.RANDOM.nextInt(10_000_000) + column1.get(pk);
+                      long newBalance = (long) random.nextInt(10_000_000) + column1.get(pk);
                       assertThat(newBalance).isGreaterThan(column1.get(pk));
                       newTotal.addAndGet(newBalance);
                       column1.put(pk, newBalance);
@@ -160,6 +161,7 @@ public class CompactionTests
     public void testSingleClusteringKey(CassandraBridge bridge)
     {
         AtomicLong total = new AtomicLong(0);
+        Random random = new Random();
         Map<Integer, MutableLong> testSum = new HashMap<>();
         Set<Integer> clusteringKeys = ImmutableSet.of(0, 1, 2, 3);
         for (int clusteringKey : clusteringKeys)
@@ -179,7 +181,7 @@ public class CompactionTests
                       for (int clusteringKey : clusteringKeys)
                       {
                           UUID accountId = UUID.randomUUID();
-                          long balance = RandomUtils.RANDOM.nextInt(10_000_000);
+                          long balance = random.nextInt(10_000_000);
                           total.addAndGet(balance);
                           String name = UUID.randomUUID().toString().substring(0, 8);
                           testSum.get(clusteringKey).add(balance);

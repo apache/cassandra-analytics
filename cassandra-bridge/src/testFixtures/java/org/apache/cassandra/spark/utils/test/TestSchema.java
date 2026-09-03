@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -545,32 +546,32 @@ public final class TestSchema
     }
 
     @SuppressWarnings("SameParameterValue")
-    public TestRow[] randomRows(int numRows)
+    public TestRow[] randomRows(int numRows, Random random)
     {
         TestSchema.TestRow[] testRows = new TestSchema.TestRow[numRows];
         for (int testRow = 0; testRow < testRows.length; testRow++)
         {
-            testRows[testRow] = randomRow();
+            testRows[testRow] = randomRow(random);
         }
         return testRows;
     }
 
-    public TestRow randomPartitionDelete()
+    public TestRow randomPartitionDelete(Random random)
     {
-        return randomRow(field -> !field.isPartitionKey());
+        return randomRow(field -> !field.isPartitionKey(), random);
     }
 
-    public TestRow randomRow()
+    public TestRow randomRow(Random random)
     {
-        return randomRow(false);
+        return randomRow(false, random);
     }
 
-    public TestRow randomRow(boolean nullifyValueColumn)
+    public TestRow randomRow(boolean nullifyValueColumn, Random random)
     {
-        return randomRow(field -> nullifyValueColumn && field.isValueColumn());
+        return randomRow(field -> nullifyValueColumn && field.isValueColumn(), random);
     }
 
-    private TestRow randomRow(Predicate<CqlField> nullifiedFields)
+    private TestRow randomRow(Predicate<CqlField> nullifiedFields, Random random)
     {
         final Object[] values = new Object[allFields.size()];
         for (final CqlField field : allFields)
@@ -583,11 +584,11 @@ public final class TestSchema
             {
                 if (field.type().getClass().getSimpleName().equals("Blob") && blobSize != null)
                 {
-                    values[field.position()] = RandomUtils.randomByteBuffer(blobSize);
+                    values[field.position()] = RandomUtils.randomByteBuffer(random, blobSize);
                 }
                 else
                 {
-                    values[field.position()] = field.type().randomValue(minCollectionSize);
+                    values[field.position()] = field.type().randomValue(minCollectionSize, random);
                 }
             }
         }

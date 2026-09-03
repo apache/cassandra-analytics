@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.data.complex;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -35,7 +36,6 @@ import org.apache.cassandra.serializers.ListSerializer;
 import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
-import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.utils.UUIDGen;
 
 import static org.apache.cassandra.spark.data.CqlField.NO_TTL;
@@ -79,10 +79,10 @@ public abstract class AbstractCqlList extends CqlCollection implements CqlField.
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
-        return IntStream.range(0, RandomUtils.RANDOM.nextInt(16) + minCollectionSize)
-                        .mapToObj(element -> type().randomValue(minCollectionSize))
+        return IntStream.range(0, random.nextInt(16) + minCollectionSize)
+                        .mapToObj(element -> type().randomValue(minCollectionSize, random))
                         .collect(Collectors.toList());
     }
 

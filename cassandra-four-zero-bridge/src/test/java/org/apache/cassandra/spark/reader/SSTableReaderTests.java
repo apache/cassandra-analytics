@@ -83,6 +83,7 @@ import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import static org.apache.cassandra.spark.CommonTestUtils.qtRandom;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.arbitrary;
@@ -945,8 +946,8 @@ public class SSTableReaderTests
     @Test
     public void testPartitionKeyFilter()
     {
-        qt().forAll(arbitrary().enumValues(Partitioner.class))
-            .checkAssert(partitioner -> {
+        qt().forAll(arbitrary().enumValues(Partitioner.class), qtRandom())
+            .checkAssert((partitioner, random) -> {
                 try (TemporaryDirectory directory = new TemporaryDirectory())
                 {
                     TestSchema schema = TestSchema.builder(BRIDGE)
@@ -957,7 +958,7 @@ public class SSTableReaderTests
                                                   .build();
                     CqlTable cqlTable = schema.buildTable();
                     int numSSTables = 24;
-                    String partitionKeyStr = (String) BRIDGE.text().randomValue(1024);
+                    String partitionKeyStr = (String) BRIDGE.text().randomValue(1024, random);
                     AbstractMap.SimpleEntry<ByteBuffer, BigInteger> partitionKey =
                             BRIDGE.getPartitionKey(cqlTable, partitioner, Collections.singletonList(partitionKeyStr));
                     PartitionKeyFilter partitionKeyFilter = PartitionKeyFilter.create(partitionKey.getKey(),
@@ -977,8 +978,8 @@ public class SSTableReaderTests
                                 // Write partition key in last SSTable only
                                 for (int column = 0; column < COLUMNS; column++)
                                 {
-                                    expectedC[column] = (int) BRIDGE.aInt().randomValue(1024);
-                                    expectedD[column] = (String) BRIDGE.text().randomValue(1024);
+                                    expectedC[column] = (int) BRIDGE.aInt().randomValue(1024, random);
+                                    expectedD[column] = (String) BRIDGE.text().randomValue(1024, random);
                                     writer.write(partitionKeyStr, column, expectedC[column], expectedD[column]);
                                 }
                             }
@@ -990,12 +991,12 @@ public class SSTableReaderTests
                                     String key = null;
                                     while (key == null || key.equals(partitionKeyStr))
                                     {
-                                        key = (String) BRIDGE.text().randomValue(1024);
+                                        key = (String) BRIDGE.text().randomValue(1024, random);
                                     }
                                     writer.write(key,
                                                  row,
-                                                 BRIDGE.aInt().randomValue(1024),
-                                                 BRIDGE.text().randomValue(1024));
+                                                 BRIDGE.aInt().randomValue(1024, random),
+                                                 BRIDGE.text().randomValue(1024, random));
                                 }
                             }
                         });

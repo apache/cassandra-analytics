@@ -20,6 +20,7 @@
 package org.apache.cassandra.cdc.msg.jdk;
 
 import java.util.Date;
+import java.util.Random;
 
 import com.google.common.collect.ImmutableList;
 import org.junit.jupiter.api.Test;
@@ -38,10 +39,11 @@ public class CdcMessageTests
     @Test
     public void testCdcMessage()
     {
-        long colA = (long) BigInt.INSTANCE.randomValue(1024);
+        Random random = new Random();
+        long colA = (long) BigInt.INSTANCE.randomValue(1024, random);
         java.util.UUID colB = java.util.UUID.randomUUID();
-        String colC = Text.INSTANCE.randomValue(1024).toString();
-        Date colD = (Date) Timestamp.INSTANCE.randomValue(1024);
+        String colC = Text.INSTANCE.randomValue(1024, random).toString();
+        Date colD = (Date) Timestamp.INSTANCE.randomValue(1024, random);
         long now = TimeUtils.nowMicros();
 
         CdcMessage msg = new CdcMessage(

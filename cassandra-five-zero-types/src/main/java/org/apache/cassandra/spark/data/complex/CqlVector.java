@@ -21,6 +21,7 @@ package org.apache.cassandra.spark.data.complex;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Random;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -110,10 +111,10 @@ public class CqlVector extends CqlCollection implements CqlField.CqlVector
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
         return IntStream.range(0, dimensions)
-                        .mapToObj(element -> type().randomValue(minCollectionSize))
+                        .mapToObj(element -> type().randomValue(minCollectionSize, random))
                         .collect(Collectors.toList());
     }
 

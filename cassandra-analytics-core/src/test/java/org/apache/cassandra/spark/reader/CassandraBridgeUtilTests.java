@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -63,6 +64,8 @@ import static org.quicktheories.QuickTheory.qt;
 
 public class CassandraBridgeUtilTests
 {
+    private static final Random RANDOM = new Random();
+
     @TempDir
     private static Path tempPath;
 
@@ -72,7 +75,7 @@ public class CassandraBridgeUtilTests
         runTest((partitioner, bridge, schema, testDir) -> {
             writeSSTable(partitioner, bridge, schema, testDir,
                          (writer) -> IntStream.range(0, DEFAULT_NUM_ROWS)
-                                              .forEach(i -> writer.write(randomAlphanumeric(), randomAlphanumeric(), randomAlphanumeric()))
+                                              .forEach(i -> writer.write(randomAlphanumeric(RANDOM), randomAlphanumeric(RANDOM), randomAlphanumeric(RANDOM)))
             );
 
             try
@@ -92,10 +95,10 @@ public class CassandraBridgeUtilTests
         runTest((partitioner, bridge, schema, testDir) -> {
             ByteBuffer pk1 = bridge.encodePartitionKey(partitioner, "ks", schema.createStatement, Collections.singletonList("a"));
             assertThat(ByteBufferUtils.string(pk1)).isEqualTo("a");
-            String str1 = randomAlphanumeric();
+            String str1 = randomAlphanumeric(RANDOM);
             ByteBuffer pk2 = bridge.encodePartitionKey(partitioner, "ks", schema.createStatement, Collections.singletonList(str1));
             assertThat(ByteBufferUtils.string(pk2)).isEqualTo(str1);
-            List<String> keys = Arrays.asList(randomAlphanumeric(), randomAlphanumeric(), randomAlphanumeric());
+            List<String> keys = Arrays.asList(randomAlphanumeric(RANDOM), randomAlphanumeric(RANDOM), randomAlphanumeric(RANDOM));
 
             TestSchema threePkSchema = TestSchema.builder(bridge)
                                                  .withPartitionKey("a", bridge.text())
@@ -116,7 +119,7 @@ public class CassandraBridgeUtilTests
     {
         runTest((partitioner, bridge, schema, testDir) -> {
             // write SSTable
-            List<String> keys = IntStream.range(0, 3).mapToObj(i -> randomAlphanumeric()).collect(Collectors.toList());
+            List<String> keys = IntStream.range(0, 3).mapToObj(i -> randomAlphanumeric(RANDOM)).collect(Collectors.toList());
             List<ByteBuffer> buffers = bridge.encodePartitionKeys(
             partitioner,
             schema.keyspace,
@@ -132,7 +135,7 @@ public class CassandraBridgeUtilTests
                                             .collect(Collectors.toList());
             assertThat(TestSSTable.allIn(testDir)).isEmpty();
             writeSSTable(partitioner, bridge, schema, testDir,
-                         (writer) -> keys.forEach(key -> writer.write(key, randomAlphanumeric(), randomAlphanumeric())));
+                         (writer) -> keys.forEach(key -> writer.write(key, randomAlphanumeric(RANDOM), randomAlphanumeric(RANDOM))));
             assertThat(TestSSTable.allIn(testDir)).hasSize(1);
 
             TestSSTable ssTable = (TestSSTable) TestSSTable.firstIn(testDir);
@@ -179,7 +182,7 @@ public class CassandraBridgeUtilTests
     {
         runTest((partitioner, bridge, schema, testDir) -> {
             // write SSTable
-            Set<String> keys = IntStream.range(0, 25).mapToObj(i -> randomAlphanumeric()).collect(Collectors.toSet());
+            Set<String> keys = IntStream.range(0, 25).mapToObj(i -> randomAlphanumeric(RANDOM)).collect(Collectors.toSet());
             List<ByteBuffer> buffers = bridge.encodePartitionKeys(
             partitioner,
             schema.keyspace,
@@ -190,7 +193,7 @@ public class CassandraBridgeUtilTests
             );
             assertThat(TestSSTable.allIn(testDir)).isEmpty();
             writeSSTable(partitioner, bridge, schema, testDir,
-                         (writer) -> keys.forEach(key -> writer.write(key, randomAlphanumeric(), randomAlphanumeric())));
+                         (writer) -> keys.forEach(key -> writer.write(key, randomAlphanumeric(RANDOM), randomAlphanumeric(RANDOM))));
             assertThat(TestSSTable.allIn(testDir)).hasSize(1);
 
             TestSSTable ssTable = (TestSSTable) TestSSTable.firstIn(testDir);
@@ -202,7 +205,7 @@ public class CassandraBridgeUtilTests
             assertThat(result.stream().allMatch(boolValue -> boolValue)).isTrue();
 
             // random keys should return some negatives for keys not contained in the SSTable
-            List<String> otherKeys = IntStream.range(0, DEFAULT_NUM_ROWS).mapToObj(i -> randomAlphanumeric(keys)).collect(Collectors.toList());
+            List<String> otherKeys = IntStream.range(0, DEFAULT_NUM_ROWS).mapToObj(i -> randomAlphanumeric(RANDOM, keys)).collect(Collectors.toList());
             List<ByteBuffer> randomBuffers = bridge.encodePartitionKeys(
             partitioner,
             schema.keyspace,
@@ -248,8 +251,8 @@ public class CassandraBridgeUtilTests
         runTest(
         (partitioner, bridge, schema, testDir) -> {
             Map<String, String> expected = IntStream.range(0, DEFAULT_NUM_ROWS)
-                                                    .mapToObj(i -> randomAlphanumeric(32))
-                                                    .collect(Collectors.toMap(Function.identity(), i -> randomAlphanumeric(32)));
+                                                    .mapToObj(i -> randomAlphanumeric(RANDOM, 32))
+                                                    .collect(Collectors.toMap(Function.identity(), i -> randomAlphanumeric(RANDOM, 32)));
             writeSSTable(partitioner, bridge, schema, testDir, (writer) -> expected.forEach((key, value) -> writer.write(key, value, value)));
 
             List<SSTable> all = TestSSTable.allIn(testDir);

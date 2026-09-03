@@ -22,6 +22,7 @@ package org.apache.cassandra.bridge;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Random;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -40,7 +41,7 @@ public class CompressionTests
     {
         bridge = CassandraBridgeFactory.get(version);
         // Test with random data - not highly compressible
-        testCompression(RandomUtils.randomBytes(4096));
+        testCompression(RandomUtils.randomBytes(new Random(), 4096));
     }
 
     @ParameterizedTest()

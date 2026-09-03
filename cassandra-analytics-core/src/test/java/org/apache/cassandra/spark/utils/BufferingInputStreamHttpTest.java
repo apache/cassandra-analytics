@@ -29,6 +29,7 @@ import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -267,12 +268,13 @@ public class BufferingInputStreamHttpTest
         {
             Path path = Files.createTempFile(directory, null, null);
             MessageDigest digest = DigestUtils.getMd5Digest();
+            Random random = new Random();
             try (BufferedOutputStream out = new BufferedOutputStream(Files.newOutputStream(path)))
             {
                 long remaining = size;
                 while (remaining > 0)
                 {
-                    byte[] bytes = RandomUtils.randomBytes((int) Math.min(remaining, BufferingInputStreamTests.DEFAULT_CHUNK_SIZE));
+                    byte[] bytes = RandomUtils.randomBytes(random, (int) Math.min(remaining, BufferingInputStreamTests.DEFAULT_CHUNK_SIZE));
                     out.write(bytes);
                     digest.update(bytes);
                     remaining -= bytes.length;

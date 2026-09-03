@@ -26,10 +26,10 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.apache.cassandra.bridge.CassandraBridge;
 import org.apache.cassandra.spark.TestUtils;
 import org.apache.cassandra.spark.Tester;
-import org.apache.cassandra.spark.utils.RandomUtils;
 import org.apache.cassandra.spark.utils.test.TestSchema;
 import org.apache.spark.sql.Row;
 
+import static org.apache.cassandra.spark.CommonTestUtils.qtRandom;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 import static org.quicktheories.generators.SourceDSL.characters;
@@ -45,10 +45,10 @@ public class TombstoneTests
         int numRows = 100;
         int numColumns = 10;
         qt().withExamples(20)
-            .forAll(integers().between(0, numRows - 2))
-            .checkAssert(deleteRangeStart -> {
+            .forAll(integers().between(0, numRows - 2), qtRandom())
+            .checkAssert((deleteRangeStart, random) -> {
                 assert 0 <= deleteRangeStart && deleteRangeStart < numRows;
-                int deleteRangeEnd = deleteRangeStart + RandomUtils.RANDOM.nextInt(numRows - deleteRangeStart - 1) + 1;
+                int deleteRangeEnd = deleteRangeStart + random.nextInt(numRows - deleteRangeStart - 1) + 1;
                 assert deleteRangeStart < deleteRangeEnd && deleteRangeEnd < numRows;
 
                 Tester.builder(TestSchema.basicBuilder(bridge)
@@ -138,10 +138,10 @@ public class TombstoneTests
         int numRows = 10;
         int numColumns = 128;
         qt().withExamples(10)
-            .forAll(integers().between(0, numColumns - 1))
-            .checkAssert(startBound -> {
+            .forAll(integers().between(0, numColumns - 1), qtRandom())
+            .checkAssert((startBound, random) -> {
                 assertThat(startBound).isLessThan(numColumns);
-                int endBound = startBound + RandomUtils.RANDOM.nextInt(numColumns - startBound);
+                int endBound = startBound + random.nextInt(numColumns - startBound);
                 assertThat(endBound).isBetween(startBound, numColumns);
                 int numTombstones = endBound - startBound;
 
@@ -189,10 +189,10 @@ public class TombstoneTests
         int numRows = 10;
         int numColumns = 128;
         qt().withExamples(10)
-            .forAll(characters().ascii())
-            .checkAssert(startBound -> {
+            .forAll(characters().ascii(), qtRandom())
+            .checkAssert((startBound, random) -> {
                 assertThat((int) startBound).isLessThanOrEqualTo(numColumns);
-                char endBound = (char) (startBound + RandomUtils.RANDOM.nextInt(numColumns - startBound));
+                char endBound = (char) (startBound + random.nextInt(numColumns - startBound));
                 assertThat(endBound).isBetween(startBound, (char) numColumns);
                 int numTombstones = endBound - startBound;
 

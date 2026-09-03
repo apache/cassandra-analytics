@@ -20,7 +20,6 @@
 package org.apache.cassandra.cdc;
 
 import java.util.HashSet;
-import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +39,7 @@ import org.apache.cassandra.spark.utils.test.TestSchema;
 
 import static org.apache.cassandra.cdc.test.CdcTester.testWith;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
+import static org.apache.cassandra.spark.CommonTestUtils.qtRandom;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
@@ -98,13 +98,13 @@ public class RowDeletionTests extends CdcTestBase
         // i.e. [pk.., ck.., null..]. The bitset should indicate that only the primary keys are present.
         // This kind of output means the entire row is deleted
         final Set<UUID> rowDeletionIndices = new HashSet<>();
-        final Random rnd = new Random(1);
         final long minTimestamp = System.currentTimeMillis();
         final int numRows = 1000;
-        qt().forAll(cql3Type(bridge))
+        qt().forAll(cql3Type(bridge), qtRandom())
             .checkAssert(
-            type -> testWith(bridge, cdcBridge, commitLogDir, schemaBuilder.apply(type))
+            (type, random) -> testWith(bridge, cdcBridge, commitLogDir, schemaBuilder.apply(type))
                     .withAddLastModificationTime(true)
+                    .withRandom(random)
                     .clearWriters()
                     .withNumRows(numRows)
                     .withWriter((tester, rows, writer) -> {
@@ -112,8 +112,8 @@ public class RowDeletionTests extends CdcTestBase
                         long timestamp = minTimestamp;
                         for (int i = 0; i < tester.numRows; i++)
                         {
-                            TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows);
-                            if (rnd.nextDouble() < 0.5)
+                            TestSchema.TestRow testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
+                            if (random.nextDouble() < 0.5)
                             {
                                 testRow.delete();
                                 rowDeletionIndices.add(testRow.getUUID("pk"));

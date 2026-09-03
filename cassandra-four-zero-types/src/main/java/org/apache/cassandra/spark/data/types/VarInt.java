@@ -20,12 +20,12 @@
 package org.apache.cassandra.spark.data.types;
 
 import java.math.BigInteger;
+import java.util.Random;
 
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.cql3.functions.types.SettableByIndexData;
 import org.apache.cassandra.db.marshal.AbstractType;
 import org.apache.cassandra.db.marshal.IntegerType;
-import org.apache.cassandra.spark.utils.RandomUtils;
 
 public class VarInt extends Decimal
 {
@@ -44,9 +44,9 @@ public class VarInt extends Decimal
     }
 
     @Override
-    public Object randomValue(int minCollectionSize)
+    public Object randomValue(int minCollectionSize, Random random)
     {
-        return new BigInteger(BigNumberConfig.DEFAULT.bigIntegerPrecision(), RandomUtils.RANDOM);
+        return new BigInteger(BigNumberConfig.DEFAULT.bigIntegerPrecision(), random);
     }
 
     @Override

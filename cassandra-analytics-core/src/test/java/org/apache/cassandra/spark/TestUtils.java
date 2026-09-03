@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -371,7 +372,7 @@ public final class TestUtils extends CommonTestUtils
 
     public static byte[] randomLowEntropyData()
     {
-        return randomLowEntropyData(RandomUtils.randomPositiveInt(16384 - 512) + 512);
+        return randomLowEntropyData(RandomUtils.randomPositiveInt(new Random(), 16384 - 512) + 512);
     }
 
     public static byte[] randomLowEntropyData(int size)

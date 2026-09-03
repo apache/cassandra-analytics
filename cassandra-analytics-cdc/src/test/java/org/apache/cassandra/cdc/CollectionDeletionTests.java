@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -47,6 +46,7 @@ import org.apache.cassandra.spark.utils.test.TestSchema;
 
 import static org.apache.cassandra.cdc.test.CdcTester.testWith;
 import static org.apache.cassandra.spark.CommonTestUtils.cql3Type;
+import static org.apache.cassandra.spark.CommonTestUtils.qtRandom;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.quicktheories.QuickTheory.qt;
 
@@ -100,14 +100,14 @@ public class CollectionDeletionTests extends CdcTestBase
     {
         // key: row# that has deletion; value: the deleted cell key/path in the collection
         final Map<Integer, byte[]> elementDeletionIndices = new HashMap<>();
-        final Random rnd = new Random(1);
         final long minTimestamp = System.currentTimeMillis();
         final int numRows = 1000;
-        qt().forAll(cql3Type(bridge))
-            .assuming(CqlField.CqlType::supportedAsMapKey)
+        qt().forAll(cql3Type(bridge), qtRandom())
+            .assuming((type, random) -> type.supportedAsMapKey())
             .checkAssert(
-            type -> testWith(bridge, cdcBridge, directory, schemaBuilder.apply(type))
+            (type, random) -> testWith(bridge, cdcBridge, directory, schemaBuilder.apply(type))
                     .withAddLastModificationTime(true)
+                    .withRandom(random)
                     .clearWriters()
                     .withNumRows(numRows)
                     .withWriter((tester, rows, writer) -> {
@@ -117,12 +117,12 @@ public class CollectionDeletionTests extends CdcTestBase
                         {
                             int ignoredSize = 10;
                             TestSchema.TestRow testRow;
-                            if (rnd.nextDouble() < 0.5)
+                            if (random.nextDouble() < 0.5)
                             {
                                 // NOTE: it is a little hacky. For simplicity, all collections in the row
                                 // has the SAME entry being deleted.
-                                ByteBuffer key = type.serialize(type.randomValue(ignoredSize));
-                                testRow = CdcTester.newUniqueRow(tester.schema, rows);
+                                ByteBuffer key = type.serialize(type.randomValue(ignoredSize, random));
+                                testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                                 for (String name : collectionColumnNames)
                                 {
                                     Object value = TestUtils.collectionDeleteMutation(bridge.getVersion(), key);
@@ -132,7 +132,7 @@ public class CollectionDeletionTests extends CdcTestBase
                             }
                             else
                             {
-                                testRow = CdcTester.newUniqueRow(tester.schema, rows);
+                                testRow = CdcTester.newUniqueRow(tester.schema, rows, random);
                             }
                             timestamp += 1;
                             writer.accept(testRow, TimeUnit.MILLISECONDS.toMicros(timestamp));
