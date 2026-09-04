@@ -66,6 +66,9 @@ import org.apache.cassandra.distributed.api.ICluster;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
 import org.apache.cassandra.distributed.shared.JMXUtil;
+import org.apache.cassandra.sidecar.acl.authentication.AuthenticationHandlerFactoryRegistry;
+import org.apache.cassandra.sidecar.acl.authentication.JwtAuthenticationHandlerFactory;
+import org.apache.cassandra.sidecar.acl.authentication.MutualTlsAuthenticationHandlerFactory;
 import org.apache.cassandra.sidecar.cluster.CassandraAdapterDelegate;
 import org.apache.cassandra.sidecar.cluster.InstancesMetadata;
 import org.apache.cassandra.sidecar.cluster.InstancesMetadataImpl;
@@ -704,6 +707,19 @@ public abstract class SharedClusterIntegrationTestBase
                                 .map(instance -> new InetSocketAddress(instance.config().broadcastAddress().getAddress(),
                                                                        tryGetIntConfig(instance.config(), "native_transport_port", 9042)))
                                 .collect(Collectors.toList());
+        }
+
+        @Provides
+        @Singleton
+        public AuthenticationHandlerFactoryRegistry authNHandlerFactoryRegistry(MutualTlsAuthenticationHandlerFactory mTLSAuthHandlerFactory,
+                                                                                JwtAuthenticationHandlerFactory jwtAuthHandlerFactory,
+                                                                                TestAuthenticationHandlerFactory testAuthenticationHandlerFactory)
+        {
+            AuthenticationHandlerFactoryRegistry registry = new AuthenticationHandlerFactoryRegistry();
+            registry.register(mTLSAuthHandlerFactory);
+            registry.register(jwtAuthHandlerFactory);
+            registry.register(testAuthenticationHandlerFactory);
+            return registry;
         }
 
         private S3ProxyConfiguration buildTestS3ProxyConfig()

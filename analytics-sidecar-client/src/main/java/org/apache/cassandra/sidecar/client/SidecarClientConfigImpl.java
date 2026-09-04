@@ -20,6 +20,8 @@
 package org.apache.cassandra.sidecar.client;
 
 import java.time.Duration;
+import java.util.Collections;
+import java.util.Map;
 
 import org.apache.cassandra.sidecar.common.DataObjectBuilder;
 
@@ -33,12 +35,16 @@ public class SidecarClientConfigImpl implements SidecarClientConfig
     public static final long DEFAULT_MAX_RETRY_DELAY_MILLIS = 60_000L;
     public static final Duration DEFAULT_MINIMUM_HEALTH_RETRY_DELAY = Duration.ofSeconds(1L);
     public static final Duration DEFAULT_MAXIMUM_HEALTH_RETRY_DELAY = Duration.ofSeconds(5L);
+    public static final String DEFAULT_IDENTITY_PROVIDER = null;
+    public static final Map<String, String> DEFAULT_IDENTITY_PROVIDER_PARAMETERS = Collections.emptyMap();
 
     protected final int maxRetries;
     protected final long retryDelayMillis;
     protected final long maxRetryDelayMillis;
     protected final Duration minimumHealthRetryDelay;
     protected final Duration maximumHealthRetryDelay;
+    protected final String identityProviderClass;
+    protected final Map<String, String> identityProviderParameters;
 
     private SidecarClientConfigImpl(Builder builder)
     {
@@ -47,6 +53,8 @@ public class SidecarClientConfigImpl implements SidecarClientConfig
         maxRetryDelayMillis = builder.maxRetryDelayMillis;
         minimumHealthRetryDelay = builder.minimumHealthRetryDelay;
         maximumHealthRetryDelay = builder.maximumHealthRetryDelay;
+        identityProviderClass = builder.identityProviderClass;
+        identityProviderParameters = builder.identityProviderParameters;
     }
 
     /**
@@ -79,20 +87,32 @@ public class SidecarClientConfigImpl implements SidecarClientConfig
     /**
      * @return the minimum amount of time to wait before retrying a failed health check
      */
-     @Override
-     public Duration minimumHealthRetryDelay()
-     {
+    @Override
+    public Duration minimumHealthRetryDelay()
+    {
         return minimumHealthRetryDelay;
-     }
+    }
 
     /**
      * @return the maximum amount of time to wait before retrying a failed health check
      */
-     @Override
-     public Duration maximumHealthRetryDelay()
-     {
+    @Override
+    public Duration maximumHealthRetryDelay()
+    {
         return maximumHealthRetryDelay;
-     }
+    }
+
+    @Override
+    public String identityProviderClass()
+    {
+        return identityProviderClass;
+    }
+
+    @Override
+    public Map<String, String> identityProviderParameters()
+    {
+        return identityProviderParameters;
+    }
 
     public static Builder builder()
     {
@@ -109,6 +129,8 @@ public class SidecarClientConfigImpl implements SidecarClientConfig
         protected long maxRetryDelayMillis = DEFAULT_MAX_RETRY_DELAY_MILLIS;
         protected Duration minimumHealthRetryDelay = DEFAULT_MINIMUM_HEALTH_RETRY_DELAY;
         protected Duration maximumHealthRetryDelay = DEFAULT_MAXIMUM_HEALTH_RETRY_DELAY;
+        protected String identityProviderClass = DEFAULT_IDENTITY_PROVIDER;
+        protected Map<String, String> identityProviderParameters = DEFAULT_IDENTITY_PROVIDER_PARAMETERS;
 
         protected Builder()
         {
@@ -173,6 +195,21 @@ public class SidecarClientConfigImpl implements SidecarClientConfig
         public Builder maximumHealthRetryDelay(Duration maximumHealthRetryDelay)
         {
             return update(builder -> builder.maximumHealthRetryDelay = maximumHealthRetryDelay);
+        }
+
+        /**
+         * Sets the {@code identityProvider} and returns a reference to this Builder enabling method chaining
+         *
+         * @param implClass  the {@code identityProviderClass} to set
+         * @param parameters the {@code identityProviderParameters} to set
+         * @return a reference to this Builder
+         */
+        public Builder identityProvider(String implClass, Map<String, String> parameters)
+        {
+            return update(builder -> {
+                builder.identityProviderClass = implClass;
+                builder.identityProviderParameters = parameters;
+            });
         }
 
         /**

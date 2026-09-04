@@ -267,7 +267,7 @@ public class CassandraDataLayerValidationTest
                   false,                              // quoteIdentifiers
                   "",                                 // snapshotName
                   null,                               // datacenter
-                  Sidecar.ClientConfig.create(),     // sidecarClientConfig
+                  Sidecar.ClientConfig.create(),      // sidecarClientConfig
                   null,                               // sslConfig
                   mock(CqlTable.class),               // cqlTable
                   mock(TokenPartitioner.class),       // tokenPartitioner

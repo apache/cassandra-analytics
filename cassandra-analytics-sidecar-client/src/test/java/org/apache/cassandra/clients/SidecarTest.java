@@ -23,14 +23,20 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 import org.junit.jupiter.api.Test;
 
+import o.a.c.sidecar.client.shaded.client.HttpClient;
+import o.a.c.sidecar.client.shaded.client.RequestContext;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
+import o.a.c.sidecar.client.shaded.client.SidecarClientConfig;
+import o.a.c.sidecar.client.shaded.client.SidecarIdentityProvider;
 import o.a.c.sidecar.client.shaded.client.SidecarInstance;
 import o.a.c.sidecar.client.shaded.client.SidecarInstanceImpl;
+import o.a.c.sidecar.client.shaded.client.VertxHttpClient;
 import o.a.c.sidecar.client.shaded.common.response.GossipInfoResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -176,6 +182,33 @@ public class SidecarTest
         .isEmpty();
     }
 
+    @Test
+    void testNoOpIdentityProvider()
+    {
+        SidecarClientConfig clientConfig = mock(SidecarClientConfig.class);
+        VertxHttpClient vertxHttpClient = mock(VertxHttpClient.class);
+
+        SidecarIdentityProvider identityProvider = Sidecar.buildIdentityProvider(clientConfig, vertxHttpClient);
+
+        assertThat(identityProvider).isEqualTo(SidecarIdentityProvider.NOOP);
+    }
+
+    @Test
+    void testCustomIdentityProvider()
+    {
+        SidecarClientConfig clientConfig = mock(SidecarClientConfig.class);
+        Map<String, String> providerParams = Collections.singletonMap("key1", "value1");
+        when(clientConfig.identityProviderClass()).thenReturn(MockIdentityProvider.class.getName());
+        when(clientConfig.identityProviderParameters()).thenReturn(providerParams);
+        VertxHttpClient vertxHttpClient = mock(VertxHttpClient.class);
+
+        SidecarIdentityProvider identityProvider = Sidecar.buildIdentityProvider(clientConfig, vertxHttpClient);
+
+        assertThat(identityProvider).isInstanceOf(MockIdentityProvider.class);
+        MockIdentityProvider testIdentityProvider = (MockIdentityProvider) identityProvider;
+        assertThat(testIdentityProvider.options).isEqualTo(providerParams);
+    }
+
     private GossipInfoResponse.GossipInfo createGossipInfo(List<String> sstableVersions)
     {
         GossipInfoResponse.GossipInfo info = new GossipInfoResponse.GossipInfo();
@@ -189,5 +222,21 @@ public class SidecarTest
             info.put("sstableVersions", String.join(",", sstableVersions));
         }
         return info;
+    }
+
+    public static class MockIdentityProvider implements SidecarIdentityProvider
+    {
+        Map<String, String> options;
+
+        public void initialize(Map<String, String> options, HttpClient httpClient)
+        {
+            this.options = options;
+        }
+
+        @Override
+        public void injectCredentials(RequestContext.Builder builder)
+        {
+            // no-op
+        }
     }
 }

@@ -214,8 +214,7 @@ public class CloudStorageDataTransferApiImpl implements CloudStorageDataTransfer
         return sidecarClient.executeRequestAsync(sidecarClient.requestBuilder()
                                                               .retryPolicy(retryPolicy)
                                                               .singleInstanceSelectionPolicy(sidecarInstance)
-                                                              .request(request)
-                                                              .build());
+                                                              .request(request));
     }
 
     /**

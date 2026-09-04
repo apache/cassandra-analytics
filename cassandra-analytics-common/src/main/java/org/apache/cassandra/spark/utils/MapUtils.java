@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -247,6 +248,18 @@ public final class MapUtils
     public static String getOrDefault(Map<String, String> options, String key, String defaultValue)
     {
         return options.getOrDefault(lowerCaseKey(key), defaultValue);
+    }
+
+    public static Map<String, String> getKeysWithPrefix(Map<String, String> options, String keyPrefix,
+                                                        boolean truncatePrefix, Map<String, String> defaultValue)
+    {
+        int prefixLength = keyPrefix.length();
+        String lowerCasePrefix = lowerCaseKey(keyPrefix);
+        Map<String, String> subMap = options.entrySet().stream()
+                                            .filter(entry -> lowerCaseKey(entry.getKey()).startsWith(lowerCasePrefix))
+                                            .collect(Collectors.toMap(k -> truncatePrefix ? k.getKey().substring(prefixLength) : k.getKey(),
+                                                                      Map.Entry::getValue));
+        return subMap.isEmpty() ? defaultValue : subMap;
     }
 
     /**
