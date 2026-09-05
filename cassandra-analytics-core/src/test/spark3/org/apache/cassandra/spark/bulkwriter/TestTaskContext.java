@@ -48,6 +48,12 @@ public class TestTaskContext extends TaskContext
         return false;
     }
 
+    @Override
+    public boolean isFailed()
+    {
+        return false;
+    }
+
     @Deprecated
     public boolean isRunningLocally()
     {
@@ -85,6 +91,12 @@ public class TestTaskContext extends TaskContext
     }
 
     @Override
+    public int numPartitions()
+    {
+        return 1;
+    }
+
+    @Override
     public int attemptNumber()
     {
         return 0;
@@ -100,6 +112,12 @@ public class TestTaskContext extends TaskContext
     public String getLocalProperty(String key)
     {
         return null;
+    }
+
+    @Override
+    public int cpus()
+    {
+        return 1;
     }
 
     public Map<String, ResourceInformation> resources()

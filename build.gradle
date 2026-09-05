@@ -456,3 +456,14 @@ sourcesDistTar.finalizedBy generateDistributionChecksums
 sourcesDistZip.finalizedBy generateDistributionChecksums
 assembleDist.finalizedBy generateDistributionChecksums
 assembleSourcesDist.finalizedBy generateDistributionChecksums
+
+// Wire shadowJar to run as part of the core subproject's assemble (and therefore the
+// root aggregate assemble), without creating a root-level finalizedBy on shadowJar.
+// The latter chains through distTar/distZip (which `dependsOn` every subproject Jar via
+// the `distributions { from subprojects.collect { it.tasks.withType(Jar) } }` block) and
+// loops back to :assemble, causing a Gradle 8 circular-dependency failure.
+project(':cassandra-analytics-core') {
+  afterEvaluate {
+    tasks.named('assemble').configure { dependsOn tasks.named('shadowJar') }
+  }
+}

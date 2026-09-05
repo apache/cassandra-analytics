@@ -41,6 +41,8 @@ import org.apache.cassandra.secrets.SslConfig;
 import org.apache.cassandra.spark.data.CassandraDataLayer;
 import org.apache.cassandra.spark.data.LocalDataLayer;
 import org.apache.cassandra.spark.data.ReplicationFactor;
+import org.apache.cassandra.spark.data.S3CassandraDataLayer;
+import org.apache.cassandra.spark.data.S3ClientConfig;
 import org.apache.cassandra.spark.data.partitioner.CassandraInstance;
 import org.apache.cassandra.spark.data.partitioner.CassandraRing;
 import org.apache.cassandra.spark.data.partitioner.TokenPartitioner;
@@ -72,6 +74,8 @@ public class KryoRegister implements KryoRegistrator
         KRYO_SERIALIZERS.put(CassandraRing.class, new CassandraRing.Serializer());
         KRYO_SERIALIZERS.put(TokenPartitioner.class, new TokenPartitioner.Serializer());
         KRYO_SERIALIZERS.put(CassandraDataLayer.class, new CassandraDataLayer.Serializer());
+        KRYO_SERIALIZERS.put(S3CassandraDataLayer.class, new S3CassandraDataLayer.Serializer());
+        KRYO_SERIALIZERS.put(S3ClientConfig.class, new S3ClientConfig.Serializer());
         KRYO_SERIALIZERS.put(BigNumberConfigImpl.class, new BigNumberConfigImpl.Serializer());
         KRYO_SERIALIZERS.put(SslConfig.class, new SslConfig.Serializer());
         KRYO_SERIALIZERS.put(SSTableTimeRangeFilter.class, new SSTableTimeRangeFilter.Serializer());

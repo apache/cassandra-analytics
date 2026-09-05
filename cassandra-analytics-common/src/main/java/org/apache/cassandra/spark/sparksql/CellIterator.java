@@ -134,6 +134,17 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
         return cqlTable;
     }
 
+    /**
+     * Exposes the {@link Stats} instance threaded through scanner construction. Used by
+     * Spark-side row iterators (e.g. {@code SparkRowIterator#currentMetricsValues}) to surface
+     * per-task custom metrics — those metrics are accumulated on the {@code Stats} implementation
+     * (specifically {@code SparkCustomMetricsStats}) during scan execution.
+     */
+    public Stats stats()
+    {
+        return stats;
+    }
+
     public boolean hasProjectedValueColumns()
     {
         return hasProjectedValueColumns;

@@ -25,6 +25,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
@@ -233,6 +234,22 @@ public abstract class DataLayer implements Serializable
      * @return a string that uniquely identifies this Spark job
      */
     public abstract String jobId();
+
+    /**
+     * Calculate the total size of all SSTable Data.db files across all partitions.
+     * This method provides a default implementation that returns empty. Specific DataLayer
+     * implementations should override this method if they have efficient ways to
+     * calculate the total size.
+     *
+     * @return OptionalLong containing the total size in bytes of all SSTable Data.db files,
+     * or empty if size information is not available
+     */
+    public OptionalLong calculateTotalSSTableSize()
+    {
+        // Default implementation returns empty (unknown size)
+        // Specific DataLayer implementations can override this for better estimates
+        return OptionalLong.empty();
+    }
 
     public StreamScanner openCompactionScanner(int partitionId, List<PartitionKeyFilter> partitionKeyFilters, SSTableTimeRangeFilter sstableTimeRangeFilter)
     {
