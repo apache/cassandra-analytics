@@ -19,7 +19,6 @@
 
 package org.apache.cassandra.spark.data.complex;
 
-import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -36,7 +35,6 @@ import org.apache.cassandra.serializers.TypeSerializer;
 import org.apache.cassandra.spark.data.CqlField;
 import org.apache.cassandra.spark.data.CqlType;
 import org.apache.cassandra.spark.utils.RandomUtils;
-import org.apache.cassandra.utils.UUIDGen;
 
 import static org.apache.cassandra.spark.data.CqlField.NO_TTL;
 
@@ -112,8 +110,9 @@ public abstract class AbstractCqlList extends CqlCollection implements CqlField.
         {
             if (ttl != NO_TTL)
             {
-                rowBuilder.addCell(CqlType.expiring(cd, timestamp, ttl, now, type().serialize(o),
-                                                    CellPath.create(ByteBuffer.wrap(UUIDGen.getTimeUUIDBytes()))));
+                // Take the cell path from randomCellPath, as the branch below does: Cassandra 5.0 removed
+                // UUIDGen.getTimeUUIDBytes, and randomCellPath is the per-version hook that replaces it
+                rowBuilder.addCell(CqlType.expiring(cd, timestamp, ttl, now, type().serialize(o), randomCellPath()));
             }
             else
             {

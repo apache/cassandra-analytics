@@ -70,7 +70,6 @@ import org.apache.cassandra.io.compress.LZ4Compressor;
 import org.apache.cassandra.io.sstable.CQLSSTableWriter;
 import org.apache.cassandra.io.sstable.Descriptor;
 import org.apache.cassandra.io.sstable.ISSTableScanner;
-import org.apache.cassandra.io.sstable.SSTableTombstoneWriter;
 import org.apache.cassandra.io.sstable.format.SSTableFormat;
 import org.apache.cassandra.io.sstable.format.SSTableReader;
 import org.apache.cassandra.io.sstable.format.bti.BtiReaderUtils;
@@ -693,14 +692,16 @@ public class CassandraBridgeImplementation extends CassandraBridge
                                       String deleteStatement,
                                       Consumer<Writer> consumer)
     {
-        File cassFile = new File(directory.toFile());
-        try (SSTableTombstoneWriter writer = SSTableTombstoneWriter.builder()
-                                                                   .inDirectory(cassFile)
-                                                                   .forTable(createStatement)
-                                                                   .withPartitioner(getPartitioner(partitioner))
-                                                                   .using(deleteStatement)
-                                                                   .withBufferSizeInMB(128)
-                                                                   .build())
+        // Cassandra 6.0 CQLSSTableWriter takes any modification statement, a DELETE included, and writes the
+        // range tombstones of a slice delete through the same DeleteStatement.createSlices path the earlier
+        // bridges need SSTableTombstoneWriter for
+        try (CQLSSTableWriter writer = CQLSSTableWriter.builder()
+                                                       .inDirectory(directory.toFile().getAbsolutePath())
+                                                       .forTable(createStatement)
+                                                       .withPartitioner(getPartitioner(partitioner))
+                                                       .using(deleteStatement)
+                                                       .withBufferSizeInMB(128)
+                                                       .build())
         {
             consumer.accept(values -> {
                 try
