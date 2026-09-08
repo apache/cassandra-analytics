@@ -60,6 +60,8 @@ public class ClientConfig
      * that are not mutation tracked. Normally this happens only for tracked keyspaces. Exists so the code path can
      * be exercised against ordinary clusters, which is the only coverage available until Cassandra 6.0 bridge
      * modules land and tracked keyspaces can be created in integration tests.
+     * <p>
+     * Set as {@code forcecassandratokenranges}; Spark lowercases option keys.
      */
     public static final String FORCE_CASSANDRA_TOKEN_RANGES_KEY = "forceCassandraTokenRanges";
     public static final String CLEAR_SNAPSHOT_KEY = "clearSnapshot";
