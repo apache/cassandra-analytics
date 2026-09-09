@@ -59,17 +59,18 @@ class BulkReaderMultiRackTest extends SharedClusterSparkIntegrationTestBase
     @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        // Six nodes, three racks, two adjacent nodes per rack, with RF 3.
+        // Four nodes, three racks, with the first two nodes sharing a rack, and RF 3.
         //
-        // The pairing matters. Tokens are handed out in node order, so "the next RF nodes in ring order" - what the
-        // reader derives - starts 1,2,3. Cassandra cannot use that, because nodes 1 and 2 share rack1, so it skips
-        // to satisfy one replica per rack and picks 1,3,5. The two therefore disagree, which is precisely the
+        // NetworkTopologyStrategy computes acceptableRackRepeats = RF - rackCount, which is 0 here, so a node whose
+        // rack has already been used is skipped. Tokens are handed out in node order, so for the range whose first
+        // replica is node 1 the reader derives the next three nodes in ring order, 1,2,3, while Cassandra must skip
+        // node 2 (rack1 again) and pick 1,3,4. The two topology sources therefore genuinely disagree, which is the
         // situation no existing test creates.
         //
-        // With one node per rack, or with racks assigned round-robin, the two would coincide and the test would
-        // prove nothing.
+        // Four nodes is the minimum that produces a disagreement. With one node per rack, or with racks assigned
+        // round-robin, rack-aware selection coincides with ring order and the test would prove nothing.
         return super.testClusterConfiguration()
-                    .nodesPerDc(6)
+                    .nodesPerDc(4)
                     .dcAndRackSupplier((nodeId) -> {
                         switch (nodeId)
                         {
@@ -77,10 +78,8 @@ class BulkReaderMultiRackTest extends SharedClusterSparkIntegrationTestBase
                             case 2:
                                 return dcAndRack("datacenter1", "rack1");
                             case 3:
-                            case 4:
                                 return dcAndRack("datacenter1", "rack2");
-                            case 5:
-                            case 6:
+                            case 4:
                                 return dcAndRack("datacenter1", "rack3");
                             default:
                                 return dcAndRack("", "");
