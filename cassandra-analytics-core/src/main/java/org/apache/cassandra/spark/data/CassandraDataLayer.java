@@ -51,6 +51,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Range;
+import com.google.common.collect.RangeSet;
+import com.google.common.collect.TreeRangeSet;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -783,7 +785,9 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             }
             if (!replicas.isEmpty())
             {
-                rangeReplicas.put(range, replicas);
+                // Distinct, because a duplicated replica would inflate the per-range replica count that
+                // PartitionedDataLayer uses to decide whether the consistency level is satisfied
+                rangeReplicas.put(range, replicas.stream().distinct().collect(Collectors.toList()));
             }
         }
 
@@ -793,9 +797,36 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
             "Cassandra reported no read replicas for keyspace " + keyspace + " in datacenter " + datacenter);
         }
 
+        validateCompleteRingCoverage(partitioner, rangeReplicas.keySet());
+
         LOGGER.info("Using token ranges reported by Cassandra keyspace={} numRanges={} numInstances={}",
                     keyspace, rangeReplicas.size(), instances.size());
         return new CassandraRing(partitioner, keyspace, replicationFactor, instances, rangeReplicas);
+    }
+
+    /**
+     * Fails if the supplied ranges leave any part of the token ring without a replica.
+     * <p>
+     * A gap is not caught downstream. {@link CassandraRing} seeds its range map across the whole ring, so an
+     * uncovered range is present but with an empty replica list, and the reader only discovers this per Spark
+     * partition as a {@code NotEnoughReplicasException} that reads like a cluster availability problem. Reporting it
+     * here names the actual cause.
+     *
+     * @param partitioner the partitioner, for the ring bounds
+     * @param ranges      the ranges reported by Cassandra that have at least one usable replica
+     */
+    private void validateCompleteRingCoverage(Partitioner partitioner, Set<Range<BigInteger>> ranges)
+    {
+        RangeSet<BigInteger> uncovered = TreeRangeSet.create();
+        uncovered.add(Range.openClosed(partitioner.minToken(), partitioner.maxToken()));
+        ranges.forEach(uncovered::remove);
+        if (!uncovered.isEmpty())
+        {
+            throw new IllegalStateException(String.format(
+            "Token ranges reported by Cassandra do not cover the whole ring for keyspace %s in datacenter %s. "
+            + "Uncovered: %s. This means some ranges have no replica the reader can use, which would otherwise "
+            + "surface later as a consistency failure.", keyspace, datacenter, uncovered));
+        }
     }
 
     // Startup Validation

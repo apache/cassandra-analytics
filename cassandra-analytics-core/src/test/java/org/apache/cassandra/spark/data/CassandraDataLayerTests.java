@@ -249,4 +249,70 @@ class CassandraDataLayerTests
                    .sorted()
                    .collect(Collectors.toList());
     }
+
+    @Test
+    void testRingFromTokenRangeReplicasFailsWhenRingIsNotFullyCovered()
+    {
+        CassandraDataLayer layer = dataLayer(null);
+        RingResponse ring = ringOf("n1", "0", "dc1", "n2", "100", "dc1");
+
+        // only the lower half of the ring is reported
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "0",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042"))));
+        TokenRangeReplicasResponse topology = topologyOf(readReplicas,
+                                                        "1.1.1.1:9042", "n1",
+                                                        "1.1.1.2:9042", "n2");
+
+        assertThatThrownBy(() -> layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, ReplicationFactor.simpleStrategy(2), ring, topology))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("do not cover the whole ring");
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasFailsWhenAllReplicasForARangeAreSkipped()
+    {
+        CassandraDataLayer layer = dataLayer(null);
+        RingResponse ring = ringOf("n1", "0", "dc1", "n2", "100", "dc1");
+
+        // the upper range's only replica is absent from the ring, so that range ends up with no usable
+        // replica and must be reported as a coverage gap rather than silently dropped
+        List<ReplicaInfo> readReplicas = Arrays.asList(
+        new ReplicaInfo("-9223372036854775808", "0",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.2:9042"))),
+        new ReplicaInfo("0", "9223372036854775807",
+                        ImmutableMap.of("dc1", Collections.singletonList("1.1.1.9:9042"))));
+        TokenRangeReplicasResponse topology = topologyOf(readReplicas,
+                                                        "1.1.1.1:9042", "n1",
+                                                        "1.1.1.2:9042", "n2",
+                                                        "1.1.1.9:9042", "ghost");
+
+        assertThatThrownBy(() -> layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, ReplicationFactor.simpleStrategy(2), ring, topology))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("do not cover the whole ring");
+    }
+
+    @Test
+    void testRingFromTokenRangeReplicasDeduplicatesReplicas()
+    {
+        CassandraDataLayer layer = dataLayer(null);
+        RingResponse ring = ringOf("n1", "0", "dc1", "n2", "100", "dc1");
+
+        // the same replica reported twice must not be counted twice, since PartitionedDataLayer uses the
+        // per-range replica count to decide whether the consistency level is satisfied
+        List<ReplicaInfo> readReplicas = Collections.singletonList(
+        new ReplicaInfo("-9223372036854775808", "9223372036854775807",
+                        ImmutableMap.of("dc1", Arrays.asList("1.1.1.1:9042", "1.1.1.1:9042", "1.1.1.2:9042"))));
+        TokenRangeReplicasResponse topology = topologyOf(readReplicas,
+                                                        "1.1.1.1:9042", "n1",
+                                                        "1.1.1.2:9042", "n2");
+
+        CassandraRing result = layer.createCassandraRingFromTokenRangeReplicas(
+        Partitioner.Murmur3Partitioner, ReplicationFactor.simpleStrategy(2), ring, topology);
+
+        assertThat(result.getReplicas(BigInteger.valueOf(10L))).hasSize(2);
+        assertThat(replicaNames(result, 10L)).containsExactly("n1", "n2");
+    }
 }
