@@ -48,7 +48,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  * replicas across racks (see {@code acceptableRackRepeats}), so a derived replica set can disagree with Cassandra's.
  * <p>
  * {@code CassandraRing} states that it assumes racks are not in use, so a divergence here would previously have been
- * invisible in CI and would surface in production as a bulk read silently returning incomplete data.
+ * invisible in CI.
+ * <p>
+ * Note what these tests can and cannot show. Every replica here is a full replica holding data, so both replica
+ * selections return all the rows and the reads agree. They are therefore a regression guard on the range mapping and
+ * the replica join, not a demonstration that witness replicas are handled: selecting the wrong replicas only loses
+ * data once some of them hold none, which requires a mutation tracked keyspace and so cannot be tested until
+ * Cassandra 6.0 bridge modules land (CASSANALYTICS-192).
  */
 class BulkReaderMultiRackTest extends SharedClusterSparkIntegrationTestBase
 {
