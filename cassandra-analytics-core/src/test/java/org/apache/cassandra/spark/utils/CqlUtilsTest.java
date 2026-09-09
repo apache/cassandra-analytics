@@ -197,7 +197,7 @@ public class CqlUtilsTest extends VersionRunner
     {
         // An unparseable value must be reported here rather than silently dropping the datacenter, which
         // would surface later as a confusing "DC not found in replication factor" error
-        for (String malformed : new String[]{ "xyz", "3/", "3/1/1", "3/x", "3/3" })
+        for (String malformed : new String[]{"xyz", "3/", "3/1/1", "3/x", "3/3"})
         {
             String schema = "CREATE KEYSPACE badks WITH REPLICATION = {'class': 'NetworkTopologyStrategy', "
                             + "'datacenter1': '" + malformed + "'} AND durable_writes = true;\n";

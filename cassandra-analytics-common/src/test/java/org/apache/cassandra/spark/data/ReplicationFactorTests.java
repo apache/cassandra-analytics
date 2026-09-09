@@ -217,7 +217,7 @@ public class ReplicationFactorTests
     @Test
     public void testMalformedTransientValuesAreSkipped()
     {
-        for (String malformed : new String[]{ "3/", "/1", "3/1/1", "3/x", "x/1", "3/-1", "" })
+        for (String malformed : new String[]{"3/", "/1", "3/1/1", "3/x", "x/1", "3/-1", ""})
         {
             ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
             "class", "NetworkTopologyStrategy",
@@ -389,7 +389,8 @@ public class ReplicationFactorTests
     }
 
     @Test
-    public void testJdkSerializationRoundTripWithTransientReplicas() throws Exception    {
+    public void testJdkSerializationRoundTripWithTransientReplicas() throws Exception
+    {
         ReplicationFactor original = new ReplicationFactor(ImmutableMap.of(
         "class", "NetworkTopologyStrategy",
         "datacenter1", "3/1",
