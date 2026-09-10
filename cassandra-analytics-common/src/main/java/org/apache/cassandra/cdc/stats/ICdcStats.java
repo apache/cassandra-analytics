@@ -180,6 +180,16 @@ public interface ICdcStats extends BufferingInputStreamStats<CommitLog>
     }
 
     /**
+     * Called when deserialization of a mutation fails, but the mutation can be safely ignored because it
+     * doesn't involve a CDC-enabled table
+     *
+     * @param incrCount delta value to add to the count
+     */
+    default void mutationsDeserializeFailedNonCdcCount(long incrCount)
+    {
+    }
+
+    /**
      * Called when a mutation's checksum calculation fails or doesn't match with expected checksum
      *
      * @param incrCount delta value to add to the count

@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Skip CDC-irrelevant mutations on deserialization failure (CASSANALYTICS-196)
  * Eliminate redundant filesystem lookups in SSTable direct streaming (CASSANALYTICS-104)
  * TokenPartitioner fails to detect range gap in reader (CASSANALYTICS-180)
  * CDC reader stats silently dropped in SidecarCdcBuilder (CASSANALYTICS-191)
