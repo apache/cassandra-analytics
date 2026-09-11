@@ -30,6 +30,7 @@ import java.util.function.Function;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.annotations.VisibleForTesting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -186,6 +187,17 @@ public class SSTableCache
             }
         }
         return Optional.empty();
+    }
+
+    /**
+     * Drops an SSTable's {@link CompressionMetadata} from the cache and runs the removal listener at once, instead
+     * of leaving it to the next cache operation. Visible for testing.
+     */
+    @VisibleForTesting
+    void evictCompressionMetadata(@NotNull SSTable ssTable)
+    {
+        compressionMetadata.invalidate(ssTable);
+        compressionMetadata.cleanUp();
     }
 
     boolean containsSummary(@NotNull SSTable ssTable)

@@ -47,6 +47,13 @@ public class CassandraVersionFeaturesTest
         testCassandraVersion("6.0-alpha2-SNAPSHOT", 60, 0, "alpha2");
         testCassandraVersion("cassandra-6.0-alpha2-SNAPSHOT", 60, 0, "alpha2");
 
+        // A major version with no alpha or rc tag reports SNAPSHOT as the suffix
+        testCassandraVersion("4.0-SNAPSHOT", 40, 0, "SNAPSHOT");
+        testCassandraVersion("5.0-SNAPSHOT", 50, 0, "SNAPSHOT");
+        testCassandraVersion("6.0-SNAPSHOT", 60, 0, "SNAPSHOT");
+        testCassandraVersion("cassandra-5.0-SNAPSHOT", 50, 0, "SNAPSHOT");
+        testCassandraVersion("cassandra-6.0-SNAPSHOT", 60, 0, "SNAPSHOT");
+
         // A caller can name a major version alone, as the integration tests do
         testCassandraVersion("5.0", 50, 0, null);
         testCassandraVersion("6.0", 60, 0, null);
@@ -55,6 +62,7 @@ public class CassandraVersionFeaturesTest
         testCassandraVersion("qwerty-cassandra-1.2.11-v1", 12, 11, "-v1");
         testCassandraVersion("qwerty-cassandra-1.2.11.2-tag", 12, 11, "2");
         testCassandraVersion("qwerty-cassandra-4.0-SNAPSHOT", 40, 0, "SNAPSHOT");
+        testCassandraVersion("qwerty-cassandra-6.0-SNAPSHOT", 60, 0, "SNAPSHOT");
     }
 
     @Test()

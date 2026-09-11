@@ -68,6 +68,10 @@ public abstract class ResiliencyTestBase extends SharedClusterSparkIntegrationTe
      * removed all three in Cassandra 6.0, in favour of {@code org.apache.cassandra.tcm.sequences}. A hook that fails
      * to install is silent, so the test would instead wait on a latch that never counts down.
      *
+     * <p>CASSANALYTICS-112 tracks the port of these hooks to {@code BootstrapAndJoin.bootstrap},
+     * {@code UnbootstrapStreams.execute} and {@code Move.executeNext}, and the decision on the tests that move
+     * several nodes at once, which Transactional Cluster Metadata no longer permits.</p>
+     *
      * <p>Call this from {@link #beforeClusterProvisioning()}, which runs before the cluster starts.</p>
      */
     protected void assumeTopologyChangeHooksSupported()

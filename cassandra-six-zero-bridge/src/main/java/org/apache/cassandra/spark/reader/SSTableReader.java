@@ -718,31 +718,43 @@ public class SSTableReader implements SparkSSTableReader, Scannable
             @Nullable CompressionMetadata compressionMetadata = SSTableCache.INSTANCE.compressionMetadata(ssTable,
                                                                                                           version.hasMaxCompressedLength(),
                                                                                                           metadata.params.crcCheckChance);
-            dictionaryRef = compressionMetadata != null ? compressionMetadata.acquireDictionaryRef() : null;
-            DataInputStream dataInputStream = new DataInputStream(ssTable.openDataStream());
 
-            if (compressionMetadata != null)
+            dictionaryRef = compressionMetadata != null ? compressionMetadata.acquireDictionaryRef() : null;
+            try
             {
-                dataStream = CompressedRawInputStream.from(ssTable,
-                                                           dataInputStream,
-                                                           compressionMetadata,
-                                                           stats);
+                DataInputStream dataInputStream = new DataInputStream(ssTable.openDataStream());
+
+                if (compressionMetadata != null)
+                {
+                    dataStream = CompressedRawInputStream.from(ssTable,
+                                                               dataInputStream,
+                                                               compressionMetadata,
+                                                               stats);
+                }
+                else
+                {
+                    dataStream = new RawInputStream(dataInputStream, new byte[64 * 1024], stats);
+                }
+                dis = new DataInputStream(dataStream);
+                if (startOffset != null)
+                {
+                    // Skip to start offset, if known, of first in-range partition
+                    ByteBufferUtils.skipFully(dis, startOffset);
+                    assert dataStream.position() == startOffset;
+                    LOGGER.info("Using Data.db start offset to skip ahead startOffset={} sstable='{}'",
+                                startOffset, ssTable);
+                    stats.skippedDataDbStartOffset(startOffset);
+                }
+                in = new DataInputStreamPlus(dis);
             }
-            else
+            catch (Throwable throwable)
             {
-                dataStream = new RawInputStream(dataInputStream, new byte[64 * 1024], stats);
+                if (dictionaryRef != null)
+                {
+                    dictionaryRef.close();
+                }
+                throw throwable;
             }
-            dis = new DataInputStream(dataStream);
-            if (startOffset != null)
-            {
-                // Skip to start offset, if known, of first in-range partition
-                ByteBufferUtils.skipFully(dis, startOffset);
-                assert dataStream.position() == startOffset;
-                LOGGER.info("Using Data.db start offset to skip ahead startOffset={} sstable='{}'",
-                            startOffset, ssTable);
-                stats.skippedDataDbStartOffset(startOffset);
-            }
-            in = new DataInputStreamPlus(dis);
         }
 
         @Override

@@ -75,6 +75,8 @@ class CompressionDictionaryTests
     private static final String DICTIONARY_TABLE = "dictionary_table";
     private static final String PLAIN_TABLE = "plain_table";
     private static final String LIFECYCLE_TABLE = "lifecycle_table";
+    private static final String EVICTED_TABLE = "evicted_table";
+    private static final String RETAINED_TABLE = "retained_table";
     // A compressor that accepts a dictionary. CompressionParams.isDictionaryCompressionEnabled() is true only
     // for this class, and CQLSSTableWriter rejects a dictionary on any other compressor.
     private static final String DICTIONARY_COMPRESSION = "{'class': 'ZstdDictionaryCompressor'}";
@@ -85,6 +87,8 @@ class CompressionDictionaryTests
     // keys its compressors by id, so a shared id would make one test's references visible to another
     private static final long DICTIONARY_ID = 4242L;
     private static final long LIFECYCLE_DICTIONARY_ID = 4343L;
+    private static final long EVICTED_DICTIONARY_ID = 4444L;
+    private static final long RETAINED_DICTIONARY_ID = 4545L;
 
     static
     {
@@ -182,6 +186,69 @@ class CompressionDictionaryTests
             // The last reference frees the native zstd tables, and tryRef reports the dictionary as released
             readerRef.close();
             assertThat(dictionary.tryRef()).isNull();
+        }
+    }
+
+    /**
+     * Cassandra 6.0's {@link SSTableCache} gives its compressionMetadata cache a removal listener, because a
+     * {@link CompressionMetadata} that leaves the cache must release the dictionary reference that it took when it
+     * was built.
+     *
+     * This forces one entry out of the cache while leaving a second one in, then release the primary reference of
+     * both dictionaries, so that the reference of the cached metadata is the only one left to answer for either
+     * SSTable.
+     */
+    @Test
+    void testCacheEvictionReleasesDictionaryReference() throws IOException
+    {
+        try (TemporaryDirectory evictedDirectory = new TemporaryDirectory();
+             TemporaryDirectory retainedDirectory = new TemporaryDirectory())
+        {
+            writeSSTable(evictedDirectory.path(), EVICTED_TABLE, DICTIONARY_COMPRESSION,
+                         trainDictionary(EVICTED_DICTIONARY_ID));
+
+            writeSSTable(retainedDirectory.path(), RETAINED_TABLE, DICTIONARY_COMPRESSION,
+                         trainDictionary(RETAINED_DICTIONARY_ID));
+
+            SSTable evictedSSTable = TestSSTable.firstIn(evictedDirectory.path());
+            SSTable retainedSSTable = TestSSTable.firstIn(retainedDirectory.path());
+
+            // A cache of its own, so that the eviction below cannot release a dictionary that another test reads,
+            // and so that this test leaves nothing behind in SSTableCache.INSTANCE
+            SSTableCache cache = new SSTableCache();
+            // Every SSTable version that Cassandra 6.0 writes carries the max compressed length
+            CompressionMetadata evictedMetadata = cache.compressionMetadata(evictedSSTable, true, 1.0);
+            CompressionMetadata retainedMetadata = cache.compressionMetadata(retainedSSTable, true, 1.0);
+            assertThat(cache.containsCompressionMetadata(evictedSSTable)).isTrue();
+            assertThat(cache.containsCompressionMetadata(retainedSSTable)).isTrue();
+
+            CompressionDictionary evictedDictionary = evictedMetadata.dictionary();
+            CompressionDictionary retainedDictionary = retainedMetadata.dictionary();
+            assertThat(evictedDictionary).isNotNull();
+            assertThat(retainedDictionary).isNotNull();
+            // One dictionary id per table, so the two SSTables share no dictionary instance and no reference count
+            assertThat(retainedDictionary).isNotSameAs(evictedDictionary);
+
+            cache.evictCompressionMetadata(evictedSSTable);
+            assertThat(cache.containsCompressionMetadata(evictedSSTable)).isFalse();
+            assertThat(cache.containsCompressionMetadata(retainedSSTable)).isTrue();
+
+            // The primary reference of a dictionary hides the reference that its metadata holds, so release both
+            // primary references. What answers tryRef from here on is the reference of the metadata, if it has one
+            CompressionMetadata.evictDictionaries();
+
+            // The removal listener closed the metadata that left the cache, so nothing holds its dictionary and
+            // the native zstd tables are gone
+            assertThat(evictedDictionary.tryRef()).isNull();
+
+            // The metadata still in the cache keeps its reference, so the dictionary of that SSTable lives on
+            Ref<? extends CompressionDictionary> retainedRef = retainedDictionary.tryRef();
+            assertThat(retainedRef).isNotNull();
+            retainedRef.close();
+
+            // That reference is the last one, which is what makes the assertion above a statement about the cache
+            retainedMetadata.close();
+            assertThat(retainedDictionary.tryRef()).isNull();
         }
     }
 
