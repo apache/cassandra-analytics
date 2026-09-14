@@ -58,7 +58,10 @@ import static org.apache.cassandra.spark.data.ReplicationFactor.ReplicationStrat
  * As Cassandra token ranges are dependent on Replication strategy, ring makes sense for a specific keyspace only.
  * It is made to be immutable for the sake of simplicity.
  * <p>
- * Token ranges are calculated assuming Cassandra racks are not being used, but controlled by assigning tokens properly.
+ * Token ranges are either supplied by Cassandra, or calculated locally. The local calculation assumes Cassandra racks
+ * are not being used, but controlled by assigning tokens properly. Callers that cannot rely on that assumption, such
+ * as the bulk reader for a mutation tracked keyspace, supply the ranges instead - see
+ * {@link #CassandraRing(Partitioner, String, ReplicationFactor, Collection, Map)}.
  * <p>
  * {@link #equals(Object)} and {@link #hashCode()} don't take {@link #replicas} and {@link #tokenRangeMap}
  * into consideration as they are just derived fields.
@@ -453,11 +456,11 @@ public class CassandraRing implements Serializable
             {
                 BigInteger lower = new BigInteger(in.readUTF());
                 BigInteger upper = new BigInteger(in.readUTF());
-                int numReplicas = in.readShort();
+                int numReplicas = in.readInt();
                 List<Integer> indexes = new ArrayList<>(numReplicas);
                 for (int replica = 0; replica < numReplicas; replica++)
                 {
-                    indexes.add((int) in.readShort());
+                    indexes.add(in.readInt());
                 }
                 ranges.add(new ExplicitRange(lower, upper, indexes));
             }
@@ -509,10 +512,10 @@ public class CassandraRing implements Serializable
             {
                 out.writeUTF(range.lower.toString());
                 out.writeUTF(range.upper.toString());
-                out.writeShort(range.replicaIndexes.size());
+                out.writeInt(range.replicaIndexes.size());
                 for (int index : range.replicaIndexes)
                 {
-                    out.writeShort(index);
+                    out.writeInt(index);
                 }
             }
         }
