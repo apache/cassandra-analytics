@@ -21,13 +21,12 @@ package org.apache.cassandra.spark.bulkwriter;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -42,8 +41,6 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.bridge.SSTableDescriptor;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.common.Digest;
-import org.apache.cassandra.spark.common.SSTables;
-import org.apache.cassandra.spark.data.FileType;
 import org.apache.cassandra.util.IntWrapper;
 
 public class DirectStreamSession extends StreamSession<TransportContext.DirectDataBulkWriterContext>
@@ -85,20 +82,18 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
                 // 2. validate the sstables
                 // 3. send the sstables to all replicas
                 // 4. remove the sstables once sent
-                Map<Path, Digest> fileDigests = sstableWriter.prepareSStablesToSend(writerContext, sstables);
-                // retain only the SSTable data components
+                SortedSSTableWriter.PreparedSSTables preparedSSTables = sstableWriter.prepareSStablesToSend(writerContext, sstables);
                 IntWrapper sstableCounter = new IntWrapper();
-                fileDigests.keySet()
-                           .stream()
-                           .filter(p -> p.getFileName().toString().endsWith(FileType.DATA.getFileSuffix()))
-                           .forEach(sstable -> {
-                               sstableCounter.value++;
-                               sendSStableToReplicas(sstable);
-                           });
+                preparedSSTables.sstables()
+                                .forEach(preparedSSTable -> {
+                                    sstableCounter.value++;
+                                    sendSStableToReplicas(preparedSSTable);
+                                });
 
                 LOGGER.info("[{}]: Sent newly produced SSTables. sstables={}", sessionID, sstableCounter.value);
-                LOGGER.info("[{}]: Removing temporary files after streaming. files={}", sessionID, fileDigests);
-                fileDigests.keySet().forEach(path -> {
+                Set<Path> allSSTableFiles = preparedSSTables.files();
+                LOGGER.info("[{}]: Removing temporary files after streaming. files={}", sessionID, allSSTableFiles);
+                allSSTableFiles.forEach(path -> {
                     try
                     {
                         Files.deleteIfExists(path);
@@ -153,22 +148,15 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
     @Override
     protected void sendRemainingSSTables()
     {
-        try (DirectoryStream<Path> dataFileStream = Files.newDirectoryStream(sstableWriter.getOutDir(), "*Data.db"))
+        try
         {
-            for (Path dataFile : dataFileStream)
-            {
-                if (isFileStreamed(dataFile))
-                {
-                    // the file is already streamed or being streamed; skipping it
-                    continue;
-                }
-
-                sendSStableToReplicas(dataFile);
-            }
+            sstableWriter.remainingSSTablesAfterClose()
+                         .sstables()
+                         .forEach(this::sendSStableToReplicas);
 
             LOGGER.info("[{}]: Sent SSTables. sstables={}", sessionID, sstableWriter.sstableCount());
         }
-        catch (IOException exception)
+        catch (Exception exception)
         {
             LOGGER.error("[{}]: Unexpected exception while streaming SSTables {}",
                          sessionID, sstableWriter.getOutDir());
@@ -182,24 +170,23 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
         }
     }
 
-    private void sendSStableToReplicas(Path dataFile)
+    private void sendSStableToReplicas(SortedSSTableWriter.PreparedSSTable preparedSSTable)
     {
         int ssTableIdx = nextSSTableIdx.getAndIncrement();
 
         LOGGER.info("[{}]: Pushing SSTable {} to replicas {}",
-                    sessionID, dataFile,
+                    sessionID, preparedSSTable.dataFile(),
                     replicas.stream().map(RingInstance::nodeName).collect(Collectors.joining(",")));
-        replicas.removeIf(replica -> !trySendSSTableToOneReplica(dataFile, ssTableIdx, replica, sstableWriter.fileDigestMap()));
+        replicas.removeIf(replica -> !trySendSSTableToOneReplica(preparedSSTable, ssTableIdx, replica));
     }
 
-    private boolean trySendSSTableToOneReplica(Path dataFile,
+    private boolean trySendSSTableToOneReplica(SortedSSTableWriter.PreparedSSTable preparedSSTable,
                                                int ssTableIdx,
-                                               RingInstance replica,
-                                               Map<Path, Digest> fileDigests)
+                                               RingInstance replica)
     {
         try
         {
-            sendSSTableToOneReplica(dataFile, ssTableIdx, replica, fileDigests);
+            sendSSTableToOneReplica(preparedSSTable, ssTableIdx, replica);
             return true;
         }
         catch (Exception exception)
@@ -207,32 +194,36 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
             LOGGER.error("[{}]: Failed to stream range {} to instance {}",
                          sessionID, tokenRange, replica.nodeName(), exception);
             writerContext.cluster().refreshClusterInfo();
-            failureHandler.addFailure(this.tokenRange, replica, exception.getMessage());
-            errors.add(new StreamError(this.tokenRange, replica, exception.getMessage()));
+            // Sometimes error can contain just file name (e.g. when it is missing).
+            // Let us return 3 latest stacktrace lines for easier troubleshooting.
+            String stackTrace = Arrays.stream(exception.getStackTrace())
+                                      .limit(3)
+                                      .map(StackTraceElement::toString)
+                                      .collect(Collectors.joining("\n"));
+            String errorMessage = exception.getClass().getName() + ": " + exception.getMessage()
+                                  + "\n" + stackTrace;
+            failureHandler.addFailure(this.tokenRange, replica, errorMessage);
+            errors.add(new StreamError(this.tokenRange, replica, errorMessage));
             clean(replica, sessionID);
             return false;
         }
     }
 
-    private void sendSSTableToOneReplica(Path dataFile,
+    private void sendSSTableToOneReplica(SortedSSTableWriter.PreparedSSTable preparedSSTable,
                                          int ssTableIdx,
-                                         RingInstance instance,
-                                         Map<Path, Digest> fileHashes) throws IOException
+                                         RingInstance instance) throws IOException
     {
-        try (DirectoryStream<Path> componentFileStream = Files.newDirectoryStream(dataFile.getParent(),
-                                                                                  SSTables.getSSTableBaseName(dataFile) + "*"))
+        for (Path componentFile : preparedSSTable.files())
         {
-            for (Path componentFile : componentFileStream)
+            // send data component the last
+            if (componentFile.equals(preparedSSTable.dataFile()))
             {
-                // send data component the last
-                if (componentFile.getFileName().toString().endsWith("Data.db"))
-                {
-                    continue;
-                }
-                sendSSTableComponent(componentFile, ssTableIdx, instance, fileHashes.get(componentFile));
+                continue;
             }
-            sendSSTableComponent(dataFile, ssTableIdx, instance, fileHashes.get(dataFile));
+            sendSSTableComponent(componentFile, ssTableIdx, instance, preparedSSTable.getDigest(componentFile));
         }
+        Preconditions.checkNotNull(preparedSSTable.dataFile(), "Data file not present in SSTable: {}", preparedSSTable);
+        sendSSTableComponent(preparedSSTable.dataFile(), ssTableIdx, instance, preparedSSTable.getDigest(preparedSSTable.dataFile()));
     }
 
     private void sendSSTableComponent(Path componentFile,
@@ -244,7 +235,6 @@ public class DirectStreamSession extends StreamSession<TransportContext.DirectDa
         LOGGER.info("[{}]: Uploading {} to {}: size={} digest={}",
                     sessionID, componentFile, instance.nodeName(), Files.size(componentFile), digest);
         directDataTransferApi.uploadSSTableComponent(componentFile, ssTableIdx, instance, this.sessionID, digest);
-        recordStreamedFile(componentFile);
     }
 
     private List<CommitResult> commit(DirectStreamResult streamResult) throws ExecutionException, InterruptedException
