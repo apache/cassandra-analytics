@@ -176,9 +176,18 @@ public final class CqlUtils
             throw new RuntimeException(String.format("Unable to parse replication factor for keyspace: %s", keyspace), exception);
         }
 
-        String className = map.remove("class");
-        ReplicationFactor.ReplicationStrategy strategy = ReplicationFactor.ReplicationStrategy.getEnum(className);
-        return new ReplicationFactor(strategy, map.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, v -> Integer.parseInt(v.getValue()))));
+        // Values may use the <replicas>/<transient> form for witness replicas, so delegate parsing to
+        // ReplicationFactor. parseStrict reports an unparseable value directly instead of dropping the
+        // datacenter, which would otherwise surface later as a confusing "DC not found" error.
+        try
+        {
+            return ReplicationFactor.parseStrict(map);
+        }
+        catch (IllegalArgumentException exception)
+        {
+            throw new RuntimeException(String.format("Unable to parse replication factor for keyspace: %s", keyspace),
+                                       exception);
+        }
     }
 
     public static String extractTableSchema(@NotNull String schemaStr, @NotNull String keyspace, @NotNull String table)

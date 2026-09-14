@@ -586,6 +586,10 @@ public class SchemaBuilder
         result.put("class", "org.apache.cassandra.locator." + replicationFactor.getReplicationStrategy().name());
         for (Map.Entry<String, Integer> entry : replicationFactor.getOptions().entrySet())
         {
+            // Deliberately emits only the total, never the <replicas>/<transient> form. The embedded Cassandra runs
+            // with transient_replication_enabled=false, so a transient value makes Keyspace.openWithoutSSTables throw
+            // "Transient replication is not enabled on this node". Safe to drop because replica placement comes from
+            // CassandraRing, not from these KeyspaceParams.
             result.put(entry.getKey(), Integer.toString(entry.getValue()));
         }
         return result;

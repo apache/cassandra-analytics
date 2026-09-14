@@ -51,6 +51,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Range;
+import com.google.common.collect.RangeSet;
+import com.google.common.collect.TreeRangeSet;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +64,7 @@ import o.a.c.sidecar.client.shaded.common.response.ListSnapshotFilesResponse;
 import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.common.response.RingResponse;
 import o.a.c.sidecar.client.shaded.common.response.SchemaResponse;
+import o.a.c.sidecar.client.shaded.common.response.TokenRangeReplicasResponse;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.bridge.BigNumberConfig;
 import org.apache.cassandra.bridge.BigNumberConfigImpl;
@@ -317,7 +320,25 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
         udts.forEach(udt -> LOGGER.info("Adding schema UDT: '{}'", udt));
 
         cqlTable = bridge().buildSchema(createStmt, keyspace, replicationFactor, partitioner, udts, null, indexCount, false);
-        CassandraRing ring = createCassandraRingFromRing(partitioner, replicationFactor, ringFuture.get());
+
+        // Mutation tracked keyspaces may replicate a range to a witness that holds no data, so the range to replica
+        // mapping must come from Cassandra rather than being derived locally. See
+        // createCassandraRingFromTokenRangeReplicas.
+        String replicationType = CqlUtils.extractReplicationType(fullSchema, keyspace);
+        boolean tracked = bridge().isTracked(replicationType);
+        CassandraRing ring;
+        if (tracked || options.forceCassandraTokenRanges())
+        {
+            LOGGER.info("Sourcing token ranges from Cassandra keyspace={} replicationType={} forced={}",
+                        keyspace, replicationType, options.forceCassandraTokenRanges());
+            TokenRangeReplicasResponse topology = sidecar.tokenRangeReplicas(new ArrayList<>(clusterConfig),
+                                                                            maybeQuotedKeyspace).get();
+            ring = createCassandraRingFromTokenRangeReplicas(partitioner, replicationFactor, ringFuture.get(), topology);
+        }
+        else
+        {
+            ring = createCassandraRingFromRing(partitioner, replicationFactor, ringFuture.get());
+        }
 
         int effectiveNumberOfCores = sizingFuture.get();
         tokenPartitioner = new TokenPartitioner(ring, options.defaultParallelism(), effectiveNumberOfCores);
@@ -689,6 +710,123 @@ public class CassandraDataLayer extends PartitionedDataLayer implements StartupV
                                                   .map(status -> new CassandraInstance(status.token(), status.fqdn(), status.datacenter()))
                                                   .collect(Collectors.toList());
         return new CassandraRing(partitioner, keyspace, replicationFactor, instances);
+    }
+
+    /**
+     * Builds the ring using the token ranges Cassandra reports, rather than deriving them from tokens and the
+     * replication factor. The local derivation assumes racks are not in use, whereas Cassandra's replica assignment
+     * is rack aware, so for mutation tracked keyspaces - where a replica may be a witness holding no data - the
+     * derived ranges cannot be relied on to identify which instance replicates which range.
+     * <p>
+     * Node discovery still comes from the ring response, so snapshot creation, sizing and the Sidecar client pool
+     * are unaffected. Only the range to replica mapping is taken from Cassandra.
+     *
+     * @param partitioner       the partitioner
+     * @param replicationFactor the keyspace replication factor
+     * @param ring              the ring response, used for node discovery
+     * @param topology          the token range replicas response, used for the range to replica mapping
+     * @return a ring whose token ranges were reported by Cassandra
+     */
+    public CassandraRing createCassandraRingFromTokenRangeReplicas(Partitioner partitioner,
+                                                                   ReplicationFactor replicationFactor,
+                                                                   RingResponse ring,
+                                                                   TokenRangeReplicasResponse topology)
+    {
+        List<CassandraInstance> instances = ring
+                                            .stream()
+                                            .filter(status -> datacenter == null || datacenter.equalsIgnoreCase(status.datacenter()))
+                                            .map(status -> new CassandraInstance(status.token(), status.fqdn(), status.datacenter()))
+                                            .collect(Collectors.toList());
+
+        // Token range replicas identify replicas by "address:port", while instances built from the ring are keyed
+        // by fqdn, so the replica metadata is used to translate between them
+        Map<String, CassandraInstance> instanceByNodeName = new HashMap<>(instances.size());
+        for (CassandraInstance instance : instances)
+        {
+            CassandraInstance previous = instanceByNodeName.put(instance.nodeName(), instance);
+            if (previous != null && !previous.equals(instance))
+            {
+                // A node owning several tokens cannot be represented as a single CassandraInstance. Mutation
+                // tracking requires num_tokens=1, so this should not happen on a tracked keyspace's cluster
+                throw new IllegalStateException(String.format(
+                "Node %s owns multiple tokens (%s and %s). Sourcing token ranges from Cassandra requires "
+                + "single-token nodes.", instance.nodeName(), previous.token(), instance.token()));
+            }
+        }
+
+        Map<Range<BigInteger>, List<CassandraInstance>> rangeReplicas = new HashMap<>();
+        for (TokenRangeReplicasResponse.ReplicaInfo replicaInfo : topology.readReplicas())
+        {
+            Range<BigInteger> range = Range.openClosed(new BigInteger(replicaInfo.start()),
+                                                       new BigInteger(replicaInfo.end()));
+            List<CassandraInstance> replicas = new ArrayList<>();
+            for (Map.Entry<String, List<String>> byDatacenter : replicaInfo.replicasByDatacenter().entrySet())
+            {
+                if (datacenter != null && !datacenter.equalsIgnoreCase(byDatacenter.getKey()))
+                {
+                    continue;
+                }
+                for (String replicaKey : byDatacenter.getValue())
+                {
+                    TokenRangeReplicasResponse.ReplicaMetadata metadata = topology.replicaMetadata().get(replicaKey);
+                    String nodeName = metadata != null ? metadata.fqdn() : replicaKey;
+                    CassandraInstance instance = instanceByNodeName.get(nodeName);
+                    if (instance == null)
+                    {
+                        // The ring response is the source of truth for which nodes the reader can talk to, so a
+                        // replica absent from it is skipped rather than failing the job
+                        LOGGER.warn("Skipping replica reported by Cassandra that is absent from the ring "
+                                    + "replica={} fqdn={} range=({}, {}]",
+                                    replicaKey, nodeName, replicaInfo.start(), replicaInfo.end());
+                        continue;
+                    }
+                    replicas.add(instance);
+                }
+            }
+            if (!replicas.isEmpty())
+            {
+                // Distinct, because a duplicated replica would inflate the per-range replica count that
+                // PartitionedDataLayer uses to decide whether the consistency level is satisfied
+                rangeReplicas.put(range, replicas.stream().distinct().collect(Collectors.toList()));
+            }
+        }
+
+        if (rangeReplicas.isEmpty())
+        {
+            throw new IllegalStateException(
+            "Cassandra reported no read replicas for keyspace " + keyspace + " in datacenter " + datacenter);
+        }
+
+        validateCompleteRingCoverage(partitioner, rangeReplicas.keySet());
+
+        LOGGER.info("Using token ranges reported by Cassandra keyspace={} numRanges={} numInstances={}",
+                    keyspace, rangeReplicas.size(), instances.size());
+        return new CassandraRing(partitioner, keyspace, replicationFactor, instances, rangeReplicas);
+    }
+
+    /**
+     * Fails if the supplied ranges leave any part of the token ring without a replica.
+     * <p>
+     * A gap is not caught downstream. {@link CassandraRing} seeds its range map across the whole ring, so an
+     * uncovered range is present but with an empty replica list, and the reader only discovers this per Spark
+     * partition as a {@code NotEnoughReplicasException} that reads like a cluster availability problem. Reporting it
+     * here names the actual cause.
+     *
+     * @param partitioner the partitioner, for the ring bounds
+     * @param ranges      the ranges reported by Cassandra that have at least one usable replica
+     */
+    private void validateCompleteRingCoverage(Partitioner partitioner, Set<Range<BigInteger>> ranges)
+    {
+        RangeSet<BigInteger> uncovered = TreeRangeSet.create();
+        uncovered.add(Range.openClosed(partitioner.minToken(), partitioner.maxToken()));
+        ranges.forEach(uncovered::remove);
+        if (!uncovered.isEmpty())
+        {
+            throw new IllegalStateException(String.format(
+            "Token ranges reported by Cassandra do not cover the whole ring for keyspace %s in datacenter %s. "
+            + "Uncovered: %s. This means some ranges have no replica the reader can use, which would otherwise "
+            + "surface later as a consistency failure.", keyspace, datacenter, uncovered));
+        }
     }
 
     // Startup Validation

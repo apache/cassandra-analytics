@@ -55,6 +55,15 @@ public class ClientConfig
     public static final String SNAPSHOT_NAME_KEY = "snapshotName";
     public static final String DC_KEY = "dc";
     public static final String CREATE_SNAPSHOT_KEY = "createSnapshot";
+    /**
+     * Forces token ranges to be sourced from Cassandra via the token-range-replicas endpoint even for keyspaces
+     * that are not mutation tracked. Normally this happens only for tracked keyspaces. Exists so the code path can
+     * be exercised against ordinary clusters, which is the only coverage available until Cassandra 6.0 bridge
+     * modules land and tracked keyspaces can be created in integration tests.
+     * <p>
+     * Set as {@code forcecassandratokenranges}; Spark lowercases option keys.
+     */
+    public static final String FORCE_CASSANDRA_TOKEN_RANGES_KEY = "forceCassandraTokenRanges";
     public static final String CLEAR_SNAPSHOT_KEY = "clearSnapshot";
     /**
      * Format of clearSnapshotStrategy is {strategy [snapshotTTLvalue]}, clearSnapshotStrategy holds both the strategy
@@ -101,6 +110,7 @@ public class ClientConfig
     protected String snapshotName;
     protected String datacenter;
     protected boolean createSnapshot;
+    protected boolean forceCassandraTokenRanges;
     protected boolean clearSnapshot;
     protected ClearSnapshotStrategy clearSnapshotStrategy;
     protected int defaultParallelism;
@@ -127,6 +137,7 @@ public class ClientConfig
         this.snapshotName = MapUtils.getOrDefault(options, SNAPSHOT_NAME_KEY, "sbr_" + UUID.randomUUID().toString().replace("-", ""));
         this.datacenter = options.get(MapUtils.lowerCaseKey(DC_KEY));
         this.createSnapshot = MapUtils.getBoolean(options, CREATE_SNAPSHOT_KEY, true);
+        this.forceCassandraTokenRanges = MapUtils.getBoolean(options, FORCE_CASSANDRA_TOKEN_RANGES_KEY, false);
         this.clearSnapshot = MapUtils.getBoolean(options, CLEAR_SNAPSHOT_KEY, createSnapshot);
         String clearSnapshotStrategyOption = MapUtils.getOrDefault(options, CLEAR_SNAPSHOT_STRATEGY_KEY, null);
 
@@ -202,6 +213,14 @@ public class ClientConfig
     public String datacenter()
     {
         return datacenter;
+    }
+
+    /**
+     * @return {@code true} to source token ranges from Cassandra regardless of whether the keyspace is tracked
+     */
+    public boolean forceCassandraTokenRanges()
+    {
+        return forceCassandraTokenRanges;
     }
 
     public boolean createSnapshot()
