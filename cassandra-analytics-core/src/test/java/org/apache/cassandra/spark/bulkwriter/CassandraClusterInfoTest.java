@@ -41,7 +41,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 import o.a.c.sidecar.client.shaded.client.SidecarClient;
 import o.a.c.sidecar.client.shaded.common.response.NodeSettings;
 import o.a.c.sidecar.client.shaded.common.response.TimeSkewResponse;
+import org.apache.cassandra.bridge.CassandraVersion;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
+import org.apache.cassandra.spark.data.partitioner.Partitioner;
 import org.apache.cassandra.spark.exception.TimeSkewTooLargeException;
 import org.apache.spark.SparkConf;
 
@@ -124,6 +126,38 @@ public class CassandraClusterInfoTest
         {
             assertThat(ci)
             .describedAs("Without the load balancer flag, the plain per-replica variant must be selected")
+            .isExactlyInstanceOf(CassandraClusterInfo.class);
+        }
+    }
+
+    @Test
+    void testBroadcastableClusterInfoReconstructsLoadBalancedClusterInfoOnExecutorWhenSidecarBehindLoadBalancer()
+    {
+        // Executor path: reconstructing from a broadcastable whose conf has the flag set must yield the load-balanced
+        // variant, matching the driver-side selection so executors also route through the load balancer contact points.
+        ClusterInfo source = mock(ClusterInfo.class);
+        when(source.getPartitioner()).thenReturn(Partitioner.Murmur3Partitioner);
+        when(source.getBridgeVersion()).thenReturn(CassandraVersion.FIVEZERO);
+        BroadcastableClusterInfo broadcastable = BroadcastableClusterInfo.from(source, bulkSparkConf(true));
+        try (CassandraClusterInfo ci = (CassandraClusterInfo) broadcastable.reconstruct())
+        {
+            assertThat(ci)
+            .describedAs("Reconstructing on an executor with Sidecar behind a load balancer must select the load-balanced variant")
+            .isExactlyInstanceOf(LoadBalancedCassandraClusterInfo.class);
+        }
+    }
+
+    @Test
+    void testBroadcastableClusterInfoReconstructsPlainClusterInfoOnExecutorByDefault()
+    {
+        ClusterInfo source = mock(ClusterInfo.class);
+        when(source.getPartitioner()).thenReturn(Partitioner.Murmur3Partitioner);
+        when(source.getBridgeVersion()).thenReturn(CassandraVersion.FIVEZERO);
+        BroadcastableClusterInfo broadcastable = BroadcastableClusterInfo.from(source, bulkSparkConf(false));
+        try (CassandraClusterInfo ci = (CassandraClusterInfo) broadcastable.reconstruct())
+        {
+            assertThat(ci)
+            .describedAs("Without the load balancer flag, reconstructing on an executor must use the plain per-replica variant")
             .isExactlyInstanceOf(CassandraClusterInfo.class);
         }
     }
