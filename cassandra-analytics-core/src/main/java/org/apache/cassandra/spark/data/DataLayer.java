@@ -43,13 +43,20 @@ import org.apache.cassandra.spark.reader.StreamScanner;
 import org.apache.cassandra.spark.sparksql.NoMatchFoundException;
 import org.apache.cassandra.spark.sparksql.filters.PartitionKeyFilter;
 import org.apache.cassandra.spark.sparksql.filters.PruneColumnFilter;
+import org.apache.cassandra.spark.sparksql.filters.SaiFilter;
 import org.apache.cassandra.spark.sparksql.filters.SparkRangeFilter;
 import org.apache.cassandra.analytics.stats.Stats;
 import org.apache.cassandra.spark.sparksql.filters.SSTableTimeRangeFilter;
 import org.apache.cassandra.spark.utils.TimeProvider;
+import org.apache.spark.sql.sources.And;
 import org.apache.spark.sql.sources.EqualTo;
 import org.apache.spark.sql.sources.Filter;
+import org.apache.spark.sql.sources.GreaterThan;
+import org.apache.spark.sql.sources.GreaterThanOrEqual;
 import org.apache.spark.sql.sources.In;
+import org.apache.spark.sql.sources.LessThan;
+import org.apache.spark.sql.sources.LessThanOrEqual;
+import org.apache.spark.sql.sources.Or;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.MetadataBuilder;
 import org.apache.spark.sql.types.StructType;
@@ -236,7 +243,7 @@ public abstract class DataLayer implements Serializable
 
     public StreamScanner openCompactionScanner(int partitionId, List<PartitionKeyFilter> partitionKeyFilters, SSTableTimeRangeFilter sstableTimeRangeFilter)
     {
-        return openCompactionScanner(partitionId, partitionKeyFilters, sstableTimeRangeFilter, null);
+        return openCompactionScanner(partitionId, partitionKeyFilters, sstableTimeRangeFilter, null, Collections.emptyList());
     }
 
     /**
@@ -267,13 +274,24 @@ public abstract class DataLayer implements Serializable
         return true;
     }
 
+    public boolean saiFilteringEnabled()
+    {
+        return ClientConfig.DEFAULT_SAI_FILTERING_ENABLED;
+    }
+
+    public int saiMaxCandidateTokens()
+    {
+        return ClientConfig.DEFAULT_SAI_MAX_CANDIDATE_TOKENS;
+    }
+
     /**
      * @return CompactionScanner for iterating over one or more SSTables, compacting data and purging tombstones
      */
     public StreamScanner<RowData> openCompactionScanner(int partitionId,
                                                         List<PartitionKeyFilter> partitionKeyFilters,
                                                         SSTableTimeRangeFilter sstableTimeRangeFilter,
-                                                        @Nullable PruneColumnFilter columnFilter)
+                                                        @Nullable PruneColumnFilter columnFilter,
+                                                        @NotNull List<SaiFilter> saiFilters)
     {
         List<PartitionKeyFilter> filtersInRange;
         try
@@ -295,7 +313,9 @@ public abstract class DataLayer implements Serializable
                                              timeProvider(),
                                              readIndexOffset(),
                                              useIncrementalRepair(),
-                                             stats());
+                                             stats(),
+                                             saiFilteringEnabled() ? saiFilters : Collections.emptyList(),
+                                             saiMaxCandidateTokens());
     }
 
     /**
@@ -346,6 +366,219 @@ public abstract class DataLayer implements Serializable
         }
         // If the partition keys are not in the filter, we disable push down
         return partitionKeys.size() > 0 ? filters : unsupportedFilters.toArray(new Filter[0]);
+    }
+
+    /**
+     * @return SAI definitions available for this table.
+     */
+    @NotNull
+    public List<SaiIndex> saiIndexes()
+    {
+        return Collections.emptyList();
+    }
+
+    /**
+     * Extracts Spark predicates that can safely be used as SAI pruning hints.
+     *
+     * These predicates remain in {@link #unsupportedPushDownFilters(Filter[])} so Spark evaluates them after the
+     * Cassandra reader has reconciled all candidate partitions. SAI therefore narrows physical I/O without becoming
+     * part of the correctness boundary.
+     */
+    @NotNull
+    public List<SaiFilter> saiFilters(@NotNull Filter[] filters)
+    {
+        if (saiIndexes().isEmpty())
+        {
+            return Collections.emptyList();
+        }
+
+        List<SaiFilter> result = new ArrayList<>();
+        for (Filter filter : filters)
+        {
+            addSaiFilters(filter, result);
+        }
+        return result;
+    }
+
+    /**
+     * Adds SAI-capable predicates from a conjunctive Spark filter tree.
+     *
+     * A partially-indexable AND can still use its indexable branch because every final match must satisfy that
+     * branch. OR is not supported by Cassandra 5.0 SAI, so an OR subtree is never used for SAI pruning.
+     */
+    private void addSaiFilters(@NotNull Filter filter, @NotNull List<SaiFilter> result)
+    {
+        if (filter instanceof And)
+        {
+            And and = (And) filter;
+            addSaiFilters(and.left(), result);
+            addSaiFilters(and.right(), result);
+            return;
+        }
+        if (filter instanceof Or)
+        {
+            return;
+        }
+
+        SaiFilter saiFilter = toSaiFilter(filter);
+        if (saiFilter != null)
+        {
+            result.add(saiFilter);
+        }
+    }
+
+    @Nullable
+    private SaiFilter toSaiFilter(@NotNull Filter filter)
+    {
+        String attribute = filterAttribute(filter);
+        Object value = filterValue(filter);
+        SaiFilter.Operator operator = saiOperator(filter);
+        if (attribute == null || value == null || operator == null)
+        {
+            return null;
+        }
+
+        SaiIndex index = saiIndexForAttribute(attribute);
+        return index == null ? null : new SaiFilter(index, operator, String.valueOf(value));
+    }
+
+    /**
+     * Resolves a Spark attribute to an indexed Cassandra column.
+     *
+     * Exact spelling always wins. Case-insensitive matching is retained for the normal unquoted identifier path,
+     * but only when all matching indexes refer to the same Cassandra column spelling. If, for example, both
+     * {@code Foo} and {@code foo} are indexed, an attribute such as {@code FOO} is deliberately not used for SAI
+     * pruning because choosing either index could create false negatives.
+     */
+    @Nullable
+    private SaiIndex saiIndexForAttribute(@NotNull String attribute)
+    {
+        CqlField field = resolveField(attribute);
+        if (field == null)
+        {
+            return null;
+        }
+
+        SaiIndex match = null;
+        for (SaiIndex index : saiIndexes())
+        {
+            if (index.column().equals(field.name()))
+            {
+                if (match != null)
+                {
+                    return null;
+                }
+                match = index;
+            }
+        }
+        return match;
+    }
+
+    @Nullable
+    private CqlField resolveField(@NotNull String attribute)
+    {
+        // exact match always wins
+        for (CqlField field : cqlTable().fields())
+        {
+            if (field.name().equals(attribute))
+            {
+                return field;
+            }
+        }
+
+        // otherwise case-insensitive resolution is safe only if
+        // there is exactly one matching table column
+        CqlField match = null;
+        for (CqlField field : cqlTable().fields())
+        {
+            if (field.name().equalsIgnoreCase(attribute))
+            {
+                if (match != null)
+                {
+                    return null;
+                }
+                match = field;
+            }
+        }
+        return match;
+    }
+
+    @Nullable
+    private static String filterAttribute(Filter filter)
+    {
+        if (filter instanceof EqualTo)
+        {
+            return ((EqualTo) filter).attribute();
+        }
+        if (filter instanceof GreaterThan)
+        {
+            return ((GreaterThan) filter).attribute();
+        }
+        if (filter instanceof GreaterThanOrEqual)
+        {
+            return ((GreaterThanOrEqual) filter).attribute();
+        }
+        if (filter instanceof LessThan)
+        {
+            return ((LessThan) filter).attribute();
+        }
+        if (filter instanceof LessThanOrEqual)
+        {
+            return ((LessThanOrEqual) filter).attribute();
+        }
+        return null;
+    }
+
+    @Nullable
+    private static Object filterValue(Filter filter)
+    {
+        if (filter instanceof EqualTo)
+        {
+            return ((EqualTo) filter).value();
+        }
+        if (filter instanceof GreaterThan)
+        {
+            return ((GreaterThan) filter).value();
+        }
+        if (filter instanceof GreaterThanOrEqual)
+        {
+            return ((GreaterThanOrEqual) filter).value();
+        }
+        if (filter instanceof LessThan)
+        {
+            return ((LessThan) filter).value();
+        }
+        if (filter instanceof LessThanOrEqual)
+        {
+            return ((LessThanOrEqual) filter).value();
+        }
+        return null;
+    }
+
+    @Nullable
+    private static SaiFilter.Operator saiOperator(Filter filter)
+    {
+        if (filter instanceof EqualTo)
+        {
+            return SaiFilter.Operator.EQ;
+        }
+        if (filter instanceof GreaterThan)
+        {
+            return SaiFilter.Operator.GT;
+        }
+        if (filter instanceof GreaterThanOrEqual)
+        {
+            return SaiFilter.Operator.GTE;
+        }
+        if (filter instanceof LessThan)
+        {
+            return SaiFilter.Operator.LT;
+        }
+        if (filter instanceof LessThanOrEqual)
+        {
+            return SaiFilter.Operator.LTE;
+        }
+        return null;
     }
 
     /**

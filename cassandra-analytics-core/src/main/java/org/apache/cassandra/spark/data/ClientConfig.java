@@ -83,6 +83,8 @@ public class ClientConfig
     public static final String ENABLE_EXPANSION_SHRINK_CHECK_KEY = "enableExpansionShrinkCheck";
     public static final String SIDECAR_PORT = "sidecar_port";
     public static final String QUOTE_IDENTIFIERS = "quote_identifiers";
+    public static final String SAI_FILTERING_ENABLED_KEY = "saiFilteringEnabled";
+    public static final String SAI_MAX_CANDIDATE_TOKENS_KEY = "saiMaxCandidateTokens";
     /**
      * {@code sstable_start_timestamp_micros} and {@code sstable_end_timestamp_micros} define a time range filter
      * for SSTable selection. Both timestamps are represented in microseconds and both bounds are always inclusive
@@ -92,6 +94,8 @@ public class ClientConfig
     public static final String SSTABLE_END_TIMESTAMP_MICROS = "sstable_end_timestamp_micros";
 
     public static final int DEFAULT_SIDECAR_PORT = 9043;
+    public static final boolean DEFAULT_SAI_FILTERING_ENABLED = false;
+    public static final int DEFAULT_SAI_MAX_CANDIDATE_TOKENS = 1_000_000;
 
     protected String sidecarContactPoints;
     @Nullable
@@ -112,6 +116,8 @@ public class ClientConfig
     protected String sizing;
     protected int maxPartitionSize;
     protected boolean useIncrementalRepair;
+    protected boolean saiFilteringEnabled;
+    protected int saiMaxCandidateTokens;
     protected List<SchemaFeature> requestedFeatures;
     protected String lastModifiedTimestampField;
     protected Boolean enableExpansionShrinkCheck;
@@ -144,6 +150,8 @@ public class ClientConfig
         this.sizing = MapUtils.getOrDefault(options, SIZING_KEY, SIZING_DEFAULT);
         this.maxPartitionSize = MapUtils.getInt(options, MAX_PARTITION_SIZE_KEY, 1);
         this.useIncrementalRepair = MapUtils.getBoolean(options, USE_INCREMENTAL_REPAIR, true);
+        this.saiFilteringEnabled = MapUtils.getBoolean(options, SAI_FILTERING_ENABLED_KEY, DEFAULT_SAI_FILTERING_ENABLED);
+        this.saiMaxCandidateTokens = MapUtils.getInt(options, SAI_MAX_CANDIDATE_TOKENS_KEY, DEFAULT_SAI_MAX_CANDIDATE_TOKENS);
         this.lastModifiedTimestampField = MapUtils.getOrDefault(options, LAST_MODIFIED_COLUMN_NAME_KEY, null);
         this.enableExpansionShrinkCheck = MapUtils.getBoolean(options, ENABLE_EXPANSION_SHRINK_CHECK_KEY, false);
         this.requestedFeatures = initRequestedFeatures(options);
@@ -262,6 +270,16 @@ public class ClientConfig
     public boolean useIncrementalRepair()
     {
         return useIncrementalRepair;
+    }
+
+    public boolean saiFilteringEnabled()
+    {
+        return saiFilteringEnabled;
+    }
+
+    public int saiMaxCandidateTokens()
+    {
+        return saiMaxCandidateTokens;
     }
 
     public List<SchemaFeature> requestedFeatures()

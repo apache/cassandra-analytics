@@ -110,7 +110,9 @@ public class SSTableReaderTests
                                                                               navigatableTimeProvider,
                                                                               false,
                                                                               false,
-                                                                              Stats.DoNothingStats.INSTANCE))
+                                                                              Stats.DoNothingStats.INSTANCE,
+                                                                              Collections.emptyList(),
+                                                                              Integer.MAX_VALUE))
             {
                 // iterate through CompactionStreamScanner verifying it correctly compacts data together
                 RowData rowData = scanner.data();
@@ -216,10 +218,12 @@ public class SSTableReaderTests
             BasicSupplier ssTableSupplier = new BasicSupplier(dataLayer.listSSTables().collect(Collectors.toSet()));
 
             int rowCount = 0;
-            try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(
-            table, partitioner, ssTableSupplier, null, Collections.emptyList(),
-            filter, null, TimeProvider.DEFAULT,
-            false, false, Stats.DoNothingStats.INSTANCE))
+            try (StreamScanner<RowData> scanner = bridgeInTest.getCompactionScanner(table, partitioner, ssTableSupplier,
+                                                                                    null, Collections.emptyList(), filter,
+                                                                                    null, TimeProvider.DEFAULT,
+                                                                                    false, false,
+                                                                                    Stats.DoNothingStats.INSTANCE,
+                                                                                    Collections.emptyList(), Integer.MAX_VALUE))
             {
                 RowData rowData = scanner.data();
                 while (scanner.next())

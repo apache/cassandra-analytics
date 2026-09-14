@@ -59,8 +59,8 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
     private final long startTimeNanos;
     @NotNull
     private final StreamScanner<RowData> scanner;
-    @NotNull
-    private final RowData rowData;
+    @Nullable
+    private RowData rowData;
 
     // Mutable Iterator State
     private boolean skipPartition = false;
@@ -124,7 +124,6 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
         long openTimeNanos = System.nanoTime() - startTimeNanos;
         LOGGER.info("Opened CompactionScanner runtimeNanos={}", openTimeNanos);
         stats.openedCompactionScanner(openTimeNanos);
-        rowData = scanner.data();
         stats.openedSparkCellIterator();
         firstProjectedValueColumnPositionOrZero = maybeGetPositionOfFirstProjectedValueColumnOrZero();
     }
@@ -178,6 +177,8 @@ public abstract class CellIterator implements Iterator<Cell>, AutoCloseable
     {
         while (scanner.next())
         {
+            rowData = Objects.requireNonNull(scanner.data());
+
             // If hasNext returns true, it indicates the partition keys has been loaded into the rid.
             // Therefore, let's try to rebuild partition.
             // Deserialize partition keys - if we have moved to a new partition - and update 'values' Object[] array.

@@ -267,7 +267,7 @@ public class CassandraDataLayerValidationTest
                   false,                              // quoteIdentifiers
                   "",                                 // snapshotName
                   null,                               // datacenter
-                  Sidecar.ClientConfig.create(),     // sidecarClientConfig
+                  Sidecar.ClientConfig.create(),      // sidecarClientConfig
                   null,                               // sslConfig
                   mock(CqlTable.class),               // cqlTable
                   mock(TokenPartitioner.class),       // tokenPartitioner
@@ -280,12 +280,15 @@ public class CassandraDataLayerValidationTest
                   false,                              // enableStats
                   false,                              // readIndexOffset
                   false,                              // useIncrementalRepair
+                  false,                              // saiFilteringEnabled
+                  1000,                               // saiMaxCandidateTokens
                   null,                               // lastModifiedTimestampField
                   Collections.emptyList(),            // requestedFeatures
                   Collections.emptyMap(),             // rfMap
                   mock(TimeProvider.class),           // timeProvider
                   null,                               // sstableTimeRangeFilter
-                  sstableVersions);                   // sstableVersionsOnCluster
+                  sstableVersions,                    // sstableVersionsOnCluster
+                  Collections.emptyList());           // saiFilters
             this.sstableVersionsOnCluster = sstableVersions;
         }
 
