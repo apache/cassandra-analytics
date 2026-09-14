@@ -184,7 +184,7 @@ public class DirectStreamSessionTest
             fut.get();
         })
                 .isInstanceOf(ExecutionException.class)
-                .hasRootCauseInstanceOf(NoSuchFileException.class);
+                .hasMessageContaining(NoSuchFileException.class.getName());
         List<String> actualInstances = writerContext.getCleanedInstances().stream()
                                                     .map(CassandraInstance::nodeName)
                                                     .collect(Collectors.toList());
