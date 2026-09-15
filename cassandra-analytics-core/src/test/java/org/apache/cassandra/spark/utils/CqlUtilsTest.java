@@ -145,11 +145,12 @@ public class CqlUtilsTest extends VersionRunner
     @Test
     public void testExtractReplicationFactorWithWitnessReplicas()
     {
-        // Witness-enabled keyspace as created by Cassandra's WitnessAlwaysReadsFullReplicaTest on the
-        // cep-45-mutation-tracking branch: the <replicas>/<transient> form plus replication_type = 'tracked'
+        // The <replicas>/<transient> form, as Cassandra's WitnessAlwaysReadsFullReplicaTest creates it on the
+        // cep-45-mutation-tracking branch. replication_type is deliberately omitted: Sidecar builds its schema
+        // response from the driver's exportAsString(), which does not emit that property, and it is irrelevant to
+        // replication factor parsing in any case. extractReplicationType is covered separately.
         String schema = "CREATE KEYSPACE witnessks WITH REPLICATION = {'class': 'NetworkTopologyStrategy', "
-                        + "'datacenter1': '3/1', 'datacenter2': '3/1'} AND replication_type = 'tracked' "
-                        + "AND durable_writes = true;\n";
+                        + "'datacenter1': '3/1', 'datacenter2': '3/1'} AND durable_writes = true;\n";
 
         ReplicationFactor rf = CqlUtils.extractReplicationFactor(schema, "witnessks");
         assertThat(rf).isNotNull();
@@ -162,15 +163,13 @@ public class CqlUtilsTest extends VersionRunner
         assertThat(rf.hasTransientReplicas()).isTrue();
         assertThat(rf.getFullReplicas("datacenter1")).isEqualTo(2);
         assertThat(rf.getTransientReplicas("datacenter1")).isEqualTo(1);
-
-        assertThat(CqlUtils.isTracked(CqlUtils.extractReplicationType(schema, "witnessks"))).isTrue();
     }
 
     @Test
     public void testExtractReplicationFactorMixedWitnessAndFullDatacenters()
     {
         String schema = "CREATE KEYSPACE mixedks WITH REPLICATION = {'class': 'NetworkTopologyStrategy', "
-                        + "'datacenter1': '3/1', 'datacenter2': '3'} AND replication_type = 'tracked';\n";
+                        + "'datacenter1': '3/1', 'datacenter2': '3'} AND durable_writes = true;\n";
 
         ReplicationFactor rf = CqlUtils.extractReplicationFactor(schema, "mixedks");
         assertThat(rf.getTotalReplicationFactor()).isEqualTo(6);
@@ -197,7 +196,7 @@ public class CqlUtilsTest extends VersionRunner
     {
         // An unparseable value must be reported here rather than silently dropping the datacenter, which
         // would surface later as a confusing "DC not found in replication factor" error
-        for (String malformed : new String[]{ "xyz", "3/", "3/1/1", "3/x", "3/3" })
+        for (String malformed : new String[]{"xyz", "3/", "3/1/1", "3/x", "3/3"})
         {
             String schema = "CREATE KEYSPACE badks WITH REPLICATION = {'class': 'NetworkTopologyStrategy', "
                             + "'datacenter1': '" + malformed + "'} AND durable_writes = true;\n";

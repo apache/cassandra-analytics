@@ -177,11 +177,11 @@ public final class CqlUtils
         }
 
         // Values may use the <replicas>/<transient> form for witness replicas, so delegate parsing to
-        // ReplicationFactor. parseStrict reports an unparseable value directly instead of dropping the
-        // datacenter, which would otherwise surface later as a confusing "DC not found" error.
+        // ReplicationFactor, which reports an unparseable value rather than dropping the datacenter. Dropping it
+        // would surface later as a confusing "DC not found in replication factor" error.
         try
         {
-            return ReplicationFactor.parseStrict(map);
+            return new ReplicationFactor(map);
         }
         catch (IllegalArgumentException exception)
         {
