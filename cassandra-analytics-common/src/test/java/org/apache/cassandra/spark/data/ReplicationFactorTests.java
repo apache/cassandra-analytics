@@ -207,24 +207,24 @@ public class ReplicationFactorTests
     @Test
     public void testTransientEqualToTotalIsRejected()
     {
-        // Cassandra requires at least one full replica, so 3/3 is invalid
-        ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
+        // Cassandra requires at least one full replica, so 3/3 is invalid and must not be accepted silently
+        assertThatThrownBy(() -> new ReplicationFactor(ImmutableMap.of(
         "class", "NetworkTopologyStrategy",
-        "datacenter1", "3/3"));
-        assertThat(replicationFactor.getOptions()).doesNotContainKey("datacenter1");
+        "datacenter1", "3/3")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("datacenter1");
     }
 
     @Test
-    public void testMalformedTransientValuesAreSkipped()
+    public void testMalformedReplicationValuesAreRejected()
     {
-        for (String malformed : new String[]{ "3/", "/1", "3/1/1", "3/x", "x/1", "3/-1", "" })
+        for (String malformed : new String[]{"3/", "/1", "3/1/1", "3/x", "x/1", "3/-1", ""})
         {
-            ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
+            assertThatThrownBy(() -> new ReplicationFactor(ImmutableMap.of(
             "class", "NetworkTopologyStrategy",
-            "datacenter1", malformed));
-            assertThat(replicationFactor.getOptions())
-            .as("malformed value '%s' should not produce a replication factor entry", malformed)
-            .doesNotContainKey("datacenter1");
+            "datacenter1", malformed)))
+            .as("malformed replication value '%s' should be rejected", malformed)
+            .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
@@ -264,10 +264,11 @@ public class ReplicationFactorTests
     @Test
     public void testNegativeReplicationFactorIsRejected()
     {
-        ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
+        assertThatThrownBy(() -> new ReplicationFactor(ImmutableMap.of(
         "class", "NetworkTopologyStrategy",
-        "datacenter1", "-3"));
-        assertThat(replicationFactor.getOptions()).doesNotContainKey("datacenter1");
+        "datacenter1", "-3")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("datacenter1");
     }
 
     @Test
@@ -283,81 +284,6 @@ public class ReplicationFactorTests
     }
 
     // parseStrict: same parsing, but an unparseable value raises instead of dropping the datacenter
-
-    @Test
-    public void testParseStrictRaisesOnUnparseableValue()
-    {
-        assertThatThrownBy(() -> ReplicationFactor.parseStrict(ImmutableMap.of(
-        "class", "NetworkTopologyStrategy",
-        "datacenter1", "xyz")))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("datacenter1");
-    }
-
-    @Test
-    public void testParseStrictAcceptsTransientForm()
-    {
-        ReplicationFactor replicationFactor = ReplicationFactor.parseStrict(ImmutableMap.of(
-        "class", "NetworkTopologyStrategy",
-        "datacenter1", "3/1"));
-        assertThat(replicationFactor.getTotalReplicationFactor()).isEqualTo(3);
-        assertThat(replicationFactor.getFullReplicationFactor()).isEqualTo(2);
-    }
-
-    @Test
-    public void testLenientConstructorStillDropsUnparseableValue()
-    {
-        // The lenient constructor is retained for callers that tolerate a partial replication factor
-        ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
-        "class", "NetworkTopologyStrategy",
-        "datacenter1", "3",
-        "datacenter2", "xyz"));
-        assertThat(replicationFactor.getOptions()).containsOnlyKeys("datacenter1");
-    }
-
-    @Test
-    public void testParseStrictRaisesWhenNoDatacenterEntries()
-    {
-        assertThatThrownBy(() -> ReplicationFactor.parseStrict(ImmutableMap.of(
-        "class", "NetworkTopologyStrategy")))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("Could not find replication info in schema map");
-    }
-
-    @Test
-    public void testParseStrictRaisesWhenEveryDatacenterIsUnparseable()
-    {
-        // Every entry dropped is the same situation as no entries at all, and must not yield an empty
-        // replication factor that fails later with a misleading message
-        assertThatThrownBy(() -> ReplicationFactor.parseStrict(ImmutableMap.of(
-        "class", "NetworkTopologyStrategy",
-        "datacenter1", "xyz")))
-        .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    public void testParseStrictAllowsLocalStrategyWithNoEntries()
-    {
-        // LocalStrategy legitimately has no datacenter entries, e.g. the system_schema keyspace
-        ReplicationFactor replicationFactor = ReplicationFactor.parseStrict(ImmutableMap.of(
-        "class", "org.apache.cassandra.locator.LocalStrategy"));
-        assertThat(replicationFactor.getReplicationStrategy())
-        .isEqualTo(ReplicationFactor.ReplicationStrategy.LocalStrategy);
-        assertThat(replicationFactor.getOptions()).isEmpty();
-        assertThat(replicationFactor.getTotalReplicationFactor()).isEqualTo(0);
-    }
-
-    @Test
-    public void testLenientConstructorAllowsNoDatacenterEntries()
-    {
-        // Unchanged lenient behaviour: no guard, so CDC callers are unaffected
-        ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
-        "class", "NetworkTopologyStrategy"));
-        assertThat(replicationFactor.getOptions()).isEmpty();
-    }
-
-    // Serialization: a new field that silently fails to round-trip would surface as wrong
-    // replication data on Spark executors, so cover both paths with a non-zero transient count
 
     @Test
     public void testKryoSerializationRoundTripWithTransientReplicas() throws Exception
@@ -412,31 +338,70 @@ public class ReplicationFactorTests
     }
 
     @Test
-    public void testReadResolveToleratesLegacyEmptyOptions() throws Exception
+    public void testUnparseableValueIsRejected()
     {
-        // An instance serialized before transient replica support deserializes with a null transientOptions, and
-        // the older lenient constructor allowed a non-LocalStrategy replication factor with no datacenter entries.
-        // readResolve must normalise it rather than turn it into a deserialization failure.
-        ReplicationFactor legacy = new ReplicationFactor(ImmutableMap.of("class", "NetworkTopologyStrategy"));
-        assertThat(legacy.getOptions()).isEmpty();
+        assertThatThrownBy(() -> new ReplicationFactor(ImmutableMap.of(
+        "class", "NetworkTopologyStrategy",
+        "datacenter1", "xyz")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("datacenter1");
+    }
 
-        Field transientOptions = ReplicationFactor.class.getDeclaredField("transientOptions");
-        transientOptions.setAccessible(true);
-        transientOptions.set(legacy, null);
+    @Test
+    public void testNoDatacenterEntriesIsRejected()
+    {
+        assertThatThrownBy(() -> new ReplicationFactor(ImmutableMap.of(
+        "class", "NetworkTopologyStrategy")))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Could not find replication info");
+    }
 
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
-        {
-            out.writeObject(legacy);
-        }
-        ReplicationFactor deserialized;
-        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())))
-        {
-            deserialized = (ReplicationFactor) in.readObject();
-        }
+    @Test
+    public void testLocalStrategyWithNoEntriesIsAllowed()
+    {
+        // LocalStrategy legitimately has no datacenter entries, e.g. the system_schema keyspace
+        ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
+        "class", "org.apache.cassandra.locator.LocalStrategy"));
+        assertThat(replicationFactor.getReplicationStrategy())
+        .isEqualTo(ReplicationFactor.ReplicationStrategy.LocalStrategy);
+        assertThat(replicationFactor.getOptions()).isEmpty();
+        assertThat(replicationFactor.getTotalReplicationFactor()).isEqualTo(0);
+    }
 
-        assertThat(deserialized.getOptions()).isEmpty();
-        assertThat(deserialized.hasTransientReplicas()).isFalse();
-        assertThat(deserialized.getTransientReplicationFactor()).isEqualTo(0);
+    // The per-datacenter counts are held together rather than in two parallel maps, so the total and the
+    // transient count cannot drift apart
+
+    @Test
+    public void testReplicationExposesCombinedCounts()
+    {
+        ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
+        "class", "NetworkTopologyStrategy",
+        "datacenter1", "3/1",
+        "datacenter2", "3"));
+
+        assertThat(replicationFactor.getReplication()).containsOnlyKeys("datacenter1", "datacenter2");
+        ReplicationFactor.ReplicaCounts dc1 = replicationFactor.getReplication().get("datacenter1");
+        assertThat(dc1.allReplicas()).isEqualTo(3);
+        assertThat(dc1.fullReplicas()).isEqualTo(2);
+        assertThat(dc1.transientReplicas()).isEqualTo(1);
+
+        ReplicationFactor.ReplicaCounts dc2 = replicationFactor.getReplication().get("datacenter2");
+        assertThat(dc2.allReplicas()).isEqualTo(3);
+        assertThat(dc2.fullReplicas()).isEqualTo(3);
+        assertThat(dc2.transientReplicas()).isEqualTo(0);
+    }
+
+    @Test
+    public void testDerivedOptionMapsAreUnmodifiable()
+    {
+        ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
+        "class", "NetworkTopologyStrategy",
+        "datacenter1", "3/1"));
+        assertThatThrownBy(() -> replicationFactor.getOptions().put("datacenter2", 3))
+        .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> replicationFactor.getTransientOptions().put("datacenter2", 1))
+        .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> replicationFactor.getReplication().remove("datacenter1"))
+        .isInstanceOf(UnsupportedOperationException.class);
     }
 }
