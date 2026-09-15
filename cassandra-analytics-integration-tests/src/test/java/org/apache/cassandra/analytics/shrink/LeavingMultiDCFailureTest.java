@@ -20,27 +20,21 @@ package org.apache.cassandra.analytics.shrink;
 
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.dynamic.ClassFileLocator;
-import net.bytebuddy.dynamic.TypeResolutionStrategy;
-import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
-import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
-import net.bytebuddy.pool.TypePool;
 import org.apache.cassandra.analytics.TestConsistencyLevel;
+import org.apache.cassandra.analytics.TestUninterruptibles;
+import org.apache.cassandra.analytics.TopologyChangeBBUtils;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.sidecar.testing.QualifiedName;
 import org.apache.cassandra.spark.bulkwriter.WriterOptions;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
-import static net.bytebuddy.matcher.ElementMatchers.named;
 import static org.apache.cassandra.testing.TestUtils.CREATE_TEST_TABLE_STATEMENT;
 import static org.apache.cassandra.testing.TestUtils.DC1_RF3_DC2_RF3;
 import static org.apache.cassandra.testing.TestUtils.ROW_COUNT;
@@ -74,7 +68,7 @@ class LeavingMultiDCFailureTest extends LeavingTestBase
     @Override
     protected void beforeClusterShutdown()
     {
-        completeTransitionsAndValidateWrites(BBHelperLeavingNodesMultiDCFailure.transitionalStateEnd, multiDCTestInputs());
+        completeTransitionsAndValidateWrites(BBHelperLeavingNodesMultiDCFailure.transitionalStateEnd, multiDCTestInputs(), true);
 
         // For tests that involve LEAVE failures, we validate that the leaving nodes are part of the cluster
         // check leave node are part of cluster when leave fails
@@ -91,40 +85,25 @@ class LeavingMultiDCFailureTest extends LeavingTestBase
     }
 
     @Override
-    protected int leavingNodesPerDc()
-    {
-        return 1;
-    }
-
-    @Override
     protected CountDownLatch transitioningStateStart()
     {
         return BBHelperLeavingNodesMultiDCFailure.transitionalStateStart;
     }
 
     /**
-     * ByteBuddy helper for multiple leaving nodes multi-DC failure scenario
+     * ByteBuddy helper for a leaving node in a multi-DC cluster failure scenario
      */
     public static class BBHelperLeavingNodesMultiDCFailure
     {
-        static final CountDownLatch transitionalStateStart = new CountDownLatch(2);
-        static final CountDownLatch transitionalStateEnd = new CountDownLatch(2);
+        static final CountDownLatch transitionalStateStart = new CountDownLatch(1);
+        static final CountDownLatch transitionalStateEnd = new CountDownLatch(1);
 
         public static void install(ClassLoader cl, Integer nodeNumber)
         {
-            // Test case involves 10 node cluster (5 nodes per DC) with a 2 leaving nodes (1 per DC)
-            // We intercept the shutdown of the leaving nodes (9, 10) to validate token ranges
-            if (nodeNumber > 8)
+            // Intercept the last node leaving the two-datacenter cluster.
+            if (nodeNumber == 10)
             {
-                TypePool typePool = TypePool.Default.of(cl);
-                TypeDescription description = typePool.describe("org.apache.cassandra.service.StorageService")
-                                                      .resolve();
-                new ByteBuddy().rebase(description, ClassFileLocator.ForClassLoader.of(cl))
-                               .method(named("unbootstrap"))
-                               .intercept(MethodDelegation.to(BBHelperLeavingNodesMultiDCFailure.class))
-                               // Defer class loading until all dependencies are loaded
-                               .make(TypeResolutionStrategy.Lazy.INSTANCE, typePool)
-                               .load(cl, ClassLoadingStrategy.Default.INJECTION);
+                TopologyChangeBBUtils.installLeaving(cl, BBHelperLeavingNodesMultiDCFailure.class);
             }
         }
 
@@ -132,8 +111,8 @@ class LeavingMultiDCFailureTest extends LeavingTestBase
         public static void unbootstrap(@SuperCall Callable<?> orig) throws Exception
         {
             transitionalStateStart.countDown();
-            Uninterruptibles.awaitUninterruptibly(transitionalStateEnd, 2, TimeUnit.MINUTES);
-            throw new UnsupportedOperationException("Simulate leave failure");
+            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitionalStateEnd, 2, TimeUnit.MINUTES);
+            throw new ExecutionException(new UnsupportedOperationException("Simulated leave failure"));
         }
     }
 }

@@ -19,9 +19,12 @@
 
 package org.apache.cassandra.bridge;
 
+import java.util.function.Supplier;
+
 import org.apache.cassandra.schema.DistributedSchema;
 import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.Keyspaces;
+import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.schema.SchemaProvider;
 import org.apache.cassandra.schema.SchemaTransformation;
 import org.apache.cassandra.schema.SchemaTransformations;
@@ -40,6 +43,30 @@ public class SchemaUpdater
 {
     private SchemaUpdater()
     {
+    }
+
+    /**
+     * Preserves keyspace instances across schema commits made by an offline SSTable writer.
+     * Readers use the same lock to avoid observing a committed schema before its instances are ready.
+     */
+    public static <T> T withKeyspaceInstances(Supplier<T> action)
+    {
+        synchronized (Schema.instance)
+        {
+            ClusterMetadata before = ClusterMetadata.current();
+            try
+            {
+                return action.get();
+            }
+            finally
+            {
+                ClusterMetadata after = ClusterMetadata.current();
+                if (after.schema != before.schema)
+                {
+                    after.schema.initializeKeyspaceInstances(before.schema, false);
+                }
+            }
+        }
     }
 
     /**
