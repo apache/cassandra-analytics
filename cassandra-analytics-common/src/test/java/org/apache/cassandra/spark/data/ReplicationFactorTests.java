@@ -283,8 +283,6 @@ public class ReplicationFactorTests
         assertThat(replicationFactor.getTotalReplicationFactor()).isEqualTo(3);
     }
 
-    // parseStrict: same parsing, but an unparseable value raises instead of dropping the datacenter
-
     @Test
     public void testKryoSerializationRoundTripWithTransientReplicas() throws Exception
     {
