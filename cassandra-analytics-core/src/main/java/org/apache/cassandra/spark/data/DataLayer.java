@@ -24,6 +24,7 @@ import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -94,6 +95,8 @@ public abstract class DataLayer implements Serializable
     public StructType structType()
     {
         StructType structType = new StructType();
+        Set<String> fieldNames = new HashSet<>();
+
         for (CqlField field : cqlTable().fields())
         {
             // Pass Cassandra field metadata in StructField metadata
@@ -102,11 +105,18 @@ public abstract class DataLayer implements Serializable
                                         typeConverter().sparkSqlType(field, bigNumberConfig(field)),
                                         true,
                                         metadata.build());
+            fieldNames.add(field.name());
         }
 
         // Append the requested feature fields
         for (SchemaFeature feature : requestedFeatures())
         {
+            if (!fieldNames.add(feature.fieldName()))
+            {
+                throw new IllegalArgumentException(
+                    String.format("Schema feature field '%s' conflicts with an existing field",
+                                  feature.fieldName()));
+            }
             feature.generateDataType(cqlTable(), structType);
             structType = structType.add(feature.field());
         }
