@@ -20,6 +20,7 @@
 package org.apache.cassandra.clients;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +32,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import o.a.c.sidecar.client.shaded.client.SidecarIdentityProvider;
 import o.a.c.sidecar.client.shaded.common.response.GossipInfoResponse;
 
 import org.slf4j.Logger;
@@ -63,6 +65,8 @@ import org.jetbrains.annotations.Nullable;
 
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_CHUNK_BUFFER_SIZE;
+import static org.apache.cassandra.spark.utils.Properties.DEFAULT_SIDECAR_IDENTITY_PROVIDER_CLASS;
+import static org.apache.cassandra.spark.utils.Properties.DEFAULT_SIDECAR_IDENTITY_PROVIDER_PARAMETERS;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_BUFFER_OVERRIDE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_BUFFER_SIZE;
 import static org.apache.cassandra.spark.utils.Properties.DEFAULT_MAX_MILLIS_TO_SLEEP;
@@ -121,6 +125,7 @@ public final class Sidecar
                                                                    .maxRetries(config.maxRetries())
                                                                    .retryDelayMillis(config.millisToSleep())
                                                                    .maxRetryDelayMillis(config.maxMillisToSleep())
+                                                                   .identityProvider(config.identityProviderClass(), config.identityProviderParameters())
                                                                    .build();
 
         return buildClient(sidecarConfig, vertx, httpClientConfig, sidecarInstancesProvider);
@@ -136,8 +141,30 @@ public final class Sidecar
                                                                            sidecarConfig.maxRetryDelayMillis());
 
         VertxHttpClient vertxHttpClient = new VertxHttpClient(vertx, httpClientConfig);
-        VertxRequestExecutor requestExecutor = new VertxRequestExecutor(vertxHttpClient);
+        SidecarIdentityProvider identityProvider = buildIdentityProvider(sidecarConfig, vertxHttpClient);
+        VertxRequestExecutor requestExecutor = new VertxRequestExecutor(vertxHttpClient, identityProvider);
         return new SidecarClient(clusterConfig, requestExecutor, sidecarConfig, defaultRetryPolicy);
+    }
+
+    public static SidecarIdentityProvider buildIdentityProvider(SidecarClientConfig sidecarConfig, VertxHttpClient vertxHttpClient)
+    {
+        if (sidecarConfig.identityProviderClass() == null)
+        {
+            return SidecarIdentityProvider.NOOP;
+        }
+        try
+        {
+            // instantiate identity provider only once we have created the HTTP client
+            SidecarIdentityProvider instance = (SidecarIdentityProvider) Class.forName(sidecarConfig.identityProviderClass())
+                                                                              .getDeclaredConstructor().newInstance();
+            instance.initialize(sidecarConfig.identityProviderParameters(), vertxHttpClient);
+            return instance;
+        }
+        catch (ClassNotFoundException | ClassCastException | InvocationTargetException | InstantiationException
+               | IllegalAccessException | NoSuchMethodException e)
+        {
+            throw new RuntimeException("Failed to instantiate identity provider: " + sidecarConfig.identityProviderClass(), e);
+        }
     }
 
     public static List<CompletableFuture<NodeSettings>> allNodeSettings(SidecarClient client,
@@ -250,6 +277,8 @@ public final class Sidecar
         public static final String TIMEOUT_SECONDS_KEY = "timeoutSeconds";
         public static final String CASSANDRA_ROLE_KEY = "cassandra_role";
         public static final String DEFAULT_CASSANDRA_ROLE = null;
+        public static final String SIDECAR_IDENTITY_PROVIDER_CLASS = "sidecar_identity_provider_class";
+        public static final String SIDECAR_IDENTITY_PROVIDER_PARAMETER_PREFIX = "sidecar_identity_provider_parameter.";
 
         private final int userProvidedPort;
         private final int maxRetries;
@@ -262,6 +291,8 @@ public final class Sidecar
         private final String cassandraRole;
         private final Map<FileType, Long> maxBufferOverride;
         private final Map<FileType, Long> chunkBufferOverride;
+        private final String identityProviderClass;
+        private final Map<String, String> identityProviderParameters;
 
         // CHECKSTYLE IGNORE: Constructor with many parameters
         private ClientConfig(int userProvidedPort,
@@ -274,7 +305,9 @@ public final class Sidecar
                              int timeoutSeconds,
                              String cassandraRole,
                              Map<FileType, Long> maxBufferOverride,
-                             Map<FileType, Long> chunkBufferOverride)
+                             Map<FileType, Long> chunkBufferOverride,
+                             String identityProviderClass,
+                             Map<String, String> identityProviderParameters)
         {
             this.userProvidedPort = userProvidedPort;
             this.maxRetries = maxRetries;
@@ -287,6 +320,8 @@ public final class Sidecar
             this.cassandraRole = cassandraRole;
             this.maxBufferOverride = maxBufferOverride;
             this.chunkBufferOverride = chunkBufferOverride;
+            this.identityProviderClass = identityProviderClass;
+            this.identityProviderParameters = identityProviderParameters;
         }
 
         public int userProvidedPort()
@@ -355,6 +390,17 @@ public final class Sidecar
         }
 
         @Nullable
+        public String identityProviderClass()
+        {
+            return identityProviderClass;
+        }
+
+        public Map<String, String> identityProviderParameters()
+        {
+            return identityProviderParameters;
+        }
+
+        @Nullable
         public String cassandraRole()
         {
             return cassandraRole;
@@ -382,7 +428,9 @@ public final class Sidecar
                                        DEFAULT_TIMEOUT_SECONDS,
                                        DEFAULT_CASSANDRA_ROLE,
                                        DEFAULT_MAX_BUFFER_OVERRIDE,
-                                       DEFAULT_CHUNK_BUFFER_OVERRIDE);
+                                       DEFAULT_CHUNK_BUFFER_OVERRIDE,
+                                       DEFAULT_SIDECAR_IDENTITY_PROVIDER_CLASS,
+                                       DEFAULT_SIDECAR_IDENTITY_PROVIDER_PARAMETERS);
         }
 
         public static ClientConfig create(Map<String, String> options)
@@ -398,7 +446,9 @@ public final class Sidecar
                           MapUtils.getInt(options, TIMEOUT_SECONDS_KEY, DEFAULT_TIMEOUT_SECONDS),
                           MapUtils.getOrDefault(options, CASSANDRA_ROLE_KEY, DEFAULT_CASSANDRA_ROLE),
                           buildMaxBufferOverride(options, DEFAULT_MAX_BUFFER_OVERRIDE),
-                          buildChunkBufferOverride(options, DEFAULT_CHUNK_BUFFER_OVERRIDE)
+                          buildChunkBufferOverride(options, DEFAULT_CHUNK_BUFFER_OVERRIDE),
+                          MapUtils.getOrDefault(options, SIDECAR_IDENTITY_PROVIDER_CLASS, DEFAULT_SIDECAR_IDENTITY_PROVIDER_CLASS),
+                          MapUtils.getKeysWithPrefix(options, SIDECAR_IDENTITY_PROVIDER_PARAMETER_PREFIX, true, DEFAULT_SIDECAR_IDENTITY_PROVIDER_PARAMETERS)
             );
         }
 
@@ -439,7 +489,9 @@ public final class Sidecar
                                           int timeoutSeconds,
                                           String cassandraRole,
                                           Map<FileType, Long> maxBufferOverride,
-                                          Map<FileType, Long> chunkBufferOverride)
+                                          Map<FileType, Long> chunkBufferOverride,
+                                          String identityProviderClass,
+                                          Map<String, String> identityProviderParameters)
         {
             return new ClientConfig(userProvidedPort,
                                     maxRetries,
@@ -451,7 +503,9 @@ public final class Sidecar
                                     timeoutSeconds,
                                     cassandraRole,
                                     maxBufferOverride,
-                                    chunkBufferOverride);
+                                    chunkBufferOverride,
+                                    identityProviderClass,
+                                    identityProviderParameters);
         }
     }
 }

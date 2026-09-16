@@ -174,10 +174,10 @@ public class CoordinatedCloudStorageDataTransferApi implements CloudStorageDataT
                                                                                 restoreJobId,
                                                                                 createSliceRequestPayload);
         RetryPolicy retryPolicy = new CloudStorageDataTransferApiImpl.ExecutorCreateSliceRetryPolicy(sidecarClient);
-        RequestContext requestContext = sidecarClient.requestBuilder().retryPolicy(retryPolicy).request(request).build();
+        RequestContext.Builder requestBuilder = sidecarClient.requestBuilder().retryPolicy(retryPolicy).request(request);
         try
         {
-            sidecarClient.executeRequestAsync(requestContext).get();
+            sidecarClient.executeRequestAsync(requestBuilder).get();
         }
         catch (Exception exception)
         {

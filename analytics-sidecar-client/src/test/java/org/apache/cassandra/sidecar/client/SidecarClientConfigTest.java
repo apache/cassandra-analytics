@@ -19,6 +19,9 @@
 
 package org.apache.cassandra.sidecar.client;
 
+import java.util.Collections;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,6 +38,8 @@ class SidecarClientConfigTest
         assertThat(config.maxRetries()).isEqualTo(3);
         assertThat(config.retryDelayMillis()).isEqualTo(500L);
         assertThat(config.maxRetryDelayMillis()).isEqualTo(60_000L);
+        assertThat(config.identityProviderClass()).isNull();
+        assertThat(config.identityProviderParameters()).isEmpty();
     }
 
     @Test
@@ -59,15 +64,32 @@ class SidecarClientConfigTest
     }
 
     @Test
+    void testIdentityProvider()
+    {
+        String providerClass = "org.apache.cassandra.sidecar.client.TestIdentityProvider";
+        Map<String, String> providerParams = Collections.singletonMap("key1", "value1");
+        SidecarClientConfig config = SidecarClientConfigImpl.builder()
+                                                            .identityProvider(providerClass, providerParams)
+                                                            .build();
+        assertThat(config.identityProviderClass()).isEqualTo(providerClass);
+        assertThat(config.identityProviderParameters()).isEqualTo(providerParams);
+    }
+
+    @Test
     void testAllOptions()
     {
+        String providerClass = "org.apache.cassandra.sidecar.client.TestIdentityProvider";
+        Map<String, String> providerParams = Collections.singletonMap("key1", "value1");
         SidecarClientConfig config = SidecarClientConfigImpl.builder()
                                                             .maxRetries(10)
                                                             .retryDelayMillis(100)
                                                             .maxRetryDelayMillis(5_100)
+                                                            .identityProvider(providerClass, providerParams)
                                                             .build();
         assertThat(config.maxRetries()).isEqualTo(10);
         assertThat(config.retryDelayMillis()).isEqualTo(100L);
         assertThat(config.maxRetryDelayMillis()).isEqualTo(5_100L);
+        assertThat(config.identityProviderClass()).isEqualTo(providerClass);
+        assertThat(config.identityProviderParameters()).isEqualTo(providerParams);
     }
 }
