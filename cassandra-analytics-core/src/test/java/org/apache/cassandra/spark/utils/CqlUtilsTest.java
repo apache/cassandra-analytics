@@ -145,10 +145,6 @@ public class CqlUtilsTest extends VersionRunner
     @Test
     public void testExtractReplicationFactorWithWitnessReplicas()
     {
-        // The <replicas>/<transient> form, as Cassandra's WitnessAlwaysReadsFullReplicaTest creates it on the
-        // cep-45-mutation-tracking branch. replication_type is deliberately omitted: Sidecar builds its schema
-        // response from the driver's exportAsString(), which does not emit that property, and it is irrelevant to
-        // replication factor parsing in any case. extractReplicationType is covered separately.
         String schema = "CREATE KEYSPACE witnessks WITH REPLICATION = {'class': 'NetworkTopologyStrategy', "
                         + "'datacenter1': '3/1', 'datacenter2': '3/1'} AND durable_writes = true;\n";
 
