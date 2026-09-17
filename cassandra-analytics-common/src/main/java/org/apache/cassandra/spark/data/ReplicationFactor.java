@@ -117,6 +117,15 @@ public class ReplicationFactor implements Serializable
     @NotNull
     private final Map<String, ReplicaCounts> replication;
 
+    // Derived from replication, computed once because this class is immutable. Marked transient so they are absent
+    // from the serialized form: readResolve rebuilds through the canonical constructor, and the Kryo serializer
+    // already goes through it, so neither path can leave these out of step with replication.
+    private final transient int totalReplicationFactor;
+    private final transient int fullReplicationFactor;
+    private final transient int transientReplicationFactor;
+    private final transient Map<String, Integer> options;
+    private final transient Map<String, Integer> transientOptions;
+
     /**
      * Parses a raw replication map. A value that cannot be parsed, or that Cassandra itself would reject, raises
      * {@link IllegalArgumentException} naming the offending datacenter: a partial replication factor is not usable
@@ -160,6 +169,27 @@ public class ReplicationFactor implements Serializable
         }
         this.replicationStrategy = replicationStrategy;
         this.replication = Collections.unmodifiableMap(new LinkedHashMap<>(replication));
+
+        int total = 0;
+        int transientCount = 0;
+        Map<String, Integer> allByDatacenter = new LinkedHashMap<>(this.replication.size());
+        Map<String, Integer> transientByDatacenter = new LinkedHashMap<>();
+        for (Map.Entry<String, ReplicaCounts> entry : this.replication.entrySet())
+        {
+            ReplicaCounts counts = entry.getValue();
+            total += counts.allReplicas();
+            transientCount += counts.transientReplicas();
+            allByDatacenter.put(entry.getKey(), counts.allReplicas());
+            if (counts.transientReplicas() > 0)
+            {
+                transientByDatacenter.put(entry.getKey(), counts.transientReplicas());
+            }
+        }
+        this.totalReplicationFactor = total;
+        this.transientReplicationFactor = transientCount;
+        this.fullReplicationFactor = total - transientCount;
+        this.options = Collections.unmodifiableMap(allByDatacenter);
+        this.transientOptions = Collections.unmodifiableMap(transientByDatacenter);
     }
 
     /**
@@ -218,7 +248,7 @@ public class ReplicationFactor implements Serializable
      */
     public Integer getTotalReplicationFactor()
     {
-        return replication.values().stream().mapToInt(ReplicaCounts::allReplicas).sum();
+        return totalReplicationFactor;
     }
 
     /**
@@ -227,7 +257,7 @@ public class ReplicationFactor implements Serializable
      */
     public Integer getFullReplicationFactor()
     {
-        return replication.values().stream().mapToInt(ReplicaCounts::fullReplicas).sum();
+        return fullReplicationFactor;
     }
 
     /**
@@ -235,7 +265,7 @@ public class ReplicationFactor implements Serializable
      */
     public Integer getTransientReplicationFactor()
     {
-        return replication.values().stream().mapToInt(ReplicaCounts::transientReplicas).sum();
+        return transientReplicationFactor;
     }
 
     /**
@@ -243,17 +273,17 @@ public class ReplicationFactor implements Serializable
      */
     public boolean hasTransientReplicas()
     {
-        return replication.values().stream().anyMatch(counts -> counts.transientReplicas() > 0);
+        return !transientOptions.isEmpty();
     }
 
     /**
      * @param datacenter the datacenter to look up
-     * @return the number of transient (witness) replicas in {@code datacenter}, {@code 0} when none are configured
+     * @return the number of transient (witness) replicas in {@code datacenter}, {@code 0} when it has none
+     * @throws IllegalArgumentException when {@code datacenter} has no replication factor
      */
     public int getTransientReplicas(@NotNull String datacenter)
     {
-        ReplicaCounts counts = replication.get(datacenter);
-        return counts == null ? 0 : counts.transientReplicas();
+        return counts(datacenter).transientReplicas();
     }
 
     /**
@@ -293,9 +323,7 @@ public class ReplicationFactor implements Serializable
     @NotNull
     public Map<String, Integer> getOptions()
     {
-        Map<String, Integer> options = new LinkedHashMap<>(replication.size());
-        replication.forEach((datacenter, counts) -> options.put(datacenter, counts.allReplicas()));
-        return Collections.unmodifiableMap(options);
+        return options;
     }
 
     /**
@@ -305,14 +333,7 @@ public class ReplicationFactor implements Serializable
     @NotNull
     public Map<String, Integer> getTransientOptions()
     {
-        Map<String, Integer> transientOptions = new LinkedHashMap<>();
-        replication.forEach((datacenter, counts) -> {
-            if (counts.transientReplicas() > 0)
-            {
-                transientOptions.put(datacenter, counts.transientReplicas());
-            }
-        });
-        return Collections.unmodifiableMap(transientOptions);
+        return transientOptions;
     }
 
     @NotNull
@@ -364,7 +385,8 @@ public class ReplicationFactor implements Serializable
             "ReplicationFactor was serialized by an incompatible version: per-datacenter replica counts are absent. "
             + "Driver and executors must run the same version.");
         }
-        return this;
+        // Rebuild through the canonical constructor so the derived fields, which are transient, are populated
+        return new ReplicationFactor(replicationStrategy, replication, replication);
     }
 
     /**

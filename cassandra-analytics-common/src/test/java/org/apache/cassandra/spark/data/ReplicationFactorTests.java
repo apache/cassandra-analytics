@@ -402,4 +402,73 @@ public class ReplicationFactorTests
         assertThatThrownBy(() -> replicationFactor.getReplication().remove("datacenter1"))
         .isInstanceOf(UnsupportedOperationException.class);
     }
+
+    @Test
+    public void testGetTransientReplicasUnknownDatacenter()
+    {
+        // Consistent with getFullReplicas: an unknown datacenter is a programming error, not zero transients
+        ReplicationFactor replicationFactor = new ReplicationFactor(ImmutableMap.of(
+        "class", "NetworkTopologyStrategy",
+        "datacenter1", "3/1"));
+        assertThatThrownBy(() -> replicationFactor.getTransientReplicas("nosuchdc"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("nosuchdc");
+    }
+
+    @Test
+    public void testPrecomputedValuesSurviveJdkSerialization() throws Exception
+    {
+        // The aggregate counts and derived maps are precomputed and transient, so they are absent from the
+        // serialized form and must be rebuilt on the way back in
+        ReplicationFactor original = new ReplicationFactor(ImmutableMap.of(
+        "class", "NetworkTopologyStrategy",
+        "datacenter1", "3/1",
+        "datacenter2", "3"));
+
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ObjectOutputStream out = new ObjectOutputStream(bytes))
+        {
+            out.writeObject(original);
+        }
+        ReplicationFactor deserialized;
+        try (ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            deserialized = (ReplicationFactor) in.readObject();
+        }
+
+        assertThat(deserialized.getTotalReplicationFactor()).isEqualTo(6);
+        assertThat(deserialized.getFullReplicationFactor()).isEqualTo(5);
+        assertThat(deserialized.getTransientReplicationFactor()).isEqualTo(1);
+        assertThat(deserialized.hasTransientReplicas()).isTrue();
+        assertThat(deserialized.getOptions()).containsOnlyKeys("datacenter1", "datacenter2");
+        assertThat(deserialized.getTransientOptions()).containsOnlyKeys("datacenter1");
+        assertThat(deserialized).isEqualTo(original);
+    }
+
+    @Test
+    public void testPrecomputedValuesSurviveKryoSerialization()
+    {
+        ReplicationFactor original = new ReplicationFactor(ImmutableMap.of(
+        "class", "NetworkTopologyStrategy",
+        "datacenter1", "3/1",
+        "datacenter2", "3"));
+
+        Kryo kryo = new Kryo();
+        kryo.register(ReplicationFactor.class, new ReplicationFactor.Serializer());
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (Output out = new Output(bytes))
+        {
+            kryo.writeObject(out, original);
+        }
+        ReplicationFactor deserialized;
+        try (Input in = new Input(new ByteArrayInputStream(bytes.toByteArray())))
+        {
+            deserialized = kryo.readObject(in, ReplicationFactor.class);
+        }
+
+        assertThat(deserialized.getTotalReplicationFactor()).isEqualTo(6);
+        assertThat(deserialized.getFullReplicationFactor()).isEqualTo(5);
+        assertThat(deserialized.getOptions()).containsOnlyKeys("datacenter1", "datacenter2");
+        assertThat(deserialized.getTransientOptions()).containsOnlyKeys("datacenter1");
+    }
 }
