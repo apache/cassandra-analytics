@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Publish a snapshot artifact for every trunk commit (CASSANALYTICS-198)
  * CDC logs NPE for deleted column values (CASSANALYTICS-178)
  * Add Cassandra 6.0 support (CASSANALYTICS-37)
  * Eliminate redundant filesystem lookups in SSTable direct streaming (CASSANALYTICS-104)
