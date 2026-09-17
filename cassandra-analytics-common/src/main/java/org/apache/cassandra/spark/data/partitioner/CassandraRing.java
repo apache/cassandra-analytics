@@ -78,8 +78,8 @@ public class CassandraRing implements Serializable
     private static final long serialVersionUID = 2026082800000000001L;
 
     /**
-     * Incremented whenever the hand-rolled JDK serialization format below changes. Version 1 added the
-     * per-datacenter transient (witness) replica counts after the replication options.
+     * Incremented whenever the hand-rolled JDK serialization format below changes. Version 1 writes the
+     * ReplicationFactor as an object rather than destructuring it.
      */
     private static final byte SERIALIZATION_FORMAT_VERSION = 1;
 
@@ -283,20 +283,9 @@ public class CassandraRing implements Serializable
         this.partitioner = in.readByte() == 0 ? Partitioner.RandomPartitioner : Partitioner.Murmur3Partitioner;
         this.keyspace = in.readUTF();
 
-        ReplicationFactor.ReplicationStrategy strategy = ReplicationFactor.ReplicationStrategy.valueOf(in.readByte());
-        int optionCount = in.readByte();
-        Map<String, Integer> options = new HashMap<>(optionCount);
-        for (int option = 0; option < optionCount; option++)
-        {
-            options.put(in.readUTF(), (int) in.readByte());
-        }
-        int transientOptionCount = in.readByte();
-        Map<String, Integer> transientOptions = new HashMap<>(transientOptionCount);
-        for (int option = 0; option < transientOptionCount; option++)
-        {
-            transientOptions.put(in.readUTF(), (int) in.readByte());
-        }
-        this.replicationFactor = new ReplicationFactor(strategy, options, transientOptions);
+        // ReplicationFactor is Serializable, so it is written whole rather than destructured. That keeps this
+        // method independent of how ReplicationFactor represents its per-datacenter counts.
+        this.replicationFactor = (ReplicationFactor) in.readObject();
 
         int numInstances = in.readShort();
         this.instances = new ArrayList<>(numInstances);
@@ -314,21 +303,7 @@ public class CassandraRing implements Serializable
         out.writeByte(this.partitioner == Partitioner.RandomPartitioner ? 0 : 1);
         out.writeUTF(this.keyspace);
 
-        out.writeByte(this.replicationFactor.getReplicationStrategy().value);
-        Map<String, Integer> options = this.replicationFactor.getOptions();
-        out.writeByte(options.size());
-        for (Map.Entry<String, Integer> option : options.entrySet())
-        {
-            out.writeUTF(option.getKey());
-            out.writeByte(option.getValue());
-        }
-        Map<String, Integer> transientOptions = this.replicationFactor.getTransientOptions();
-        out.writeByte(transientOptions.size());
-        for (Map.Entry<String, Integer> option : transientOptions.entrySet())
-        {
-            out.writeUTF(option.getKey());
-            out.writeByte(option.getValue());
-        }
+        out.writeObject(this.replicationFactor);
 
         out.writeShort(this.instances.size());
         for (CassandraInstance instance : this.instances)
