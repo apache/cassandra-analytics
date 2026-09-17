@@ -32,7 +32,9 @@ public final class TestVersionSupplier
 
     public static Stream<CassandraVersion> testVersions()
     {
-        String versions = System.getProperty("cassandra.sidecar.versions_to_test", "4.0.17,5.0.7");
+        // Keep in sync with configureCdcTestTask in cassandra-analytics-cdc/build.gradle, which sets the same
+        // property; this default applies only outside Gradle, for example in an IDE
+        String versions = System.getProperty("cassandra.sidecar.versions_to_test", "4.0.17,5.0.7,6.0-alpha2");
         return Arrays.stream(versions.split(","))
                      .map(String::trim)
                      .map(v -> CassandraVersion.fromVersion(v).orElseThrow(() -> new IllegalArgumentException("Unsupported version: " + v)));
