@@ -69,6 +69,20 @@ public class CassandraRing implements Serializable
     private static final Logger LOGGER = LoggerFactory.getLogger(CassandraRing.class);
     public static final Serializer SERIALIZER = new Serializer();
 
+    /**
+     * Pinned so that the JDK serialization format change made when transient (witness) replica counts were added is
+     * detected. Without it the UID is computed from the class signature, which did not change - only the
+     * {@link #readObject}/{@link #writeObject} bodies did - so an older stream would be silently misread rather than
+     * rejected.
+     */
+    private static final long serialVersionUID = 2026082800000000001L;
+
+    /**
+     * Incremented whenever the hand-rolled JDK serialization format below changes. Version 1 writes the
+     * ReplicationFactor as an object rather than destructuring it.
+     */
+    private static final byte SERIALIZATION_FORMAT_VERSION = 1;
+
     private Partitioner partitioner;
     private String keyspace;
     private ReplicationFactor replicationFactor;
@@ -260,17 +274,18 @@ public class CassandraRing implements Serializable
     private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException
     {
         LOGGER.debug("Falling back to JDK deserialization");
+        byte formatVersion = in.readByte();
+        if (formatVersion != SERIALIZATION_FORMAT_VERSION)
+        {
+            throw new IOException(String.format("Unsupported CassandraRing serialization format version %d, expected %d",
+                                                formatVersion, SERIALIZATION_FORMAT_VERSION));
+        }
         this.partitioner = in.readByte() == 0 ? Partitioner.RandomPartitioner : Partitioner.Murmur3Partitioner;
         this.keyspace = in.readUTF();
 
-        ReplicationFactor.ReplicationStrategy strategy = ReplicationFactor.ReplicationStrategy.valueOf(in.readByte());
-        int optionCount = in.readByte();
-        Map<String, Integer> options = new HashMap<>(optionCount);
-        for (int option = 0; option < optionCount; option++)
-        {
-            options.put(in.readUTF(), (int) in.readByte());
-        }
-        this.replicationFactor = new ReplicationFactor(strategy, options);
+        // ReplicationFactor is Serializable, so it is written whole rather than destructured. That keeps this
+        // method independent of how ReplicationFactor represents its per-datacenter counts.
+        this.replicationFactor = (ReplicationFactor) in.readObject();
 
         int numInstances = in.readShort();
         this.instances = new ArrayList<>(numInstances);
@@ -284,17 +299,11 @@ public class CassandraRing implements Serializable
     private void writeObject(ObjectOutputStream out) throws IOException, ClassNotFoundException
     {
         LOGGER.debug("Falling back to JDK serialization");
+        out.writeByte(SERIALIZATION_FORMAT_VERSION);
         out.writeByte(this.partitioner == Partitioner.RandomPartitioner ? 0 : 1);
         out.writeUTF(this.keyspace);
 
-        out.writeByte(this.replicationFactor.getReplicationStrategy().value);
-        Map<String, Integer> options = this.replicationFactor.getOptions();
-        out.writeByte(options.size());
-        for (Map.Entry<String, Integer> option : options.entrySet())
-        {
-            out.writeUTF(option.getKey());
-            out.writeByte(option.getValue());
-        }
+        out.writeObject(this.replicationFactor);
 
         out.writeShort(this.instances.size());
         for (CassandraInstance instance : this.instances)
