@@ -235,7 +235,7 @@ public final class Sidecar
 
     public static SidecarInstance toSidecarInstance(CassandraInstance instance, int sidecarPort)
     {
-        return new SidecarInstanceImpl(instance.nodeName(), sidecarPort);
+        return new SidecarInstanceImpl(instance.nodeName(), sidecarPort, instance.sidecarInstanceId());
     }
 
     public static final class ClientConfig

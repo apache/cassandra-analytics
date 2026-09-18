@@ -1,5 +1,6 @@
 0.5.0
 -----
+ * Add sidecar.instance.id Spark conf to append an instanceId query parameter to outbound sidecar requests, fixing 421 errors when Sidecar is behind a load balancer; contact points can also declare their own per-instance id via a "host[:port]=<id>" suffix (CASSANALYTICS-177)
  * CDC logs NPE for deleted column values (CASSANALYTICS-178)
  * Add Cassandra 6.0 support (CASSANALYTICS-37)
  * Eliminate redundant filesystem lookups in SSTable direct streaming (CASSANALYTICS-104)

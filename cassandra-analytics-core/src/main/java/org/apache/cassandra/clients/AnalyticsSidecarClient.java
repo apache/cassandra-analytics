@@ -45,20 +45,7 @@ public class AnalyticsSidecarClient
         Vertx vertx = Vertx.vertx(new VertxOptions().setUseDaemonThread(true)
                                                     .setWorkerPoolSize(conf.getMaxHttpConnections()));
 
-        String userAgent = transportModeBasedWriterUserAgent(conf.getTransportInfo().getTransport());
-        HttpClientConfig httpClientConfig = new HttpClientConfig.Builder<>()
-                                            .timeoutMillis(conf.getHttpResponseTimeoutMs())
-                                            .idleTimeoutMillis(conf.getHttpConnectionTimeoutMs())
-                                            .userAgent(userAgent)
-                                            .keyStoreInputStream(conf.getKeyStore())
-                                            .keyStorePassword(conf.getKeyStorePassword())
-                                            .keyStoreType(conf.getKeyStoreTypeOrDefault())
-                                            .trustStoreInputStream(conf.getTrustStore())
-                                            .trustStorePassword(conf.getTrustStorePasswordOrDefault())
-                                            .trustStoreType(conf.getTrustStoreTypeOrDefault())
-                                            .ssl(conf.hasKeystoreAndKeystorePassword())
-                                            .cassandraRole(conf.getCassandraRole())
-                                            .build();
+        HttpClientConfig httpClientConfig = buildHttpClientConfig(conf);
 
         StartupValidator.instance().register(new SslValidation(conf));
         StartupValidator.instance().register(new BulkWriterKeyStoreValidation(conf));
@@ -72,6 +59,25 @@ public class AnalyticsSidecarClient
                                .build();
 
         return Sidecar.buildClient(sidecarConfig, vertx, httpClientConfig, sidecarInstancesProvider);
+    }
+
+    static HttpClientConfig buildHttpClientConfig(BulkSparkConf conf)
+    {
+        String userAgent = transportModeBasedWriterUserAgent(conf.getTransportInfo().getTransport());
+        return new HttpClientConfig.Builder<>()
+               .timeoutMillis(conf.getHttpResponseTimeoutMs())
+               .idleTimeoutMillis(conf.getHttpConnectionTimeoutMs())
+               .userAgent(userAgent)
+               .keyStoreInputStream(conf.getKeyStore())
+               .keyStorePassword(conf.getKeyStorePassword())
+               .keyStoreType(conf.getKeyStoreTypeOrDefault())
+               .trustStoreInputStream(conf.getTrustStore())
+               .trustStorePassword(conf.getTrustStorePasswordOrDefault())
+               .trustStoreType(conf.getTrustStoreTypeOrDefault())
+               .ssl(conf.hasKeystoreAndKeystorePassword())
+               .cassandraRole(conf.getCassandraRole())
+               .instanceId(conf.getSidecarInstanceId())
+               .build();
     }
 
     static String transportModeBasedWriterUserAgent(DataTransport transport)

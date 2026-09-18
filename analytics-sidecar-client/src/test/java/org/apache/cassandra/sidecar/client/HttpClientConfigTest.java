@@ -23,6 +23,7 @@ import java.io.InputStream;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -158,5 +159,41 @@ class HttpClientConfigTest
     {
         HttpClientConfig config = new HttpClientConfig.Builder<>().cassandraRole("custom_role").build();
         assertThat(config.cassandraRole()).isEqualTo("custom_role");
+    }
+
+    @Test
+    void testInstanceIdDefaultIsNull()
+    {
+        HttpClientConfig config = new HttpClientConfig.Builder<>().build();
+        assertThat(config.instanceId()).isNull();
+    }
+
+    @Test
+    void testInstanceId()
+    {
+        HttpClientConfig config = new HttpClientConfig.Builder<>().instanceId(42).build();
+        assertThat(config.instanceId()).isEqualTo(42);
+    }
+
+    @Test
+    void testInstanceIdZeroIsAllowed()
+    {
+        HttpClientConfig config = new HttpClientConfig.Builder<>().instanceId(0).build();
+        assertThat(config.instanceId()).isEqualTo(0);
+    }
+
+    @Test
+    void testInstanceIdNullDisablesIt()
+    {
+        HttpClientConfig config = new HttpClientConfig.Builder<>().instanceId(null).build();
+        assertThat(config.instanceId()).isNull();
+    }
+
+    @Test
+    void testInstanceIdNegativeThrows()
+    {
+        assertThatThrownBy(() -> new HttpClientConfig.Builder<>().instanceId(-1))
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("instanceId must be greater than or equal to 0");
     }
 }

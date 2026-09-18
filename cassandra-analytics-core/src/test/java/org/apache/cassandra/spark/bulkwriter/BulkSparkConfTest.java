@@ -170,6 +170,46 @@ class BulkSparkConfTest
     }
 
     @Test
+    void testDefaultSidecarInstanceId()
+    {
+        assertThat(bulkSparkConf.getSidecarInstanceId()).isNull();
+    }
+
+    @Test
+    void testSidecarInstanceId()
+    {
+        sparkConf.set(BulkSparkConf.SIDECAR_INSTANCE_ID, "3");
+        assertThat(bulkSparkConf.getSidecarInstanceId()).isEqualTo(3);
+    }
+
+    @Test
+    void testSidecarInstanceIdZeroIsAllowed()
+    {
+        sparkConf.set(BulkSparkConf.SIDECAR_INSTANCE_ID, "0");
+        assertThat(bulkSparkConf.getSidecarInstanceId()).isEqualTo(0);
+    }
+
+    @Test
+    void testSidecarInstanceIdNegativeThrows()
+    {
+        sparkConf.set(BulkSparkConf.SIDECAR_INSTANCE_ID, "-1");
+        assertThatThrownBy(() -> bulkSparkConf.getSidecarInstanceId())
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Spark conf " + BulkSparkConf.SIDECAR_INSTANCE_ID
+                              + " must be a non-negative integer; got -1");
+    }
+
+    @Test
+    void testSidecarInstanceIdNonIntegerThrows()
+    {
+        sparkConf.set(BulkSparkConf.SIDECAR_INSTANCE_ID, "notanint");
+        assertThatThrownBy(() -> bulkSparkConf.getSidecarInstanceId())
+        .isExactlyInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("Spark conf " + BulkSparkConf.SIDECAR_INSTANCE_ID
+                              + " is not set to a valid integer string");
+    }
+
+    @Test
     void testDefaultSidecarPort()
     {
         bulkSparkConf = new BulkSparkConf(new SparkConf(), defaultOptions);

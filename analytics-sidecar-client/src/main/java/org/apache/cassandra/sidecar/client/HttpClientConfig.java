@@ -38,6 +38,7 @@ public class HttpClientConfig
     public static final String DEFAULT_TRUST_STORE_TYPE = "JKS";
     public static final String DEFAULT_KEY_STORE_TYPE = "PKCS12";
     public static final String DEFAULT_CASSANDRA_ROLE = null;
+    public static final Integer DEFAULT_INSTANCE_ID = null;
 
     private final long timeoutMillis;
     private final boolean ssl;
@@ -54,6 +55,7 @@ public class HttpClientConfig
     private final String keyStorePassword;
     private final String keyStoreType;
     private final String cassandraRole;
+    private final Integer instanceId;
 
     private HttpClientConfig(Builder<?> builder)
     {
@@ -72,6 +74,7 @@ public class HttpClientConfig
         keyStorePassword = builder.keyStorePassword;
         keyStoreType = builder.keyStoreType;
         cassandraRole = builder.cassandraRole;
+        instanceId = builder.instanceId;
     }
 
     /**
@@ -193,6 +196,15 @@ public class HttpClientConfig
     }
 
     /**
+     * @return the job-level sidecar instance identifier, or {@code null} to omit the {@code instanceId} query parameter
+     */
+    @Nullable
+    public Integer instanceId()
+    {
+        return instanceId;
+    }
+
+    /**
      * {@code HttpClient} builder static inner class.
      *
      * @param <T> the type of the Builder
@@ -214,6 +226,7 @@ public class HttpClientConfig
         private String keyStorePassword;
         private String keyStoreType = DEFAULT_KEY_STORE_TYPE;
         private String cassandraRole = DEFAULT_CASSANDRA_ROLE;
+        private Integer instanceId = DEFAULT_INSTANCE_ID;
 
         /**
          * @return a reference to itself
@@ -409,6 +422,26 @@ public class HttpClientConfig
         public T cassandraRole(String cassandraRole)
         {
             this.cassandraRole = cassandraRole;
+            return self();
+        }
+
+        /**
+         * Sets the {@code instanceId} query parameter appended to every outbound sidecar request,
+         * and returns a reference to this Builder enabling method chaining. Non-null values must
+         * be greater than or equal to {@code 0}.
+         *
+         * @param instanceId the {@code instanceId} to set, or {@code null} to disable it
+         * @return a reference to this Builder
+         */
+        public T instanceId(Integer instanceId)
+        {
+            // Re-validated in BulkSparkConf.getSidecarInstanceId() to surface a Spark-conf-specific
+            // error message early; keep this constraint (>= 0) in sync with that check.
+            if (instanceId != null && instanceId < 0)
+            {
+                throw new IllegalArgumentException("instanceId must be greater than or equal to 0");
+            }
+            this.instanceId = instanceId;
             return self();
         }
 
