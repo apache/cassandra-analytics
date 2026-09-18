@@ -26,17 +26,18 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.google.common.util.concurrent.Uninterruptibles;
 import org.junit.jupiter.params.provider.Arguments;
 
 import org.apache.cassandra.analytics.DataGenerationUtils;
 import org.apache.cassandra.analytics.ResiliencyTestBase;
 import org.apache.cassandra.analytics.TestConsistencyLevel;
+import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.distributed.api.IInstance;
 import org.apache.cassandra.distributed.api.IInstanceConfig;
@@ -60,16 +61,12 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
     Map<? extends IInstance, Set<String>> expectedInstanceData;
     List<IInstance> newNodes;
     List<String> removedNodeAddresses;
+    private final List<FutureTask<Void>> replacementStartups = new ArrayList<>();
 
     @Override
-    protected void beforeClusterProvisioning()
+    protected void afterSchemaInitialized()
     {
-        assumeTopologyChangeHooksSupported();
-    }
-
-    @Override
-    protected void afterClusterProvisioned()
-    {
+        prepareTopologyChange();
         assertThat(additionalNodesToStop()).isLessThan(cluster.size() - 1);
 
         IInstance seed = cluster.get(1);
@@ -105,7 +102,10 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
         for (IInstance newInstance : newNodes)
         {
             cluster.awaitRingState(newInstance, newInstance, "Joining");
-            cluster.awaitGossipStatus(newInstance, newInstance, "BOOT_REPLACE");
+            if (!usesTcm())
+            {
+                cluster.awaitGossipStatus(newInstance, newInstance, "BOOT_REPLACE");
+            }
 
             String newAddress = newInstance.config().broadcastAddress().getAddress().getHostAddress();
             Optional<ClusterUtils.RingInstanceDetails> replacementInstance = getMatchingInstanceFromRing(newInstance, newAddress);
@@ -124,6 +124,8 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
         {
             transitionalStateEnd.countDown();
         }
+
+        replacementStartups.forEach(startup -> awaitTopologyChange(startup, expectFailure));
 
         assertThat(newNodes).isNotNull();
         assertThat(removedNodeAddresses).isNotNull();
@@ -241,7 +243,7 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
                              },
                              remPort);
 
-            new Thread(() -> ClusterUtils.start(replacement, (properties) -> {
+            FutureTask<Void> startup = new FutureTask<>(() -> ClusterUtils.start(replacement, (properties) -> {
                 replacement.config().set("storage_port", remPort);
                 properties.with("cassandra.skip_schema_check", "true");
                 properties.with("cassandra.schema_delay_ms", String.valueOf(TimeUnit.SECONDS.toMillis(10L)));
@@ -252,9 +254,11 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
                 // This property tells cassandra that this new instance is replacing the node with
                 // address remAddress and port remPort
                 properties.with("cassandra.replace_address_first_boot", remAddress + ":" + remPort);
-            })).start();
+            }), null);
+            replacementStartups.add(startup);
+            new Thread(startup, "replacement-node-startup").start();
 
-            Uninterruptibles.awaitUninterruptibly(nodeStart, 2, TimeUnit.MINUTES);
+            TestUninterruptibles.awaitUninterruptiblyOrThrow(nodeStart, 2, TimeUnit.MINUTES);
             newNodes.add(replacement);
         }
         return newNodes;

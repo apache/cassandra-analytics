@@ -23,6 +23,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.util.concurrent.Uninterruptibles;
+
 import net.bytebuddy.ByteBuddy;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.dynamic.ClassFileLocator;
@@ -31,67 +33,58 @@ import net.bytebuddy.dynamic.loading.ClassLoadingStrategy;
 import net.bytebuddy.implementation.MethodDelegation;
 import net.bytebuddy.implementation.bind.annotation.SuperCall;
 import net.bytebuddy.pool.TypePool;
-import org.apache.cassandra.analytics.TestUninterruptibles;
 import org.apache.cassandra.distributed.api.Feature;
 import org.apache.cassandra.testing.ClusterBuilderConfiguration;
 
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-/**
- * Integration tests to validate bulk writes during multiple Cassandra instances joining the ring
- */
-class JoiningMultipleNodesTest extends JoiningSingleNodeTest
+class LegacyJoiningMultiDCSingleReplicatedFailureTest extends LegacyJoiningMultiDCSingleReplicatedTest
 {
-    @Override
-    protected boolean requiresConcurrentTopologyChanges()
-    {
-        return true;
-    }
-
     @Override
     protected void beforeClusterShutdown()
     {
-        completeTransitionsAndValidateWrites(BBHelperMultipleJoiningNodes.transitioningStateEnd,
-                                             singleDCTestInputs(),
-                                             false);
+        completeTransitionsAndValidateWrites(BBHelperMultiDCFailure.transitioningStateEnd,
+                                             multiDCTestInputs(),
+                                             true);
     }
 
     @Override
     protected ClusterBuilderConfiguration testClusterConfiguration()
     {
-        return clusterConfig().nodesPerDc(3)
-                              .newNodesPerDc(2)
+        return clusterConfig().nodesPerDc(5)
+                              .newNodesPerDc(1)
+                              .dcCount(2)
                               .requestFeature(Feature.NETWORK)
-                              .instanceInitializer(BBHelperMultipleJoiningNodes::install);
+                              .instanceInitializer(BBHelperMultiDCFailure::install);
     }
 
     @Override
     protected CountDownLatch transitioningStateStart()
     {
-        return BBHelperMultipleJoiningNodes.transitioningStateStart;
+        return BBHelperMultiDCFailure.transitioningStateStart;
     }
 
     /**
-     * ByteBuddy helper for multiple joining nodes
+     * ByteBuddy helper for multiple joining nodes failure
      */
-    public static class BBHelperMultipleJoiningNodes
+    public static class BBHelperMultiDCFailure
     {
         static final CountDownLatch transitioningStateStart = new CountDownLatch(2);
         static final CountDownLatch transitioningStateEnd = new CountDownLatch(2);
 
         public static void install(ClassLoader cl, Integer nodeNumber)
         {
-            // Test case involves 3 node cluster with a 2 joining nodes
-            // We intercept the joining of nodes (4, 5) to validate token ranges
-            if (nodeNumber > 3)
+            // Test case involves adding 2 nodes to a 10 node cluster (5 per DC)
+            // We intercept the bootstrap of nodes (11,12) to validate token ranges
+            if (nodeNumber > 10)
             {
                 TypePool typePool = TypePool.Default.of(cl);
                 TypeDescription description = typePool.describe("org.apache.cassandra.service.StorageService")
                                                       .resolve();
                 new ByteBuddy().rebase(description, ClassFileLocator.ForClassLoader.of(cl))
                                .method(named("bootstrap").and(takesArguments(2)))
-                               .intercept(MethodDelegation.to(BBHelperMultipleJoiningNodes.class))
+                               .intercept(MethodDelegation.to(BBHelperMultiDCFailure.class))
                                // Defer class loading until all dependencies are loaded
                                .make(TypeResolutionStrategy.Lazy.INSTANCE, typePool)
                                .load(cl, ClassLoadingStrategy.Default.INJECTION);
@@ -105,8 +98,8 @@ class JoiningMultipleNodesTest extends JoiningSingleNodeTest
             boolean result = orig.call();
             // trigger bootstrap start and wait until bootstrap is ready from test
             transitioningStateStart.countDown();
-            TestUninterruptibles.awaitUninterruptiblyOrThrow(transitioningStateEnd, 2, TimeUnit.MINUTES);
-            return result;
+            Uninterruptibles.awaitUninterruptibly(transitioningStateEnd, 2, TimeUnit.MINUTES);
+            throw new IllegalStateException("Unable to contact any seeds: ");
         }
     }
 }
