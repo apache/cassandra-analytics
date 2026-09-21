@@ -36,7 +36,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class RingInstance implements CassandraInstance, Serializable
 {
-    private static final long serialVersionUID = 4399143234683369652L;
+    private static final long serialVersionUID = 4399143234683369653L;
     private RingEntry ringEntry;
     private @Nullable String clusterId;
     private @Nullable Integer sidecarInstanceId;

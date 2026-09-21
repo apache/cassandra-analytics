@@ -253,10 +253,9 @@ public class VertxHttpClient implements HttpClient
                                                              sidecarInstance.hostname(),
                                                              request.requestURI());
 
-        // Prefer the id carried by the specific instance this request is being sent to, so requests
-        // fanned out across multiple instances each get the correct id. Fall back to the job-level
-        // id from the HTTP client config only when the instance does not carry its own.
-        Integer instanceId = sidecarInstance.instanceId() != null ? sidecarInstance.instanceId() : config.instanceId();
+        // Use the id resolved for the specific instance this request is being sent to, so requests
+        // fanned out across multiple instances each get the correct id.
+        Integer instanceId = sidecarInstance.instanceId();
         if (instanceId != null)
         {
             vertxRequest = vertxRequest.addQueryParam(INSTANCE_ID, String.valueOf(instanceId));

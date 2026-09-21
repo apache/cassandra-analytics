@@ -70,11 +70,11 @@ public class VertxHttpClientTest
     @Test
     public void testInstanceIdQueryParamAppended()
     {
-        HttpClientConfig config = httpClientConfigBuilder().instanceId(42).build();
+        HttpClientConfig config = httpClientConfigBuilder().build();
         try (VertxHttpClient client = new VertxHttpClient(vertx, config))
         {
             RequestContext context = new RequestContext.Builder().ringRequest().build();
-            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(), context);
+            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(42), context);
             assertThat(request.queryParams().get(INSTANCE_ID)).isEqualTo("42");
         }
     }
@@ -94,41 +94,16 @@ public class VertxHttpClientTest
     @Test
     public void testInstanceIdQueryParamAppendedWithExistingQueryParams()
     {
-        HttpClientConfig config = httpClientConfigBuilder().instanceId(7).build();
+        HttpClientConfig config = httpClientConfigBuilder().build();
         try (VertxHttpClient client = new VertxHttpClient(vertx, config))
         {
             Request mockRequest = mock(Request.class);
             when(mockRequest.method()).thenReturn(HttpMethod.GET);
             when(mockRequest.requestURI()).thenReturn("/api/v1/ring?existingParam=value");
             RequestContext context = new RequestContext.Builder().request(mockRequest).build();
-            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(), context);
+            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(7), context);
             assertThat(request.queryParams().get("existingParam")).isEqualTo("value");
             assertThat(request.queryParams().get(INSTANCE_ID)).isEqualTo("7");
-        }
-    }
-
-    @Test
-    public void testPerInstanceIdOverridesGlobalInstanceId()
-    {
-        HttpClientConfig config = httpClientConfigBuilder().instanceId(1).build();
-        try (VertxHttpClient client = new VertxHttpClient(vertx, config))
-        {
-            RequestContext context = new RequestContext.Builder().ringRequest().build();
-            // The instance carries its own id (3), which must win over the job-level id (1).
-            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(3), context);
-            assertThat(request.queryParams().get(INSTANCE_ID)).isEqualTo("3");
-        }
-    }
-
-    @Test
-    public void testPerInstanceIdUsedWhenGlobalInstanceIdIsNull()
-    {
-        HttpClientConfig config = httpClientConfigBuilder().build();
-        try (VertxHttpClient client = new VertxHttpClient(vertx, config))
-        {
-            RequestContext context = new RequestContext.Builder().ringRequest().build();
-            HttpRequest<Buffer> request = client.vertxRequest(mockInstance(5), context);
-            assertThat(request.queryParams().get(INSTANCE_ID)).isEqualTo("5");
         }
     }
 

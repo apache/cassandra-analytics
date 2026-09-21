@@ -40,9 +40,9 @@ public class SidecarInstanceFactory
      * Create SidecarInstance object by parsing the input string, which is IP address or hostname and optionally includes port
      * <p>The input may also carry an optional per-instance id as a trailing {@code "=<id>"} suffix, e.g.
      * {@code "host:9043=2"}. The id identifies which local Cassandra instance the receiving Sidecar should route
-     * requests to; it is used to populate the {@code instanceId} query parameter per instance instead of relying on a
-     * single job-level value. {@code '='} cannot appear in a hostname, IPv4/IPv6 address or port, so the suffix is
-     * unambiguous. When absent, requests fall back to the job-level {@code instanceId}, if any.
+     * requests to; it is used to populate the {@code instanceId} query parameter per instance. {@code '='} cannot
+     * appear in a hostname, IPv4/IPv6 address or port, so the suffix is unambiguous. When absent, no per-instance
+     * {@code instanceId} is sent for that instance (unless Sidecar reports one for it in the ring/token-range response).
      * @param input hostname string that can optionally includes the port. If port is present, the defaultPort param is ignored.
      * @param defaultPort port value used when the input string contains no port
      * @return SidecarInstanceImpl

@@ -498,7 +498,6 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
                                  this::getPartitioner,
                                  metadata -> new RingInstance(metadata, clusterId(),
                                                               resolveSidecarInstanceId(metadata, instanceIdsByHostname)));
-        validateSidecarInstanceIdCoverage(topology.allInstances());
         return topology;
     }
 
@@ -542,51 +541,6 @@ public class CassandraClusterInfo implements ClusterInfo, Closeable
         return contactPoints.stream()
                             .filter(instance -> instance.instanceId() != null)
                             .collect(Collectors.toMap(SidecarInstance::hostname, SidecarInstance::instanceId));
-    }
-
-    /**
-     * Guards against the data-correctness risk of a single job-level {@code instanceId} (see
-     * {@link BulkSparkConf#SIDECAR_INSTANCE_ID}) being stamped uniformly onto requests fanned out across more than
-     * one real Cassandra instance. That is only correct when every instance in the ring resolves its own id (see
-     * {@link #resolveSidecarInstanceId}); otherwise requests to the unresolved instances would be silently
-     * misrouted to whichever instance the global id happens to identify.
-     *
-     * <p>Since {@link #resolveSidecarInstanceId} prefers the id Sidecar reports per replica, this also covers
-     * multiple distinct Cassandra instances reachable only through a shared address (several instances behind
-     * the same load-balancer endpoint, or one Sidecar managing more than one local instance on the same host),
-     * as long as Sidecar populates {@link ReplicaMetadata#sidecarInstanceId()}. Only when falling back to the
-     * static {@link #sidecarInstanceIdsByHostname} lookup (older Sidecar) does that topology remain unresolvable.
-     *
-     * @param instances the distinct instances discovered from the live ring
-     */
-    @VisibleForTesting
-    void validateSidecarInstanceIdCoverage(Set<RingInstance> instances)
-    {
-        Integer globalInstanceId = conf.getSidecarInstanceId();
-        if (globalInstanceId == null || instances.size() <= 1)
-        {
-            return;
-        }
-
-        List<String> unresolvedInstances = instances.stream()
-                                                     .filter(instance -> instance.sidecarInstanceId() == null)
-                                                     .map(RingInstance::nodeName)
-                                                     .sorted()
-                                                     .collect(Collectors.toList());
-        if (!unresolvedInstances.isEmpty())
-        {
-            throw new IllegalStateException(
-            String.format("Ambiguous Sidecar instanceId configuration: Spark conf %s=%d would be applied uniformly "
-                          + "to %d/%d ring instances that have no per-instance id configured (%s). This misroutes "
-                          + "requests whenever a single Sidecar endpoint fronts more than one of these instances "
-                          + "(for example, behind a load balancer). If every instance is reachable at its own "
-                          + "distinct address, configure a per-instance id for each one using the host[:port]=<id> "
-                          + "syntax in %s. If instead multiple instances share the same address (e.g. behind one "
-                          + "load-balancer endpoint), per-instance ids cannot currently be expressed this way — "
-                          + "that requires a Sidecar-side fix to report each instance's id in the ring response.",
-                          BulkSparkConf.SIDECAR_INSTANCE_ID, globalInstanceId, unresolvedInstances.size(), instances.size(),
-                          unresolvedInstances, WriterOptions.SIDECAR_CONTACT_POINTS.name()));
-        }
     }
 
     public String getVersionFromFeature()
