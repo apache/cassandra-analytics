@@ -1,0 +1,70 @@
+import java.nio.file.Paths
+
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+plugins {
+    id('java-library')
+    id('com.github.johnrengelman.shadow')
+}
+
+dependencies {
+    implementation(group: 'org.apache.cassandra', name: 'cassandra-all', version: "$cassandra60Version") {
+        // Exclude JNA libraries from the cassandra-all dependency tree because Spark has its own version
+        // and trying to load two different versions causes issues with the native libraries
+        exclude(group: 'net.java.dev.jna')
+        exclude(group: 'org.xerial.snappy', module: 'snappy-java')
+
+        // zstd causes dependency/classpath issues running in Spark if e.g. a user is using zstd to write compressed output file
+        // Spark already pulls in zstd so we can exclude here.
+        // NOTE: Cassandra 6.0 dictionary compression needs zstd-jni at runtime; it is supplied by Spark.
+        // Every zstd-jni method the read path calls exists from 1.5.0-4, which is the oldest version Spark
+        // ships. Cassandra itself declares 1.5.7-2, needed only by ZstdDictionaryTrainer, which trains a new
+        // dictionary and which no bridge calls.
+        exclude(group: 'com.github.luben', module: 'zstd-jni')
+    }
+}
+
+jar {
+    enabled = false
+}
+
+shadowJar {
+    archiveFileName = 'six-zero.jar'  // Must match label in CassandraVersion (without extension)
+    zip64 = true
+
+    exclude('META-INF/maven/org/apache/logging/**')
+    exclude('META-INF/maven/org.apache.logging.log4j/**')
+    exclude('META-INF/maven/org.slf4j/**')
+    exclude('com/fasterxml/jackson/**')
+    exclude('net/openhft/chronicle/wire/**')
+    exclude('org/jboss/byteman/**')
+    exclude('org/junit/**')
+    exclude('org/quicktheories/**')
+    exclude('org/slf4j/**')
+    exclude('org/apache/commons/lang3/**')
+
+    // The four-zero and five-zero jars exclude com/google/common/collect/Range*, so that every bridge shares
+    // one Guava Range class with the caller. This jar keeps Range, because Cassandra 6.0 reads the
+    // package-private members of Range from Cut, TreeRangeSet, ImmutableRangeSet and CollectCollectors, on
+    // the path ClusteringElements.all -> ClusteringColumnRestrictions.slices, which the earlier versions do
+    // not have. Those classes exist only in a recent Guava, so the parent class loader cannot supply them,
+    // and a split between the two class loaders throws IllegalAccessError. No class of the six-zero bridge
+    // names Guava Range: the bridge API carries org.apache.cassandra.bridge.TokenRange for that reason.
+}

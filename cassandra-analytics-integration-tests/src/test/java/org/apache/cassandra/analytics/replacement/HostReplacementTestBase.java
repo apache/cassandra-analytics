@@ -62,6 +62,12 @@ abstract class HostReplacementTestBase extends ResiliencyTestBase
     List<String> removedNodeAddresses;
 
     @Override
+    protected void beforeClusterProvisioning()
+    {
+        assumeTopologyChangeHooksSupported();
+    }
+
+    @Override
     protected void afterClusterProvisioned()
     {
         assertThat(additionalNodesToStop()).isLessThan(cluster.size() - 1);

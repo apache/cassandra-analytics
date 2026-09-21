@@ -452,6 +452,7 @@ public final class TableSchemaTestCommon
         {
             switch (cassandraVersion.charAt(0))
             {
+                case '6':
                 case '5':
                 case '4':
                     return "ZstdCompressor";
