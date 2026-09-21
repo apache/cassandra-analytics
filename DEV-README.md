@@ -27,7 +27,8 @@ This project uses Gradle as the dependency management and build framework.
 ## Dependencies
 This library depends on both the [Cassandra Sidecar](https://github.com/apache/cassandra-sidecar) (test and production)
 and shaded in-jvm dtest jars from [Cassandra](https://github.com/apache/cassandra) (testing only).
-Because these artifacts are not published by the Cassandra project, we have provided a script to build them locally.
+Because the dtest jars are not published by the Cassandra project, we have provided a script to build them locally.
+The Sidecar artifacts are resolved from a release, named by `sidecarVersion` in `gradle.properties`.
 
 NOTE: If you are working on multiple projects that depend on the Cassandra Sidecar and in-jvm dtest dependencies,
 you can share those artifacts by setting the `CASSANDRA_DEP_DIR` environment variable to a shared directory
@@ -39,16 +40,68 @@ In order to build the necessary dependencies, please run the following:
 CASSANDRA_USE_JDK11=true ./scripts/build-dependencies.sh
 ```
 
-This will build both the necessary dtest jars and the sidecar libraries/package necessary for build and test.
-You can also skip either the dtest jar build or the sidecar build by setting the following 
-environment variables to `true`:
+This will build the necessary dtest jars for build and test.
+You can skip the dtest jar build by setting the following environment variable to `true`:
 
 ```shell
-SKIP_DTEST_JAR_BUILD=true SKIP_SIDECAR_BUILD=true ./scripts/build-dependencies.sh
+SKIP_DTEST_JAR_BUILD=true ./scripts/build-dependencies.sh
 ```
 
 Note that `build-dependencies.sh` attempts to pull the latest from branches specified in the `BRANCHES` environment
-variable for Cassandra dtest jars, and trunk for the sidecar.
+variable for Cassandra dtest jars.
+
+### Locally built Sidecar
+
+To test against Sidecar changes that are not released yet, build the Sidecar artifacts yourself with
+`scripts/build-sidecar.sh` and point `sidecarVersion` at them. From a local checkout:
+
+```shell
+LOCAL_SIDECAR_REPO=/PATH/TO/cassandra-sidecar ./scripts/build-sidecar.sh
+./gradlew -PsidecarVersion=1.0.0-analytics :cassandra-analytics-integration-tests:test
+```
+
+Without `LOCAL_SIDECAR_REPO` the script clones `SIDECAR_REPO` (default `apache/cassandra-sidecar`) at
+`SIDECAR_COMMIT`/`SIDECAR_BRANCH`, builds it, and deletes the clone again. A local checkout is never
+modified or deleted. Set `SKIP_SIDECAR_BUILD=true` to make the script a no-op.
+
+The artifacts are published into the `dependencies` directory (or `CASSANDRA_DEP_DIR`) under
+`SIDECAR_BUILD_VERSION`, which defaults to `1.0.0-analytics`. This is intentionally a version that
+exists only locally: the Maven Central and Artifactory repositories are declared ahead of the
+`dependencies` repository, so publishing under a version that also exists remotely means the remote
+artifact wins and the local build is silently ignored. Pass the version explicitly with
+`-PsidecarVersion` rather than relying on resolution order.
+
+The `dependencies` directory is declared as a local file repository (`build.gradle:232-238`), and Gradle
+references artifacts from such a repository **in place** rather than copying them into
+`~/.gradle/caches`. Re-running the script at the same version is therefore picked up by the next build
+with no `--refresh-dependencies` and no version bump - verified by replacing a jar in place and
+re-resolving, which returns the new content. Use `--refresh-dependencies` only if the set of dependency
+coordinates changed, not merely their bytes.
+
+To confirm which copy a test JVM actually loaded, ask the class itself rather than reasoning about
+resolution:
+
+```java
+System.out.println(SomeSidecarClass.class.getProtectionDomain().getCodeSource().getLocation());
+```
+
+or run the test with `-Xlog:class+load=info` and grep the output for the class name.
+
+### Locally built `cassandra-all`
+
+For integration testing from a commit in Cassandra, a dtest jar built from the commit only replaces Cassandra on server 
+side, the tests run against; the read/write bridges are compiled against the `cassandra-all` artifacts named by 
+`cassandra40Version`/`cassandra50Version`/`cassandra60Version` in `gradle.properties`. When dtest jar is pinned to a commit 
+that changes for e.g. the SSTable format, the SSTables the bulk writer produces can no longer be imported into cluster under test. 
+
+`build-dtest-jars.sh` therefore also builds and installs `cassandra-all` for the branches listed in
+`CASSANDRA_ALL_BRANCHES` (`cassandra-6.0`), into the `dependencies` directory, using the version string
+from `gradle.properties`. Nothing is installed while that version matches the branch's own `base.version`, because the
+release on Maven Central is then the right artifact. To skip the extra build:
+
+```shell
+SKIP_CASSANDRA_ALL_BUILD=true ./scripts/build-dependencies.sh
+```
 
 ### Locally built `cassandra-all`
 
