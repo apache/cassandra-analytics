@@ -78,6 +78,8 @@ public enum CassandraVersion
             new String[] {
             // Cassandra 6.0 native sstable versions
             "big-pa",
+            // Version introduced with MT
+            "big-pb",
             "bti-ea",
             }, 40);
 
