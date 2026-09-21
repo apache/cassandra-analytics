@@ -82,6 +82,7 @@ public class RecordWriter
     private final Path baseDir;
 
     private final CqlTable cqlTable;
+    private final boolean isTrackedKeyspace;
     private StreamSession<?> streamSession = null;
 
     /**
@@ -116,6 +117,7 @@ public class RecordWriter
                                                                taskContextSupplier.get());
 
         writerContext.cluster().startupValidate();
+        this.isTrackedKeyspace = writerContext.bridge().isTracked(writerContext.cluster().getReplicationType());
         cqlTable = writerContext.bridge()
                                 .buildSchema(writerContext.schema().getTableSchema().createStatement,
                                              writerContext.job().qualifiedTableName().keyspace(),
@@ -149,7 +151,11 @@ public class RecordWriter
                     initialTokenRangeMapping.pendingInstances().size());
 
         writeValidator.setPhase("Environment Validation");
-        writeValidator.validateClOrFail(initialTokenRangeMapping);
+        // Tracked keyspaces only need one healthy replica per range to coordinate the transfer, so they are validated
+        // against coordinator availability rather than the job's consistency level. This call is also what records
+        // unavailable instances in the failure handler, which TrackedDirectStreamSession#getReplicas() relies on to
+        // avoid picking a down coordinator -- do not skip it for the tracked path.
+        writeValidator.validateEnvironmentOrFail(initialTokenRangeMapping, isTrackedKeyspace);
         writeValidator.setPhase("UploadAndCommit");
         writerContext.cluster().validateTimeSkew(taskTokenRange);
 

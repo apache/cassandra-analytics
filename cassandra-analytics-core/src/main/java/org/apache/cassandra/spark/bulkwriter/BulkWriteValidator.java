@@ -20,9 +20,11 @@
 package org.apache.cassandra.spark.bulkwriter;
 
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import com.google.common.collect.Range;
 import org.slf4j.Logger;
@@ -31,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.apache.cassandra.spark.bulkwriter.token.ReplicaAwareFailureHandler;
 import org.apache.cassandra.spark.bulkwriter.token.TokenRangeMapping;
 import org.apache.cassandra.spark.exception.ConsistencyNotSatisfiedException;
+import org.apache.cassandra.spark.exception.CoordinatorNotAvailableException;
 
 /**
  * A validator for bulk write result against the target cluster(s).
@@ -76,6 +79,38 @@ public class BulkWriteValidator
             logger.error(message);
             throw new ConsistencyNotSatisfiedException(message);
         }
+    }
+
+    /**
+     * Validates that the upload and commit to coordinator succeeded, Cassandra's coordinated transfer takes care of
+     * consistency level validation internally once the coordinator accepts the import.
+     * <p>
+     * Note validation is scoped to a single coordinator and range, unlike {@code validateClOrFail} does not validate
+     * for entire ring.
+     */
+    public static void validateCoordinatorWriteSucceeded(Range<BigInteger> tokenRange,
+                                                         List<StreamError> streamErrors,
+                                                         List<CommitResult> commitResults,
+                                                         Logger logger,
+                                                         String phase,
+                                                         JobInfo job)
+    {
+        List<String> failureMessages = new ArrayList<>();
+        streamErrors.forEach(error -> failureMessages.add(
+        String.format("upload to %s failed: %s", error.instance.nodeName(), error.errMsg)));
+        commitResults.forEach(commitResult -> commitResult.failures.forEach((uuid, err) -> failureMessages.add(
+        String.format("commit on %s failed: %s", commitResult.instance.nodeName(), err.errMsg))));
+
+        if (failureMessages.isEmpty())
+        {
+            logger.info("Succeeded {} for tracked keyspace range {} for job {}", phase, tokenRange, job.getId());
+            return;
+        }
+
+        String message = String.format("Failed to write tracked keyspace range %s for job %s in phase %s. %s",
+                                       tokenRange, job.getId(), phase, failureMessages);
+        logger.error(message);
+        throw new ConsistencyNotSatisfiedException(message);
     }
 
     public String getPhase()
@@ -140,6 +175,25 @@ public class BulkWriteValidator
         failureHandler.addFailure(failedRange, instance, reason);
     }
 
+    /**
+     * Performs environment validation before bulk write. For untracked keyspaces, checks enough replicas are available
+     * per range to satisfy requested CL. For tracked keyspaces checks one healthy node is available per range to act
+     * as coordinator for bulk transfer.
+     */
+    public void validateEnvironmentOrFail(TokenRangeMapping<RingInstance> tokenRangeMapping, boolean isTrackedKeyspace)
+    {
+        updateInstanceAvailability();
+
+        if (isTrackedKeyspace)
+        {
+            validateCoordinatorAvailableOrFail(tokenRangeMapping, failureHandler, LOGGER, phase, job);
+        }
+        else
+        {
+            validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, phase, job, cluster);
+        }
+    }
+
     public void validateClOrFail(TokenRangeMapping<RingInstance> tokenRangeMapping)
     {
         validateClOrFail(tokenRangeMapping, true);
@@ -154,6 +208,41 @@ public class BulkWriteValidator
         }
         // Fails if the failures violate consistency requirements
         validateClOrFail(tokenRangeMapping, failureHandler, LOGGER, phase, job, cluster);
+    }
+
+    /**
+     * Validates that for every token range at least one instance is available to act as the coordinator for bulk transfer
+     *
+     * @throws CoordinatorNotAvailableException if any token range has no available replica to coordinate the transfer
+     */
+    public static void validateCoordinatorAvailableOrFail(TokenRangeMapping<RingInstance> tokenRangeMapping,
+                                                          ReplicaAwareFailureHandler<RingInstance> failureHandler,
+                                                          Logger logger,
+                                                          String phase,
+                                                          JobInfo job)
+    {
+        Set<RingInstance> failedInstances = failureHandler.getFailedInstances();
+        List<Range<BigInteger>> rangesWithoutCoordinator = new ArrayList<>();
+        tokenRangeMapping.getRangeMap().asMapOfRanges().forEach((range, replicas) -> {
+            if (failedInstances.containsAll(replicas))
+            {
+                rangesWithoutCoordinator.add(range);
+            }
+        });
+
+        if (rangesWithoutCoordinator.isEmpty())
+        {
+            logger.info("Succeeded {} for tracked keyspace; every token range has an available coordinator candidate",
+                        phase);
+            return;
+        }
+
+        String message = String.format("Failed to write %s ranges for job %s in phase %s. "
+                                       + "No available coordinator candidate for tracked ranges %s; "
+                                       + "all replicas of these ranges are unavailable.",
+                                       rangesWithoutCoordinator.size(), job.getId(), phase, rangesWithoutCoordinator);
+        logger.error(message);
+        throw new CoordinatorNotAvailableException(message);
     }
 
     private void updateInstanceAvailability()

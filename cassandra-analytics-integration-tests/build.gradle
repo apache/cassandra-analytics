@@ -60,6 +60,10 @@ configurations {
 
 dependencies {
     testImplementation(project(':cassandra-analytics-core'))
+    // Tests that call the Sidecar endpoints directly (e.g. SSTableImportTrackedTableTest) need the shaded Sidecar
+    // client on the compile classpath. cassandra-analytics-core depends on it as `implementation`, so the classes are
+    // only on the test *runtime* classpath without this.
+    testImplementation(project(':cassandra-analytics-sidecar-client'))
     testImplementation(group: 'net.java.dev.jna', name: 'jna', version: '5.9.0')
     testImplementation(group: 'org.quicktheories', name: 'quicktheories', version: "${project.rootProject.quickTheoriesVersion}")
 
