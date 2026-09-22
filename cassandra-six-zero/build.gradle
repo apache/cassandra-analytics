@@ -24,7 +24,36 @@ plugins {
     id('com.github.johnrengelman.shadow')
 }
 
+// A cassandra-all built by scripts/install-cassandra-all-local.sh is served only by the local
+// repository under dependencies/, not by Maven Central. Declaring that exclusively keeps the
+// resolution independent of repository order, and avoids asking Central for a version it cannot have.
+def locallyBuiltCassandraAll = file("${rootProject.ext.dependencyLocation}org/apache/cassandra" +
+                                    "/cassandra-all/${cassandra60Version}/cassandra-all-${cassandra60Version}.pom")
+if (locallyBuiltCassandraAll.exists()) {
+    println("Using locally built cassandra-all ${cassandra60Version} from ${rootProject.ext.dependencyLocation}")
+    repositories {
+        exclusiveContent {
+            forRepository {
+                mavenLocal {
+                    name = 'localCassandraBuild'
+                    url = uri(rootProject.ext.dependencyLocation)
+                }
+            }
+            filter {
+                includeVersion('org.apache.cassandra', 'cassandra-all', "${cassandra60Version}")
+                includeVersion('org.apache.cassandra', 'cassandra-parent', "${cassandra60Version}")
+                // cassandra-all depends on cassandra-accord, which the accord submodule publishes from the
+                // same commit and under the same version, so it is only in the local repository.
+                includeVersion('org.apache.cassandra', 'cassandra-accord', "${cassandra60Version}")
+            }
+        }
+    }
+}
+
 dependencies {
+    // cassandra60Version points to a commit from cep-45 branch rather than a Maven Central release, because the
+    // SSTables this bridge writes have to be readable by the cluster under test. When that version cannot be resolved,
+    // run scripts/build-dependencies.sh (or scripts/install-cassandra-all-local.sh) to build and install it - see gradle.properties.
     implementation(group: 'org.apache.cassandra', name: 'cassandra-all', version: "$cassandra60Version") {
         // Exclude JNA libraries from the cassandra-all dependency tree because Spark has its own version
         // and trying to load two different versions causes issues with the native libraries

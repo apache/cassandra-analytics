@@ -50,6 +50,13 @@ else
     "cassandra-6.0:2af323f09d4ed324d36e6fcf20604d789fb5a99a"
   )
   BRANCHES=( ${BRANCHES:-cassandra-4.0 cassandra-4.1 cassandra-5.0 cassandra-6.0} )
+  # Branches whose cassandra-all artifact is also built from the pinned commit-ish and installed
+  # locally. A dtest jar only replaces the server side, for e.g. a pin that changes the SSTable format also
+  # needs the writer bridge built from the same commit, or the SSTables the bulk writer produces cannot be imported
+  # by the cluster under test. The install is a no-op while gradle.properties still points at a released version -
+  # see scripts/install-cassandra-all-local.sh and cassandra60Version in gradle.properties. Set
+  # SKIP_CASSANDRA_ALL_BUILD=true to opt out.
+  CASSANDRA_ALL_BRANCHES=( ${CASSANDRA_ALL_BRANCHES:-cassandra-6.0} )
   echo ${BRANCHES[*]}
   REPO=${REPO:-"https://github.com/apache/cassandra.git"}
   SCRIPT_DIR=$( dirname -- "$( readlink -f -- "$0"; )"; )
@@ -60,6 +67,7 @@ else
   if [[ "$CLEAN" == "true" ]]; then
     echo "Clean up $DTEST_JAR_DIR"
     rm -rf "$DTEST_JAR_DIR/cassandra-build"
+    rm -rf "$DTEST_JAR_DIR/org"
     rm "$DTEST_JAR_DIR"/dtest*.jar
 exit 0
   fi
@@ -125,6 +133,13 @@ exit 0
     if [ "${RETURN}" -ne "0" ]; then
         echo "Build failed with exit code: ${RETURN}"
         exit ${RETURN}
+    fi
+
+    # Build the writer side from the same commit-ish for branches that need it. Runs while the source
+    # tree is still checked out, and does nothing unless gradle.properties asks for a version that is
+    # not the released one.
+    if [[ "${CASSANDRA_ALL_BRANCHES[*]}" =~ ${branch} ]] && [ "${SKIP_CASSANDRA_ALL_BUILD}" != "true" ]; then
+        "${SCRIPT_DIR}/install-cassandra-all-local.sh" "$(pwd)" "${branch}" "${DTEST_JAR_DIR}"
     fi
   done
   # always delete the Cassandra source after dtest.jar is built to avoid confusing IDE
