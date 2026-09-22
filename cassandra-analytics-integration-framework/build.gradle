@@ -89,6 +89,10 @@ dependencies {
         // kafka-avro-serializer is only needed when sidecar publishes CDC events to a
         // Schema-Registry-backed Kafka topic, which our in-jvm integration tests do not exercise.
         exclude(group: 'io.confluent')
+        // Sidecar pulls in a published cassandra-analytics-core whose _spark<N>_<scala> artifactId
+        // does not match project.name, so Gradle cannot dedupe it against the local project and a
+        // stale copy of every class lingers on the classpath.
+        exclude(group: 'org.apache.cassandra', module: 'cassandra-analytics-core_spark3_2.12')
     }
     api(group: 'org.apache.cassandra', name: 'sidecar-server-common', version: "${sidecarVersion}")
 }
