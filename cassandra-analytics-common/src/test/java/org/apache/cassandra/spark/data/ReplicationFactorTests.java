@@ -396,27 +396,25 @@ public class ReplicationFactorTests
     @Test
     public void testKryoRejectsUnknownSerializationFormatVersion()
     {
-        ReplicationFactor original = new ReplicationFactor(ImmutableMap.of(
-        "class", "NetworkTopologyStrategy",
-        "datacenter1", "3/1"));
-
-        Kryo kryo = new Kryo();
-        kryo.register(ReplicationFactor.class, new ReplicationFactor.Serializer());
+        // Hand-build a stream whose leading version byte is one this reader does not know, then read it through
+        // the serializer directly. Not via kryo.writeObject/readObject, which wrap the payload in their own
+        // reference header - corrupting byte 0 of that would test Kryo's framing rather than our version check.
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         try (Output out = new Output(bytes))
         {
-            kryo.writeObject(out, original);
+            out.writeByte(99);
+            out.writeByte(ReplicationFactor.ReplicationStrategy.NetworkTopologyStrategy.value);
+            out.writeByte(1);
+            out.writeString("datacenter1");
+            out.writeByte(3);
+            out.writeByte(1);
         }
 
-        // Corrupt the leading format-version byte. Without the version marker an older stream would not fail
-        // here at all - the reader would consume the next datacenter's string-length byte as a transient count
-        // and silently return wrong replication factors.
-        byte[] raw = bytes.toByteArray();
-        raw[0] = (byte) (raw[0] + 1);
-
-        try (Input in = new Input(new ByteArrayInputStream(raw)))
+        Kryo kryo = new Kryo();
+        ReplicationFactor.Serializer serializer = new ReplicationFactor.Serializer();
+        try (Input in = new Input(new ByteArrayInputStream(bytes.toByteArray())))
         {
-            assertThatThrownBy(() -> kryo.readObject(in, ReplicationFactor.class))
+            assertThatThrownBy(() -> serializer.read(kryo, in, ReplicationFactor.class))
             .isInstanceOf(IllegalStateException.class)
             .hasMessageContaining("Unsupported ReplicationFactor Kryo serialization format version");
         }

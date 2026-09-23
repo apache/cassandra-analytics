@@ -482,7 +482,7 @@ public class ReplicationFactor implements Serializable
             int separator = trimmed.indexOf(TRANSIENT_SEPARATOR);
             if (separator < 0)
             {
-                return of(null, Integer.parseInt(trimmed), 0);
+                return of(Integer.parseInt(trimmed), 0);
             }
 
             if (trimmed.indexOf(TRANSIENT_SEPARATOR, separator + 1) >= 0)
@@ -491,8 +491,7 @@ public class ReplicationFactor implements Serializable
                 "Replication factor format is <replicas> or <replicas>/<transient>, found '%s'", value));
             }
 
-            return of(null,
-                      Integer.parseInt(trimmed.substring(0, separator).trim()),
+            return of(Integer.parseInt(trimmed.substring(0, separator).trim()),
                       Integer.parseInt(trimmed.substring(separator + 1).trim()));
         }
 
@@ -564,8 +563,13 @@ public class ReplicationFactor implements Serializable
          * yielding wrong replication factors rather than an error. Kryo is the path Spark uses to ship this to
          * executors, so it gets the same protection as the hand-rolled JDK format in
          * {@link org.apache.cassandra.spark.data.partitioner.CassandraRing}.
+         * <p>
+         * Deliberately outside the {@link ReplicationStrategy#value} range. A pre-versioning stream begins with
+         * the strategy value, so a version of 0-2 could be mistaken for a valid marker - notably
+         * {@code SimpleStrategy(1)} - and the stream would misparse anyway. This cannot make an unmarked stream
+         * safe in general, but it does stop one from being accepted as version 1.
          */
-        private static final byte SERIALIZATION_FORMAT_VERSION = 1;
+        private static final byte SERIALIZATION_FORMAT_VERSION = 0x7F;
 
         @Override
         public void write(Kryo kryo, Output out, ReplicationFactor replicationFactor)
